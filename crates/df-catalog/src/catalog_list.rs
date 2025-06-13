@@ -171,11 +171,11 @@ impl EmbucketCatalogList {
                 volume.arn.as_str(),
                 ObjectStoreBuilder::S3(volume.s3_builder()),
             )
-            .map_err(|e| df_catalog_error::S3TablesSnafu { error: Box::new(e) }.build())?;
+            .context(df_catalog_error::S3TablesSnafu)?;
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
-                .map_err(|e| df_catalog_error::DataFusionSnafu { error: e }.build())?;
+                .context(df_catalog_error::DataFusionSnafu)?;
             catalogs.push(
                 CachingCatalog::new(Arc::new(catalog), volume.name.clone()).with_refresh(false),
             );
@@ -204,9 +204,8 @@ impl EmbucketCatalogList {
                         let tables = schema.schema.table_names();
                         for table in tables {
                             if let Some(table_provider) =
-                                schema.schema.table(&table).await.map_err(|e| {
-                                    df_catalog_error::DataFusionSnafu { error: e }.build()
-                                })?
+                                schema.schema.table(&table).await
+                                .context(df_catalog_error::DataFusionSnafu)?
                             {
                                 schema.tables_cache.insert(
                                     table.clone(),

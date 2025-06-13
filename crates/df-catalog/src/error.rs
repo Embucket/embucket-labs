@@ -6,13 +6,15 @@ use snafu::Location;
 use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[stack_trace_debug]
 pub enum Error {
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: Box<MetastoreError>,
+        source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -26,6 +28,7 @@ pub enum Error {
 
     #[snafu(display("DataFusion error: {error}"))]
     DataFusion {
+        #[snafu(source)]
         error: DataFusionError,
         #[snafu(implicit)]
         location: Location,
@@ -33,10 +36,9 @@ pub enum Error {
 
     #[snafu(display("S3Tables error: {error}"))]
     S3Tables {
-        error: Box<S3TablesError>,
+        #[snafu(source)]
+        error: S3TablesError,
         #[snafu(implicit)]
         location: Location,
     },
 }
-
-pub type Result<T> = std::result::Result<T, Error>;

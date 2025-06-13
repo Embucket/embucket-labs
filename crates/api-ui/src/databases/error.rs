@@ -18,28 +18,24 @@ pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 pub enum DatabasesAPIError {
     #[snafu(display("Create database error: {source}"))]
     Create {
-        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Get database error: {source}"))]
     Get {
-        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Delete database error: {source}"))]
     Delete {
-        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Update database error: {source}"))]
     Update {
-        #[snafu(source(from(Box<MetastoreError>, |e: Box<MetastoreError>| *e)))]
         source: MetastoreError,
         #[snafu(implicit)]
         location: Location,

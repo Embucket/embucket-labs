@@ -8,12 +8,15 @@ use snafu::Location;
 use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
+pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
+
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
 #[stack_trace_debug]
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {
+        #[snafu(source)]
         error: DataFusionError,
         #[snafu(implicit)]
         location: Location,
@@ -21,6 +24,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Cannot register UDAF functions"))]
     RegisterUDAF {
+        #[snafu(source)]
         error: DataFusionError,
         #[snafu(implicit)]
         location: Location,
@@ -28,6 +32,7 @@ pub enum ExecutionError {
 
     #[snafu(display("DataFusion error: {error}"))]
     DataFusion {
+        #[snafu(source)]
         error: DataFusionError,
         #[snafu(implicit)]
         location: Location,
@@ -63,6 +68,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Arrow error: {error}"))]
     Arrow {
+        #[snafu(source)]
         error: datafusion::arrow::error::ArrowError,
         #[snafu(implicit)]
         location: Location,
@@ -84,8 +90,8 @@ pub enum ExecutionError {
 
     #[snafu(display("DataFusion query error: {error}, query: {query}"))]
     DataFusionQuery {
-        #[snafu(source(from(DataFusionError, Box::new)))]
-        error: Box<DataFusionError>,
+        #[snafu(source)]
+        error: DataFusionError,
         query: String,
         #[snafu(implicit)]
         location: Location,
@@ -100,7 +106,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: Box<core_metastore::error::MetastoreError>,
+        source: core_metastore::error::MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -178,22 +184,23 @@ pub enum ExecutionError {
 
     #[snafu(display("S3Tables error: {error}"))]
     S3Tables {
-        #[snafu(source(from(S3tablesError, Box::new)))]
-        error: Box<S3tablesError>,
+        #[snafu(source)]
+        error: S3tablesError,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
-        #[snafu(source(from(IcebergError, Box::new)))]
-        error: Box<IcebergError>,
+        #[snafu(source)]
+        error: IcebergError,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("URL Parsing error: {error}"))]
     UrlParse {
+        #[snafu(source)]
         error: url::ParseError,
         #[snafu(implicit)]
         location: Location,
@@ -201,6 +208,7 @@ pub enum ExecutionError {
 
     #[snafu(display("Threaded Job error: {error}: {backtrace}"))]
     JobError {
+        #[snafu(source)]
         error: crate::dedicated_executor::JobError,
         backtrace: Backtrace,
         #[snafu(implicit)]
@@ -233,6 +241,87 @@ pub enum ExecutionError {
         #[snafu(implicit)]
         location: Location,
     },
-}
 
-pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
+    #[snafu(display("Only USE with variables are supported"))]
+    OnyUseWithVariables {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only primitive statements are supported"))]
+    OnlyPrimitiveStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only CREATE TABLE/CREATE SCHEMA statements are supported"))]
+    OnlyTableSchemaCreateStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only DROP statements are supported"))]
+    OnlyDropStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only DROP TABLE/VIEW statements are supported"))]
+    OnlyDropTableViewStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only CREATE TABLE statements are supported"))]
+    OnlyCreateTableStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only CREATE STAGE statements are supported"))]
+    OnlyCreateStageStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only COPY INTO statements are supported"))]
+    OnlyCopyIntoStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("FROM object is required for COPY INTO statements"))]
+    FromObjectRequiredForCopyIntoStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only MERGE statements are supported"))]
+    OnlyMergeStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only CREATE SCHEMA statements are supported"))]
+    OnlyCreateSchemaStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only simple schema names are supported"))]
+    OnlySimpleSchemaNames {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("unsupported SHOW statement: {statement}"))]
+    UnsupportedShowStatement {
+        statement: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("No table names provided for TRUNCATE TABLE"))]
+    NoTableNamesForTruncateTable {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Only SQL statements are supported"))]
+    OnlySQLStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Missing or invalid column: '{name}'"))]
+    MissingOrInvalidColumn {
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}

@@ -1,5 +1,4 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use crate::auth::error::AuthError;
 use crate::auth::error::*;
 use crate::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
 use crate::auth::models::{AccountResponse, AuthResponse, LoginPayload};
@@ -12,6 +11,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use time::Duration;
+use snafu::location;
 
 const JWT_SECRET: &str = "test";
 const DEMO_USER: &str = "demo_user";
@@ -380,7 +380,7 @@ async fn test_jwt_token_expired() {
     );
 
     let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> =
-        AuthError::BadAuthToken { source: err }.try_into();
+        AuthError::BadAuthToken { error: err, location: location!() }.try_into();
     let www_authenticate = www_authenticate.expect("Failed to convert to WwwAuthenticate");
     assert_eq!(
         www_authenticate.to_string(),

@@ -3,33 +3,72 @@ use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
+use snafu::Location;
+use stack_error_proc::stack_trace_debug;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
-pub enum MetastoreAPIError {
-    #[snafu(display("Metastore error: {source}"))]
-    Metastore {
-        #[snafu(source(from(MetastoreError, Box::new)))]
-        source: Box<MetastoreError>,
+#[stack_trace_debug]
+pub enum Error {
+    #[snafu(display("List volumes error: {error}"))]
+    ListVolumes {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Get volume error: {error}"))]
+    GetVolume {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Create volume error: {error}"))]
+    CreateVolume {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Update volume error: {error}"))]
+    UpdateVolume {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Delete volume error: {error}"))]
+    DeleteVolume {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("List databases error: {error}"))]
+    ListDatabases {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Get database error: {error}"))]
+    GetDatabase {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Create database error: {error}"))]
+    CreateDatabase {
+        #[snafu(source)]
+        error: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
 }
 
-pub type MetastoreAPIResult<T> = Result<T, MetastoreAPIError>;
-
-// Add From implementations for backward compatibility
-impl From<MetastoreError> for MetastoreAPIError {
-    fn from(error: MetastoreError) -> Self {
-        Self::Metastore {
-            source: Box::new(error),
-        }
-    }
-}
-
-impl From<Box<MetastoreError>> for MetastoreAPIError {
-    fn from(error: Box<MetastoreError>) -> Self {
-        Self::Metastore { source: error }
-    }
-}
+pub type MetastoreAPIResult<T> = Result<T, Error>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -37,14 +76,21 @@ pub struct ErrorResponse {
     pub status_code: u16,
 }
 
-impl IntoResponse for MetastoreAPIError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let metastore_error = match self {
-            Self::Metastore { source } => source,
+            Self::ListVolumes { error, .. }
+            | Self::GetVolume { error, .. }
+            | Self::CreateVolume { error, .. }
+            | Self::UpdateVolume { error, .. }
+            | Self::DeleteVolume { error, .. }
+            | Self::ListDatabases { error, .. }
+            | Self::GetDatabase { error, .. }
+            | Self::CreateDatabase { error, .. } => error,
         };
 
         let message = metastore_error.to_string();
-        let code = match *metastore_error {
+        let code = match metastore_error {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }

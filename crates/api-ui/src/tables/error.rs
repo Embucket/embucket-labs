@@ -7,94 +7,105 @@ use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::prelude::*;
+use snafu::Location;
+use stack_error_proc::stack_trace_debug;
 
-pub type TablesResult<T> = Result<T, TablesAPIError>;
+pub type TablesResult<T> = Result<T, Error>;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
+#[stack_trace_debug]
+pub enum Error {
+    #[snafu(display("Upload file error: {source}"))]
+    UploadFile { source: TableError },
+    #[snafu(display("Get table statistics error: {source}"))]
+    GetTableStatistics { source: TableError },
+    #[snafu(display("Get table columns error: {source}"))]
+    GetTableColumns { source: TableError },
+    #[snafu(display("Get table rows error: {source}"))]
+    GetTablePreviewData { source: TableError },
+    #[snafu(display("Get tables error: {source}"))]
+    GetTables { source: TableError },
+}
+
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[stack_trace_debug]
 pub enum TableError {
-    #[snafu(display("Malformed multipart form data: {source}"))]
-    MalformedMultipart { source: multipart::MultipartError },
-    #[snafu(display("Malformed multipart file data: {source}"))]
-    MalformedMultipartFileData { source: multipart::MultipartError },
+    #[snafu(display("Malformed multipart form data: {error}"))]
+    MalformedMultipart {
+        #[snafu(source)]
+        error: multipart::MultipartError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Malformed multipart file data: {error}"))]
+    MalformedMultipartFileData {
+        #[snafu(source)]
+        error: multipart::MultipartError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Malformed file upload request"))]
-    MalformedFileUploadRequest,
+    MalformedFileUploadRequest {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("File field missing in form data"))]
-    FileField,
-    #[snafu(transparent)]
+    FileField {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Execution error: {source}"))]
     Execution {
         source: core_executor::error::ExecutionError,
+        #[snafu(implicit)]
+        location: Location,
     },
-    #[snafu(transparent)]
-    Metastore { source: MetastoreError },
-}
-
-// Add conversion from Box<MetastoreError> to TableError
-impl From<Box<MetastoreError>> for TableError {
-    fn from(boxed_error: Box<MetastoreError>) -> Self {
-        Self::Metastore {
-            source: *boxed_error,
-        }
-    }
-}
-
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
-pub enum TablesAPIError {
-    #[snafu(display("Create table error: {source}"))]
-    CreateUpload { source: TableError },
-    #[snafu(display("Execution error: {source}"))]
-    Execution { source: ExecutionError },
-    #[snafu(display("Get table error: {source}"))]
-    GetMetastore { source: MetastoreError },
-}
-
-// Add conversion from Box<MetastoreError> to TablesAPIError
-impl From<Box<MetastoreError>> for TablesAPIError {
-    fn from(boxed_error: Box<MetastoreError>) -> Self {
-        Self::GetMetastore {
-            source: *boxed_error,
-        }
-    }
+    #[snafu(display("Metastore error: {source}"))]
+    Metastore {
+        source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
-impl IntoStatusCode for TablesAPIError {
+impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::CreateUpload { source } => match &source {
-                TableError::Metastore { source } => match &source {
+            Self::UploadFile { source }
+            | Self::GetTableStatistics { source }
+            | Self::GetTableColumns { source }
+            | Self::GetTablePreviewData { source }
+            | Self::GetTables { source } => match &source {
+                TableError::Metastore { source, .. } => match &source {
                     MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                     MetastoreError::DatabaseNotFound { .. }
                     | MetastoreError::SchemaNotFound { .. }
                     | MetastoreError::TableNotFound { .. }
                     | MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
-                },
-                TableError::MalformedMultipart { .. }
-                | TableError::MalformedMultipartFileData { .. }
-                | TableError::Execution {
-                    source: ExecutionError::Arrow { .. },
-                } => StatusCode::BAD_REQUEST,
-                TableError::Execution {
-                    source: ExecutionError::DataFusion { .. },
-                } => StatusCode::UNPROCESSABLE_ENTITY,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::Execution { source } => match &source {
-                ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            Self::GetMetastore { source } => match &source {
-                MetastoreError::TableNotFound { .. } => StatusCode::NOT_FOUND,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
+                }
+                TableError::Execution { source, .. } => match &source {
+                    ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
+                    ExecutionError::DataFusion { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                    ExecutionError::Arrow { .. } => StatusCode::BAD_REQUEST,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                }
+                TableError::FileField { .. }
+                | TableError::MalformedFileUploadRequest { .. }
+                | TableError::MalformedMultipart { .. }
+                | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
+            }
         }
     }
 }
 
 // generic
-impl IntoResponse for TablesAPIError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let code = self.status_code();
         let error = ErrorResponse {

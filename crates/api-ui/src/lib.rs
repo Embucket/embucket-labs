@@ -71,12 +71,7 @@ fn downcast_string_column<'a>(
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<StringArray>())
-        .ok_or_else(|| {
-            ex_error::DataFusionSnafu {
-                error: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
-            }
-            .build()
-        })
+        .ok_or_else(|| ex_error::MissingOrInvalidColumnSnafu { name }.build())
 }
 
 fn downcast_int64_column<'a>(
@@ -86,12 +81,7 @@ fn downcast_int64_column<'a>(
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<Int64Array>())
-        .ok_or_else(|| {
-            ex_error::DataFusionSnafu {
-                error: DataFusionError::Internal(format!("Missing or invalid column: '{name}'")),
-            }
-            .build()
-        })
+        .ok_or_else(|| ex_error::MissingOrInvalidColumnSnafu { name }.build())
 }
 
 fn apply_parameters(

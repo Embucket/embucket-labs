@@ -6,6 +6,8 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 
+pub type UIResult<T> = Result<T, UIError>;
+
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub))]
 pub enum UIError {
@@ -14,7 +16,7 @@ pub enum UIError {
     #[snafu(transparent)]
     Metastore { source: MetastoreError },
 }
-pub type UIResult<T> = Result<T, UIError>;
+
 
 pub(crate) trait IntoStatusCode {
     fn status_code(&self) -> StatusCode;
@@ -93,6 +95,22 @@ fn exec_error_into_response(error: &ExecutionError) -> axum::response::Response 
         | ExecutionError::RefreshCatalogList { .. }
         | ExecutionError::UrlParse { .. }
         | ExecutionError::JobError { .. }
+        | ExecutionError::OnyUseWithVariables { .. }
+        | ExecutionError::OnlyPrimitiveStatements { .. }
+        | ExecutionError::OnlyTableSchemaCreateStatements { .. }
+        | ExecutionError::OnlyDropStatements { .. }
+        | ExecutionError::OnlyDropTableViewStatements { .. }
+        | ExecutionError::OnlyCreateTableStatements { .. }
+        | ExecutionError::OnlyCreateStageStatements { .. }
+        | ExecutionError::OnlyCopyIntoStatements { .. }
+        | ExecutionError::FromObjectRequiredForCopyIntoStatements { .. }
+        | ExecutionError::OnlyCreateSchemaStatements { .. }
+        | ExecutionError::OnlySimpleSchemaNames { .. }
+        | ExecutionError::OnlyMergeStatements { .. }
+        | ExecutionError::UnsupportedShowStatement { .. }
+        | ExecutionError::NoTableNamesForTruncateTable { .. }
+        | ExecutionError::OnlySQLStatements { .. }
+        | ExecutionError::MissingOrInvalidColumn { .. }
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         ExecutionError::Arrow { .. }
         | ExecutionError::SerdeParse { .. }

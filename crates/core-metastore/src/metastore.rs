@@ -196,13 +196,13 @@ impl SlateDBMetastore {
                 .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwobject)
         } else {
-            Err(Box::new(
+            Err(
                 metastore_error::ObjectAlreadyExistsSnafu {
                     type_name: object_type.to_string(),
                     name: key.to_string(),
                 }
-                .build(),
-            ))
+                .build()
+            )
         }
     }
 
@@ -229,7 +229,7 @@ impl SlateDBMetastore {
                 .context(metastore_error::UtilSlateDBSnafu)?;
             Ok(rwo)
         } else {
-            Err(Box::new(metastore_error::ObjectNotFoundSnafu {}.build()))
+            Err(metastore_error::ObjectNotFoundSnafu {}.build())
         }
     }
 
@@ -288,15 +288,13 @@ impl Metastore for SlateDBMetastore {
             .await
             .map_err(|e| {
                 if matches!(
-                    *e,
+                    e,
                     metastore_error::MetastoreError::ObjectAlreadyExists { .. }
                 ) {
-                    Box::new(
-                        metastore_error::VolumeAlreadyExistsSnafu {
-                            volume: name.clone(),
-                        }
-                        .build(),
-                    )
+                    metastore_error::VolumeAlreadyExistsSnafu {
+                        volume: name.clone(),
+                    }
+                    .build()
                 } else {
                     e
                 }
@@ -312,7 +310,6 @@ impl Metastore for SlateDBMetastore {
             .get(&key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
     }
 
     #[instrument(
@@ -358,12 +355,12 @@ impl Metastore for SlateDBMetastore {
             self.object_store_cache.remove(name);
             Ok(())
         } else {
-            Err(Box::new(
+            Err(
                 metastore_error::VolumeInUseSnafu {
                     database: databases_using[..].join(", "),
                 }
                 .build(),
-            ))
+            )
         }
     }
 
@@ -430,7 +427,6 @@ impl Metastore for SlateDBMetastore {
             .get(&key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
     }
 
     #[instrument(
@@ -492,12 +488,12 @@ impl Metastore for SlateDBMetastore {
             self.create_object(&key, MetastoreObjectType::Schema, schema)
                 .await
         } else {
-            Err(Box::new(
+            Err(
                 metastore_error::DatabaseNotFoundSnafu {
                     db: ident.database.clone(),
                 }
-                .build(),
-            ))
+                .build()
+            )
         }
     }
 
@@ -508,7 +504,6 @@ impl Metastore for SlateDBMetastore {
             .get(&key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
     }
 
     #[instrument(
@@ -680,13 +675,13 @@ impl Metastore for SlateDBMetastore {
                 .context(metastore_error::ObjectStoreSnafu)?;
             Ok(rwo_table)
         } else {
-            Err(Box::new(
+            Err(
                 metastore_error::SchemaNotFoundSnafu {
                     schema: ident.schema.clone(),
                     db: ident.database.clone(),
                 }
                 .build(),
-            ))
+            )
         }
     }
 
@@ -808,14 +803,14 @@ impl Metastore for SlateDBMetastore {
             );
             self.delete_object(&key).await
         } else {
-            Err(Box::new(
+            Err(
                 metastore_error::TableNotFoundSnafu {
                     table: ident.table.clone(),
                     schema: ident.schema.clone(),
                     db: ident.database.clone(),
                 }
                 .build(),
-            ))
+            )
         }
     }
 
@@ -829,7 +824,6 @@ impl Metastore for SlateDBMetastore {
             .get(&key)
             .await
             .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
     }
 
     #[instrument(name = "Metastore::table_object_store", level = "debug", skip(self))]
@@ -897,14 +891,14 @@ impl Metastore for SlateDBMetastore {
             ));
         }
 
-        return Err(Box::new(
+        return Err(
             metastore_error::TableObjectStoreNotFoundSnafu {
                 table: ident.table.clone(),
                 schema: ident.schema.clone(),
                 db: ident.database.clone(),
             }
             .build(),
-        ));
+        );
     }
 
     #[instrument(name = "Metastore::volume_for_table", level = "debug", skip(self))]

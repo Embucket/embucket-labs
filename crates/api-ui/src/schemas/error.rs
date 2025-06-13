@@ -24,7 +24,7 @@ pub enum SchemasAPIError {
 
     #[snafu(display("Get schema error: {source}"))]
     Get {
-        source: Box<MetastoreError>,
+        source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -38,7 +38,7 @@ pub enum SchemasAPIError {
 
     #[snafu(display("Update schema error: {source}"))]
     Update {
-        source: Box<MetastoreError>,
+        source: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -56,7 +56,7 @@ impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source, .. } => match &source {
-                ExecutionError::Metastore { source, .. } => match &**source {
+                ExecutionError::Metastore { source, .. } => match &source {
                     MetastoreError::SchemaAlreadyExists { .. }
                     | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                     MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
@@ -66,18 +66,18 @@ impl IntoStatusCode for SchemasAPIError {
                 },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source, .. } => match &**source {
+            Self::Get { source, .. } => match &source {
                 MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Delete { source, .. } => match &source {
-                ExecutionError::Metastore { source, .. } => match &**source {
+                ExecutionError::Metastore { source, .. } => match &source {
                     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Update { source, .. } => match &**source {
+            Self::Update { source, .. } => match &source {
                 MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,

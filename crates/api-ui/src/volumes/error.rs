@@ -13,13 +13,13 @@ pub type VolumesResult<T> = Result<T, VolumesAPIError>;
 #[snafu(visibility(pub(crate)))]
 pub enum VolumesAPIError {
     #[snafu(display("Create volumes error: {source}"))]
-    Create { source: Box<MetastoreError> },
+    Create { source: MetastoreError },
     #[snafu(display("Get volume error: {source}"))]
-    Get { source: Box<MetastoreError> },
+    Get { source: MetastoreError },
     #[snafu(display("Delete volume error: {source}"))]
-    Delete { source: Box<MetastoreError> },
+    Delete { source: MetastoreError },
     #[snafu(display("Update volume error: {source}"))]
-    Update { source: Box<MetastoreError> },
+    Update { source: MetastoreError },
     #[snafu(display("Get volumes error: {source}"))]
     List { source: ExecutionError },
 }
@@ -28,19 +28,19 @@ pub enum VolumesAPIError {
 impl IntoStatusCode for VolumesAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Create { source } => match &**source {
+            Self::Create { source } => match &source {
                 MetastoreError::VolumeAlreadyExists { .. }
                 | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                 MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Get { source } | Self::Delete { source } => match &**source {
+            Self::Get { source } | Self::Delete { source } => match &source {
                 MetastoreError::UtilSlateDB { .. } | MetastoreError::ObjectNotFound { .. } => {
                     StatusCode::NOT_FOUND
                 }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::Update { source } => match &**source {
+            Self::Update { source } => match &source {
                 MetastoreError::ObjectNotFound { .. } | MetastoreError::VolumeNotFound { .. } => {
                     StatusCode::NOT_FOUND
                 }

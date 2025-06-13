@@ -3,6 +3,8 @@ use snafu::Location;
 use snafu::prelude::*;
 use stack_error_proc::stack_trace_debug;
 
+pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
+
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
 #[stack_trace_debug]
@@ -216,12 +218,4 @@ pub enum MetastoreError {
         #[snafu(implicit)]
         location: Location,
     },
-}
-
-pub type MetastoreResult<T> = std::result::Result<T, Box<MetastoreError>>;
-
-impl From<Box<Self>> for MetastoreError {
-    fn from(boxed_error: Box<Self>) -> Self {
-        *boxed_error
-    }
 }

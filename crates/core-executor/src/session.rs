@@ -62,7 +62,7 @@ impl UserSession {
         let runtime_config = RuntimeEnvBuilder::new()
             .with_object_store_registry(catalog_list_impl.clone())
             .build()
-            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
+            .context(ex_error::DataFusionSnafu)?;
 
         let state = SessionStateBuilder::new()
             .with_config(
@@ -87,11 +87,10 @@ impl UserSession {
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        register_udfs(&mut ctx).map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
-        register_udafs(&mut ctx).map_err(|error| ex_error::RegisterUDAFSnafu { error }.build())?;
+        register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
         register_udtfs(&ctx, history_store.clone());
-        register_json_udfs(&mut ctx)
-            .map_err(|error| ex_error::RegisterUDFSnafu { error }.build())?;
+        register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
 
@@ -125,7 +124,6 @@ impl UserSession {
             .collect()
             .await
             .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(Box::new)
             .context(ex_error::MetastoreSnafu)?
             .into_iter()
             .filter_map(|volume| {
@@ -165,7 +163,7 @@ impl UserSession {
 
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
-                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+                .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
             self.ctx.register_catalog(volume.name, catalog_provider);
@@ -202,17 +200,17 @@ impl UserSession {
         for (key, value) in datafusion_params {
             options
                 .set(&key, &value)
-                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+                .context(ex_error::DataFusionSnafu)?;
         }
 
         let config = options.extensions.get_mut::<SessionParams>();
         if let Some(cfg) = config {
             if set {
                 cfg.set_properties(session_params)
-                    .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+                    .context(ex_error::DataFusionSnafu)?;
             } else {
                 cfg.remove_properties(session_params)
-                    .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+                    .context(ex_error::DataFusionSnafu)?;
             }
         }
         Ok(())

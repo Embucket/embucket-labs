@@ -101,14 +101,14 @@ pub async fn create_schema(
         .get_schema(&schema_ident)
         .await
         .map(|opt_rw_obj| {
+            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // TODO: Remove after refactor Metastore            
             opt_rw_obj.ok_or_else(|| {
-                Box::new(
-                    metastore_error::SchemaNotFoundSnafu {
-                        db: database_name.clone(),
-                        schema: payload.name.clone(),
-                    }
-                    .build(),
-                )
+                metastore_error::SchemaNotFoundSnafu {
+                    db: database_name.clone(),
+                    schema: payload.name.clone(),
+                }
+                .build()
             })
         })
         .context(GetSnafu)?
@@ -194,14 +194,14 @@ pub async fn get_schema(
         .get_schema(&schema_ident)
         .await
         .map(|opt_rw_obj| {
+            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // TODO: Remove after refactor Metastore            
             opt_rw_obj.ok_or_else(|| {
-                Box::new(
-                    metastore_error::SchemaNotFoundSnafu {
-                        db: database_name.clone(),
-                        schema: schema_name.clone(),
-                    }
-                    .build(),
-                )
+                metastore_error::SchemaNotFoundSnafu {
+                    db: database_name.clone(),
+                    schema: schema_name.clone(),
+                }
+                .build()
             })
         })
         .context(GetSnafu)?

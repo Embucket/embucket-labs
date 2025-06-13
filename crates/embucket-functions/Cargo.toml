@@ -5,8 +5,11 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-chrono = { workspace = true }
 core-history = { path = "../core-history" }
+stack-error-proc = { path = "../stack-error-proc" }
+stack-error = { path = "../stack-error" }
+
+chrono = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-doc = { workspace = true }

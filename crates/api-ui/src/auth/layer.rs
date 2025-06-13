@@ -1,4 +1,4 @@
-use super::error::{AuthError, AuthResult, BadAuthTokenSnafu};
+use super::error::{self as auth_error, AuthResult, BadAuthTokenSnafu};
 use super::handlers::get_claims_validate_jwt_token;
 use crate::state::AppState;
 use axum::{
@@ -17,13 +17,13 @@ fn get_authorization_token(headers: &HeaderMap) -> AuthResult<&str> {
             if let Ok(auth_header_str) = auth_header.to_str() {
                 match auth_header_str.strip_prefix("Bearer ") {
                     Some(token) => Ok(token),
-                    None => Err(AuthError::BadAuthHeader),
+                    None => auth_error::BadAuthHeaderSnafu.fail(),
                 }
             } else {
-                Err(AuthError::BadAuthHeader)
+                auth_error::BadAuthHeaderSnafu.fail()
             }
         }
-        None => Err(AuthError::NoAuthHeader),
+        None => auth_error::NoAuthHeaderSnafu.fail(),
     }
 }
 

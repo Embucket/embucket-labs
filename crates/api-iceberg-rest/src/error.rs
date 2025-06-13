@@ -3,31 +3,36 @@ use core_metastore::error::MetastoreError;
 use http;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
-
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub))]
-pub enum IcebergAPIError {
-    #[snafu(display("Metastore error: {source}"))]
-    Metastore {
-        #[snafu(source(from(MetastoreError, Box::new)))]
-        source: Box<MetastoreError>,
-    },
-}
+use snafu::Location;
+use stack_error_proc::stack_trace_debug;
 
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
 
-impl From<MetastoreError> for IcebergAPIError {
-    fn from(error: MetastoreError) -> Self {
-        Self::Metastore {
-            source: Box::new(error),
-        }
-    }
+#[derive(Debug)]
+pub enum Operation {
+    CreateNamespace,
+    GetNamespace,
+    DeleteNamespace,
+    ListNamespaces,
+    CreateTable,
+    RegisterTable,
+    CommitTable,
+    GetTable,
+    DeleteTable,
+    ListTables,
 }
 
-impl From<Box<MetastoreError>> for IcebergAPIError {
-    fn from(error: Box<MetastoreError>) -> Self {
-        Self::Metastore { source: error }
-    }
+#[derive(Snafu)]
+#[snafu(visibility(pub))]
+#[stack_trace_debug]
+pub enum IcebergAPIError {
+    #[snafu(display("[IcebergAPIError] Operation '{operation:?}' failed. Metastore error: {source}"))]
+    Metastore {
+        operation: Operation,
+        source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,11 +44,11 @@ pub struct ErrorResponse {
 impl IntoResponse for IcebergAPIError {
     fn into_response(self) -> axum::response::Response {
         let metastore_error = match self {
-            Self::Metastore { source } => source,
+            Self::Metastore { source, .. } => source,
         };
 
         let message = metastore_error.to_string();
-        let code = match *metastore_error {
+        let code = match metastore_error {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }

@@ -129,13 +129,13 @@ pub async fn get_volume(
         .get_volume(&volume_name)
         .await
         .map(|opt_rw_obj| {
+            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // TODO: Remove after refactor Metastore
             opt_rw_obj.ok_or_else(|| {
-                Box::new(
-                    metastore_error::VolumeNotFoundSnafu {
-                        volume: volume_name.clone(),
-                    }
-                    .build(),
-                )
+                metastore_error::VolumeNotFoundSnafu {
+                    volume: volume_name.clone(),
+                }
+                .build()
             })
         })
         .context(GetSnafu)?

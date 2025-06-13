@@ -22,6 +22,7 @@ use datafusion::common::ScalarValue;
 use datafusion_expr::{Expr, LogicalPlan};
 use indexmap::IndexMap;
 use serde_json::Value;
+use snafu::ResultExt;
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -214,7 +215,7 @@ pub fn convert_record_batches(
                 }
                 DataType::BinaryView => {
                     let converted_column = cast(&column, &DataType::Utf8View)
-                        .map_err(|error| ArrowSnafu { error }.build())?;
+                        .context(ArrowSnafu)?;
                     fields.push(
                         Field::new(
                             field.name(),
@@ -234,7 +235,7 @@ pub fn convert_record_batches(
         }
         let new_schema = Arc::new(Schema::new(fields));
         let converted_batch = RecordBatch::try_new(new_schema, columns)
-            .map_err(|error| ArrowSnafu { error }.build())?;
+            .context(ArrowSnafu)?;
         converted_batches.push(converted_batch);
     }
     Ok(converted_batches)
@@ -496,10 +497,10 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult
 
     writer
         .write_batches(&record_refs)
-        .map_err(|error| ArrowSnafu { error }.build())?;
+        .context(ArrowSnafu)?;
     writer
         .finish()
-        .map_err(|error| ArrowSnafu { error }.build())?;
+        .context(ArrowSnafu)?;
 
     let json_bytes = writer.into_inner();
     let json_str = String::from_utf8(json_bytes).map_err(|error| Utf8Snafu { error }.build())?;

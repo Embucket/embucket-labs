@@ -1,10 +1,13 @@
 use snafu::Snafu;
+use slatedb::SlateDBError;
 
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub(crate)))]
 pub enum HistoryStoreError {
     #[snafu(display("Error using key: {source}"))]
-    BadKey { source: std::str::Utf8Error },
+    BadKey {
+        source: std::str::Utf8Error,
+    },
 
     #[snafu(display("Error adding worksheet: {source}"))]
     WorksheetAdd { source: core_utils::Error },
@@ -46,7 +49,7 @@ pub enum HistoryStoreError {
     QueryInvertedKeyAdd { source: core_utils::Error },
 
     #[snafu(display("Query item seek error: {source}"))]
-    Seek { source: slatedb::SlateDBError },
+    Seek { source: SlateDBError },
 
     #[snafu(display("Deserialize error: {source}"))]
     DeserializeValue { source: serde_json::Error },

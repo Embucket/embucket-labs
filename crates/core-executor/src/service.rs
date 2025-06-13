@@ -9,6 +9,7 @@ use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
+use snafu::ResultExt;
 
 use super::error::{self as ex_error, ExecutionResult};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
@@ -198,7 +199,7 @@ impl ExecutionService for CoreExecutionService {
                 source_table.schema().unwrap_or_default(),
                 Arc::new(MemorySchemaProvider::new()),
             )
-            .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+            .context(ex_error::DataFusionSnafu)?;
         user_session.ctx.register_catalog(
             source_table.catalog().unwrap_or_default(),
             Arc::new(inmem_catalog),
@@ -208,19 +209,19 @@ impl ExecutionService for CoreExecutionService {
         let exists = user_session
             .ctx
             .table_exist(target_table.clone())
-            .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+            .context(ex_error::DataFusionSnafu)?;
 
         let schema = if exists {
             let table = user_session
                 .ctx
                 .table(target_table)
                 .await
-                .map_err(|error| ex_error::DataFusionSnafu { error }.build())?;
+                .context(ex_error::DataFusionSnafu)?;
             table.schema().as_arrow().to_owned()
         } else {
             let (schema, _) = format
                 .infer_schema(data.clone().reader(), None)
-                .map_err(|error| ex_error::ArrowSnafu { error }.build())?;
+                .context(ex_error::ArrowSnafu)?;
             schema
         };
         let schema = Arc::new(schema);
@@ -231,10 +232,10 @@ impl ExecutionService for CoreExecutionService {
         let csv = ReaderBuilder::new(schema.clone())
             .with_format(format)
             .build_buffered(data.reader())
-            .map_err(|e| ex_error::ArrowSnafu { error: e }.build())?;
+            .context(ex_error::ArrowSnafu)?;
 
         let batches: Result<Vec<_>, _> = csv.collect();
-        let batches = batches.map_err(|e| ex_error::ArrowSnafu { error: e }.build())?;
+        let batches = batches.context(ex_error::ArrowSnafu)?;
 
         let rows_loaded = batches
             .iter()
@@ -242,11 +243,11 @@ impl ExecutionService for CoreExecutionService {
             .sum();
 
         let table = MemTable::try_new(schema, vec![batches])
-            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
+            .context(ex_error::DataFusionSnafu)?;
         user_session
             .ctx
             .register_table(source_table.clone(), Arc::new(table))
-            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
+                .context(ex_error::DataFusionSnafu)?;
 
         let table = source_table.clone();
         let query = if exists {
@@ -261,7 +262,7 @@ impl ExecutionService for CoreExecutionService {
         user_session
             .ctx
             .deregister_table(source_table)
-            .map_err(|e| ex_error::DataFusionSnafu { error: e }.build())?;
+            .context(ex_error::DataFusionSnafu)?;
 
         Ok(rows_loaded)
     }

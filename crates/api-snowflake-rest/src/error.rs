@@ -1,57 +1,102 @@
 use axum::{Json, http, response::IntoResponse};
 use snafu::prelude::*;
-
+use snafu::Location;
 use crate::schemas::JsonResponse;
 use core_executor::error::ExecutionError;
 use datafusion::arrow::error::ArrowError;
+use stack_error_proc::stack_trace_debug;
 
-#[derive(Snafu, Debug)]
+pub type DbtResult<T> = std::result::Result<T, Error>;
+
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum DbtError {
+#[stack_trace_debug]
+pub enum Error {
     #[snafu(display("Failed to decompress GZip body"))]
-    GZipDecompress { source: std::io::Error },
+    GZipDecompress {
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Failed to parse login request"))]
-    LoginRequestParse { source: serde_json::Error },
+    LoginRequestParse {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Failed to parse query body"))]
-    QueryBodyParse { source: serde_json::Error },
+    QueryBodyParse {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Missing auth token"))]
-    MissingAuthToken,
+    MissingAuthToken {
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Invalid warehouse_id format"))]
-    InvalidWarehouseIdFormat { source: uuid::Error },
+    InvalidWarehouseIdFormat {
+        #[snafu(source)]
+        error: uuid::Error,
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Missing DBT session"))]
-    MissingDbtSession,
+    MissingDbtSession {
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Invalid auth data"))]
-    InvalidAuthData,
+    InvalidAuthData {
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Feature not implemented"))]
-    NotImplemented,
+    NotImplemented {
+        #[snafu(implicit)]
+        location: Location
+    },
 
     #[snafu(display("Failed to parse row JSON"))]
-    RowParse { source: serde_json::Error },
+    RowParse {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location
+    },
 
-    #[snafu(display("UTF8 error: {source}"))]
-    Utf8 { source: std::string::FromUtf8Error },
+    #[snafu(display("UTF8 error: {error}"))]
+    Utf8 {
+        #[snafu(source)]
+        error: std::string::FromUtf8Error,
+        #[snafu(implicit)]
+        location: Location
+    },
 
-    #[snafu(display("Arrow error: {source}"))]
-    Arrow { source: ArrowError },
+    #[snafu(display("Arrow error: {error}"))]
+    Arrow {
+        #[snafu(source)]
+        error: ArrowError,
+        #[snafu(implicit)]
+        location: Location
+    },
 
-    // #[snafu(transparent)]
-    // Metastore {
-    //     source: core_metastore::error::MetastoreError,
-    // },
     #[snafu(transparent)]
     Execution { source: ExecutionError },
 }
 
-pub type DbtResult<T> = std::result::Result<T, DbtError>;
-
-impl IntoResponse for DbtError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         if let Self::Execution { source } = self {
             return convert_into_response(&source);
@@ -71,31 +116,35 @@ impl IntoResponse for DbtError {
             // | Self::Metastore { .. }
             | Self::Execution { .. }
             | Self::NotImplemented { .. } => http::StatusCode::OK,
-            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+            Self::MissingAuthToken { .. }
+            | Self::MissingDbtSession { .. }
+            | Self::InvalidAuthData { .. } => {
                 http::StatusCode::UNAUTHORIZED
             }
         };
 
         let message = match &self {
-            Self::GZipDecompress { source } => format!("failed to decompress GZip body: {source}"),
-            Self::LoginRequestParse { source } => {
-                format!("failed to parse login request: {source}")
+            Self::GZipDecompress { error, .. } => format!("failed to decompress GZip body: {error}"),
+            Self::LoginRequestParse { error, .. } => {
+                format!("failed to parse login request: {error}")
             }
-            Self::QueryBodyParse { source } => format!("failed to parse query body: {source}"),
-            Self::InvalidWarehouseIdFormat { source } => format!("invalid warehouse_id: {source}"),
-            Self::RowParse { source } => format!("failed to parse row JSON: {source}"),
-            Self::MissingAuthToken | Self::MissingDbtSession | Self::InvalidAuthData => {
+            Self::QueryBodyParse { error, .. } => format!("failed to parse query body: {error}"),
+            Self::InvalidWarehouseIdFormat { error, .. } => format!("invalid warehouse_id: {error}"),
+            Self::RowParse { error, .. } => format!("failed to parse row JSON: {error}"),
+            Self::MissingAuthToken { .. }
+            | Self::MissingDbtSession { .. }
+            | Self::InvalidAuthData { .. } => {
                 "session error".to_string()
             }
-            Self::Utf8 { source } => {
-                format!("Error encoding UTF8 string: {source}")
+            Self::Utf8 { error, .. } => {
+                format!("Error encoding UTF8 string: {error}")
             }
-            Self::Arrow { source } => {
-                format!("Error encoding in Arrow format: {source}")
+            Self::Arrow { error, .. } => {
+                format!("Error encoding in Arrow format: {error}")
             }
-            Self::NotImplemented => "feature not implemented".to_string(),
+            Self::NotImplemented { .. } => "feature not implemented".to_string(),
             // Self::Metastore { source } => source.to_string(),
-            Self::Execution { source } => source.to_string(),
+            Self::Execution { source, .. } => source.to_string(),
         };
 
         let body = Json(JsonResponse {
@@ -124,12 +173,28 @@ fn convert_into_response(error: &ExecutionError) -> axum::response::Response {
         | ExecutionError::Utf8 { .. }
         | ExecutionError::VolumeNotFound { .. }
         | ExecutionError::ObjectStore { .. }
+        | ExecutionError::ObjectAlreadyExists { .. }
         | ExecutionError::UnsupportedFileFormat { .. }
         | ExecutionError::RefreshCatalogList { .. }
         | ExecutionError::UrlParse { .. }
         | ExecutionError::JobError { .. }
+        | ExecutionError::OnyUseWithVariables { .. }
+        | ExecutionError::OnlyPrimitiveStatements { .. }
+        | ExecutionError::OnlyTableSchemaCreateStatements { .. }
+        | ExecutionError::OnlyDropStatements { .. }
+        | ExecutionError::OnlyDropTableViewStatements { .. }
+        | ExecutionError::OnlyCreateTableStatements { .. }
+        | ExecutionError::OnlyCreateStageStatements { .. }
+        | ExecutionError::OnlyCopyIntoStatements { .. }
+        | ExecutionError::FromObjectRequiredForCopyIntoStatements { .. }
+        | ExecutionError::OnlyCreateSchemaStatements { .. }
+        | ExecutionError::OnlySimpleSchemaNames { .. }
+        | ExecutionError::OnlyMergeStatements { .. }
+        | ExecutionError::UnsupportedShowStatement { .. }
+        | ExecutionError::NoTableNamesForTruncateTable { .. }
+        | ExecutionError::OnlySQLStatements { .. }
+        | ExecutionError::MissingOrInvalidColumn { .. }
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
-        ExecutionError::ObjectAlreadyExists { .. } => http::StatusCode::CONFLICT,
         ExecutionError::Arrow { .. }
         | ExecutionError::SerdeParse { .. }
         | ExecutionError::S3Tables { .. }

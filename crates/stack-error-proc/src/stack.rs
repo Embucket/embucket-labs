@@ -1,9 +1,29 @@
+// Copyright 2023 Greptime Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// --------------------------------------------------------------------------------
+// Modifications by Embucket Team, 2025
+// - Use a function instead of a closure in .map() calls
+// - Add clipy rules to avoid warnings
+// --------------------------------------------------------------------------------
+
+
 #![allow(clippy::needless_pass_by_value)]
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2, TokenTree};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{Attribute, Ident, ItemEnum, Variant, parenthesized};
-
 
 pub fn stack_trace_style_impl(args: TokenStream2, input: TokenStream2) -> TokenStream2 {
     let input_cloned: TokenStream2 = input.clone();

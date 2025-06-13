@@ -1,13 +1,14 @@
-use super::error::{self as api_internal_error, MetastoreAPIError, MetastoreAPIResult};
+use super::error;
+use super::error::MetastoreAPIResult;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
 
 #[allow(clippy::wildcard_imports)]
 use core_metastore::{
-    error::{self as metastore_error, MetastoreError},
+    error::{self as metastore_error},
     *,
 };
 
@@ -32,7 +33,8 @@ pub async fn list_volumes(
         .iter_volumes()
         .collect()
         .await
-        .context(metastore_error::UtilSlateDBSnafu)?
+        .context(metastore_error::UtilSlateDBSnafu)
+        .context(error::ListVolumesSnafu)?
         .iter()
         .map(|v| hide_sensitive(v.clone()))
         .collect();
@@ -44,14 +46,14 @@ pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
 ) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
-    match state.metastore.get_volume(&volume_name).await {
+    match state.metastore.get_volume(&volume_name).await.context(error::GetVolumeSnafu) {
         Ok(Some(volume)) => Ok(Json(hide_sensitive(volume))),
-        Ok(None) => Err(metastore_error::VolumeNotFoundSnafu {
+        Ok(None) => metastore_error::VolumeNotFoundSnafu {
             volume: volume_name.clone(),
         }
-        .build()
-        .into()),
-        Err(e) => Err(MetastoreAPIError::from(e)),
+        .fail()
+        .context(error::GetVolumeSnafu),
+        Err(error) => Err(error),
     }
 }
 
@@ -62,12 +64,13 @@ pub async fn create_volume(
 ) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     volume
         .validate()
-        .context(metastore_error::ValidationSnafu)?;
+        .context(metastore_error::ValidationSnafu)
+        .context(error::CreateVolumeSnafu)?;
     state
         .metastore
         .create_volume(&volume.ident.clone(), volume)
         .await
-        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
+        .context(error::CreateVolumeSnafu)
         .map(|v| Json(hide_sensitive(v)))
 }
 
@@ -79,12 +82,13 @@ pub async fn update_volume(
 ) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
     volume
         .validate()
-        .context(metastore_error::ValidationSnafu)?;
+        .context(metastore_error::ValidationSnafu)
+        .context(error::UpdateVolumeSnafu)?;
     state
         .metastore
         .update_volume(&volume_name, volume)
         .await
-        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
+        .context(error::UpdateVolumeSnafu)
         .map(|v| Json(hide_sensitive(v)))
 }
 
@@ -98,7 +102,7 @@ pub async fn delete_volume(
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
+        .context(error::DeleteVolumeSnafu)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -124,7 +128,7 @@ pub async fn list_databases(
         .collect()
         .await
         .context(metastore_error::UtilSlateDBSnafu)
-        .context(api_internal_error::MetastoreSnafu)
+        .context(error::ListDatabasesSnafu)
         .map(Json)
 }
 
@@ -133,14 +137,14 @@ pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> MetastoreAPIResult<Json<RwObject<Database>>> {
-    match state.metastore.get_database(&database_name).await {
+    match state.metastore.get_database(&database_name).await.context(error::GetDatabaseSnafu) {
         Ok(Some(db)) => Ok(Json(db)),
-        Ok(None) => Err(metastore_error::DatabaseNotFoundSnafu {
+        Ok(None) => metastore_error::DatabaseNotFoundSnafu {
             db: database_name.clone(),
         }
-        .build()
-        .into()),
-        Err(e) => Err(MetastoreAPIError::from(e)),
+        .fail()
+        .context(error::GetDatabaseSnafu),
+        Err(e) => Err(e),
     }
 }
 
@@ -151,11 +155,12 @@ pub async fn create_database(
 ) -> MetastoreAPIResult<Json<RwObject<Database>>> {
     database
         .validate()
-        .context(metastore_error::ValidationSnafu)?;
+        .context(metastore_error::ValidationSnafu)
+        .context(error::CreateDatabaseSnafu)?;
     state
         .metastore
         .create_database(&database.ident.clone(), database)
         .await
-        .map_err(|e: Box<MetastoreError>| MetastoreAPIError::from(e))
+        .context(error::CreateDatabaseSnafu)
         .map(Json)
 }
