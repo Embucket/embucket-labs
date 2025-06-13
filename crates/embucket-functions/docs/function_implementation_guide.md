@@ -156,7 +156,6 @@ mod tests {
 ## Testing Checklist
 
 - [ ] Basic function creation and name
-- [ ] Doc comment
 - [ ] ScalarUDF creation and expression building  
 - [ ] Null input handling
 - [ ] Type validation
@@ -165,6 +164,7 @@ mod tests {
 - [ ] Test with real table not only scalar
 - [ ] **Snapshot tests** using `test_query!` macro
 - [ ] Function registration verification
+- [ ] Doc comment
 
 ## Error Handling Guidelines
 
