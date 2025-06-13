@@ -1,4 +1,5 @@
 pub use crate::aggregate::register_udafs;
+use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
@@ -76,6 +77,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToBinaryFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToBinaryFunc::new(false))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),

@@ -591,12 +591,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/st_geometryfromwkt")
     .with_subcategory("geospatial")
     ),
-    ("TO_BINARY", FunctionInfo::new(
-        "TO_BINARY",
-        "Converts the input expression to a binary value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_binary")
-    ),
     ("TO_DECIMAL", FunctionInfo::new(
         "TO_DECIMAL",
         "Converts an input expression to a fixed-point number."
@@ -667,12 +661,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "A special version of CAST , :: that is available for a subset of data type conversions."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_cast")
-    ),
-    ("TRY_TO_BINARY", FunctionInfo::new(
-        "TRY_TO_BINARY",
-        "A special version of TO_BINARY that performs the same operation (i.e. converts an input expression to a binary value), but with error handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_binary")
     ),
     ("TRY_TO_DATE", FunctionInfo::new(
         "TRY_TO_DATE",

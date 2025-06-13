@@ -30,6 +30,7 @@ strsim = "0.11"
 tracing = "0.1.41"
 tokio = { workspace = true }
 datafusion-functions-json = { workspace = true }
+hex = "0.4.3"
 
 [dev-dependencies]
 bytes = { workspace = true }
