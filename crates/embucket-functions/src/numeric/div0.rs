@@ -25,17 +25,17 @@ use std::sync::Arc;
 /// - Returns the result of the division if the divisor is not zero.
 /// - Returns 0 if the divisor is zero.
 #[derive(Debug)]
-pub struct Div0 {
+pub struct Div0Func {
     signature: Signature,
 }
 
-impl Default for Div0 {
+impl Default for Div0Func {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Div0 {
+impl Div0Func {
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -45,7 +45,7 @@ impl Div0 {
     }
 }
 
-impl ScalarUDFImpl for Div0 {
+impl ScalarUDFImpl for Div0Func {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -135,4 +135,4 @@ fn div0_impl(dividend: &ArrayRef, divisor: &ArrayRef) -> DFResult<ArrayRef> {
     Ok(Arc::new(result))
 }
 
-crate::macros::make_udf_function!(Div0);
+crate::macros::make_udf_function!(Div0Func);
