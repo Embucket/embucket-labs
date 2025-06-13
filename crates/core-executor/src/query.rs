@@ -490,6 +490,7 @@ impl UserQuery {
         create_table_statement.catalog = None;
         create_table_statement.catalog_sync = None;
         create_table_statement.storage_serialization_policy = None;
+        create_table_statement.cluster_by = None;
 
         if let Some(ref mut query) = create_table_statement.query {
             self.update_qualify_in_query(query);
