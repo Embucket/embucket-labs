@@ -4,13 +4,13 @@ use datafusion_common::DataFusionError;
 use iceberg_s3tables_catalog::error::Error as S3TablesError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("Metastore error: {source}"))]
     Metastore {

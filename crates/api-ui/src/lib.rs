@@ -1,6 +1,5 @@
 use core_executor::error::{self as ex_error, ExecutionError};
 use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
-use datafusion::common::DataFusionError;
 use serde::Deserialize;
 use std::fmt::Display;
 use utoipa::{IntoParams, ToSchema};

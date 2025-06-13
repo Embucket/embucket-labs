@@ -7,14 +7,14 @@ use jsonwebtoken::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
 use utoipa::ToSchema;
+use error_stack_trace;
 
 pub type AuthResult<T> = std::result::Result<T, AuthError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum AuthError {
     #[snafu(display("Login error"))]
     Login {

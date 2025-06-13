@@ -1,13 +1,13 @@
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type HttpRequestResult<T> = std::result::Result<T, HttpRequestError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum HttpRequestError {
     #[snafu(display("HTTP request error: {message}, status code: {status}"))]
     HttpRequest {

@@ -1,13 +1,14 @@
 use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
+use iceberg_rust::error::Error as IcebergError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum MetastoreError {
     #[snafu(display("Table data already exists at that location: {path}"))]
     TableDataExists {
@@ -181,8 +182,10 @@ pub enum MetastoreError {
 
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
+        // #[snafu(source(from(IcebergError, Box::new)))]
+        // error: Box<IcebergError>,
         #[snafu(source)]
-        error: iceberg_rust::error::Error,
+        error: IcebergError,
         #[snafu(implicit)]
         location: Location,
     },

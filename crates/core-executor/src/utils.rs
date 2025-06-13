@@ -1,7 +1,6 @@
 use super::models::QueryResult;
-use crate::error::{self as ex_error, ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
+use crate::error::{ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
-use core_history::HistoryStoreResult;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;

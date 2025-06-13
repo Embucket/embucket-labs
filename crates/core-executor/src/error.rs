@@ -6,13 +6,13 @@ use iceberg_rust::error::Error as IcebergError;
 use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {

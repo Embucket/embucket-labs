@@ -4,13 +4,13 @@ use geoarrow::error::GeoArrowError;
 use geohash::GeohashError;
 use snafu::Snafu;
 use snafu::Location;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type GeoDataFusionResult<T> = Result<T, GeoDataFusionError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum GeoDataFusionError {
     #[snafu(display("Arrow error: {error}"))]
     Arrow {

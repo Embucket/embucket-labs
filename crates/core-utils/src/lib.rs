@@ -20,10 +20,11 @@ use std::string::ToString;
 use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
+use error_stack_trace;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_error_proc::stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("SlateDB error: {error}"))]
     Database {

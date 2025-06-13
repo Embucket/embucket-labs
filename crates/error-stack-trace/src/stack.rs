@@ -15,7 +15,7 @@
 // --------------------------------------------------------------------------------
 // Modifications by Embucket Team, 2025
 // - Use a function instead of a closure in .map() calls
-// - Add clipy rules to avoid warnings
+// - Add clippy rules to suppress warnings
 // --------------------------------------------------------------------------------
 
 #![allow(clippy::needless_pass_by_value)]
@@ -47,7 +47,7 @@ pub fn stack_trace_style_impl(args: TokenStream2, input: TokenStream2) -> TokenS
         #args
         #input
 
-        impl stack_error::StackError for #enum_name {
+        impl error_stack::StackError for #enum_name {
             #debug_fmt_fn
             #next_fn
             #transparent_fn
@@ -83,7 +83,7 @@ fn build_debug_fmt_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenS
 ///
 /// The generated fn will be like:
 /// ```rust, ignore
-/// fn next(&self) -> Option<&dyn stack_error::ext::StackError>;
+/// fn next(&self) -> Option<&dyn error_stack::ext::StackError>;
 /// ```
 fn build_next_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenStream2 {
     let match_arms = variants
@@ -92,7 +92,7 @@ fn build_next_impl(enum_name: Ident, variants: Vec<ErrorVariant>) -> TokenStream
         .collect::<Vec<_>>();
 
     quote! {
-        fn next(&self) -> Option<&dyn stack_error::StackError> {
+        fn next(&self) -> Option<&dyn error_stack::StackError> {
             use #enum_name::*;
             match self {
                 #(#match_arms)*
@@ -106,7 +106,7 @@ fn build_debug_impl(enum_name: Ident) -> TokenStream2 {
     quote! {
         impl std::fmt::Debug for #enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                use stack_error::StackError;
+                use error_stack::StackError;
                 let mut buf = vec![];
                 self.debug_fmt(0, &mut buf);
                 write!(f, "{}", buf.join("\n"))

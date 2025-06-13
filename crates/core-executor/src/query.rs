@@ -53,7 +53,7 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use snafu::{IntoError, ResultExt, location};
+use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,

@@ -6,8 +6,8 @@ license-file.workspace = true
 
 [dependencies]
 core-history = { path = "../core-history" }
-stack-error-proc = { path = "../stack-error-proc" }
-stack-error = { path = "../stack-error" }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
 
 arrow-schema = { version = "55", features = ["serde"] }
 chrono = { workspace = true }

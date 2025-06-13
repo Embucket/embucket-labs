@@ -4,13 +4,13 @@ use core_executor::error::ExecutionError;
 use datafusion::arrow::error::ArrowError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type DbtResult<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("Failed to decompress GZip body"))]
     GZipDecompress {

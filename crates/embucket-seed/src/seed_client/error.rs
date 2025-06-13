@@ -2,14 +2,14 @@ use crate::requests::error::HttpRequestError;
 use serde_yaml::Error as SerdeYamlError;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
 use std::result::Result;
+use error_stack_trace;
 
 pub type SeedResult<T> = Result<T, SeedError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum SeedError {
     #[snafu(display("Error loading seed template: {error}"))]
     LoadSeed {

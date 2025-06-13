@@ -4,11 +4,11 @@ use http;
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("List volumes error: {error}"))]
     ListVolumes {

@@ -1,5 +1,5 @@
 [package]
-name = "stack-error-proc"
+name = "error-stack-trace"
 version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
@@ -8,10 +8,10 @@ license-file.workspace = true
 proc-macro = true
 
 [dependencies]
+error-stack = { path = "../error-stack" }
 syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
-stack-error = { path = "../stack-error" }
 
 [lints]
 workspace = true

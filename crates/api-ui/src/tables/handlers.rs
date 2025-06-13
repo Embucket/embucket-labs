@@ -1,7 +1,7 @@
 use crate::error::ErrorResponse;
 use crate::state::AppState;
 use crate::tables::error::{
-    self as tables_errors, Error, ExecutionSnafu, MalformedMultipartFileDataSnafu,
+    self as tables_errors, ExecutionSnafu, MalformedMultipartFileDataSnafu,
     MalformedMultipartSnafu, TablesResult, UploadFileSnafu,
 };
 use crate::tables::models::{
@@ -24,7 +24,7 @@ use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error as metastore_error;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
-use snafu::{IntoError, ResultExt, location};
+use snafu::{IntoError, ResultExt};
 use std::time::Instant;
 use utoipa::OpenApi;
 

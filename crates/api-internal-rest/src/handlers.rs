@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 
 #[allow(clippy::wildcard_imports)]
 use core_metastore::{

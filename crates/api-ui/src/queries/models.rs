@@ -1,13 +1,7 @@
-use super::error::{
-    CreateResultSetSnafu, QueryError, QueryRecordResult, ResultParseSnafu, Utf8Snafu,
-};
+use super::error::{QueryError, QueryRecordResult, ResultParseSnafu};
 use crate::default_limit;
 use chrono::{DateTime, Utc};
-use core_executor::models::ColumnInfo;
 use core_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
-use datafusion::arrow::array::RecordBatch;
-use datafusion::arrow::json::{WriterBuilder, writer::JsonArray};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snafu::ResultExt;

@@ -7,13 +7,13 @@ use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum SchemasAPIError {
     #[snafu(display("Create schema error: {source}"))]
     Create {

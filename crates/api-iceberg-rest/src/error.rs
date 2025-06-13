@@ -4,7 +4,7 @@ use http;
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
 
@@ -24,7 +24,7 @@ pub enum Operation {
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum IcebergAPIError {
     #[snafu(display(
         "[IcebergAPIError] Operation '{operation:?}' failed. Metastore error: {source}"

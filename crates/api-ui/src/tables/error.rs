@@ -8,13 +8,13 @@ use core_metastore::error::MetastoreError;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 pub type TablesResult<T> = Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("Upload file error: {source}"))]
     UploadFile {
@@ -50,7 +50,7 @@ pub enum Error {
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum TableError {
     #[snafu(display("Malformed multipart form data: {error}"))]
     MalformedMultipart {

@@ -17,8 +17,8 @@ slatedb = { workspace = true }
 snafu = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-stack-error = { path = "../stack-error" }
-stack-error-proc = { path = "../stack-error-proc" }
+error-stack = { path = "../error-stack" }
+error-stack-trace = { path = "../error-stack-trace" }
 
 [lints]
 workspace = true

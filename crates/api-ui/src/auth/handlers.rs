@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::auth::error::{
-    self as auth_error, AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu,
-    SetCookieSnafu, TokenErrorKind,
+    self as auth_error, AuthResult, BadRefreshTokenSnafu, TokenErrorKind,
 };
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::state::AppState;
@@ -18,7 +17,6 @@ use http::header::SET_COOKIE;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::Serialize;
 use snafu::ResultExt;
-use snafu::location;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;

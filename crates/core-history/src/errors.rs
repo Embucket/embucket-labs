@@ -1,11 +1,11 @@
 use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::Snafu;
-use stack_error_proc::stack_trace_debug;
+use error_stack_trace;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-#[stack_trace_debug]
+#[error_stack_trace::debug]
 pub enum HistoryStoreError {
     #[snafu(display("Error using key: {error}"))]
     BadKey {
