@@ -607,6 +607,9 @@ name = "arrow-schema"
 version = "55.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73a47aa0c771b5381de2b7f16998d351a6f4eb839f1e13d48353e17e873d969b"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "arrow-select"
@@ -1853,6 +1856,7 @@ dependencies = [
 name = "core-executor"
 version = "0.1.0"
 dependencies = [
+ "arrow-schema 55.1.0",
  "async-trait",
  "aws-config",
  "aws-credential-types",
@@ -2940,6 +2944,7 @@ name = "embucket-functions"
 version = "0.1.0"
 dependencies = [
  "ahash 0.8.12",
+ "arrow-schema 55.1.0",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -2948,6 +2953,7 @@ dependencies = [
  "datafusion-common",
  "datafusion-doc",
  "datafusion-expr",
+ "datafusion-functions-json",
  "datafusion-macros",
  "datafusion-physical-plan",
  "indexmap 2.9.0",

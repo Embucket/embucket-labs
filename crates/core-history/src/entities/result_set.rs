@@ -8,7 +8,7 @@ pub struct Column {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Row(Vec<Value>);
+pub struct Row(pub Vec<Value>);
 
 impl Row {
     #[must_use]
@@ -22,4 +22,5 @@ pub struct ResultSet {
     pub columns: Vec<Column>,
     pub rows: Vec<Row>,
     pub data_format: String,
+    pub schema: String,
 }

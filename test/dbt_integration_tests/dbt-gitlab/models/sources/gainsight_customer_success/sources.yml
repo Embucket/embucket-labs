@@ -1,0 +1,46 @@
+version: 2
+
+sources:
+  - name: gainsight_customer_success
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
+    schema: gainsight_customer_success
+    loaded_at_field: _fivetran_synced
+    loader: fivetran
+    description: Gainsight Customer Success [Original Issue](https://gitlab.com/gitlab-data/analytics/-/issues/14426)
+
+    quoting:
+      database: false
+      schema: false
+      identifier: false
+
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+
+    tables:
+      - name: account_scorecard_history
+      - name: activity_attendee
+      - name: activity_comments
+      - name: activity_timeline
+      - name: advanced_outreach_cta
+      - name: advanced_outreach_emails
+      - name: advanced_outreach_participant_activity
+      - name: advanced_outreach_participants
+      - name: ao_advanced_outreach_company
+      - name: call_to_action
+      - name: comments
+      - name: companies_and_ebrs
+      - name: companies_with_success_plan_details
+      - name: companies_with_success_plan_objectives
+      - name: company
+      - name: company_person
+      - name: cs_task
+      - name: csat_survey_response
+      - name: ctas_healthscores
+      - name: customer_health_scorecard_fact_1
+      - name: email_logs
+      - name: email_log_v_2
+      - name: nps_survey_response
+      - name: opt_out_emails
+      - name: success_plan
+      - name: user_sfdcgitlabproduction

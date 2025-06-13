@@ -9,6 +9,7 @@ core-history = { path = "../core-history" }
 stack-error-proc = { path = "../stack-error-proc" }
 stack-error = { path = "../stack-error" }
 
+arrow-schema = { version = "55", features = ["serde"] }
 chrono = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
@@ -28,11 +29,16 @@ indexmap = "2.9.0"
 strsim = "0.11"
 tracing = "0.1.41"
 tokio = { workspace = true }
+datafusion-functions-json = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
+
+[[bin]]
+name = "generate-implemented-functions"
+path = "src/bin/generate_implemented_functions.rs"
 
 [lints]
 workspace = true

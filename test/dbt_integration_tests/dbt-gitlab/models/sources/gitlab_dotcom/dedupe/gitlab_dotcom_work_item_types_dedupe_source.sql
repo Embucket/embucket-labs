@@ -1,0 +1,1 @@
+{{ dedupe_source(source_table='work_item_types') }}

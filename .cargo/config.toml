@@ -7,3 +7,4 @@ dev = "run -- --backend=memory --cors-allow-origin=http://localhost:8080 --cors-
 auth_demo = "run -- --jwt-secret=test --backend=memory --cors-allow-origin=http://localhost:8080 --cors-enabled=true --tracing-level=debug"
 lint = "clippy --all-targets --workspace"
 embucket-seed = "run -p embucket-seed -- --server-address 127.0.0.1:3000 --auth-user embucket --auth-password embucket --seed-variant typical"
+update-functions = "run -p embucket-functions generate-implemented-functions"

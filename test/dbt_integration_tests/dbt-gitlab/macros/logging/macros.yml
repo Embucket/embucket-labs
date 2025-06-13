@@ -1,0 +1,5 @@
+version: 2
+
+macros:
+  - name: dbt_logging_start
+    description: '{{ doc("dbt_logging_start") }}'

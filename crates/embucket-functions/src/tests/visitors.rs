@@ -1,5 +1,6 @@
 use crate::visitors::{
-    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases, table_function,
+    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases,
+    table_result_scan,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -201,7 +202,7 @@ fn test_table_function_result_scan() -> DFResult<()> {
     for (input, expected) in cases {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
         if let DFStatement::Statement(ref mut stmt) = statement {
-            table_function::visit(stmt);
+            table_result_scan::visit(stmt);
         }
         assert_eq!(statement.to_string(), expected);
     }

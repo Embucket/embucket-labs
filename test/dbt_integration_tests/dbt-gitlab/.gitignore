@@ -1,0 +1,14 @@
+
+env/
+.env
+dbt_packages/
+to_check.txt
+sisense_elements.json
+reference_state/manifest.json
+.sqlfluffignore
+.sqlfluff-ci
+.sqlfluff
+construct_seed_docs.py
+dbt_ci_utils.py
+/data
+/docs

@@ -1,0 +1,27 @@
+# DBT Run Summary
+PASS: 556
+WARN: 0
+ERROR: 616
+SKIP: 416
+TOTAL: 1588
+
+# Total top 10 errors
+ 204 DataFusion error: Error during planning: Inserting query must have the same schema with the table.
+  22 DataFusion error: Error during planning: Invalid function 'sha2'.
+  15 DataFusion error: This feature is not implemented: Unsupported SQL type Datetime(None)
+  11 DataFusion error: Error during planning: Internal error: Expect TypeSignatureClass::Native(LogicalType(Native(String), String)) but received NativeType::Int32, DataType: Int32.
+  10 DataFusion error: Optimizer rule 'common_sub_expression_eliminate' failed
+  10 DataFusion error: Execution error: schema provider does not support registering tables
+   7 DataFusion error: This feature is not implemented: Arrays with unspecified type is not supported
+   6 DataFusion error: Error during planning: Cannot infer common argument type for comparison operation Boolean = Int64
+   4 DataFusion error: This feature is not implemented: Unsupported SQL type Custom(ObjectName([Identifier(Ident { value: "TIMESTAMP_TZ", quote_style: None, span: Span(Location(1,282)..Location(1,294)) })]), [])
+   4 DataFusion error: This feature is not implemented: Unsupported SQL type Custom(ObjectName([Identifier(Ident { value: "TIMESTAMP_TZ", quote_style: None, span: Span(Location(1,267)..Location(1,279)) })]), [])
+
+# Top function errors
+  22 DataFusion error: Error during planning: Invalid function 'sha2'.
+   2 DataFusion error: Error during planning: Invalid function 'try_to_number'.
+   2 DataFusion error: Error during planning: Invalid function 'try_to_date'.
+   1 DataFusion error: Error during planning: Invalid function 'try_to_numeric'.
+   1 DataFusion error: Error during planning: Invalid function 'to_timestamp_ntz'.
+   1 DataFusion error: Error during planning: Invalid function 'parse_ip'.
+   1 DataFusion error: Error during planning: Invalid function 'conditional_true_event'.
