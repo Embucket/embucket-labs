@@ -130,8 +130,8 @@ pub async fn query(
             QueryContext::default().with_ip_address(addr.ip().to_string()),
         )
         .await?;
-    let records = convert_record_batches(query_result.clone(), serialization_format)
-        .map_err(|e| Error::Execution { source: e })?;
+    // No need to fetch underlying error for snafu(transparent)
+    let records = convert_record_batches(query_result.clone(), serialization_format)?;
     debug!(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()

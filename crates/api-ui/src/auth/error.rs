@@ -1,4 +1,5 @@
 use axum::{Json, http, response::IntoResponse};
+use error_stack_trace;
 use http::HeaderValue;
 use http::header;
 use http::header::InvalidHeaderValue;
@@ -8,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
 use utoipa::ToSchema;
-use error_stack_trace;
 
 pub type AuthResult<T> = std::result::Result<T, AuthError>;
 

@@ -53,7 +53,7 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
@@ -101,8 +101,10 @@ impl UserQuery {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
+        // it is designed to return DataFusionError, this is the reason why we
+        // create DataFusionError manually. This is also requires manual unboxing.
         Self::postprocess_query_statement_with_validation(&mut statement).map_err(|e| match e {
-            ExecutionError::DataFusion { error, .. } => error,
+            ExecutionError::DataFusion { error, .. } => *error,
             _ => DataFusionError::NotImplemented(e.to_string()),
         })?;
         Ok(statement)
@@ -179,8 +181,11 @@ impl UserQuery {
             json_element::visit(value);
             functions_rewriter::visit(value);
             unimplemented_functions_checker(value)
-                .map_err(|e| DataFusionError::NotImplemented(e.to_string()).into())
-                .context(ex_error::DataFusionSnafu)?;
+                // Can't use context here since underlying Error require handling
+                .map_err(|e| {
+                    ex_error::DataFusionSnafu
+                        .into_error(DataFusionError::NotImplemented(e.to_string()))
+                })?;
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             // inline_aliases_in_query::visit(value);
@@ -193,10 +198,7 @@ impl UserQuery {
     #[allow(clippy::too_many_lines)]
     #[instrument(name = "UserQuery::execute", level = "debug", skip(self), err)]
     pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
-        let statement = self
-            .parse_query()
-            .map_err(Into::into)
-            .context(ex_error::DataFusionSnafu)?;
+        let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
         // TODO: Code should be organized in a better way

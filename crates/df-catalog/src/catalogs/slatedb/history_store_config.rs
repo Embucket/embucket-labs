@@ -15,10 +15,11 @@ impl HistoryStoreViewConfig {
         &self,
         builder: &mut WorksheetsViewBuilder,
     ) -> datafusion_common::Result<(), DataFusionError> {
-        let worksheets =
-            self.history_store.get_worksheets().await.map_err(|e| {
-                DataFusionError::Execution(format!("failed to get worksheets: {e}"))
-            })?;
+        let worksheets = self
+            .history_store
+            .get_worksheets()
+            .await
+            .map_err(|e| DataFusionError::Execution(e.to_string()))?;
         for worksheet in worksheets {
             builder.add_worksheet(worksheet);
         }
@@ -33,7 +34,7 @@ impl HistoryStoreViewConfig {
             .history_store
             .get_queries(GetQueriesParams::default())
             .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get queries: {e}")))?;
+            .map_err(|e| DataFusionError::Execution(e.to_string()))?;
         for query in queries {
             builder.add_query(query);
         }

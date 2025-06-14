@@ -20,7 +20,8 @@ use std::string::ToString;
 use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
-use error_stack_trace;
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
@@ -69,12 +70,11 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Deserialize error: {error}, key: {key:?}, data: {data:?}"))]
+    #[snafu(display("Deserialize error: {error}, key: {key:?}"))]
     DeserializeValue {
         #[snafu(source)]
         error: serde_json::Error,
         key: Bytes,
-        data: Bytes,
         #[snafu(implicit)]
         location: Location,
     },
@@ -93,14 +93,6 @@ pub enum Error {
         location: Location,
     },
 }
-
-impl From<Box<Self>> for Error {
-    fn from(boxed_error: Box<Self>) -> Self {
-        *boxed_error
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Db(Arc<SlateDb>);
@@ -193,7 +185,6 @@ impl Db {
             |bytes| {
                 de::from_slice(&bytes).context(DeserializeValueSnafu {
                     key: Bytes::from(key.to_string()),
-                    data: bytes,
                 })
             },
         )
@@ -306,10 +297,8 @@ impl Db {
         let mut iter = self.range_iterator(range).await?;
         let mut items: Vec<T> = vec![];
         while let Ok(Some(item)) = iter.next().await {
-            let item = de::from_slice(&item.value).context(DeserializeValueSnafu {
-                key: item.key,
-                data: item.value,
-            })?;
+            let item =
+                de::from_slice(&item.value).context(DeserializeValueSnafu { key: item.key })?;
             items.push(item);
             if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                 break;

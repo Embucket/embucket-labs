@@ -1,8 +1,8 @@
-use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
+use error_stack_trace;
 use iceberg_rust::error::Error as IcebergError;
+use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
 
@@ -81,7 +81,8 @@ pub enum MetastoreError {
 
     #[snafu(display("SlateDB error: {source}"))]
     UtilSlateDB {
-        source: core_utils::Error,
+        #[snafu(source(from(core_utils::Error, Box::new)))]
+        source: Box<core_utils::Error>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -182,10 +183,8 @@ pub enum MetastoreError {
 
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
-        // #[snafu(source(from(IcebergError, Box::new)))]
-        // error: Box<IcebergError>,
-        #[snafu(source)]
-        error: IcebergError,
+        #[snafu(source(from(IcebergError, Box::new)))]
+        error: Box<IcebergError>,
         #[snafu(implicit)]
         location: Location,
     },

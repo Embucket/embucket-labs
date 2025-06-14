@@ -6,7 +6,7 @@ use crate::queries::models::{
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
-    queries::error::{QueriesAPIError, QueriesResult, QueryError, QuerySnafu},
+    queries::error::{self as queries_errors, QueriesResult, QueryError, QuerySnafu},
 };
 use api_sessions::DFSessionId;
 use axum::extract::ConnectInfo;
@@ -18,7 +18,7 @@ use axum::{
 use core_executor::models::{QueryContext, QueryResult};
 use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
-use snafu::ResultExt;
+use snafu::{IntoError, ResultExt};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
@@ -112,18 +112,20 @@ pub async fn query(
         .query(&session_id, &payload.query, query_context)
         .await;
 
-    match query_res {
-        Ok(QueryResult { query_id, .. }) => match state.history_store.get_query(query_id).await {
-            Err(err) => Err(QueriesAPIError::Query {
-                source: QueryError::Store { source: err },
-            }),
-            Ok(query_record) => Ok(Json(QueryCreateResponse(
-                QueryRecord::try_from(query_record).context(QuerySnafu)?,
-            ))),
-        },
-        Err(err) => Err(QueriesAPIError::Query {
-            source: QueryError::Execution { source: err },
-        }),
+    match query_res
+        .context(queries_errors::ExecutionSnafu)
+        .context(queries_errors::QuerySnafu)
+    {
+        Ok(QueryResult { query_id, .. }) => {
+            match state.history_store.get_query(query_id).await {
+                Err(err) => Err(queries_errors::QuerySnafu
+                    .into_error(queries_errors::StoreSnafu.into_error(err))),
+                Ok(query_record) => Ok(Json(QueryCreateResponse(
+                    QueryRecord::try_from(query_record).context(QuerySnafu)?,
+                ))),
+            }
+        }
+        Err(err) => Err(err),
     }
 }
 
@@ -196,7 +198,10 @@ pub async fn queries(
     let cursor = params.cursor;
     let result = state.history_store.get_queries(params.into()).await;
 
-    match result {
+    match result
+        .context(queries_errors::StoreSnafu)
+        .context(queries_errors::QueriesSnafu)
+    {
         Ok(recs) => {
             let next_cursor = if let Some(last_item) = recs.last() {
                 last_item.next_cursor()
@@ -226,8 +231,6 @@ pub async fn queries(
                 next_cursor,
             }))
         }
-        Err(e) => Err(QueriesAPIError::Queries {
-            source: QueryError::Store { source: e },
-        }),
+        Err(e) => Err(e),
     }
 }

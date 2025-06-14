@@ -2,11 +2,11 @@ use std::backtrace::Backtrace;
 
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
+use error_stack_trace;
 use iceberg_rust::error::Error as IcebergError;
 use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
 
@@ -16,24 +16,24 @@ pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
 pub enum ExecutionError {
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {
-        #[snafu(source)]
-        error: DataFusionError,
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("Cannot register UDAF functions"))]
     RegisterUDAF {
-        #[snafu(source)]
-        error: DataFusionError,
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("DataFusion error: {error}"))]
     DataFusion {
-        #[snafu(source)]
-        error: DataFusionError,
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -90,8 +90,8 @@ pub enum ExecutionError {
 
     #[snafu(display("DataFusion query error: {error}, query: {query}"))]
     DataFusionQuery {
-        #[snafu(source)]
-        error: DataFusionError,
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
         query: String,
         #[snafu(implicit)]
         location: Location,
@@ -107,7 +107,8 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: core_metastore::error::MetastoreError,
+        #[snafu(source(from(core_metastore::error::MetastoreError, Box::new)))]
+        source: Box<core_metastore::error::MetastoreError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -165,7 +166,8 @@ pub enum ExecutionError {
 
     #[snafu(display("Cannot refresh catalog list: {source}"))]
     RefreshCatalogList {
-        source: CatalogError,
+        #[snafu(source(from(CatalogError, Box::new)))]
+        source: Box<CatalogError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -186,16 +188,16 @@ pub enum ExecutionError {
 
     #[snafu(display("S3Tables error: {error}"))]
     S3Tables {
-        #[snafu(source)]
-        error: S3tablesError,
+        #[snafu(source(from(S3tablesError, Box::new)))]
+        error: Box<S3tablesError>,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
-        #[snafu(source)]
-        error: IcebergError,
+        #[snafu(source(from(IcebergError, Box::new)))]
+        error: Box<IcebergError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -232,8 +234,8 @@ pub enum ExecutionError {
 
     #[snafu(display("Failed to register catalog: {source}"))]
     RegisterCatalog {
-        #[snafu(source)]
-        source: CatalogError,
+        #[snafu(source(from(CatalogError, Box::new)))]
+        source: Box<CatalogError>,
         #[snafu(implicit)]
         location: Location,
     },

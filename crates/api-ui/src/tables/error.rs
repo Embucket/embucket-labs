@@ -5,10 +5,10 @@ use axum::extract::multipart;
 use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
+use error_stack_trace;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type TablesResult<T> = Result<T, Error>;
 
@@ -48,6 +48,7 @@ pub enum Error {
     },
 }
 
+// kind of reusable table error
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]

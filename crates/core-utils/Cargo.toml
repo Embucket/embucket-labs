@@ -5,6 +5,9 @@ edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
+error-stack = { path = "../error-stack" }
+error-stack-trace = { path = "../error-stack-trace" }
+
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -17,8 +20,6 @@ slatedb = { workspace = true }
 snafu = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-error-stack = { path = "../error-stack" }
-error-stack-trace = { path = "../error-stack-trace" }
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 use crate::session::register_session_context_udfs;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
-use core_history::errors::HistoryStoreError;
+use core_history::Error as HistoryStoreError;
 use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};

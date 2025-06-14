@@ -4,10 +4,10 @@ use axum::Json;
 use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
+use error_stack_trace;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type SchemasResult<T> = Result<T, SchemasAPIError>;
 
@@ -56,7 +56,7 @@ impl IntoStatusCode for SchemasAPIError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source, .. } => match &source {
-                ExecutionError::Metastore { source, .. } => match &source {
+                ExecutionError::Metastore { source, .. } => match **source {
                     MetastoreError::SchemaAlreadyExists { .. }
                     | MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                     MetastoreError::DatabaseNotFound { .. } | MetastoreError::Validation { .. } => {
@@ -71,7 +71,7 @@ impl IntoStatusCode for SchemasAPIError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Delete { source, .. } => match &source {
-                ExecutionError::Metastore { source, .. } => match &source {
+                ExecutionError::Metastore { source, .. } => match **source {
                     MetastoreError::SchemaNotFound { .. } => StatusCode::NOT_FOUND,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },

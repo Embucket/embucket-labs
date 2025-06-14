@@ -14,7 +14,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{self as metastore_error, MetastoreError, ValidationSnafu};
+use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
 use snafu::ResultExt;
 use utoipa::OpenApi;
@@ -86,7 +86,6 @@ pub async fn create_volume(
     embucket_volume
         .validate()
         .context(ValidationSnafu)
-        .map_err(MetastoreError::into)
         .context(CreateSnafu)?;
 
     state

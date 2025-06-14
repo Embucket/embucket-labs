@@ -1,10 +1,10 @@
 use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
+use error_stack_trace;
 use http;
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]

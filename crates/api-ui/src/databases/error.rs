@@ -4,10 +4,10 @@ use axum::Json;
 use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
+use error_stack_trace;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type DatabasesResult<T> = Result<T, DatabasesAPIError>;
 

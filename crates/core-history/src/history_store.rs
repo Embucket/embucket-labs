@@ -1,4 +1,4 @@
-use crate::errors::{self as core_history_errors, HistoryStoreError};
+use crate::errors::{self as core_history_errors, HistoryStoreResult};
 use crate::result_set::ResultSet;
 use crate::{
     QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
@@ -11,8 +11,6 @@ use serde_json::de;
 use slatedb::DbIterator;
 use snafu::ResultExt;
 use tracing::instrument;
-
-pub type HistoryStoreResult<T> = Result<T, HistoryStoreError>;
 
 #[derive(Default, Clone, Debug)]
 pub enum SortOrder {
@@ -268,12 +266,12 @@ impl HistoryStore for SlateDBHistoryStore {
 
             let mut items: Vec<QueryRecord> = vec![];
             while let Ok(Some(item)) = refs_iter.next().await {
-                let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or(
+                let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or_else(|| {
                     core_history_errors::QueryReferenceKeySnafu {
                         key: format!("{:?}", item.key),
                     }
-                    .build(),
-                )?;
+                    .build()
+                })?;
                 queries_iter
                     .seek(qh_key)
                     .await

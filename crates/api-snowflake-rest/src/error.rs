@@ -2,9 +2,9 @@ use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
 use core_executor::error::ExecutionError;
 use datafusion::arrow::error::ArrowError;
+use error_stack_trace;
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack_trace;
 
 pub type DbtResult<T> = std::result::Result<T, Error>;
 

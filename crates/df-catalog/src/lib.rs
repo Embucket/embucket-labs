@@ -1,5 +1,8 @@
-use datafusion_common::DataFusionError;
+use error::Result;
+use snafu::ResultExt;
 use tokio::runtime::Builder;
+
+use crate::error::PanicWrapper;
 
 #[allow(clippy::module_inception)]
 pub mod catalog;
@@ -13,7 +16,7 @@ pub mod table;
 #[cfg(test)]
 pub mod tests;
 
-pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>
+pub fn block_in_new_runtime<F, R>(future: F) -> Result<R>
 where
     F: Future<Output = R> + Send + 'static,
     R: Send + 'static,
@@ -22,15 +25,12 @@ where
         Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|_| DataFusionError::Execution("Failed to create Tokio runtime".to_string()))
+            .context(error::CreateTokioRuntimeSnafu)
             .map(|rt| rt.block_on(future))
     })
     .join()
-    .unwrap_or_else(|_| {
-        Err(DataFusionError::Execution(
-            "Thread panicked while executing future".to_string(),
-        ))
-    })
+    .map_err(PanicWrapper)
+    .context(error::ThreadPanickedSnafu)?
 }
 
 pub mod test_utils {

@@ -88,7 +88,6 @@ pub async fn create_database(
     database
         .validate()
         .context(ValidationSnafu)
-        .map_err(Into::into)
         .context(CreateSnafu)?;
     state
         .metastore
@@ -140,7 +139,6 @@ pub async fn get_database(
         .map(Database::from)
         .map(DatabaseResponse)
         .map(Json)
-        .map_err(Into::into)
         .context(GetSnafu)
 }
 
@@ -211,7 +209,6 @@ pub async fn update_database(
     database
         .validate()
         .context(ValidationSnafu)
-        .map_err(Into::into)
         .context(UpdateSnafu)?;
     //TODO: Implement database renames
     state

@@ -17,9 +17,7 @@ pub enum DashboardAPIError {
     #[snafu(display("Get total: {source}"))]
     Queries { source: QueryError },
     #[snafu(display("Get total: {source}"))]
-    History {
-        source: core_history::errors::HistoryStoreError,
-    },
+    History { source: core_history::Error },
 }
 
 // Select which status code to return.
