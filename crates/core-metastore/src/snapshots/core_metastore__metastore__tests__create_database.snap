@@ -1,12 +1,10 @@
 ---
-source: crates/metastore/src/metastore.rs
+source: crates/core-metastore/src/metastore.rs
 expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
 ---
 (
     Err(
-        VolumeNotFound {
-            volume: "testv1",
-        },
+        0: Volume testv1 not found, at file:line:col,
     ),
     [
         RwObject {

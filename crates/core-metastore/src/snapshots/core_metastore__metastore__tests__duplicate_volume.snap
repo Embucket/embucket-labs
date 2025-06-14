@@ -1,9 +1,7 @@
 ---
-source: crates/metastore/src/metastore.rs
+source: crates/core-metastore/src/metastore.rs
 expression: result
 ---
 Err(
-    VolumeAlreadyExists {
-        volume: "test",
-    },
+    0: Volume test already exists, at file:line:col,
 )

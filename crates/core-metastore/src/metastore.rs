@@ -941,6 +941,7 @@ mod tests {
             ),
             (r"lookup: \{[^}]*\}", "lookup: {LOOKUPS}"),
             (r"properties: \{[^}]*\}", "properties: {PROPERTIES}"),
+            (r"at .*.rs:\d+:\d+", "at file:line:col"), // remove Error location
         ]
     }
 
