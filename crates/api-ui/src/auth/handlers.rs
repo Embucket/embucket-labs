@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
-use crate::auth::error::{self as auth_error, Result, BadRefreshTokenSnafu, TokenErrorKind};
+use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, Result, TokenErrorKind};
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::state::AppState;
 use axum::Json;
@@ -89,7 +89,10 @@ pub fn get_claims_validate_jwt_token(
     Ok(decoded.claims)
 }
 
-pub fn create_jwt<T>(claims: &T, jwt_secret: &str) -> std::result::Result<String, jsonwebtoken::errors::Error>
+pub fn create_jwt<T>(
+    claims: &T,
+    jwt_secret: &str,
+) -> std::result::Result<String, jsonwebtoken::errors::Error>
 where
     T: Serialize,
 {

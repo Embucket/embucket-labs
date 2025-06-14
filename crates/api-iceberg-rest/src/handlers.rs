@@ -1,4 +1,4 @@
-use crate::error::{self as api_iceberg_rest_error, Result, Operation};
+use crate::error::{self as api_iceberg_rest_error, Operation, Result};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,

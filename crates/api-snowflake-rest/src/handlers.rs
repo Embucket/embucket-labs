@@ -1,4 +1,4 @@
-use crate::error::{self as api_snowflake_rest_error, Result, Error};
+use crate::error::{self as api_snowflake_rest_error, Error, Result};
 use crate::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,

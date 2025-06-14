@@ -1,4 +1,4 @@
-use super::error::{self as auth_error, Result, BadAuthTokenSnafu};
+use super::error::{self as auth_error, BadAuthTokenSnafu, Result};
 use super::handlers::get_claims_validate_jwt_token;
 use crate::state::AppState;
 use axum::{

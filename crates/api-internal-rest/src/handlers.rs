@@ -25,9 +25,7 @@ pub struct QueryParameters {
 }
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_volumes(
-    State(state): State<AppState>,
-) -> Result<Json<RwObjectVec<Volume>>> {
+pub async fn list_volumes(State(state): State<AppState>) -> Result<Json<RwObjectVec<Volume>>> {
     let volumes = state
         .metastore
         .iter_volumes()

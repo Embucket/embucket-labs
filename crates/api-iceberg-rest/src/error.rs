@@ -26,9 +26,7 @@ pub enum Operation {
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display(
-        "[IcebergAPI] Operation '{operation:?}' failed. Metastore error: {source}"
-    ))]
+    #[snafu(display("[IcebergAPI] Operation '{operation:?}' failed. Metastore error: {source}"))]
     Metastore {
         operation: Operation,
         source: MetastoreError,

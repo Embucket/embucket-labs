@@ -211,7 +211,8 @@ impl std::fmt::Display for WwwAuthenticate {
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let message = self.to_string();
-        let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> = self.try_into();
+        let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> =
+            self.try_into();
 
         match www_authenticate {
             Ok(www_value) => (
