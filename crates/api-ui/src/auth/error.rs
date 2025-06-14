@@ -10,12 +10,12 @@ use snafu::Location;
 use snafu::prelude::*;
 use utoipa::ToSchema;
 
-pub type AuthResult<T> = std::result::Result<T, AuthError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
-pub enum AuthError {
+pub enum Error {
     #[snafu(display("Login error"))]
     Login {
         #[snafu(implicit)]
@@ -162,26 +162,26 @@ pub struct WwwAuthenticate {
     pub kind: Option<TokenErrorKind>,
 }
 
-impl TryFrom<AuthError> for WwwAuthenticate {
+impl TryFrom<Error> for WwwAuthenticate {
     type Error = Option<Self>;
-    fn try_from(value: AuthError) -> Result<Self, Self::Error> {
+    fn try_from(value: Error) -> std::result::Result<Self, Self::Error> {
         let auth = "Bearer".to_string();
         let error = value.to_string();
         match value {
-            AuthError::Login { .. } => Ok(Self {
+            Error::Login { .. } => Ok(Self {
                 auth,
                 realm: "login".to_string(),
                 error,
                 kind: None,
             }),
-            AuthError::NoAuthHeader { .. } | AuthError::NoRefreshTokenCookie { .. } => Ok(Self {
+            Error::NoAuthHeader { .. } | Error::NoRefreshTokenCookie { .. } => Ok(Self {
                 auth,
                 realm: "api-auth".to_string(),
                 error,
                 kind: None,
             }),
-            AuthError::BadRefreshToken { error: source, .. }
-            | AuthError::BadAuthToken { error: source, .. } => Ok(Self {
+            Error::BadRefreshToken { error: source, .. }
+            | Error::BadAuthToken { error: source, .. } => Ok(Self {
                 auth,
                 realm: "api-auth".to_string(),
                 error,
@@ -208,10 +208,10 @@ impl std::fmt::Display for WwwAuthenticate {
     }
 }
 
-impl IntoResponse for AuthError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let message = self.to_string();
-        let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> = self.try_into();
+        let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> = self.try_into();
 
         match www_authenticate {
             Ok(www_value) => (

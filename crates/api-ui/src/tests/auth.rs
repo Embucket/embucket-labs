@@ -42,7 +42,7 @@ async fn login<T>(
     addr: &SocketAddr,
     username: &str,
     password: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -66,7 +66,7 @@ where
 async fn logout<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -87,7 +87,7 @@ async fn refresh<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     refresh_token: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -116,7 +116,7 @@ async fn query<T>(
     addr: &SocketAddr,
     access_token: &String,
     query: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -379,8 +379,8 @@ async fn test_jwt_token_expired() {
         jsonwebtoken::errors::ErrorKind::ExpiredSignature
     );
 
-    let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> =
-        AuthError::BadAuthToken {
+    let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> =
+        Error::BadAuthToken {
             error: err,
             location: location!(),
         }

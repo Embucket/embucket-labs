@@ -1,5 +1,5 @@
 use super::error;
-use super::error::MetastoreAPIResult;
+use super::error::Result;
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -27,7 +27,7 @@ pub struct QueryParameters {
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_volumes(
     State(state): State<AppState>,
-) -> MetastoreAPIResult<Json<RwObjectVec<Volume>>> {
+) -> Result<Json<RwObjectVec<Volume>>> {
     let volumes = state
         .metastore
         .iter_volumes()
@@ -45,7 +45,7 @@ pub async fn list_volumes(
 pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
-) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
+) -> Result<Json<RwObject<Volume>>> {
     match state
         .metastore
         .get_volume(&volume_name)
@@ -66,7 +66,7 @@ pub async fn get_volume(
 pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<Volume>,
-) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
+) -> Result<Json<RwObject<Volume>>> {
     volume
         .validate()
         .context(metastore_error::ValidationSnafu)
@@ -84,7 +84,7 @@ pub async fn update_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
     Json(volume): Json<Volume>,
-) -> MetastoreAPIResult<Json<RwObject<Volume>>> {
+) -> Result<Json<RwObject<Volume>>> {
     volume
         .validate()
         .context(metastore_error::ValidationSnafu)
@@ -102,7 +102,7 @@ pub async fn delete_volume(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
     Path(volume_name): Path<String>,
-) -> MetastoreAPIResult<()> {
+) -> Result<()> {
     state
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
@@ -126,7 +126,7 @@ pub fn hide_sensitive(volume: RwObject<Volume>) -> RwObject<Volume> {
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn list_databases(
     State(state): State<AppState>,
-) -> MetastoreAPIResult<Json<Vec<RwObject<Database>>>> {
+) -> Result<Json<Vec<RwObject<Database>>>> {
     state
         .metastore
         .iter_databases()
@@ -141,7 +141,7 @@ pub async fn list_databases(
 pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> MetastoreAPIResult<Json<RwObject<Database>>> {
+) -> Result<Json<RwObject<Database>>> {
     match state
         .metastore
         .get_database(&database_name)
@@ -162,7 +162,7 @@ pub async fn get_database(
 pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<Database>,
-) -> MetastoreAPIResult<Json<RwObject<Database>>> {
+) -> Result<Json<RwObject<Database>>> {
     database
         .validate()
         .context(metastore_error::ValidationSnafu)

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
-use crate::auth::error::{self as auth_error, AuthResult, BadRefreshTokenSnafu, TokenErrorKind};
+use crate::auth::error::{self as auth_error, Result, BadRefreshTokenSnafu, TokenErrorKind};
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::state::AppState;
 use axum::Json;
@@ -76,7 +76,7 @@ pub fn get_claims_validate_jwt_token(
     token: &str,
     audience: &str,
     jwt_secret: &str,
-) -> Result<Claims, jsonwebtoken::errors::Error> {
+) -> std::result::Result<Claims, jsonwebtoken::errors::Error> {
     let mut validation = Validation::default();
     validation.leeway = 5;
     validation.set_audience(&[audience]);
@@ -89,7 +89,7 @@ pub fn get_claims_validate_jwt_token(
     Ok(decoded.claims)
 }
 
-pub fn create_jwt<T>(claims: &T, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error>
+pub fn create_jwt<T>(claims: &T, jwt_secret: &str) -> std::result::Result<String, jsonwebtoken::errors::Error>
 where
     T: Serialize,
 {
@@ -100,14 +100,14 @@ where
     )
 }
 
-fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> AuthResult<()> {
+fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> Result<()> {
     if jwt_secret.is_empty() {
         return auth_error::NoJwtSecretSnafu.fail();
     }
     Ok(())
 }
 
-fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
+fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> Result<()> {
     headers
         .try_append(
             SET_COOKIE,
@@ -170,7 +170,7 @@ pub async fn login(
     //TODO: add DFSessionId (to start the session on login)
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password()
     {
         return auth_error::LoginSnafu.fail();
@@ -221,7 +221,7 @@ pub async fn login(
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
     ensure_jwt_secret_is_valid(jwt_secret)?;
 
@@ -271,7 +271,7 @@ pub async fn refresh_access_token(
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
     ensure_jwt_secret_is_valid(jwt_secret)?;
 
@@ -312,7 +312,7 @@ pub async fn logout(
 pub async fn account(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     // Simplest account info, also no auth checks.
     // TODO: Move it to proper place when working with real account
     // Check authentication

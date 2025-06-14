@@ -1,4 +1,4 @@
-use super::error::{self as auth_error, AuthResult, BadAuthTokenSnafu};
+use super::error::{self as auth_error, Result, BadAuthTokenSnafu};
 use super::handlers::get_claims_validate_jwt_token;
 use crate::state::AppState;
 use axum::{
@@ -9,7 +9,7 @@ use axum::{
 use http::HeaderMap;
 use snafu::ResultExt;
 
-fn get_authorization_token(headers: &HeaderMap) -> AuthResult<&str> {
+fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     let auth = headers.get(http::header::AUTHORIZATION);
 
     match auth {
@@ -31,7 +31,7 @@ pub async fn require_auth(
     State(state): State<AppState>,
     req: Request,
     next: Next,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     // no demo user -> no auth required
     if state.auth_config.jwt_secret().is_empty()
         || state.auth_config.demo_user().is_empty()

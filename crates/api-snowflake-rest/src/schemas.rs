@@ -1,4 +1,4 @@
-use super::error::{self as api_snowflake_rest_error, DbtResult};
+use super::error::{self as api_snowflake_rest_error, Result};
 use core_executor::models::ColumnInfo as ColumnInfoModel;
 use core_executor::utils::DataSerializationFormat;
 use indexmap::IndexMap;
@@ -97,7 +97,7 @@ pub struct ResponseData {
 }
 
 impl ResponseData {
-    pub fn rows_to_vec(json_rows_string: &str) -> DbtResult<Vec<Vec<serde_json::Value>>> {
+    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Vec<serde_json::Value>>> {
         let json_array: Vec<IndexMap<String, serde_json::Value>> =
             serde_json::from_str(json_rows_string)
                 .context(api_snowflake_rest_error::RowParseSnafu)?;
@@ -157,7 +157,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(data_format: &str) -> Result<Self, strum::ParseError> {
+    pub fn new(data_format: &str) -> std::result::Result<Self, strum::ParseError> {
         Ok(Self {
             dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
         })

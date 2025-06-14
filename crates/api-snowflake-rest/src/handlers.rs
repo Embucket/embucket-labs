@@ -1,4 +1,4 @@
-use crate::error::{self as api_snowflake_rest_error, DbtResult, Error};
+use crate::error::{self as api_snowflake_rest_error, Result, Error};
 use crate::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
@@ -40,7 +40,7 @@ pub async fn login(
     State(_state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
-) -> DbtResult<Json<LoginResponse>> {
+) -> Result<Json<LoginResponse>> {
     // Decompress the gzip-encoded body
     // TODO: Investigate replacing this with a middleware
     let mut d = GzDecoder::new(&body[..]);
@@ -61,7 +61,7 @@ pub async fn login(
     }))
 }
 
-fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, Error> {
+fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> std::result::Result<String, Error> {
     let mut buf = Vec::new();
     let options = IpcWriteOptions::try_new(ARROW_IPC_ALIGNMENT, false, MetadataVersion::V5)
         .context(api_snowflake_rest_error::ArrowSnafu)?;
@@ -82,7 +82,7 @@ fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, Error> {
     Ok(engine_base64.encode(buf))
 }
 
-fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, Error> {
+fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, Error> {
     let buf = Vec::new();
     let write_builder = WriterBuilder::new().with_explicit_nulls(true);
     let mut writer = write_builder.build::<_, JsonArray>(buf);
@@ -106,7 +106,7 @@ pub async fn query(
     Query(query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
-) -> DbtResult<Json<JsonResponse>> {
+) -> Result<Json<JsonResponse>> {
     // Decompress the gzip-encoded body
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
@@ -172,7 +172,7 @@ pub async fn query(
     Ok(json_resp)
 }
 
-pub async fn abort() -> DbtResult<Json<serde_json::value::Value>> {
+pub async fn abort() -> Result<Json<serde_json::value::Value>> {
     api_snowflake_rest_error::NotImplementedSnafu.fail()
 }
 

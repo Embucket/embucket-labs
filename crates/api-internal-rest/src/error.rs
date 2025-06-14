@@ -6,60 +6,62 @@ use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("List volumes error: {error}"))]
+    #[snafu(display("[InternalAPI] List volumes error: {error}"))]
     ListVolumes {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Get volume error: {error}"))]
+    #[snafu(display("[InternalAPI] Get volume error: {error}"))]
     GetVolume {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Create volume error: {error}"))]
+    #[snafu(display("[InternalAPI] Create volume error: {error}"))]
     CreateVolume {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Update volume error: {error}"))]
+    #[snafu(display("[InternalAPI] Update volume error: {error}"))]
     UpdateVolume {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Delete volume error: {error}"))]
+    #[snafu(display("[InternalAPI] Delete volume error: {error}"))]
     DeleteVolume {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("List databases error: {error}"))]
+    #[snafu(display("[InternalAPI] List databases error: {error}"))]
     ListDatabases {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Get database error: {error}"))]
+    #[snafu(display("[InternalAPI] Get database error: {error}"))]
     GetDatabase {
         #[snafu(source)]
         error: MetastoreError,
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Create database error: {error}"))]
+    #[snafu(display("[InternalAPI] Create database error: {error}"))]
     CreateDatabase {
         #[snafu(source)]
         error: MetastoreError,
@@ -67,8 +69,6 @@ pub enum Error {
         location: Location,
     },
 }
-
-pub type MetastoreAPIResult<T> = Result<T, Error>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {

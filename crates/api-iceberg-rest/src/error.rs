@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
 
-pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Operation {
@@ -25,9 +25,9 @@ pub enum Operation {
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
-pub enum IcebergAPIError {
+pub enum Error {
     #[snafu(display(
-        "[IcebergAPIError] Operation '{operation:?}' failed. Metastore error: {source}"
+        "[IcebergAPI] Operation '{operation:?}' failed. Metastore error: {source}"
     ))]
     Metastore {
         operation: Operation,
@@ -43,7 +43,7 @@ pub struct ErrorResponse {
     pub status_code: u16,
 }
 
-impl IntoResponse for IcebergAPIError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let metastore_error = match self {
             Self::Metastore { source, .. } => source,

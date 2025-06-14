@@ -1,4 +1,4 @@
-use crate::error::{self as api_iceberg_rest_error, IcebergAPIResult, Operation};
+use crate::error::{self as api_iceberg_rest_error, Result, Operation};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -26,7 +26,7 @@ pub async fn create_namespace(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
     Json(schema): Json<CreateNamespaceRequest>,
-) -> IcebergAPIResult<Json<CreateNamespaceResponse>> {
+) -> Result<Json<CreateNamespaceResponse>> {
     let ib_schema = to_schema(schema, database_name);
     let schema = state
         .metastore
@@ -42,7 +42,7 @@ pub async fn create_namespace(
 pub async fn get_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<GetNamespaceResponse>> {
+) -> Result<Json<GetNamespaceResponse>> {
     let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
@@ -75,7 +75,7 @@ pub async fn get_namespace(
 pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
@@ -91,7 +91,7 @@ pub async fn delete_namespace(
 pub async fn list_namespaces(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> IcebergAPIResult<Json<ListNamespacesResponse>> {
+) -> Result<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
         .iter_schemas(&database_name)
@@ -109,7 +109,7 @@ pub async fn create_table(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(table): Json<CreateTableRequest>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table.name);
     let volume_ident = state
         .metastore
@@ -142,7 +142,7 @@ pub async fn register_table(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(register): Json<RegisterTableRequest>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &register.name);
     let metadata_raw = state
         .metastore
@@ -195,7 +195,7 @@ pub async fn commit_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     Json(commit): Json<CommitTable>,
-) -> IcebergAPIResult<Json<CommitTableResponse>> {
+) -> Result<Json<CommitTableResponse>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table_updates = to_table_commit(commit);
     let ib_table = state
@@ -215,7 +215,7 @@ pub async fn commit_table(
 pub async fn get_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table = state
         .metastore
@@ -242,7 +242,7 @@ pub async fn get_table(
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     state
         .metastore
@@ -258,7 +258,7 @@ pub async fn delete_table(
 pub async fn list_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<ListTablesResponse>> {
+) -> Result<Json<ListTablesResponse>> {
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
@@ -277,7 +277,7 @@ pub async fn report_metrics(
     State(_state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     Json(metrics): Json<Value>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     tracing::info!(
         "Received metrics for table {database_name}.{schema_name}.{table_name}: {:?}",
         metrics
@@ -289,7 +289,7 @@ pub async fn report_metrics(
 pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<GetConfigQuery>,
-) -> IcebergAPIResult<Json<CatalogConfig>> {
+) -> Result<Json<CatalogConfig>> {
     let catalog_url = state.config.iceberg_catalog_url.clone();
     let config = CatalogConfig {
         defaults: HashMap::new(),
@@ -309,7 +309,7 @@ pub async fn get_config(
 pub async fn list_views(
     State(_state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<ListTablesResponse>> {
+) -> Result<Json<ListTablesResponse>> {
     Ok(Json(ListTablesResponse {
         next_page_token: None,
         identifiers: None,

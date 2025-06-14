@@ -6,7 +6,7 @@ use error_stack_trace;
 use snafu::Location;
 use snafu::prelude::*;
 
-pub type DbtResult<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
