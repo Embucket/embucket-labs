@@ -4,7 +4,6 @@
 
 # Set your DBT profiles directory relative to the script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export DBT_PROFILES_DIR="$SCRIPT_DIR"
 
 # Skip if the repo alredy exists in target dir
 SKIP_EXISTING=false
@@ -79,6 +78,8 @@ while IFS= read -r repo_url; do
         source env/bin/activate
     fi
     echo ""
+
+    export DBT_PROFILES_DIR="$SCRIPT_DIR"
 
   
     echo "###############################"
