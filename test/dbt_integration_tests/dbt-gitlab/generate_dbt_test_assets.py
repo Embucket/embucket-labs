@@ -44,16 +44,16 @@ def generate_badge(success_rate, output_dir='assets'):
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'dbt_success_badge.svg')
 
-    # Base bronze color
-    bronze_base = "#CD7F32"
+    # Green color
+    green_base = "#B2FFB2"
 
     # Determine opacity based on success rate
     opacity = min(1.0, max(0.2, success_rate / 100))
 
-    # Convert hex to RGB for the bronze color
-    r = int(bronze_base[1:3], 16)
-    g = int(bronze_base[3:5], 16)
-    b = int(bronze_base[5:7], 16)
+    # Convert hex to RGB for the green color
+    r = int(green_base[1:3], 16)
+    g = int(green_base[3:5], 16)
+    b = int(green_base[5:7], 16)
 
     # Create color with opacity
     color = f"rgba({r}, {g}, {b}, {opacity:.2f})"
@@ -80,7 +80,7 @@ def generate_badge(success_rate, output_dir='assets'):
   </mask>
   <g mask="url(#a)">
     <path fill="#555" d="M0 0h{label_width}v20H0z"/>
-    <path fill="{bronze_base}" fill-opacity="{opacity:.2f}" d="M{label_width} 0h{pct_width}v20H{label_width}z"/>
+    <path fill="{color}" fill-opacity="{opacity:.2f}" d="M{label_width} 0h{pct_width}v20H{label_width}z"/>
     <path fill="url(#b)" d="M0 0h{total_width}v20H0z"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">

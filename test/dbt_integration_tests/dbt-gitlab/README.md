@@ -1,6 +1,6 @@
 
 ![alt text](assets/dbt_success_badge.svg)
-## DBT Gitlab run results (Embucket):
+## DBT Gitlab run results:
 ![alt text](assets/dbt_run_status.png)
 
 # How to run dbt-gitlab project?
