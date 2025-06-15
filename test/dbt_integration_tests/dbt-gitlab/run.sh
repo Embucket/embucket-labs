@@ -82,7 +82,7 @@ echo ""
     fi 
 
 
-# Load data and create embucket catalog if the embucket is a target 
+# Update the errors log and run results
 echo "###############################"
 echo ""
 echo "Updating the errors log and total results"
@@ -91,12 +91,12 @@ if [ "$DBT_TARGET" = "embucket" ]; then
 fi
 echo ""
 
-# Load data and create embucket catalog if the embucket is a target 
+# Generate assets after the run
 echo "###############################"
 echo ""
 echo "Updating the chart result"
 if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD gen_dbt_run_chart.py 
+   $PYTHON_CMD generate_dbt_test_assets.py 
 fi
 echo ""
 echo "###############################"

@@ -1,4 +1,8 @@
 
+![alt text](assets/dbt_success_badge.svg)
+## DBT Gitlab run results (Embucket):
+![alt text](assets/dbt_run_status.png)
+
 # How to run dbt-gitlab project?
 
 1. cd into dbt-gitlab directory
@@ -33,7 +37,3 @@ Files to start with:
 **top_errors.txt** - file with the top 10 errors
 
 **run.log** - file with the logs after the last run
-
-
-Emucket dbt run result:
-![alt text](charts/dbt_run_status.png)
