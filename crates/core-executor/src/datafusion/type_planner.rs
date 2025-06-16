@@ -23,14 +23,16 @@ impl TypePlanner for CustomTypePlanner {
             SQLDataType::JSON => Ok(Some(DataType::Utf8)),
             SQLDataType::Custom(a, b) => match a.to_string().to_uppercase().as_str() {
                 "VARIANT" => Ok(Some(DataType::Utf8)),
-                "TIMESTAMP_NTZ" => {
+                "TIMESTAMP_NTZ" | "TIMESTAMP_LTZ" | "TIMESTAMP_TZ" => {
                     let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
                     match parsed_b {
                         Some(0) => Ok(Some(DataType::Timestamp(TimeUnit::Second, None))),
                         Some(3) => Ok(Some(DataType::Timestamp(TimeUnit::Millisecond, None))),
                         // We coerce nanoseconds to microseconds as Apache Iceberg v2 doesn't support nanosecond precision
-                        Some(6 | 9) => Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None))),
-                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_NTZ precision {parsed_b:?}"),
+                        None | Some(6 | 9) => {
+                            Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None)))
+                        }
+                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_* precision {parsed_b:?}"),
                     }
                 }
                 "NUMBER" => {
