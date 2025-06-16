@@ -1,5 +1,13 @@
 ---
-source: crates/embucket-functions/src/tests/math/div0.rs
+source: crates/embucket-functions/src/tests/numeric/div0.rs
 description: "\"SELECT DIV0(NULL, 2), DIV0(10, NULL), DIV0(NULL, NULL)\""
 ---
-"Error: Error during planning: For function 'div0' Null and Int64 are not coercible to a common numeric type No function matches the given name and argument types 'div0(Null, Int64)'. You might need to add explicit type casts.\n\tCandidate functions:\n\tdiv0(Numeric(2))"
+Ok(
+    [
+        "+---------------------+----------------------+-----------------+",
+        "| div0(NULL,Int64(2)) | div0(Int64(10),NULL) | div0(NULL,NULL) |",
+        "+---------------------+----------------------+-----------------+",
+        "|                     |                      |                 |",
+        "+---------------------+----------------------+-----------------+",
+    ],
+)

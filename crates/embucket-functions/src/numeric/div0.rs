@@ -40,7 +40,7 @@ impl Div0Func {
     pub fn new() -> Self {
         Self {
             // Support all numeric types
-            signature: Signature::numeric(2, Volatility::Immutable),
+            signature: Signature::variadic_any(Volatility::Immutable),
         }
     }
 }
@@ -136,3 +136,120 @@ fn div0_impl(dividend: &ArrayRef, divisor: &ArrayRef) -> DFResult<ArrayRef> {
 }
 
 crate::macros::make_udf_function!(Div0Func);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::prelude::SessionContext;
+    use datafusion_common::assert_batches_eq;
+    use datafusion_expr::ScalarUDF;
+
+    #[tokio::test]
+    async fn test_div0_nulls() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+
+        let q = "SELECT DIV0(NULL, 2) AS null_dividend, 
+                       DIV0(10, NULL) AS null_divisor, 
+                       DIV0(NULL, NULL) AS both_null";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------+--------------+-----------+",
+                "| null_dividend | null_divisor | both_null |",
+                "+---------------+--------------+-----------+",
+                "|               |              |           |",
+                "+---------------+--------------+-----------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_div0_basic() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+
+        let q = "SELECT DIV0(10, 2) AS normal_division, DIV0(10, 0) AS zero_division";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+-----------------+---------------+",
+                "| normal_division | zero_division |",
+                "+-----------------+---------------+",
+                "| 5.0             | 0.0           |",
+                "+-----------------+---------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_div0_numeric_types() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+
+        let q = "SELECT DIV0(10, 2) AS int_int, 
+                       DIV0(10.5, 2) AS float_int, 
+                       DIV0(10, 2.5) AS int_float, 
+                       DIV0(10.5, 2.5) AS float_float";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------+-----------+-----------+-------------+",
+                "| int_int | float_int | int_float | float_float |",
+                "+---------+-----------+-----------+-------------+",
+                "| 5.0     | 5.25      | 4.0       | 4.2         |",
+                "+---------+-----------+-----------+-------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_div0_table_input() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+
+        // Create a test table
+        ctx.sql("CREATE TABLE div0_test (a INT, b INT)")
+            .await?
+            .collect()
+            .await?;
+        ctx.sql(
+            "INSERT INTO div0_test VALUES (10, 2), (10, 0), (NULL, 2), (10, NULL), (NULL, NULL)",
+        )
+        .await?
+        .collect()
+        .await?;
+
+        let q = "SELECT a, b, DIV0(a, b) AS result FROM div0_test";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+----+---+--------+",
+                "| a  | b | result |",
+                "+----+---+--------+",
+                "| 10 | 2 | 5.0    |",
+                "| 10 | 0 | 0.0    |",
+                "|    | 2 |        |",
+                "| 10 |   |        |",
+                "|    |   |        |",
+                "+----+---+--------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+}
