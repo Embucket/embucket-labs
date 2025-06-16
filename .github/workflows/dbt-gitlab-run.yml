@@ -90,7 +90,7 @@ jobs:
         run: |
           # Copy test assets and statistics file to a temporary location before switching branches
           mkdir -p /tmp/embucket-assets
-          cp -r test/test/dbt_integration_tests/dbt-gitlab/assets/* /tmp/embucket-assets/
+          cp -r test/dbt_integration_tests/dbt-gitlab/assets/* /tmp/embucket-assets/
         
           # Setup git
           git config --global user.name "github-actions[bot]"
