@@ -1,7 +1,10 @@
+import { useState } from 'react';
+
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useGetDatabases } from '@/orval/databases';
 import type { Database } from '@/orval/models';
 
@@ -11,7 +14,12 @@ interface DatabasesPageToolbarProps {
 }
 
 export function DatabasesPageToolbar({ databases }: DatabasesPageToolbarProps) {
-  const { refetch: refetchDatabases, isFetching: isFetchingDatabases } = useGetDatabases();
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { refetch: refetchDatabases, isFetching: isFetchingDatabases } = useGetDatabases({
+    search: debouncedSearch,
+  });
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
@@ -23,7 +31,7 @@ export function DatabasesPageToolbar({ databases }: DatabasesPageToolbarProps) {
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingDatabases} onRefresh={refetchDatabases} />
       </div>

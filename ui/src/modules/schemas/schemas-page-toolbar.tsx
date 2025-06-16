@@ -1,8 +1,11 @@
+import { useState } from 'react';
+
 import { useParams } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
+import { useDebounce } from '@/hooks/use-debounce';
 import type { Schema } from '@/orval/models';
 import { useGetSchemas } from '@/orval/schemas';
 
@@ -16,7 +19,12 @@ export function SchemasPageToolbar({ schemas }: SchemasPageToolbarProps) {
     from: '/databases/$databaseName/schemas/',
   });
 
-  const { refetch: refetchSchemas, isFetching: isFetchingSchemas } = useGetSchemas(databaseName);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { refetch: refetchSchemas, isFetching: isFetchingSchemas } = useGetSchemas(databaseName, {
+    search: debouncedSearch,
+  });
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
@@ -28,7 +36,7 @@ export function SchemasPageToolbar({ schemas }: SchemasPageToolbarProps) {
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingSchemas} onRefresh={refetchSchemas} />
       </div>

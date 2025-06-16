@@ -1,7 +1,10 @@
+import { useState } from 'react';
+
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
+import { useDebounce } from '@/hooks/use-debounce';
 import type { Volume } from '@/orval/models';
 import { useGetVolumes } from '@/orval/volumes';
 
@@ -11,7 +14,12 @@ interface VolumesPageToolbarProps {
 }
 
 export function VolumesPageToolbar({ volumes }: VolumesPageToolbarProps) {
-  const { refetch: refetchVolumes, isFetching: isFetchingVolumes } = useGetVolumes();
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { refetch: refetchVolumes, isFetching: isFetchingVolumes } = useGetVolumes({
+    search: debouncedSearch,
+  });
 
   return (
     <div className="flex items-center justify-between gap-4 p-4">
@@ -23,7 +31,7 @@ export function VolumesPageToolbar({ volumes }: VolumesPageToolbarProps) {
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingVolumes} onRefresh={refetchVolumes} />
       </div>

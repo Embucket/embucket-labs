@@ -1,8 +1,11 @@
+import { useState } from 'react';
+
 import { useParams } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
+import { useDebounce } from '@/hooks/use-debounce';
 import type { Table } from '@/orval/models';
 import { useGetTables } from '@/orval/tables';
 
@@ -16,9 +19,15 @@ export function TablesPageToolbar({ tables }: TablesPageToolbarProps) {
     from: '/databases/$databaseName/schemas/$schemaName/tables/',
   });
 
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
   const { refetch: refetchTables, isFetching: isFetchingTables } = useGetTables(
     databaseName,
     schemaName,
+    {
+      search: debouncedSearch,
+    },
   );
 
   return (
@@ -31,7 +40,7 @@ export function TablesPageToolbar({ tables }: TablesPageToolbarProps) {
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingTables} onRefresh={refetchTables} />
       </div>
