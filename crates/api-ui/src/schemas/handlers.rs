@@ -104,13 +104,15 @@ pub async fn create_schema(
         .map(|opt_rw_obj| {
             // Here we create MetastoreError since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::SchemaNotFoundSnafu {
-                    db: database_name.clone(),
-                    schema: payload.name.clone(),
-                }.build()
-            })
-            .context(GetSnafu)
+            opt_rw_obj
+                .ok_or_else(|| {
+                    metastore_error::SchemaNotFoundSnafu {
+                        db: database_name.clone(),
+                        schema: payload.name.clone(),
+                    }
+                    .build()
+                })
+                .context(GetSnafu)
         })
         .context(GetSnafu)?
         .map(Schema::from)?;
@@ -197,14 +199,15 @@ pub async fn get_schema(
         .map(|opt_rw_obj| {
             // We create here MetastoreError since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::SchemaNotFoundSnafu {
-                    db: database_name.clone(),
-                    schema: schema_name.clone(),
-                }
-                .build()
-            })
-            .context(GetSnafu)
+            opt_rw_obj
+                .ok_or_else(|| {
+                    metastore_error::SchemaNotFoundSnafu {
+                        db: database_name.clone(),
+                        schema: schema_name.clone(),
+                    }
+                    .build()
+                })
+                .context(GetSnafu)
         })
         .context(GetSnafu)?
         .map(Schema::from)?;
@@ -252,7 +255,7 @@ pub async fn update_schema(
         .await
         .context(UpdateSnafu)?;
 
-        Ok(Json(SchemaUpdateResponse(Schema::from(schema))))
+    Ok(Json(SchemaUpdateResponse(Schema::from(schema))))
 }
 
 #[utoipa::path(

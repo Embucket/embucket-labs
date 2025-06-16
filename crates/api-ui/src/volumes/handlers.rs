@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use crate::{
-    OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
-    error::ErrorResponse, Result,
+    OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
+    error::ErrorResponse,
     volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
@@ -130,17 +130,18 @@ pub async fn get_volume(
         .map(|opt_rw_obj| {
             // We create here MetastoreError since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::VolumeNotFoundSnafu {
-                    volume: volume_name.clone(),
-                }
-                .build()
-            })
-            .context(GetSnafu)
+            opt_rw_obj
+                .ok_or_else(|| {
+                    metastore_error::VolumeNotFoundSnafu {
+                        volume: volume_name.clone(),
+                    }
+                    .build()
+                })
+                .context(GetSnafu)
         })
         .context(GetSnafu)?
         .map(Volume::from)?;
-    
+
     Ok(Json(VolumeResponse(volume)))
 }
 

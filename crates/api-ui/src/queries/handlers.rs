@@ -1,4 +1,4 @@
-use crate::queries::error::{QueryRecordResult, GetQueryRecordSnafu, StoreSnafu};
+use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult, StoreSnafu};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
     QueryRecord,
@@ -118,14 +118,17 @@ pub async fn query(
         .context(queries_errors::QuerySnafu)
     {
         Ok(QueryResult { query_id, .. }) => {
-            let query_record = state.history_store.get_query(query_id).await
+            let query_record = state
+                .history_store
+                .get_query(query_id)
+                .await
                 .map(QueryRecord::try_from)
                 .context(queries_errors::StoreSnafu)
                 .context(queries_errors::QuerySnafu)?
                 .context(queries_errors::QuerySnafu)?;
             return Ok(Json(QueryCreateResponse(query_record)));
         }
-        Err(err) => Err(err.into()), // convert queries Error into crate Error 
+        Err(err) => Err(err.into()), // convert queries Error into crate Error
     }
 }
 

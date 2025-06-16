@@ -1,4 +1,4 @@
-use crate::error::{Result, ErrorResponse};
+use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use crate::tables::error::{
     self as tables_errors, ExecutionSnafu, MalformedMultipartFileDataSnafu,
@@ -118,10 +118,11 @@ pub async fn get_table_statistics(
             })))
         }
         Ok(None) => Err(metastore_error::TableNotFoundSnafu {
-                table: database_name,
-                schema: schema_name,
-                db: table_name,
-            }.build()),
+            table: database_name,
+            schema: schema_name,
+            db: table_name,
+        }
+        .build()),
         Err(source) => Err(source),
     }
     .context(tables_errors::MetastoreSnafu)
@@ -351,7 +352,8 @@ pub async fn upload_file(
             duration_ms: duration.as_millis(),
         }))
     } else {
-        tables_errors::FileFieldSnafu.fail()
+        tables_errors::FileFieldSnafu
+            .fail()
             .context(tables_errors::UploadFileSnafu)?
     }
 }

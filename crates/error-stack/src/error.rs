@@ -19,9 +19,9 @@
 // - No unwrap
 // --------------------------------------------------------------------------------
 
-use std::sync::Arc;
-use std::any::Any;
 use crate::sources::Source;
+use std::any::Any;
+use std::sync::Arc;
 
 /// Extension to [`Error`](std::error::Error) in std.
 pub trait ErrorExt: StackError {
@@ -36,7 +36,9 @@ pub trait ErrorExt: StackError {
     {
         let error = self.last();
         if let Some(external_error) = error.source() {
-            let sources = Source { current: Some(external_error) };
+            let sources = Source {
+                current: Some(external_error),
+            };
             if let Some(external_root) = sources.last() {
                 if error.transparent() {
                     format!("{external_root}")
@@ -48,7 +50,7 @@ pub trait ErrorExt: StackError {
             }
         } else {
             format!("{error}")
-        }   
+        }
     }
 
     /// Find out root level error for nested error
@@ -58,7 +60,9 @@ pub trait ErrorExt: StackError {
     {
         let error = self.last();
         if let Some(external_error) = error.source() {
-            let sources = Source { current: Some(external_error) };
+            let sources = Source {
+                current: Some(external_error),
+            };
             if let Some(external_root) = sources.last() {
                 return Some(external_root);
             }

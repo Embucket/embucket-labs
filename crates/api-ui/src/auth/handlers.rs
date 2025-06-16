@@ -1,9 +1,9 @@
-use crate::error::Result;
-use crate::auth::models::{AccountResponse, RefreshTokenResponse};
-use super::error::{AuthErrorResponse};
+use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, TokenErrorKind};
+use crate::auth::models::{AccountResponse, RefreshTokenResponse};
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
+use crate::error::Result;
 use crate::state::AppState;
 
 use axum::Json;

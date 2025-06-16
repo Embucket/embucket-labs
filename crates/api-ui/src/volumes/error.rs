@@ -2,8 +2,8 @@ use crate::error::IntoStatusCode;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
-use snafu::prelude::*;
 use snafu::Location;
+use snafu::prelude::*;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]

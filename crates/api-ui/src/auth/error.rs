@@ -247,7 +247,8 @@ impl IntoResponse for Error {
                     error_kind: www_value.kind,
                     status_code: status_code.as_u16(),
                 }),
-            ).into_response(),
+            )
+                .into_response(),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(AuthErrorResponse {
@@ -255,7 +256,8 @@ impl IntoResponse for Error {
                     error_kind: None,
                     status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 }),
-            ).into_response(),
+            )
+                .into_response(),
         }
     }
 }

@@ -3,9 +3,7 @@ use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
-    databases::error::{
-        self as databases_error, CreateSnafu, DeleteSnafu, GetSnafu, UpdateSnafu,
-    },
+    databases::error::{self as databases_error, CreateSnafu, DeleteSnafu, GetSnafu, UpdateSnafu},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
@@ -96,7 +94,7 @@ pub async fn create_database(
         .await
         .map(Database::from)
         .context(CreateSnafu)?;
-    
+
     Ok(Json(DatabaseCreateResponse(database)))
 }
 
@@ -139,7 +137,7 @@ pub async fn get_database(
         .context(GetSnafu)?
         .map(Database::from)
         .context(GetSnafu)?;
-    
+
     Ok(Json(DatabaseResponse(database)))
 }
 

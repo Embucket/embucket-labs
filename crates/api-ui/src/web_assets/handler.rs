@@ -1,8 +1,8 @@
-use crate::error::{Error, Result};
 use super::error::{
-    Error as WebAssetsError, BadArchiveSnafu, NonUnicodeEntryPathInArchiveSnafu,
-    ReadEntryDataSnafu, ResponseBodySnafu, self as error,
+    self as error, BadArchiveSnafu, Error as WebAssetsError, NonUnicodeEntryPathInArchiveSnafu,
+    ReadEntryDataSnafu, ResponseBodySnafu,
 };
+use crate::error::{Error, Result};
 use api_ui_static_assets::WEB_ASSETS_TARBALL;
 use axum::{
     body::Body,
@@ -31,7 +31,9 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
             let path = entry.path().context(NonUnicodeEntryPathInArchiveSnafu)?;
             if path.to_str().unwrap_or_default() == file_name {
                 let mut content = Vec::new();
-                entry.read_to_end(&mut content).context(ReadEntryDataSnafu)?;
+                entry
+                    .read_to_end(&mut content)
+                    .context(ReadEntryDataSnafu)?;
                 return Ok(content);
             }
         }
@@ -52,9 +54,9 @@ pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
         Err(err) => match err {
             Error::WebAssets { source } => match source {
                 WebAssetsError::NotFound { .. } => Ok(Redirect::to("/index.html").into_response()),
-                err => Err(err.into())
+                err => Err(err.into()),
             },
-            _ => Err(err)
+            _ => Err(err),
         },
         Ok(content) => {
             let mime = mime_guess::from_path(path)

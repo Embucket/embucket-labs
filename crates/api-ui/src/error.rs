@@ -1,34 +1,67 @@
 use axum::Json;
-use axum::{response::IntoResponse};
+use axum::response::IntoResponse;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
+use std::fmt::Debug;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Snafu, Debug)]
+#[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
     #[snafu(transparent)]
     Auth { source: crate::auth::Error },
+
     #[snafu(transparent)]
-    Dashboard { source: crate::dashboard::Error },
+    Dashboard {
+        #[snafu(source(from(crate::dashboard::Error, Box::new)))]
+        source: Box<crate::dashboard::Error>,
+    },
+
     #[snafu(transparent)]
-    Databases { source: crate::databases::Error },
+    Databases {
+        #[snafu(source(from(crate::databases::Error, Box::new)))]
+        source: Box<crate::databases::Error>,
+    },
+
     #[snafu(transparent)]
-    NavigationTrees { source: crate::navigation_trees::Error },
+    NavigationTrees {
+        source: crate::navigation_trees::Error,
+    },
+
     #[snafu(transparent)]
-    QueriesError { source: crate::queries::Error },
+    QueriesError {
+        #[snafu(source(from(crate::queries::Error, Box::new)))]
+        source: Box<crate::queries::Error>,
+    },
+
     #[snafu(transparent)]
-    Schemas { source: crate::schemas::Error },
+    Schemas {
+        #[snafu(source(from(crate::schemas::Error, Box::new)))]
+        source: Box<crate::schemas::Error>,
+    },
+
     #[snafu(transparent)]
-    Tables { source: crate::tables::Error },
+    Tables {
+        #[snafu(source(from(crate::tables::Error, Box::new)))]
+        source: Box<crate::tables::Error>,
+    },
+
     #[snafu(transparent)]
-    Volumes { source: crate::volumes::Error },
+    Volumes {
+        #[snafu(source(from(crate::volumes::Error, Box::new)))]
+        source: Box<crate::volumes::Error>,
+    },
+
     #[snafu(transparent)]
     WebAssets { source: crate::web_assets::Error },
+
     #[snafu(transparent)]
-    Worksheets { source: crate::worksheets::Error },
+    Worksheets {
+        #[snafu(source(from(crate::worksheets::Error, Box::new)))]
+        source: Box<crate::worksheets::Error>,
+    },
 }
 
 pub(crate) trait IntoStatusCode {

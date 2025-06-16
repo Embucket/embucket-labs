@@ -2,8 +2,8 @@ use crate::error::IntoStatusCode;
 use crate::queries::error::QueryError;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
-use snafu::prelude::*;
 use snafu::Location;
+use snafu::prelude::*;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -16,13 +16,13 @@ pub enum DashboardAPIError {
         location: Location,
     },
     #[snafu(display("Get total: {source}"))]
-    Queries { 
+    Queries {
         source: QueryError,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Get total: {source}"))]
-    History { 
+    History {
         source: core_history::Error,
         #[snafu(implicit)]
         location: Location,

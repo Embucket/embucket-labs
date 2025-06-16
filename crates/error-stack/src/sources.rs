@@ -22,6 +22,10 @@ impl<'a> Iterator for Source<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.current.is_some() { (1, None) } else { (0, Some(0)) }
+        if self.current.is_some() {
+            (1, None)
+        } else {
+            (0, Some(0))
+        }
     }
 }

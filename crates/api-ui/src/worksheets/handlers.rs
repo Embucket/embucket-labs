@@ -1,4 +1,4 @@
-use crate::error::{Result, ErrorResponse};
+use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use crate::worksheets::{
     GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
@@ -289,7 +289,8 @@ pub async fn update_worksheet(
     Json(payload): Json<WorksheetUpdatePayload>,
 ) -> Result<()> {
     if payload.name.is_none() && payload.content.is_none() {
-        return worksheets_error::NothingToUpdateSnafu.fail()
+        return worksheets_error::NothingToUpdateSnafu
+            .fail()
             .context(worksheets_error::UpdateSnafu)?;
     }
 
