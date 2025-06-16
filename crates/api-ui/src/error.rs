@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::response::IntoResponse;
+use error_stack::ErrorExt;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
@@ -7,8 +8,9 @@ use std::fmt::Debug;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
+#[error_stack_trace::debug]
 pub enum Error {
     #[snafu(transparent)]
     Auth { source: crate::auth::Error },
@@ -93,9 +95,10 @@ impl IntoStatusCode for Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!("{}", self.output_msg());
         let code = self.status_code();
         let error = ErrorResponse {
-            message: self.to_string(),
+            message: self.output_msg(),
             status_code: code.as_u16(),
         };
         match self {

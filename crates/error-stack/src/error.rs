@@ -15,61 +15,18 @@
 // --------------------------------------------------------------------------------
 // Modifications by Embucket Team, 2025
 // - Remove status_code related code from ErrorExt
-// - Replace `sources()` requires unstable `error_iter` feature by custom code
-// - No unwrap
+// - Replace original ErrorExt implementation by simple blanket implementation
 // --------------------------------------------------------------------------------
 
-use crate::sources::Source;
-use std::any::Any;
 use std::sync::Arc;
 
-/// Extension to [`Error`](std::error::Error) in std.
 pub trait ErrorExt: StackError {
-    /// Returns the error as [Any](std::any::Any) so that it can be
-    /// downcast to a specific implementation.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns the error message
-    fn output_msg(&self) -> String
-    where
-        Self: Sized,
-    {
-        let error = self.last();
-        if let Some(external_error) = error.source() {
-            let sources = Source {
-                current: Some(external_error),
-            };
-            if let Some(external_root) = sources.last() {
-                if error.transparent() {
-                    format!("{external_root}")
-                } else {
-                    format!("{error}: {external_root}")
-                }
-            } else {
-                format!("{error}")
-            }
-        } else {
-            format!("{error}")
-        }
-    }
-
-    /// Find out root level error for nested error
-    fn root_cause(&self) -> Option<&dyn std::error::Error>
-    where
-        Self: Sized,
-    {
-        let error = self.last();
-        if let Some(external_error) = error.source() {
-            let sources = Source {
-                current: Some(external_error),
-            };
-            if let Some(external_root) = sources.last() {
-                return Some(external_root);
-            }
-        }
-        None
+    fn output_msg(&self) -> String {
+        format!("{self}\n{self:?}")
     }
 }
+
+impl<T> ErrorExt for T where T: StackError {}
 
 pub trait StackError: std::error::Error {
     fn debug_fmt(&self, layer: usize, buf: &mut Vec<String>);
