@@ -17,5 +17,3 @@ TOTAL: 1588
    5 DataFusion error: This feature is not implemented: Function 'try_to_date' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_date
    4 DataFusion error: This feature is not implemented: Unsupported SQL type Custom(ObjectName([Identifier(Ident { value: "TIMESTAMP_TZ", quote_style: None, span: Span(Location(1,282)..Location(1,294)) })]), [])
 
-# Top function errors
-   1 DataFusion error: Error during planning: Invalid function 'to_timestamp_ntz'.
