@@ -191,12 +191,12 @@ fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
 ## Doc comment template
 
 Use doc comment to make documentation for the function. Doc comment must include:
-- function name
-- description
-- syntax
-- arguments
-- example
-- returns
+- Function name
+- Description
+- Syntax
+- Arguments
+- Example
+- Returns
 
 example:
 ```
