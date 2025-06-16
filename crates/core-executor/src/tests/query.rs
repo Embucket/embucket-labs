@@ -240,6 +240,15 @@ test_query!(
     ]
 );
 
+test_query!(
+    create_table_and_insert,
+    "SELECT * FROM embucket.public.test",
+    setup_queries = [
+        "CREATE TABLE embucket.public.test (id INT)",
+        "INSERT INTO embucket.public.test VALUES (1), (2)",
+    ]
+);
+
 // CREATE TABLE with casting timestamp nanosecond to iceberg timestamp microseconds
 test_query!(
     create_table_with_casting_timestamp,
