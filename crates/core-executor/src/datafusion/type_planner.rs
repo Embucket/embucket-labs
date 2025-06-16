@@ -21,19 +21,16 @@ impl TypePlanner for CustomTypePlanner {
 
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(Some(DataType::Utf8)),
+            SQLDataType::Datetime(precision) => {
+                let time_unit = parse_timestamp_precision(*precision)?;
+                Ok(Some(DataType::Timestamp(time_unit, None)))
+            }
             SQLDataType::Custom(a, b) => match a.to_string().to_uppercase().as_str() {
                 "VARIANT" => Ok(Some(DataType::Utf8)),
                 "TIMESTAMP_NTZ" | "TIMESTAMP_LTZ" | "TIMESTAMP_TZ" => {
                     let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
-                    match parsed_b {
-                        Some(0) => Ok(Some(DataType::Timestamp(TimeUnit::Second, None))),
-                        Some(3) => Ok(Some(DataType::Timestamp(TimeUnit::Millisecond, None))),
-                        // We coerce nanoseconds to microseconds as Apache Iceberg v2 doesn't support nanosecond precision
-                        None | Some(6 | 9) => {
-                            Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None)))
-                        }
-                        _ => not_impl_err!("Unsupported SQL TIMESTAMP_* precision {parsed_b:?}"),
-                    }
+                    let time_unit = parse_timestamp_precision(parsed_b)?;
+                    Ok(Some(DataType::Timestamp(time_unit, None)))
                 }
                 "NUMBER" => {
                     let (precision, scale) = match b.len() {
@@ -65,5 +62,15 @@ impl TypePlanner for CustomTypePlanner {
             },
             _ => Ok(None),
         }
+    }
+}
+
+fn parse_timestamp_precision(precision: Option<u64>) -> Result<TimeUnit> {
+    match precision {
+        Some(0) => Ok(TimeUnit::Second),
+        Some(3) => Ok(TimeUnit::Millisecond),
+        // We coerce nanoseconds to microseconds as Apache Iceberg v2 doesn't support nanosecond precision
+        None | Some(6 | 9) => Ok(TimeUnit::Microsecond),
+        _ => not_impl_err!("Unsupported SQL precision {precision:?}"),
     }
 }
