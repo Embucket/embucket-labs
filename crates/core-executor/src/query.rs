@@ -17,12 +17,13 @@ use core_metastore::{
     TableIdent as MetastoreTableIdent,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
-use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
+use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
+use datafusion::logical_expr::col;
 use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::CsvReadOptions;
 use datafusion::scalar::ScalarValue;
@@ -37,7 +38,7 @@ use datafusion_common::{
     DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
-use datafusion_expr::{CreateMemoryTable, DdlStatement};
+use datafusion_expr::{CreateMemoryTable, DdlStatement, Expr as DFExpr, Projection, TryCast};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
@@ -544,12 +545,12 @@ impl UserQuery {
                 .ok_or(ExecutionError::TableProviderNotFound {
                     table_name: name.table().to_string(),
                 })?;
-
+            let schema = target_table.schema();
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
                 name,
                 provider_as_source(target_table),
                 WriteOp::Insert(InsertOp::Append),
-                input,
+                cast_input_to_target_schema(input, &schema)?,
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
@@ -1939,4 +1940,30 @@ fn apply_show_filters(sql: String, filters: &[String]) -> String {
     } else {
         format!("{} WHERE {}", sql, filters.join(" AND "))
     }
+}
+
+pub fn cast_input_to_target_schema(
+    input: Arc<LogicalPlan>,
+    target_schema: &SchemaRef,
+) -> ExecutionResult<Arc<LogicalPlan>> {
+    let input_schema = input.schema().as_arrow();
+    let mut projections: Vec<DFExpr> = Vec::with_capacity(target_schema.fields().len());
+
+    for field in target_schema.fields() {
+        let name = field.name();
+        let data_type = field.data_type();
+        let input_field = input_schema
+            .field_with_name(name)
+            .context(ex_error::ArrowSnafu)?;
+        if input_field.data_type() == data_type {
+            projections.push(col(name));
+        } else {
+            projections.push(DFExpr::TryCast(TryCast::new(
+                Box::new(col(name)),
+                data_type.clone(),
+            )));
+        }
+    }
+    let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
+    Ok(Arc::new(LogicalPlan::Projection(projection)))
 }

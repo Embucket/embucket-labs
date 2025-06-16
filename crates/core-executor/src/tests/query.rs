@@ -227,6 +227,15 @@ test_query!(
     "CREATE TABLE embucket.public.ts_table (ts TIMESTAMP_NTZ(9)) as VALUES ('2025-04-09T21:11:23');"
 );
 
+// CREATE TABLE with casting timestamp nanosecond to iceberg timestamp microseconds
+test_query!(
+    create_table_with_casting_timestamp,
+    "CREATE OR REPLACE TABLE t1 AS
+        SELECT * FROM (VALUES
+            ('2021-03-02 15:55:18.539000'::TIMESTAMP)
+        ) AS t(start_tstamp);"
+);
+
 test_query!(
     create_table_and_insert,
     "SELECT * FROM embucket.public.test",

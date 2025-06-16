@@ -1,0 +1,13 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"CREATE OR REPLACE TABLE t1 AS\n        SELECT * FROM (VALUES\n            ('2021-03-02 15:55:18.539000'::TIMESTAMP)\n        ) AS t(start_tstamp);\""
+---
+Ok(
+    [
+        "+-------+",
+        "| count |",
+        "+-------+",
+        "| 1     |",
+        "+-------+",
+    ],
+)
