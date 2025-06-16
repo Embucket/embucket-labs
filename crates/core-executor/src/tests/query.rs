@@ -228,6 +228,7 @@ test_query!(
 );
 
 // CREATE TABLE with timestamp types
+<<<<<<< HEAD
 test_query!(
     create_table_with_timestamps,
     "SELECT * FROM timestamps",
@@ -251,6 +252,22 @@ test_query!(
     create_table_with_casting_timestamp,
     "CREATE OR REPLACE TABLE t1 AS
         SELECT * FROM (VALUES ('2021-03-02 15:55:18.539000'::TIMESTAMP)) AS t(start_tstamp);"
+=======
+test_query!(
+    create_table_with_timestamps,
+    "SELECT * FROM timestamps",
+    setup_queries = [
+        "CREATE TABLE timestamps (
+            ntz TIMESTAMP_NTZ, ntz_0 TIMESTAMP_NTZ(0), ntz_3 TIMESTAMP_NTZ(3), ntz_6 TIMESTAMP_NTZ(6), ntz_9 TIMESTAMP_NTZ(9),
+            ltz TIMESTAMP_LTZ, ltz_0 TIMESTAMP_LTZ(0), ltz_3 TIMESTAMP_LTZ(3), ltz_6 TIMESTAMP_LTZ(6), ltz_9 TIMESTAMP_LTZ(9),
+            tz TIMESTAMP_TZ, tz_0 TIMESTAMP_TZ(0), tz_3 TIMESTAMP_TZ(3), tz_6 TIMESTAMP_TZ(6), tz_9 TIMESTAMP_TZ(9))
+        as VALUES (
+            '2025-04-09T21:11:23','2025-04-09T22:11:23','2025-04-09T23:11:23','2025-04-09T20:11:23','2025-04-09T19:11:23',
+            '2025-04-09T21:11:23','2025-04-09T22:11:23','2025-04-09T23:11:23','2025-04-09T20:11:23','2025-04-09T19:11:23',
+            '2025-04-09T21:11:23','2025-04-09T22:11:23','2025-04-09T23:11:23','2025-04-09T20:11:23','2025-04-09T19:11:23'
+        );"
+    ]
+>>>>>>> 459316c0 (Add *_TZ, *_LTZ type)
 );
 
 test_query!(
