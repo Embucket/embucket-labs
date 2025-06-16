@@ -92,6 +92,30 @@ def _process_git_diff(diff_output):
     return file_diffs
 
 
+def _are_changes_only_slt_deletions(file_changes):
+    """
+    Check if all changes are only deletions of SLT files
+    Returns True if only SLT files are being deleted, False otherwise
+    """
+    if not file_changes:
+        return False
+
+    for file_path, diff_content in file_changes.items():
+        # Check if this is an SLT file
+        if not file_path.endswith('.slt'):
+            # Non-SLT file found, so not only SLT deletions
+            return False
+
+        # Check if this file is being deleted
+        # Look for "deleted file mode" pattern in the diff
+        if 'deleted file mode' not in diff_content:
+            # SLT file is being modified/added, not deleted
+            return False
+
+    # All files are SLT files and all are being deleted
+    return True
+
+
 def _is_database_relevant_file(file_path):
     """
     Check if a file is likely relevant to database functionality
@@ -326,6 +350,15 @@ def main():
     # If there are no file changes, exit
     if not file_changes:
         print("No relevant file changes found")
+        # Create empty selection file
+        selection_file = os.path.join(args.output_dir, "selected_slts.json")
+        with open(selection_file, 'w') as f:
+            json.dump([], f)
+        return 0
+
+    # Check if changes are only SLT file deletions
+    if _are_changes_only_slt_deletions(file_changes):
+        print("Changes only involve deleting SLT files - no SLTs need to be selected")
         # Create empty selection file
         selection_file = os.path.join(args.output_dir, "selected_slts.json")
         with open(selection_file, 'w') as f:
