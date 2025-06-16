@@ -4,11 +4,15 @@ permissions:
   contents: write
 
 
+# on:
+#   schedule:
+#     # Runs every day at 2 AM UTC
+#     - cron: '0 2 * * *'
+
 on:
-  schedule:
-    # Runs every day at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  pull_request:
+    branches:
+      - dbt-gitlab/assets
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
