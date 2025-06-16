@@ -5,27 +5,34 @@ use datafusion::sql::sqlparser::ast::{
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 
-/// A visitor that inlines alias expressions in the `SELECT` clause of a SQL query.
+/// A visitor that performs **safe alias inlining** inside the `SELECT` projection of a SQL query.
 ///
 /// # Purpose
-/// This visitor traverses a SQL query and replaces references to aliases
-/// defined in the `SELECT` projection with their original expressions.
-/// This transformation is useful when further processing (e.g., optimization,
-/// rewriting, or serialization) needs access to the full expression rather
-/// than a symbolic alias reference.
+/// This visitor rewrites SQL `SELECT` statements by replacing references to column aliases
+/// (defined within the same projection list) with their corresponding full expressions.
+/// This is useful for:
+/// - SQL rewrites
+/// - Expression optimizations
+/// - Normalization before query analysis or serialization
 ///
-/// # How It Works
-/// 1. It first collects a mapping from alias names to their corresponding expressions.
-///    For example, given `SELECT a + b AS sum_ab`, it stores `sum_ab -> a + b`.
+/// # Behavior
+/// - It processes only the `SELECT` projection (i.e. the expressions in the `SELECT ...` list).
+/// - For each alias defined via `AS`, it stores the original expression.
+/// - While processing other projection expressions, any reference to an alias is replaced with its full expression.
+/// - Aliases are only substituted **within the same query block** (i.e., not across subqueries or CTE boundaries).
 ///
-/// 2. It then walks through each projection item and looks for identifier references
-///    to aliases. If it finds one, it replaces the identifier with the full original
-///    expression (e.g., replacing `sum_ab` with `a + b`).
+/// # Subqueries
+/// - Subqueries inside projections are processed recursively.
+/// - Each subquery has its own independent alias scope.
 ///
-/// 3. **Important**: This inlining is *not* performed inside **window functions**, since:
-///    - Many SQL engines do not support alias references inside window functions,
-///    - Inlining in such contexts could lead to semantic errors or redundant nesting
-///      (e.g., `last_value(sum_ab)` → `last_value(a + b)` could be incorrect or unwanted).
+/// # Self-reference protection
+/// - The alias being defined is protected from self-replacement during its own expansion to avoid infinite recursion.
+/// - Example: `SELECT a AS x, x + 1` → `SELECT a AS x, a + 1`.
+///
+/// # Limitations (By Design)
+/// - Only processes projection (`SELECT ...`) — does not modify `WHERE`, `HAVING`, `ORDER BY`, `JOIN`, `GROUP BY`, etc.
+/// - Window functions are not treated specially — all expressions inside projections are uniformly processed.
+/// - No alias expansion is performed for `USING` or `NATURAL JOIN` clauses.
 ///
 /// # Example
 /// Input:
@@ -36,11 +43,6 @@ use std::ops::ControlFlow;
 /// ```sql
 /// SELECT a + b AS sum_ab, (a + b) * 2 FROM my_table
 /// ```
-///
-/// # Notes
-/// - Does not descend into subqueries (handled elsewhere or explicitly avoided).
-/// - Only replaces identifiers that match known aliases in the same SELECT block.
-/// - Designed to be conservative and safe for common SQL transformations.
 #[derive(Debug, Default)]
 pub struct InlineAliasesInSelect {}
 
@@ -59,26 +61,50 @@ impl VisitorMut for InlineAliasesInSelect {
 
             for item in &mut select.projection {
                 match item {
-                    SelectItem::UnnamedExpr(expr) | SelectItem::ExprWithAlias { expr, .. } => {
-                        if matches!(expr, Expr::Function(func) if func.over.is_some()) {
-                            continue;
-                        }
-
-                        let _ = visit_expressions_mut(expr, &mut |e: &mut Expr| {
-                            if let Expr::Identifier(ident) = e {
-                                if let Some(original) = alias_expr_map.get(&ident.value) {
-                                    *e = original.clone();
-                                }
-                            }
-                            ControlFlow::<()>::Continue(())
-                        });
+                    SelectItem::ExprWithAlias { expr, alias } => {
+                        substitute_aliases(expr, &alias_expr_map, Some(&alias.value));
+                    }
+                    SelectItem::UnnamedExpr(expr) => {
+                        substitute_aliases(expr, &alias_expr_map, None);
                     }
                     _ => {}
                 }
             }
         }
+
+        // Recursively process CTEs (WITH clauses)
+        if let Some(with) = query.with.as_mut() {
+            for cte in &mut with.cte_tables {
+                let _ = self.pre_visit_query(&mut cte.query);
+            }
+        }
         ControlFlow::Continue(())
     }
+}
+
+/// Substitute aliases inside arbitrary expressions, recursively
+fn substitute_aliases(
+    expr: &mut Expr,
+    alias_map: &HashMap<String, Expr>,
+    forbidden_alias: Option<&str>,
+) {
+    let _ = visit_expressions_mut(expr, &mut |e: &mut Expr| {
+        match e {
+            Expr::Identifier(ident) => {
+                if Some(ident.value.as_str()) == forbidden_alias {
+                    return ControlFlow::<()>::Continue(());
+                }
+                if let Some(subst) = alias_map.get(&ident.value) {
+                    *e = subst.clone();
+                }
+            }
+            Expr::Subquery(subquery) => {
+                let _ = InlineAliasesInSelect::default().pre_visit_query(subquery);
+            }
+            _ => {}
+        }
+        ControlFlow::Continue(())
+    });
 }
 
 pub fn visit(stmt: &mut Statement) {

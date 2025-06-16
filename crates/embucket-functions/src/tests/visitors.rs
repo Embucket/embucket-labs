@@ -143,6 +143,22 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             "SELECT 'test txt' AS alias, length('test txt') AS t",
         ),
         (
+            "SELECT 1 + 2 AS sum, sum + 3 AS total",
+            "SELECT 1 + 2 AS sum, 1 + 2 + 3 AS total",
+        ),
+        (
+            "SELECT 10 AS val, val + 5 AS res",
+            "SELECT 10 AS val, 10 + 5 AS res",
+        ),
+        (
+            "SELECT 1 AS val, (SELECT val + 1) AS subquery",
+            "SELECT 1 AS val, (SELECT 1 + 1) AS subquery",
+        ),
+        (
+            "WITH cte AS (SELECT 1 AS one, one + 1 AS two) SELECT two FROM cte",
+            "WITH cte AS (SELECT 1 AS one, 1 + 1 AS two) SELECT two FROM cte",
+        ),
+        (
             "WITH snowplow_events_sample AS (
                 SELECT 'd1' AS domain_userid, 'user_a' AS user_id, CAST('2023-10-25 10:00:00' AS TIMESTAMP) AS collector_tstamp
                 UNION ALL
@@ -163,7 +179,11 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             OVER (PARTITION BY domain_userid ORDER BY collector_tstamp \
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \
             AS user_id FROM snowplow_events_sample",
-        )
+        ),
+        (
+            "select  sum(page_views) as page_views,  sum(engaged_time_in_s) as engaged_time_in_s from  test group by 1,2",
+            "SELECT sum(page_views) AS page_views, sum(engaged_time_in_s) AS engaged_time_in_s FROM test GROUP BY 1, 2"
+        ),
     ];
 
     for (input, expected) in cases {
