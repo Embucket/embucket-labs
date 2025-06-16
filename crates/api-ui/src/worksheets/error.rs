@@ -1,13 +1,8 @@
-use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
-use axum::Json;
-use axum::response::IntoResponse;
 use core_history::Error as HistoryStoreError;
 use http::status::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-
-pub type WorksheetsResult<T> = Result<T, WorksheetsAPIError>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -86,17 +81,5 @@ impl IntoStatusCode for WorksheetsAPIError {
                 WorksheetError::NothingToUpdate { .. } => StatusCode::BAD_REQUEST,
             },
         }
-    }
-}
-
-// generic
-impl IntoResponse for WorksheetsAPIError {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.status_code();
-        let error = ErrorResponse {
-            message: self.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
     }
 }

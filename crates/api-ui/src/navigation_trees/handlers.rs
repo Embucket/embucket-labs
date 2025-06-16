@@ -1,7 +1,6 @@
 use super::error::ExecutionSnafu;
 use crate::downcast_string_column;
-use crate::error::ErrorResponse;
-use crate::navigation_trees::error::NavigationTreesResult;
+use crate::error::{ErrorResponse, Result};
 use crate::navigation_trees::models::{
     NavigationTreeDatabase, NavigationTreeSchema, NavigationTreeTable, NavigationTreesParameters,
     NavigationTreesResponse,
@@ -59,7 +58,7 @@ pub async fn get_navigation_trees(
     DFSessionId(session_id): DFSessionId,
     Query(params): Query<NavigationTreesParameters>,
     State(state): State<AppState>,
-) -> NavigationTreesResult<Json<NavigationTreesResponse>> {
+) -> Result<Json<NavigationTreesResponse>> {
     let QueryResult {
         records: tree_batches,
         ..

@@ -1,8 +1,8 @@
-use crate::error::ErrorResponse;
+use crate::error::{Result, ErrorResponse};
 use crate::state::AppState;
 use crate::tables::error::{
     self as tables_errors, ExecutionSnafu, MalformedMultipartFileDataSnafu,
-    MalformedMultipartSnafu, TablesResult, UploadFileSnafu,
+    MalformedMultipartSnafu, UploadFileSnafu,
 };
 use crate::tables::models::{
     Table, TableColumn, TableColumnsResponse, TablePreviewDataColumn, TablePreviewDataParameters,
@@ -24,7 +24,7 @@ use core_metastore::TableIdent as MetastoreTableIdent;
 use core_metastore::error as metastore_error;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::arrow::util::display::array_value_to_string;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use std::time::Instant;
 use utoipa::OpenApi;
 
@@ -89,9 +89,9 @@ pub struct ApiDoc;
 pub async fn get_table_statistics(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableStatisticsResponse>> {
+) -> Result<Json<TableStatisticsResponse>> {
     let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
-    match state.metastore.get_table(&ident).await {
+    let table = match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {
             let mut total_bytes = 0;
             let mut total_rows = 0;
@@ -117,19 +117,17 @@ pub async fn get_table_statistics(
                 updated_at: rw_object.updated_at,
             })))
         }
-        Ok(None) => Err(tables_errors::GetTableStatisticsSnafu.into_error(
-            tables_errors::MetastoreSnafu.into_error(
-                metastore_error::TableNotFoundSnafu {
-                    table: database_name,
-                    schema: schema_name,
-                    db: table_name,
-                }
-                .build(),
-            ),
-        )),
-        Err(source) => Err(tables_errors::GetTableStatisticsSnafu
-            .into_error(tables_errors::MetastoreSnafu.into_error(source))),
+        Ok(None) => Err(metastore_error::TableNotFoundSnafu {
+                table: database_name,
+                schema: schema_name,
+                db: table_name,
+            }.build()),
+        Err(source) => Err(source),
     }
+    .context(tables_errors::MetastoreSnafu)
+    .context(tables_errors::GetTableStatisticsSnafu)?;
+
+    Ok(table)
 }
 #[utoipa::path(
     get,
@@ -159,7 +157,7 @@ pub async fn get_table_columns(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database, schema, table)): Path<(String, String, String)>,
-) -> TablesResult<Json<TableColumnsResponse>> {
+) -> Result<Json<TableColumnsResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
     let sql_string = format!("SELECT * FROM {database}.{schema}.{table} LIMIT 0");
     let columns_info = state
@@ -220,7 +218,7 @@ pub async fn get_table_preview_data(
     Query(parameters): Query<TablePreviewDataParameters>,
     State(state): State<AppState>,
     Path((database, schema, table)): Path<(String, String, String)>,
-) -> TablesResult<Json<TablePreviewDataResponse>> {
+) -> Result<Json<TablePreviewDataResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
     let sql_string = format!("SELECT * FROM {database}.{schema}.{table}");
     let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| {
@@ -308,7 +306,7 @@ pub async fn upload_file(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     mut multipart: Multipart,
-) -> TablesResult<Json<TableUploadResponse>> {
+) -> Result<Json<TableUploadResponse>> {
     let mut uploaded = false;
     let mut rows_loaded: usize = 0;
     let start = Instant::now();
@@ -353,7 +351,8 @@ pub async fn upload_file(
             duration_ms: duration.as_millis(),
         }))
     } else {
-        Err(tables_errors::UploadFileSnafu.into_error(tables_errors::FileFieldSnafu {}.build()))
+        tables_errors::FileFieldSnafu.fail()
+            .context(tables_errors::UploadFileSnafu)?
     }
 }
 
@@ -390,7 +389,7 @@ pub async fn get_tables(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> TablesResult<Json<TablesResponse>> {
+) -> Result<Json<TablesResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), None, None);
     let sql_string = format!(
         "SELECT * FROM slatedb.meta.tables WHERE schema_name = '{}' AND database_name = '{}'",

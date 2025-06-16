@@ -1,9 +1,10 @@
+use crate::Result;
 use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters, downcast_string_column,
     error::ErrorResponse,
-    schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, SchemasResult, UpdateSnafu},
+    schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, UpdateSnafu},
     schemas::models::{
         Schema, SchemaCreatePayload, SchemaCreateResponse, SchemaResponse, SchemaUpdatePayload,
         SchemaUpdateResponse, SchemasResponse,
@@ -76,7 +77,7 @@ pub async fn create_schema(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
     Json(payload): Json<SchemaCreatePayload>,
-) -> SchemasResult<Json<SchemaCreateResponse>> {
+) -> Result<Json<SchemaCreateResponse>> {
     let context = QueryContext::new(
         Some(database_name.clone()),
         Some(payload.name.clone()),
@@ -96,26 +97,25 @@ pub async fn create_schema(
 
     let schema_ident = MetastoreSchemaIdent::new(database_name.clone(), payload.name.clone());
     // after created - request schema from metadata for timestamps
-    state
+    let schema = state
         .metastore
         .get_schema(&schema_ident)
         .await
         .map(|opt_rw_obj| {
-            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // Here we create MetastoreError since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
             opt_rw_obj.ok_or_else(|| {
                 metastore_error::SchemaNotFoundSnafu {
                     db: database_name.clone(),
                     schema: payload.name.clone(),
-                }
-                .build()
+                }.build()
             })
+            .context(GetSnafu)
         })
         .context(GetSnafu)?
-        .map(Schema::from)
-        .map(SchemaCreateResponse)
-        .map(Json)
-        .context(GetSnafu)
+        .map(Schema::from)?;
+
+    Ok(Json(SchemaCreateResponse(schema)))
 }
 
 #[utoipa::path(
@@ -144,7 +144,7 @@ pub async fn delete_schema(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> SchemasResult<()> {
+) -> Result<()> {
     let context = QueryContext::new(Some(database_name.clone()), Some(schema_name.clone()), None);
     let sql_string = format!(
         "DROP SCHEMA {}.{}",
@@ -155,8 +155,9 @@ pub async fn delete_schema(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .map(|_| ())
-        .context(DeleteSnafu)
+        .context(DeleteSnafu)?;
+
+    Ok(())
 }
 
 #[utoipa::path(
@@ -184,12 +185,12 @@ pub async fn delete_schema(
 pub async fn get_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> SchemasResult<Json<SchemaResponse>> {
+) -> Result<Json<SchemaResponse>> {
     let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
     };
-    state
+    let schema = state
         .metastore
         .get_schema(&schema_ident)
         .await
@@ -203,12 +204,12 @@ pub async fn get_schema(
                 }
                 .build()
             })
+            .context(GetSnafu)
         })
         .context(GetSnafu)?
-        .map(Schema::from)
-        .map(SchemaResponse)
-        .map(Json)
-        .context(GetSnafu)
+        .map(Schema::from)?;
+
+    Ok(Json(SchemaResponse(schema)))
 }
 
 #[utoipa::path(
@@ -238,21 +239,20 @@ pub async fn update_schema(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(schema): Json<SchemaUpdatePayload>,
-) -> SchemasResult<Json<SchemaUpdateResponse>> {
+) -> Result<Json<SchemaUpdateResponse>> {
     let schema_ident = MetastoreSchemaIdent::new(schema.database, schema.name);
     let metastore_schema = MetastoreSchema {
         ident: schema_ident.clone(),
         properties: None,
     };
     // TODO: Implement schema renames
-    state
+    let schema = state
         .metastore
         .update_schema(&schema_ident, metastore_schema)
         .await
-        .map(Schema::from)
-        .map(SchemaUpdateResponse)
-        .map(Json)
-        .context(UpdateSnafu)
+        .context(UpdateSnafu)?;
+
+        Ok(Json(SchemaUpdateResponse(Schema::from(schema))))
 }
 
 #[utoipa::path(
@@ -286,7 +286,7 @@ pub async fn list_schemas(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> SchemasResult<Json<SchemasResponse>> {
+) -> Result<Json<SchemasResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), None, None);
     let sql_string = format!(
         "SELECT * FROM slatedb.meta.schemas WHERE database_name = '{}'",

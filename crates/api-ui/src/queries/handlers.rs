@@ -1,4 +1,4 @@
-use crate::queries::error::{GetQueryRecordSnafu, StoreSnafu};
+use crate::queries::error::{QueryRecordResult, GetQueryRecordSnafu, StoreSnafu};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
     QueryRecord,
@@ -6,7 +6,8 @@ use crate::queries::models::{
 use crate::state::AppState;
 use crate::{
     error::ErrorResponse,
-    queries::error::{self as queries_errors, QueriesResult, QueryError, QuerySnafu},
+    error::Result,
+    queries::error::{self as queries_errors, QueryError},
 };
 use api_sessions::DFSessionId;
 use axum::extract::ConnectInfo;
@@ -18,7 +19,7 @@ use axum::{
 use core_executor::models::{QueryContext, QueryResult};
 use core_history::{QueryRecordId, WorksheetId};
 use core_utils::iterable::IterableEntity;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
@@ -83,7 +84,7 @@ pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(payload): Json<QueryCreatePayload>,
-) -> QueriesResult<Json<QueryCreateResponse>> {
+) -> Result<Json<QueryCreateResponse>> {
     //
     // Note: This handler allowed to return error from a designated place only,
     // after query record successfuly saved result or error.
@@ -117,15 +118,14 @@ pub async fn query(
         .context(queries_errors::QuerySnafu)
     {
         Ok(QueryResult { query_id, .. }) => {
-            match state.history_store.get_query(query_id).await {
-                Err(err) => Err(queries_errors::QuerySnafu
-                    .into_error(queries_errors::StoreSnafu.into_error(err))),
-                Ok(query_record) => Ok(Json(QueryCreateResponse(
-                    QueryRecord::try_from(query_record).context(QuerySnafu)?,
-                ))),
-            }
+            let query_record = state.history_store.get_query(query_id).await
+                .map(QueryRecord::try_from)
+                .context(queries_errors::StoreSnafu)
+                .context(queries_errors::QuerySnafu)?
+                .context(queries_errors::QuerySnafu)?;
+            return Ok(Json(QueryCreateResponse(query_record)));
         }
-        Err(err) => Err(err),
+        Err(err) => Err(err.into()), // convert queries Error into crate Error 
     }
 }
 
@@ -153,7 +153,7 @@ pub async fn query(
 pub async fn get_query(
     State(state): State<AppState>,
     Path(query_record_id): Path<QueryRecordId>,
-) -> QueriesResult<Json<QueryGetResponse>> {
+) -> Result<Json<QueryGetResponse>> {
     state
         .history_store
         .get_query(query_record_id)
@@ -194,7 +194,7 @@ pub async fn get_query(
 pub async fn queries(
     Query(params): Query<GetQueriesParams>,
     State(state): State<AppState>,
-) -> QueriesResult<Json<QueriesResponse>> {
+) -> Result<Json<QueriesResponse>> {
     let cursor = params.cursor;
     let result = state.history_store.get_queries(params.into()).await;
 
@@ -212,13 +212,13 @@ pub async fn queries(
                 .clone()
                 .into_iter()
                 .map(QueryRecord::try_from)
-                .filter_map(Result::ok)
+                .filter_map(QueryRecordResult::ok)
                 .collect();
 
             let queries_failed_to_load: Vec<QueryError> = recs
                 .into_iter()
                 .map(QueryRecord::try_from)
-                .filter_map(Result::err)
+                .filter_map(QueryRecordResult::err)
                 .collect();
             if !queries_failed_to_load.is_empty() {
                 // TODO: fix tracing output
@@ -231,6 +231,6 @@ pub async fn queries(
                 next_cursor,
             }))
         }
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()), // convert query Error to crate Error
     }
 }

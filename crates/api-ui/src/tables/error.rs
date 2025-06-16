@@ -1,16 +1,11 @@
-use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
-use axum::Json;
 use axum::extract::multipart;
-use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use error_stack_trace;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-
-pub type TablesResult<T> = Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -122,17 +117,5 @@ impl IntoStatusCode for Error {
                 | TableError::MalformedMultipartFileData { .. } => StatusCode::BAD_REQUEST,
             },
         }
-    }
-}
-
-// generic
-impl IntoResponse for Error {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.status_code();
-        let error = ErrorResponse {
-            message: self.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
     }
 }

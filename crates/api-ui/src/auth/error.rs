@@ -1,3 +1,4 @@
+use crate::error::IntoStatusCode;
 use axum::{Json, http, response::IntoResponse};
 use error_stack_trace;
 use http::HeaderValue;
@@ -208,15 +209,29 @@ impl std::fmt::Display for WwwAuthenticate {
     }
 }
 
+impl IntoStatusCode for Error {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::Login { .. }
+            | Self::NoAuthHeader { .. }
+            | Self::NoRefreshTokenCookie { .. }
+            | Self::BadRefreshToken { .. }
+            | Self::BadAuthToken { .. } => StatusCode::UNAUTHORIZED,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let message = self.to_string();
+        let status_code = self.status_code();
         let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> =
             self.try_into();
 
         match www_authenticate {
             Ok(www_value) => (
-                StatusCode::UNAUTHORIZED,
+                status_code,
                 // rfc7235
                 [(
                     header::WWW_AUTHENTICATE,
@@ -230,10 +245,9 @@ impl IntoResponse for Error {
                 Json(AuthErrorResponse {
                     message,
                     error_kind: www_value.kind,
-                    status_code: StatusCode::UNAUTHORIZED.as_u16(),
+                    status_code: status_code.as_u16(),
                 }),
-            )
-                .into_response(),
+            ).into_response(),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(AuthErrorResponse {
@@ -241,8 +255,7 @@ impl IntoResponse for Error {
                     error_kind: None,
                     status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 }),
-            )
-                .into_response(),
+            ).into_response(),
         }
     }
 }

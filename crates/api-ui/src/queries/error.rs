@@ -1,13 +1,8 @@
-use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
-use axum::Json;
-use axum::response::IntoResponse;
 use core_history::Error as HistoryStoreError;
 use http::status::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
-
-pub type QueriesResult<T> = Result<T, Error>;
 
 pub(crate) type QueryRecordResult<T> = Result<T, QueryError>;
 
@@ -106,17 +101,5 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
         }
-    }
-}
-
-// TODO: make it reusable by other *APIError
-impl IntoResponse for Error {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.status_code();
-        let error = ErrorResponse {
-            message: self.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
     }
 }

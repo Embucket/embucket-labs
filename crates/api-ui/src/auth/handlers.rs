@@ -1,11 +1,11 @@
+use crate::error::Result;
 use crate::auth::models::{AccountResponse, RefreshTokenResponse};
-use std::collections::HashMap;
-
-use super::error::AuthErrorResponse;
+use super::error::{AuthErrorResponse};
 use super::error::CreateJwtSnafu;
-use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, Result, TokenErrorKind};
+use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, TokenErrorKind};
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::state::AppState;
+
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -15,6 +15,7 @@ use http::header::SET_COOKIE;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::Serialize;
 use snafu::ResultExt;
+use std::collections::HashMap;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
@@ -105,7 +106,7 @@ where
 
 fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> Result<()> {
     if jwt_secret.is_empty() {
-        return auth_error::NoJwtSecretSnafu.fail();
+        return auth_error::NoJwtSecretSnafu.fail()?;
     }
     Ok(())
 }
@@ -176,7 +177,7 @@ pub async fn login(
 ) -> Result<impl IntoResponse> {
     if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password()
     {
-        return auth_error::LoginSnafu.fail();
+        return auth_error::LoginSnafu.fail()?;
     }
 
     let audience = state.config.host.clone();
@@ -230,7 +231,7 @@ pub async fn refresh_access_token(
 
     let cookies_map = cookies_from_header(&headers);
     match cookies_map.get("refresh_token") {
-        None => auth_error::NoRefreshTokenCookieSnafu.fail(),
+        None => auth_error::NoRefreshTokenCookieSnafu.fail()?,
         Some(refresh_token) => {
             let refresh_claims =
                 get_claims_validate_jwt_token(refresh_token, &state.config.host, jwt_secret)
@@ -329,6 +330,6 @@ pub async fn account(
             }),
         ))
     } else {
-        auth_error::NoAuthHeaderSnafu.fail()
+        auth_error::NoAuthHeaderSnafu.fail()?
     }
 }

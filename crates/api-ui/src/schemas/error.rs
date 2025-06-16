@@ -1,7 +1,4 @@
-use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
-use axum::Json;
-use axum::response::IntoResponse;
 use core_executor::error::ExecutionError;
 use core_metastore::error::MetastoreError;
 use error_stack_trace;
@@ -9,7 +6,7 @@ use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
 
-pub type SchemasResult<T> = Result<T, SchemasAPIError>;
+// TODO: Refactor this error
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -84,17 +81,5 @@ impl IntoStatusCode for SchemasAPIError {
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
-    }
-}
-
-// TODO: make it reusable by other *APIError
-impl IntoResponse for SchemasAPIError {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.status_code();
-        let error = ErrorResponse {
-            message: self.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
     }
 }

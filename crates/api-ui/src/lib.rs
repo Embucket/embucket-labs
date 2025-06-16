@@ -24,6 +24,8 @@ pub mod volumes;
 pub mod web_assets;
 pub mod worksheets;
 
+pub use error::{Error, Result};
+
 //Default limit for pagination
 #[allow(clippy::unnecessary_wraps)]
 const fn default_limit() -> Option<u16> {
@@ -66,7 +68,7 @@ impl Display for OrderDirection {
 fn downcast_string_column<'a>(
     batch: &'a RecordBatch,
     name: &str,
-) -> Result<&'a StringArray, ExecutionError> {
+) -> std::result::Result<&'a StringArray, ExecutionError> {
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<StringArray>())
@@ -76,7 +78,7 @@ fn downcast_string_column<'a>(
 fn downcast_int64_column<'a>(
     batch: &'a RecordBatch,
     name: &str,
-) -> Result<&'a Int64Array, ExecutionError> {
+) -> std::result::Result<&'a Int64Array, ExecutionError> {
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<Int64Array>())

@@ -1,9 +1,9 @@
-use crate::error::ErrorResponse;
+use crate::error::{Result, ErrorResponse};
 use crate::state::AppState;
 use crate::worksheets::{
     GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
     WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
-    error as worksheets_error, error::WorksheetsResult,
+    error as worksheets_error,
 };
 use axum::{
     Json,
@@ -11,7 +11,7 @@ use axum::{
 };
 use chrono::Utc;
 use core_history::WorksheetId;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use std::convert::From;
 use tracing;
 use utoipa::OpenApi;
@@ -64,7 +64,7 @@ pub async fn worksheets(
         sort_order,
         sort_by,
     }): Query<GetWorksheetsParams>,
-) -> WorksheetsResult<Json<WorksheetsResponse>> {
+) -> Result<Json<WorksheetsResponse>> {
     let history_worksheets = state
         .history_store
         .get_worksheets()
@@ -144,7 +144,7 @@ pub async fn worksheets(
 pub async fn create_worksheet(
     State(state): State<AppState>,
     Json(payload): Json<WorksheetCreatePayload>,
-) -> WorksheetsResult<Json<WorksheetCreateResponse>> {
+) -> Result<Json<WorksheetCreateResponse>> {
     let name = if payload.name.is_empty() {
         Utc::now().to_string()
     } else {
@@ -189,7 +189,7 @@ pub async fn create_worksheet(
 pub async fn worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-) -> WorksheetsResult<Json<WorksheetResponse>> {
+) -> Result<Json<WorksheetResponse>> {
     let history_worksheet = state
         .history_store
         .get_worksheet(worksheet_id)
@@ -224,13 +224,15 @@ pub async fn worksheet(
 pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-) -> WorksheetsResult<()> {
+) -> Result<()> {
     state
         .history_store
         .delete_worksheet(worksheet_id)
         .await
         .context(worksheets_error::StoreSnafu)
-        .context(worksheets_error::DeleteSnafu)
+        .context(worksheets_error::DeleteSnafu)?;
+
+    Ok(())
 }
 
 #[utoipa::path(
@@ -285,10 +287,10 @@ pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
     Json(payload): Json<WorksheetUpdatePayload>,
-) -> WorksheetsResult<()> {
+) -> Result<()> {
     if payload.name.is_none() && payload.content.is_none() {
-        return Err(worksheets_error::UpdateSnafu
-            .into_error(worksheets_error::NothingToUpdateSnafu.build()));
+        return worksheets_error::NothingToUpdateSnafu.fail()
+            .context(worksheets_error::UpdateSnafu)?;
     }
 
     let mut worksheet = state
@@ -311,5 +313,7 @@ pub async fn update_worksheet(
         .update_worksheet(worksheet)
         .await
         .context(worksheets_error::StoreSnafu)
-        .context(worksheets_error::UpdateSnafu)
+        .context(worksheets_error::UpdateSnafu)?;
+
+    Ok(())
 }
