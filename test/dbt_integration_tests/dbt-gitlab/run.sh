@@ -36,7 +36,7 @@ echo "###############################"
 echo ""
 echo "Installing dbt core dbt-snowflake..."
 $PYTHON_CMD -m pip install --upgrade pip >/dev/null 2>&1
-$PYTHON_CMD -m pip install dbt-core dbt-snowflake >/dev/null 2>&1
+$PYTHON_CMD -m pip install bt-core==1.9.8 dbt-snowflake==1.9.1 >/dev/null 2>&1
 echo ""
 
 
