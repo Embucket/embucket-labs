@@ -249,14 +249,14 @@ SELECT *
 3	NULL	NULL	2.000000	2.000000
 
 query TTTTTTTT
-SELECT SUM($1) AS q1_sales_total,
-       SUM($2) AS q2_sales_total,
-       SUM($3) AS q3_sales_total,
-       SUM($4) AS q4_sales_total,
-       MAX($5) AS q1_maximum_discount,
-       MAX($6) AS q2_maximum_discount,
-       MAX($7) AS q3_maximum_discount,
-       MAX($8) AS q4_maximum_discount
+SELECT SUM(q1_sales) AS q1_sales_total,
+       SUM(q2_sales) AS q2_sales_total,
+       SUM(q3_sales) AS q3_sales_total,
+       SUM(q4_sales) AS q4_sales_total,
+       MAX(q1_discount) AS q1_maximum_discount,
+       MAX(q2_discount) AS q2_maximum_discount,
+       MAX(q3_discount) AS q3_maximum_discount,
+       MAX(q4_discount) AS q4_maximum_discount
   FROM
     (SELECT amount,
             quarter AS quarter_amount,
@@ -277,6 +277,10 @@ SELECT SUM($1) AS q1_sales_total,
       '2023_Q2',
       '2023_Q3',
       '2023_Q4'))
+  AS pivoted_data (
+    q1_sales, q2_sales, q3_sales, q4_sales,
+    q1_discount, q2_discount, q3_discount, q4_discount
+  )
 ----
 49900	98700	25700	52200	2	2	2	2
 
