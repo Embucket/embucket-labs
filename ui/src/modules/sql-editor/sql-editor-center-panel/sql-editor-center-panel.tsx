@@ -46,7 +46,7 @@ export function SqlEditorCenterPanel() {
         }
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: getGetQueriesQueryKey({ worksheetId: +worksheetId }),
+            queryKey: getGetQueriesQueryKey(),
           }),
           queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
