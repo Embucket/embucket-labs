@@ -35,7 +35,7 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DataFusionError, ResolvedTableReference, TableReference, plan_datafusion_err,
+    DataFusionError, ResolvedTableReference, SchemaReference, TableReference, plan_datafusion_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement, Expr as DFExpr, Projection, TryCast};
@@ -50,6 +50,7 @@ use embucket_functions::visitors::{
 };
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
+use iceberg_rust::catalog::identifier::Identifier;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
@@ -409,17 +410,28 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
     pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
-        let Statement::Drop {
-            names, object_type, ..
-        } = statement.clone()
-        else {
+        let Statement::Drop { object_type, .. } = statement.clone() else {
             return ex_error::OnlyDropStatementsSnafu.fail();
         };
-        let ident: MetastoreTableIdent = self.resolve_table_object_name(names[0].0.clone())?.into();
+
         let plan = self.sql_statement_to_plan(statement).await?;
-        let catalog = self.get_catalog(ident.database.as_str())?;
+        let table_ref = match plan {
+            LogicalPlan::Ddl(ref ddl) => match ddl {
+                DdlStatement::DropTable(t) => self.resolve_table_ref(t.name.clone()),
+                DdlStatement::DropView(v) => self.resolve_table_ref(v.name.clone()),
+                DdlStatement::DropCatalogSchema(s) => self.resolve_schema_ref(s.name.clone()),
+                _ => return ex_error::OnlyDropStatementsSnafu.fail(),
+            },
+            _ => return ex_error::OnlyDropStatementsSnafu.fail(),
+        };
+
+        let catalog_name = table_ref.catalog.as_ref();
+        let schema_name = table_ref.schema.to_string();
+        let ident = Identifier::new(&[schema_name.clone()], table_ref.table.as_ref());
+
+        let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, ident.database.clone(), plan.clone())
+            .resolve_iceberg_catalog_or_execute(catalog, catalog_name.to_string(), plan)
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -428,31 +440,33 @@ impl UserQuery {
             }
         };
 
-        let table_exists = iceberg_catalog
-            .clone()
-            .load_tabular(&ident.to_iceberg_ident())
-            .await
-            .is_ok();
-        if table_exists {
-            match object_type {
-                ObjectType::Table => {
+        match object_type {
+            ObjectType::Table | ObjectType::View => {
+                if iceberg_catalog.clone().load_tabular(&ident).await.is_ok() {
                     iceberg_catalog
-                        .drop_table(&ident.to_iceberg_ident())
+                        .drop_table(&ident)
                         .await
                         .context(ex_error::IcebergSnafu)?;
                 }
-                ObjectType::View => {
-                    iceberg_catalog
-                        .drop_view(&ident.to_iceberg_ident())
-                        .await
-                        .context(ex_error::IcebergSnafu)?;
-                }
-                _ => {
-                    return ex_error::OnlyDropTableViewStatementsSnafu.fail();
-                }
+                self.status_response()
             }
+            ObjectType::Schema => {
+                let namespace = ident.namespace();
+                if iceberg_catalog
+                    .clone()
+                    .namespace_exists(namespace)
+                    .await
+                    .is_ok()
+                {
+                    iceberg_catalog
+                        .drop_namespace(namespace)
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                }
+                self.status_response()
+            }
+            _ => ex_error::OnlyDropStatementsSnafu.fail(),
         }
-        self.status_response()
     }
 
     #[allow(clippy::redundant_else, clippy::too_many_lines)]
@@ -960,7 +974,7 @@ impl UserQuery {
 
         let ident: MetastoreSchemaIdent = self.resolve_schema_object_name(schema_name.0)?.into();
         let plan = self.sql_statement_to_plan(statement).await?;
-        let catalog = self.get_catalog(ident.database.as_str())?;
+        let catalog = self.get_catalog(&ident.database)?;
 
         let downcast_result = self
             .resolve_iceberg_catalog_or_execute(catalog, ident.database, plan)
@@ -1522,6 +1536,22 @@ impl UserQuery {
             .resolve(&self.current_database(), &self.current_schema())
     }
 
+    #[must_use]
+    pub fn resolve_schema_ref(&self, schema: SchemaReference) -> ResolvedTableReference {
+        match schema {
+            SchemaReference::Bare { schema } => ResolvedTableReference {
+                catalog: Arc::from(self.current_database()),
+                schema,
+                table: Arc::from(""),
+            },
+            SchemaReference::Full { catalog, schema } => ResolvedTableReference {
+                catalog,
+                schema,
+                table: Arc::from(""),
+            },
+        }
+    }
+
     pub fn schema_for_ref(
         &self,
         table_ref: impl Into<TableReference>,
@@ -1810,14 +1840,11 @@ impl UserQuery {
         }
 
         let normalized_idents = table_ident
-            .iter()
+            .into_iter()
             .map(|part| match part {
-                ObjectNamePart::Identifier(ident) => {
-                    Ident::new(self.session.ident_normalizer.normalize(ident.clone()))
-                }
+                ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
             })
             .collect();
-
         Ok(NormalizedIdent(normalized_idents))
     }
 
@@ -1845,17 +1872,20 @@ impl UserQuery {
                 .fail();
             }
         }
-
         let normalized_idents = schema_ident
-            .iter()
+            .into_iter()
             .map(|part| match part {
-                ObjectNamePart::Identifier(ident) => {
-                    Ident::new(self.session.ident_normalizer.normalize(ident.clone()))
-                }
+                ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
             })
             .collect();
-
         Ok(NormalizedIdent(normalized_idents))
+    }
+
+    fn normalize_ident(&self, ident: Ident) -> Ident {
+        match ident.quote_style {
+            Some(qs) => Ident::with_quote(qs, ident.value),
+            None => Ident::new(self.session.ident_normalizer.normalize(ident)),
+        }
     }
 
     #[allow(clippy::only_used_in_recursion)]

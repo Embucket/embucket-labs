@@ -160,7 +160,7 @@ pub async fn get_table_columns(
     Path((database, schema, table)): Path<(String, String, String)>,
 ) -> Result<Json<TableColumnsResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
-    let sql_string = format!("SELECT * FROM {database}.{schema}.{table} LIMIT 0");
+    let sql_string = format!("SELECT * FROM `{database}`.`{schema}`.`{table}` LIMIT 0");
     let columns_info = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

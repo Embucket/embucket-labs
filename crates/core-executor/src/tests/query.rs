@@ -217,8 +217,20 @@ macro_rules! test_query {
 // CREATE SCHEMA
 test_query!(
     create_schema,
-    "SHOW SCHEMAS IN embucket STARTS WITH 'new_schema'",
-    setup_queries = ["CREATE SCHEMA embucket.new_schema"]
+    "SHOW SCHEMAS IN embucket STARTS WITH 'new'",
+    setup_queries = [
+        "CREATE SCHEMA embucket.new_schema",
+        "CREATE SCHEMA embucket.\"new schema\""
+    ]
+);
+
+test_query!(
+    drop_schema_quoted_identifiers,
+    "SHOW SCHEMAS IN embucket STARTS WITH 'test'",
+    setup_queries = [
+        "CREATE SCHEMA embucket.\"test public\"",
+        "DROP SCHEMA embucket.\"test public\"",
+    ]
 );
 
 // CREATE TABLE with timestamp types
@@ -249,6 +261,16 @@ test_query!(
     ]
 );
 
+test_query!(
+    create_table_quoted_identifiers,
+    "SELECT * FROM embucket.\"test public\".\"test table\"",
+    setup_queries = [
+        "CREATE SCHEMA embucket.\"test public\"",
+        "CREATE TABLE embucket.\"test public\".\"test table\" (id INT)",
+        "INSERT INTO embucket.\"test public\".\"test table\" VALUES (1), (2)",
+    ]
+);
+
 // CREATE TABLE with casting timestamp nanosecond to iceberg timestamp microseconds
 test_query!(
     create_table_with_casting_timestamp,
@@ -256,13 +278,23 @@ test_query!(
         SELECT * FROM (VALUES ('2021-03-02 15:55:18.539000'::TIMESTAMP)) AS t(start_tstamp);"
 );
 
-// DROP TABLE
 test_query!(
     drop_table,
     "SHOW TABLES IN public STARTS WITH 'test'",
     setup_queries = [
         "CREATE TABLE embucket.public.test (id INT) as VALUES (1), (2)",
         "DROP TABLE embucket.public.test"
+    ]
+);
+
+test_query!(
+    drop_table_quoted_identifiers,
+    "SHOW TABLES IN public STARTS WITH 'test'",
+    setup_queries = [
+        "CREATE SCHEMA embucket.\"test public\"",
+        "CREATE TABLE embucket.\"test public\".\"test table\" (id INT)",
+        "INSERT INTO embucket.\"test public\".\"test table\" VALUES (1), (2)",
+        "DROP TABLE embucket.\"test public\".\"test table\"",
     ]
 );
 
