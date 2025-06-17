@@ -56,31 +56,58 @@ class EmbucketHelper:
                                    ):
         headers = {'Content-Type': 'application/json'}
 
-        query = f"DROP SCHEMA IF EXISTS {schema} CASCADE"
-        requests.request(
-            "POST", f"{embucket_url}/ui/queries",
-            headers=headers,
-            data=json.dumps({"query": query})
-        ).json()
+        def make_request_with_error_handling(method, url, headers, data=None):
+            """Helper function to make HTTP requests with proper error handling"""
+            try:
+                response = requests.request(method, url, headers=headers, data=data)
+                response.raise_for_status()  # Raise an exception for bad status codes
 
+                # Check if response has content before trying to parse JSON
+                if response.text.strip():
+                    try:
+                        return response.json()
+                    except json.JSONDecodeError as e:
+                        print(f"Warning: Response is not valid JSON: {response.text[:100]}")
+                        return None
+                else:
+                    # Empty response is acceptable for some endpoints
+                    return None
+            except requests.exceptions.RequestException as e:
+                print(f"Error making request to {url}: {e}")
+                if hasattr(e, 'response') and e.response is not None:
+                    print(f"Response status: {e.response.status_code}")
+                    print(f"Response text: {e.response.text[:200]}")
+                raise
+
+        # Drop schema if exists
+        query = f"DROP SCHEMA IF EXISTS {schema} CASCADE"
+        make_request_with_error_handling(
+            "POST", f"{embucket_url}/ui/queries",
+            headers,
+            json.dumps({"query": query})
+        )
+
+        # Create volume
         payload = json.dumps({
                 "type": "memory",
                 "ident": "local",
             })
-        requests.request("POST", f'{embucket_url}/v1/metastore/volumes', headers=headers, data=payload).json()
+        make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/volumes', headers, payload)
 
+        # Create database
         payload = json.dumps({
             "ident": database,
             "volume": "local"
         })
-        requests.request("POST", f'{embucket_url}/v1/metastore/databases', headers=headers, data=payload).json()
+        make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/databases', headers, payload)
 
+        # Create schema
         query = f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}"
-        requests.request(
+        make_request_with_error_handling(
             "POST", f"{embucket_url}/ui/queries",
-            headers=headers,
-            data=json.dumps({"query": query})
-        ).json()
+            headers,
+            json.dumps({"query": query})
+        )
 
 def reset_database(config, con: SnowflakeConnection):
     if 'embucket' not in config:
@@ -513,9 +540,22 @@ class SQLLogicPythonRunner:
 
             # Calculate statistics
             queries_for_coverage = [q for q in result.queries if not q.exclude_from_coverage]
-            file_total = len(queries_for_coverage)
-            file_successful = sum(1 for q in queries_for_coverage if q.success)
-            file_failed = file_total - file_successful
+
+            # Separate "not implemented" tests from regular failed tests when in Embucket mode
+            is_embucket_enabled = config.get('embucket', False)
+            if is_embucket_enabled:
+                # In Embucket mode, exclude "not implemented" tests from success/fail calculation
+                queries_for_success_fail = [q for q in queries_for_coverage if not q.not_implemented]
+                file_total = len(queries_for_success_fail)
+                file_successful = sum(1 for q in queries_for_success_fail if q.success)
+                file_failed = file_total - file_successful
+                file_not_implemented = sum(1 for q in queries_for_coverage if q.not_implemented)
+            else:
+                # In Snowflake mode, treat all tests normally
+                file_total = len(queries_for_coverage)
+                file_successful = sum(1 for q in queries_for_coverage if q.success)
+                file_failed = file_total - file_successful
+                file_not_implemented = 0
 
             # Update counters
             total += file_total
@@ -524,14 +564,20 @@ class SQLLogicPythonRunner:
             execution_times += [q.execution_time_s for q in queries_for_coverage]
 
             page_name = extract_file_name(file_path)
-            results.append({
+            result_dict = {
                 "category": os.path.dirname(file_path).split('/')[-1],
                 "page_name": page_name,
                 "total_tests": file_total,
                 "successful_tests": file_successful,
                 "failed_tests": file_failed,
                 "success_percentage": (file_successful / file_total * 100) if file_total > 0 else 0
-            })
+            }
+
+            # Add "not implemented" count if in Embucket mode
+            if is_embucket_enabled:
+                result_dict["not_implemented_tests"] = file_not_implemented
+
+            results.append(result_dict)
 
             # Collect errors
             for query in result.queries:
@@ -545,7 +591,7 @@ class SQLLogicPythonRunner:
 
         executor.cleanup()
 
-        return {
+        result_summary = {
             "category": os.path.dirname(file_path).split('/')[-1],
             "results": results,
             "execution_times": execution_times,
@@ -554,6 +600,12 @@ class SQLLogicPythonRunner:
             "failed": failed,
             "error_details": error_details
         }
+
+        # Add "not implemented" count if in Embucket mode
+        if config.get('embucket', False):
+            result_summary["not_implemented"] = sum(result.get("not_implemented_tests", 0) for result in results)
+
+        return result_summary
 
     def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, is_embucket,
                            max_workers=None):
@@ -638,6 +690,7 @@ class SQLLogicPythonRunner:
         total_tests = 0
         total_successful = 0
         total_failed = 0
+        total_not_implemented = 0
         all_error_details = defaultdict(list)
 
         # Create worker-specific configs
@@ -669,6 +722,10 @@ class SQLLogicPythonRunner:
                 total_tests += result["total"]
                 total_successful += result["successful"]
                 total_failed += result["failed"]
+
+                # Add "not implemented" count if in Embucket mode
+                if is_embucket:
+                    total_not_implemented += result.get("not_implemented", 0)
 
                 # Collect errors
                 for cat, errors in result["error_details"].items():
@@ -757,15 +814,25 @@ class SQLLogicPythonRunner:
                     print(f"Error cleaning up worker schemas: {e}")
 
             # Display and save results
-            display_page_results(all_results, total_tests, total_successful, total_failed)
-            display_category_results(all_results)
+            if is_embucket:
+                display_page_results(all_results, total_tests, total_successful, total_failed, total_not_implemented)
+                display_category_results(all_results, is_embucket)
+            else:
+                display_page_results(all_results, total_tests, total_successful, total_failed)
+                display_category_results(all_results)
 
         # Save results to CSV
         csv_file_name = f"{run_mode}_test_statistics.csv" if benchmark_mode else "test_statistics.csv"
         with open(csv_file_name, "w", newline="") as csvfile:
-            writer = csv.DictWriter(csvfile,
-                                    fieldnames=["page_name", "category", "total_tests", "successful_tests",
-                                                "failed_tests", "success_percentage"])
+            # Include "not_implemented_tests" field if in Embucket mode
+            if is_embucket:
+                fieldnames = ["page_name", "category", "total_tests", "successful_tests",
+                             "failed_tests", "not_implemented_tests", "success_percentage"]
+            else:
+                fieldnames = ["page_name", "category", "total_tests", "successful_tests",
+                             "failed_tests", "success_percentage"]
+
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_results)
 
