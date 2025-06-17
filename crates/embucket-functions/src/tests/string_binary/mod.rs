@@ -1,4 +1,4 @@
 mod jarowinkler_similarity;
-mod lower;
 mod length;
+mod lower;
 mod split;
