@@ -2,122 +2,107 @@ import type { NavigationTreeDatabase } from '@/orval/models';
 
 export const NAVIGATION_TREES_MOCK: NavigationTreeDatabase[] = [
   {
-    name: 'slatedb',
+    name: 'database1',
     schemas: [
       {
-        name: 'history',
-        tables: [],
-        views: [
+        name: 'schema1',
+        views: [],
+        tables: [
           {
-            name: 'worksheets',
+            name: 'table1',
           },
           {
-            name: 'queries',
-          },
-        ],
-      },
-      {
-        name: 'information_schema',
-        tables: [],
-        views: [
-          {
-            name: 'schemata',
+            name: 'table2',
           },
           {
-            name: 'columns',
-          },
-          {
-            name: 'parameters',
-          },
-          {
-            name: 'df_settings',
-          },
-          {
-            name: 'navigation_tree',
-          },
-          {
-            name: 'views',
-          },
-          {
-            name: 'tables',
-          },
-          {
-            name: 'routines',
-          },
-          {
-            name: 'databases',
+            name: 'table3',
           },
         ],
       },
       {
-        name: 'meta',
-        tables: [],
-        views: [
+        name: 'schema2',
+        views: [],
+        tables: [
           {
-            name: 'schemas',
+            name: 'table4',
           },
           {
-            name: 'tables',
+            name: 'table5',
           },
           {
-            name: 'databases',
-          },
-          {
-            name: 'volumes',
+            name: 'table6',
           },
         ],
       },
     ],
   },
   {
-    name: 'snowplow',
+    name: 'database2',
     schemas: [
       {
-        name: '"test212"',
-        tables: [],
+        name: 'schema3',
         views: [],
-      },
-      {
-        name: 'information_schema',
-        tables: [],
-        views: [
-          {
-            name: 'schemata',
-          },
-          {
-            name: 'columns',
-          },
-          {
-            name: 'parameters',
-          },
-          {
-            name: 'df_settings',
-          },
-          {
-            name: 'navigation_tree',
-          },
-          {
-            name: 'views',
-          },
-          {
-            name: 'tables',
-          },
-          {
-            name: 'routines',
-          },
-          {
-            name: 'databases',
-          },
-        ],
-      },
-      {
-        name: 'public',
         tables: [
           {
-            name: 'events_iceberg',
+            name: 'table7',
+          },
+          {
+            name: 'table8',
+          },
+          {
+            name: 'table9',
           },
         ],
+      },
+      {
+        name: 'schema4',
         views: [],
+        tables: [
+          {
+            name: 'table10',
+          },
+          {
+            name: 'table11',
+          },
+          {
+            name: 'table12',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'database3',
+    schemas: [
+      {
+        name: 'schema5',
+        views: [],
+        tables: [
+          {
+            name: 'table13',
+          },
+          {
+            name: 'table14',
+          },
+          {
+            name: 'table15',
+          },
+        ],
+      },
+      {
+        name: 'schema6',
+        views: [],
+        tables: [
+          {
+            name: 'table16',
+          },
+          {
+            name: 'table17',
+          },
+          {
+            name: 'table18',
+          },
+        ],
       },
     ],
   },
