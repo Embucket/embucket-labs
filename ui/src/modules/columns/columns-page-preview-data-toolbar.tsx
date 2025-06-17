@@ -9,9 +9,15 @@ import { useGetTablePreviewData } from '@/orval/tables';
 interface ColumnsPagePreviewDataToolbarProps {
   previewData: TablePreviewDataColumn[];
   isFetchingPreviewData: boolean;
+  search: string;
+  onSearch: (value: string) => void;
 }
 
-export function ColumnsPagePreviewDataToolbar({ previewData }: ColumnsPagePreviewDataToolbarProps) {
+export function ColumnsPagePreviewDataToolbar({
+  previewData,
+  search,
+  onSearch,
+}: ColumnsPagePreviewDataToolbarProps) {
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
@@ -31,7 +37,11 @@ export function ColumnsPagePreviewDataToolbar({ previewData }: ColumnsPagePrevie
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Search data"
+          />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingPreviewData} onRefresh={refetchPreviewData} />
       </div>

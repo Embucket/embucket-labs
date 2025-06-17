@@ -8,165 +8,74 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as VolumesRouteImport } from './routes/volumes';
+import { Route as HomeRouteImport } from './routes/home';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as QueriesIndexRouteImport } from './routes/queries/index';
+import { Route as DatabasesIndexRouteImport } from './routes/databases/index';
+import { Route as SqlEditorWorksheetIdIndexRouteImport } from './routes/sql-editor/$worksheetId.index';
+import { Route as QueriesQueryIdIndexRouteImport } from './routes/queries/$queryId.index';
+import { Route as DatabasesDatabaseNameSchemasIndexRouteImport } from './routes/databases/$databaseName.schemas.index';
+import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesIndexRouteImport } from './routes/databases/$databaseName.schemas.$schemaName.tables.index';
+import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRouteImport } from './routes/databases/$databaseName.schemas.$schemaName.tables.$tableName.columns.index';
 
-import { Route as rootRoute } from './routes/__root';
-import { Route as VolumesImport } from './routes/volumes';
-import { Route as HomeImport } from './routes/home';
-import { Route as IndexImport } from './routes/index';
-import { Route as QueriesIndexImport } from './routes/queries/index';
-import { Route as DatabasesIndexImport } from './routes/databases/index';
-import { Route as SqlEditorWorksheetIdIndexImport } from './routes/sql-editor/$worksheetId.index';
-import { Route as QueriesQueryIdIndexImport } from './routes/queries/$queryId.index';
-import { Route as DatabasesDatabaseNameSchemasIndexImport } from './routes/databases/$databaseName.schemas.index';
-import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesIndexImport } from './routes/databases/$databaseName.schemas.$schemaName.tables.index';
-import { Route as DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexImport } from './routes/databases/$databaseName.schemas.$schemaName.tables.$tableName.columns.index';
-
-// Create/Update Routes
-
-const VolumesRoute = VolumesImport.update({
+const VolumesRoute = VolumesRouteImport.update({
   id: '/volumes',
   path: '/volumes',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
-const HomeRoute = HomeImport.update({
+const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
-const IndexRoute = IndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
-const QueriesIndexRoute = QueriesIndexImport.update({
+const QueriesIndexRoute = QueriesIndexRouteImport.update({
   id: '/queries/',
   path: '/queries/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
-const DatabasesIndexRoute = DatabasesIndexImport.update({
+const DatabasesIndexRoute = DatabasesIndexRouteImport.update({
   id: '/databases/',
   path: '/databases/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
-const SqlEditorWorksheetIdIndexRoute = SqlEditorWorksheetIdIndexImport.update({
-  id: '/sql-editor/$worksheetId/',
-  path: '/sql-editor/$worksheetId/',
-  getParentRoute: () => rootRoute,
-} as any);
-
-const QueriesQueryIdIndexRoute = QueriesQueryIdIndexImport.update({
+const SqlEditorWorksheetIdIndexRoute =
+  SqlEditorWorksheetIdIndexRouteImport.update({
+    id: '/sql-editor/$worksheetId/',
+    path: '/sql-editor/$worksheetId/',
+    getParentRoute: () => rootRouteImport,
+  } as any);
+const QueriesQueryIdIndexRoute = QueriesQueryIdIndexRouteImport.update({
   id: '/queries/$queryId/',
   path: '/queries/$queryId/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any);
-
 const DatabasesDatabaseNameSchemasIndexRoute =
-  DatabasesDatabaseNameSchemasIndexImport.update({
+  DatabasesDatabaseNameSchemasIndexRouteImport.update({
     id: '/databases/$databaseName/schemas/',
     path: '/databases/$databaseName/schemas/',
-    getParentRoute: () => rootRoute,
+    getParentRoute: () => rootRouteImport,
   } as any);
-
 const DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute =
-  DatabasesDatabaseNameSchemasSchemaNameTablesIndexImport.update({
+  DatabasesDatabaseNameSchemasSchemaNameTablesIndexRouteImport.update({
     id: '/databases/$databaseName/schemas/$schemaName/tables/',
     path: '/databases/$databaseName/schemas/$schemaName/tables/',
-    getParentRoute: () => rootRoute,
+    getParentRoute: () => rootRouteImport,
   } as any);
-
 const DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute =
-  DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexImport.update(
+  DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRouteImport.update(
     {
       id: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
       path: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
-      getParentRoute: () => rootRoute,
+      getParentRoute: () => rootRouteImport,
     } as any,
   );
-
-// Populate the FileRoutesByPath interface
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/': {
-      id: '/';
-      path: '/';
-      fullPath: '/';
-      preLoaderRoute: typeof IndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/home': {
-      id: '/home';
-      path: '/home';
-      fullPath: '/home';
-      preLoaderRoute: typeof HomeImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/volumes': {
-      id: '/volumes';
-      path: '/volumes';
-      fullPath: '/volumes';
-      preLoaderRoute: typeof VolumesImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/databases/': {
-      id: '/databases/';
-      path: '/databases';
-      fullPath: '/databases';
-      preLoaderRoute: typeof DatabasesIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/queries/': {
-      id: '/queries/';
-      path: '/queries';
-      fullPath: '/queries';
-      preLoaderRoute: typeof QueriesIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/queries/$queryId/': {
-      id: '/queries/$queryId/';
-      path: '/queries/$queryId';
-      fullPath: '/queries/$queryId';
-      preLoaderRoute: typeof QueriesQueryIdIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/sql-editor/$worksheetId/': {
-      id: '/sql-editor/$worksheetId/';
-      path: '/sql-editor/$worksheetId';
-      fullPath: '/sql-editor/$worksheetId';
-      preLoaderRoute: typeof SqlEditorWorksheetIdIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/databases/$databaseName/schemas/': {
-      id: '/databases/$databaseName/schemas/';
-      path: '/databases/$databaseName/schemas';
-      fullPath: '/databases/$databaseName/schemas';
-      preLoaderRoute: typeof DatabasesDatabaseNameSchemasIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/databases/$databaseName/schemas/$schemaName/tables/': {
-      id: '/databases/$databaseName/schemas/$schemaName/tables/';
-      path: '/databases/$databaseName/schemas/$schemaName/tables';
-      fullPath: '/databases/$databaseName/schemas/$schemaName/tables';
-      preLoaderRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-    '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/': {
-      id: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/';
-      path: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns';
-      fullPath: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns';
-      preLoaderRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexImport;
-      parentRoute: typeof rootRoute;
-    };
-  }
-}
-
-// Create and export the route tree
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute;
@@ -180,7 +89,6 @@ export interface FileRoutesByFullPath {
   '/databases/$databaseName/schemas/$schemaName/tables': typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute;
   '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns': typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute;
 }
-
 export interface FileRoutesByTo {
   '/': typeof IndexRoute;
   '/home': typeof HomeRoute;
@@ -193,9 +101,8 @@ export interface FileRoutesByTo {
   '/databases/$databaseName/schemas/$schemaName/tables': typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute;
   '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns': typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute;
 }
-
 export interface FileRoutesById {
-  __root__: typeof rootRoute;
+  __root__: typeof rootRouteImport;
   '/': typeof IndexRoute;
   '/home': typeof HomeRoute;
   '/volumes': typeof VolumesRoute;
@@ -207,7 +114,6 @@ export interface FileRoutesById {
   '/databases/$databaseName/schemas/$schemaName/tables/': typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute;
   '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/': typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute;
 }
-
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
@@ -247,7 +153,6 @@ export interface FileRouteTypes {
     | '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/';
   fileRoutesById: FileRoutesById;
 }
-
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   HomeRoute: typeof HomeRoute;
@@ -259,6 +164,81 @@ export interface RootRouteChildren {
   DatabasesDatabaseNameSchemasIndexRoute: typeof DatabasesDatabaseNameSchemasIndexRoute;
   DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexRoute;
   DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute;
+}
+
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/volumes': {
+      id: '/volumes';
+      path: '/volumes';
+      fullPath: '/volumes';
+      preLoaderRoute: typeof VolumesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/home': {
+      id: '/home';
+      path: '/home';
+      fullPath: '/home';
+      preLoaderRoute: typeof HomeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/': {
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/queries/': {
+      id: '/queries/';
+      path: '/queries';
+      fullPath: '/queries';
+      preLoaderRoute: typeof QueriesIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/databases/': {
+      id: '/databases/';
+      path: '/databases';
+      fullPath: '/databases';
+      preLoaderRoute: typeof DatabasesIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/sql-editor/$worksheetId/': {
+      id: '/sql-editor/$worksheetId/';
+      path: '/sql-editor/$worksheetId';
+      fullPath: '/sql-editor/$worksheetId';
+      preLoaderRoute: typeof SqlEditorWorksheetIdIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/queries/$queryId/': {
+      id: '/queries/$queryId/';
+      path: '/queries/$queryId';
+      fullPath: '/queries/$queryId';
+      preLoaderRoute: typeof QueriesQueryIdIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/databases/$databaseName/schemas/': {
+      id: '/databases/$databaseName/schemas/';
+      path: '/databases/$databaseName/schemas';
+      fullPath: '/databases/$databaseName/schemas';
+      preLoaderRoute: typeof DatabasesDatabaseNameSchemasIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/databases/$databaseName/schemas/$schemaName/tables/': {
+      id: '/databases/$databaseName/schemas/$schemaName/tables/';
+      path: '/databases/$databaseName/schemas/$schemaName/tables';
+      fullPath: '/databases/$databaseName/schemas/$schemaName/tables';
+      preLoaderRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/': {
+      id: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/';
+      path: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns';
+      fullPath: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns';
+      preLoaderRoute: typeof DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+  }
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -276,59 +256,6 @@ const rootRouteChildren: RootRouteChildren = {
   DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute:
     DatabasesDatabaseNameSchemasSchemaNameTablesTableNameColumnsIndexRoute,
 };
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>();
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/",
-        "/home",
-        "/volumes",
-        "/databases/",
-        "/queries/",
-        "/queries/$queryId/",
-        "/sql-editor/$worksheetId/",
-        "/databases/$databaseName/schemas/",
-        "/databases/$databaseName/schemas/$schemaName/tables/",
-        "/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    },
-    "/home": {
-      "filePath": "home.tsx"
-    },
-    "/volumes": {
-      "filePath": "volumes.tsx"
-    },
-    "/databases/": {
-      "filePath": "databases/index.tsx"
-    },
-    "/queries/": {
-      "filePath": "queries/index.tsx"
-    },
-    "/queries/$queryId/": {
-      "filePath": "queries/$queryId.index.tsx"
-    },
-    "/sql-editor/$worksheetId/": {
-      "filePath": "sql-editor/$worksheetId.index.tsx"
-    },
-    "/databases/$databaseName/schemas/": {
-      "filePath": "databases/$databaseName.schemas.index.tsx"
-    },
-    "/databases/$databaseName/schemas/$schemaName/tables/": {
-      "filePath": "databases/$databaseName.schemas.$schemaName.tables.index.tsx"
-    },
-    "/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/": {
-      "filePath": "databases/$databaseName.schemas.$schemaName.tables.$tableName.columns.index.tsx"
-    }
-  }
-}
-ROUTE_MANIFEST_END */

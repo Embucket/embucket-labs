@@ -4,6 +4,7 @@ import { Database } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useGetDatabases } from '@/orval/databases';
 import { useGetVolumes } from '@/orval/volumes';
 
@@ -17,12 +18,20 @@ import { DatabasesPageToolbar } from './databases-page-toolbar';
 
 export function DatabasesPage() {
   const [opened, setOpened] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
   const {
     data: { items: databases } = {},
     isLoading: isLoadingDatabases,
     isFetching: isFetchingDatabases,
-  } = useGetDatabases();
-  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes();
+    refetch: refetchDatabases,
+  } = useGetDatabases({
+    search: debouncedSearch,
+  });
+  const { data: { items: volumes } = {}, isFetching: isFetchingVolumes } = useGetVolumes({
+    search: debouncedSearch,
+  });
 
   return (
     <>
@@ -44,22 +53,25 @@ export function DatabasesPage() {
               </Button>
             }
           />
+
+          <DatabasesPageToolbar
+            search={search}
+            onSetSearch={setSearch}
+            onRefetchDatabases={refetchDatabases}
+            databases={databases ?? []}
+            isFetchingDatabases={isFetchingDatabases}
+          />
           {!databases?.length && !isLoadingDatabases ? (
             <PageEmptyContainer
               Icon={Database}
+              variant="toolbar"
               title="No Databases Found"
               description="No databases have been created yet. Create a database to get started."
             />
           ) : (
-            <>
-              <DatabasesPageToolbar
-                databases={databases ?? []}
-                isFetchingDatabases={isFetchingDatabases}
-              />
-              <PageScrollArea>
-                <DatabasesTable isLoading={isLoadingDatabases} databases={databases ?? []} />
-              </PageScrollArea>
-            </>
+            <PageScrollArea>
+              <DatabasesTable isLoading={isLoadingDatabases} databases={databases ?? []} />
+            </PageScrollArea>
           )}
         </ResizablePanel>
       </ResizablePanelGroup>

@@ -9,9 +9,11 @@ import { useGetTableColumns } from '@/orval/tables';
 interface ColumnsPageToolbarProps {
   columns: Column[];
   isFetchingColumns: boolean;
+  search: string;
+  onSearch: (value: string) => void;
 }
 
-export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
+export function ColumnsPageToolbar({ columns, search, onSearch }: ColumnsPageToolbarProps) {
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
@@ -31,7 +33,11 @@ export function ColumnsPageToolbar({ columns }: ColumnsPageToolbarProps) {
           <InputIcon>
             <Search />
           </InputIcon>
-          <Input disabled placeholder="Search" />
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Search columns"
+          />
         </InputRoot>
         <RefreshButton isDisabled={isFetchingColumns} onRefresh={refetchColumns} />
       </div>

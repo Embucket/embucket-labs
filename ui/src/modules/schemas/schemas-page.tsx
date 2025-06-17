@@ -5,6 +5,7 @@ import { Database, FolderTree } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useGetSchemas } from '@/orval/schemas';
 
 import { CreateSchemaDialog } from '../shared/create-schema-dialog/create-schema-dialog';
@@ -17,12 +18,18 @@ import { SchemasPageToolbar } from './schemas-page-toolbar';
 
 export function SchemasPage() {
   const [opened, setOpened] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
   const { databaseName } = useParams({ from: '/databases/$databaseName/schemas/' });
   const {
     data: { items: schemas } = {},
     isFetching: isFetchingSchemas,
     isLoading: isLoadingSchemas,
-  } = useGetSchemas(databaseName);
+    refetch: refetchSchemas,
+  } = useGetSchemas(databaseName, {
+    search: debouncedSearch,
+  });
 
   return (
     <>
@@ -45,19 +52,25 @@ export function SchemasPage() {
               </Button>
             }
           />
+
+          <SchemasPageToolbar
+            search={search}
+            onSetSearch={setSearch}
+            schemas={schemas ?? []}
+            isFetchingSchemas={isFetchingSchemas}
+            onRefetchSchemas={refetchSchemas}
+          />
           {!schemas?.length && !isLoadingSchemas ? (
             <PageEmptyContainer
               Icon={FolderTree}
+              variant="toolbar"
               title="No Schemas Found"
               description="No schemas have been found for this database."
             />
           ) : (
-            <>
-              <SchemasPageToolbar schemas={schemas ?? []} isFetchingSchemas={isFetchingSchemas} />
-              <PageScrollArea>
-                <SchemasTable isLoading={isLoadingSchemas} schemas={schemas ?? []} />
-              </PageScrollArea>
-            </>
+            <PageScrollArea>
+              <SchemasTable isLoading={isLoadingSchemas} schemas={schemas ?? []} />
+            </PageScrollArea>
           )}
         </ResizablePanel>
       </ResizablePanelGroup>

@@ -1,19 +1,38 @@
+import { cva, type VariantProps } from 'class-variance-authority';
 import type { LucideIcon } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
-import { cn } from '@/lib/utils';
 
-interface PageEmptyContainerProps {
+const containerVariants = cva('', {
+  variants: {
+    variant: {
+      basic: 'h-[calc(100vh-65px-32px-2px)]',
+      toolbar: 'h-[calc(100vh-65px-32px-2px-64px)]',
+      tabs: 'h-[calc(100vh-65px-32px-2px-64px-53px)]',
+    },
+  },
+  defaultVariants: {
+    variant: 'basic',
+  },
+});
+
+type ContainerVariants = VariantProps<typeof containerVariants>;
+
+interface PageEmptyContainerProps extends ContainerVariants {
   Icon: LucideIcon;
   title: string;
   description: string;
-  tabs?: boolean;
 }
 
-export function PageEmptyContainer({ Icon, title, description, tabs }: PageEmptyContainerProps) {
+export function PageEmptyContainer({
+  Icon,
+  title,
+  description,
+  variant = 'basic',
+}: PageEmptyContainerProps) {
   return (
     <EmptyContainer
-      className={cn('h-[calc(100vh-65px-32px-2px)]', tabs && 'h-[calc(100vh-65px-32px-2px-53px)]')}
+      className={containerVariants({ variant })}
       Icon={Icon}
       title={title}
       description={description}
