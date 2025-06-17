@@ -39,8 +39,7 @@ export function usePreviewDataSearch({ previewData, search }: UsePreviewDataSear
     }));
   }, [previewData, search]);
 
-  const isEmpty =
-    !!search && searchedPreviewData.every((column) => column.rows.length === 0);
+  const isEmpty = !!search && searchedPreviewData.every((column) => column.rows.length === 0);
   const isEmptyDueToSearch = search.length > 0 && isEmpty;
 
   return {

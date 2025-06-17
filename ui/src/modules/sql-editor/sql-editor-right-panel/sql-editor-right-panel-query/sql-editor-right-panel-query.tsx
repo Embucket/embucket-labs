@@ -49,14 +49,14 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
         <div className="rounded bg-[#1F1F1F]">
           <div className="mb-1 flex items-center justify-between p-2 pb-0">
             <Link to="/queries/$queryId" params={{ queryId: query.id.toString() }}>
-            <Button
-              variant="outline"
-              className="hover:bg-sidebar-secondary-accent! h-7! justify-start bg-transparent! px-2!"
+              <Button
+                variant="outline"
+                className="hover:bg-sidebar-secondary-accent! h-7! justify-start bg-transparent! px-2!"
               >
-              <ExternalLink />
-              <span className="text-sm font-light">Open query details</span>
-            </Button>
-              </Link>
+                <ExternalLink />
+                <span className="text-sm font-light">Open query details</span>
+              </Button>
+            </Link>
             <SqlEditorRightPanelQueryCopyButton query={query} />
           </div>
           {/* TODO: Hardcode */}
