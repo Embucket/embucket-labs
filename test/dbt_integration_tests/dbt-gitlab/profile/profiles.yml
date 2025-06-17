@@ -4,7 +4,7 @@ gitlab_snowflake:
     snowflake:
       dev:
       type: snowflake
-      threads: 16
+      threads: 4
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
       password: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PASS') }}"
@@ -25,4 +25,4 @@ gitlab_snowflake:
       database: EMBUCKET
       warehouse: "{{ env_var('EMBUCKET_WAREHOUSE') }}"
       schema: "{{ env_var('EMBUCKET_SCHEMA') }}"
-      threads: 32
+      threads: 4
