@@ -117,12 +117,18 @@ def generate_visualization(stats_file='test_statistics.csv', output_dir='assets'
         successful_tests = df['successful_tests'].sum()
         overall_coverage = (successful_tests / total_tests * 100) if total_tests > 0 else 0
 
+        # Use coverage_percentage if available, otherwise fall back to success_rate_percentage for backward compatibility
+        color_column = 'coverage_percentage' if 'coverage_percentage' in df.columns else 'success_rate_percentage'
+        if color_column not in df.columns:
+            # Fallback for old CSV format
+            color_column = 'success_percentage'
+
         # Create the treemap visualization
         fig = px.treemap(
             df,
             path=['category', 'page_name'],
             values='total_tests',
-            color='success_percentage',
+            color=color_column,
             color_continuous_scale='RdYlGn',
             hover_data=['successful_tests', 'failed_tests'],
             range_color=[0, 100]

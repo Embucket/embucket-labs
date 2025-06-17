@@ -79,29 +79,21 @@ class EmbucketHelper:
                     print(f"Response text: {e.response.text[:200]}")
                 raise
 
-        # Drop schema if exists
-        query = f"DROP SCHEMA IF EXISTS {schema} CASCADE"
-        make_request_with_error_handling(
-            "POST", f"{embucket_url}/ui/queries",
-            headers,
-            json.dumps({"query": query})
-        )
-
-        # Create volume
+        # Create volume first
         payload = json.dumps({
                 "type": "memory",
                 "ident": "local",
             })
         make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/volumes', headers, payload)
 
-        # Create database
+        # Create database (requires volume to exist)
         payload = json.dumps({
             "ident": database,
             "volume": "local"
         })
         make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/databases', headers, payload)
 
-        # Create schema
+        # Create schema (requires database to exist)
         query = f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}"
         make_request_with_error_handling(
             "POST", f"{embucket_url}/ui/queries",
@@ -564,13 +556,23 @@ class SQLLogicPythonRunner:
             execution_times += [q.execution_time_s for q in queries_for_coverage]
 
             page_name = extract_file_name(file_path)
+
+            # Calculate coverage percentage including ALL tests (successful + failed + not_implemented)
+            total_all_tests = file_successful + file_failed + file_not_implemented
+            coverage_percentage = (file_successful / total_all_tests * 100) if total_all_tests > 0 else 0
+
+            # Calculate success rate excluding "Not Implemented" tests
+            ran_tests = file_successful + file_failed
+            success_rate_percentage = (file_successful / ran_tests * 100) if ran_tests > 0 else 0
+
             result_dict = {
                 "category": os.path.dirname(file_path).split('/')[-1],
                 "page_name": page_name,
                 "total_tests": file_total,
                 "successful_tests": file_successful,
                 "failed_tests": file_failed,
-                "success_percentage": (file_successful / file_total * 100) if file_total > 0 else 0
+                "coverage_percentage": coverage_percentage,
+                "success_rate_percentage": success_rate_percentage
             }
 
             # Add "not implemented" count if in Embucket mode
@@ -827,10 +829,10 @@ class SQLLogicPythonRunner:
             # Include "not_implemented_tests" field if in Embucket mode
             if is_embucket:
                 fieldnames = ["page_name", "category", "total_tests", "successful_tests",
-                             "failed_tests", "not_implemented_tests", "success_percentage"]
+                             "failed_tests", "not_implemented_tests", "coverage_percentage", "success_rate_percentage"]
             else:
                 fieldnames = ["page_name", "category", "total_tests", "successful_tests",
-                             "failed_tests", "success_percentage"]
+                             "failed_tests", "coverage_percentage", "success_rate_percentage"]
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
