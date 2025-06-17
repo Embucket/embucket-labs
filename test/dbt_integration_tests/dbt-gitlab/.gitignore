@@ -15,4 +15,3 @@ dbt_ci_utils.py
 run.log
 logs/
 assets/
-top_errors.txt
