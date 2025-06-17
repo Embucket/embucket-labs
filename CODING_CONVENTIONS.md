@@ -1,6 +1,7 @@
 # Coding Conventions used in Rust codebase of Embucket project
 
 ## Design Conventions
+* Define errors with display messages in dedicated `errors.rs` files. Avoid inlining error texts outside of those files
 * Define `Error` enum and `Result<T>` types per crate, with public visibility
 * Implement `IntoResponse` trait for top-level error for API crates
 * Errors appeared in logs and tracing spans/events should also bring an error stack trace
