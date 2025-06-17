@@ -14,12 +14,13 @@ import { useMeasureQueryResultsHeight } from './use-measure-query-results-height
 
 export function QueryPage() {
   const { queryId } = useParams({ from: '/queries/$queryId/' });
-  const { detailsRef, tableStyle } = useMeasureQueryResultsHeight();
 
   const { data: queryRecord, isLoading } = useGetQuery(+queryId);
 
   const columns = queryRecord?.result.columns ?? [];
   const rows = queryRecord?.result.rows ?? [];
+
+  const { detailsRef, tableStyle } = useMeasureQueryResultsHeight({ isReady: !isLoading });
 
   return (
     <>

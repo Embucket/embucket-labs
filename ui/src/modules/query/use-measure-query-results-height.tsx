@@ -1,9 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-// TODO: No way it's a good thing to do.
-export function useMeasureQueryResultsHeight() {
+import { useDebounce } from '@/hooks/use-debounce';
+
+// TODO: No way we do this.
+export function useMeasureQueryResultsHeight({ isReady }: { isReady: boolean }) {
   const detailsRef = useRef<HTMLDivElement>(null);
   const [detailsHeight, setDetailsHeight] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const debouncedWindowWidth = useDebounce(windowWidth, 500);
 
   const measureHeight = () => {
     if (detailsRef.current) {
@@ -19,29 +23,27 @@ export function useMeasureQueryResultsHeight() {
 
   // Initial measurement and setup
   useLayoutEffect(() => {
-    measureHeight();
+    if (isReady) {
+      measureHeight();
+    }
 
-    // Debounced resize handler
-    let timeoutId: NodeJS.Timeout;
     const handleResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(measureHeight, 100);
+      setWindowWidth(window.innerWidth);
     };
 
     window.addEventListener('resize', handleResize);
-    window.addEventListener('load', measureHeight);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('load', measureHeight);
-      clearTimeout(timeoutId);
     };
-  }, []);
+  }, [isReady]);
 
-  // Re-measure when content changes
+  // Re-measure when content changes or window is resized
   useEffect(() => {
-    measureHeight();
-  }, [detailsRef.current?.innerHTML]);
+    if (isReady) {
+      measureHeight();
+    }
+  }, [detailsRef.current?.innerHTML, isReady, debouncedWindowWidth]);
 
   return {
     detailsRef,
