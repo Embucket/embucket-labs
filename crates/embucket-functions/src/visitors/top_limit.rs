@@ -15,11 +15,17 @@ impl TopLimitVisitor {
             }
         }
 
-        fn process_set_expr(this: &mut TopLimitVisitor, set_expr: &mut SetExpr, outer_limit: &mut Option<Expr>) {
+        fn process_set_expr(
+            this: &mut TopLimitVisitor,
+            set_expr: &mut SetExpr,
+            outer_limit: &mut Option<Expr>,
+        ) {
             match set_expr {
                 SetExpr::Select(select) => {
                     for table_with_joins in &mut select.from {
-                        if let TableFactor::Derived { subquery, .. } = &mut table_with_joins.relation {
+                        if let TableFactor::Derived { subquery, .. } =
+                            &mut table_with_joins.relation
+                        {
                             this.process_query(subquery);
                         }
                     }
@@ -29,7 +35,9 @@ impl TopLimitVisitor {
                             if outer_limit.is_none() {
                                 if let Some(expr) = top.quantity.map(|q| match q {
                                     TopQuantity::Expr(expr) => expr,
-                                    TopQuantity::Constant(n) => Expr::Value(Value::Number(n.to_string(), false).with_empty_span()),
+                                    TopQuantity::Constant(n) => Expr::Value(
+                                        Value::Number(n.to_string(), false).with_empty_span(),
+                                    ),
                                 }) {
                                     *outer_limit = Some(expr);
                                 }
@@ -67,4 +75,3 @@ impl VisitorMut for TopLimitVisitor {
 pub fn visit(stmt: &mut Statement) {
     let _ = stmt.visit(&mut TopLimitVisitor::default());
 }
-
