@@ -58,7 +58,6 @@ impl VisitorMut for TopLimitVisitor {
     fn pre_visit_statement(&mut self, stmt: &mut Statement) -> ControlFlow<Self::Break> {
         match stmt {
             Statement::Query(query) => self.process_query(query),
-            Statement::CreateTable { query: Some(q), .. } => self.process_query(q),
             _ => {}
         }
         ControlFlow::Continue(())
