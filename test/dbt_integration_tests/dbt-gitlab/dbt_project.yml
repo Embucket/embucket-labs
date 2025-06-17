@@ -8,6 +8,8 @@ profile: 'gitlab_snowflake'
 require-dbt-version: [">=1.0.0", "<2.0.0"]
 
 # ======
+
+#
 # File Path Configs
 # ======
 model-paths: ["models"]
