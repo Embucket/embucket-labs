@@ -7,3 +7,4 @@ mod string_binary;
 mod table;
 mod utils;
 mod visitors;
+mod query;
