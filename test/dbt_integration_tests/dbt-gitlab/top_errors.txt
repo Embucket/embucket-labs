@@ -5,6 +5,7 @@ ERROR: 616
 SKIP: 416
 TOTAL: 1588
 
+# test
 # Total top 10 errors
  204 DataFusion error: Error during planning: Inserting query must have the same schema with the table.
   22 DataFusion error: This feature is not implemented: Function 'sha2' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/sha2
