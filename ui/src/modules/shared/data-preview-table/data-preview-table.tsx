@@ -26,6 +26,7 @@ export function DataPreviewTable({ isLoading, columns }: DataPreviewTableProps) 
       cell: (info) => info.getValue(),
       meta: {
         headerClassName: 'capitalize truncate',
+        cellClassName: 'truncate max-w-xl',
       },
     }),
   );

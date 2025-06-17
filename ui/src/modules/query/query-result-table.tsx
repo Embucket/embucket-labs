@@ -19,6 +19,7 @@ export function QueryResultsTable({ isLoading, rows, columns }: QueryResultsTabl
       cell: (info) => String(info.getValue()),
       meta: {
         headerClassName: 'capitalize',
+        cellClassName: 'truncate max-w-xl',
       },
     }),
   );
