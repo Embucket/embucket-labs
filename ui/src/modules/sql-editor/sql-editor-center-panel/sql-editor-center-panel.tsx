@@ -17,6 +17,7 @@ import { SqlEditorCenterBottomPanel } from './sql-editor-center-bottom-panel/sql
 import { SqlEditorCenterPanelFooter } from './sql-editor-center-panel-footer';
 import { SqlEditorCenterPanelHeader } from './sql-editor-center-panel-header/sql-editor-center-panel-header';
 import { SqlEditorCenterPanelToolbar } from './sql-editor-center-panel-toolbar/sql-editor-center-panel-toolbar';
+import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
 
 export function SqlEditorCenterPanel() {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
@@ -50,6 +51,9 @@ export function SqlEditorCenterPanel() {
           }),
           queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetNavigationTreesQueryKey(),
           }),
         ]);
         if (newQueryRecord) {
