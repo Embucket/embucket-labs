@@ -3,7 +3,6 @@ import { ArrowLeftIcon, DatabaseZap } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { useGetQuery } from '@/orval/queries';
 
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
@@ -11,9 +10,11 @@ import { PageHeader } from '../shared/page/page-header';
 import { QueryDetails } from './query-details';
 import { QueryResultsTable } from './query-result-table';
 import { QuerySQL } from './query-sql';
+import { useMeasureQueryResultsHeight } from './use-measure-query-results-height';
 
 export function QueryPage() {
   const { queryId } = useParams({ from: '/queries/$queryId/' });
+  const { detailsRef, tableStyle } = useMeasureQueryResultsHeight();
 
   const { data: queryRecord, isLoading } = useGetQuery(+queryId);
 
@@ -41,23 +42,20 @@ export function QueryPage() {
           description="The query you are looking for does not exist."
         />
       ) : (
-        // TODO: Hardcode
-        <ScrollArea className={cn('h-[calc(100vh-65px-32px-2px)]')}>
-          <div className="flex size-full flex-col p-4 pt-0">
-            <ScrollArea tableViewport>
-              <div className="mt-4 flex flex-col gap-4">
-                <QueryDetails queryRecord={queryRecord} />
-
-                <QuerySQL queryRecord={queryRecord} />
-                {!!rows.length && (
-                  <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
-                )}
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+        <>
+          <div ref={detailsRef} className="flex flex-col gap-4 p-4">
+            <QueryDetails queryRecord={queryRecord} />
+            <QuerySQL queryRecord={queryRecord} />
           </div>
-          <ScrollBar orientation="vertical" />
-        </ScrollArea>
+
+          <ScrollArea tableViewport className="mx-4" style={tableStyle}>
+            {!!rows.length && (
+              <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
+            )}
+            <ScrollBar orientation="vertical" />
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </>
       )}
     </>
   );
