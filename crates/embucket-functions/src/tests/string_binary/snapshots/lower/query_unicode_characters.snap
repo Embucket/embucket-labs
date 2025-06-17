@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/lower.rs
+description: "\"SELECT \n        LOWER('CAFÉ') AS accented, \n        LOWER('Café') AS mixed_accented,\n        LOWER('你好世界') AS chinese,\n        LOWER('ΕΛΛΗΝΙΚΆ') AS greek,\n        LOWER('Ελληνικά') AS mixed_greek\""
+---
+Ok(
+    [
+        "+----------+----------------+----------+----------+-------------+",
+        "| accented | mixed_accented | chinese  | greek    | mixed_greek |",
+        "+----------+----------------+----------+----------+-------------+",
+        "| café     | café           | 你好世界 | ελληνικά | ελληνικά    |",
+        "+----------+----------------+----------+----------+-------------+",
+    ],
+)
