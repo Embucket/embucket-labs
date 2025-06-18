@@ -1,13 +1,13 @@
 ---
 source: crates/embucket-functions/src/tests/string_binary/lower.rs
-description: "\"SELECT LOWER('hello world') AS result\""
+description: "\"SELECT LOWER('hello world')\""
 ---
 Ok(
     [
-        "+-------------+",
-        "| result      |",
-        "+-------------+",
-        "| hello world |",
-        "+-------------+",
+        "+----------------------------+",
+        "| lower(Utf8(\"hello world\")) |",
+        "+----------------------------+",
+        "| hello world                |",
+        "+----------------------------+",
     ],
 )

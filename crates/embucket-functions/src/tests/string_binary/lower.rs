@@ -3,31 +3,31 @@ use crate::test_query;
 // Basic functionality tests
 test_query!(
     basic_string,
-    "SELECT LOWER('HELLO WORLD') AS result",
+    "SELECT LOWER('HELLO WORLD')",
     snapshot_path = "lower"
 );
 
 test_query!(
     mixed_case,
-    "SELECT LOWER('Hello World') AS result",
+    "SELECT LOWER('Hello World')",
     snapshot_path = "lower"
 );
 
 test_query!(
     already_lowercase,
-    "SELECT LOWER('hello world') AS result",
+    "SELECT LOWER('hello world')",
     snapshot_path = "lower"
 );
 
 test_query!(
     empty_string,
-    "SELECT LOWER('') AS result",
+    "SELECT LOWER('')",
     snapshot_path = "lower"
 );
 
 test_query!(
     null_value,
-    "SELECT LOWER(NULL) AS result",
+    "SELECT LOWER(NULL)",
     snapshot_path = "lower"
 );
 
@@ -35,11 +35,11 @@ test_query!(
 test_query!(
     unicode_characters,
     "SELECT 
-        LOWER('CAFÉ') AS accented, 
-        LOWER('Café') AS mixed_accented,
-        LOWER('你好世界') AS chinese,
-        LOWER('ΕΛΛΗΝΙΚΆ') AS greek,
-        LOWER('Ελληνικά') AS mixed_greek",
+        LOWER('CAFÉ'), 
+        LOWER('Café'),
+        LOWER('你好世界'),
+        LOWER('ΕΛΛΗΝΙΚΆ'),
+        LOWER('Ελληνικά')",
     snapshot_path = "lower"
 );
 
@@ -47,8 +47,8 @@ test_query!(
 test_query!(
     non_string_types,
     "SELECT 
-        LOWER(123) AS number,
-        LOWER(123.45) AS float,
-        LOWER(CAST(123.45 AS DECIMAL(10,2))) AS decimal",
+        LOWER(123),
+        LOWER(123.45),
+        LOWER(CAST(123.46 AS DECIMAL(10,2)))",
     snapshot_path = "lower"
 );
