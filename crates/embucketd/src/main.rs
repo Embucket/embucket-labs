@@ -36,7 +36,8 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+use opentelemetry_sdk::trace::BatchSpanProcessor;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::net::SocketAddr;
@@ -219,9 +220,12 @@ async fn main() {
         .await
         .expect("Failed to start server");
 
-    provider
-        .shutdown()
-        .expect("TracerProvider should shutdown successfully");
+    // Run shutdown in blocking mode to avoid deadlock on shutdown, as per opentelemetry_sdk docs
+    tokio::task::spawn_blocking(move ||
+        provider
+            .shutdown()
+            .expect("TracerProvider should shutdown successfully"),
+    );
 }
 
 #[allow(clippy::expect_used)]
@@ -234,11 +238,19 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
 
     let resource = Resource::builder().with_service_name("Em").build();
 
-    let provider = SdkTracerProvider::builder()
-        // Use TokioCurrentThread for sending spans in a separate thread
-        .with_span_processor(BatchSpanProcessor::builder(exporter, TokioCurrentThread).build())
-        .with_resource(resource)
-        .build();
+    // Since BatchSpanProcessor and BatchSpanProcessorAsyncRuntime are not compatible with each other
+    // we just create TracerProvider with different span processors
+    let provider = match opts.tracing_span_processor {
+        cli::TracingSpanProcessor::BatchSpanProcessor => SdkTracerProvider::builder()
+            .with_span_processor(BatchSpanProcessor::builder(exporter).build())
+            .with_resource(resource)
+            .build(),
+        cli::TracingSpanProcessor::BatchSpanProcessorExperimentalAsyncRuntime => 
+            SdkTracerProvider::builder()
+            .with_span_processor(BatchSpanProcessorAsyncRuntime::builder(exporter, TokioCurrentThread).build())
+            .with_resource(resource)
+            .build(),
+    };
 
     let targets_with_level =
         |targets: &[&'static str], level: LevelFilter| -> Vec<(&str, LevelFilter)> {
@@ -281,7 +293,6 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                                 "tower_sessions",
                                 "tower_sessions_core",
                                 "tower_http",
-                                // "opentelemetry_sdk",
                             ],
                             LevelFilter::OFF,
                         ))

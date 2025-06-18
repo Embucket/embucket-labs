@@ -3,7 +3,8 @@
 ## Tracing
 Embucket uses `tracing::instrument` for instrumenting a code for tracing. It's can be used in both dev and production environments. For development use `info`, `debug` or `trace` level; for production `info` level is recommended.
 Optionally BatchSpanProcessor used for sending spans in a separate thread can be tuned with environment variables, like:
-* `OTEL_BSP_MAX_CONCURRENT_EXPORTS`: Maximum number of concurrent exports threads.
+* `OTEL_BSP_MAX_CONCURRENT_EXPORTS`: Maximum number of concurrent exports threads. When used with cmd line arg:
+--span-processor=batch-span-processor-experimental-async-runtime
 * `OTEL_BSP_SCHEDULE_DELAY`: Frequency at which the batch is exported.
 * `OTEL_BSP_EXPORT_TIMEOUT`: Maximum allowed time to export data.
 * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`: Maximum number of spans to include in a single export.
