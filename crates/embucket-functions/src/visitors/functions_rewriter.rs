@@ -53,6 +53,51 @@ impl VisitorMut for FunctionsRewriter {
                 }
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
+                "sha2" => {
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
+                        // Check if there's a second argument (the bit length)
+                        match args.len() {
+                            1 => {
+                                // sha2(text) -> sha256(text)
+                                "sha256"
+                            }
+                            2 => {
+                                // sha2(text, bits) -> sha{bits}(text)
+                                if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(
+                                    Expr::Value(value),
+                                ))) = args.get(1)
+                                {
+                                    if let datafusion_expr::sqlparser::ast::Value::Number(bits, _) =
+                                        &value.value
+                                    {
+                                        match bits.as_str() {
+                                            "224" => {
+                                                args.remove(1); // Remove the bit length argument
+                                                "sha224"
+                                            }
+                                            "256" => {
+                                                args.remove(1); // Remove the bit length argument
+                                                "sha256"
+                                            }
+                                            "512" => {
+                                                args.remove(1); // Remove the bit length argument
+                                                "sha512"
+                                            }
+                                            _ => func_name,
+                                        }
+                                    } else {
+                                        func_name
+                                    }
+                                } else {
+                                    func_name
+                                }
+                            }
+                            _ => func_name,
+                        }
+                    } else {
+                        func_name
+                    }
+                }
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);
