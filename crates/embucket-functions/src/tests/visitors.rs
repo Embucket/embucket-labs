@@ -1,6 +1,5 @@
 use crate::visitors::{
-    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases,
-    table_result_scan,
+    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases, table_functions,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -226,12 +225,16 @@ fn test_table_function_result_scan() -> DFResult<()> {
             from table(result_scan(last_query_id(-1))) a left join test as b on a.t = b.t",
             "SELECT a.*, b.IS_ICEBERG AS 'is_iceberg' FROM result_scan(last_query_id(-1)) AS a LEFT JOIN test AS b ON a.t = b.t",
         ),
+        (
+            "SELECT * FROM TABLE(FLATTEN(input => parse_json('[1, 77]')))",
+            "SELECT * FROM FLATTEN(input => parse_json('[1, 77]'))",
+        ),
     ];
 
     for (input, expected) in cases {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
         if let DFStatement::Statement(ref mut stmt) = statement {
-            table_result_scan::visit(stmt);
+            table_functions::visit(stmt);
         }
         assert_eq!(statement.to_string(), expected);
     }

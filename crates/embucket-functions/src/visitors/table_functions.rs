@@ -54,11 +54,14 @@ impl VisitorMut for TableFunctionVisitor {
                     alias,
                 } = &mut item.relation
                 {
-                    if name.to_string().to_lowercase() == "result_scan" {
+                    if name.to_string().to_lowercase() == "result_scan"
+                        || name.to_string().to_lowercase() == "flatten"
+                    {
                         item.relation = TableFactor::Function {
                             name: name.clone(),
                             args: args.args.clone(),
                             alias: alias.clone(),
+                            // FIXME: support LATERAL for FLATTEN
                             lateral: false,
                         };
                     }

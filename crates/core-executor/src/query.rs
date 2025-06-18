@@ -45,7 +45,7 @@ use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, functions_rewriter, inline_aliases_in_query, json_element,
-    select_expr_aliases, table_result_scan, top_limit,
+    select_expr_aliases, table_functions, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -193,7 +193,7 @@ impl UserQuery {
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);
-            table_result_scan::visit(value);
+            table_functions::visit(value);
             visit_all(value);
         }
         Ok(())
