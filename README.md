@@ -54,7 +54,10 @@ Embucket has deep integration with AWS S3 table buckets and relies on them for p
 
 ## SLT coverage
 ![Test Coverage Visualization](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/test_coverage_visualization.png)
-*This visualization is automatically updated by CI/CD when tests are run.*
+
+![Not Implemented Tests Distribution](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/not_implemented_visualization.png)
+
+*These visualizations are automatically updated by CI/CD when tests are run.*
 
 ### Install Embucket  
 

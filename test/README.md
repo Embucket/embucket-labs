@@ -2,7 +2,10 @@
 
 ## SLT coverage
 ![Test Coverage Visualization](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/test_coverage_visualization.png)
-*This visualization is automatically updated by CI/CD when tests are run.*
+
+![Not Implemented Tests Distribution](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/not_implemented_visualization.png)
+
+*These visualizations are automatically updated by CI/CD when tests are run.*
 
 # SQL Logic Tests
 We have a set of `.slt` files that represent our SQL Logic Tests. You can run them against Snowflake or Embucket.

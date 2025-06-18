@@ -17,8 +17,8 @@ except FileNotFoundError:
 
 df['category_success_rate'] = (df['successful_tests'] / df['total_tests']) * 100
 
-# Use coverage_percentage if available, otherwise fall back to success_rate_percentage for backward compatibility
-color_column = 'coverage_percentage' if 'coverage_percentage' in df.columns else 'success_rate_percentage'
+# Use success_rate_percentage (excludes "Not Implemented" tests) instead of coverage_percentage
+color_column = 'success_rate_percentage' if 'success_rate_percentage' in df.columns else 'coverage_percentage'
 if color_column not in df.columns:
     # Fallback for old CSV format
     color_column = 'success_percentage'
