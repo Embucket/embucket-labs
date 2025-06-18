@@ -1,12 +1,15 @@
 use clap::Parser;
 use std::{net::SocketAddr, str::FromStr};
 
+use dotenv::dotenv;
 use embucket_seed::seed_client::seed_database;
 use embucket_seed::static_seed_assets::SeedVariant;
 
 #[tokio::main]
 #[allow(clippy::expect_used)]
 async fn main() {
+    dotenv().ok();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

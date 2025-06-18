@@ -19,6 +19,7 @@ error-stack = { path = "../error-stack" }
 
 async-trait = { workspace = true }
 cookie = "0.18.1"
+dotenv = "0.15.0"
 http = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }

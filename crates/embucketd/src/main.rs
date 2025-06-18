@@ -34,7 +34,9 @@ use dotenv::dotenv;
 use object_store::path::Path;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::net::SocketAddr;
@@ -233,7 +235,8 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     let resource = Resource::builder().with_service_name("Em").build();
 
     let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
+        // Use TokioCurrentThread for sending spans in a separate thread
+        .with_span_processor(BatchSpanProcessor::builder(exporter, TokioCurrentThread).build())
         .with_resource(resource)
         .build();
 
@@ -278,7 +281,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                                 "tower_sessions",
                                 "tower_sessions_core",
                                 "tower_http",
-                                "opentelemetry_sdk",
+                                // "opentelemetry_sdk",
                             ],
                             LevelFilter::OFF,
                         ))

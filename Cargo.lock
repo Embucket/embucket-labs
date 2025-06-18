@@ -2980,6 +2980,7 @@ dependencies = [
  "clap",
  "cookie",
  "core-metastore",
+ "dotenv",
  "error-stack",
  "error-stack-trace",
  "fake",
@@ -4966,6 +4967,8 @@ dependencies = [
  "rand 0.9.1",
  "serde_json",
  "thiserror 2.0.12",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
