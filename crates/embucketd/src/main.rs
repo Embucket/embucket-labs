@@ -220,12 +220,9 @@ async fn main() {
         .await
         .expect("Failed to start server");
 
-    // Run shutdown in blocking mode to avoid deadlock on shutdown, as per opentelemetry_sdk docs
-    tokio::task::spawn_blocking(move || {
-        provider
-            .shutdown()
-            .expect("TracerProvider should shutdown successfully");
-    });
+    provider
+        .shutdown()
+        .expect("TracerProvider should shutdown successfully");
 }
 
 #[allow(clippy::expect_used)]
