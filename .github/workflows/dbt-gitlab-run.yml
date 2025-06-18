@@ -74,6 +74,11 @@ jobs:
       - name: DBT Gitlab run
         working-directory: ./test/dbt_integration_tests/dbt-gitlab
         run: |
+          mkdir assets
+
+      - name: DBT Gitlab run
+        working-directory: ./test/dbt_integration_tests/dbt-gitlab
+        run: |
           ./run.sh --target embucket
 
       # Generate Test Assets
@@ -91,6 +96,7 @@ jobs:
           # Copy test assets and statistics file to a temporary location before switching branches
           mkdir -p /tmp/embucket-assets
           cp -r test/dbt_integration_tests/dbt-gitlab/assets/* /tmp/embucket-assets/
+          rm -rf test/dbt_integration_tests/dbt-gitlab/assets/
         
           # Setup git
           git config --global user.name "github-actions[bot]"

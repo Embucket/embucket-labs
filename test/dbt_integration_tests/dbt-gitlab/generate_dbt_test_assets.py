@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import re
 
-def parse_top_errors(file_path='top_errors.txt'):
+def parse_top_errors(file_path='assets/top_errors.txt'):
     """
     Parse top_errors.txt to extract PASS, ERROR, SKIP, and TOTAL values.
 
@@ -107,7 +107,7 @@ def generate_badge(success_rate, output_dir='assets'):
         print(f"Error generating badge: {str(e)}")
         return None
 
-def generate_dbt_chart(output_dir='assets', errors_file='top_errors.txt'):
+def generate_dbt_chart(output_dir='assets', errors_file='assets/top_errors.txt'):
     """
     Generate a horizontal stacked bar chart for DBT run status with custom colors and labels,
     and a badge for DBT success rate.
@@ -196,7 +196,7 @@ def generate_dbt_chart(output_dir='assets', errors_file='top_errors.txt'):
 def main():
     parser = argparse.ArgumentParser(description='Generate DBT run status chart and badge')
     parser.add_argument('--output-dir', default='assets', help='Directory to output the chart and badge')
-    parser.add_argument('--errors-file', default='top_errors.txt', help='Path to top_errors.txt')
+    parser.add_argument('--errors-file', default='assets/top_errors.txt', help='Path to top_errors.txt')
     args = parser.parse_args()
 
     chart_path, badge_path = generate_dbt_chart(output_dir=args.output_dir, errors_file=args.errors_file)
