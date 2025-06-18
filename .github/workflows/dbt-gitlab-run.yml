@@ -71,7 +71,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: DBT Gitlab run
+      - name: Create assets dir
         working-directory: ./test/dbt_integration_tests/dbt-gitlab
         run: |
           mkdir assets
