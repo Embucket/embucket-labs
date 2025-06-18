@@ -35,8 +35,8 @@ use object_store::path::Path;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::runtime::TokioCurrentThread;
-use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::BatchSpanProcessor;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
@@ -221,11 +221,11 @@ async fn main() {
         .expect("Failed to start server");
 
     // Run shutdown in blocking mode to avoid deadlock on shutdown, as per opentelemetry_sdk docs
-    tokio::task::spawn_blocking(move ||
+    tokio::task::spawn_blocking(move || {
         provider
             .shutdown()
-            .expect("TracerProvider should shutdown successfully"),
-    );
+            .expect("TracerProvider should shutdown successfully");
+    });
 }
 
 #[allow(clippy::expect_used)]
@@ -245,11 +245,14 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
             .with_span_processor(BatchSpanProcessor::builder(exporter).build())
             .with_resource(resource)
             .build(),
-        cli::TracingSpanProcessor::BatchSpanProcessorExperimentalAsyncRuntime => 
+        cli::TracingSpanProcessor::BatchSpanProcessorExperimentalAsyncRuntime => {
             SdkTracerProvider::builder()
-            .with_span_processor(BatchSpanProcessorAsyncRuntime::builder(exporter, TokioCurrentThread).build())
-            .with_resource(resource)
-            .build(),
+                .with_span_processor(
+                    BatchSpanProcessorAsyncRuntime::builder(exporter, TokioCurrentThread).build(),
+                )
+                .with_resource(resource)
+                .build()
+        }
     };
 
     let targets_with_level =
@@ -289,11 +292,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                         .with_targets(targets_with_level(&TARGETS, LevelFilter::INFO))
                         // disable following targets:
                         .with_targets(targets_with_level(
-                            &[
-                                "tower_sessions",
-                                "tower_sessions_core",
-                                "tower_http",
-                            ],
+                            &["tower_sessions", "tower_sessions_core", "tower_http"],
                             LevelFilter::OFF,
                         ))
                         .with_default(LevelFilter::INFO),

@@ -247,7 +247,6 @@ pub enum TracingLevel {
     Trace,
 }
 
-
 #[derive(Debug, Clone, ValueEnum)]
 pub enum TracingSpanProcessor {
     BatchSpanProcessor,
