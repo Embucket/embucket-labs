@@ -19,17 +19,9 @@ test_query!(
     snapshot_path = "lower"
 );
 
-test_query!(
-    empty_string,
-    "SELECT LOWER('')",
-    snapshot_path = "lower"
-);
+test_query!(empty_string, "SELECT LOWER('')", snapshot_path = "lower");
 
-test_query!(
-    null_value,
-    "SELECT LOWER(NULL)",
-    snapshot_path = "lower"
-);
+test_query!(null_value, "SELECT LOWER(NULL)", snapshot_path = "lower");
 
 // Unicode character handling
 test_query!(
