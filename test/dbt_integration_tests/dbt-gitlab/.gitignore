@@ -14,4 +14,4 @@ dbt_ci_utils.py
 /docs
 run.log
 logs/
-assets/
+assets/*
