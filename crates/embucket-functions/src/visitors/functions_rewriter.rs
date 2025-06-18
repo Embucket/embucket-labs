@@ -54,49 +54,35 @@ impl VisitorMut for FunctionsRewriter {
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
                 "sha2" => {
-                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
-                        // Check if there's a second argument (the bit length)
-                        match args.len() {
-                            1 => {
-                                // sha2(text) -> sha256(text)
-                                "sha256"
-                            }
-                            2 => {
-                                // sha2(text, bits) -> sha{bits}(text)
-                                if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(
-                                    Expr::Value(value),
-                                ))) = args.get(1)
-                                {
-                                    if let datafusion_expr::sqlparser::ast::Value::Number(bits, _) =
-                                        &value.value
-                                    {
-                                        match bits.as_str() {
-                                            "224" => {
-                                                args.remove(1); // Remove the bit length argument
-                                                "sha224"
-                                            }
-                                            "256" => {
-                                                args.remove(1); // Remove the bit length argument
-                                                "sha256"
-                                            }
-                                            "512" => {
-                                                args.remove(1); // Remove the bit length argument
-                                                "sha512"
-                                            }
-                                            _ => func_name,
-                                        }
-                                    } else {
-                                        func_name
-                                    }
-                                } else {
-                                    func_name
+                    let mut new_name = "sha2";
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) =
+                        &mut func.args
+                    {
+                        // Check if we have a bit length argument
+                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
+                            value,
+                        )))) = args.get(1)
+                        {
+                            if let datafusion_expr::sqlparser::ast::Value::Number(bits, _) =
+                                &value.value
+                            {
+                                new_name = match bits.as_str() {
+                                    "224" => "sha224",
+                                    "256" => "sha256",
+                                    "512" => "sha512",
+                                    _ => "sha2",
+                                };
+                                // Remove bit length argument for known variants
+                                if new_name != "sha2" {
+                                    args.pop();
                                 }
                             }
-                            _ => func_name,
+                        } else if args.len() == 1 {
+                            // Default to sha256 when no bit length provided
+                            new_name = "sha256";
                         }
-                    } else {
-                        func_name
                     }
+                    new_name
                 }
                 _ => func_name,
             };
