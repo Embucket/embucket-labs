@@ -98,6 +98,8 @@ if [ "$DBT_TARGET" = "embucket" ]; then
 fi
 echo ""
 
+mkdir -p assets
+
 # Run DBT commands
 echo "###############################"
 echo ""
