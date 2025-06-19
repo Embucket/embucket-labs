@@ -21,7 +21,9 @@ def render_percentage_bar(successful, failed):
 
 def display_page_results(all_results, total_tests, total_successful, total_failed, total_not_implemented=0):
     table = PrettyTable()
-    if total_not_implemented > 0:
+    # Check if any result has "not_implemented_tests" to determine if we need the extra column
+    has_not_implemented = any("not_implemented_tests" in result for result in all_results)
+    if has_not_implemented:
         table.field_names = ["Category", "Page name", "Total Tests", "Successful Tests", "Failed Tests", "Not Implemented", "Coverage",
                              "Coverage %", "Success rate %"]
     else:
@@ -54,9 +56,10 @@ def display_page_results(all_results, total_tests, total_successful, total_faile
             failed_color
         ]
 
-        # Add "Not Implemented" column if present
-        if "not_implemented_tests" in result:
-            not_implemented_color = f"\033[93m{result['not_implemented_tests']}\033[0m"  # Yellow color
+        # Add "Not Implemented" column if we determined the table needs it
+        if has_not_implemented:
+            not_implemented_count = result.get('not_implemented_tests', 0)
+            not_implemented_color = f"\033[93m{not_implemented_count}\033[0m"  # Yellow color
             row.append(not_implemented_color)
 
         row.extend([
@@ -81,8 +84,8 @@ def display_page_results(all_results, total_tests, total_successful, total_faile
 
     total_row = ["TOTAL", "", total_tests, total_success_color, total_fail_color]
 
-    # Add "Not Implemented" total if present
-    if total_not_implemented > 0:
+    # Add "Not Implemented" total if we determined the table needs it
+    if has_not_implemented:
         total_not_implemented_color = f"\033[93m{total_not_implemented}\033[0m"  # Yellow color
         total_row.append(total_not_implemented_color)
 
