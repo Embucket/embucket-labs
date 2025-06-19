@@ -13,12 +13,12 @@ impl VisitorMut for FetchToLimit {
             // Default quantity is 1 when not specified
             let quantity = fetch
                 .quantity
-                .unwrap_or_else(|| Expr::Value(Value::Number("1".to_string(), false)));
+                .unwrap_or_else(|| Expr::Value(Value::Number("1".to_string(), false).into()));
             // Ignore PERCENT and WITH TIES for now
             query.limit = Some(quantity);
         }
         // process WITH clauses recursively
-        if let Some(with) = &mut query.with {
+        /*if let Some(with) = &mut query.with {
             for cte in &mut with.cte_tables {
                 let _ = self.pre_visit_query(&mut cte.query);
             }
@@ -29,7 +29,7 @@ impl VisitorMut for FetchToLimit {
                     let _ = self.pre_visit_query(subquery);
                 }
             }
-        }
+        }*/
         ControlFlow::Continue(())
     }
 }
