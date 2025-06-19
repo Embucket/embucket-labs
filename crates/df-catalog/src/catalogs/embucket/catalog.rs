@@ -46,6 +46,12 @@ impl CatalogProvider for EmbucketCatalog {
         self
     }
 
+
+    #[tracing::instrument(
+        name = "EmbucketCatalog::schema_names",
+        level = "debug",
+        skip(self)
+    )]
     fn schema_names(&self) -> Vec<String> {
         let metastore = self.metastore.clone();
         let database = self.database.clone();
@@ -62,6 +68,11 @@ impl CatalogProvider for EmbucketCatalog {
         .unwrap_or_else(|_| vec![])
     }
 
+    #[tracing::instrument(
+        name = "EmbucketCatalog::schema",
+        level = "debug",
+        skip(self)
+    )]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         let metastore = self.metastore.clone();
         let iceberg_catalog = self.iceberg_catalog.clone();

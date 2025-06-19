@@ -51,6 +51,12 @@ impl CatalogProvider for CachingCatalog {
         self
     }
 
+    #[tracing::instrument(
+        name = "CachingCatalog::schema_names",
+        level = "debug",
+        skip(self),
+        fields(schemas_names_count, catalog_name=format!("{:?}", self.name)),
+    )]
     fn schema_names(&self) -> Vec<String> {
         let schema_names = self.catalog.schema_names();
 
@@ -75,9 +81,18 @@ impl CatalogProvider for CachingCatalog {
                 );
             }
         }
+        // Record the result as part of the current span.
+        tracing::Span::current().record("schemas_names_count", schema_names.len());
+
         schema_names
     }
 
+
+    #[tracing::instrument(
+        name = "CachingCatalog::schema",
+        level = "debug",
+        skip(self),
+    )]
     #[allow(clippy::as_conversions)]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         if let Some(schema) = self.schemas_cache.get(name) {
@@ -97,6 +112,13 @@ impl CatalogProvider for CachingCatalog {
         }
     }
 
+
+    #[tracing::instrument(
+        name = "CachingCatalog::register_schema",
+        level = "debug",
+        skip(self),
+        fields(schemas_names_count, catalog_name=format!("{:?}", self.name)),
+    )]
     fn register_schema(
         &self,
         name: &str,
@@ -112,6 +134,13 @@ impl CatalogProvider for CachingCatalog {
         self.catalog.register_schema(name, schema)
     }
 
+
+    #[tracing::instrument(
+        name = "CachingCatalog::deregister_schema",
+        level = "debug",
+        skip(self),
+        fields(schemas_names_count, catalog_name=format!("{:?}", self.name)),
+    )]
     fn deregister_schema(
         &self,
         name: &str,

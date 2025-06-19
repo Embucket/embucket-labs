@@ -183,14 +183,40 @@ impl EmbucketCatalogList {
         Ok(catalogs)
     }
 
+
+    
+    #[allow(clippy::as_conversions, clippy::too_many_lines)]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::refresh_schema",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    pub async fn refresh_schema(&self, database: &str, schema: &str) -> Result<()> {
+        for catalog in self.catalogs.iter_mut() {
+            if catalog.should_refresh {
+            }
+        }
+        Ok(())
+    }
+
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(
         name = "EmbucketCatalogList::refresh",
         level = "debug",
         skip(self),
+        fields(catalogs_to_refresh),
         err
     )]
     pub async fn refresh(&self) -> Result<()> {
+        // Record the result as part of the current span.
+        tracing::Span::current().record("catalogs_to_refresh", 
+            format!("{:?}", self.catalogs.iter()
+            .filter(|cat| cat.should_refresh)
+            .map(|cat| cat.name.clone())
+            .collect::<Vec<_>>())
+        );
+
         for catalog in self.catalogs.iter_mut() {
             if catalog.should_refresh {
                 let schemas = catalog.schema_names();
@@ -335,7 +361,7 @@ impl CatalogProviderList for EmbucketCatalogList {
     }
 
     #[tracing::instrument(
-        name = "CatalogProviderList::register_catalog",
+        name = "EmbucketCatalogList::register_catalog",
         level = "debug",
         skip(self, catalog)
     )]
@@ -354,7 +380,7 @@ impl CatalogProviderList for EmbucketCatalogList {
     }
 
     #[tracing::instrument(
-        name = "CatalogProviderList::catalog_names",
+        name = "EmbucketCatalogList::catalog_names",
         level = "debug",
         skip(self)
     )]
@@ -363,7 +389,7 @@ impl CatalogProviderList for EmbucketCatalogList {
     }
 
     #[allow(clippy::as_conversions)]
-    #[tracing::instrument(name = "CatalogProviderList::catalog", level = "debug", skip(self))]
+    #[tracing::instrument(name = "EmbucketCatalogList::catalog", level = "debug", skip(self))]
     fn catalog(&self, name: &str) -> Option<Arc<dyn CatalogProvider>> {
         self.catalogs
             .get(name)

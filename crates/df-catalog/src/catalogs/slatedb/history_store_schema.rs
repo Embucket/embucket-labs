@@ -50,6 +50,7 @@ impl SchemaProvider for HistoryStoreViewSchemaProvider {
             .collect()
     }
 
+    #[tracing::instrument(name = "HistoryStoreViewSchemaProvider::table", level = "debug", skip(self), err)]
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
         let config = self.config.clone();
         let table: Arc<dyn PartitionStream> = match name.to_ascii_lowercase().as_str() {
