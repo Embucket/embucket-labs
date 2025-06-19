@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/math/div0.rs
+source: crates/embucket-functions/src/tests/numeric/div0.rs
 description: "\"SELECT DIV0(a, b) FROM (VALUES \n        (10, 2), \n        (10.5, 2), \n        (10, 2.5), \n        (10.5, 2.5),\n        (10, 0),\n        (10.5, 0)\n    ) AS t(a, b)\""
 ---
 Ok(

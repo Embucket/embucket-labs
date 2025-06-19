@@ -70,7 +70,7 @@ test_query!(
 // Decimal precision
 test_query!(
     div0_decimal_precision,
-    "SELECT DIV0(10, 3), DIV0(1, 3), DIV0(1, 300)",
+    "SELECT DIV0(10::DECIMAL(5,3), 3::DECIMAL(6,4)), DIV0(1::DECIMAL(38,15), 3), DIV0(1::DECIMAL(5,3), 300)",
     snapshot_path = "div0"
 );
 

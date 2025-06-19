@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/math/div0.rs
+source: crates/embucket-functions/src/tests/numeric/div0.rs
 description: "\"SELECT a, b, DIV0(a, b) FROM div0_test ORDER BY a, b\""
 info: "Setup queries: CREATE TABLE div0_test (a INT, b INT); INSERT INTO div0_test VALUES (10, 2), (10, 0), (NULL, 2), (10, NULL), (NULL, NULL)"
 ---
@@ -8,8 +8,8 @@ Ok(
         "+----+---+-------------------------------+",
         "| a  | b | div0(div0_test.a,div0_test.b) |",
         "+----+---+-------------------------------+",
-        "| 10 | 0 | 0.0                           |",
-        "| 10 | 2 | 5.0                           |",
+        "| 10 | 0 | 0.000000                      |",
+        "| 10 | 2 | 5.000000                      |",
         "| 10 |   |                               |",
         "|    | 2 |                               |",
         "|    |   |                               |",
