@@ -3,6 +3,7 @@
 ## DBT Gitlab run results:
 ![alt text](assets/dbt_run_status.png)
 
+# test
 # How to run dbt-gitlab project?
 
 1. cd into dbt-gitlab directory
