@@ -200,10 +200,13 @@ impl UserQuery {
     }
 
     #[allow(clippy::too_many_lines)]
-    #[instrument(name = "UserQuery::execute", level = "debug", skip(self), err)]
+    #[instrument(name = "UserQuery::execute", level = "debug", skip(self), fields(statement), err)]
     pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("statement", format!("{statement:#?}"));
 
         // TODO: Code should be organized in a better way
         // 1. Single place to parse SQL strings into AST
