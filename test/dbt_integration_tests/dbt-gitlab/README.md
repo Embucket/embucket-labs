@@ -1,7 +1,6 @@
-
-![alt text](assets/dbt_success_badge.svg)
+[![DBT Gitlab run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_success_badge.svg)]
 ## DBT Gitlab run results:
-![alt text](assets/dbt_run_status.png)
+[![DBT Gitlab run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_run_status.png)]
 
 # How to run dbt-gitlab project?
 
