@@ -110,10 +110,10 @@ jobs:
           # find . -mindepth 1 -not -path "./.git*" -delete
         
           # Create assets directory
-          mkdir -p assets
+          mkdir -p assets_dbt
         
           # Copy assets from the temporary location
-          cp -r /tmp/embucket-assets/* assets/
+          cp -r /tmp/embucket-assets/* assets_dbt/
         
           # Add and commit
           git add assets
