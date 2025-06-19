@@ -1,9 +1,8 @@
-
+use crate::web_assets::web_assets_app;
+use core::net::SocketAddr;
 use http::Method;
 use reqwest;
 use reqwest::header;
-use core::net::SocketAddr;
-use crate::web_assets::web_assets_app;
 
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 pub async fn run_test_web_assets_server() -> Result<SocketAddr, Box<dyn std::error::Error>> {
@@ -11,10 +10,7 @@ pub async fn run_test_web_assets_server() -> Result<SocketAddr, Box<dyn std::err
     let listener = tokio::net::TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], 0))).await?;
     let addr = listener.local_addr()?;
 
-    tokio::spawn(async move {
-        axum::serve(listener, app)
-            .await
-    });
+    tokio::spawn(async move { axum::serve(listener, app).await });
 
     Ok(addr)
 }
@@ -22,7 +18,8 @@ pub async fn run_test_web_assets_server() -> Result<SocketAddr, Box<dyn std::err
 #[allow(clippy::expect_used)]
 #[tokio::test]
 async fn test_web_assets_server() {
-    let addr = run_test_web_assets_server().await
+    let addr = run_test_web_assets_server()
+        .await
         .expect("Failed to run web assets server");
 
     let client = reqwest::Client::new();
@@ -49,7 +46,8 @@ async fn test_web_assets_server() {
 #[allow(clippy::expect_used)]
 #[tokio::test]
 async fn test_web_assets_server_redirect() {
-    let addr = run_test_web_assets_server().await
+    let addr = run_test_web_assets_server()
+        .await
         .expect("Failed to run web assets server");
 
     let client = reqwest::Client::builder()

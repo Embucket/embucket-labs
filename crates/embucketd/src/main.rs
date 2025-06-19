@@ -202,9 +202,10 @@ async fn main() {
         .into_make_service_with_connect_info::<SocketAddr>();
 
     // Create web assets server
-    let web_assets_addr = helpers::resolve_ipv4(format!("{}:{}",
-        static_web_config.host, 
-        static_web_config.port))
+    let web_assets_addr = helpers::resolve_ipv4(format!(
+        "{}:{}",
+        static_web_config.host, static_web_config.port
+    ))
     .expect("Failed to resolve web assets server address");
     let listener = tokio::net::TcpListener::bind(web_assets_addr)
         .await
@@ -212,10 +213,7 @@ async fn main() {
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!("Listening on http://{}", addr);
     // Runs web assets server in background
-    tokio::spawn(async {
-        axum::serve(listener, web_assets_app())
-            .await
-    });
+    tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
 
     // Create web server
     let web_addr = helpers::resolve_ipv4(format!("{}:{}", web_config.host, web_config.port))
