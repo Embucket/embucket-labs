@@ -1,4 +1,5 @@
 pub(crate) mod cli;
+pub(crate) mod helpers;
 
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
@@ -18,7 +19,7 @@ use api_ui::router::create_router as create_ui_router;
 use api_ui::router::ui_open_api_spec;
 use api_ui::state::AppState as UIAppState;
 use api_ui::web_assets::config::StaticWebConfig;
-use api_ui::web_assets::server::run_web_assets_server;
+use api_ui::web_assets::web_assets_app;
 use axum::middleware;
 use axum::{
     Json, Router,
@@ -200,14 +201,26 @@ async fn main() {
         .layer(CatchPanicLayer::new())
         .into_make_service_with_connect_info::<SocketAddr>();
 
-    // Runs static assets server in background
-    run_web_assets_server(&static_web_config)
+    // Create web assets server
+    let web_assets_addr = helpers::resolve_ipv4(format!("{}:{}",
+        static_web_config.host, 
+        static_web_config.port))
+    .expect("Failed to resolve web assets server address");
+    let listener = tokio::net::TcpListener::bind(web_assets_addr)
         .await
-        .expect("Failed to start static assets server");
+        .expect("Failed to bind to web assets server address");
+    let addr = listener.local_addr().expect("Failed to get local address");
+    tracing::info!("Listening on http://{}", addr);
+    // Runs web assets server in background
+    tokio::spawn(async {
+        axum::serve(listener, web_assets_app())
+            .await
+    });
 
-    let host = web_config.host.clone();
-    let port = web_config.port;
-    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
+    // Create web server
+    let web_addr = helpers::resolve_ipv4(format!("{}:{}", web_config.host, web_config.port))
+        .expect("Failed to resolve web server address");
+    let listener = tokio::net::TcpListener::bind(web_addr)
         .await
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");

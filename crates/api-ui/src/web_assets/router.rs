@@ -1,11 +1,14 @@
-use crate::state::AppState;
-use axum::Router;
-use axum::routing::get;
+use super::handler::WEB_ASSETS_MOUNT_PATH;
+use super::handler::{root_handler, tar_handler};
+use axum::{Router, routing::get};
+use tower_http::trace::TraceLayer;
 
-use crate::web_assets::handlers::{root_handler, tar_handler};
-
-pub fn create_router() -> Router<AppState> {
+pub fn web_assets_app() -> Router {
     Router::new()
-        .route("/", get(root_handler))
-        .route(format!("/{{*path}}").as_str(), get(tar_handler))
+        .route(WEB_ASSETS_MOUNT_PATH, get(root_handler))
+        .route(
+            format!("{WEB_ASSETS_MOUNT_PATH}{{*path}}").as_str(),
+            get(tar_handler),
+        )
+        .layer(TraceLayer::new_for_http())
 }
