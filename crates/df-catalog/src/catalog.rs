@@ -17,7 +17,7 @@ impl CachingCatalog {
         Self {
             catalog,
             schemas_cache: DashMap::new(),
-            should_refresh: true,
+            should_refresh: false,
             enable_information_schema: true,
             name,
         }
@@ -29,7 +29,7 @@ impl CachingCatalog {
     }
     #[must_use]
     pub const fn with_information_schema(mut self, enable_information_schema: bool) -> Self {
-        self.should_refresh = enable_information_schema;
+        self.enable_information_schema = enable_information_schema;
         self
     }
 }

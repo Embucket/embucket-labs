@@ -106,7 +106,7 @@ impl EmbucketCatalogList {
                     self.metastore.clone(),
                     Arc::new(iceberg_catalog),
                 ));
-                Ok(CachingCatalog::new(catalog, db.ident.clone()))
+                Ok(CachingCatalog::new(catalog, db.ident.clone()).with_refresh(true))
             })
             .collect()
     }
@@ -176,9 +176,7 @@ impl EmbucketCatalogList {
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
                 .context(df_catalog_error::DataFusionSnafu)?;
-            catalogs.push(
-                CachingCatalog::new(Arc::new(catalog), volume.name.clone()).with_refresh(false),
-            );
+            catalogs.push(CachingCatalog::new(Arc::new(catalog), volume.name.clone()));
         }
         Ok(catalogs)
     }
@@ -344,7 +342,7 @@ impl CatalogProviderList for EmbucketCatalogList {
         name: String,
         catalog: Arc<dyn CatalogProvider>,
     ) -> Option<Arc<dyn CatalogProvider>> {
-        let catalog = CachingCatalog::new(catalog, name).with_refresh(false);
+        let catalog = CachingCatalog::new(catalog, name);
         self.catalogs
             .insert(catalog.name.clone(), Arc::new(catalog))
             .map(|arc| {
