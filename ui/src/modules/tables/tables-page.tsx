@@ -1,9 +1,12 @@
+import { useState } from 'react';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { FolderTree, Table } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useGetTables } from '@/orval/tables';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
@@ -22,6 +25,8 @@ CREATE TABLE mydb1.myschema1.<table_name> (<col1_name> <col1_type>, <col2_name> 
 
 export function TablesPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   const { databaseName, schemaName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/',
@@ -30,7 +35,10 @@ export function TablesPage() {
     data: { items: tables } = {},
     isFetching: isFetchingTables,
     isLoading: isLoadingTables,
-  } = useGetTables(databaseName, schemaName);
+    refetch: refetchTables,
+  } = useGetTables(databaseName, schemaName, {
+    search: debouncedSearch,
+  });
 
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
@@ -84,24 +92,30 @@ export function TablesPage() {
               </Button>
             }
           />
+
+          <TablesPageToolbar
+            search={search}
+            onSetSearch={setSearch}
+            tables={tables ?? []}
+            isFetchingTables={isFetchingTables}
+            onRefetchTables={refetchTables}
+          />
           {!tables?.length && !isLoadingTables ? (
             <PageEmptyContainer
               Icon={Table}
+              variant="toolbar"
               title="No Tables Found"
               description="No tables have been created yet. Create a table to get started."
             />
           ) : (
-            <>
-              <TablesPageToolbar tables={tables ?? []} isFetchingTables={isFetchingTables} />
-              <PageScrollArea>
-                <TablesTable
-                  isLoading={isLoadingTables}
-                  tables={tables ?? []}
-                  databaseName={databaseName}
-                  schemaName={schemaName}
-                />
-              </PageScrollArea>
-            </>
+            <PageScrollArea>
+              <TablesTable
+                isLoading={isLoadingTables}
+                tables={tables ?? []}
+                databaseName={databaseName}
+                schemaName={schemaName}
+              />
+            </PageScrollArea>
           )}
         </ResizablePanel>
       </ResizablePanelGroup>

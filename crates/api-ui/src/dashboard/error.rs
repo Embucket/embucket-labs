@@ -1,46 +1,36 @@
-use crate::error::ErrorResponse;
 use crate::error::IntoStatusCode;
 use crate::queries::error::QueryError;
-use axum::Json;
-use axum::response::IntoResponse;
 use core_metastore::error::MetastoreError;
 use http::StatusCode;
+use snafu::Location;
 use snafu::prelude::*;
 
-pub type DashboardResult<T> = Result<T, DashboardAPIError>;
-
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
 pub enum DashboardAPIError {
     #[snafu(display("Get total: {source}"))]
-    Metastore { source: MetastoreError },
+    Metastore {
+        source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get total: {source}"))]
-    Queries { source: QueryError },
+    Queries {
+        source: QueryError,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Get total: {source}"))]
     History {
-        source: core_history::errors::HistoryStoreError,
+        source: core_history::Error,
+        #[snafu(implicit)]
+        location: Location,
     },
 }
 
-// Select which status code to return.
 impl IntoStatusCode for DashboardAPIError {
     fn status_code(&self) -> StatusCode {
-        match self {
-            Self::Metastore { .. } | Self::Queries { .. } | Self::History { .. } => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        }
-    }
-}
-
-// generic
-impl IntoResponse for DashboardAPIError {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.status_code();
-        let error = ErrorResponse {
-            message: self.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }

@@ -5,6 +5,10 @@ edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
+core-utils = { path = "../core-utils" }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
+
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -12,7 +16,6 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
-core-utils = { path = "../core-utils" }
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

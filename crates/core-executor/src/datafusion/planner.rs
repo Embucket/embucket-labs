@@ -1,6 +1,5 @@
 use datafusion::arrow::datatypes::{Field, Schema};
-use datafusion::common::Result;
-use datafusion::common::{ToDFSchema, plan_err};
+use datafusion::common::{Result, ToDFSchema};
 use datafusion::logical_expr::{CreateMemoryTable, DdlStatement, EmptyRelation, LogicalPlan};
 use datafusion::sql::planner::{
     ContextProvider, IdentNormalizer, ParserOptions, PlannerContext, SqlToRel,
@@ -11,9 +10,6 @@ use datafusion::sql::sqlparser::ast::{
     DataType as SQLDataType, Statement,
 };
 use datafusion::sql::statement::calc_inline_constraints_from_columns;
-use datafusion_common::{DFSchema, DFSchemaRef, SchemaReference, TableReference};
-use datafusion_expr::DropCatalogSchema;
-use sqlparser::ast::ObjectType;
 use std::sync::Arc;
 
 pub struct ExtendedSqlToRel<'a, S>
@@ -21,7 +17,6 @@ where
     S: ContextProvider,
 {
     inner: SqlToRel<'a, S>, // The wrapped type
-    options: ParserOptions,
     ident_normalizer: IdentNormalizer,
 }
 
@@ -35,7 +30,6 @@ where
 
         Self {
             inner: SqlToRel::new(provider),
-            options,
             ident_normalizer: IdentNormalizer::new(ident_normalize),
         }
     }
@@ -50,37 +44,6 @@ where
             | Statement::StartTransaction { .. }
             | Statement::Commit { .. }
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
-            Statement::Drop {
-                object_type: ObjectType::Database,
-                if_exists,
-                mut names,
-                cascade,
-                ..
-            } => {
-                #[allow(clippy::unwrap_used)]
-                let name = object_name_to_table_reference(
-                    names.pop().unwrap(),
-                    self.options.enable_ident_normalization,
-                )?;
-                let schema_name = match name {
-                    TableReference::Bare { table } => Ok(SchemaReference::Bare { schema: table }),
-                    TableReference::Partial { schema, table } => Ok(SchemaReference::Full {
-                        schema: table,
-                        catalog: schema,
-                    }),
-                    TableReference::Full { .. } => {
-                        plan_err!("Invalid schema specifier (has 3 parts)")
-                    }
-                }?;
-                Ok(LogicalPlan::Ddl(DdlStatement::DropCatalogSchema(
-                    DropCatalogSchema {
-                        name: schema_name,
-                        if_exists,
-                        cascade,
-                        schema: DFSchemaRef::new(DFSchema::empty()),
-                    },
-                )))
-            }
             Statement::CreateTable(CreateTableStatement {
                 query,
                 name,

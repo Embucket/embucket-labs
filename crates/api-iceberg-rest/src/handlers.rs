@@ -1,4 +1,4 @@
-use crate::error::{IcebergAPIError, IcebergAPIResult};
+use crate::error::{self as api_iceberg_rest_error, Operation, Result};
 use crate::schemas::{
     CommitTable, GetConfigQuery, from_get_schema, from_schema, from_schemas_list, from_tables_list,
     to_create_table, to_schema, to_table_commit,
@@ -6,7 +6,7 @@ use crate::schemas::{
 use crate::state::State as AppState;
 use axum::http::StatusCode;
 use axum::{Json, extract::Path, extract::Query, extract::State};
-use core_metastore::error::{self as metastore_error, MetastoreError};
+use core_metastore::error::{self as metastore_error};
 use core_metastore::{SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use iceberg_rest_catalog::models::{
@@ -26,12 +26,15 @@ pub async fn create_namespace(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
     Json(schema): Json<CreateNamespaceRequest>,
-) -> IcebergAPIResult<Json<CreateNamespaceResponse>> {
+) -> Result<Json<CreateNamespaceResponse>> {
     let ib_schema = to_schema(schema, database_name);
     let schema = state
         .metastore
         .create_schema(&ib_schema.ident.clone(), ib_schema)
-        .await?;
+        .await
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateNamespace,
+        })?;
     Ok(Json(from_schema(schema.data)))
 }
 
@@ -39,7 +42,7 @@ pub async fn create_namespace(
 pub async fn get_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<GetNamespaceResponse>> {
+) -> Result<Json<GetNamespaceResponse>> {
     let schema_ident = MetastoreSchemaIdent {
         database: database_name.clone(),
         schema: schema_name.clone(),
@@ -48,12 +51,22 @@ pub async fn get_namespace(
         .metastore
         .get_schema(&schema_ident)
         .await
-        .map_err(IcebergAPIError::from)?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetNamespace,
+        })?
+        // TBD:
+        // - get_schema should return no Option, like this: Result<Schema, MetastoreError>
+        // - Should we just use Metastore context without artificially creating it?
+        // - Only create IcebergAPIError context ?
         .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::SchemaNotFound {
+            metastore_error::SchemaNotFoundSnafu {
                 db: database_name.clone(),
                 schema: schema_name.clone(),
-            })
+            }
+            .build()
+        })
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetNamespace,
         })?;
     Ok(Json(from_get_schema(schema.data)))
 }
@@ -62,13 +75,15 @@ pub async fn get_namespace(
 pub async fn delete_namespace(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     state
         .metastore
         .delete_schema(&schema_ident, true)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::DeleteNamespace,
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -76,13 +91,16 @@ pub async fn delete_namespace(
 pub async fn list_namespaces(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> IcebergAPIResult<Json<ListNamespacesResponse>> {
+) -> Result<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
         .iter_schemas(&database_name)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(metastore_error::UtilSlateDBSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::ListNamespaces,
+        })?;
     Ok(Json(from_schemas_list(schemas)))
 }
 
@@ -91,23 +109,31 @@ pub async fn create_table(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(table): Json<CreateTableRequest>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table.name);
     let volume_ident = state
         .metastore
         .volume_for_table(&table_ident.clone())
-        .await?
+        .await
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?
         .map(|v| v.data.ident);
     let ib_create_table = to_create_table(table, table_ident.clone(), volume_ident);
 
     ib_create_table
         .validate()
-        .context(metastore_error::ValidationSnafu)?;
+        .context(metastore_error::ValidationSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?;
     let table = state
         .metastore
         .create_table(&table_ident, ib_create_table)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CreateTable,
+        })?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
 
@@ -116,28 +142,51 @@ pub async fn register_table(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
     Json(register): Json<RegisterTableRequest>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &register.name);
     let metadata_raw = state
         .metastore
         .volume_for_table(&table_ident)
-        .await?
-        .map(|v| v.data)
-        .ok_or(MetastoreError::VolumeNotFound {
-            volume: format!(
-                "Volume not found for database {database_name} and schema {schema_name}"
-            ),
+        .await
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
         })?
-        .get_object_store()?
+        .map(|v| v.data)
+        // TBD:
+        // - get_volume should return no Option, like this: Result<Schema, MetastoreError>
+        .ok_or_else(|| {
+            metastore_error::VolumeNotFoundSnafu {
+                volume: format!(
+                    "Volume not found for database {database_name} and schema {schema_name}"
+                ),
+            }
+            .build()
+        })
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?
+        .get_object_store()
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?
         .get(&object_store::path::Path::from(register.metadata_location))
         .await
-        .context(metastore_error::ObjectStoreSnafu)?;
+        .context(metastore_error::ObjectStoreSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
     let metadata_bytes = metadata_raw
         .bytes()
         .await
-        .context(metastore_error::ObjectStoreSnafu)?;
-    let table_metadata: TableMetadata =
-        from_slice(&metadata_bytes).context(metastore_error::SerdeSnafu)?;
+        .context(metastore_error::ObjectStoreSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
+    let table_metadata: TableMetadata = from_slice(&metadata_bytes)
+        .context(metastore_error::SerdeSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::RegisterTable,
+        })?;
     Ok(Json(LoadTableResult::new(table_metadata)))
 }
 
@@ -146,14 +195,16 @@ pub async fn commit_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     Json(commit): Json<CommitTable>,
-) -> IcebergAPIResult<Json<CommitTableResponse>> {
+) -> Result<Json<CommitTableResponse>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table_updates = to_table_commit(commit);
     let ib_table = state
         .metastore
         .update_table(&table_ident, table_updates)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::CommitTable,
+        })?;
     Ok(Json(CommitTableResponse::new(
         ib_table.data.metadata_location,
         ib_table.data.metadata,
@@ -164,19 +215,25 @@ pub async fn commit_table(
 pub async fn get_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> IcebergAPIResult<Json<LoadTableResult>> {
+) -> Result<Json<LoadTableResult>> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table = state
         .metastore
         .get_table(&table_ident)
         .await
-        .map_err(IcebergAPIError::from)?
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetTable,
+        })?
         .ok_or_else(|| {
-            IcebergAPIError::from(MetastoreError::TableNotFound {
+            metastore_error::TableNotFoundSnafu {
                 db: database_name.clone(),
                 schema: schema_name.clone(),
                 table: table_name.clone(),
-            })
+            }
+            .build()
+        })
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::GetTable,
         })?;
     Ok(Json(LoadTableResult::new(table.data.metadata)))
 }
@@ -185,13 +242,15 @@ pub async fn get_table(
 pub async fn delete_table(
     State(state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     let table_ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     state
         .metastore
         .delete_table(&table_ident, true)
         .await
-        .map_err(IcebergAPIError::from)?;
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::DeleteTable,
+        })?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -199,14 +258,17 @@ pub async fn delete_table(
 pub async fn list_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<ListTablesResponse>> {
+) -> Result<Json<ListTablesResponse>> {
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
     let tables = state
         .metastore
         .iter_tables(&schema_ident)
         .collect()
         .await
-        .map_err(|e| IcebergAPIError::from(MetastoreError::UtilSlateDB { source: e }))?;
+        .context(metastore_error::UtilSlateDBSnafu)
+        .context(api_iceberg_rest_error::MetastoreSnafu {
+            operation: Operation::ListTables,
+        })?;
     Ok(Json(from_tables_list(tables)))
 }
 
@@ -215,7 +277,7 @@ pub async fn report_metrics(
     State(_state): State<AppState>,
     Path((database_name, schema_name, table_name)): Path<(String, String, String)>,
     Json(metrics): Json<Value>,
-) -> IcebergAPIResult<StatusCode> {
+) -> Result<StatusCode> {
     tracing::info!(
         "Received metrics for table {database_name}.{schema_name}.{table_name}: {:?}",
         metrics
@@ -227,7 +289,7 @@ pub async fn report_metrics(
 pub async fn get_config(
     State(state): State<AppState>,
     Query(params): Query<GetConfigQuery>,
-) -> IcebergAPIResult<Json<CatalogConfig>> {
+) -> Result<Json<CatalogConfig>> {
     let catalog_url = state.config.iceberg_catalog_url.clone();
     let config = CatalogConfig {
         defaults: HashMap::new(),
@@ -247,7 +309,7 @@ pub async fn get_config(
 pub async fn list_views(
     State(_state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
-) -> IcebergAPIResult<Json<ListTablesResponse>> {
+) -> Result<Json<ListTablesResponse>> {
     Ok(Json(ListTablesResponse {
         next_page_token: None,
         identifiers: None,

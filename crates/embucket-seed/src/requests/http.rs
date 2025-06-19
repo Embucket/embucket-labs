@@ -5,6 +5,8 @@
 //! This module provides the core HTTP request handling used by the higher-level API clients.
 //! It includes error handling, request/response serialization, and HTTP client configuration.
 
+use crate::requests::error::HttpRequestSnafu;
+
 use super::error::HttpRequestError;
 use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use reqwest;
@@ -34,10 +36,11 @@ impl From<HttpErrorData> for HttpRequestError {
             body,
             ..
         } = value;
-        Self::HttpRequest {
+        HttpRequestSnafu {
             message: format!("{error:?}, body: {body:#?}"),
             status,
         }
+        .build()
     }
 }
 
@@ -105,10 +108,11 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
                         headers,
                         status,
                         body: text,
-                        error: HttpRequestError::HttpRequest {
+                        error: HttpRequestSnafu {
                             message: err.to_string(),
                             status,
-                        },
+                        }
+                        .build(),
                     })
                 }
             }
@@ -123,10 +127,11 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
             url: url.to_string(),
             headers: response.headers().clone(),
             status: response.status(),
-            error: HttpRequestError::HttpRequest {
+            error: HttpRequestSnafu {
                 message: error.to_string(),
                 status: response.status(),
-            },
+            }
+            .build(),
             body: response.text().await.expect("Failed to get response text"),
         })
     }

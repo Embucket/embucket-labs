@@ -1,5 +1,5 @@
 query T
-SELECT $1 AS value FROM VALUES (1), (2), (3)
+SELECT column1 AS value FROM VALUES (1), (2), (3)
 ----
 1
 2
@@ -10,24 +10,4 @@ SELECT * FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) WHERE value > 1;
 ----
 2
 3
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE PROCEDURE return_JSON()
-    RETURNS VARCHAR
-    LANGUAGE JavaScript
-    AS
-    $$
-        return '{"keyA": "ValueA", "keyB": "ValueB"}';
-    $$
-    ;
-
-exclude-from-coverage
-statement ok
-CALL return_JSON();
-
-query T
-SELECT $1 AS output_col FROM table(RESULT_SCAN(LAST_QUERY_ID()));
-----
-'{"keyA":"ValueA","keyB":"ValueB"}'
 

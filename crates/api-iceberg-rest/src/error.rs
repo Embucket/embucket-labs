@@ -1,33 +1,38 @@
 use axum::{Json, response::IntoResponse};
 use core_metastore::error::MetastoreError;
+use error_stack_trace;
 use http;
 use serde::{Deserialize, Serialize};
+use snafu::Location;
 use snafu::prelude::*;
 
-#[derive(Debug, Snafu)]
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+pub enum Operation {
+    CreateNamespace,
+    GetNamespace,
+    DeleteNamespace,
+    ListNamespaces,
+    CreateTable,
+    RegisterTable,
+    CommitTable,
+    GetTable,
+    DeleteTable,
+    ListTables,
+}
+
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
-pub enum IcebergAPIError {
-    #[snafu(display("Metastore error: {source}"))]
+#[error_stack_trace::debug]
+pub enum Error {
+    #[snafu(display("[IcebergAPI] Operation '{operation:?}' failed. Metastore error: {source}"))]
     Metastore {
-        #[snafu(source(from(MetastoreError, Box::new)))]
-        source: Box<MetastoreError>,
+        operation: Operation,
+        source: MetastoreError,
+        #[snafu(implicit)]
+        location: Location,
     },
-}
-
-pub type IcebergAPIResult<T> = Result<T, IcebergAPIError>;
-
-impl From<MetastoreError> for IcebergAPIError {
-    fn from(error: MetastoreError) -> Self {
-        Self::Metastore {
-            source: Box::new(error),
-        }
-    }
-}
-
-impl From<Box<MetastoreError>> for IcebergAPIError {
-    fn from(error: Box<MetastoreError>) -> Self {
-        Self::Metastore { source: error }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,14 +41,14 @@ pub struct ErrorResponse {
     pub status_code: u16,
 }
 
-impl IntoResponse for IcebergAPIError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let metastore_error = match self {
-            Self::Metastore { source } => source,
+            Self::Metastore { source, .. } => source,
         };
 
         let message = metastore_error.to_string();
-        let code = match *metastore_error {
+        let code = match metastore_error {
             MetastoreError::TableDataExists { .. }
             | MetastoreError::ObjectAlreadyExists { .. }
             | MetastoreError::VolumeAlreadyExists { .. }
@@ -53,7 +58,7 @@ impl IntoResponse for IcebergAPIError {
             | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
             MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
             MetastoreError::VolumeValidationFailed { .. }
-            | MetastoreError::VolumeMissingCredentials
+            | MetastoreError::VolumeMissingCredentials { .. }
             | MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
             MetastoreError::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
@@ -62,7 +67,7 @@ impl IntoResponse for IcebergAPIError {
             | MetastoreError::DatabaseNotFound { .. }
             | MetastoreError::SchemaNotFound { .. }
             | MetastoreError::TableNotFound { .. }
-            | MetastoreError::ObjectNotFound => http::StatusCode::NOT_FOUND,
+            | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             MetastoreError::ObjectStore { .. }
             | MetastoreError::ObjectStorePath { .. }
             | MetastoreError::CreateDirectory { .. }

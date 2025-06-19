@@ -1,12 +1,13 @@
 use super::error::{
-    ArchiveError, BadArchiveSnafu, HandlerError, NonUnicodeEntryPathInArchiveSnafu,
-    ReadEntryDataSnafu, ResponseBodySnafu, Result,
+    self as error, BadArchiveSnafu, Error as WebAssetsError, NonUnicodeEntryPathInArchiveSnafu,
+    ReadEntryDataSnafu, ResponseBodySnafu,
 };
+use crate::error::{Error, Result};
 use api_ui_static_assets::WEB_ASSETS_TARBALL;
 use axum::{
     body::Body,
     extract::Path,
-    http::{StatusCode, header},
+    http::header,
     response::{IntoResponse, Redirect, Response},
 };
 use mime_guess;
@@ -23,40 +24,22 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
 
     let mut archive = tar::Archive::new(cursor);
 
-    // It was kind of experiment returning error codes in place
-    // TODO: refactor it
-    let entries = archive
-        .entries()
-        .context(BadArchiveSnafu)
-        .map_err(|err| HandlerError(StatusCode::INTERNAL_SERVER_ERROR, err))?;
+    let entries = archive.entries().context(BadArchiveSnafu)?;
     for entry in entries {
-        let mut entry = entry
-            .context(BadArchiveSnafu)
-            .map_err(|err| HandlerError(StatusCode::INTERNAL_SERVER_ERROR, err))?;
+        let mut entry = entry.context(BadArchiveSnafu)?;
         if entry.header().entry_type() == tar::EntryType::Regular {
-            let path = entry
-                .path()
-                .context(NonUnicodeEntryPathInArchiveSnafu)
-                .map_err(|err| HandlerError(StatusCode::UNPROCESSABLE_ENTITY, err))?;
+            let path = entry.path().context(NonUnicodeEntryPathInArchiveSnafu)?;
             if path.to_str().unwrap_or_default() == file_name {
                 let mut content = Vec::new();
                 entry
                     .read_to_end(&mut content)
-                    .context(ReadEntryDataSnafu)
-                    .map_err(|err| HandlerError(StatusCode::UNPROCESSABLE_ENTITY, err))?;
+                    .context(ReadEntryDataSnafu)?;
                 return Ok(content);
             }
         }
     }
 
-    // Some requests comes from web app during navigation unintentionally
-    // Should we return error if not found?
-    // Currently Redirecting instead of returning NOT_FOUND
-
-    Err(HandlerError(
-        StatusCode::NOT_FOUND,
-        ArchiveError::NotFound { path: file_name },
-    ))
+    Err(error::NotFoundSnafu { path: file_name }.build().into())
 }
 
 pub async fn root_handler() -> Result<Response> {
@@ -68,12 +51,13 @@ pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
 
     let content = get_file_from_tar(file_name);
     match content {
-        Err(err) => {
-            if err.0 == StatusCode::NOT_FOUND {
-                return Ok(Redirect::to("/index.html").into_response());
-            }
-            Err(err)
-        }
+        Err(err) => match err {
+            Error::WebAssets { source } => match source {
+                WebAssetsError::NotFound { .. } => Ok(Redirect::to("/index.html").into_response()),
+                err => Err(err.into()),
+            },
+            _ => Err(err),
+        },
         Ok(content) => {
             let mime = mime_guess::from_path(path)
                 .first_raw()
@@ -82,8 +66,7 @@ pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
                 .header(header::CONTENT_TYPE, mime.to_string())
                 .header(header::CONTENT_LENGTH, content.len().to_string())
                 .body(Body::from(content))
-                .context(ResponseBodySnafu)
-                .map_err(|err| HandlerError(StatusCode::INTERNAL_SERVER_ERROR, err))?)
+                .context(ResponseBodySnafu)?)
         }
     }
 }

@@ -8,6 +8,8 @@ license-file.workspace = true
 api-sessions = { path = "../api-sessions" }
 core-metastore = { path = "../core-metastore" }
 core-executor = { path = "../core-executor" }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
 
 axum = { workspace = true }
 flate2 = "1"

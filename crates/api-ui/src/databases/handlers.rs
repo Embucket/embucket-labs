@@ -1,10 +1,9 @@
+use crate::error::Result;
 use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
-    databases::error::{
-        CreateSnafu, DatabasesResult, DeleteSnafu, GetSnafu, ListSnafu, UpdateSnafu,
-    },
+    databases::error::{self as databases_error, CreateSnafu, DeleteSnafu, GetSnafu, UpdateSnafu},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
@@ -19,7 +18,7 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::Database as MetastoreDatabase;
-use core_metastore::error::{MetastoreError, ValidationSnafu};
+use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -79,7 +78,7 @@ pub struct QueryParameters {
 pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
-) -> DatabasesResult<Json<DatabaseCreateResponse>> {
+) -> Result<Json<DatabaseCreateResponse>> {
     let database = MetastoreDatabase {
         ident: database.name,
         volume: database.volume,
@@ -88,16 +87,15 @@ pub async fn create_database(
     database
         .validate()
         .context(ValidationSnafu)
-        .map_err(Into::into)
         .context(CreateSnafu)?;
-    state
+    let database = state
         .metastore
         .create_database(&database.ident.clone(), database)
         .await
-        .context(CreateSnafu)
         .map(Database::from)
-        .map(DatabaseCreateResponse)
-        .map(Json)
+        .context(CreateSnafu)?;
+
+    Ok(Json(DatabaseCreateResponse(database)))
 }
 
 #[utoipa::path(
@@ -123,23 +121,24 @@ pub async fn create_database(
 pub async fn get_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
-) -> DatabasesResult<Json<DatabaseResponse>> {
-    state
+) -> Result<Json<DatabaseResponse>> {
+    let database = state
         .metastore
         .get_database(&database_name)
         .await
         .map(|opt_rw_obj| {
             opt_rw_obj.ok_or_else(|| {
-                Box::new(MetastoreError::DatabaseNotFound {
+                metastore_error::DatabaseNotFoundSnafu {
                     db: database_name.clone(),
-                })
+                }
+                .build()
             })
         })
         .context(GetSnafu)?
         .map(Database::from)
-        .map(DatabaseResponse)
-        .map(Json)
-        .context(GetSnafu)
+        .context(GetSnafu)?;
+
+    Ok(Json(DatabaseResponse(database)))
 }
 
 #[utoipa::path(
@@ -166,12 +165,13 @@ pub async fn delete_database(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
     Path(database_name): Path<String>,
-) -> DatabasesResult<()> {
+) -> Result<()> {
     state
         .metastore
         .delete_database(&database_name, query.cascade.unwrap_or_default())
         .await
-        .context(DeleteSnafu)
+        .context(DeleteSnafu)?;
+    Ok(())
 }
 
 #[utoipa::path(
@@ -200,7 +200,7 @@ pub async fn update_database(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
-) -> DatabasesResult<Json<DatabaseUpdateResponse>> {
+) -> Result<Json<DatabaseUpdateResponse>> {
     let database = MetastoreDatabase {
         ident: database.name,
         volume: database.volume,
@@ -209,17 +209,16 @@ pub async fn update_database(
     database
         .validate()
         .context(ValidationSnafu)
-        .map_err(Into::into)
         .context(UpdateSnafu)?;
     //TODO: Implement database renames
-    state
+    let database = state
         .metastore
         .update_database(&database_name, database)
         .await
-        .context(UpdateSnafu)
         .map(Database::from)
-        .map(DatabaseUpdateResponse)
-        .map(Json)
+        .context(UpdateSnafu)?;
+
+    Ok(Json(DatabaseUpdateResponse(database)))
 }
 
 #[utoipa::path(
@@ -251,7 +250,7 @@ pub async fn list_databases(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
-) -> DatabasesResult<Json<DatabasesResponse>> {
+) -> Result<Json<DatabasesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["database_name", "volume_name"]);
@@ -259,15 +258,17 @@ pub async fn list_databases(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .context(ListSnafu)?;
+        .context(databases_error::ListSnafu)?;
     let mut items = Vec::new();
     for record in records {
-        let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
-        let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
+        let database_names =
+            downcast_string_column(&record, "database_name").context(databases_error::ListSnafu)?;
+        let volume_names =
+            downcast_string_column(&record, "volume_name").context(databases_error::ListSnafu)?;
         let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+            downcast_string_column(&record, "created_at").context(databases_error::ListSnafu)?;
         let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+            downcast_string_column(&record, "updated_at").context(databases_error::ListSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Database {
                 name: database_names.value(i).to_string(),

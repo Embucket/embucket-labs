@@ -1,12 +1,10 @@
 ---
-source: crates/metastore/src/metastore.rs
+source: crates/core-metastore/src/metastore.rs
 expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_after)"
 ---
 (
     Err(
-        DatabaseNotFound {
-            db: "testdb",
-        },
+        0: Database testdb not found, at file:line:col,
     ),
     RwObject {
         data: Schema {

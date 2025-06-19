@@ -1,14 +1,18 @@
 pub use crate::aggregate::register_udafs;
+use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
 use crate::semi_structured::is_typeof::IsTypeofFunc;
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
-    Float16Array, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
-    StringViewArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+    Float16Array, Float32Array, Float64Array, GenericStringArray, Int8Array, Int16Array,
+    Int32Array, Int64Array, LargeStringBuilder, StringArray, StringBuilder, StringViewArray,
+    UInt8Array, UInt16Array, UInt32Array, UInt64Array,
 };
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::error::ArrowError;
+use datafusion::error::Result as DFResult;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
 use datafusion_common::DataFusionError;
 #[doc(hidden)]
@@ -59,8 +63,11 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         string_binary::rtrimmed_length::get_udf(),
         semi_structured::get_path::get_udf(),
         string_binary::insert::get_udf(),
+        string_binary::strtok::get_udf(),
         string_binary::jarowinkler_similarity::get_udf(),
+        string_binary::length::get_udf(),
         string_binary::split::get_udf(),
+        string_binary::lower::get_udf(),
         semi_structured::array::strtok_to_array::get_udf(),
         semi_structured::object::object_keys::get_udf(),
         semi_structured::json::try_parse_json::get_udf(),
@@ -71,6 +78,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToBinaryFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToBinaryFunc::new(false))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
@@ -255,4 +264,142 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             )));
         }
     })
+}
+
+/// A common trait to abstract over different string builders
+pub(crate) trait StringBuildLike {
+    fn append_value(&mut self, v: &str);
+    fn append_null(&mut self);
+    fn finish(self) -> ArrayRef;
+}
+
+impl StringBuildLike for StringBuilder {
+    fn append_value(&mut self, v: &str) {
+        self.append_value(v);
+    }
+    fn append_null(&mut self) {
+        self.append_null();
+    }
+    fn finish(mut self) -> ArrayRef {
+        Arc::new(Self::finish(&mut self))
+    }
+}
+
+impl StringBuildLike for LargeStringBuilder {
+    fn append_value(&mut self, v: &str) {
+        self.append_value(v);
+    }
+    fn append_null(&mut self) {
+        self.append_null();
+    }
+    fn finish(mut self) -> ArrayRef {
+        Arc::new(Self::finish(&mut self))
+    }
+}
+
+/// This represents any string-like array in `DataFusion`
+/// including `Utf8`, `Utf8View`, and `LargeUtf8`.
+///
+/// This is useful for writing UDFs that work across different string representations.
+#[derive(Debug, Clone)]
+pub(crate) enum Utf8LikeArray {
+    Utf8(Arc<StringArray>),
+    Utf8View(Arc<StringViewArray>),
+    LargeUtf8(Arc<GenericStringArray<i64>>),
+}
+
+impl Utf8LikeArray {
+    /// Converts a supported string array (`Utf8`, `Utf8View`, `LargeUtf8`)
+    /// into `Utf8LikeArray`
+    ///
+    /// This allows UDFs to accept any string input type without panicking.
+    ///
+    /// # Errors
+    /// Returns an error if the input type is unsupported or the downcast fails.
+    pub fn try_from_array(array: &ArrayRef) -> DFResult<Self> {
+        match array.data_type() {
+            DataType::Utf8 => {
+                let arr = array
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .ok_or_else(|| {
+                        ArrowError::InvalidArgumentError("Expected StringArray for Utf8".into())
+                    })?;
+                Ok(Self::Utf8(Arc::new(arr.clone())))
+            }
+            DataType::Utf8View => {
+                let arr = array
+                    .as_any()
+                    .downcast_ref::<StringViewArray>()
+                    .ok_or_else(|| {
+                        ArrowError::InvalidArgumentError(
+                            "Expected StringViewArray for Utf8View".into(),
+                        )
+                    })?;
+                Ok(Self::Utf8View(Arc::new(arr.clone())))
+            }
+            DataType::LargeUtf8 => {
+                let arr = array
+                    .as_any()
+                    .downcast_ref::<GenericStringArray<i64>>()
+                    .ok_or_else(|| {
+                        ArrowError::InvalidArgumentError(
+                            "Expected GenericStringArray<i64> for LargeUtf8".into(),
+                        )
+                    })?;
+                Ok(Self::LargeUtf8(Arc::new(arr.clone())))
+            }
+            other => datafusion_common::exec_err!(
+                "Expected Utf8, Utf8View, or LargeUtf8 but got {other:?}"
+            ),
+        }
+    }
+
+    /// Returns a boolean whether value at the given index is null.
+    #[must_use]
+    pub fn is_null(&self, i: usize) -> bool {
+        match self {
+            Self::Utf8(arr) => arr.is_null(i),
+            Self::Utf8View(arr) => arr.is_null(i),
+            Self::LargeUtf8(arr) => arr.is_null(i),
+        }
+    }
+
+    /// Returns the length of the array.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Utf8(arr) => arr.len(),
+            Self::Utf8View(arr) => arr.len(),
+            Self::LargeUtf8(arr) => arr.len(),
+        }
+    }
+
+    /// Returns the value at the given index as an `Option<&str>`, or `None` if null.
+    #[must_use]
+    pub fn value(&self, i: usize) -> Option<&str> {
+        match self {
+            Self::Utf8(arr) => {
+                if arr.is_null(i) {
+                    None
+                } else {
+                    Some(arr.value(i))
+                }
+            }
+            Self::Utf8View(arr) => {
+                if arr.is_null(i) {
+                    None
+                } else {
+                    Some(arr.value(i))
+                }
+            }
+            Self::LargeUtf8(arr) => {
+                if arr.is_null(i) {
+                    None
+                } else {
+                    Some(arr.value(i))
+                }
+            }
+        }
+    }
 }

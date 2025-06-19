@@ -61,7 +61,8 @@ impl SessionContextExprRewriter {
                 .collect::<Vec<_>>();
             let query_id = get_query_by_index(&queries, index).unwrap_or_default();
             Ok::<String, DataFusionError>(query_id)
-        })??;
+        })
+        .map_err(|e| DataFusionError::Execution(e.to_string()))??;
         Ok(utf8_val(&id))
     }
 }

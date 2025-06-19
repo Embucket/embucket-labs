@@ -1,73 +1,157 @@
+use error_stack_trace;
+use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
+use snafu::Location;
 use snafu::prelude::*;
 
-#[derive(Snafu, Debug)]
+pub type MetastoreResult<T> = std::result::Result<T, MetastoreError>;
+
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
+#[error_stack_trace::debug]
 pub enum MetastoreError {
-    #[snafu(display("Table data already exists at that location: {location}"))]
-    TableDataExists { location: String },
+    #[snafu(display("Table data already exists at that location: {path}"))]
+    TableDataExists {
+        path: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Table requirement failed: {message}"))]
-    TableRequirementFailed { message: String },
+    TableRequirementFailed {
+        message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Volume: Validation failed. Reason: {reason}"))]
-    VolumeValidationFailed { reason: String },
+    VolumeValidationFailed {
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Volume: Missing credentials"))]
-    VolumeMissingCredentials,
+    VolumeMissingCredentials {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Cloud provider not implemented"))]
-    CloudProviderNotImplemented { provider: String },
+    CloudProviderNotImplemented {
+        provider: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("ObjectStore: {source}"))]
-    ObjectStore { source: object_store::Error },
+    #[snafu(display("ObjectStore: {error}"))]
+    ObjectStore {
+        #[snafu(source)]
+        error: object_store::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("ObjectStore path: {source}"))]
-    ObjectStorePath { source: object_store::path::Error },
+    #[snafu(display("ObjectStore path: {error}"))]
+    ObjectStorePath {
+        #[snafu(source)]
+        error: object_store::path::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display(
-        "Unable to create directory for File ObjectStore path {path}, error: {source}"
+        "Unable to create directory for File ObjectStore path {path}, error: {error}"
     ))]
     CreateDirectory {
         path: String,
-        source: std::io::Error,
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("SlateDB error: {error}"))]
+    SlateDB {
+        #[snafu(source)]
+        error: slatedb::SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("SlateDB error: {source}"))]
-    SlateDB { source: slatedb::SlateDBError },
-
-    #[snafu(display("SlateDB error: {source}"))]
-    UtilSlateDB { source: core_utils::Error },
+    UtilSlateDB {
+        #[snafu(source(from(core_utils::Error, Box::new)))]
+        source: Box<core_utils::Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Metastore object of type {type_name} with name {name} already exists"))]
-    ObjectAlreadyExists { type_name: String, name: String },
+    ObjectAlreadyExists {
+        type_name: String,
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Metastore object not found"))]
-    ObjectNotFound,
+    ObjectNotFound {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Volume {volume} already exists"))]
-    VolumeAlreadyExists { volume: String },
+    VolumeAlreadyExists {
+        volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Volume {volume} not found"))]
-    VolumeNotFound { volume: String },
+    VolumeNotFound {
+        volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Database {db} already exists"))]
-    DatabaseAlreadyExists { db: String },
+    DatabaseAlreadyExists {
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Database {db} not found"))]
-    DatabaseNotFound { db: String },
+    DatabaseNotFound {
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Schema {schema} already exists in database {db}"))]
-    SchemaAlreadyExists { schema: String, db: String },
+    SchemaAlreadyExists {
+        schema: String,
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Schema {schema} not found in database {db}"))]
-    SchemaNotFound { schema: String, db: String },
+    SchemaNotFound {
+        schema: String,
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Table {table} already exists in schema {schema} in database {db}"))]
     TableAlreadyExists {
         table: String,
         schema: String,
         db: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Table {table} not found in schema {schema} in database {db}"))]
@@ -75,6 +159,8 @@ pub enum MetastoreError {
         table: String,
         schema: String,
         db: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display(
@@ -84,37 +170,54 @@ pub enum MetastoreError {
         table: String,
         schema: String,
         db: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Volume in use by database(s): {database}"))]
-    VolumeInUse { database: String },
+    VolumeInUse {
+        database: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Iceberg error: {source}"))]
-    Iceberg { source: iceberg_rust::error::Error },
+    #[snafu(display("Iceberg error: {error}"))]
+    Iceberg {
+        #[snafu(source(from(IcebergError, Box::new)))]
+        error: Box<IcebergError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("TableMetadataBuilder error: {source}"))]
-    TableMetadataBuilder { source: TableMetadataBuilderError },
+    #[snafu(display("TableMetadataBuilder error: {error}"))]
+    TableMetadataBuilder {
+        #[snafu(source)]
+        error: TableMetadataBuilderError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Serialization error: {source}"))]
-    Serde { source: serde_json::Error },
+    #[snafu(display("Serialization error: {error}"))]
+    Serde {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Validation Error: {source}"))]
-    Validation { source: validator::ValidationErrors },
+    #[snafu(display("Validation Error: {error}"))]
+    Validation {
+        #[snafu(source)]
+        error: validator::ValidationErrors,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("UrlParse Error: {source}"))]
-    UrlParse { source: url::ParseError },
-}
-
-pub type MetastoreResult<T> = std::result::Result<T, Box<MetastoreError>>;
-
-impl From<validator::ValidationErrors> for MetastoreError {
-    fn from(source: validator::ValidationErrors) -> Self {
-        Self::Validation { source }
-    }
-}
-
-impl From<Box<Self>> for MetastoreError {
-    fn from(boxed_error: Box<Self>) -> Self {
-        *boxed_error
-    }
+    #[snafu(display("UrlParse Error: {error}"))]
+    UrlParse {
+        #[snafu(source)]
+        error: url::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

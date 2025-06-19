@@ -17,10 +17,16 @@ except FileNotFoundError:
 
 df['category_success_rate'] = (df['successful_tests'] / df['total_tests']) * 100
 
+# Use success_rate_percentage (excludes "Not Implemented" tests) instead of coverage_percentage
+color_column = 'success_rate_percentage' if 'success_rate_percentage' in df.columns else 'coverage_percentage'
+if color_column not in df.columns:
+    # Fallback for old CSV format
+    color_column = 'success_percentage'
+
 fig = px.treemap(df,
                  path=['category', 'page_name'],
                  values='total_tests',
-                 color='success_percentage',
+                 color=color_column,
                  color_continuous_scale='RdYlGn',
                  hover_data=['successful_tests', 'failed_tests'],
                  range_color=[0, 100]

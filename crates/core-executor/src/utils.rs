@@ -1,8 +1,6 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
-use core_history::HistoryStoreResult;
-use core_history::errors::HistoryStoreError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
@@ -464,18 +462,10 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_result_to_history(
-    result: &ExecutionResult<QueryResult>,
-) -> HistoryStoreResult<ResultSet> {
+pub fn query_result_to_history(result: &ExecutionResult<QueryResult>) -> Result<ResultSet, String> {
     match result {
-        Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| {
-            HistoryStoreError::ExecutionResult {
-                message: err.to_string(),
-            }
-        }),
-        Err(err) => Err(HistoryStoreError::ExecutionResult {
-            message: err.to_string(),
-        }),
+        Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| err.to_string()),
+        Err(err) => Err(err.to_string()),
     }
 }
 

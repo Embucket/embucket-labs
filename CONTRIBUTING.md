@@ -50,5 +50,11 @@ Please try to create bug reports that are:
 6. [Open a Pull Request](https://github.com/Embucket/embucket/compare?expand=1)
 7. Your pull request build must pass (the build will run automatically).
 
+
+## Coding conventions
+
+When coding in Rust, please follow the [coding conventions](CODING_CONVENTIONS.md).
+
+
 ## Getting Help
 For discussions, questions, or collaboration, feel free to reach out via [GitHub Discussions](https://github.com/Embucket/embucket/discussions). We appreciate your contributions and look forward to working with you!

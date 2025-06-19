@@ -1,4 +1,4 @@
-use crate::error::{self as dbt_error, DbtError, DbtResult};
+use crate::error::{self as api_snowflake_rest_error, Error, Result};
 use crate::schemas::{
     JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
     QueryRequestBody, ResponseData,
@@ -40,17 +40,17 @@ pub async fn login(
     State(_state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
-) -> DbtResult<Json<LoginResponse>> {
+) -> Result<Json<LoginResponse>> {
     // Decompress the gzip-encoded body
     // TODO: Investigate replacing this with a middleware
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
     d.read_to_string(&mut s)
-        .context(dbt_error::GZipDecompressSnafu)?;
+        .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
     let _body_json: LoginRequestBody =
-        serde_json::from_str(&s).context(dbt_error::LoginRequestParseSnafu)?;
+        serde_json::from_str(&s).context(api_snowflake_rest_error::LoginRequestParseSnafu)?;
 
     let token = Uuid::new_v4().to_string();
 
@@ -61,35 +61,41 @@ pub async fn login(
     }))
 }
 
-fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> Result<String, DbtError> {
+fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> std::result::Result<String, Error> {
     let mut buf = Vec::new();
     let options = IpcWriteOptions::try_new(ARROW_IPC_ALIGNMENT, false, MetadataVersion::V5)
-        .context(dbt_error::ArrowSnafu)?;
+        .context(api_snowflake_rest_error::ArrowSnafu)?;
     if !recs.is_empty() {
         let mut writer =
             StreamWriter::try_new_with_options(&mut buf, recs[0].schema_ref(), options)
-                .context(dbt_error::ArrowSnafu)?;
+                .context(api_snowflake_rest_error::ArrowSnafu)?;
         for rec in recs {
-            writer.write(rec).context(dbt_error::ArrowSnafu)?;
+            writer
+                .write(rec)
+                .context(api_snowflake_rest_error::ArrowSnafu)?;
         }
-        writer.finish().context(dbt_error::ArrowSnafu)?;
+        writer
+            .finish()
+            .context(api_snowflake_rest_error::ArrowSnafu)?;
         drop(writer);
     }
     Ok(engine_base64.encode(buf))
 }
 
-fn records_to_json_string(recs: &[RecordBatch]) -> Result<String, DbtError> {
+fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, Error> {
     let buf = Vec::new();
     let write_builder = WriterBuilder::new().with_explicit_nulls(true);
     let mut writer = write_builder.build::<_, JsonArray>(buf);
     let record_refs: Vec<&RecordBatch> = recs.iter().collect();
     writer
         .write_batches(&record_refs)
-        .context(dbt_error::ArrowSnafu)?;
-    writer.finish().context(dbt_error::ArrowSnafu)?;
+        .context(api_snowflake_rest_error::ArrowSnafu)?;
+    writer
+        .finish()
+        .context(api_snowflake_rest_error::ArrowSnafu)?;
 
     // Get the underlying buffer back,
-    String::from_utf8(writer.into_inner()).context(dbt_error::Utf8Snafu)
+    String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
@@ -100,19 +106,19 @@ pub async fn query(
     Query(query): Query<QueryRequest>,
     headers: HeaderMap,
     body: Bytes,
-) -> DbtResult<Json<JsonResponse>> {
+) -> Result<Json<JsonResponse>> {
     // Decompress the gzip-encoded body
     let mut d = GzDecoder::new(&body[..]);
     let mut s = String::new();
     d.read_to_string(&mut s)
-        .context(dbt_error::GZipDecompressSnafu)?;
+        .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
     let body_json: QueryRequestBody =
-        serde_json::from_str(&s).context(dbt_error::QueryBodyParseSnafu)?;
+        serde_json::from_str(&s).context(api_snowflake_rest_error::QueryBodyParseSnafu)?;
 
     let Some(_token) = extract_token(&headers) else {
-        return Err(DbtError::MissingAuthToken);
+        return api_snowflake_rest_error::MissingAuthTokenSnafu.fail();
     };
 
     let serialization_format = state.config.dbt_serialization_format;
@@ -123,10 +129,9 @@ pub async fn query(
             &body_json.sql_text,
             QueryContext::default().with_ip_address(addr.ip().to_string()),
         )
-        .await
-        .map_err(|e| DbtError::Execution { source: e })?;
-    let records = convert_record_batches(query_result.clone(), serialization_format)
-        .map_err(|e| DbtError::Execution { source: e })?;
+        .await?;
+    // No need to fetch underlying error for snafu(transparent)
+    let records = convert_record_batches(query_result.clone(), serialization_format)?;
     debug!(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
@@ -167,8 +172,8 @@ pub async fn query(
     Ok(json_resp)
 }
 
-pub async fn abort() -> DbtResult<Json<serde_json::value::Value>> {
-    Err(DbtError::NotImplemented)
+pub async fn abort() -> Result<Json<serde_json::value::Value>> {
+    api_snowflake_rest_error::NotImplementedSnafu.fail()
 }
 
 #[must_use]

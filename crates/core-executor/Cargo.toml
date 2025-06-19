@@ -29,6 +29,9 @@ sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", r
 ] }
 iceberg-rust = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
+
 
 object_store = { workspace = true }
 regex = { workspace = true }

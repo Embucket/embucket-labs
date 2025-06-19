@@ -1,4 +1,4 @@
-use crate::errors::{self as errors, HistoryStoreError};
+use crate::errors::{self as core_history_errors, HistoryStoreResult};
 use crate::result_set::ResultSet;
 use crate::{
     QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
@@ -11,8 +11,6 @@ use serde_json::de;
 use slatedb::DbIterator;
 use snafu::ResultExt;
 use tracing::instrument;
-
-pub type HistoryStoreResult<T> = Result<T, HistoryStoreError>;
 
 #[derive(Default, Clone, Debug)]
 pub enum SortOrder {
@@ -82,7 +80,7 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        result: HistoryStoreResult<ResultSet>,
+        execution_result: Result<ResultSet, String>,
     );
 }
 
@@ -94,7 +92,7 @@ async fn queries_iterator(
     let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
     db.range_iterator(start_key..end_key)
         .await
-        .context(errors::GetWorksheetQueriesSnafu)
+        .context(core_history_errors::GetWorksheetQueriesSnafu)
 }
 
 async fn worksheet_queries_references_iterator(
@@ -109,7 +107,7 @@ async fn worksheet_queries_references_iterator(
     let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
     db.range_iterator(refs_start_key..refs_end_key)
         .await
-        .context(errors::GetWorksheetQueriesSnafu)
+        .context(core_history_errors::GetWorksheetQueriesSnafu)
 }
 
 #[async_trait]
@@ -124,7 +122,7 @@ impl HistoryStore for SlateDBHistoryStore {
         self.db
             .put_iterable_entity(&worksheet)
             .await
-            .context(errors::WorksheetAddSnafu)?;
+            .context(core_history_errors::WorksheetAddSnafu)?;
         Ok(worksheet)
     }
 
@@ -132,15 +130,19 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_worksheet(&self, id: WorksheetId) -> HistoryStoreResult<Worksheet> {
         // convert from Bytes to &str, for .get method to convert it back to Bytes
         let key_bytes = Worksheet::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
+        let key_str =
+            std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
 
         let res: Option<Worksheet> = self
             .db
             .get(key_str)
             .await
-            .context(errors::WorksheetGetSnafu)?;
-        res.ok_or_else(|| HistoryStoreError::WorksheetNotFound {
-            message: key_str.to_string(),
+            .context(core_history_errors::WorksheetGetSnafu)?;
+        res.ok_or_else(|| {
+            core_history_errors::WorksheetNotFoundSnafu {
+                message: key_str.to_string(),
+            }
+            .build()
         })
     }
 
@@ -152,7 +154,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .db
             .put_iterable_entity(&worksheet)
             .await
-            .context(errors::WorksheetUpdateSnafu)?)
+            .context(core_history_errors::WorksheetUpdateSnafu)?)
     }
 
     #[instrument(
@@ -177,7 +179,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .db
             .delete_key(Worksheet::get_key(id))
             .await
-            .context(errors::WorksheetDeleteSnafu)?)
+            .context(core_history_errors::WorksheetDeleteSnafu)?)
     }
 
     #[instrument(
@@ -193,7 +195,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .db
             .items_from_range(start_key..end_key, None)
             .await
-            .context(errors::WorksheetsListSnafu)?)
+            .context(core_history_errors::WorksheetsListSnafu)?)
     }
 
     #[instrument(
@@ -211,7 +213,7 @@ impl HistoryStore for SlateDBHistoryStore {
                     worksheet_id,
                 })
                 .await
-                .context(errors::QueryReferenceAddSnafu)?;
+                .context(core_history_errors::QueryReferenceAddSnafu)?;
         }
 
         // add query record
@@ -219,17 +221,25 @@ impl HistoryStore for SlateDBHistoryStore {
             .db
             .put_iterable_entity(item)
             .await
-            .context(errors::QueryAddSnafu)?)
+            .context(core_history_errors::QueryAddSnafu)?)
     }
 
     #[instrument(name = "HistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> HistoryStoreResult<QueryRecord> {
         let key_bytes = QueryRecord::get_key(id);
-        let key_str = std::str::from_utf8(key_bytes.as_ref()).context(errors::BadKeySnafu)?;
+        let key_str =
+            std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
 
-        let res: Option<QueryRecord> = self.db.get(key_str).await.context(errors::QueryGetSnafu)?;
-        res.ok_or_else(|| HistoryStoreError::QueryNotFound {
-            key: key_str.to_string(),
+        let res: Option<QueryRecord> = self
+            .db
+            .get(key_str)
+            .await
+            .context(core_history_errors::QueryGetSnafu)?;
+        res.ok_or_else(|| {
+            core_history_errors::QueryNotFoundSnafu {
+                key: key_str.to_string(),
+            }
+            .build()
         })
     }
 
@@ -256,17 +266,21 @@ impl HistoryStore for SlateDBHistoryStore {
 
             let mut items: Vec<QueryRecord> = vec![];
             while let Ok(Some(item)) = refs_iter.next().await {
-                let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or(
-                    HistoryStoreError::QueryReferenceKey {
+                let qh_key = QueryRecordReference::extract_qh_key(&item.key).ok_or_else(|| {
+                    core_history_errors::QueryReferenceKeySnafu {
                         key: format!("{:?}", item.key),
-                    },
-                )?;
-                queries_iter.seek(qh_key).await.context(errors::SeekSnafu)?;
+                    }
+                    .build()
+                })?;
+                queries_iter
+                    .seek(qh_key)
+                    .await
+                    .context(core_history_errors::SeekSnafu)?;
                 match queries_iter.next().await {
                     Ok(Some(query_record_kv)) => {
                         items.push(
                             de::from_slice(&query_record_kv.value)
-                                .context(errors::DeserializeValueSnafu)?,
+                                .context(core_history_errors::DeserializeValueSnafu)?,
                         );
                         if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                             break;
@@ -284,7 +298,7 @@ impl HistoryStore for SlateDBHistoryStore {
                 .db
                 .items_from_range(start_key..end_key, limit)
                 .await
-                .context(errors::QueryGetSnafu)?)
+                .context(core_history_errors::QueryGetSnafu)?)
         }
     }
 
@@ -295,9 +309,9 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        result: HistoryStoreResult<ResultSet>,
+        execution_result: Result<ResultSet, String>,
     ) {
-        match result {
+        match execution_result {
             Ok(result_set) => match serde_json::to_string(&result_set) {
                 Ok(encoded_res) => {
                     let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
@@ -305,7 +319,7 @@ impl HistoryStore for SlateDBHistoryStore {
                 }
                 Err(err) => query_record.finished_with_error(err.to_string()),
             },
-            Err(err) => query_record.finished_with_error(err.to_string()),
+            Err(execution_err) => query_record.finished_with_error(execution_err),
         }
 
         if let Err(err) = self.add_query(query_record).await {

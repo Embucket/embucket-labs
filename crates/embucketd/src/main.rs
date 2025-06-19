@@ -237,24 +237,26 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
         .with_resource(resource)
         .build();
 
-    let targets_with_level = |level: LevelFilter| -> Vec<(&str, LevelFilter)> {
-        // let default_log_targets: Vec<(String, LevelFilter)> =
-        TARGETS.iter().map(|t| ((*t), level)).collect()
-    };
+    let targets_with_level =
+        |targets: &[&'static str], level: LevelFilter| -> Vec<(&str, LevelFilter)> {
+            // let default_log_targets: Vec<(String, LevelFilter)> =
+            targets.iter().map(|t| ((*t), level)).collect()
+        };
 
     tracing_subscriber::registry()
         // Telemetry filtering
         .with(
             tracing_opentelemetry::OpenTelemetryLayer::new(provider.tracer("embucket"))
                 .with_level(true)
-                .with_filter(
-                    Targets::default()
-                        .with_targets(targets_with_level(opts.tracing_level.clone().into())),
-                ),
+                .with_filter(Targets::default().with_targets(targets_with_level(
+                    &TARGETS,
+                    opts.tracing_level.clone().into(),
+                ))),
         )
         // Logs filtering
         .with(
             tracing_subscriber::fmt::layer()
+                .pretty()
                 .with_span_events(FmtSpan::CLOSE)
                 .with_filter(match std::env::var("RUST_LOG") {
                     Ok(val) => match val.parse::<Targets>() {
@@ -263,13 +265,23 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                         Err(err) => {
                             eprintln!("Failed to parse RUST_LOG: {err:?}");
                             Targets::default()
-                                .with_targets(targets_with_level(LevelFilter::DEBUG))
+                                .with_targets(targets_with_level(&TARGETS, LevelFilter::DEBUG))
                                 .with_default(LevelFilter::DEBUG)
                         }
                     },
                     // No var set: use default log level INFO
                     _ => Targets::default()
-                        .with_targets(targets_with_level(LevelFilter::INFO))
+                        .with_targets(targets_with_level(&TARGETS, LevelFilter::INFO))
+                        // disable following targets:
+                        .with_targets(targets_with_level(
+                            &[
+                                "tower_sessions",
+                                "tower_sessions_core",
+                                "tower_http",
+                                "opentelemetry_sdk",
+                            ],
+                            LevelFilter::OFF,
+                        ))
                         .with_default(LevelFilter::INFO),
                 }),
         )

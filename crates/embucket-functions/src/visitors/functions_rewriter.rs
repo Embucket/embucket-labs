@@ -51,6 +51,8 @@ impl VisitorMut for FunctionsRewriter {
                     }
                     func_name
                 }
+                "variance" | "variance_samp" => "var_samp",
+                "variance_pop" => "var_pop",
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);

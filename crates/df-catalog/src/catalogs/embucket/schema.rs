@@ -1,6 +1,6 @@
 use crate::block_in_new_runtime;
 use async_trait::async_trait;
-use core_metastore::error::MetastoreError;
+use core_metastore::error as metastore_error;
 use core_metastore::{Metastore, SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{SchemaProvider, TableProvider};
@@ -74,11 +74,14 @@ impl SchemaProvider for EmbucketSchema {
             .await
             .map_err(|e| DataFusionError::External(Box::new(e)))?
             .ok_or_else(|| {
-                DataFusionError::External(Box::new(MetastoreError::TableObjectStoreNotFound {
-                    table: ident.table.clone(),
-                    schema: ident.schema.clone(),
-                    db: ident.database.clone(),
-                }))
+                DataFusionError::External(Box::new(
+                    metastore_error::TableObjectStoreNotFoundSnafu {
+                        table: ident.table.clone(),
+                        schema: ident.schema.clone(),
+                        db: ident.database.clone(),
+                    }
+                    .build(),
+                ))
             })?;
         match self.metastore.get_table(ident).await {
             Ok(Some(table)) => {

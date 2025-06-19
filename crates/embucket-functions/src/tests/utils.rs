@@ -1,10 +1,11 @@
 use crate::session::register_session_context_udfs;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
-use core_history::errors::HistoryStoreError;
+use core_history::Error as HistoryStoreError;
 use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
+use snafu::Location;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -51,6 +52,7 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
         if id == 500 {
             return Err(HistoryStoreError::ExecutionResult {
                 message: "Query not found".to_string(),
+                location: Location::default(),
             });
         }
         if id == 100 {

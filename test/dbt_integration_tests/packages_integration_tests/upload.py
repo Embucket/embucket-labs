@@ -1,10 +1,11 @@
 import requests
 import os
-import json
+import snowflake.connector
 
 url = "http://localhost:3000"
 database = "embucket"
 schema = "public"
+
 
 def bootstrap(catalog, schema):
     response = requests.get(f"{url}/v1/metastore/databases")
@@ -36,18 +37,32 @@ def bootstrap(catalog, schema):
     response.raise_for_status()
 
     ## SCHEMA
-    query = f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}"
-    headers = {
-        "Content-Type": "application/json",
-        # Add authentication headers if required, e.g.:
-        # "Authorization": "Bearer <your_token_here>",
-    }
-    response = requests.post(
-        f"{url}/ui/queries",
-        headers=headers,
-        data=json.dumps({"query": query})
+    USER = os.getenv("EMBUCKET_USER", "xxx")
+    PASSWORD = os.getenv("EMBUCKET_PASSWORD", "yyy")
+    ACCOUNT = os.getenv("EMBUCKET_ACCOUNT", "acc")
+    DATABASE = os.getenv("EMBUCKET_DATABASE", database)
+    SCHEMA = os.getenv("EMBUCKET_SCHEMA", schema)
+    WAREHOUSE = os.getenv("EMBUCKET_WAREHOUSE", "")
+
+    con = snowflake.connector.connect(
+        host=os.getenv("EMBUCKET_HOST", "localhost"),
+        port=os.getenv("EMBUCKET_PORT", 3000),
+        protocol=os.getenv("EMBUCKET_PROTOCOL", "http"),
+        user=USER,
+        password=PASSWORD,
+        account=ACCOUNT,
+        warehouse=WAREHOUSE,
+        database=DATABASE,
+        schema=SCHEMA,
+        session_parameters={
+            "QUERY_TAG": "dbt-testing",
+        },
     )
-    response.raise_for_status()
+
+    cursor = con.cursor()
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
+    cursor.execute(query)
+
 
 if __name__ == "__main__":
     bootstrap(database, schema)

@@ -8,7 +8,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
-import { getGetTablePreviewDataQueryKey, useUploadFile } from '@/orval/tables';
+import {
+  getGetTablePreviewDataQueryKey,
+  getGetTablesQueryKey,
+  useUploadFile,
+} from '@/orval/tables';
 
 import type { SelectedTree } from '../trees/trees-items';
 import { TableDataUploadSelect } from './table-data-upload-database-select';
@@ -49,6 +53,9 @@ export function TableDataUploadDialog({
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetTablesQueryKey(tree.databaseName, tree.schemaName),
           }),
           queryClient.invalidateQueries({
             queryKey: getGetTablePreviewDataQueryKey(

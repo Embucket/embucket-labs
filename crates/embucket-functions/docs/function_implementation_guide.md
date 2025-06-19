@@ -164,6 +164,7 @@ mod tests {
 - [ ] Test with real table not only scalar
 - [ ] **Snapshot tests** using `test_query!` macro
 - [ ] Function registration verification
+- [ ] Doc comment
 
 ## Error Handling Guidelines
 
@@ -185,6 +186,33 @@ fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
     // Try using arrow compute methods (datafusion::arrow::compute) where possible.
     // For exmaple: datafusion::arrow::compute::cast for casting, datafusion::arrow::compute::kernels::cmp::eq for equality checks, etc.
 }
+```
+
+## Doc comment template
+
+Use doc comment to make documentation for the function. Doc comment must include:
+- Function name
+- Description
+- Syntax
+- Arguments
+- Example
+- Returns
+
+example:
+```
+/// `MONTHNAME` SQL function
+///
+/// Extracts the three-letter month name from the specified date or timestamp.
+///
+/// Syntax: MONTHNAME(<date_or_timestamp>)
+///
+/// Arguments:
+/// - date_or_timestamp: A date or timestamp value.
+///
+/// Example: SELECT monthname('2025-05-08T23:39:20.123-07:00'::timestamp) AS value;
+///
+/// Returns:
+/// - Returns a string representing the three-letter month name
 ```
 
 ## Common Pitfalls

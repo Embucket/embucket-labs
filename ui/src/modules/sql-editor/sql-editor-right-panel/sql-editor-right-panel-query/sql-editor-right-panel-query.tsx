@@ -1,4 +1,4 @@
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { ExternalLink } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -48,13 +48,15 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
       <HoverCardContent className="flex size-full max-h-[220px] max-w-[400px] min-w-[240px] flex-1 flex-col p-1">
         <div className="rounded bg-[#1F1F1F]">
           <div className="mb-1 flex items-center justify-between p-2 pb-0">
-            <Button
-              variant="outline"
-              className="hover:bg-sidebar-secondary-accent! h-7! justify-start bg-transparent! px-2!"
-            >
-              <ExternalLink />
-              <span className="text-sm font-light">Open query details</span>
-            </Button>
+            <Link to="/queries/$queryId" params={{ queryId: query.id.toString() }}>
+              <Button
+                variant="outline"
+                className="hover:bg-sidebar-secondary-accent! h-7! justify-start bg-transparent! px-2!"
+              >
+                <ExternalLink />
+                <span className="text-sm font-light">Open query details</span>
+              </Button>
+            </Link>
             <SqlEditorRightPanelQueryCopyButton query={query} />
           </div>
           {/* TODO: Hardcode */}

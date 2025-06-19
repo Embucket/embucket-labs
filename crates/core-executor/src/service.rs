@@ -11,7 +11,7 @@ use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
 
-use super::error::{self as ex_error, ExecutionError, ExecutionResult};
+use super::error::{self as ex_error, ExecutionResult};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
 use crate::utils::{Config, query_result_to_history};
 use core_history::history_store::HistoryStore;
@@ -120,8 +120,11 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(ExecutionError::MissingDataFusionSession {
-                    id: session_id.to_string(),
+                .ok_or_else(|| {
+                    ex_error::MissingDataFusionSessionSnafu {
+                        id: session_id.to_string(),
+                    }
+                    .build()
                 })?
                 .clone()
         };
@@ -174,8 +177,11 @@ impl ExecutionService for CoreExecutionService {
             let sessions = self.df_sessions.read().await;
             sessions
                 .get(session_id)
-                .ok_or(ExecutionError::MissingDataFusionSession {
-                    id: session_id.to_string(),
+                .ok_or_else(|| {
+                    ex_error::MissingDataFusionSessionSnafu {
+                        id: session_id.to_string(),
+                    }
+                    .build()
                 })?
                 .clone()
         };
@@ -215,7 +221,7 @@ impl ExecutionService for CoreExecutionService {
         } else {
             let (schema, _) = format
                 .infer_schema(data.clone().reader(), None)
-                .map_err(|e| ExecutionError::DataFusion { source: e.into() })?;
+                .context(ex_error::ArrowSnafu)?;
             schema
         };
         let schema = Arc::new(schema);

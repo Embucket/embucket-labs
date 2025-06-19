@@ -12,10 +12,17 @@ category_aggregates = df.groupby("category").agg(
     skipped_tests=("skipped_tests", "sum")
 ).reset_index()
 
-# Correctly calculate success percentage for each category
-category_aggregates["success_percentage"] = (
-        (category_aggregates["successful_tests"] / category_aggregates["total_tests"]) * 100
-).round(2)
+# Calculate success rate excluding "Not Implemented" tests for each category
+category_aggregates["ran_tests"] = category_aggregates["successful_tests"] + category_aggregates["failed_tests"]
+category_aggregates["success_rate_percentage"] = (
+    (category_aggregates["successful_tests"] / category_aggregates["ran_tests"]) * 100
+).fillna(0).round(2)
+
+# Calculate success rate for individual rows (excluding "Not Implemented" tests)
+df["ran_tests"] = df["successful_tests"] + df["failed_tests"]
+df["success_rate_percentage"] = (
+    (df["successful_tests"] / df["ran_tests"]) * 100
+).fillna(0).round(2)
 
 # Merge the aggregated data back into the original DataFrame
 # This allows categories to have their aggregated stats during hover
@@ -24,15 +31,15 @@ df = df.merge(category_aggregates, on="category", suffixes=("", "_category"))
 # Create the treemap visualization
 fig = px.treemap(
     df,
-    path=["category", "subcategory"],  # Define hierarchy: Category -> Subcategory
+    path=["category", "page_name"],  # Use page_name instead of subcategory to match CSV structure
     values="total_tests",  # Defines the size of each rectangle
-    color="success_percentage",  # Color reflects success percentage
+    color="success_rate_percentage",  # Color reflects success rate percentage (excludes "Not Implemented")
     color_continuous_scale="RdYlGn",  # Red for low success, green for high success
-    title="Test Coverage Mind Map",
+    title="Test Coverage Mind Map by Success Rate",
     custom_data=[
-        "total_tests", "successful_tests", "failed_tests", "skipped_tests", "success_percentage",  # Subcategory stats
-        "total_tests_category", "successful_tests_category", "failed_tests_category", "skipped_tests_category",
-        "success_percentage_category"  # Aggregated category stats
+        "total_tests", "successful_tests", "failed_tests", "success_rate_percentage",  # Individual file stats
+        "total_tests_category", "successful_tests_category", "failed_tests_category",
+        "success_rate_percentage_category"  # Aggregated category stats
     ]
 )
 
@@ -43,14 +50,12 @@ fig.update_traces(
             "Total Tests: %{customdata[0]}<br>" +
             "Successful Tests: %{customdata[1]}<br>" +
             "Failed Tests: %{customdata[2]}<br>" +
-            "Skipped Tests: %{customdata[3]}<br>" +
-            "Success Percentage: %{customdata[4]}%" +  # Subcategory-level stats
+            "Success Rate: %{customdata[3]:.1f}%" +  # Individual file success rate
             "<br><b>Aggregated for Category:</b><br>" +
-            "Category Total Tests: %{customdata[5]}<br>" +
-            "Category Successful Tests: %{customdata[6]}<br>" +
-            "Category Failed Tests: %{customdata[7]}<br>" +
-            "Category Skipped Tests: %{customdata[8]}<br>" +
-            "Category Success Percentage: %{customdata[9]}%"
+            "Category Total Tests: %{customdata[4]}<br>" +
+            "Category Successful Tests: %{customdata[5]}<br>" +
+            "Category Failed Tests: %{customdata[6]}<br>" +
+            "Category Success Rate: %{customdata[7]:.1f}%"
     )
 )
 

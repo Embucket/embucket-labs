@@ -1,0 +1,18 @@
+[package]
+name = "error-stack-trace"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[lib]
+proc-macro = true
+doctest = false
+
+[dependencies]
+error-stack = { path = "../error-stack" }
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[lints]
+workspace = true

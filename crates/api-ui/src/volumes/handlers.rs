@@ -1,8 +1,8 @@
 use crate::state::AppState;
 use crate::{
-    OrderDirection, SearchParameters, apply_parameters, downcast_string_column,
+    OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, VolumesResult},
+    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
         VolumeResponse, VolumeType, VolumesResponse,
@@ -14,7 +14,7 @@ use axum::{
     extract::{Path, Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{MetastoreError, ValidationSnafu};
+use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
 use snafu::ResultExt;
 use utoipa::OpenApi;
@@ -81,22 +81,21 @@ pub struct QueryParameters {
 pub async fn create_volume(
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
-) -> VolumesResult<Json<VolumeCreateResponse>> {
+) -> Result<Json<VolumeCreateResponse>> {
     let embucket_volume = MetastoreVolume::new(volume.name.clone(), volume.volume.into());
     embucket_volume
         .validate()
         .context(ValidationSnafu)
-        .map_err(MetastoreError::into)
         .context(CreateSnafu)?;
 
-    state
+    let volume = state
         .metastore
         .create_volume(&embucket_volume.ident.clone(), embucket_volume)
         .await
-        .context(CreateSnafu)
         .map(Volume::from)
-        .map(VolumeCreateResponse)
-        .map(Json)
+        .context(CreateSnafu)?;
+
+    Ok(Json(VolumeCreateResponse(volume)))
 }
 
 #[utoipa::path(
@@ -123,23 +122,27 @@ pub async fn create_volume(
 pub async fn get_volume(
     State(state): State<AppState>,
     Path(volume_name): Path<String>,
-) -> VolumesResult<Json<VolumeResponse>> {
-    state
+) -> Result<Json<VolumeResponse>> {
+    let volume = state
         .metastore
         .get_volume(&volume_name)
         .await
         .map(|opt_rw_obj| {
-            opt_rw_obj.ok_or_else(|| {
-                Box::new(MetastoreError::VolumeNotFound {
-                    volume: volume_name.clone(),
+            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // TODO: Remove after refactor Metastore
+            opt_rw_obj
+                .ok_or_else(|| {
+                    metastore_error::VolumeNotFoundSnafu {
+                        volume: volume_name.clone(),
+                    }
+                    .build()
                 })
-            })
+                .context(GetSnafu)
         })
         .context(GetSnafu)?
-        .map(Volume::from)
-        .map(VolumeResponse)
-        .map(Json)
-        .context(GetSnafu)
+        .map(Volume::from)?;
+
+    Ok(Json(VolumeResponse(volume)))
 }
 
 #[utoipa::path(
@@ -167,12 +170,13 @@ pub async fn delete_volume(
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
     Path(volume_name): Path<String>,
-) -> VolumesResult<()> {
+) -> Result<()> {
     state
         .metastore
         .delete_volume(&volume_name, query.cascade.unwrap_or_default())
         .await
-        .context(DeleteSnafu)
+        .context(DeleteSnafu)?;
+    Ok(())
 }
 
 #[utoipa::path(
@@ -203,7 +207,7 @@ pub async fn list_volumes(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
-) -> VolumesResult<Json<VolumesResponse>> {
+) -> Result<Json<VolumesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
     let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);

@@ -1,14 +1,11 @@
-use crate::auth::models::{AccountResponse, RefreshTokenResponse};
-use std::collections::HashMap;
-
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
-use crate::auth::error::{
-    AuthError, AuthResult, BadRefreshTokenSnafu, ResponseHeaderSnafu, SetCookieSnafu,
-    TokenErrorKind,
-};
+use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, TokenErrorKind};
+use crate::auth::models::{AccountResponse, RefreshTokenResponse};
 use crate::auth::models::{AuthResponse, Claims, LoginPayload};
+use crate::error::Result;
 use crate::state::AppState;
+
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -18,6 +15,7 @@ use http::header::SET_COOKIE;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::Serialize;
 use snafu::ResultExt;
+use std::collections::HashMap;
 use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
@@ -79,7 +77,7 @@ pub fn get_claims_validate_jwt_token(
     token: &str,
     audience: &str,
     jwt_secret: &str,
-) -> Result<Claims, jsonwebtoken::errors::Error> {
+) -> std::result::Result<Claims, jsonwebtoken::errors::Error> {
     let mut validation = Validation::default();
     validation.leeway = 5;
     validation.set_audience(&[audience]);
@@ -92,7 +90,10 @@ pub fn get_claims_validate_jwt_token(
     Ok(decoded.claims)
 }
 
-pub fn create_jwt<T>(claims: &T, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error>
+pub fn create_jwt<T>(
+    claims: &T,
+    jwt_secret: &str,
+) -> std::result::Result<String, jsonwebtoken::errors::Error>
 where
     T: Serialize,
 {
@@ -103,14 +104,14 @@ where
     )
 }
 
-const fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> AuthResult<()> {
+fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> Result<()> {
     if jwt_secret.is_empty() {
-        return Err(AuthError::NoJwtSecret);
+        return auth_error::NoJwtSecretSnafu.fail()?;
     }
     Ok(())
 }
 
-fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
+fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> Result<()> {
     headers
         .try_append(
             SET_COOKIE,
@@ -121,9 +122,9 @@ fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> AuthResult<()> {
                 .path("/")
                 .to_string()
                 .parse()
-                .context(ResponseHeaderSnafu)?,
+                .context(auth_error::ResponseHeaderSnafu)?,
         )
-        .context(SetCookieSnafu)?;
+        .context(auth_error::SetCookieSnafu)?;
 
     Ok(())
 }
@@ -173,10 +174,10 @@ pub async fn login(
     //TODO: add DFSessionId (to start the session on login)
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     if username != *state.auth_config.demo_user() || password != *state.auth_config.demo_password()
     {
-        return Err(AuthError::Login);
+        return auth_error::LoginSnafu.fail()?;
     }
 
     let audience = state.config.host.clone();
@@ -224,13 +225,13 @@ pub async fn login(
 pub async fn refresh_access_token(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
     ensure_jwt_secret_is_valid(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
     match cookies_map.get("refresh_token") {
-        None => Err(AuthError::NoRefreshTokenCookie),
+        None => auth_error::NoRefreshTokenCookieSnafu.fail()?,
         Some(refresh_token) => {
             let refresh_claims =
                 get_claims_validate_jwt_token(refresh_token, &state.config.host, jwt_secret)
@@ -274,7 +275,7 @@ pub async fn refresh_access_token(
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     let jwt_secret = state.auth_config.jwt_secret();
     ensure_jwt_secret_is_valid(jwt_secret)?;
 
@@ -315,10 +316,9 @@ pub async fn logout(
 pub async fn account(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> AuthResult<impl IntoResponse> {
+) -> Result<impl IntoResponse> {
     // Simplest account info, also no auth checks.
-    // TODO:
-    // Move it to proper place when working with real account
+    // TODO: Move it to proper place when working with real account
     // Check authentication
 
     let auth = headers.get(http::header::AUTHORIZATION);
@@ -330,6 +330,6 @@ pub async fn account(
             }),
         ))
     } else {
-        Err(AuthError::NoAuthHeader)
+        auth_error::NoAuthHeaderSnafu.fail()?
     }
 }

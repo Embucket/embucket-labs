@@ -2,10 +2,7 @@
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{
-    self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu,
-    RegisterCatalogSnafu,
-};
+use super::error::{self as ex_error, ExecutionResult};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
@@ -18,7 +15,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::history_store::HistoryStore;
-use core_metastore::error::MetastoreError;
+use core_metastore::error::{self as metastore_error};
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
@@ -100,11 +97,11 @@ impl UserSession {
         catalog_list_impl
             .register_catalogs()
             .await
-            .context(RegisterCatalogSnafu)?;
+            .context(ex_error::RegisterCatalogSnafu)?;
         catalog_list_impl
             .refresh()
             .await
-            .context(RefreshCatalogListSnafu)?;
+            .context(ex_error::RefreshCatalogListSnafu)?;
         catalog_list_impl.start_refresh_internal_catalogs_task(10);
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
@@ -126,9 +123,8 @@ impl UserSession {
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| ExecutionError::Metastore {
-                source: Box::new(MetastoreError::UtilSlateDB { source: e }),
-            })?
+            .context(metastore_error::UtilSlateDBSnafu)
+            .context(ex_error::MetastoreSnafu)?
             .into_iter()
             .filter_map(|volume| {
                 if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {

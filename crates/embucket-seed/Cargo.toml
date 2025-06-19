@@ -14,6 +14,8 @@ path = "src/bin/main.rs"
 [dependencies]
 core-metastore = { path = "../core-metastore" }
 api-ui = { path = "../api-ui", features = ["client"] }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
 
 async-trait = { workspace = true }
 cookie = "0.18.1"

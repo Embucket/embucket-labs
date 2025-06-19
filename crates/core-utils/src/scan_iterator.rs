@@ -118,10 +118,8 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
 
         let mut objects = Self::Collectable::new();
         while let Ok(Some(bytes)) = iter.next().await {
-            let object = de::from_slice(&bytes.value).context(DeserializeValueSnafu {
-                key: bytes.key,
-                data: bytes.value,
-            })?;
+            let object =
+                de::from_slice(&bytes.value).context(DeserializeValueSnafu { key: bytes.key })?;
             objects.push(object);
             if objects.len() >= limit {
                 break;

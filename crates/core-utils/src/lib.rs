@@ -11,6 +11,8 @@ use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
 use slatedb::SlateDBError;
+use snafu::Location;
+use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -19,39 +21,78 @@ use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[derive(Snafu, Debug)]
+type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Snafu)]
 #[snafu(visibility(pub))]
+#[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("SlateDB error: {source}"))]
-    Database { source: SlateDBError },
+    #[snafu(display("SlateDB error: {error}"))]
+    Database {
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while fetching key {key}: {source}"))]
-    KeyGet { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while fetching key {key}: {error}"))]
+    KeyGet {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while deleting key {key}: {source}"))]
-    KeyDelete { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while deleting key {key}: {error}"))]
+    KeyDelete {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("SlateDB error while putting key {key}: {source}"))]
-    KeyPut { key: String, source: SlateDBError },
+    #[snafu(display("SlateDB error while putting key {key}: {error}"))]
+    KeyPut {
+        key: String,
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Error serializing value: {source}"))]
-    SerializeValue { source: serde_json::Error },
+    #[snafu(display("Error serializing value: {error}"))]
+    SerializeValue {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Deserialize error: {source}, key: {key:?}, data: {data:?}"))]
+    #[snafu(display("Deserialize error: {error}, key: {key:?}"))]
     DeserializeValue {
-        source: serde_json::Error,
+        #[snafu(source)]
+        error: serde_json::Error,
         key: Bytes,
-        data: Bytes,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Key Not found"))]
-    KeyNotFound,
+    KeyNotFound {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Scan Failed: {source}"))]
-    ScanFailed { source: SlateDBError },
+    #[snafu(display("Scan Failed: {error}"))]
+    ScanFailed {
+        #[snafu(source)]
+        error: SlateDBError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
-
-type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Db(Arc<SlateDb>);
@@ -144,7 +185,6 @@ impl Db {
             |bytes| {
                 de::from_slice(&bytes).context(DeserializeValueSnafu {
                     key: Bytes::from(key.to_string()),
-                    data: bytes,
                 })
             },
         )
@@ -257,10 +297,8 @@ impl Db {
         let mut iter = self.range_iterator(range).await?;
         let mut items: Vec<T> = vec![];
         while let Ok(Some(item)) = iter.next().await {
-            let item = de::from_slice(&item.value).context(DeserializeValueSnafu {
-                key: item.key,
-                data: item.value,
-            })?;
+            let item =
+                de::from_slice(&item.value).context(DeserializeValueSnafu { key: item.key })?;
             items.push(item);
             if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                 break;
@@ -301,7 +339,9 @@ pub trait Repository {
     async fn _get(&self, id: Uuid) -> Result<Self::Entity> {
         let key = format!("{}/{}", Self::prefix(), id);
         let entity = self.db().get(&key).await?;
-        let entity = entity.ok_or(Error::KeyNotFound)?;
+        let entity = entity.ok_or(Error::KeyNotFound {
+            location: location!(),
+        })?;
         Ok(entity)
     }
 

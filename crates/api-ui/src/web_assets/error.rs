@@ -1,41 +1,64 @@
-use crate::error::ErrorResponse;
-use axum::Json;
-use axum::response::IntoResponse;
-use http::Error;
+use crate::error::IntoStatusCode;
+use http::Error as HttpError;
 use http::StatusCode;
+use snafu::Location;
 use snafu::Snafu;
 
-#[derive(Debug, Snafu)]
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum ArchiveError {
+#[error_stack_trace::debug]
+pub enum Error {
     #[snafu(display("File not found: {path}"))]
-    NotFound { path: String },
+    NotFound {
+        path: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Response body error: {source}"))]
-    ResponseBody { source: Error },
+    #[snafu(display("Response body error: {error}"))]
+    ResponseBody {
+        #[snafu(source)]
+        error: HttpError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Bad archive: {source}"))]
-    BadArchive { source: std::io::Error },
+    #[snafu(display("Bad archive: {error}"))]
+    BadArchive {
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Entry path is not a valid Unicode: {source}"))]
-    NonUnicodeEntryPathInArchive { source: std::io::Error },
+    #[snafu(display("Entry path is not a valid Unicode: {error}"))]
+    NonUnicodeEntryPathInArchive {
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Entry data read error: {source}"))]
-    ReadEntryData { source: std::io::Error },
+    #[snafu(display("Entry data read error: {error}"))]
+    ReadEntryData {
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
-pub struct HandlerError(pub StatusCode, pub ArchiveError);
-
-pub type Result<T> = std::result::Result<T, HandlerError>;
-
-impl IntoResponse for HandlerError {
-    fn into_response(self) -> axum::response::Response {
-        let code = self.0;
-        let error = self.1;
-        let error = ErrorResponse {
-            message: error.to_string(),
-            status_code: code.as_u16(),
-        };
-        (code, Json(error)).into_response()
+// Select which status code to return.
+impl IntoStatusCode for Error {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::BadArchive { .. } | Self::ResponseBody { .. } => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+            Self::NonUnicodeEntryPathInArchive { .. } | Self::ReadEntryData { .. } => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
+            Self::NotFound { .. } => StatusCode::NOT_FOUND,
+        }
     }
 }

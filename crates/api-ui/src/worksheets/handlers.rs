@@ -1,9 +1,9 @@
-use crate::error::ErrorResponse;
+use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use crate::worksheets::{
     GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
     WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
-    error::{ListSnafu, WorksheetUpdateError, WorksheetsAPIError, WorksheetsResult},
+    error as worksheets_error,
 };
 use axum::{
     Json,
@@ -64,12 +64,13 @@ pub async fn worksheets(
         sort_order,
         sort_by,
     }): Query<GetWorksheetsParams>,
-) -> WorksheetsResult<Json<WorksheetsResponse>> {
+) -> Result<Json<WorksheetsResponse>> {
     let history_worksheets = state
         .history_store
         .get_worksheets()
         .await
-        .context(ListSnafu)?;
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::ListSnafu)?;
 
     let mut items = history_worksheets
         .into_iter()
@@ -143,7 +144,7 @@ pub async fn worksheets(
 pub async fn create_worksheet(
     State(state): State<AppState>,
     Json(payload): Json<WorksheetCreatePayload>,
-) -> WorksheetsResult<Json<WorksheetCreateResponse>> {
+) -> Result<Json<WorksheetCreateResponse>> {
     let name = if payload.name.is_empty() {
         Utc::now().to_string()
     } else {
@@ -156,7 +157,8 @@ pub async fn create_worksheet(
         .history_store
         .add_worksheet(history_worksheet)
         .await
-        .map_err(|e| WorksheetsAPIError::Create { source: e })?
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::CreateSnafu)?
         .into();
 
     Ok(Json(WorksheetCreateResponse(worksheet)))
@@ -187,12 +189,13 @@ pub async fn create_worksheet(
 pub async fn worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-) -> WorksheetsResult<Json<WorksheetResponse>> {
+) -> Result<Json<WorksheetResponse>> {
     let history_worksheet = state
         .history_store
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| WorksheetsAPIError::Get { source: e })?;
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::GetSnafu)?;
 
     Ok(Json(WorksheetResponse(Worksheet::from(history_worksheet))))
 }
@@ -221,12 +224,15 @@ pub async fn worksheet(
 pub async fn delete_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
-) -> WorksheetsResult<()> {
+) -> Result<()> {
     state
         .history_store
         .delete_worksheet(worksheet_id)
         .await
-        .map_err(|e| WorksheetsAPIError::Delete { source: e })
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::DeleteSnafu)?;
+
+    Ok(())
 }
 
 #[utoipa::path(
@@ -281,20 +287,19 @@ pub async fn update_worksheet(
     State(state): State<AppState>,
     Path(worksheet_id): Path<WorksheetId>,
     Json(payload): Json<WorksheetUpdatePayload>,
-) -> WorksheetsResult<()> {
+) -> Result<()> {
     if payload.name.is_none() && payload.content.is_none() {
-        return Err(WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::NothingToUpdate,
-        });
+        return worksheets_error::NothingToUpdateSnafu
+            .fail()
+            .context(worksheets_error::UpdateSnafu)?;
     }
 
     let mut worksheet = state
         .history_store
         .get_worksheet(worksheet_id)
         .await
-        .map_err(|e| WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::Store { source: e },
-        })?;
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::GetSnafu)?;
 
     if let Some(name) = payload.name {
         worksheet.set_name(name);
@@ -308,7 +313,8 @@ pub async fn update_worksheet(
         .history_store
         .update_worksheet(worksheet)
         .await
-        .map_err(|e| WorksheetsAPIError::Update {
-            source: WorksheetUpdateError::Store { source: e },
-        })
+        .context(worksheets_error::StoreSnafu)
+        .context(worksheets_error::UpdateSnafu)?;
+
+    Ok(())
 }

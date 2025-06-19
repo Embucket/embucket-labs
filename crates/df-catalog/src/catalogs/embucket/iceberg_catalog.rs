@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use core_metastore::error::{MetastoreError, MetastoreResult};
+use core_metastore::error::{self as metastore_error, MetastoreResult};
 use core_metastore::{
     Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
@@ -29,6 +29,7 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use object_store::ObjectStore;
+use snafu::ResultExt;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -39,16 +40,19 @@ pub struct EmbucketIcebergCatalog {
 
 impl EmbucketIcebergCatalog {
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
-        let db = block_on(metastore.get_database(&database))?.ok_or(
-            MetastoreError::DatabaseNotFound {
+        let db = block_on(metastore.get_database(&database))?.ok_or_else(|| {
+            metastore_error::DatabaseNotFoundSnafu {
                 db: database.clone(),
-            },
-        )?;
-        let object_store = block_on(metastore.volume_object_store(&db.volume))?.ok_or(
-            MetastoreError::VolumeNotFound {
-                volume: db.volume.clone(),
-            },
-        )?;
+            }
+            .build()
+        })?;
+        let object_store =
+            block_on(metastore.volume_object_store(&db.volume))?.ok_or_else(|| {
+                metastore_error::VolumeNotFoundSnafu {
+                    volume: db.volume.clone(),
+                }
+                .build()
+            })?;
         Ok(Self {
             metastore,
             database,
@@ -231,9 +235,8 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .iter_tables(&schema_ident)
             .collect()
             .await
-            .map_err(|e| {
-                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-            })?
+            .context(metastore_error::UtilSlateDBSnafu)
+            .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
             .map(|table| {
                 IcebergIdentifier::new(
@@ -255,18 +258,16 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| {
-                IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-            })?;
+            .context(metastore_error::UtilSlateDBSnafu)
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
         for database in databases {
             let schemas = self
                 .metastore
                 .iter_schemas(&database.ident)
                 .collect()
                 .await
-                .map_err(|e| {
-                    IcebergError::External(Box::new(MetastoreError::UtilSlateDB { source: e }))
-                })?;
+                .context(metastore_error::UtilSlateDBSnafu)
+                .map_err(|e| IcebergError::External(Box::new(e)))?;
             for schema in schemas {
                 namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
             }

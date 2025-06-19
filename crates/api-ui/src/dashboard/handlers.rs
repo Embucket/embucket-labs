@@ -1,6 +1,6 @@
-use crate::dashboard::error::{DashboardResult, HistorySnafu, MetastoreSnafu};
+use crate::dashboard::error::{HistorySnafu, MetastoreSnafu};
 use crate::dashboard::models::{Dashboard, DashboardResponse};
-use crate::error::ErrorResponse;
+use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use axum::{Json, extract::State};
 use core_history::history_store::GetQueriesParams;
@@ -42,9 +42,7 @@ pub struct ApiDoc;
     )
 )]
 #[tracing::instrument(name = "api_ui::get_dashboard", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn get_dashboard(
-    State(state): State<AppState>,
-) -> DashboardResult<Json<DashboardResponse>> {
+pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<DashboardResponse>> {
     let rw_databases = state
         .metastore
         .iter_databases()

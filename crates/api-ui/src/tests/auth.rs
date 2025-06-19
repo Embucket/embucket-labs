@@ -1,5 +1,4 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use crate::auth::error::AuthError;
 use crate::auth::error::*;
 use crate::auth::handlers::{create_jwt, get_claims_validate_jwt_token, jwt_claims};
 use crate::auth::models::{AccountResponse, AuthResponse, LoginPayload};
@@ -9,6 +8,7 @@ use crate::tests::server::run_test_server_with_demo_auth;
 use core_metastore::RwObject;
 use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use serde_json::json;
+use snafu::location;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use time::Duration;
@@ -42,7 +42,7 @@ async fn login<T>(
     addr: &SocketAddr,
     username: &str,
     password: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -66,7 +66,7 @@ where
 async fn logout<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -87,7 +87,7 @@ async fn refresh<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     refresh_token: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -116,7 +116,7 @@ async fn query<T>(
     addr: &SocketAddr,
     access_token: &String,
     query: &str,
-) -> Result<(HeaderMap, T), TestHttpError>
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -379,8 +379,12 @@ async fn test_jwt_token_expired() {
         jsonwebtoken::errors::ErrorKind::ExpiredSignature
     );
 
-    let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> =
-        AuthError::BadAuthToken { source: err }.try_into();
+    let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> =
+        Error::BadAuthToken {
+            error: err,
+            location: location!(),
+        }
+        .try_into();
     let www_authenticate = www_authenticate.expect("Failed to convert to WwwAuthenticate");
     assert_eq!(
         www_authenticate.to_string(),

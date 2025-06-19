@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Box } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useGetVolumes } from '@/orval/volumes';
 
 import { CreateVolumeDialog } from '../shared/create-volume-dialog/create-volume-dialog';
@@ -14,12 +15,21 @@ import { VolumesPageToolbar } from './volumes-page-toolbar';
 
 export function VolumesPage() {
   const [opened, setOpened] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500);
 
   const {
     data: { items: volumes } = {},
     isFetching: isFetchingVolumes,
     isLoading: isLoadingVolumes,
-  } = useGetVolumes();
+    refetch,
+  } = useGetVolumes({
+    search: debouncedSearch,
+  });
+
+  const handleRefetchVolumes = async () => {
+    await refetch();
+  };
 
   return (
     <>
@@ -31,20 +41,27 @@ export function VolumesPage() {
           </Button>
         }
       />
+
+      <VolumesPageToolbar
+        search={search}
+        onSetSearch={setSearch}
+        volumes={volumes ?? []}
+        isFetchingVolumes={isFetchingVolumes}
+        onRefetchVolumes={handleRefetchVolumes}
+      />
       {!volumes?.length && !isLoadingVolumes ? (
         <PageEmptyContainer
           Icon={Box}
+          variant="toolbar"
           title="No Volumes Found"
           description="No volumes have been created yet. Create a volume to get started."
         />
       ) : (
-        <>
-          <VolumesPageToolbar volumes={volumes ?? []} isFetchingVolumes={isFetchingVolumes} />
-          <PageScrollArea>
-            <VolumesTable volumes={volumes ?? []} isLoading={isLoadingVolumes} />
-          </PageScrollArea>
-        </>
+        <PageScrollArea>
+          <VolumesTable volumes={volumes ?? []} isLoading={isLoadingVolumes} />
+        </PageScrollArea>
       )}
+
       <CreateVolumeDialog opened={opened} onSetOpened={setOpened} />
     </>
   );

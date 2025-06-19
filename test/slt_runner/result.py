@@ -64,7 +64,7 @@ class ExecuteResult:
 
 
 class QueryExecuteResult:
-    def __init__(self, query, success, execution_time_s, exclude_from_coverage, error_message=None, skip=False):
+    def __init__(self, query, success, execution_time_s, exclude_from_coverage, error_message=None, skip=False, not_implemented=False):
         self.query = query
         self.success = success
         self.execution_time_s = execution_time_s
@@ -72,6 +72,7 @@ class QueryExecuteResult:
         self.error_message = error_message  # None if no error
         self.query_id = None # store the query ID
         self.exclude_from_coverage = exclude_from_coverage
+        self.not_implemented = not_implemented  # True if error contains "is not implemented yet"
 
 
 CONVERTER = SnowflakeConverter()
@@ -562,6 +563,25 @@ def error_from_exception_snowflake_connector(msg: str):
         )['M']
     except Exception as e:
         return msg
+
+def is_not_implemented_error(error_message: str, is_embucket_enabled: bool) -> bool:
+    """
+    Check if an error message indicates a "not implemented" feature in Embucket mode.
+
+    Args:
+        error_message: The error message to check
+        is_embucket_enabled: Whether Embucket mode is enabled
+
+    Returns:
+        True if this is a "not implemented" error in Embucket mode, False otherwise
+    """
+    if not is_embucket_enabled:
+        return False
+
+    if error_message is None:
+        return False
+
+    return "is not implemented yet" in str(error_message)
 
 class SQLLogicRunner:
     __slots__ = [
@@ -1078,7 +1098,7 @@ class SQLLogicContext:
                     decorator = statement.get_decorators()[0]
                     if isinstance(decorator, SkipIf):
                         results.queries.append(
-                            QueryExecuteResult(statement.get_one_liner(), success=False, execution_time_s=0, skip=True)
+                            QueryExecuteResult(statement.get_one_liner(), success=False, execution_time_s=0, skip=True, exclude_from_coverage=False)
                         )
                         continue
                     elif isinstance(decorator, ExcludeFromCoverage):
@@ -1097,9 +1117,13 @@ class SQLLogicContext:
                     # If successful, log individual query as SUCCESS
                     results.queries.append(QueryExecuteResult(statement.get_query_line(), execution_time_s=time.time() - start_time, success=True, exclude_from_coverage=exclude_from_coverage))
                 except TestException as e:
+                    # Check if this is a "not implemented" error in Embucket mode
+                    is_embucket_enabled = self.runner.config.get('embucket', False)
+                    not_implemented = is_not_implemented_error(e.message, is_embucket_enabled)
+
                     # If execution fails, log the failure for the current query
                     results.queries.append(
-                        QueryExecuteResult(statement.get_query_line(), execution_time_s=time.time() - start_time, success=False, error_message=e.message, exclude_from_coverage=exclude_from_coverage)
+                        QueryExecuteResult(statement.get_query_line(), execution_time_s=time.time() - start_time, success=False, error_message=e.message, exclude_from_coverage=exclude_from_coverage, not_implemented=not_implemented)
                     )
 
         return results

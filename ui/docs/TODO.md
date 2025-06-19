@@ -12,3 +12,6 @@
 - [ ] Mutate vs MutateAsync
 - [ ] isLoading vs isFetching (Fix naming everywhere)
 - [ ] Loading states for QueryDetails and Home Pages
+- [ ] Scrollbars usages
+- [ ] Consistent table height (Not the same in Queries vs Query page)
+- [ ] Handle empty due to search state

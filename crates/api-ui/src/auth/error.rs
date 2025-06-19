@@ -1,50 +1,100 @@
+use crate::error::IntoStatusCode;
 use axum::{Json, http, response::IntoResponse};
+use error_stack_trace;
 use http::HeaderValue;
 use http::header;
 use http::header::InvalidHeaderValue;
 use http::{StatusCode, header::MaxSizeReached};
 use jsonwebtoken::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use serde::{Deserialize, Serialize};
+use snafu::Location;
 use snafu::prelude::*;
 use utoipa::ToSchema;
 
-#[derive(Snafu, Debug)]
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
-pub enum AuthError {
+#[error_stack_trace::debug]
+pub enum Error {
     #[snafu(display("Login error"))]
-    Login,
+    Login {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("No JWT secret set"))]
-    NoJwtSecret,
+    NoJwtSecret {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Bad refresh token. {source}"))]
-    BadRefreshToken { source: JwtError },
+    #[snafu(display("Bad refresh token. {error}"))]
+    BadRefreshToken {
+        #[snafu(source)]
+        error: JwtError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Bad authentication token. {source}"))]
-    BadAuthToken { source: JwtError },
+    #[snafu(display("Bad authentication token. {error}"))]
+    BadAuthToken {
+        #[snafu(source)]
+        error: JwtError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Bad Authorization header"))]
-    BadAuthHeader,
+    BadAuthHeader {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("No Authorization header"))]
-    NoAuthHeader,
+    NoAuthHeader {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("No refresh_token cookie"))]
-    NoRefreshTokenCookie,
+    NoRefreshTokenCookie {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     // programmatic errors goes here:
-    #[snafu(display("Can't add header to response: {source}"))]
-    ResponseHeader { source: InvalidHeaderValue },
+    #[snafu(display("Can't add header to response: {error}"))]
+    ResponseHeader {
+        #[snafu(source)]
+        error: InvalidHeaderValue,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Set-Cookie error: {source}"))]
-    SetCookie { source: MaxSizeReached },
+    #[snafu(display("Set-Cookie error: {error}"))]
+    SetCookie {
+        #[snafu(source)]
+        error: MaxSizeReached,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("JWT create error: {source}"))]
-    CreateJwt { source: JwtError },
+    #[snafu(display("JWT create error: {error}"))]
+    CreateJwt {
+        #[snafu(source)]
+        error: JwtError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[cfg(test)]
     #[snafu(display("Custom error: {message}"))]
-    Custom { message: String },
+    Custom {
+        message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
@@ -113,32 +163,31 @@ pub struct WwwAuthenticate {
     pub kind: Option<TokenErrorKind>,
 }
 
-impl TryFrom<AuthError> for WwwAuthenticate {
+impl TryFrom<Error> for WwwAuthenticate {
     type Error = Option<Self>;
-    fn try_from(value: AuthError) -> Result<Self, Self::Error> {
+    fn try_from(value: Error) -> std::result::Result<Self, Self::Error> {
         let auth = "Bearer".to_string();
         let error = value.to_string();
         match value {
-            AuthError::Login => Ok(Self {
+            Error::Login { .. } => Ok(Self {
                 auth,
                 realm: "login".to_string(),
                 error,
                 kind: None,
             }),
-            AuthError::NoAuthHeader | AuthError::NoRefreshTokenCookie => Ok(Self {
+            Error::NoAuthHeader { .. } | Error::NoRefreshTokenCookie { .. } => Ok(Self {
                 auth,
                 realm: "api-auth".to_string(),
                 error,
                 kind: None,
             }),
-            AuthError::BadRefreshToken { source } | AuthError::BadAuthToken { source } => {
-                Ok(Self {
-                    auth,
-                    realm: "api-auth".to_string(),
-                    error,
-                    kind: Some(TokenErrorKind::from(source.kind().clone())),
-                })
-            }
+            Error::BadRefreshToken { error: source, .. }
+            | Error::BadAuthToken { error: source, .. } => Ok(Self {
+                auth,
+                realm: "api-auth".to_string(),
+                error,
+                kind: Some(TokenErrorKind::from(source.kind().clone())),
+            }),
             _ => Err(None),
         }
     }
@@ -160,14 +209,29 @@ impl std::fmt::Display for WwwAuthenticate {
     }
 }
 
-impl IntoResponse for AuthError {
+impl IntoStatusCode for Error {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::Login { .. }
+            | Self::NoAuthHeader { .. }
+            | Self::NoRefreshTokenCookie { .. }
+            | Self::BadRefreshToken { .. }
+            | Self::BadAuthToken { .. } => StatusCode::UNAUTHORIZED,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         let message = self.to_string();
-        let www_authenticate: Result<WwwAuthenticate, Option<WwwAuthenticate>> = self.try_into();
+        let status_code = self.status_code();
+        let www_authenticate: std::result::Result<WwwAuthenticate, Option<WwwAuthenticate>> =
+            self.try_into();
 
         match www_authenticate {
             Ok(www_value) => (
-                StatusCode::UNAUTHORIZED,
+                status_code,
                 // rfc7235
                 [(
                     header::WWW_AUTHENTICATE,
@@ -181,7 +245,7 @@ impl IntoResponse for AuthError {
                 Json(AuthErrorResponse {
                     message,
                     error_kind: www_value.kind,
-                    status_code: StatusCode::UNAUTHORIZED.as_u16(),
+                    status_code: status_code.as_u16(),
                 }),
             )
                 .into_response(),
@@ -197,6 +261,3 @@ impl IntoResponse for AuthError {
         }
     }
 }
-
-//  pub type AuthResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-pub type AuthResult<T> = std::result::Result<T, AuthError>;

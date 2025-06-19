@@ -5,9 +5,12 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-history = { path = "../core-history" }
+error-stack-trace = { path = "../error-stack-trace" }
+error-stack = { path = "../error-stack" }
+
 arrow-schema = { version = "55", features = ["serde"] }
 chrono = { workspace = true }
-core-history = { path = "../core-history" }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-doc = { workspace = true }
@@ -27,10 +30,12 @@ strsim = "0.11"
 tracing = "0.1.41"
 tokio = { workspace = true }
 datafusion-functions-json = { workspace = true }
+hex = "0.4.3"
 
 [dev-dependencies]
 bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
+snafu = { workspace = true }
 paste = "1"
 
 [[bin]]

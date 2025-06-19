@@ -44,7 +44,7 @@ export function SqlEditorLeftBottomPanel() {
     },
   );
 
-  if (!selectedTree) {
+  if (!selectedTree?.tableName) {
     return null;
   }
 

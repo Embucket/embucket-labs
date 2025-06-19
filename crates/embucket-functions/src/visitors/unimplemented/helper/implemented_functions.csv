@@ -336,6 +336,7 @@ string_agg
 string_to_array
 string_to_list
 strpos
+strtok
 strtok_to_array
 struct
 substr
@@ -365,6 +366,7 @@ timestampntzfromparts
 timestamptzfromparts
 to_array
 to_boolean
+to_binary
 to_char
 to_date
 to_hex
@@ -384,6 +386,7 @@ trunc
 try_parse_json
 try_to_boolean
 try_to_time
+try_to_binary
 typeof
 union_extract
 upper
