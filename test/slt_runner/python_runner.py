@@ -106,7 +106,7 @@ def reset_database(config, con: SnowflakeConnection):
         db_name = config['database']
         con.execute(f"DROP DATABASE IF EXISTS {db_name};")
         con.execute(f"CREATE DATABASE {db_name};")
-        con.execute(f"CREATE SCHEMA IF NOT EXISTS {config["schema"]};")
+        con.execute(f"CREATE SCHEMA IF NOT EXISTS {config['schema']};")
 
 # This is pretty much just a VM
 class SQLLogicTestExecutor(SQLLogicRunner):
