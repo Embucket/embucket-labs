@@ -70,6 +70,10 @@ impl VisitorMut for InlineAliasesInSelect {
                     _ => {}
                 }
             }
+
+            if let Some(qualify) = select.qualify.as_mut() {
+                substitute_aliases(qualify, &alias_expr_map, None);
+            }
         }
 
         // Recursively process CTEs (WITH clauses)

@@ -184,6 +184,10 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             "select  sum(page_views) as page_views,  sum(engaged_time_in_s) as engaged_time_in_s from  test group by 1,2",
             "SELECT sum(page_views) AS page_views, sum(engaged_time_in_s) AS engaged_time_in_s FROM test GROUP BY 1, 2"
         ),
+        (
+            "with test as (select 122 as b) SELECT b as c FROM test QUALIFY ROW_NUMBER() OVER(PARTITION BY c) = 1",
+            "WITH test AS (SELECT 122 AS b) SELECT b AS c FROM test QUALIFY ROW_NUMBER() OVER (PARTITION BY b) = 1"
+        ),
     ];
 
     for (input, expected) in cases {
