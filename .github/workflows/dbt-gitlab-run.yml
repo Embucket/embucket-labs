@@ -103,8 +103,8 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         
           # Fetch and checkout the existing assets branch
-          git fetch origin assets
-          git checkout assets
+          git fetch origin assets_dbt
+          git checkout assets_dbt
         
           # Clean the branch content (but keep .git folder)
           # find . -mindepth 1 -not -path "./.git*" -delete
@@ -116,8 +116,8 @@ jobs:
           cp -r /tmp/embucket-assets/* assets_dbt/
         
           # Add and commit
-          git add assets
+          git add assets_dbt
           git commit -m "Update test assets [DBT Gitlab run result: $COVERAGE%] [skip ci]" || echo "No changes to commit"
         
           # Push to the existing assets branch
-          git push origin assets
+          git push origin assets_dbt
