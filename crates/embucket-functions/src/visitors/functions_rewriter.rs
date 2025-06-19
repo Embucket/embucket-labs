@@ -1,8 +1,8 @@
 use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
-    Expr, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident, ObjectName,
-    Statement, VisitorMut,
+    Expr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident,
+    ObjectName, Statement, VisitorMut,
 };
 
 #[derive(Debug, Default)]
@@ -53,37 +53,7 @@ impl VisitorMut for FunctionsRewriter {
                 }
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
-                "sha2" => {
-                    let mut new_name = "sha2";
-                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) =
-                        &mut func.args
-                    {
-                        // Check if we have a bit length argument
-                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                            value,
-                        )))) = args.get(1)
-                        {
-                            if let datafusion_expr::sqlparser::ast::Value::Number(bits, _) =
-                                &value.value
-                            {
-                                new_name = match bits.as_str() {
-                                    "224" => "sha224",
-                                    "256" => "sha256",
-                                    "512" => "sha512",
-                                    _ => "sha2",
-                                };
-                                // Remove bit length argument for known variants
-                                if new_name != "sha2" {
-                                    args.pop();
-                                }
-                            }
-                        } else if args.len() == 1 {
-                            // Default to sha256 when no bit length provided
-                            new_name = "sha256";
-                        }
-                    }
-                    new_name
-                }
+                "sha2" => normalize_sha2(func),
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);
@@ -94,4 +64,29 @@ impl VisitorMut for FunctionsRewriter {
 
 pub fn visit(stmt: &mut Statement) {
     let _ = stmt.visit(&mut FunctionsRewriter {});
+}
+
+fn normalize_sha2(func: &mut Function) -> &'static str {
+    let FunctionArguments::List(FunctionArgumentList { args, .. }) = &mut func.args else {
+        return "sha2";
+    };
+
+    if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(val)))) = args.get(1) {
+        if let datafusion_expr::sqlparser::ast::Value::Number(bits, _) = &val.value {
+            let new_name = match bits.as_str() {
+                "224" => "sha224",
+                "256" => "sha256",
+                "512" => "sha512",
+                _ => "sha2",
+            };
+
+            if new_name != "sha2" {
+                args.pop(); // Remove bit length
+            }
+
+            return new_name;
+        }
+    }
+
+    if args.len() == 1 { "sha256" } else { "sha2" }
 }
