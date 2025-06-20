@@ -298,6 +298,16 @@ test_query!(
     ]
 );
 
+test_query!(
+    create_or_replace_view_with_replace,
+    "SELECT * FROM view",
+    setup_queries = [
+        "CREATE VIEW view AS SELECT 1 as val;",
+        "CREATE OR REPLACE VIEW view AS
+        SELECT * FROM (VALUES ('2021-03-02 15:55:18.539000'::TIMESTAMP)) AS t(start_tstamp);"
+    ]
+);
+
 // Empty plan
 test_query!(alter_iceberg_table, "ALTER ICEBERG TABLE test ADD col INT;");
 

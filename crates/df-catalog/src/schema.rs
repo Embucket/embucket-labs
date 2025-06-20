@@ -76,12 +76,19 @@ impl SchemaProvider for CachingSchema {
         Ok(Some(table))
     }
 
+    #[allow(clippy::as_conversions)]
     fn deregister_table(
         &self,
         name: &str,
     ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
-        self.tables_cache.remove(name);
-        self.schema.deregister_table(name)
+        let table = self.tables_cache.remove(name);
+        if let Some((_, caching_table)) = table {
+            if caching_table.table_type() != TableType::View {
+                return self.schema.deregister_table(name);
+            }
+            return Ok(Some(caching_table as Arc<dyn TableProvider>));
+        }
+        Ok(None)
     }
 
     fn table_exist(&self, name: &str) -> bool {
