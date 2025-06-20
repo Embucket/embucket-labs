@@ -70,7 +70,8 @@ ORDER BY empid;",
 
 test_query!(
     pivot_with_subquery,
-    "SELECT *
+    // fixing flaking test: named fields vs `select *`, as fields order in result differs from time to time
+    "SELECT empid, \"2023_Q1\", \"2023_Q3\"
 FROM quarterly_sales
 PIVOT(SUM(amount) 
   FOR quarter IN (
