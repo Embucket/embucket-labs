@@ -1,0 +1,6 @@
+query TT
+SELECT SOUNDEX('Pfister'),
+       SOUNDEX('LLoyd')
+----
+P236	L300
+
