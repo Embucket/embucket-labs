@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
+use datafusion_expr::TableType;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -69,7 +70,10 @@ impl SchemaProvider for CachingSchema {
     ) -> datafusion_common::Result<Option<Arc<dyn TableProvider>>> {
         let caching_table = Arc::new(CachingTable::new(name.clone(), Arc::clone(&table)));
         self.tables_cache.insert(name.clone(), caching_table);
-        self.schema.register_table(name, table)
+        if table.table_type() != TableType::View {
+            return self.schema.register_table(name, table);
+        }
+        Ok(Some(table))
     }
 
     fn deregister_table(
