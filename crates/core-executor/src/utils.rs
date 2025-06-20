@@ -213,7 +213,7 @@ pub fn convert_record_batches(
                         ),
                     )
                 }
-                DataType::BinaryView => {
+                DataType::BinaryView | DataType::Decimal128(_, _) => {
                     let converted_column =
                         cast(&column, &DataType::Utf8View).context(ArrowSnafu)?;
                     fields.push(
