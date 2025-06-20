@@ -1,5 +1,9 @@
 from prettytable import PrettyTable
 from collections import defaultdict
+from collections import Counter
+import re
+import os
+import textwrap
 
 
 def render_percentage_bar(successful, failed):
@@ -91,3 +95,102 @@ def display_category_results(all_results):
 
     print("\nCategory-wise Test Results:\n")
     print(table)
+
+
+def display_top_errors(error_log_file):
+    """
+    Parse the error log file and display the top 10 most frequent error messages.
+    """
+
+    # Check if the error log file exists
+    if not os.path.exists(error_log_file):
+        print(f"\nNo error log file found at {error_log_file}")
+        return
+
+    # Read the error log file
+    with open(error_log_file, "r") as file:
+        content = file.read()
+
+    # Split the content by test blocks (delimited by ================)
+    test_blocks = re.split(r'={80,}', content)
+
+    # Extract error messages
+    error_messages = []
+
+    # Pattern to match error type lines (used to identify error blocks)
+    error_type_pattern = re.compile(r'(Query unexpectedly failed!|Query failed with unexpected error!|'
+                                    r'Query did not fail, but expected error!|Wrong column count in query!|'
+                                    r'Wrong row count in query!|Error in test!|Wrong result in query!|'
+                                    r'Wrong result hash!)')
+
+    # Pattern to match actual error messages (DataFusion errors starting with digits)
+    datafusion_error_pattern = re.compile(r'(\d{6}:.*?)(?=\n|$)')
+
+    # Pattern to match mismatch errors
+    mismatch_error_pattern = re.compile(r'(Mismatch.*?)(?=\n|$)')
+
+    for i in range(len(test_blocks)):
+        block = test_blocks[i]
+        if not block.strip():
+            continue
+
+        # Look for error type to identify error blocks
+        error_type_match = error_type_pattern.search(block)
+        if error_type_match:
+            error_type = error_type_match.group(1)
+
+            # Look for different types of error messages
+            message = ""
+
+            # For DataFusion errors
+            if "Query unexpectedly failed!" in error_type or "Query failed with unexpected error!" in error_type:
+                msg_match = datafusion_error_pattern.search(block)
+                if msg_match:
+                    message = msg_match.group(1).strip()
+                elif i + 1 < len(test_blocks) and datafusion_error_pattern.search(test_blocks[i + 1]):
+                    msg_match = datafusion_error_pattern.search(test_blocks[i + 1])
+                    message = msg_match.group(1).strip()
+
+            # For result mismatch errors
+            elif "Wrong result in query!" in error_type or "Wrong column count" in error_type or "Wrong row count" in error_type:
+                msg_match = mismatch_error_pattern.search(block)
+                if msg_match:
+                    message = f"{error_type}: {msg_match.group(1).strip()}"
+                else:
+                    message = error_type
+
+            # For other error types
+            else:
+                message = error_type
+
+            if message:
+                error_messages.append(message)
+
+    # Count occurrences
+    error_message_counts = Counter(error_messages)
+
+    # Display top error messages
+    print(f"\nTop 10 Errors:")
+    print("-" * 150)
+
+    if not error_messages:
+        print("No detailed error messages found.")
+        print("-" * 150)
+        return
+
+    # Display the top N errors with their counts
+    for i, (error_msg, count) in enumerate(error_message_counts.most_common(10), 1):
+        print(f"{i}. ERROR (occurs {count} times):")
+        print("-" * 150)
+
+        # Print full error message without truncation
+        # Use textwrap to handle potential line wrapping
+        wrapped_lines = textwrap.wrap(error_msg, width=150, replace_whitespace=False,
+                                      break_long_words=False, break_on_hyphens=False)
+        if not wrapped_lines:  # Handle empty strings
+            print("<empty error message>")
+        else:
+            for line in wrapped_lines:
+                print(line)
+
+        print("-" * 150)

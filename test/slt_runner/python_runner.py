@@ -34,6 +34,7 @@ from slt_runner.result import (
 
 from slt_runner.display_test_statistics import display_page_results, display_category_results
 
+from slt_runner.display_test_statistics import display_top_errors
 
 # ANSI color codes
 GREEN = "\033[92m"
@@ -776,6 +777,8 @@ class SQLLogicPythonRunner:
                 if errors:
                     for error in errors:
                         error_file.write(f"{error}\n")
+
+        display_top_errors(error_log_file)
 
         # Log execution time
         total_time = time.time() - start_time
