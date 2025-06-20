@@ -42,6 +42,7 @@ use datafusion_expr::{CreateMemoryTable, DdlStatement, Expr as DFExpr, Projectio
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::information_schema::session_params::SessionProperty;
+use df_catalog::catalog_list::CachedEntity;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, functions_rewriter, inline_aliases_in_query, json_element,
@@ -132,6 +133,23 @@ impl UserQuery {
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
             .unwrap_or_else(|| "public".to_string())
+    }
+
+    async fn refresh_catalog_partially(&self, entity: CachedEntity, drop: bool, names: (&str, &str, &str)) -> ExecutionResult<()> {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<EmbucketCatalogList>()
+        {
+            catalog_list_impl
+                .refresh_cache_entity(entity, drop, names)
+                .await
+                .context(RefreshCatalogListSnafu)?;
+        }
+        Ok(())
     }
 
     async fn refresh_catalog(&self) -> ExecutionResult<()> {
@@ -289,7 +307,7 @@ impl UserQuery {
                 }
                 Statement::CreateSchema { .. } => {
                     let result = Box::pin(self.create_schema(*s)).await;
-                    self.refresh_catalog().await?;
+                    // self.refresh_catalog().await?;
                     return result;
                 }
                 Statement::CreateStage { .. } => {
@@ -524,7 +542,8 @@ impl UserQuery {
         .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
-        self.refresh_catalog().await?;
+        self.refresh_catalog_partially(CachedEntity::Table, false,
+            (&ident.database, &ident.schema, &ident.table)).await?;
 
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
@@ -981,7 +1000,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&ident.database)?;
 
         let downcast_result = self
-            .resolve_iceberg_catalog_or_execute(catalog, ident.database, plan)
+            .resolve_iceberg_catalog_or_execute(catalog, ident.database.clone(), plan)
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -1007,13 +1026,17 @@ impl UserQuery {
             }
             .fail();
         }
-        let namespace = Namespace::try_new(&[ident.schema])
+        let namespace = Namespace::try_new(&[ident.schema.clone()])
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
         iceberg_catalog
             .create_namespace(&namespace, None)
             .await
             .context(ex_error::IcebergSnafu)?;
+
+        self.refresh_catalog_partially(CachedEntity::Schema, false, 
+            (&ident.database, &ident.schema, "")).await?;
+
         self.created_entity_response()
     }
 

@@ -2,7 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
-use crate::error::{self as df_catalog_error, MetastoreSnafu, Result};
+use crate::error::{self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, Result};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -30,6 +30,12 @@ use tokio::time::interval;
 use url::Url;
 
 pub const DEFAULT_CATALOG: &str = "embucket";
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum CachedEntity {
+    Schema,
+    Table,
+}
 
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
@@ -182,9 +188,7 @@ impl EmbucketCatalogList {
         }
         Ok(catalogs)
     }
-
-
-    
+   
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(
         name = "EmbucketCatalogList::refresh_schema",
@@ -192,11 +196,64 @@ impl EmbucketCatalogList {
         skip(self),
         err
     )]
-    pub async fn refresh_schema(&self, database: &str, schema: &str) -> Result<()> {
-        for catalog in self.catalogs.iter_mut() {
-            if catalog.should_refresh {
+    pub async fn refresh_cache_entity(&self, entity: CachedEntity, drop: bool, names: (&str, &str, &str)) -> Result<()> {
+        let (catalog, schema, table) = names;
+
+        let catalog_not_found = ||InvalidCacheSnafu {
+            entity: "catalog", name: catalog }.build();
+        let catalog_ref = self.catalogs
+            .get(catalog)
+            .ok_or_else(catalog_not_found)?;
+
+        let schema_not_found = ||InvalidCacheSnafu {
+            entity: "schema", name: format!("{catalog}.{schema}") }.build();
+        if entity == CachedEntity::Schema {
+            if drop {
+                let _ = catalog_ref.schemas_cache.remove(schema).ok_or_else(schema_not_found)?;
+                return Ok(())
+            } else {
+                // create schema cache without any tables
+                if let Some(schema_provider) = catalog_ref.catalog.schema(&schema) {
+                    let schema = CachingSchema {
+                        schema: schema_provider,
+                        tables_cache: DashMap::default(),
+                        name: schema.to_string(),
+                    };
+                    catalog_ref
+                        .schemas_cache
+                        .insert(schema.name.clone(), Arc::new(schema));
+                }
             }
         }
+        let schema_ref = catalog_ref.schemas_cache
+            .get(schema)
+            .ok_or_else(schema_not_found)?;
+
+        let table_not_found = ||InvalidCacheSnafu {
+            entity: "table", name: format!("{catalog}.{schema}.{table}") }.build();
+        if entity == CachedEntity::Table {
+            if drop {
+                schema_ref.tables_cache.remove(table).ok_or_else(table_not_found)?;
+                return Ok(())
+            } else {
+                if let Some(table_provider) = schema_ref
+                    .schema
+                    .table(table)
+                    .await
+                    .context(df_catalog_error::DataFusionSnafu)?
+                {
+                    schema_ref.tables_cache.insert(
+                        table.to_string(),
+                        Arc::new(CachingTable::new_with_schema(
+                            table.to_string(),
+                            table_provider.schema(),
+                            Arc::clone(&table_provider),
+                        )),
+                    );
+                }
+            }
+        }
+        
         Ok(())
     }
 

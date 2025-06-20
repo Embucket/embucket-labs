@@ -77,6 +77,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Invalid cache: Can't locate '{entity:?}' entity = {name}"))]
+    InvalidCache {
+        entity: String,
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Debug)]
