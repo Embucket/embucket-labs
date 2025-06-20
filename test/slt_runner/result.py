@@ -464,6 +464,31 @@ def result_is_hash(result):
     return all([x.islower() or x.isnumeric() for x in parts[4]])
 
 
+def _handle_snowflake_converter_error(e: Exception, value, sql_type: str):
+    """
+    Handle Snowflake connector conversion errors gracefully.
+
+    Args:
+        e: The exception that was raised
+        value: The original value that failed to convert
+        sql_type: The SQL type being converted to
+
+    Returns:
+        Fallback value for known errors, or re-raises for unknown errors
+    """
+    error_msg = str(e)
+
+    # Check if this is a known Snowflake connector conversion error
+    if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
+        # Log a clean error message instead of the full traceback
+        logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
+        # Return the original value as a string fallback
+        return str(value) if value is not None else 'NULL'
+    else:
+        # For other exceptions, preserve the original behavior
+        logger.error(repr(e))
+        raise e
+
 def convert_value(value, col_or_sql_type):
     """
     Convert a value using Snowflake connector with graceful error handling.
@@ -487,19 +512,7 @@ def convert_value(value, col_or_sql_type):
         try:
             return converter_method(value)
         except Exception as e:
-            # Handle Snowflake connector conversion errors gracefully
-            error_msg = str(e)
-
-            # Check if this is a known Snowflake connector conversion error
-            if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
-                # Log a clean error message instead of the full traceback
-                logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
-                # Return the original value as a string fallback
-                return str(value) if value is not None else 'NULL'
-            else:
-                # For other exceptions, preserve the original behavior
-                logger.error(repr(e))
-                raise e
+            return _handle_snowflake_converter_error(e, value, sql_type)
 
     # Handle the case where we have a full ResultMetadata object (original convert_value functionality)
     col = col_or_sql_type
@@ -545,19 +558,7 @@ def convert_value(value, col_or_sql_type):
         try:
             res = converter_method(value)
         except Exception as e:
-            # Handle Snowflake connector conversion errors gracefully
-            error_msg = str(e)
-
-            # Check if this is a known Snowflake connector conversion error
-            if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
-                # Log a clean error message instead of the full traceback
-                logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
-                # Return the original value as a string fallback
-                res = str(value) if value is not None else 'NULL'
-            else:
-                # For other exceptions, preserve the original behavior
-                logger.error(repr(e))
-                raise e
+            res = _handle_snowflake_converter_error(e, value, sql_type)
     logger.debug(f'converted to: {res}')
     return res
 
