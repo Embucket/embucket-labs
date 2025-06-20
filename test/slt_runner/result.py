@@ -464,30 +464,46 @@ def result_is_hash(result):
     return all([x.islower() or x.isnumeric() for x in parts[4]])
 
 
-def convert_value2(value, sql_type):
-    col = {"type_code": FIELD_NAME_TO_ID[sql_type.upper()]}
-    logger.debug(f'convert_value2: {value}:{type(value)}, type_code: {col["type_code"]} {sql_type}')
-    converter_method = CONVERTER.to_python_method(sql_type.upper(), col)
-    if converter_method is None:
-        return value
-    try:
-        return converter_method(value)
-    except Exception as e:
-        # Handle Snowflake connector conversion errors gracefully
-        error_msg = str(e)
+def convert_value(value, col_or_sql_type):
+    """
+    Convert a value using Snowflake connector with graceful error handling.
 
-        # Check if this is a known Snowflake connector conversion error
-        if any(error_type in error_msg for error_type in ['ValueError']):
-            # Log a clean error message instead of the full traceback
-            logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
-            # Return the original value as a string fallback
-            return str(value) if value is not None else 'NULL'
-        else:
-            # For other exceptions, preserve the original behavior
-            logger.error(repr(e))
-            raise e
+    Args:
+        value: The value to convert
+        col_or_sql_type: Either a ResultMetadata object or a string SQL type
 
-def convert_value(value, col: ResultMetadata):
+    Returns:
+        Converted value with appropriate formatting
+    """
+    # Handle the case where we're called with just a SQL type string (convert_value2 functionality)
+    if isinstance(col_or_sql_type, str):
+        sql_type = col_or_sql_type.upper()
+        col_asdict = {"type_code": FIELD_NAME_TO_ID[sql_type]}
+        logger.debug(f'convert_value (simple): {value}:{type(value)}, type_code: {col_asdict["type_code"]} {sql_type}')
+
+        converter_method = CONVERTER.to_python_method(sql_type, col_asdict)
+        if converter_method is None:
+            return value
+        try:
+            return converter_method(value)
+        except Exception as e:
+            # Handle Snowflake connector conversion errors gracefully
+            error_msg = str(e)
+
+            # Check if this is a known Snowflake connector conversion error
+            if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
+                # Log a clean error message instead of the full traceback
+                logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
+                # Return the original value as a string fallback
+                return str(value) if value is not None else 'NULL'
+            else:
+                # For other exceptions, preserve the original behavior
+                logger.error(repr(e))
+                raise e
+
+    # Handle the case where we have a full ResultMetadata object (original convert_value functionality)
+    col = col_or_sql_type
+
     if value is None or value == 'NULL':
         return 'NULL'
     elif isinstance(value, bytearray) or isinstance(value, bytes):  # Binary data
@@ -512,6 +528,7 @@ def convert_value(value, col: ResultMetadata):
             if value == "":
                 return "''"
             return value.replace('\n', '\\n')
+
     col_asdict = {'name': col.name, 'type_code': col.type_code, 'scale': col.scale}
     sql_type = FIELD_ID_TO_NAME[col.type_code]
     logger.debug(f'convert_value from: {value}:{type(value).__name__}, type_code: {col.type_code} {sql_type}')
@@ -543,6 +560,14 @@ def convert_value(value, col: ResultMetadata):
                 raise e
     logger.debug(f'converted to: {res}')
     return res
+
+# Compatibility alias for existing code that uses convert_value2
+def convert_value2(value, sql_type):
+    """
+    Compatibility alias for convert_value with string SQL type.
+    This function is deprecated - use convert_value directly.
+    """
+    return convert_value(value, sql_type)
 
 def to_test_str(value):
     if type(value) is bool:
