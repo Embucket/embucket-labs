@@ -213,7 +213,7 @@ pub fn convert_record_batches(
                         ),
                     )
                 }
-                DataType::BinaryView | DataType::Decimal128(_, _) => {
+                DataType::BinaryView => {
                     let converted_column =
                         cast(&column, &DataType::Utf8View).context(ArrowSnafu)?;
                     fields.push(
@@ -223,6 +223,22 @@ pub fn convert_record_batches(
                             field.is_nullable(),
                         )
                         .with_metadata(metadata),
+                    );
+                    Arc::clone(&converted_column)
+                }
+                DataType::Decimal128(_, _) => {
+                    let converted_column = if data_format == DataSerializationFormat::Json {
+                        cast(&column, &DataType::Utf8).context(ArrowSnafu)?
+                    } else {
+                        Arc::clone(column)
+                    };
+                    fields.push(
+                        Field::new(
+                            field.name(),
+                            converted_column.data_type().clone(),
+                            field.is_nullable(),
+                        )
+                            .with_metadata(metadata),
                     );
                     Arc::clone(&converted_column)
                 }
