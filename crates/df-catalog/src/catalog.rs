@@ -87,12 +87,7 @@ impl CatalogProvider for CachingCatalog {
         schema_names
     }
 
-
-    #[tracing::instrument(
-        name = "CachingCatalog::schema",
-        level = "debug",
-        skip(self),
-    )]
+    #[tracing::instrument(name = "CachingCatalog::schema", level = "debug", skip(self))]
     #[allow(clippy::as_conversions)]
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
         if let Some(schema) = self.schemas_cache.get(name) {
@@ -111,7 +106,6 @@ impl CatalogProvider for CachingCatalog {
             None
         }
     }
-
 
     #[tracing::instrument(
         name = "CachingCatalog::register_schema",
@@ -133,7 +127,6 @@ impl CatalogProvider for CachingCatalog {
             .insert(name.to_string(), Arc::clone(&caching_schema));
         self.catalog.register_schema(name, schema)
     }
-
 
     #[tracing::instrument(
         name = "CachingCatalog::deregister_schema",

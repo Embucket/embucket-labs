@@ -41,8 +41,9 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::{CreateMemoryTable, DdlStatement, Expr as DFExpr, Projection, TryCast};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use df_catalog::catalog::CachingCatalog;
+use df_catalog::catalog_list::{CachedEntity, CachedEntityOp};
+use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
-use df_catalog::catalog_list::CachedEntity;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, functions_rewriter, inline_aliases_in_query, json_element,
@@ -135,7 +136,18 @@ impl UserQuery {
             .unwrap_or_else(|| "public".to_string())
     }
 
-    async fn refresh_catalog_partially(&self, entity: CachedEntity, drop: bool, names: (&str, &str, &str)) -> ExecutionResult<()> {
+    #[instrument(
+        name = "UserQuery::refresh_catalog_partially",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    async fn refresh_catalog_partially(
+        &self,
+        op: CachedEntityOp,
+        entity: CachedEntity,
+        ident: (&str, &str, &str),
+    ) -> ExecutionResult<()> {
         if let Some(catalog_list_impl) = self
             .session
             .ctx
@@ -144,10 +156,19 @@ impl UserQuery {
             .as_any()
             .downcast_ref::<EmbucketCatalogList>()
         {
-            catalog_list_impl
-                .refresh_cache_entity(entity, drop, names)
+            let res = catalog_list_impl
+                .refresh_cache(op, entity, ident)
                 .await
-                .context(RefreshCatalogListSnafu)?;
+                .context(RefreshCatalogListSnafu);
+
+            // Not sure we need this, but just in case
+            // TODO: Remove following block when refresh_catalog removed
+            if let Err(ExecutionError::RefreshCatalogList { source, .. }) = res {
+                // refresh entire catalog if cache error happen
+                if let CatalogError::InvalidCache { .. } = *source {
+                    self.refresh_catalog().await?;
+                }
+            }
         }
         Ok(())
     }
@@ -218,7 +239,13 @@ impl UserQuery {
     }
 
     #[allow(clippy::too_many_lines)]
-    #[instrument(name = "UserQuery::execute", level = "debug", skip(self), fields(statement), err)]
+    #[instrument(
+        name = "UserQuery::execute",
+        level = "debug",
+        skip(self),
+        fields(statement),
+        err
+    )]
     pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
@@ -307,13 +334,13 @@ impl UserQuery {
                 }
                 Statement::CreateSchema { .. } => {
                     let result = Box::pin(self.create_schema(*s)).await;
-                    // self.refresh_catalog().await?;
                     return result;
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
                     let result = Box::pin(self.create_stage_query(*s)).await;
-                    self.refresh_catalog().await?;
+                    // It seems `refresh_catalog()` is not needed here since we already
+                    // maintain tables_cache when registering, deregistering tables
                     return result;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
@@ -339,7 +366,6 @@ impl UserQuery {
                 }
                 Statement::Truncate { table_names, .. } => {
                     let result = Box::pin(self.truncate_table(table_names)).await;
-                    self.refresh_catalog().await?;
                     return result;
                 }
                 Statement::Query(mut subquery) => {
@@ -349,7 +375,6 @@ impl UserQuery {
                 }
                 Statement::Drop { .. } => {
                     let result = Box::pin(self.drop_query(*s)).await;
-                    self.refresh_catalog().await?;
                     return result;
                 }
                 Statement::Merge { .. } => {
@@ -469,6 +494,12 @@ impl UserQuery {
                         .drop_table(&ident)
                         .await
                         .context(ex_error::IcebergSnafu)?;
+                    self.refresh_catalog_partially(
+                        CachedEntityOp::Delete,
+                        CachedEntity::Table,
+                        (catalog_name, &schema_name, ident.name()),
+                    )
+                    .await?;
                 }
                 self.status_response()
             }
@@ -484,6 +515,12 @@ impl UserQuery {
                         .drop_namespace(namespace)
                         .await
                         .context(ex_error::IcebergSnafu)?;
+                    self.refresh_catalog_partially(
+                        CachedEntityOp::Delete,
+                        CachedEntity::Schema,
+                        (catalog_name, &schema_name, ""),
+                    )
+                    .await?;
                 }
                 self.status_response()
             }
@@ -542,8 +579,12 @@ impl UserQuery {
         .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
-        self.refresh_catalog_partially(CachedEntity::Table, false,
-            (&ident.database, &ident.schema, &ident.table)).await?;
+        self.refresh_catalog_partially(
+            CachedEntityOp::Create,
+            CachedEntity::Table,
+            (&ident.database, &ident.schema, &ident.table),
+        )
+        .await?;
 
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
@@ -1034,8 +1075,12 @@ impl UserQuery {
             .await
             .context(ex_error::IcebergSnafu)?;
 
-        self.refresh_catalog_partially(CachedEntity::Schema, false, 
-            (&ident.database, &ident.schema, "")).await?;
+        self.refresh_catalog_partially(
+            CachedEntityOp::Create,
+            CachedEntity::Schema,
+            (&ident.database, &ident.schema, ""),
+        )
+        .await?;
 
         self.created_entity_response()
     }
@@ -1232,6 +1277,13 @@ impl UserQuery {
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 
+    #[instrument(
+        name = "UserQuery::truncate_table",
+        level = "trace",
+        skip(self),
+        err,
+        ret
+    )]
     pub async fn truncate_table(
         &self,
         table_names: Vec<TruncateTableTarget>,
@@ -1247,7 +1299,30 @@ impl UserQuery {
             ),
             QueryContext::default(),
         );
-        query.execute().await
+        let res = query.execute().await;
+
+        let MetastoreTableIdent {
+            database,
+            schema,
+            table,
+        } = object_name.into();
+
+        // reset table's cache: delete, create again
+        // We may not need operation of such kind, so no `CachedEntityOp::Refresh` added
+        self.refresh_catalog_partially(
+            CachedEntityOp::Delete,
+            CachedEntity::Table,
+            (&database, &schema, &table),
+        )
+        .await?;
+        self.refresh_catalog_partially(
+            CachedEntityOp::Create,
+            CachedEntity::Table,
+            (&database, &schema, &table),
+        )
+        .await?;
+
+        res
     }
 
     #[must_use]
