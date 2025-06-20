@@ -291,8 +291,31 @@ pub async fn list_schemas(
     Path(database_name): Path<String>,
 ) -> Result<Json<SchemasResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), None, None);
+    let now = chrono::Utc::now().to_string();
+    let sql_history_schema = format!(
+        "UNION ALL SELECT 'history' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
+        now.clone(),
+        now.clone()
+    );
+    let sql_meta_schema = format!(
+        "UNION ALL SELECT 'meta' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
+        now.clone(),
+        now.clone()
+    );
+    let sql_information_schema = match database_name.as_str() {
+        "slatedb" => format!(
+            "UNION ALL SELECT 'information_schema' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
+            now.clone(),
+            now.clone()
+        ),
+        _ => "UNION ALL SELECT 'information_schema' AS schema_name, database_name, created_at, updated_at FROM slatedb.meta.databases".to_string()
+    };
     let sql_string = format!(
-        "SELECT * FROM slatedb.meta.schemas WHERE database_name = '{}'",
+        "SELECT * FROM (SELECT * FROM slatedb.meta.schemas {sql_history_schema} {sql_meta_schema} {sql_information_schema})"
+    );
+    let sql_string = format!(
+        "{} WHERE database_name = '{}'",
+        sql_string,
         database_name.clone()
     );
     let sql_string = apply_parameters(&sql_string, parameters, &["schema_name", "database_name"]);
