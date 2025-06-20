@@ -470,7 +470,22 @@ def convert_value2(value, sql_type):
     converter_method = CONVERTER.to_python_method(sql_type.upper(), col)
     if converter_method is None:
         return value
-    return converter_method(value)
+    try:
+        return converter_method(value)
+    except Exception as e:
+        # Handle Snowflake connector conversion errors gracefully
+        error_msg = str(e)
+
+        # Check if this is a known Snowflake connector conversion error
+        if any(error_type in error_msg for error_type in ['ValueError']):
+            # Log a clean error message instead of the full traceback
+            logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
+            # Return the original value as a string fallback
+            return str(value) if value is not None else 'NULL'
+        else:
+            # For other exceptions, preserve the original behavior
+            logger.error(repr(e))
+            raise e
 
 def convert_value(value, col: ResultMetadata):
     if value is None or value == 'NULL':
@@ -513,8 +528,19 @@ def convert_value(value, col: ResultMetadata):
         try:
             res = converter_method(value)
         except Exception as e:
-            logger.error(repr(e))
-            raise e
+            # Handle Snowflake connector conversion errors gracefully
+            error_msg = str(e)
+
+            # Check if this is a known Snowflake connector conversion error
+            if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
+                # Log a clean error message instead of the full traceback
+                logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
+                # Return the original value as a string fallback
+                res = str(value) if value is not None else 'NULL'
+            else:
+                # For other exceptions, preserve the original behavior
+                logger.error(repr(e))
+                raise e
     logger.debug(f'converted to: {res}')
     return res
 
