@@ -173,6 +173,15 @@ pub struct CliOpts {
         help = "Tracing level, it can be overrided by *RUST_LOG* env var"
     )]
     pub tracing_level: TracingLevel,
+
+    #[arg(
+        long,
+        value_enum,
+        env = "span_processor",
+        default_value = "batch-span-processor",
+        help = "Tracing span processor"
+    )]
+    pub tracing_span_processor: TracingSpanProcessor,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -236,6 +245,12 @@ pub enum TracingLevel {
     Info,
     Debug,
     Trace,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum TracingSpanProcessor {
+    BatchSpanProcessor,
+    BatchSpanProcessorExperimentalAsyncRuntime,
 }
 
 #[allow(clippy::from_over_into)]

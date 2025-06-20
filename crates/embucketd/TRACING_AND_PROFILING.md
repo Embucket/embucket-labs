@@ -3,6 +3,19 @@
 ## Tracing
 Embucket uses `tracing::instrument` for instrumenting a code for tracing. It's can be used in both dev and production environments. For development use `info`, `debug` or `trace` level; for production `info` level is recommended.
 
+### Tracing span processor experimental async runtime
+We use `BatchSpanProcessor` that uses dedicated background thread for collecting and exporting spans, it also suitable for production. But for some dev environments it can hang on startup as reported in [issue #1123](https://github.com/embucket/embucket/issues/1123). In this case it's possible switching to `BatchSpanProcessor` using experimental async runtime. 
+Try this cmd-line arg: `--tracing-span-processor=batch-span-processor-experimental-async-runtime`.
+
+### Tracing span processor tuning
+BatchSpanProcessor can be tuned with following environment variables:
+* `OTEL_BSP_MAX_CONCURRENT_EXPORTS`: Maximum number of concurrent exports threads. When used with cmd line arg:
+`--tracing-span-processor=batch-span-processor-experimental-async-runtime`
+* `OTEL_BSP_SCHEDULE_DELAY`: Frequency at which the batch is exported, in miliseconds. Setting to higher values helps decreasing amount of "BatchSpanProcessor.ExportError" messages in log when no OTLP collector is used.
+* `OTEL_BSP_EXPORT_TIMEOUT`: Maximum allowed time to export data.
+* `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`: Maximum number of spans to include in a single export.
+* `OTEL_BSP_MAX_QUEUE_SIZE`: Maximum number of spans that can be buffered.
+
 ### Logging
 Logging is the basic way to observe debug and tracing events.
 Usually `RUST_LOG=debug` is just enough. For tracing use `RUST_LOG=trace`

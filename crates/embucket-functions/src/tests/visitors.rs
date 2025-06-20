@@ -1,6 +1,5 @@
 use crate::visitors::{
-    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases,
-    table_result_scan,
+    functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases, table_functions,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -86,6 +85,11 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
+        // SHA2 function tests
+        ("SELECT sha2('hello')", "SELECT sha256('hello')"),
+        ("SELECT sha2('hello', 224)", "SELECT sha224('hello')"),
+        ("SELECT sha2('hello', 256)", "SELECT sha256('hello')"),
+        ("SELECT sha2('hello', 512)", "SELECT sha512('hello')"),
     ];
 
     for (input, expected) in cases {
@@ -184,6 +188,10 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             "select  sum(page_views) as page_views,  sum(engaged_time_in_s) as engaged_time_in_s from  test group by 1,2",
             "SELECT sum(page_views) AS page_views, sum(engaged_time_in_s) AS engaged_time_in_s FROM test GROUP BY 1, 2"
         ),
+        (
+            "with test as (select 122 as b) SELECT b as c FROM test QUALIFY ROW_NUMBER() OVER(PARTITION BY c) = 1",
+            "WITH test AS (SELECT 122 AS b) SELECT b AS c FROM test QUALIFY ROW_NUMBER() OVER (PARTITION BY b) = 1"
+        ),
     ];
 
     for (input, expected) in cases {
@@ -217,12 +225,16 @@ fn test_table_function_result_scan() -> DFResult<()> {
             from table(result_scan(last_query_id(-1))) a left join test as b on a.t = b.t",
             "SELECT a.*, b.IS_ICEBERG AS 'is_iceberg' FROM result_scan(last_query_id(-1)) AS a LEFT JOIN test AS b ON a.t = b.t",
         ),
+        (
+            "SELECT * FROM TABLE(FLATTEN(input => parse_json('[1, 77]')))",
+            "SELECT * FROM FLATTEN(input => parse_json('[1, 77]'))",
+        ),
     ];
 
     for (input, expected) in cases {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
         if let DFStatement::Statement(ref mut stmt) = statement {
-            table_result_scan::visit(stmt);
+            table_functions::visit(stmt);
         }
         assert_eq!(statement.to_string(), expected);
     }

@@ -1,4 +1,5 @@
 pub(crate) mod cli;
+pub(crate) mod helpers;
 
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
@@ -18,7 +19,7 @@ use api_ui::router::create_router as create_ui_router;
 use api_ui::router::ui_open_api_spec;
 use api_ui::state::AppState as UIAppState;
 use api_ui::web_assets::config::StaticWebConfig;
-use api_ui::web_assets::server::run_web_assets_server;
+use api_ui::web_assets::web_assets_app;
 use axum::middleware;
 use axum::{
     Json, Router,
@@ -34,7 +35,10 @@ use dotenv::dotenv;
 use object_store::path::Path;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::runtime::TokioCurrentThread;
+use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::net::SocketAddr;
@@ -80,7 +84,7 @@ async fn main() {
 
     let opts = cli::CliOpts::parse();
 
-    let provider = setup_tracing(&opts);
+    let tracing_provider = setup_tracing(&opts);
 
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
@@ -200,14 +204,24 @@ async fn main() {
         .layer(CatchPanicLayer::new())
         .into_make_service_with_connect_info::<SocketAddr>();
 
-    // Runs static assets server in background
-    run_web_assets_server(&static_web_config)
+    // Create web assets server
+    let web_assets_addr = helpers::resolve_ipv4(format!(
+        "{}:{}",
+        static_web_config.host, static_web_config.port
+    ))
+    .expect("Failed to resolve web assets server address");
+    let listener = tokio::net::TcpListener::bind(web_assets_addr)
         .await
-        .expect("Failed to start static assets server");
+        .expect("Failed to bind to web assets server address");
+    let addr = listener.local_addr().expect("Failed to get local address");
+    tracing::info!("Listening on http://{}", addr);
+    // Runs web assets server in background
+    tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
 
-    let host = web_config.host.clone();
-    let port = web_config.port;
-    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
+    // Create web server
+    let web_addr = helpers::resolve_ipv4(format!("{}:{}", web_config.host, web_config.port))
+        .expect("Failed to resolve web server address");
+    let listener = tokio::net::TcpListener::bind(web_addr)
         .await
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
@@ -217,7 +231,7 @@ async fn main() {
         .await
         .expect("Failed to start server");
 
-    provider
+    tracing_provider
         .shutdown()
         .expect("TracerProvider should shutdown successfully");
 }
@@ -232,10 +246,22 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
 
     let resource = Resource::builder().with_service_name("Em").build();
 
-    let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(resource)
-        .build();
+    // Since BatchSpanProcessor and BatchSpanProcessorAsyncRuntime are not compatible with each other
+    // we just create TracerProvider with different span processors
+    let tracing_provider = match opts.tracing_span_processor {
+        cli::TracingSpanProcessor::BatchSpanProcessor => SdkTracerProvider::builder()
+            .with_span_processor(BatchSpanProcessor::builder(exporter).build())
+            .with_resource(resource)
+            .build(),
+        cli::TracingSpanProcessor::BatchSpanProcessorExperimentalAsyncRuntime => {
+            SdkTracerProvider::builder()
+                .with_span_processor(
+                    BatchSpanProcessorAsyncRuntime::builder(exporter, TokioCurrentThread).build(),
+                )
+                .with_resource(resource)
+                .build()
+        }
+    };
 
     let targets_with_level =
         |targets: &[&'static str], level: LevelFilter| -> Vec<(&str, LevelFilter)> {
@@ -246,7 +272,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     tracing_subscriber::registry()
         // Telemetry filtering
         .with(
-            tracing_opentelemetry::OpenTelemetryLayer::new(provider.tracer("embucket"))
+            tracing_opentelemetry::OpenTelemetryLayer::new(tracing_provider.tracer("embucket"))
                 .with_level(true)
                 .with_filter(Targets::default().with_targets(targets_with_level(
                     &TARGETS,
@@ -256,8 +282,10 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
         // Logs filtering
         .with(
             tracing_subscriber::fmt::layer()
-                .pretty()
+                .with_target(true)
+                .with_level(true)
                 .with_span_events(FmtSpan::CLOSE)
+                .json()
                 .with_filter(match std::env::var("RUST_LOG") {
                     Ok(val) => match val.parse::<Targets>() {
                         // env var parse OK
@@ -272,14 +300,9 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                     // No var set: use default log level INFO
                     _ => Targets::default()
                         .with_targets(targets_with_level(&TARGETS, LevelFilter::INFO))
-                        // disable following targets:
                         .with_targets(targets_with_level(
-                            &[
-                                "tower_sessions",
-                                "tower_sessions_core",
-                                "tower_http",
-                                "opentelemetry_sdk",
-                            ],
+                            // disable following targets:
+                            &["tower_sessions", "tower_sessions_core", "tower_http"],
                             LevelFilter::OFF,
                         ))
                         .with_default(LevelFilter::INFO),
@@ -287,7 +310,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
         )
         .init();
 
-    provider
+    tracing_provider
 }
 
 /// This func will wait for a signal to shutdown the service.
