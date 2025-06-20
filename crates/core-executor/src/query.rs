@@ -146,7 +146,6 @@ impl UserQuery {
         &self,
         op: CachedEntityOp,
         entity: CachedEntity,
-        ident: (&str, &str, &str),
     ) -> ExecutionResult<()> {
         if let Some(catalog_list_impl) = self
             .session
@@ -157,7 +156,7 @@ impl UserQuery {
             .downcast_ref::<EmbucketCatalogList>()
         {
             let res = catalog_list_impl
-                .refresh_cache(op, entity, ident)
+                .refresh_cache(op, entity)
                 .await
                 .context(RefreshCatalogListSnafu);
 
@@ -496,8 +495,11 @@ impl UserQuery {
                         .context(ex_error::IcebergSnafu)?;
                     self.refresh_catalog_partially(
                         CachedEntityOp::Delete,
-                        CachedEntity::Table,
-                        (catalog_name, &schema_name, ident.name()),
+                        CachedEntity::Table(MetastoreTableIdent {
+                            database: catalog_name.to_string(),
+                            schema: schema_name,
+                            table: ident.name().to_string(),
+                        }),
                     )
                     .await?;
                 }
@@ -517,8 +519,10 @@ impl UserQuery {
                         .context(ex_error::IcebergSnafu)?;
                     self.refresh_catalog_partially(
                         CachedEntityOp::Delete,
-                        CachedEntity::Schema,
-                        (catalog_name, &schema_name, ""),
+                        CachedEntity::Schema(MetastoreSchemaIdent {
+                            database: catalog_name.to_string(),
+                            schema: schema_name,
+                        }),
                     )
                     .await?;
                 }
@@ -579,12 +583,8 @@ impl UserQuery {
         .await?;
 
         // Now we have created table in the metastore, we need to register it in the catalog
-        self.refresh_catalog_partially(
-            CachedEntityOp::Create,
-            CachedEntity::Table,
-            (&ident.database, &ident.schema, &ident.table),
-        )
-        .await?;
+        self.refresh_catalog_partially(CachedEntityOp::Create, CachedEntity::Table(ident))
+            .await?;
 
         // Insert data to new table
         // Since we don't execute logical plan, and we don't transform it to physical plan and
@@ -1075,12 +1075,8 @@ impl UserQuery {
             .await
             .context(ex_error::IcebergSnafu)?;
 
-        self.refresh_catalog_partially(
-            CachedEntityOp::Create,
-            CachedEntity::Schema,
-            (&ident.database, &ident.schema, ""),
-        )
-        .await?;
+        self.refresh_catalog_partially(CachedEntityOp::Create, CachedEntity::Schema(ident))
+            .await?;
 
         self.created_entity_response()
     }
@@ -1301,26 +1297,17 @@ impl UserQuery {
         );
         let res = query.execute().await;
 
-        let MetastoreTableIdent {
-            database,
-            schema,
-            table,
-        } = object_name.into();
+        let table_ident: MetastoreTableIdent = object_name.into();
 
         // reset table's cache: delete, create again
         // We may not need operation of such kind, so no `CachedEntityOp::Refresh` added
         self.refresh_catalog_partially(
             CachedEntityOp::Delete,
-            CachedEntity::Table,
-            (&database, &schema, &table),
+            CachedEntity::Table(table_ident.clone()),
         )
         .await?;
-        self.refresh_catalog_partially(
-            CachedEntityOp::Create,
-            CachedEntity::Table,
-            (&database, &schema, &table),
-        )
-        .await?;
+        self.refresh_catalog_partially(CachedEntityOp::Create, CachedEntity::Table(table_ident))
+            .await?;
 
         res
     }

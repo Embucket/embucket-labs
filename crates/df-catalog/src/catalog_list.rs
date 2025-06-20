@@ -10,6 +10,7 @@ use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
 use datafusion::{
@@ -33,8 +34,8 @@ pub const DEFAULT_CATALOG: &str = "embucket";
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CachedEntity {
-    Schema,
-    Table,
+    Schema(SchemaIdent),
+    Table(TableIdent),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -193,6 +194,20 @@ impl EmbucketCatalogList {
         Ok(catalogs)
     }
 
+    /// Do not keep returned references to avoid deadlocks
+    fn catalog_ref_by_name(
+        &self,
+        name: &str,
+    ) -> Result<dashmap::mapref::one::Ref<'_, String, Arc<CachingCatalog>>> {
+        self.catalogs.get(name).ok_or_else(|| {
+            InvalidCacheSnafu {
+                entity: "catalog",
+                name,
+            }
+            .build()
+        })
+    }
+
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(
         name = "EmbucketCatalogList::refresh_schema",
@@ -200,86 +215,66 @@ impl EmbucketCatalogList {
         skip(self),
         err
     )]
-    pub async fn refresh_cache(
-        &self,
-        op: CachedEntityOp,
-        entity: CachedEntity,
-        names: (&str, &str, &str),
-    ) -> Result<()> {
-        let (catalog, schema, table) = names;
-
-        let catalog_not_found = || {
-            InvalidCacheSnafu {
-                entity: "catalog",
-                name: catalog,
-            }
-            .build()
-        };
-        let catalog_ref = self.catalogs.get(catalog).ok_or_else(catalog_not_found)?;
-
-        let schema_not_found = || {
-            InvalidCacheSnafu {
-                entity: "schema",
-                name: format!("{catalog}.{schema}"),
-            }
-            .build()
-        };
-        if entity == CachedEntity::Schema {
-            if op == CachedEntityOp::Delete {
-                let _ = catalog_ref
-                    .schemas_cache
-                    .remove(schema)
-                    .ok_or_else(schema_not_found)?;
-            } else {
-                // create schema cache without any tables
-                if let Some(schema_provider) = catalog_ref.catalog.schema(schema) {
-                    let schema = CachingSchema {
-                        schema: schema_provider,
-                        tables_cache: DashMap::default(),
-                        name: schema.to_string(),
-                    };
-                    catalog_ref
-                        .schemas_cache
-                        .insert(schema.name.clone(), Arc::new(schema));
+    pub async fn refresh_cache(&self, op: CachedEntityOp, entity: CachedEntity) -> Result<()> {
+        match entity {
+            CachedEntity::Schema(schema_ident) => {
+                let SchemaIdent { schema, database } = schema_ident;
+                let catalog_ref = self.catalog_ref_by_name(&database)?;
+                if !catalog_ref.should_refresh {
+                    return Ok(());
+                }
+                if op == CachedEntityOp::Delete {
+                    catalog_ref.schemas_cache.remove(&schema);
+                } else {
+                    // create schema cache without any tables
+                    if let Some(schema_provider) = catalog_ref.catalog.schema(&schema) {
+                        let schema = CachingSchema {
+                            schema: schema_provider,
+                            tables_cache: DashMap::default(),
+                            name: schema.to_string(),
+                        };
+                        catalog_ref
+                            .schemas_cache
+                            .insert(schema.name.clone(), Arc::new(schema));
+                    }
                 }
             }
-            return Ok(());
-        }
-        let schema_ref = catalog_ref
-            .schemas_cache
-            .get(schema)
-            .ok_or_else(schema_not_found)?;
+            CachedEntity::Table(table_ident) => {
+                let TableIdent {
+                    database,
+                    schema,
+                    table,
+                } = table_ident;
+                let catalog_ref = self.catalog_ref_by_name(&database)?;
+                if !catalog_ref.should_refresh {
+                    return Ok(());
+                }
+                let schema_ref = catalog_ref.schemas_cache.get(&schema).ok_or_else(|| {
+                    InvalidCacheSnafu {
+                        entity: "schema",
+                        name: format!("{database}.{schema}"),
+                    }
+                    .build()
+                })?;
 
-        let table_not_found = || {
-            InvalidCacheSnafu {
-                entity: "table",
-                name: format!("{catalog}.{schema}.{table}"),
-            }
-            .build()
-        };
-        if entity == CachedEntity::Table {
-            if op == CachedEntityOp::Delete {
-                schema_ref
-                    .tables_cache
-                    .remove(table)
-                    .ok_or_else(table_not_found)?;
-            } else if let Some(table_provider) = schema_ref
-                .schema
-                .table(table)
-                .await
-                .context(df_catalog_error::DataFusionSnafu)?
-            {
-                schema_ref.tables_cache.insert(
-                    table.to_string(),
-                    Arc::new(CachingTable::new_with_schema(
+                if op == CachedEntityOp::Delete {
+                    schema_ref.tables_cache.remove(&table);
+                } else if let Some(table_provider) = schema_ref
+                    .schema
+                    .table(&table)
+                    .await
+                    .context(df_catalog_error::DataFusionSnafu)?
+                {
+                    schema_ref.tables_cache.insert(
                         table.to_string(),
-                        table_provider.schema(),
-                        Arc::clone(&table_provider),
-                    )),
-                );
+                        Arc::new(CachingTable::new_with_schema(
+                            table.to_string(),
+                            table_provider.schema(),
+                            Arc::clone(&table_provider),
+                        )),
+                    );
+                }
             }
-
-            return Ok(());
         }
 
         Ok(())
