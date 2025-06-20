@@ -209,22 +209,12 @@ impl EmbucketCatalogList {
     /// - For a table: The table cache is invalidated. If the table exists in the underlying schema, it is (re-)cached; otherwise, the cache entry is removed.
     ///
     /// # Arguments
-    ///
     /// * `entity` - The cached entity to invalidate, which can be either a schema or a table.
     ///
     /// # Errors
-    ///
     /// Returns an error if:
     /// - The specified catalog or schema does not exist in the cache.
     /// - There is a failure when accessing the underlying catalog or schema provider.
-    ///
-    /// # Deadlock Warning
-    ///
-    /// Do not keep returned references from this method to avoid potential deadlocks.
-    ///
-    /// # Instrumentation
-    ///
-    /// This method is instrumented for tracing and logs debug-level information.    
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(
         name = "EmbucketCatalogList::refresh_schema",
