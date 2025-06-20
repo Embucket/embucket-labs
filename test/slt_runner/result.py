@@ -479,7 +479,7 @@ def _handle_snowflake_converter_error(e: Exception, value, sql_type: str):
     error_msg = str(e)
 
     # Check if this is a known Snowflake connector conversion error
-    if any(error_type in error_msg for error_type in ['ValueError', 'could not convert string to float']):
+    if any(error_type in error_msg for error_type in ['ValueError']):
         # Log a clean error message instead of the full traceback
         logger.error(f"Snowflake connector conversion error for value '{value}' (type: {sql_type}): {error_msg}")
         # Return the original value as a string fallback
@@ -576,7 +576,6 @@ def sql_logic_test_convert_value(value, col, is_sqlite_test: bool) -> str:
     if sql_type == 'BOOLEAN':
         return "1" if convert_value(value, col) else "0"
     else:
-        # res = convert_value(value, 'TEXT')
         # Since we don't use database for converting values into str ...
         res = to_test_str(convert_value(value, col))
         if len(res) == 0:
