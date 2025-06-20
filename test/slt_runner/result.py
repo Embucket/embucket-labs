@@ -441,8 +441,8 @@ def compare_values(result: QueryResult, actual_str, expected_str, current_column
         return is_number_type_name(str(type))
 
     if is_numeric(sql_type) or sql_type == 'BOOLEAN' or sql_type == 'TIMESTAMP_TZ':
-        expected = convert_value2(expected_str, sql_type)
-        actual = convert_value2(actual_str, sql_type)
+        expected = convert_value(expected_str, sql_type)
+        actual = convert_value(actual_str, sql_type)
         return expected == actual
     expected = expected_str
     actual = actual_str
@@ -561,14 +561,6 @@ def convert_value(value, col_or_sql_type):
     logger.debug(f'converted to: {res}')
     return res
 
-# Compatibility alias for existing code that uses convert_value2
-def convert_value2(value, sql_type):
-    """
-    Compatibility alias for convert_value with string SQL type.
-    This function is deprecated - use convert_value directly.
-    """
-    return convert_value(value, sql_type)
-
 def to_test_str(value):
     if type(value) is bool:
         return 'TRUE' if value is True else 'FALSE'
@@ -583,7 +575,7 @@ def sql_logic_test_convert_value(value, col, is_sqlite_test: bool) -> str:
     if sql_type == 'BOOLEAN':
         return "1" if convert_value(value, col) else "0"
     else:
-        # res = convert_value2(value, 'TEXT')
+        # res = convert_value(value, 'TEXT')
         # Since we don't use database for converting values into str ...
         res = to_test_str(convert_value(value, col))
         if len(res) == 0:
