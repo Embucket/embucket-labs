@@ -38,12 +38,6 @@ pub enum CachedEntity {
     Table(TableIdent),
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum CachedEntityOp {
-    Create,
-    Delete,
-}
-
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
     pub history_store: Arc<dyn HistoryStore>,
@@ -208,6 +202,29 @@ impl EmbucketCatalogList {
         })
     }
 
+    /// Invalidates the cache for a specific catalog entity (schema or table).
+    ///
+    /// This method ensures that the cache for the specified entity is refreshed or cleared as appropriate.
+    /// - For a schema: If the schema exists in the underlying catalog, it is (re-)cached; if it does not exist, the cache entry is removed.
+    /// - For a table: The table cache is invalidated. If the table exists in the underlying schema, it is (re-)cached; otherwise, the cache entry is removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `entity` - The cached entity to invalidate, which can be either a schema or a table.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The specified catalog or schema does not exist in the cache.
+    /// - There is a failure when accessing the underlying catalog or schema provider.
+    ///
+    /// # Deadlock Warning
+    ///
+    /// Do not keep returned references from this method to avoid potential deadlocks.
+    ///
+    /// # Instrumentation
+    ///
+    /// This method is instrumented for tracing and logs debug-level information.    
     #[allow(clippy::as_conversions, clippy::too_many_lines)]
     #[tracing::instrument(
         name = "EmbucketCatalogList::refresh_schema",
@@ -215,7 +232,7 @@ impl EmbucketCatalogList {
         skip(self),
         err
     )]
-    pub async fn refresh_cache(&self, op: CachedEntityOp, entity: CachedEntity) -> Result<()> {
+    pub async fn invalidate_cache(&self, entity: CachedEntity) -> Result<()> {
         match entity {
             CachedEntity::Schema(schema_ident) => {
                 let SchemaIdent { schema, database } = schema_ident;
@@ -223,11 +240,9 @@ impl EmbucketCatalogList {
                 if !catalog_ref.should_refresh {
                     return Ok(());
                 }
-                if op == CachedEntityOp::Delete {
-                    catalog_ref.schemas_cache.remove(&schema);
-                } else {
-                    // create schema cache without any tables
-                    if let Some(schema_provider) = catalog_ref.catalog.schema(&schema) {
+                if let Some(schema_provider) = catalog_ref.catalog.schema(&schema) {
+                    // schema exists -> ensure it's cached
+                    if catalog_ref.schemas_cache.get(&schema).is_none() {
                         let schema = CachingSchema {
                             schema: schema_provider,
                             tables_cache: DashMap::default(),
@@ -237,6 +252,9 @@ impl EmbucketCatalogList {
                             .schemas_cache
                             .insert(schema.name.clone(), Arc::new(schema));
                     }
+                } else {
+                    // no schema exists -> ensure cache is empty
+                    catalog_ref.schemas_cache.remove(&schema);
                 }
             }
             CachedEntity::Table(table_ident) => {
@@ -257,14 +275,16 @@ impl EmbucketCatalogList {
                     .build()
                 })?;
 
-                if op == CachedEntityOp::Delete {
-                    schema_ref.tables_cache.remove(&table);
-                } else if let Some(table_provider) = schema_ref
+                // invalidate table cache if table exists, noop if doesn't
+                schema_ref.tables_cache.remove(&table);
+
+                if let Some(table_provider) = schema_ref
                     .schema
                     .table(&table)
                     .await
                     .context(df_catalog_error::DataFusionSnafu)?
                 {
+                    // ensure table is cached
                     schema_ref.tables_cache.insert(
                         table.to_string(),
                         Arc::new(CachingTable::new_with_schema(
