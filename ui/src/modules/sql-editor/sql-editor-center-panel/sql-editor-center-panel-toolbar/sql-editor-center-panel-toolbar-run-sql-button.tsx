@@ -40,9 +40,9 @@ export function SqlEditorCenterPanelToolbarRunSqlButton({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
   }, [handleRunQuery]);
 
