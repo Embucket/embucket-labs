@@ -14,8 +14,11 @@ export function DataPageTrees() {
 
   const navigate = useNavigate();
 
-  const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
-    useGetNavigationTrees();
+  const {
+    data: { items: navigationTrees } = {},
+    isFetching: isFetchingNavigationTrees,
+    isLoading: isLoadingNavigationTrees,
+  } = useGetNavigationTrees();
 
   const handleDatabaseClick = (tree: SelectedTree) => {
     navigate({
@@ -46,12 +49,15 @@ export function DataPageTrees() {
     }
   };
 
+  console.log(navigationTrees);
+
   return (
     <>
       <TreesLayout scrollAreaClassName="h-[calc(100vh-56px-32px-2px)]">
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
+          isLoadingDatabases={isLoadingNavigationTrees}
           defaultOpen={(database) => database.name === databaseName}
           isActive={(database) => database.name === databaseName}
           onClick={handleDatabaseClick}

@@ -17,8 +17,11 @@ import { SqlEditorLeftPanelTreesTableDropdown } from './sql-editor-left-panel-tr
 export function SqlEditorLeftPanelTrees() {
   const [isLoadDataDialogOpened, setIsLoadDataDialogOpened] = useState(false);
 
-  const { data: { items: navigationTrees } = {}, isFetching: isFetchingNavigationTrees } =
-    useGetNavigationTrees();
+  const {
+    data: { items: navigationTrees } = {},
+    isFetching: isFetchingNavigationTrees,
+    isLoading: isLoadingNavigationTrees,
+  } = useGetNavigationTrees();
 
   const selectedTree = useSqlEditorSettingsStore((state) => state.selectedTree);
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
@@ -37,6 +40,7 @@ export function SqlEditorLeftPanelTrees() {
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
+          isLoadingDatabases={isLoadingNavigationTrees}
           defaultOpen={(db) =>
             db.schemas.some((schema) =>
               [...schema.tables, ...schema.views].some(

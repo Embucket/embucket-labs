@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-import { keepPreviousData } from '@tanstack/react-query';
 import { Database, Folder, FolderTree, Table } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
@@ -145,6 +144,7 @@ export function TreesSchemas({
 
 interface TreesDatabasesProps extends TreeItemProps<NavigationTreeDatabase> {
   isFetchingDatabases: boolean;
+  isLoadingDatabases?: boolean;
   databases?: NavigationTreeDatabase[];
   defaultOpen?: (database: NavigationTreeDatabase) => boolean;
   children: (database: NavigationTreeDatabase) => React.ReactNode;
@@ -152,7 +152,7 @@ interface TreesDatabasesProps extends TreeItemProps<NavigationTreeDatabase> {
 
 export function TreesDatabases({
   databases,
-  isFetchingDatabases,
+  isLoadingDatabases,
   isActive,
   defaultOpen,
   onClick,
@@ -164,7 +164,7 @@ export function TreesDatabases({
   const [createVolumeDialogOpened, setCreateVolumeDialogOpened] = useState(false);
   const [createDatabaseDialogOpened, setCreateDatabaseDialogOpened] = useState(false);
 
-  if (isFetchingVolumes || isFetchingDatabases) {
+  if (isFetchingVolumes || isLoadingDatabases) {
     return <TreesSkeleton />;
   }
 
@@ -244,7 +244,7 @@ export function TreesLayout({ children, scrollAreaClassName }: TreesLayoutProps)
     refetch: refetchNavigationTrees,
     isFetching: isFetchingNavigationTrees,
     isLoading: isLoadingNavigationTrees,
-  } = useGetNavigationTrees({}, { query: { placeholderData: keepPreviousData } });
+  } = useGetNavigationTrees();
 
   return (
     <>
