@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import { useGetNavigationTrees } from '@/orval/navigation-trees';
+import { getGetNavigationTreesQueryKey, useGetNavigationTrees } from '@/orval/navigation-trees';
 import {
   getGetTablePreviewDataQueryKey,
   getGetTablesQueryKey,
@@ -53,6 +53,9 @@ export function TableDataUploadDialog({
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: getGetDashboardQueryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: getGetNavigationTreesQueryKey(),
           }),
           queryClient.invalidateQueries({
             queryKey: getGetTablesQueryKey(tree.databaseName, tree.schemaName),

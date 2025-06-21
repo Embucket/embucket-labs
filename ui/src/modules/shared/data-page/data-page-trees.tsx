@@ -49,8 +49,6 @@ export function DataPageTrees() {
     }
   };
 
-  console.log(navigationTrees);
-
   return (
     <>
       <TreesLayout scrollAreaClassName="h-[calc(100vh-56px-32px-2px)]">

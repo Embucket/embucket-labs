@@ -15,3 +15,4 @@
 - [ ] Scrollbars usages
 - [ ] Consistent table height (Not the same in Queries vs Query page)
 - [ ] Handle empty due to search state
+- [ ] Data preview table horizontal scroll issue
