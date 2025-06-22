@@ -955,16 +955,19 @@ impl UserQuery {
             .await
             .context(ex_error::DataFusionSnafu)?;
 
-        let target = target_provider
-            .as_any()
-            .downcast_ref::<DataFusionTable>()
-            .ok_or_else(|| {
-                ex_error::CatalogDownCastSnafu {
-                    catalog: "DataFusionTable".to_string(),
-                }
-                .build()
-            })?
-            .clone();
+        let target = DataFusionTable {
+            branch: None,
+            ..target_provider
+                .as_any()
+                .downcast_ref::<DataFusionTable>()
+                .ok_or_else(|| {
+                    ex_error::CatalogDownCastSnafu {
+                        catalog: "DataFusionTable".to_string(),
+                    }
+                    .build()
+                })?
+                .clone()
+        };
 
         let target_table_source = Arc::new(DefaultTableSource::new(target_provider));
 
