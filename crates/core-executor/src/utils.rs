@@ -18,6 +18,7 @@ use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
+use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
 use indexmap::IndexMap;
 use serde_json::Value;
@@ -542,6 +543,12 @@ impl From<NormalizedIdent> for MetastoreSchemaIdent {
 impl From<NormalizedIdent> for ObjectName {
     fn from(ident: NormalizedIdent) -> Self {
         Self::from(ident.0)
+    }
+}
+
+impl From<&NormalizedIdent> for TableReference {
+    fn from(ident: &NormalizedIdent) -> Self {
+        TableReference::parse_str(&String::from(ident))
     }
 }
 

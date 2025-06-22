@@ -202,6 +202,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Iceberg error: {error}"))]
+    SqlParser {
+        #[snafu(source(from(sqlparser::parser::ParserError, Box::new)))]
+        error: Box<sqlparser::parser::ParserError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("URL Parsing error: {error}"))]
     UrlParse {
         #[snafu(source)]

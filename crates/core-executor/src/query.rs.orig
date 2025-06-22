@@ -67,8 +67,13 @@ use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::{
-    ObjectNamePart, ObjectType, PivotValueSource, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
+<<<<<<< HEAD
+    MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource,
+=======
+    BinaryOperator, GroupByExpr, ObjectNamePart, ObjectType, PivotValueSource, Select, SelectItem,
+>>>>>>> 7176587d (use MergeIntoSink in merge_query)
+    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
+    visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -345,7 +350,6 @@ impl UserQuery {
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
-                | Statement::Rollback { .. }
                 | Statement::Insert { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
