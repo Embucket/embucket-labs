@@ -70,7 +70,6 @@
     "react-hook-form": "^7.58.1",
     "react-i18next": "^15.5.3",
     "react-resizable-panels": "^3.0.3",
-    "recharts": "^3.0.0",
     "sonner": "^2.0.5",
     "sql-formatter": "^15.6.5",
     "tailwind-merge": "^3.3.1",

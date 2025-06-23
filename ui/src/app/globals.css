@@ -123,12 +123,7 @@
   --ring: hsl(222.2 84% 4.9%);
   /* Border radius for card, input and buttons */
   --radius: 0.5rem;
-  /* Chart colors */
-  --chart-1: hsl(12 76% 61%);
-  --chart-2: hsl(173 58% 39%);
-  --chart-3: hsl(197 37% 24%);
-  --chart-4: hsl(43 74% 66%);
-  --chart-5: hsl(27 87% 67%);
+
   --sidebar: hsl(0 0% 98%);
   --sidebar-foreground: hsl(240 5.3% 26.1%);
   --sidebar-primary: hsl(240 5.9% 10%);
@@ -146,8 +141,9 @@
   --color4: hsl(240 2% 19%);
   --color5: hsl(0 0% 14.9%);
 
-  /* Default background color of <body />...etc */
+  /* Background color of <body />, some tooltips and hover cards */
   --background-secondary: #1f1f1f;
+  /* Default background for most components */
   --background: #171717;
   --foreground: var(--color2);
   /* Background color for <Card /> */
@@ -179,12 +175,6 @@
   --ring: hsl(0 0% 83.1%);
   /* Hover */
   --hover: #333333;
-  /* Chart colors */
-  --chart-1: hsl(220 70% 50%);
-  --chart-2: hsl(160 60% 45%);
-  --chart-3: hsl(30 80% 55%);
-  --chart-4: hsl(280 65% 60%);
-  --chart-5: hsl(340 75% 55%);
 
   --sidebar: #171717;
   /* Sidebar - Bg hover + Active bg */

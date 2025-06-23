@@ -47,10 +47,7 @@ export function TreeCollapsibleItem({
     >
       <CollapsibleTrigger asChild>
         <TriggerComponent
-          className={cn(
-            'hover:bg-hover data-[active=true]:bg-hover!',
-            triggerClassName,
-          )}
+          className={cn('hover:bg-hover data-[active=true]:bg-hover!', triggerClassName)}
           onClick={onClick}
           isActive={isActive}
           disabled={disabled}
