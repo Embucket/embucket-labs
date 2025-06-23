@@ -2104,8 +2104,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
     for merge_clause in merge_clause {
         let op = match merge_clause.clause_kind {
             MergeClauseKind::Matched => Ok(lit(3)),
-            MergeClauseKind::NotMatched => Ok(lit(2)),
-            MergeClauseKind::NotMatchedByTarget => Ok(lit(2)),
+            MergeClauseKind::NotMatched | MergeClauseKind::NotMatchedByTarget => Ok(lit(2)),
             _ => {
                 return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
             }
