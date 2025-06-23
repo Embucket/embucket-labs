@@ -2005,7 +2005,7 @@ impl UserQuery {
     }
 }
 
-pub(crate) fn merge_clause_projection<S: ContextProvider>(
+pub fn merge_clause_projection<S: ContextProvider>(
     sql_planner: &ExtendedSqlToRel<'_, S>,
     schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
@@ -2016,8 +2016,16 @@ pub(crate) fn merge_clause_projection<S: ContextProvider>(
     let mut planner_context = datafusion::sql::planner::PlannerContext::new();
 
     for merge_clause in merge_clause {
-        match (merge_clause.clause_kind, merge_clause.action) {
-            (MergeClauseKind::Matched, MergeAction::Update { assignments }) => {
+        let op = match merge_clause.clause_kind {
+            MergeClauseKind::Matched => Ok(lit(3)),
+            MergeClauseKind::NotMatched => Ok(lit(2)),
+            MergeClauseKind::NotMatchedByTarget => Ok(lit(2)),
+            _ => {
+                return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
+            }
+        }?;
+        match merge_clause.action {
+            MergeAction::Update { assignments } => {
                 for assignment in assignments {
                     match assignment.target {
                         AssignmentTarget::ColumnName(column) => {
@@ -2035,25 +2043,30 @@ pub(crate) fn merge_clause_projection<S: ContextProvider>(
                                 .as_ref()
                                 .sql_to_expr(assignment.value, schema, &mut planner_context)
                                 .context(ex_error::DataFusionSnafu)?;
-                            updates.insert(column_name, (lit(3), expr));
+                            updates.insert(column_name, (op.clone(), expr));
                         }
                         AssignmentTarget::Tuple(_) => todo!(),
                     }
                 }
             }
-            (MergeClauseKind::NotMatched, MergeAction::Insert(insert)) => {
+            MergeAction::Insert(insert) => {
                 let MergeInsertKind::Values(values) = insert.kind else {
                     return Err(ex_error::OnlyMergeStatementsSnafu.build());
                 };
-                for values in values.rows {
-                    for (column, value) in insert.columns.iter().zip(values.into_iter()) {
-                        let column_name = column.value.clone();
-                        let expr = sql_planner
-                            .as_ref()
-                            .sql_to_expr(value, schema, &mut planner_context)
-                            .context(ex_error::DataFusionSnafu)?;
-                        inserts.insert(column_name, (lit(2), expr));
-                    }
+                if values.rows.len() != 1 {
+                    return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
+                }
+                for (column, value) in insert
+                    .columns
+                    .iter()
+                    .zip(values.rows.into_iter().next().unwrap().into_iter())
+                {
+                    let column_name = column.value.clone();
+                    let expr = sql_planner
+                        .as_ref()
+                        .sql_to_expr(value, schema, &mut planner_context)
+                        .context(ex_error::DataFusionSnafu)?;
+                    inserts.insert(column_name, (op.clone(), expr));
                 }
             }
             _ => (),

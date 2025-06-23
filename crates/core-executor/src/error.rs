@@ -202,14 +202,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Iceberg error: {error}"))]
-    SqlParser {
-        #[snafu(source(from(sqlparser::parser::ParserError, Box::new)))]
-        error: Box<sqlparser::parser::ParserError>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("URL Parsing error: {error}"))]
     UrlParse {
         #[snafu(source)]
@@ -349,6 +341,16 @@ pub enum Error {
     SqlParser {
         #[snafu(source)]
         error: datafusion::sql::sqlparser::parser::ParserError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("NotMatchedByTarget is not supported in merge statements"))]
+    NotMatchedBySourceNotSupported {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Merge inserts only support one row"))]
+    MergeInsertOnlyOneRow {
         #[snafu(implicit)]
         location: Location,
     },
