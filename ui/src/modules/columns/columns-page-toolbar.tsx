@@ -1,28 +1,24 @@
-import { useParams } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
 import type { Column } from '@/orval/models';
-import { useGetTableColumns } from '@/orval/tables';
 
 interface ColumnsPageToolbarProps {
   columns: Column[];
   isFetchingColumns: boolean;
   search: string;
   onSearch: (value: string) => void;
+  onRefetchColumns: () => Promise<unknown>;
 }
 
-export function ColumnsPageToolbar({ columns, search, onSearch }: ColumnsPageToolbarProps) {
-  const { databaseName, schemaName, tableName } = useParams({
-    from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
-  });
-  const { refetch: refetchColumns, isFetching: isFetchingColumns } = useGetTableColumns(
-    databaseName,
-    schemaName,
-    tableName,
-  );
-
+export function ColumnsPageToolbar({
+  columns,
+  isFetchingColumns,
+  search,
+  onSearch,
+  onRefetchColumns,
+}: ColumnsPageToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">
@@ -39,7 +35,7 @@ export function ColumnsPageToolbar({ columns, search, onSearch }: ColumnsPageToo
             placeholder="Search columns"
           />
         </InputRoot>
-        <RefreshButton isDisabled={isFetchingColumns} onRefresh={refetchColumns} />
+        <RefreshButton isDisabled={isFetchingColumns} onRefresh={onRefetchColumns} />
       </div>
     </div>
   );

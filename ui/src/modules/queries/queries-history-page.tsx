@@ -13,13 +13,18 @@ export function QueriesHistoryPage() {
     data: { items: queries } = {},
     isFetching: isFetchingQueries,
     isLoading: isLoadingQueries,
+    refetch: refetchQueries,
   } = useGetQueries();
 
   return (
     <>
       <PageHeader title="Queries History" />
 
-      <QueriesHistoryPageToolbar queries={queries ?? []} isFetchingQueries={isFetchingQueries} />
+      <QueriesHistoryPageToolbar
+        queries={queries ?? []}
+        isFetchingQueries={isFetchingQueries}
+        onRefetchQueries={refetchQueries}
+      />
       {!queries?.length && !isLoadingQueries ? (
         <PageEmptyContainer
           Icon={DatabaseZap}

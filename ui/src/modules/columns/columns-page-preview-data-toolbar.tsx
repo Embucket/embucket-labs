@@ -1,32 +1,24 @@
-import { useParams } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
 import type { TablePreviewDataColumn } from '@/orval/models';
-import { useGetTablePreviewData } from '@/orval/tables';
 
 interface ColumnsPagePreviewDataToolbarProps {
   previewData: TablePreviewDataColumn[];
   isFetchingPreviewData: boolean;
   search: string;
   onSearch: (value: string) => void;
+  onRefetchPreviewData: () => Promise<unknown>;
 }
 
 export function ColumnsPagePreviewDataToolbar({
   previewData,
+  isFetchingPreviewData,
   search,
   onSearch,
+  onRefetchPreviewData,
 }: ColumnsPagePreviewDataToolbarProps) {
-  const { databaseName, schemaName, tableName } = useParams({
-    from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
-  });
-  const { refetch: refetchPreviewData, isFetching: isFetchingPreviewData } = useGetTablePreviewData(
-    databaseName,
-    schemaName,
-    tableName,
-  );
-
   return (
     <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">
@@ -43,7 +35,7 @@ export function ColumnsPagePreviewDataToolbar({
             placeholder="Search data"
           />
         </InputRoot>
-        <RefreshButton isDisabled={isFetchingPreviewData} onRefresh={refetchPreviewData} />
+        <RefreshButton isDisabled={isFetchingPreviewData} onRefresh={onRefetchPreviewData} />
       </div>
     </div>
   );

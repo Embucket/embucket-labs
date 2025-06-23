@@ -1,6 +1,5 @@
 # Next
 
-- [ ] isLoading vs isFetching (Fix naming everywhere)
 - [ ] Scrollbars usages
 - [ ] Consistent table height (Not the same in Queries vs Query page)
 - [ ] Data preview table horizontal scroll issue

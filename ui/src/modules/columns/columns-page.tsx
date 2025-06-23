@@ -31,12 +31,14 @@ export function ColumnsPage() {
     data: { items: columns } = {},
     isFetching: isFetchingColumns,
     isLoading: isLoadingColumns,
+    refetch: refetchColumns,
   } = useGetTableColumns(databaseName, schemaName, tableName);
 
   const {
     data: { items: previewData } = {},
     isFetching: isPreviewDataFetching,
     isLoading: isLoadingPreviewData,
+    refetch: refetchPreviewData,
   } = useGetTablePreviewData(databaseName, schemaName, tableName);
 
   const {
@@ -89,6 +91,7 @@ export function ColumnsPage() {
                 isFetchingColumns={isFetchingColumns}
                 search={search}
                 onSearch={setSearch}
+                onRefetchColumns={refetchColumns}
               />
               {isColumnsEmpty && !isLoadingColumns ? (
                 <PageEmptyContainer
@@ -113,6 +116,7 @@ export function ColumnsPage() {
                 isFetchingPreviewData={isPreviewDataFetching}
                 search={search}
                 onSearch={setSearch}
+                onRefetchPreviewData={refetchPreviewData}
               />
               {isPreviewEmpty && !isLoadingPreviewData ? (
                 <PageEmptyContainer

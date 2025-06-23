@@ -22,14 +22,10 @@ export function VolumesPage() {
     data: { items: volumes } = {},
     isFetching: isFetchingVolumes,
     isLoading: isLoadingVolumes,
-    refetch,
+    refetch: refetchVolumes,
   } = useGetVolumes({
     search: debouncedSearch,
   });
-
-  const handleRefetchVolumes = async () => {
-    await refetch();
-  };
 
   return (
     <>
@@ -47,7 +43,7 @@ export function VolumesPage() {
         onSetSearch={setSearch}
         volumes={volumes ?? []}
         isFetchingVolumes={isFetchingVolumes}
-        onRefetchVolumes={handleRefetchVolumes}
+        onRefetchVolumes={refetchVolumes}
       />
       {!volumes?.length && !isLoadingVolumes ? (
         <PageEmptyContainer

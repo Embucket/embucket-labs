@@ -3,16 +3,18 @@ import { Search } from 'lucide-react';
 import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
 import type { QueryRecord } from '@/orval/models';
-import { useGetQueries } from '@/orval/queries';
 
 interface QueriesHistoryPageToolbarProps {
   queries: QueryRecord[];
   isFetchingQueries: boolean;
+  onRefetchQueries: () => Promise<unknown>;
 }
 
-export function QueriesHistoryPageToolbar({ queries }: QueriesHistoryPageToolbarProps) {
-  const { refetch: refetchQueries, isFetching: isFetchingQueries } = useGetQueries();
-
+export function QueriesHistoryPageToolbar({
+  queries,
+  isFetchingQueries,
+  onRefetchQueries,
+}: QueriesHistoryPageToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">
@@ -25,7 +27,7 @@ export function QueriesHistoryPageToolbar({ queries }: QueriesHistoryPageToolbar
           </InputIcon>
           <Input disabled placeholder="Search" />
         </InputRoot>
-        <RefreshButton isDisabled={isFetchingQueries} onRefresh={refetchQueries} />
+        <RefreshButton isDisabled={isFetchingQueries} onRefresh={onRefetchQueries} />
       </div>
     </div>
   );
