@@ -17,7 +17,7 @@ export function Layout({ children }: LayoutProps) {
         'mr-4 w-[calc(100vw-(var(--sidebar-width))-16px)]',
       )}
     >
-      <div className="relative size-full rounded-lg border bg-[#1F1F1F]">{children}</div>
+      <div className="bg-background-secondary relative size-full rounded-lg border">{children}</div>
     </SidebarInset>
   );
 }

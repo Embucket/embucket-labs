@@ -46,7 +46,7 @@ export const SqlEditorRightPanelQuery = ({ query }: SqlEditorRightPanelQueriesPr
         </SidebarMenuItem>
       </HoverCardTrigger>
       <HoverCardContent className="flex size-full max-h-[220px] max-w-[400px] min-w-[240px] flex-1 flex-col p-1">
-        <div className="rounded bg-[#1F1F1F]">
+        <div className="bg-background-secondary rounded">
           <div className="mb-1 flex items-center justify-between p-2 pb-0">
             <Link to="/queries/$queryId" params={{ queryId: query.id.toString() }}>
               <Button

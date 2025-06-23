@@ -31,8 +31,7 @@ export function AppSidebarOrgMenu() {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          {/* TODO: Fix */}
-          <DropdownMenuTrigger className="bg-[#1F1F1F]" asChild>
+          <DropdownMenuTrigger className="bg-background-secondary" asChild>
             <SidebarMenuButton size="lg">
               <Avatar className="flex h-8 w-8 items-center justify-center rounded-lg">
                 <Building2 className="size-4" />
