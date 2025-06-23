@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { Table } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +36,8 @@ export function TableDataUploadDialog({
   schemaName,
   tableName,
 }: TableDataUploadDialogProps) {
+  const navigate = useNavigate();
+
   const { data: { items: navigationTrees } = {}, isLoading: isLoadingNavigationTrees } =
     useGetNavigationTrees();
 
@@ -70,6 +73,14 @@ export function TableDataUploadDialog({
         ]);
         toast.success('Data uploaded successfully');
         onSetOpened(false);
+        navigate({
+          to: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns',
+          params: {
+            databaseName: tree.databaseName,
+            schemaName: tree.schemaName,
+            tableName: tree.tableName,
+          },
+        });
       },
     },
   });
