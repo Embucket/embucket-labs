@@ -35,7 +35,7 @@ export function SqlEditorLeftPanelWorksheet({ worksheet }: SqlEditorLeftPanelWor
               onMouseEnter={() => setHoveredWorksheet(worksheet)}
               onMouseLeave={() => setHoveredWorksheet(undefined)}
               onClick={() => addTab(worksheet)}
-              className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
+              className="hover:bg-hover data-[active=true]:bg-hover!"
               isActive={isActive}
             >
               <Scroll />

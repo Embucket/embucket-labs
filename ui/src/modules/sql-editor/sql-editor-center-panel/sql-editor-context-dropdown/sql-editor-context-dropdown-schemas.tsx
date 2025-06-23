@@ -24,7 +24,7 @@ export const SqlEditorContextDropdownSchemas = ({
       <SidebarMenu>
         {schemas.map((db) => (
           <SidebarMenuButton
-            className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
+            className="hover:bg-hover data-[active=true]:bg-hover!"
             key={db.value}
             onClick={() => onSelectSchema(db.value)}
             isActive={selectedSchema === db.value}

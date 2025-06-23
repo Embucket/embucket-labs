@@ -21,7 +21,7 @@ export function SqlEditorCenterPanelHeaderTabs() {
             <div
               className={cn(
                 'bg-muted relative flex h-9 w-[180px] items-center self-end rounded-tl-md rounded-tr-md rounded-b-none border border-b-0 px-3 text-xs',
-                'hover:bg-sidebar-secondary-accent',
+                'hover:bg-hover',
                 isActive
                   ? 'text-primary-foreground bg-transparent hover:bg-transparent'
                   : 'border-none',

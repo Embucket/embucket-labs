@@ -59,7 +59,7 @@ export const SqlEditorCenterPanelHeader = () => {
         onClick={handleAddTab}
         variant="outline"
         size="icon"
-        className="hover:bg-sidebar-secondary-accent! mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 border-none transition-all"
+        className="hover:bg-hover! mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 border-none transition-all"
       >
         +
       </Button>

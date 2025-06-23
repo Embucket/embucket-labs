@@ -78,7 +78,7 @@ export function TreesTables({
         return (
           <SidebarMenuSubItem key={table.name}>
             <SidebarMenuSubButton
-              className="hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!"
+              className="hover:bg-hover data-[active=true]:bg-hover!"
               isActive={isActive?.(table)}
               onClick={() => {
                 onClick?.(tree);

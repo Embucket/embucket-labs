@@ -18,7 +18,7 @@ function DropdownMenuTrigger({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
   return (
     <DropdownMenuPrimitive.Trigger
-      className="data-[state=open]:bg-sidebar-secondary-accent"
+      className="data-[state=open]:bg-hover"
       data-slot="dropdown-menu-trigger"
       {...props}
     />

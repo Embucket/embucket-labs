@@ -29,7 +29,7 @@ export const SqlEditorCenterPanelToolbarVolumeSelect = () => {
       onValueChange={setSelectedOption}
       disabled={isPending || !volumes?.length}
     >
-      <SelectTrigger className="hover:bg-sidebar-secondary-accent! h-8! border-none bg-transparent! outline-0">
+      <SelectTrigger className="hover:bg-hover! h-8! border-none bg-transparent! outline-0">
         <div className="flex items-center gap-2">
           <Database className="size-4" />
           <SelectValue placeholder="Select volume" />

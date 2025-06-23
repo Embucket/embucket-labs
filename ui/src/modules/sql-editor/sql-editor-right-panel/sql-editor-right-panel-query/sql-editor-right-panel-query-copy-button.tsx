@@ -22,7 +22,7 @@ export const SqlEditorRightPanelQueryCopyButton = ({ query }: SqlEditorRightPane
   return (
     <Button
       variant="outline"
-      className="hover:bg-sidebar-secondary-accent! size-7! bg-transparent!"
+      className="hover:bg-hover! size-7! bg-transparent!"
       onClick={handleCopy}
     >
       {hasCopied ? <Check /> : <Copy />}

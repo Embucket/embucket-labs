@@ -59,7 +59,7 @@ export const SqlEditorContextDropdown = () => {
         {selectedDatabase && selectedSchema && (
           <SidebarMenuButton
             disabled={!selectedDatabase}
-            className="data-[state=open]:bg-sidebar-secondary-accent min-w-[100px]"
+            className="data-[state=open]:bg-hover min-w-[100px]"
           >
             <p className="truncate text-sm">{`${selectedDatabase}.${selectedSchema}`}</p>
             <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />

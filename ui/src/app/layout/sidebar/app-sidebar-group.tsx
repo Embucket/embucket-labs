@@ -42,7 +42,7 @@ export function AppSidebarGroup({ items, open }: { items: SidebarNavOption[]; op
                 {({ isActive }) => (
                   <SidebarMenuButton
                     disabled={item.disabled}
-                    className={cn(!isActive && 'hover:bg-sidebar-secondary-accent!', 'text-nowrap')}
+                    className={cn(!isActive && 'hover:bg-hover!', 'text-nowrap')}
                     tooltip={{
                       children: item.name,
                       hidden: open,

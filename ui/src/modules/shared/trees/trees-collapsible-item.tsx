@@ -48,7 +48,7 @@ export function TreeCollapsibleItem({
       <CollapsibleTrigger asChild>
         <TriggerComponent
           className={cn(
-            'hover:bg-sidebar-secondary-accent data-[active=true]:bg-sidebar-secondary-accent!',
+            'hover:bg-hover data-[active=true]:bg-hover!',
             triggerClassName,
           )}
           onClick={onClick}

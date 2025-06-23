@@ -74,7 +74,7 @@ const theme = EditorView.theme(
     },
     '.cm-autocomplete-item[aria-selected]': {
       padding: '4px 8px !important',
-      background: 'var(--sidebar-secondary-accent) !important',
+      background: 'var(--hover) !important',
       borderRadius: '4px !important',
     },
     '.cm-completionIcon': {
