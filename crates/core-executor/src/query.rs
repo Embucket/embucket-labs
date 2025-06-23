@@ -25,9 +25,9 @@ use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::col;
+use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
-use datafusion::prelude::{CsvReadOptions, DataFrame};
+use datafusion::prelude::{CsvReadOptions, DataFrame, coalesce};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::planner::ParserOptions;
@@ -38,12 +38,14 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DataFusionError, ResolvedTableReference, SchemaReference, TableReference, plan_datafusion_err,
+    DFSchema, DataFusionError, ResolvedTableReference, SchemaReference, TableReference,
+    plan_datafusion_err,
 };
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
+use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType, LogicalPlanBuilder,
-    Projection, TryCast, lit,
+    Projection, TryCast, case, lit,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -68,9 +70,9 @@ use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, ObjectNamePart, ObjectType, PivotValueSource, Select, SelectItem,
-    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
-    visit_relations_mut,
+    AssignmentTarget, BinaryOperator, GroupByExpr, MergeAction, MergeClause, MergeClauseKind,
+    MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource, Select, SelectItem, ShowObjects,
+    ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -969,7 +971,7 @@ impl UserQuery {
                 .clone()
         };
 
-        let target_table_source = Arc::new(DefaultTableSource::new(target_provider));
+        let target_table_source = Arc::new(DefaultTableSource::new(Arc::new(target.clone())));
 
         let target_plan = DataFrame::new(
             df_session_state.clone(),
@@ -978,7 +980,7 @@ impl UserQuery {
                 .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
-        .with_column(TARGET_EXISTS, lit(true))
+        .with_column(TARGET_EXISTS, lit(1u8))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
 
@@ -1007,7 +1009,7 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?,
         )
-        .with_column(SOURCE_EXISTS, lit(true))
+        .with_column(SOURCE_EXISTS, lit(2u8))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
 
@@ -1033,14 +1035,19 @@ impl UserQuery {
             .sql_to_expr((*on).clone(), &target_schema, &mut planner_context)
             .context(ex_error::DataFusionSnafu)?;
 
+        let merge_clause_projection =
+            merge_clause_projection(&sql_planner, &target_schema, clauses)?;
+
         let join_plan = LogicalPlanBuilder::new(target_plan)
             .join_on(source_plan, JoinType::Full, [on_expr; 1])
+            .context(ex_error::DataFusionSnafu)?
+            .project(merge_clause_projection)
             .context(ex_error::DataFusionSnafu)?
             .build()
             .context(ex_error::DataFusionSnafu)?;
 
-        let merge_into_plan = MergeIntoSink::new(Arc::new(join_plan), target.clone())
-            .context(ex_error::DataFusionSnafu)?;
+        let merge_into_plan =
+            MergeIntoSink::new(Arc::new(join_plan), target).context(ex_error::DataFusionSnafu)?;
 
         self.execute_logical_plan(LogicalPlan::Extension(Extension {
             node: Arc::new(merge_into_plan),
@@ -2084,6 +2091,90 @@ impl UserQuery {
     }
 }
 
+pub(crate) fn merge_clause_projection<S: ContextProvider>(
+    sql_planner: &ExtendedSqlToRel<'_, S>,
+    schema: &DFSchema,
+    merge_clause: Vec<MergeClause>,
+) -> ExecutionResult<Vec<logical_expr::Expr>> {
+    let mut updates: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
+    let mut inserts: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
+
+    let mut planner_context = datafusion::sql::planner::PlannerContext::new();
+
+    for merge_clause in merge_clause {
+        match (merge_clause.clause_kind, merge_clause.action) {
+            (MergeClauseKind::Matched, MergeAction::Update { assignments }) => {
+                for assignment in assignments {
+                    match assignment.target {
+                        AssignmentTarget::ColumnName(column) => {
+                            let column_name = column
+                                .0
+                                .last()
+                                .ok_or_else(|| {
+                                    ex_error::InvalidTableIdentifierSnafu {
+                                        ident: "Column name cannot be empty".to_string(),
+                                    }
+                                    .build()
+                                })?
+                                .to_string();
+                            let expr = sql_planner
+                                .as_ref()
+                                .sql_to_expr(assignment.value, schema, &mut planner_context)
+                                .context(ex_error::DataFusionSnafu)?;
+                            updates.insert(column_name, (lit(3), expr));
+                        }
+                        AssignmentTarget::Tuple(_) => todo!(),
+                    }
+                }
+            }
+            (MergeClauseKind::NotMatched, MergeAction::Insert(insert)) => {
+                let MergeInsertKind::Values(values) = insert.kind else {
+                    return Err(ex_error::OnlyMergeStatementsSnafu.build());
+                };
+                for values in values.rows {
+                    for (column, value) in insert.columns.iter().zip(values.into_iter()) {
+                        let column_name = column.value.clone();
+                        let expr = sql_planner
+                            .as_ref()
+                            .sql_to_expr(value, schema, &mut planner_context)
+                            .context(ex_error::DataFusionSnafu)?;
+                        inserts.insert(column_name, (lit(2), expr));
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+    let exprs = schema
+        .fields()
+        .iter()
+        .map(|field| {
+            let update = updates.remove(field.name());
+            let insert = inserts.remove(field.name());
+            let match_expr = coalesce(vec![
+                // 3 => matched
+                col(TARGET_EXISTS) + col(SOURCE_EXISTS),
+                // 2 => not matched by target
+                col(SOURCE_EXISTS),
+                // 1 => not matched by source
+                col(TARGET_EXISTS),
+                // 0 => not matched
+                lit(0),
+            ]);
+            let mut case_builder = case(match_expr);
+            if let Some((when, then)) = update {
+                case_builder.when(when, then);
+            }
+            if let Some((when, then)) = insert {
+                case_builder.when(when, then);
+            }
+            let case_expr = case_builder.otherwise(col(field.name()))?;
+            Ok::<_, DataFusionError>(case_expr)
+        })
+        .collect::<Result<_, DataFusionError>>()
+        .context(ex_error::DataFusionSnafu)?;
+    Ok(exprs)
+}
 fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
     if let Some(Value::SingleQuotedString(prefix)) = starts_with {
         let escaped = prefix.replace('\'', "''");
