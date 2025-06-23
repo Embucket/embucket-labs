@@ -3,7 +3,7 @@ import { ArrowDownToLine, Search, TextSearch } from 'lucide-react';
 import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs2';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { QueryRecord } from '@/orval/models';
 
 import { SqlEditorCenterBottomPanelQueryResultTable } from './sql-editor-center-bottom-panel-query-result-table';
@@ -36,7 +36,7 @@ export function SqlEditorCenterBottomPanel({
       )}
 
       {!noFields && (
-        <Tabs defaultValue="results" className="size-full">
+        <Tabs defaultValue="results" variant="underline" className="size-full">
           <TabsList className="px-4">
             <TabsTrigger value="results">Results</TabsTrigger>
             {/* <TabsTrigger disabled value="chart">
