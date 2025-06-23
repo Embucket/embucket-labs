@@ -2091,6 +2091,21 @@ impl UserQuery {
     }
 }
 
+/// Converts merge clauses into projection expressions for copy-on-write operations.
+///
+/// This function processes MERGE statement clauses (UPDATE/INSERT) and generates `DataFusion`
+/// projection expressions that compute the new table state. Each column gets an expression
+/// that determines its new value based on the merge operation type:
+/// - Operation code 3: Matched rows (UPDATE)
+/// - Operation code 2: Not matched rows (INSERT)
+///
+/// # Arguments
+/// * `sql_planner` - SQL to logical expression planner
+/// * `schema` - Target table schema
+/// * `merge_clause` - Vector of merge clauses to process
+///
+/// # Returns
+/// Vector of expressions for each column in the target schema
 pub fn merge_clause_projection<S: ContextProvider>(
     sql_planner: &ExtendedSqlToRel<'_, S>,
     schema: &DFSchema,
@@ -2187,6 +2202,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
         .context(ex_error::DataFusionSnafu)?;
     Ok(exprs)
 }
+
 fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
     if let Some(Value::SingleQuotedString(prefix)) = starts_with {
         let escaped = prefix.replace('\'', "''");
