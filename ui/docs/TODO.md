@@ -2,7 +2,6 @@
 
 - [ ] CSS vars cleanup
 - [ ] Typography component
-- [ ] Remove isMobile hook and related packages
 
 # TODO
 
