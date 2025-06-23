@@ -39,7 +39,7 @@ export function SqlEditorCenterPanel() {
 
   const queryClient = useQueryClient();
 
-  const { mutateAsync, isPending } = useCreateQuery({
+  const { mutate, isPending } = useCreateQuery({
     mutation: {
       onSettled: async (newQueryRecord) => {
         if (!isRightPanelExpanded) {
@@ -71,7 +71,7 @@ export function SqlEditorCenterPanel() {
   });
 
   const handleRunQuery = (query: string) => {
-    mutateAsync({
+    mutate({
       data: {
         query,
         worksheetId: +worksheetId,

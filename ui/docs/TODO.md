@@ -1,6 +1,5 @@
 # Next
 
-- [ ] Mutate vs MutateAsync
 - [ ] isLoading vs isFetching (Fix naming everywhere)
 - [ ] Scrollbars usages
 - [ ] Consistent table height (Not the same in Queries vs Query page)

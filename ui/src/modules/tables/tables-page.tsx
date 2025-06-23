@@ -44,7 +44,7 @@ export function TablesPage() {
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
   const queryClient = useQueryClient();
 
-  const { mutateAsync, isPending: isPendingCreateWorksheet } = useCreateWorksheet({
+  const { mutate, isPending: isPendingCreateWorksheet } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
         addTab(worksheet);
@@ -67,7 +67,7 @@ export function TablesPage() {
   });
 
   const handleCreateTable = () => {
-    mutateAsync({
+    mutate({
       data: {
         name: '',
         content: CREATE_TABLE_QUERY,

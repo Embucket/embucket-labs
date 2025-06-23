@@ -18,7 +18,7 @@ export default function HomeActionButtons() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { mutateAsync, isPending } = useCreateWorksheet({
+  const { mutate, isPending } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
         addTab(worksheet);
@@ -36,7 +36,7 @@ export default function HomeActionButtons() {
   });
 
   const handleCreateWorksheet = () => {
-    mutateAsync({
+    mutate({
       data: {
         name: '',
         content: '',

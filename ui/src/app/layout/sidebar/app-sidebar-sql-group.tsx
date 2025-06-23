@@ -18,7 +18,7 @@ export function AppSidebarSqlGroup() {
 
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
 
-  const { mutateAsync, isPending } = useCreateWorksheet({
+  const { mutate, isPending } = useCreateWorksheet({
     mutation: {
       onSuccess: (worksheet) => {
         queryClient.invalidateQueries({
@@ -37,7 +37,7 @@ export function AppSidebarSqlGroup() {
 
   const handleCreateWorksheet = () => {
     if (!worksheets?.length) {
-      mutateAsync({
+      mutate({
         data: {
           name: '',
           content: '',
