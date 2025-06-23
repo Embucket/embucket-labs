@@ -16,22 +16,17 @@ statement ok
 INSERT INTO binary_table (encryption_key,
                           initialization_vector,
                           binary_column,
-                          aad_column)
-    SELECT SHA2_BINARY('NotSecretEnough', 256),
-            SUBSTR(TO_BINARY(HEX_ENCODE('AlsoNotSecretEnough'), 'HEX'), 0, 12),
-            TO_BINARY(HEX_ENCODE('Bonjour'), 'HEX'),
-            TO_BINARY(HEX_ENCODE('additional data'), 'HEX')
-    ;
-
-query TT
-UPDATE binary_table SET encrypted_binary_column =
-    ENCRYPT_RAW(binary_column, 
-        encryption_key, 
-        initialization_vector, 
-        aad_column,
-        'AES-GCM')
-----
-1	0
+                          aad_column,
+                          encrypted_binary_column)
+    SELECT SHA2_BINARY('NotSecretEnough', 256) AS encryption_key,
+            SUBSTR(TO_BINARY(HEX_ENCODE('AlsoNotSecretEnough'), 'HEX'), 0, 12) AS initialization_vector,
+            TO_BINARY(HEX_ENCODE('Bonjour'), 'HEX') AS binary_column,
+            TO_BINARY(HEX_ENCODE('additional data'), 'HEX') AS aad_column,
+            ENCRYPT_RAW(TO_BINARY(HEX_ENCODE('Bonjour'), 'HEX'),
+                SHA2_BINARY('NotSecretEnough', 256),
+                SUBSTR(TO_BINARY(HEX_ENCODE('AlsoNotSecretEnough'), 'HEX'), 0, 12),
+                TO_BINARY(HEX_ENCODE('additional data'), 'HEX'),
+                'AES-GCM') AS encrypted_binary_column;
 
 query TTTTTT
 SELECT 'Bonjour' as original_value,

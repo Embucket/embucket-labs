@@ -4,17 +4,19 @@ CREATE OR REPLACE TABLE strings (v VARCHAR, hex_encoded_string VARCHAR, b BINARY
 
 exclude-from-coverage
 statement ok
-INSERT INTO strings (v) VALUES
-    ('01'),
-    ('A B'),
-    ('Hello'),
-    (NULL);
-
-statement ok
-UPDATE strings SET hex_encoded_string = HEX_ENCODE(v);
-
-statement ok
-UPDATE strings SET b = TRY_TO_BINARY(hex_encoded_string, 'HEX');
+INSERT INTO strings (v, hex_encoded_string, b)
+SELECT v,
+       HEX_ENCODE(v) AS hex_encoded_string,
+       TRY_TO_BINARY(HEX_ENCODE(v), 'HEX') AS b
+FROM (
+    SELECT '01' AS v
+    UNION ALL
+    SELECT 'A B' AS v
+    UNION ALL
+    SELECT 'Hello' AS v
+    UNION ALL
+    SELECT NULL AS v
+) AS source_data;
 
 query TTT
 SELECT v, hex_encoded_string, TO_VARCHAR(b, 'UTF-8')

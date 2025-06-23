@@ -15,13 +15,13 @@ INSERT INTO departments (department_ID, name) VALUES
 
 exclude-from-coverage
 statement ok
-INSERT INTO employees (employee_ID, last_name, department_ID) VALUES 
+INSERT INTO employees (employee_ID, last_name, department_ID) VALUES
     (101, 'Richards', 1),
     (102, 'Paulson',  1),
     (103, 'Johnson',  2);
 
 query TTTTTT
-SELECT * 
+SELECT *
     FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
     ORDER BY employee_ID
 ----
@@ -34,18 +34,25 @@ statement ok
 CREATE OR REPLACE TEMP TABLE table1 AS SELECT 1 AS dummy;
 
 exclude-from-coverage
-query TT
-UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'UDFs') 
-    WHERE employee_ID = 101
-----
-1	0
+statement ok
+CREATE OR REPLACE TABLE employees_with_projects AS
+SELECT employee_ID,
+       last_name,
+       department_ID,
+       CASE
+           WHEN employee_ID = 101 THEN ARRAY_CONSTRUCT('Materialized Views', 'UDFs')
+           WHEN employee_ID = 102 THEN ARRAY_CONSTRUCT('Materialized Views', 'Lateral Joins')
+           ELSE NULL
+       END AS project_names
+FROM employees;
 
 exclude-from-coverage
-query TT
-UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'Lateral Joins')
-    WHERE employee_ID = 102
-----
-1	0
+statement ok
+DROP TABLE employees;
+
+exclude-from-coverage
+statement ok
+ALTER TABLE employees_with_projects RENAME TO employees;
 
 query TTTT
 SELECT emp.employee_ID, emp.last_name, index, value AS project_name

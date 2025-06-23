@@ -34,14 +34,11 @@ CREATE OR REPLACE TABLE binary_demo_table (
 
 exclude-from-coverage
 statement ok
-INSERT INTO binary_demo_table (v) VALUES ('hello');
-
-exclude-from-coverage
-statement ok
-UPDATE binary_demo_table SET
-  b_hex    = TO_BINARY(HEX_ENCODE(v), 'HEX'),
-  b_base64 = TO_BINARY(BASE64_ENCODE(v), 'BASE64'),
-  b_utf8   = TO_BINARY(v, 'UTF-8');
+INSERT INTO binary_demo_table (v, b_hex, b_base64, b_utf8)
+SELECT 'hello' AS v,
+       TO_BINARY(HEX_ENCODE('hello'), 'HEX') AS b_hex,
+       TO_BINARY(BASE64_ENCODE('hello'), 'BASE64') AS b_base64,
+       TO_BINARY('hello', 'UTF-8') AS b_utf8;
 
 query TTTTTTTT
 SELECT v, LENGTH(v),

@@ -52,10 +52,8 @@ CREATE OR REPLACE TABLE jdemo2 (
 
 exclude-from-coverage
 statement ok
-INSERT INTO jdemo2 (varchar1) VALUES ('{"PI":3.14}');
-
-statement ok
-UPDATE jdemo2 SET variant1 = PARSE_JSON(varchar1);
+INSERT INTO jdemo2 (varchar1, variant1)
+SELECT '{"PI":3.14}' AS varchar1, PARSE_JSON('{"PI":3.14}') AS variant1;
 
 query TTTTTT
 SELECT varchar1, 

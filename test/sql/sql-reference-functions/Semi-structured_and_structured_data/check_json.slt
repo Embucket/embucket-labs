@@ -4,15 +4,15 @@ CREATE OR REPLACE TABLE sample_json_table (ID INTEGER, varchar1 VARCHAR, variant
 
 exclude-from-coverage
 statement ok
-INSERT INTO sample_json_table (ID, varchar1) VALUES 
-    (1, '{"ValidKey1": "ValidValue1"}'),
-    (2, '{"Malformed -- Missing value": null}'),
-    (3, NULL)
-    ;
-
-exclude-from-coverage
-statement ok
-UPDATE sample_json_table SET variant1 = varchar1::VARIANT;
+INSERT INTO sample_json_table (ID, varchar1, variant1)
+SELECT ID, varchar1, varchar1::VARIANT
+FROM (
+    SELECT 1 AS ID, '{"ValidKey1": "ValidValue1"}' AS varchar1
+    UNION ALL
+    SELECT 2 AS ID, '{"Malformed -- Missing value": null}' AS varchar1
+    UNION ALL
+    SELECT 3 AS ID, NULL AS varchar1
+) AS source_data;
 
 query TTT
 SELECT ID, CHECK_JSON(varchar1), varchar1 FROM sample_json_table ORDER BY ID

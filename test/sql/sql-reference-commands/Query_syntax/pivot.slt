@@ -214,13 +214,17 @@ SELECT *
 
 exclude-from-coverage
 statement ok
-ALTER TABLE quarterly_sales ADD COLUMN discount_percent INT DEFAULT 0;
+CREATE OR REPLACE TABLE quarterly_sales_with_discount AS
+SELECT empid, amount, quarter, 2 AS discount_percent
+FROM quarterly_sales;
 
 exclude-from-coverage
-query TT
-UPDATE quarterly_sales SET discount_percent = 2;  -- using fixed value instead of random (discount_percent = UNIFORM(0, 5, RANDOM()))
-----
-20	0
+statement ok
+DROP TABLE quarterly_sales;
+
+exclude-from-coverage
+statement ok
+ALTER TABLE quarterly_sales_with_discount RENAME TO quarterly_sales;
 
 query TTTTT
 WITH

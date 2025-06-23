@@ -7,45 +7,85 @@ statement ok
 INSERT INTO object_insert_examples (object_column)
   SELECT OBJECT_CONSTRUCT('a', 'value1', 'b', 'value2');
 
-query TT
-UPDATE object_insert_examples
-  SET object_column = OBJECT_INSERT(object_column, 'c', 'value3')
+query T
+SELECT OBJECT_INSERT(object_column, 'c', 'value3') AS result FROM object_insert_examples
 ----
-1	0
+'{"a":"value1","b":"value2","c":"value3"}'
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE object_insert_examples;
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT OBJECT_CONSTRUCT('a', 'value1', 'b', 'value2', 'c', 'value3');
 
 query T
 SELECT * FROM object_insert_examples
 ----
 '{"a":"value1","b":"value2","c":"value3"}'
 
-query TT
-UPDATE object_insert_examples
-  SET object_column = OBJECT_INSERT(object_column, 'd', PARSE_JSON('null'))
+query T
+SELECT OBJECT_INSERT(object_column, 'd', PARSE_JSON('null')) AS result FROM object_insert_examples
 ----
-1	0
+'{"a":"value1","b":"value2","c":"value3","d":null}'
 
-query TT
-UPDATE object_insert_examples
-  SET object_column = OBJECT_INSERT(object_column, 'e', NULL)
-----
-1	0
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE object_insert_examples;
 
-query TT
-UPDATE object_insert_examples
-  SET object_column = OBJECT_INSERT(object_column, 'f', 'null')
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT PARSE_JSON('{"a":"value1","b":"value2","c":"value3","d":null}');
+
+query T
+SELECT OBJECT_INSERT(object_column, 'e', NULL) AS result FROM object_insert_examples
 ----
-1	0
+'{"a":"value1","b":"value2","c":"value3","d":null}'
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE object_insert_examples;
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT PARSE_JSON('{"a":"value1","b":"value2","c":"value3","d":null}');
+
+query T
+SELECT OBJECT_INSERT(object_column, 'f', 'null') AS result FROM object_insert_examples
+----
+'{"a":"value1","b":"value2","c":"value3","d":null,"f":"null"}'
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE object_insert_examples;
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT PARSE_JSON('{"a":"value1","b":"value2","c":"value3","d":null,"f":"null"}');
 
 query T
 SELECT * FROM object_insert_examples
 ----
 '{"a":"value1","b":"value2","c":"value3","d":null,"f":"null"}'
 
-query TT
-UPDATE object_insert_examples
-  SET object_column = OBJECT_INSERT(object_column, 'b', 'valuex', TRUE)
+query T
+SELECT OBJECT_INSERT(object_column, 'b', 'valuex', TRUE) AS result FROM object_insert_examples
 ----
-1	0
+'{"a":"value1","b":"valuex","c":"value3","d":null,"f":"null"}'
+
+exclude-from-coverage
+statement ok
+TRUNCATE TABLE object_insert_examples;
+
+exclude-from-coverage
+statement ok
+INSERT INTO object_insert_examples (object_column)
+  SELECT PARSE_JSON('{"a":"value1","b":"valuex","c":"value3","d":null,"f":"null"}');
 
 query T
 SELECT * FROM object_insert_examples

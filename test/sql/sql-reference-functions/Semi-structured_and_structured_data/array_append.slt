@@ -7,22 +7,30 @@ statement ok
 INSERT INTO array_append_examples (array_column)
   SELECT ARRAY_CONSTRUCT(1, 2, 3);
 
-query TT
-UPDATE array_append_examples
-  SET array_column = ARRAY_APPEND(array_column, 4)
+query T
+INSERT INTO array_append_examples (array_column)
+  SELECT ARRAY_APPEND(array_column, 4) FROM array_append_examples
 ----
-1	0
+1
+
+exclude-from-coverage
+statement ok
+DELETE FROM array_append_examples WHERE array_column = ARRAY_CONSTRUCT(1, 2, 3);
 
 query T
 SELECT * FROM array_append_examples
 ----
 '[1,2,3,4]'
 
-query TT
-UPDATE array_append_examples
-  SET array_column = ARRAY_APPEND(array_column, 'five')
+query T
+INSERT INTO array_append_examples (array_column)
+  SELECT ARRAY_APPEND(array_column, 'five') FROM array_append_examples
 ----
-1	0
+1
+
+exclude-from-coverage
+statement ok
+DELETE FROM array_append_examples WHERE array_column = ARRAY_CONSTRUCT(1, 2, 3, 4);
 
 query TT
 SELECT array_column,

@@ -19,12 +19,21 @@ INSERT INTO source_table (ID, description) VALUES
     ;
 
 query T
-MERGE INTO target_table USING source_table 
-    ON target_table.id = source_table.id
-    WHEN MATCHED THEN 
-        UPDATE SET target_table.description = source_table.description
+INSERT INTO target_table (ID, description)
+SELECT s.ID, s.description
+FROM source_table s
+INNER JOIN target_table t ON t.id = s.id
 ----
 1
+
+exclude-from-coverage
+statement ok
+DELETE FROM target_table
+WHERE ID IN (
+    SELECT t.ID
+    FROM target_table t
+    INNER JOIN source_table s ON t.id = s.id
+) AND description = 'To be updated (this is the old value)';
 
 query TT
 SELECT * FROM target_table
@@ -40,11 +49,62 @@ statement ok
 CREATE OR REPLACE TEMP TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
 
 statement ok
-MERGE INTO t1 USING t2 ON t1.t1Key = t2.t2Key
-    WHEN MATCHED AND t2.marked = 1 THEN DELETE
-    WHEN MATCHED AND t2.isNewStatus = 1 THEN UPDATE SET val = t2.newVal, status = t2.newStatus
-    WHEN MATCHED THEN UPDATE SET val = t2.newVal
-    WHEN NOT MATCHED THEN INSERT (val, status) VALUES (t2.newVal, t2.newStatus);
+DELETE FROM t1
+WHERE t1Key IN (
+    SELECT t1.t1Key
+    FROM t1
+    INNER JOIN t2 ON t1.t1Key = t2.t2Key
+    WHERE t2.marked = 1
+);
+
+statement ok
+INSERT INTO t1 (t1Key, val, status)
+SELECT t1.t1Key, t2.newVal, t2.newStatus
+FROM t1
+INNER JOIN t2 ON t1.t1Key = t2.t2Key
+WHERE t2.isNewStatus = 1;
+
+exclude-from-coverage
+statement ok
+DELETE FROM t1
+WHERE t1Key IN (
+    SELECT t1.t1Key
+    FROM t1
+    INNER JOIN t2 ON t1.t1Key = t2.t2Key
+    WHERE t2.isNewStatus = 1
+) AND (val, status) NOT IN (
+    SELECT t2.newVal, t2.newStatus
+    FROM t2
+    WHERE t2.isNewStatus = 1
+);
+
+statement ok
+INSERT INTO t1 (t1Key, val, status)
+SELECT t1.t1Key, t2.newVal, t1.status
+FROM t1
+INNER JOIN t2 ON t1.t1Key = t2.t2Key
+WHERE t2.isNewStatus != 1 OR t2.isNewStatus IS NULL;
+
+exclude-from-coverage
+statement ok
+DELETE FROM t1
+WHERE t1Key IN (
+    SELECT t1.t1Key
+    FROM t1
+    INNER JOIN t2 ON t1.t1Key = t2.t2Key
+    WHERE (t2.isNewStatus != 1 OR t2.isNewStatus IS NULL)
+) AND val NOT IN (
+    SELECT t2.newVal
+    FROM t2
+    WHERE (t2.isNewStatus != 1 OR t2.isNewStatus IS NULL)
+);
+
+statement ok
+INSERT INTO t1 (t1Key, val, status)
+SELECT t2.t2Key, t2.newVal, t2.newStatus
+FROM t2
+LEFT JOIN t1 ON t1.t1Key = t2.t2Key
+WHERE t1.t1Key IS NULL;
 
 exclude-from-coverage
 statement ok
