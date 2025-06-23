@@ -1,6 +1,6 @@
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE TEMP_VALUES (column1 FLOAT);
+CREATE OR REPLACE TABLE TEMP_VALUES (column1 FLOAT);
 
 exclude-from-coverage
 statement ok

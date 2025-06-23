@@ -1,6 +1,6 @@
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE temp_values AS
+CREATE OR REPLACE TABLE temp_values AS
 SELECT * FROM VALUES
     (1, 10), (1, 11), (1, 12),
     (2, 20), (2, 21), (2, 22) 

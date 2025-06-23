@@ -5,7 +5,7 @@ CREATE OR REPLACE STAGE mystage
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE simulated_infer_schema AS
+CREATE OR REPLACE TABLE simulated_infer_schema AS
 SELECT
     'country' AS COLUMN_NAME,
     'VARIANT' AS TYPE,

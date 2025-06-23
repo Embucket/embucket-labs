@@ -62,7 +62,7 @@ SELECT ROUND(
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE rnd1(f float, d DECIMAL(10, 3));
+CREATE OR REPLACE TABLE rnd1(f float, d DECIMAL(10, 3));
 
 exclude-from-coverage
 statement ok

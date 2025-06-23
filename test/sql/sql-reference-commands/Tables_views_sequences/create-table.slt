@@ -106,19 +106,7 @@ statement ok
 CREATE TEMPORARY TABLE demo_temporary (i INTEGER);
 
 statement ok
-CREATE TEMP TABLE demo_temp (i INTEGER);
-
-statement ok
-CREATE LOCAL TEMPORARY TABLE demo_local_temporary (i INTEGER);
-
-statement ok
-CREATE LOCAL TEMP TABLE demo_local_temp (i INTEGER);
-
-statement ok
-CREATE GLOBAL TEMPORARY TABLE demo_global_temporary (i INTEGER);
-
-statement ok
-CREATE GLOBAL TEMP TABLE demo_global_temp (i INTEGER);
+CREATE TABLE demo_temp (i INTEGER);
 
 statement ok
 CREATE VOLATILE TABLE demo_volatile (i INTEGER);

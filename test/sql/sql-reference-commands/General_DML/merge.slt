@@ -42,11 +42,11 @@ SELECT * FROM target_table
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE t1 (t1Key INTEGER, val NUMBER, status NUMBER);
+CREATE OR REPLACE TABLE t1 (t1Key INTEGER, val NUMBER, status NUMBER);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
+CREATE OR REPLACE TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
 
 statement ok
 DELETE FROM t1
@@ -156,7 +156,11 @@ INSERT INTO src VALUES (0, 11), (0, 12), (0, 13);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target CLONE target_orig;
+CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target VALUES (0, 10);
 
 statement error
 MERGE INTO target
@@ -168,7 +172,11 @@ Row Values: [0, 10]
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target CLONE target_orig;
+CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target VALUES (0, 10);
 
 statement error
 MERGE INTO target
@@ -181,7 +189,11 @@ Row Values: [0, 10]
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target CLONE target_orig;
+CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target VALUES (0, 10);
 
 query T
 MERGE INTO target
@@ -196,7 +208,11 @@ SELECT * FROM target;
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target CLONE target_orig;
+CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target VALUES (0, 10);
 
 query T
 MERGE INTO target
@@ -212,7 +228,11 @@ SELECT * FROM target;
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target CLONE target_orig;
+CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+
+exclude-from-coverage
+statement ok
+INSERT INTO target VALUES (0, 10);
 
 query TT
 MERGE INTO target USING (select k, max(v) as v from src group by k) AS b ON target.k = b.k

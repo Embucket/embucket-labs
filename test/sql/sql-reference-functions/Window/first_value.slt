@@ -1,6 +1,6 @@
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE temp_table AS
+CREATE OR REPLACE TABLE temp_table AS
 SELECT
         column1,
         column2

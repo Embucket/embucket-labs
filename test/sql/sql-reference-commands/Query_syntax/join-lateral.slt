@@ -31,7 +31,7 @@ SELECT *
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TEMP TABLE table1 AS SELECT 1 AS dummy;
+CREATE OR REPLACE TABLE table1 AS SELECT 1 AS dummy;
 
 exclude-from-coverage
 statement ok
