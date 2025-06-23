@@ -9,17 +9,15 @@ interface PageScrollAreaProps {
 export function PageScrollArea({ children, tabs }: PageScrollAreaProps) {
   return (
     <ScrollArea
+      tableViewport
       className={cn(
-        'h-[calc(100vh-65px-64px-32px-2px)]',
-        tabs && 'h-[calc(100vh-65px-64px-32px-2px-53px)]',
+        'px-4 pb-4',
+        'h-[calc(100vh-32px-65px-64px-2px)]',
+        tabs && 'h-[calc(100vh-32px-65px-53px-64px-10px)]',
       )}
     >
-      <div className="flex size-full flex-col p-4 pt-0">
-        <ScrollArea tableViewport>
-          {children}
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </div>
+      {children}
+      <ScrollBar orientation="horizontal" />
       <ScrollBar orientation="vertical" />
     </ScrollArea>
   );

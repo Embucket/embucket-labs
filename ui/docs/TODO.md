@@ -1,10 +1,4 @@
-# Next
-
-- [ ] Scrollbars usages
-- [ ] Consistent table height (Not the same in Queries vs Query page)
-- [ ] Data preview table horizontal scroll issue
-
-# Later
+# TODO
 
 - [ ] Handle empty due to search state
 - [ ] Loading states for QueryDetails and Home Pages
