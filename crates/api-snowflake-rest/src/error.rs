@@ -122,7 +122,7 @@ impl IntoResponse for Error {
                     http::StatusCode::UNAUTHORIZED
                 }
             };
-            (status_code, self.output_msg())
+            (status_code, self.to_string())
         };
 
         let body = Json(JsonResponse {
@@ -208,7 +208,7 @@ fn convert_into_status_code_and_error(error: &ExecutionError) -> (StatusCode, St
         | ExecutionError::ObjectStore { .. }
         | ExecutionError::ObjectAlreadyExists { .. }
         | ExecutionError::UnsupportedFileFormat { .. }
-        | ExecutionError::RefreshCatalogList { .. } => error.output_msg(),
+        | ExecutionError::RefreshCatalogList { .. } => error.to_string(),
         _ => "Internal server error".to_string(),
     };
 
