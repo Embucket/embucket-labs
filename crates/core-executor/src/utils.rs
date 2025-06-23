@@ -142,6 +142,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
     None
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn convert_record_batches(
     query_result: QueryResult,
     data_format: DataSerializationFormat,
