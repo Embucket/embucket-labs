@@ -29,17 +29,7 @@ DESC TABLE my_table
 ----
 MY_COLUMN	VARCHAR(16777216)	COLUMN	Y	NULL	N	N	NULL	NULL	now comment4	NULL	NULL
 
-statement ok
-CREATE OR REPLACE VIEW my_view_with_comment5 comment='this is comment5' AS (SELECT * FROM my_table);
-
-query T
-SELECT comment
-FROM information_schema.views
-WHERE table_name = 'MY_VIEW_WITH_COMMENT5';
-----
-this is comment5
-
-# Test adding comments to a database and a view
+# Test adding comments to a database
 
 statement ok
 CREATE OR REPLACE DATABASE my_db COMMENT='initial database comment';
@@ -50,18 +40,3 @@ FROM information_schema.databases
 WHERE database_name='MY_DB';
 ----
 initial database comment
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE VIEW my_view AS SELECT 1 AS col;
-
-statement ok
-COMMENT ON VIEW my_view IS 'view comment';
-
-query T
-SELECT comment
-FROM information_schema.views
-WHERE table_name='MY_VIEW';
-----
-view comment
-

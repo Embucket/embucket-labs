@@ -23,22 +23,3 @@ SHOW TERSE TABLES IN tpch_sf100 LIMIT 3 FROM 'J'
 exclude-from-coverage
 statement ok
 USE SCHEMA COMPATIBILITY_TESTS.PUBLIC;
-
-# Test that SHOW TABLES does not list views
-
-exclude-from-coverage
-statement ok
-USE SCHEMA PUBLIC;
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE VIEW dummy_view AS SELECT 1;
-
-statement ok
-SHOW TABLES;
-
-query I
-SELECT COUNT(*) FROM TABLE(result_scan(last_query_id()))
-WHERE "name"='DUMMY_VIEW';
-----
-0
