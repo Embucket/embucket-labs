@@ -936,7 +936,7 @@ impl UserQuery {
     #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err)]
     pub async fn merge_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Merge {
-            table,
+            table: target,
             mut source,
             on,
             clauses,
@@ -945,12 +945,48 @@ impl UserQuery {
         else {
             return ex_error::OnlyMergeStatementsSnafu.fail();
         };
+        if !matches!(
+            &target,
+            TableFactor::Table {
+                name: _,
+                alias: _,
+                args: _,
+                with_hints: _,
+                version: _,
+                with_ordinality: _,
+                partitions: _,
+                json_path: _,
+                sample: _,
+                index_hints: _
+            }
+        ) {
+            return ex_error::MergeTargetMustBeTableSnafu.fail();
+        }
+        if !matches!(
+            &source,
+            TableFactor::Table {
+                name: _,
+                alias: _,
+                args: _,
+                with_hints: _,
+                version: _,
+                with_ordinality: _,
+                partitions: _,
+                json_path: _,
+                sample: _,
+                index_hints: _
+            }
+        ) {
+            return ex_error::MergeSourceMustBeTableSnafu.fail();
+        }
+
         let df_session_state = self.session.ctx.state();
 
-        let (target_table, target_alias) = Self::get_table_with_alias(table);
-        let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
+        let (target_table, _target_alias) = Self::get_table_with_alias(target);
+        let (source_table, _source_alias) = Self::get_table_with_alias(source.clone());
 
         let target_table = self.resolve_table_object_name(target_table.0)?;
+        let source_table = self.resolve_table_object_name(source_table.0)?;
 
         let target_provider = {
             let target_cache = self
@@ -978,16 +1014,12 @@ impl UserQuery {
             ..target_provider
                 .as_any()
                 .downcast_ref::<DataFusionTable>()
-                .ok_or_else(|| {
-                    ex_error::CatalogDownCastSnafu {
-                        catalog: "DataFusionTable".to_string(),
-                    }
-                    .build()
-                })?
+                .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?
                 .clone()
         };
 
-        let target_table_source = Arc::new(DefaultTableSource::new(Arc::new(target.clone())));
+        let target_table_source: Arc<dyn TableSource> =
+            Arc::new(DefaultTableSource::new(Arc::new(target.clone())));
 
         let target_plan = DataFrame::new(
             df_session_state.clone(),
@@ -1002,42 +1034,31 @@ impl UserQuery {
 
         let target_schema = target_plan.schema().clone();
 
-        let source_query = if let TableFactor::Derived {
-            subquery,
-            lateral,
-            alias,
-        } = source
-        {
-            source = TableFactor::Derived {
-                lateral,
-                subquery,
-                alias: None,
-            };
-            alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
-        } else {
-            source.to_string()
-        };
+        let source_provider = self
+            .session
+            .ctx
+            .table_provider(&target_table)
+            .await
+            .context(ex_error::DataFusionSnafu)?;
+
+        let source_table_source: Arc<dyn TableSource> =
+            Arc::new(DefaultTableSource::new(source_provider));
 
         let source_plan = DataFrame::new(
             df_session_state.clone(),
-            df_session_state
-                .create_logical_plan(&source_query)
-                .await
+            LogicalPlanBuilder::scan(&source_table, source_table_source.clone(), None)
+                .context(ex_error::DataFusionSnafu)?
+                .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
         .with_column(SOURCE_EXISTS, lit(2u8))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
 
-        let source_statement = df_session_state
-            .sql_to_statement(&source_query, "Snowflake")
-            .context(ex_error::DataFusionSnafu)?;
-
-        let mut tables = self
-            .table_references_for_statement(&source_statement, &self.session.ctx.state())
-            .await?;
-
-        tables.insert(self.resolve_table_ref(&target_table), target_table_source);
+        let tables = HashMap::from_iter(vec![
+            (self.resolve_table_ref(&target_table), target_table_source),
+            (self.resolve_table_ref(&source_table), source_table_source),
+        ]);
 
         let session_context_planner = SessionContextProvider {
             state: &df_session_state,
