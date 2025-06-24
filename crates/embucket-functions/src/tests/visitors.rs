@@ -250,9 +250,13 @@ fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
 
     if let DFStatement::Statement(ref mut stmt) = statement {
         let result = fetch_to_limit::visit(stmt);
-        assert!(result.is_err(), "Expected error for FETCH without quantity");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("FETCH requires a quantity to be specified"));
+        match result {
+            Err(error) => {
+                let error_msg = error.to_string();
+                assert!(error_msg.contains("FETCH requires a quantity to be specified"));
+            }
+            Ok(()) => panic!("Expected error for FETCH without quantity"),
+        }
     }
 
     Ok(())
