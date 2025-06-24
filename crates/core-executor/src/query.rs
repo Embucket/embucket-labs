@@ -46,7 +46,7 @@ use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
-    copy_into_identifiers, functions_rewriter, inline_aliases_in_query, json_element,
+    copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element,
     select_expr_aliases, table_functions, top_limit, fetch_to_limit
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
@@ -225,8 +225,9 @@ impl UserQuery {
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);
+            fetch_to_limit::visit(value)
+                .map_err(|e| ex_error::DataFusionSnafu.into_error(DataFusionError::SQL(e, None)))?;
             table_functions::visit(value);
-            fetch_to_limit::visit(value);
             visit_all(value);
         }
         Ok(())

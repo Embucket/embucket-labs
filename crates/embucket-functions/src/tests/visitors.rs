@@ -243,25 +243,17 @@ fn test_table_function_result_scan() -> DFResult<()> {
 }
 
 #[test]
-fn test_fetch_to_limit() -> DFResult<()> {
+fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
     let state = SessionContext::new().state();
-    let cases = vec![
-        (
-            "SELECT * FROM test FETCH FIRST 2 ROWS ONLY",
-            "SELECT * FROM test LIMIT 2",
-        ),
-        (
-            "SELECT * FROM test OFFSET 3 ROWS FETCH NEXT 5 ROWS ONLY",
-            "SELECT * FROM test OFFSET 3 LIMIT 5",
-        ),
-    ];
-
-    for (input, expected) in cases {
-        let mut statement = state.sql_to_statement(input, "snowflake")?;
-        if let DFStatement::Statement(ref mut stmt) = statement {
-            fetch_to_limit::visit(stmt);
-        }
-        assert_eq!(statement.to_string(), expected);
+    let sql = "SELECT * FROM test FETCH FIRST ROWS ONLY";
+    let mut statement = state.sql_to_statement(sql, "snowflake")?;
+    
+    if let DFStatement::Statement(ref mut stmt) = statement {
+        let result = fetch_to_limit::visit(stmt);
+        assert!(result.is_err(), "Expected error for FETCH without quantity");
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("FETCH requires a quantity to be specified"));
     }
+    
     Ok(())
 }

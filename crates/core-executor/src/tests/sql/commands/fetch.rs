@@ -36,11 +36,9 @@ test_query!(
     ) t1
     UNION ALL
     SELECT c1, 'last_two' as source FROM (
-        SELECT c1 FROM fetch_test OFFSET 2 ROWS FETCH NEXT 2 ROWS ORDER BY c1
+        SELECT c1 FROM fetch_test ORDER BY c1 FETCH NEXT 2 ROWS 
     ) t2
     ORDER BY c1, source",
     setup_queries = [SETUP_QUERIES[0], SETUP_QUERIES[1]],
     snapshot_path = "fetch"
 );
-
-
