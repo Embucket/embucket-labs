@@ -32,14 +32,14 @@ pub mod percentile_cont;
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![
         any_value::get_udaf(),
+        array_union_agg::get_udaf(),
+        array_unique_agg::get_udaf(),
         booland_agg::get_udaf(),
         boolor_agg::get_udaf(),
         boolxor_agg::get_udaf(),
-        percentile_cont::get_udaf(),
-        array_unique_agg::get_udaf(),
-        array_union_agg::get_udaf(),
         listagg::get_udaf(),
         object_agg::get_udaf(),
+        percentile_cont::get_udaf(),
     ];
 
     for func in aggregate_functions {
