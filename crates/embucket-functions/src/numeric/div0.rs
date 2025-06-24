@@ -66,7 +66,7 @@ impl ScalarUDFImpl for Div0Func {
         } else if arg_types[0].is_floating() || arg_types[1].is_floating() {
             DataType::Float64
         } else {
-            let (p, s) = calculate_precision_and_scale(&arg_types[0], &arg_types[1])?;
+            let (p, s) = calculate_precision_and_scale(&arg_types[0], &arg_types[1]);
             DataType::Decimal128(p, s)
         })
     }
@@ -76,7 +76,8 @@ impl ScalarUDFImpl for Div0Func {
         clippy::unwrap_used,
         clippy::as_conversions,
         clippy::cast_possible_truncation,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::too_many_lines
     )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs {
@@ -182,8 +183,7 @@ impl ScalarUDFImpl for Div0Func {
                     DataFusionError::Internal("Expected Decimal128Array for divisor".to_string())
                 })?;
 
-            let (p, s) =
-                calculate_precision_and_scale(&dividend.data_type(), &divisor.data_type())?;
+            let (p, s) = calculate_precision_and_scale(dividend.data_type(), divisor.data_type());
             let dividend_scale = dividend.scale();
             let divisor_scale = divisor.scale();
 
@@ -215,7 +215,15 @@ impl ScalarUDFImpl for Div0Func {
     }
 }
 
-fn calculate_precision_and_scale(dividend: &DataType, divisor: &DataType) -> DFResult<(u8, i8)> {
+#[allow(
+    clippy::cast_lossless,
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
+fn calculate_precision_and_scale(dividend: &DataType, divisor: &DataType) -> (u8, i8) {
     let (p1, s1) = match dividend {
         DataType::Decimal128(p, s) => (*p, *s as u8),
         _ => (38, 0),
@@ -232,7 +240,7 @@ fn calculate_precision_and_scale(dividend: &DataType, divisor: &DataType) -> DFR
     let snowflake_max_precision: u8 = 38;
     let final_p = min(p_output_unclamped, snowflake_max_precision);
 
-    Ok((final_p, s_output as i8))
+    (final_p, s_output as i8)
 }
 
 crate::macros::make_udf_function!(Div0Func);
