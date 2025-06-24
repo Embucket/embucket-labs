@@ -2110,7 +2110,9 @@ pub fn merge_clause_projection<S: ContextProvider>(
             if let Some((when, then)) = insert {
                 case_builder.when(when, then);
             }
-            let case_expr = case_builder.otherwise(col(name))?;
+            let case_expr = case_builder
+                .otherwise(col(name))?
+                .alias(field.name().clone());
 
             Ok::<_, DataFusionError>(case_expr)
         })
