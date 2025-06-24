@@ -18,7 +18,7 @@ exposures:
       - ref('prep_snowplow_page_views_all')
       - ref('zendesk_tickets_xf')
       - ref('zendesk_satisfaction_ratings_source')
-      - source('salesforce', 'event')
+      - source('salesforce', 'dup_salesforce_v2_stitch_event')
       - source('salesforce', 'task')
       - source('snapshots', 'sfdc_account_snapshots')
     owner:
@@ -51,7 +51,7 @@ exposures:
       - ref('wk_gs_company_person')
       - ref('wk_gs_account_scorecard_history')
       - ref('wk_gs_activity_timeline')
-      - source('salesforce', 'event')
+      - source('salesforce', 'dup_salesforce_v2_stitch_event')
       - source('salesforce', 'task')
       - source('snapshots', 'sfdc_account_snapshots')
     owner:
@@ -181,7 +181,7 @@ exposures:
       - ref('sfdc_opportunity_xf') 
       - ref('zendesk_satisfaction_ratings_source') 
       - ref('zendesk_tickets_xf')
-      - source('salesforce', 'event')
+      - source('salesforce', 'dup_salesforce_v2_stitch_event')
       - source('salesforce', 'task')
       - source('salesforce', 'hg_insights_technographics') 
     owner:
@@ -209,7 +209,7 @@ exposures:
       - ref('monthly_stage_usage_by_subscription')
       - ref('zendesk_satisfaction_ratings_source')
       - ref('zendesk_tickets_xf')
-      - source('salesforce', 'event')
+      - source('salesforce', 'dup_salesforce_v2_stitch_event')
       - source('salesforce', 'task')
       - source('snapshots', 'sfdc_account_snapshots')
 

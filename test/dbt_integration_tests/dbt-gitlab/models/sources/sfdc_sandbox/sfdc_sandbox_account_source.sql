@@ -11,7 +11,7 @@
 WITH source AS (
 
   SELECT *
-  FROM {{ source('salesforce_sandbox', 'account') }}
+  FROM {{ source('salesforce_sandbox', 'dup_salesforce_stitch_sandbox_v2_account') }}
 
 ),
 

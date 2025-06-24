@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('zendesk', 'groups') }}
+    FROM {{ source('zendesk', 'dup_tap_zendesk_groups') }}
 
 ),
 

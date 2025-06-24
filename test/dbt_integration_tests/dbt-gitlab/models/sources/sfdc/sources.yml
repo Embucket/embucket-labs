@@ -18,7 +18,7 @@ sources:
         error_after: {count: 24, period: hour}
 
     tables:
-      - name: account
+      - name: dup_salesforce_v2_stitch_account
         description: '{{ doc("sfdc_account_source") }}'
       - name: account_history
         identifier: accounthistory
@@ -41,7 +41,7 @@ sources:
         description: '{{ doc("sfdc_case_source") }}'
       - name: casehistory
         description: '{{ doc("sfdc_case_history_source")}}'
-      - name: contact
+      - name: dup_salesforce_v2_stitch_contact
         description: '{{ doc("sfdc_contact_source") }}'
       - name: contact_history
         identifier: contacthistory
@@ -49,7 +49,7 @@ sources:
       - name: customer_subscription
         identifier: customer_subscription__c
         description: '{{ doc("sfdc_customer_subscription_source")}}'
-      - name: event
+      - name: dup_salesforce_v2_stitch_event
         description: '{{ doc("sfdc_event_source") }}'
       - name: executive_business_review
         identifier: executive_business_review__c
@@ -57,7 +57,7 @@ sources:
       - name: hg_insights_technographics
         identifier: HG_Insights__HGTechnographic__c
         description: 'Raw HG Insight Data'
-      - name: lead
+      - name: dup_salesforce_v2_stitch_lead
         description: '{{ doc("sfdc_lead_source") }}'
       - name: lead_history
         identifier: leadhistory
@@ -92,7 +92,7 @@ sources:
         identifier: proof_of_concept__c
         description: '{{ doc("sfdc_pov_source") }}'
       - name: quote
-        identifier: zqu__quote__c
+        identifier: dup_salesforce_v2_stitch_zqu__quote__c
         description: '{{ doc("sfdc_quote_source") }}'
       - name: record_type
         identifier: recordtype
@@ -124,8 +124,8 @@ sources:
         description: '{{ doc("sfdc_zoom_source") }}'
       - name: zqu_quote_history
         identifier: zqu__quote__history
-      - name: zqu_quote
-        identifier: zqu__quote__c
+      - name: dup_salesforce_v2_stitch_zqu__quote__c
+        identifier: zqu_quote
       - name: zqu_quote_amendment
         identifier: zqu__quoteamendment__c
       - name: zqu_quote_rate_plan

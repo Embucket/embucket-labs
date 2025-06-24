@@ -18,7 +18,7 @@ WITH source AS (
         WHEN stagename = '6-Awaiting Signature'     THEN x6_awaiting_signature_date__c
       END                                                                                   AS calculation_days_in_stage_date,
       DATEDIFF(days,calculation_days_in_stage_date::DATE,CURRENT_DATE::DATE) + 1            AS days_in_stage
-    FROM {{ source('salesforce_sandbox', 'opportunity') }}  AS opportunity
+    FROM {{ source('salesforce_sandbox', 'dup_salesforce_stitch_sandbox_v2_opportunity') }}  AS opportunity
 
 ), renamed AS (
 

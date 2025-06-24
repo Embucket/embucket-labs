@@ -17,13 +17,12 @@ sources:
         error_after: {count: 24, period: hour}
 
     tables:
-      - name: account
+      - name: dup_salesforce_stitch_sandbox_v2_account
         description: '{{ doc("sfdc_account_source") }}'
-      - name: opportunity
+      - name: dup_salesforce_stitch_sandbox_v2_opportunity
         description: '{{ doc("sfdc_opp_source") }}'
-      - name: user
+      - name: dup_salesforce_stitch_sandbox_v2_user
         description: '{{ doc("sfdc_user_source") }}'
-      - name: user_role
-        identifier: userrole
-      - name: lead
-      - name: contact
+      - name: dup_salesforce_stitch_sandbox_v2_userrole
+      - name: dup_salesforce_stitch_sandbox_v2_lead
+      - name: dup_salesforce_stitch_sandbox_v2_contact

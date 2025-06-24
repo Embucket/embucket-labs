@@ -14,7 +14,7 @@ sources:
       identifier: false
 
     tables:
-      - name: account
+      - name: dup_zuora_central_sandbox_fivetran_account
         columns:
           - name: id
             description: Primary Key for Accounts
@@ -22,26 +22,26 @@ sources:
               - dbt_utils.expression_is_true:
                   expression: "REGEXP '[0-9a-z]{32}'"
       - name: accounting_period
-      - name: amendment
-      - name: contact
-      - name: invoice
+      - name: dup_zuora_central_sandbox_fivetran_amendment
+      - name: dup_zuora_central_sandbox_fivetran_contact
+      - name: dup_zuora_central_sandbox_fivetran_invoice
       - name: invoice_item
       - name: invoice_payment
-      - name: order
-        identifier: ORDER
-        quoting:
-          identifier: true
+      - name: dup_zuora_central_sandbox_fivetran_order
+#        identifier: dup_zuora_central_sandbox_fivetran__ORDER
+#        quoting:
+#          identifier: true
       - name: order_action
-      - name: product
+      - name: dup_zuora_central_sandbox_fivetran_product
       - name: product_rate_plan
       - name: product_rate_plan_charge
       - name: product_rate_plan_charge_tier
       - name: rate_plan
       - name: rate_plan_charge
       - name: rate_plan_charge_tier
-      - name: refund
+      - name: dup_zuora_central_sandbox_fivetran_refund
       - name: revenue_schedule_item
-      - name: subscription
+      - name: dup_zuora_central_sandbox_fivetran_subscription
 
   - name: zuora_query_api_sandbox
     tags: ["tdf","zuora_central_sandbox"]

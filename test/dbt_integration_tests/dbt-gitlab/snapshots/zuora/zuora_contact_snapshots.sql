@@ -9,6 +9,6 @@
     }}
     
     SELECT * 
-    FROM {{ source('zuora', 'contact') }}
+    FROM {{ source('zuora', 'dup_zuora_stitch_contact') }}
     
 {% endsnapshot %}
