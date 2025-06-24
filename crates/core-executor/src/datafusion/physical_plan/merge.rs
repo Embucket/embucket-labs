@@ -1,13 +1,19 @@
-use datafusion::arrow::{
-    array::{Array, BooleanArray, RecordBatch, StringArray, downcast_array},
-    compute::{filter, kernels::cmp::distinct},
-    datatypes::Schema,
+use datafusion::{
+    arrow::{
+        array::{Array, BooleanArray, RecordBatch, StringArray, downcast_array},
+        compute::{filter, kernels::cmp::distinct},
+        datatypes::Schema,
+    },
+    physical_expr::EquivalenceProperties,
 };
 use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, PhysicalExpr, PlanProperties, RecordBatchStream,
-    SendableRecordBatchStream, expressions::Column, projection::ProjectionExec,
+    DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PhysicalExpr, PlanProperties,
+    RecordBatchStream, SendableRecordBatchStream,
+    execution_plan::{Boundedness, EmissionType},
+    expressions::Column,
+    projection::ProjectionExec,
     stream::RecordBatchStreamAdapter,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -36,7 +42,14 @@ impl MergeIntoSinkExec {
         input: Arc<dyn ExecutionPlan>,
         target: DataFusionTable,
     ) -> Self {
-        let properties = input.properties().clone();
+        // MERGE operations produce a single empty record batch after completion
+        let eq_properties = EquivalenceProperties::new(Arc::new((*schema.as_arrow()).clone()));
+        let partitioning = Partitioning::UnknownPartitioning(1); // Single partition for sink operations
+        let emission_type = EmissionType::Final; // Final emission after all processing is complete
+        let boundedness = Boundedness::Bounded; // Bounded operation that completes
+
+        let properties =
+            PlanProperties::new(eq_properties, partitioning, emission_type, boundedness);
         Self {
             schema,
             input,
@@ -103,7 +116,8 @@ impl ExecutionPlan for MergeIntoSinkExec {
             Arc::new(SourceExistFilterExec::new(self.input.clone()));
 
         // Remove auxiliary columns
-        let projection = ProjectionExec::try_new(schema_projection(&schema), filtered)?;
+        let projection =
+            ProjectionExec::try_new(schema_projection(&self.input.schema()), filtered)?;
 
         let batches = projection.execute(partition, context)?;
 
