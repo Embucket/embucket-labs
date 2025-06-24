@@ -45,7 +45,7 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType, LogicalPlanBuilder,
-    Projection, TryCast, case, lit,
+    Projection, TryCast, build_join_schema, case, lit,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -937,7 +937,7 @@ impl UserQuery {
     pub async fn merge_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Merge {
             table: target,
-            mut source,
+            source,
             on,
             clauses,
             ..
@@ -982,8 +982,8 @@ impl UserQuery {
 
         let df_session_state = self.session.ctx.state();
 
-        let (target_table, _target_alias) = Self::get_table_with_alias(target);
-        let (source_table, _source_alias) = Self::get_table_with_alias(source.clone());
+        let (target_table, target_alias) = Self::get_table_with_alias(target);
+        let (source_table, source_alias) = Self::get_table_with_alias(source.clone());
 
         let target_table = self.resolve_table_object_name(target_table.0)?;
         let source_table = self.resolve_table_object_name(source_table.0)?;
@@ -1025,6 +1025,8 @@ impl UserQuery {
             df_session_state.clone(),
             LogicalPlanBuilder::scan(&target_table, target_table_source.clone(), None)
                 .context(ex_error::DataFusionSnafu)?
+                .alias(&target_alias)
+                .context(ex_error::DataFusionSnafu)?
                 .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
@@ -1048,12 +1050,16 @@ impl UserQuery {
             df_session_state.clone(),
             LogicalPlanBuilder::scan(&source_table, source_table_source.clone(), None)
                 .context(ex_error::DataFusionSnafu)?
+                .alias(&source_alias)
+                .context(ex_error::DataFusionSnafu)?
                 .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
         .with_column(SOURCE_EXISTS, lit(2u8))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
+
+        let source_schema = source_plan.schema().clone();
 
         let tables = HashMap::from_iter(vec![
             (self.resolve_table_ref(&target_table), target_table_source),
@@ -1067,13 +1073,16 @@ impl UserQuery {
         let sql_planner = ExtendedSqlToRel::new(&session_context_planner, ParserOptions::default());
         let mut planner_context = datafusion::sql::planner::PlannerContext::new();
 
+        let schema = build_join_schema(&target_schema, &source_schema, &JoinType::Full)
+            .context(ex_error::DataFusionSnafu)?;
+
         let on_expr = sql_planner
             .as_ref()
-            .sql_to_expr((*on).clone(), &target_schema, &mut planner_context)
+            .sql_to_expr((*on).clone(), &schema, &mut planner_context)
             .context(ex_error::DataFusionSnafu)?;
 
         let merge_clause_projection =
-            merge_clause_projection(&sql_planner, &target_schema, clauses)?;
+            merge_clause_projection(&sql_planner, &target_schema, &source_schema, clauses)?;
 
         let join_plan = LogicalPlanBuilder::new(target_plan)
             .join_on(source_plan, JoinType::Full, [on_expr; 1])
@@ -2098,7 +2107,8 @@ impl UserQuery {
 /// Vector of expressions for each column in the target schema
 pub fn merge_clause_projection<S: ContextProvider>(
     sql_planner: &ExtendedSqlToRel<'_, S>,
-    schema: &DFSchema,
+    target_schema: &DFSchema,
+    source_schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
 ) -> ExecutionResult<Vec<logical_expr::Expr>> {
     let mut updates: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
@@ -2119,19 +2129,10 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 for assignment in assignments {
                     match assignment.target {
                         AssignmentTarget::ColumnName(column) => {
-                            let column_name = column
-                                .0
-                                .last()
-                                .ok_or_else(|| {
-                                    ex_error::InvalidTableIdentifierSnafu {
-                                        ident: "Column name cannot be empty".to_string(),
-                                    }
-                                    .build()
-                                })?
-                                .to_string();
+                            let column_name = column.to_string();
                             let expr = sql_planner
                                 .as_ref()
-                                .sql_to_expr(assignment.value, schema, &mut planner_context)
+                                .sql_to_expr(assignment.value, source_schema, &mut planner_context)
                                 .context(ex_error::DataFusionSnafu)?;
                             updates.insert(column_name, (op.clone(), expr));
                         }
@@ -2154,7 +2155,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                     let column_name = column.value.clone();
                     let expr = sql_planner
                         .as_ref()
-                        .sql_to_expr(value, schema, &mut planner_context)
+                        .sql_to_expr(value, source_schema, &mut planner_context)
                         .context(ex_error::DataFusionSnafu)?;
                     inserts.insert(column_name, (op.clone(), expr));
                 }
@@ -2162,12 +2163,21 @@ pub fn merge_clause_projection<S: ContextProvider>(
             _ => (),
         }
     }
-    let exprs = schema
-        .fields()
+    let exprs = target_schema
         .iter()
-        .map(|field| {
+        .map(|(table_reference, field)| {
+            let name = table_reference
+                .map(|x| x.to_string() + ".")
+                .unwrap_or_default()
+                + field.name();
             let update = updates.remove(field.name());
             let insert = inserts.remove(field.name());
+
+            // If there is no update or insert, do nothing
+            if update.is_none() && insert.is_none() {
+                return Ok(col(name));
+            }
+
             let match_expr = coalesce(vec![
                 // 3 => matched
                 col(TARGET_EXISTS) + col(SOURCE_EXISTS),
@@ -2178,6 +2188,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 // 0 => not matched
                 lit(0),
             ]);
+
             let mut case_builder = case(match_expr);
             if let Some((when, then)) = update {
                 case_builder.when(when, then);
@@ -2185,7 +2196,8 @@ pub fn merge_clause_projection<S: ContextProvider>(
             if let Some((when, then)) = insert {
                 case_builder.when(when, then);
             }
-            let case_expr = case_builder.otherwise(col(field.name()))?;
+            let case_expr = case_builder.otherwise(col(name))?;
+
             Ok::<_, DataFusionError>(case_expr)
         })
         .collect::<Result<_, DataFusionError>>()
