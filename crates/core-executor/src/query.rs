@@ -1053,53 +1053,6 @@ impl UserQuery {
             node: Arc::new(merge_into_plan),
         }))
         .await
-
-        // // Prepare WHERE clause to filter unmatched records
-        // let where_clause = self
-        //     .get_expr_where_clause(*on.clone(), target_alias.as_str())
-        //     .iter()
-        //     .map(|v| format!("{v} IS NULL"))
-        //     .collect::<Vec<_>>();
-        // let where_clause_str = if where_clause.is_empty() {
-        //     String::new()
-        // } else {
-        //     format!(" WHERE {}", where_clause.join(" AND "))
-        // };
-        //
-        // // Check NOT MATCHED for records to INSERT
-        // // Extract columns and values from clauses
-        // let mut columns = String::new();
-        // let mut values = String::new();
-        // for clause in clauses {
-        //     if clause.clause_kind == MergeClauseKind::NotMatched {
-        //         if let MergeAction::Insert(insert) = clause.action {
-        //             columns = insert
-        //                 .columns
-        //                 .iter()
-        //                 .map(ToString::to_string)
-        //                 .collect::<Vec<_>>()
-        //                 .join(", ");
-        //             if let MergeInsertKind::Values(values_insert) = insert.kind {
-        //                 values = values_insert
-        //                     .rows
-        //                     .into_iter()
-        //                     .flatten()
-        //                     .collect::<Vec<_>>()
-        //                     .iter()
-        //                     .map(|v| format!("{source_alias}.{v}"))
-        //                     .collect::<Vec<_>>()
-        //                     .join(", ");
-        //             }
-        //         }
-        //     }
-        // }
-        // let select_query = format!(
-        //     "SELECT {values} FROM {source_query} LEFT JOIN {target_table} {target_alias} ON {on}{where_clause_str}"
-        // );
-        //
-        // // Construct the INSERT statement
-        // let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
-        // self.execute_with_custom_plan(&insert_query).await
     }
 
     #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
