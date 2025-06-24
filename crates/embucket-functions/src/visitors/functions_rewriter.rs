@@ -17,28 +17,6 @@ impl VisitorMut for FunctionsRewriter {
             let func_name = func_name_string.as_str();
             let args = &mut func.args;
             let name = match func_name {
-                "year" | "day" | "dayofmonth" | "dayofweek" | "dayofweekiso" | "dayofyear"
-                | "week" | "weekofyear" | "weekiso" | "month" | "quarter" | "hour" | "minute"
-                | "second" => {
-                    if let FunctionArguments::List(arg_list) = args {
-                        let arg = match func_name {
-                            "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute"
-                            | "second" => func_name,
-                            "dayofyear" => "doy",
-                            "dayofweek" => "dow",
-                            "dayofmonth" => "day",
-                            "weekofyear" => "week",
-                            _ => "unknown",
-                        };
-                        arg_list.args.insert(
-                            0,
-                            FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                                SingleQuotedString(arg.to_string()).into(),
-                            ))),
-                        );
-                    }
-                    "date_part"
-                }
                 "dateadd" | "date_add" | "datediff" | "date_diff" => {
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
                         if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
