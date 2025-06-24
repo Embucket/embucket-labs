@@ -53,6 +53,7 @@ use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
+use df_catalog::table::CachingTable;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
@@ -927,6 +928,7 @@ impl UserQuery {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err)]
     pub async fn merge_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Merge {
@@ -946,12 +948,26 @@ impl UserQuery {
 
         let target_table = self.resolve_table_object_name(target_table.0)?;
 
-        let target_provider = self
-            .session
-            .ctx
-            .table_provider(&target_table)
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let target_provider = {
+            let target_cache = self
+                .session
+                .ctx
+                .table_provider(&target_table)
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+
+            target_cache
+                .as_any()
+                .downcast_ref::<CachingTable>()
+                .ok_or_else(|| {
+                    ex_error::CatalogDownCastSnafu {
+                        catalog: "DataFusionTable".to_string(),
+                    }
+                    .build()
+                })?
+                .table
+                .clone()
+        };
 
         let target = DataFusionTable {
             branch: None,
