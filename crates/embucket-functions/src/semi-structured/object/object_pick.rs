@@ -39,12 +39,12 @@ impl ObjectPickUDF {
 
             // Convert back to JSON string
             Ok(Some(to_string(&Value::Object(new_obj)).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}",
                 ))
             })?))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "First argument must be a JSON object".to_string(),
             ))
         }
@@ -76,11 +76,11 @@ impl ScalarUDFImpl for ObjectPickUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let object_str =
-            args.first()
-                .ok_or(datafusion_common::error::DataFusionError::Internal(
-                    "Expected object argument".to_string(),
-                ))?;
+        let object_str = args
+            .first()
+            .ok_or(datafusion_common::DataFusionError::Internal(
+                "Expected object argument".to_string(),
+            ))?;
 
         // Get all keys from remaining arguments
         let mut keys = Vec::new();
@@ -120,7 +120,7 @@ impl ScalarUDFImpl for ObjectPickUDF {
                     } else {
                         let object_str = string_array.value(i);
                         let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse object JSON: {e}"
                             ))
                         })?;
@@ -137,7 +137,7 @@ impl ScalarUDFImpl for ObjectPickUDF {
                     ScalarValue::Utf8(Some(object_str)) => {
                         // Parse object string to JSON Value
                         let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse object JSON: {e}"
                             ))
                         })?;

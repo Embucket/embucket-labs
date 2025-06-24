@@ -36,7 +36,7 @@ impl ArraysZipUDF {
             .into_iter()
             .map(|val| match val {
                 Value::Array(arr) => Ok(arr),
-                _ => Err(datafusion_common::error::DataFusionError::Internal(
+                _ => Err(datafusion_common::DataFusionError::Internal(
                     "All arguments must be arrays".to_string(),
                 )),
             })
@@ -58,9 +58,7 @@ impl ArraysZipUDF {
         }
 
         Ok(Some(serde_json::to_string(&result).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize result: {e}"
-            ))
+            datafusion_common::DataFusionError::Internal(format!("Failed to serialize result: {e}"))
         })?))
     }
 }
@@ -111,14 +109,14 @@ impl ScalarUDFImpl for ArraysZipUDF {
                                 }
                                 let array_json: Value = serde_json::from_str(arr.value(row))
                                     .map_err(|e| {
-                                        datafusion_common::error::DataFusionError::Internal(
-                                            format!("Failed to parse array JSON: {e}"),
-                                        )
+                                        datafusion_common::DataFusionError::Internal(format!(
+                                            "Failed to parse array JSON: {e}"
+                                        ))
                                     })?;
                                 row_arrays.push(array_json);
                             }
                             ColumnarValue::Scalar(_) => {
-                                return Err(datafusion_common::error::DataFusionError::Internal(
+                                return Err(datafusion_common::DataFusionError::Internal(
                                     "All arguments must be arrays".to_string(),
                                 ));
                             }
@@ -148,19 +146,19 @@ impl ScalarUDFImpl for ArraysZipUDF {
                             }
                             if let ScalarValue::Utf8(Some(s)) = scalar {
                                 let array_json: Value = serde_json::from_str(s).map_err(|e| {
-                                    datafusion_common::error::DataFusionError::Internal(format!(
+                                    datafusion_common::DataFusionError::Internal(format!(
                                         "Failed to parse array JSON: {e}"
                                     ))
                                 })?;
                                 scalar_arrays.push(array_json);
                             } else {
-                                return Err(datafusion_common::error::DataFusionError::Internal(
+                                return Err(datafusion_common::DataFusionError::Internal(
                                     "Expected UTF8 string for array".to_string(),
                                 ));
                             }
                         }
                         ColumnarValue::Array(_) => {
-                            return Err(datafusion_common::error::DataFusionError::Internal(
+                            return Err(datafusion_common::DataFusionError::Internal(
                                 "Mixed scalar and array arguments are not supported".to_string(),
                             ));
                         }
@@ -170,7 +168,7 @@ impl ScalarUDFImpl for ArraysZipUDF {
                 let result = Self::zip_arrays(scalar_arrays)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            None => Err(datafusion_common::error::DataFusionError::Internal(
+            None => Err(datafusion_common::DataFusionError::Internal(
                 "ARRAYS_ZIP requires at least one array argument".to_string(),
             )),
         }

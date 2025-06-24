@@ -63,7 +63,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         } = args;
 
         if args.len() < 2 || args.len() > 3 {
-            return Err(datafusion_common::error::DataFusionError::Internal(
+            return Err(datafusion_common::DataFusionError::Internal(
                 "array_generate_range requires 2 or 3 arguments".to_string(),
             ));
         }
@@ -71,7 +71,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         let mut args = args;
         let step = if args.len() == 3 {
             args.pop()
-                .ok_or(datafusion_common::error::DataFusionError::Internal(
+                .ok_or(datafusion_common::DataFusionError::Internal(
                     "Expected step argument".to_string(),
                 ))?
                 .into_array(number_rows)?
@@ -82,13 +82,13 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         };
         let stop = args
             .pop()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected stop argument".to_string(),
             ))?
             .into_array(number_rows)?;
         let start = args
             .pop()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected start argument".to_string(),
             ))?
             .into_array(number_rows)?;
@@ -102,7 +102,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
                 start
                     .as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    .ok_or(datafusion_common::DataFusionError::Internal(
                         "Expected start argument to be an Int64Array".to_string(),
                     ))?
                     .value(i)
@@ -113,7 +113,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
             } else {
                 stop.as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    .ok_or(datafusion_common::DataFusionError::Internal(
                         "Expected stop argument to be an Int64Array".to_string(),
                     ))?
                     .value(i)
@@ -124,7 +124,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
             } else {
                 step.as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    .ok_or(datafusion_common::DataFusionError::Internal(
                         "Expected step argument to be an Int64Array".to_string(),
                     ))?
                     .value(i)
@@ -136,9 +136,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         }
 
         let json_str = to_string(&Value::Array(results)).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize JSON: {e}",
-            ))
+            datafusion_common::DataFusionError::Internal(format!("Failed to serialize JSON: {e}",))
         })?;
 
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))

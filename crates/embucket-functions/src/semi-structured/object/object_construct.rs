@@ -75,7 +75,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
         }
 
         if args.len() % 2 != 0 {
-            return Err(datafusion_common::error::DataFusionError::Execution(
+            return Err(datafusion_common::DataFusionError::Execution(
                 "object_construct requires an even number of arguments (key-value pairs)"
                     .to_string(),
             ));
@@ -89,7 +89,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
 
             for i in 0..key_array.len() {
                 if key_array.is_null(i) {
-                    return Err(datafusion_common::error::DataFusionError::Execution(
+                    return Err(datafusion_common::DataFusionError::Execution(
                         "object_construct key cannot be null".to_string(),
                     ));
                 }
@@ -97,7 +97,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
                 let key = if let Some(str_array) = key_array.as_string_opt::<i32>() {
                     str_array.value(i).to_string()
                 } else {
-                    return Err(datafusion_common::error::DataFusionError::Execution(
+                    return Err(datafusion_common::DataFusionError::Execution(
                         "object_construct key must be a string".to_string(),
                     ));
                 };
@@ -119,7 +119,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
                         DataType::Float64 => Value::Number(
                             Number::from_f64(as_float64_array(&value_array)?.value(i)).ok_or_else(
                                 || {
-                                    datafusion_common::error::DataFusionError::Execution(
+                                    datafusion_common::DataFusionError::Execution(
                                         "object_construct value must be a number".to_string(),
                                     )
                                 },
@@ -134,7 +134,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
                             }
                         }
                         _ => {
-                            return Err(datafusion_common::error::DataFusionError::Execution(
+                            return Err(datafusion_common::DataFusionError::Execution(
                                 "object_construct value must be a string, number, or boolean"
                                     .to_string(),
                             ));
@@ -148,7 +148,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
 
         let json_str = serde_json::to_string(&Value::Object(serde_json::Map::from_iter(object)))
             .map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize JSON: {e}",
                 ))
             })?;

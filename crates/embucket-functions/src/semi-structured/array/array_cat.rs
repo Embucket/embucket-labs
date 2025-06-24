@@ -31,7 +31,7 @@ impl ArrayCatUDF {
         for array_str in arrays {
             // Parse each input array
             let array_value: Value = from_str(array_str).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to parse array JSON: {e}",
                 ))
             })?;
@@ -40,7 +40,7 @@ impl ArrayCatUDF {
             if let Value::Array(array) = array_value {
                 result_array.extend(array);
             } else {
-                return Err(datafusion_common::error::DataFusionError::Internal(
+                return Err(datafusion_common::DataFusionError::Internal(
                     "All arguments must be JSON arrays".to_string(),
                 ));
             }
@@ -48,9 +48,9 @@ impl ArrayCatUDF {
 
         // Convert back to JSON string
         to_string(&Value::Array(result_array)).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize result: {e}",
-            ))
+            datafusion_common::DataFusionError::Internal(
+                format!("Failed to serialize result: {e}",),
+            )
         })
     }
 }
@@ -83,7 +83,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
 
         // Check for exactly two arguments
         if args.len() != 2 {
-            return Err(datafusion_common::error::DataFusionError::Internal(
+            return Err(datafusion_common::DataFusionError::Internal(
                 "array_cat expects exactly two arguments".to_string(),
             ));
         }
@@ -106,7 +106,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array2.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
@@ -130,7 +130,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
@@ -155,7 +155,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) || string_array2.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
@@ -171,7 +171,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 )))
             }
 
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Arguments must both be either scalar UTF8 strings or arrays".to_string(),
             )),
         }

@@ -69,12 +69,12 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let keys_arg = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected keys array argument".to_string(),
             ))?;
         let values_arg = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected values array argument".to_string(),
             ))?;
 
@@ -139,13 +139,13 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
 
                 // Parse arrays
                 let keys: Value = serde_json::from_str(keys_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
+                    datafusion_common::DataFusionError::Internal(format!(
                         "Failed to parse keys JSON array: {e}"
                     ))
                 })?;
 
                 let values: Value = serde_json::from_str(values_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
+                    datafusion_common::DataFusionError::Internal(format!(
                         "Failed to parse values JSON array: {e}"
                     ))
                 })?;
@@ -163,12 +163,12 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                     let result = Self::create_object(&keys, &value_array);
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 } else {
-                    Err(datafusion_common::error::DataFusionError::Internal(
+                    Err(datafusion_common::DataFusionError::Internal(
                         "Both arguments must be JSON arrays".to_string(),
                     ))
                 }
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Arguments must be arrays".to_string(),
             )),
         }

@@ -61,7 +61,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
 
@@ -76,7 +76,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
                     } else {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse array JSON: {e}"
                             ))
                         })?;
@@ -92,7 +92,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
             ColumnarValue::Scalar(array_value) => match array_value {
                 ScalarValue::Utf8(Some(s)) => {
                     let array_json: Value = from_str(s).map_err(|e| {
-                        datafusion_common::error::DataFusionError::Internal(format!(
+                        datafusion_common::DataFusionError::Internal(format!(
                             "Failed to parse array JSON: {e}"
                         ))
                     })?;
@@ -103,7 +103,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
                 ScalarValue::Utf8(None) | ScalarValue::Null => {
                     Ok(ColumnarValue::Scalar(ScalarValue::Int64(None)))
                 }
-                _ => Err(datafusion_common::error::DataFusionError::Internal(
+                _ => Err(datafusion_common::DataFusionError::Internal(
                     "Expected UTF8 string for array".to_string(),
                 )),
             },

@@ -30,9 +30,9 @@ impl ArrayCompactUDF {
 
         // Parse the input array
         let array_value: Value = serde_json::from_str(array_str).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to parse array JSON: {e}",
-            ))
+            datafusion_common::DataFusionError::Internal(
+                format!("Failed to parse array JSON: {e}",),
+            )
         })?;
 
         // Ensure the input is an array
@@ -45,12 +45,12 @@ impl ArrayCompactUDF {
 
             // Convert back to JSON string
             to_string(&compacted_array).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}",
                 ))
             })
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "Input must be a JSON array".to_string(),
             ))
         }
@@ -84,7 +84,7 @@ impl ScalarUDFImpl for ArrayCompactUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
 
@@ -108,7 +108,7 @@ impl ScalarUDFImpl for ArrayCompactUDF {
             }
             ColumnarValue::Scalar(array_value) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string for array".to_string(),
                     ));
                 };

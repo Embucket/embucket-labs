@@ -29,9 +29,7 @@ impl ArrayContainsUDF {
         if let Some(array_str) = array_str {
             // Parse the array
             let array_value: Value = from_slice(array_str.as_bytes()).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse array: {e}",
-                ))
+                datafusion_common::DataFusionError::Internal(format!("Failed to parse array: {e}",))
             })?;
 
             if let Value::Array(array) = array_value {
@@ -81,12 +79,12 @@ impl ScalarUDFImpl for ArrayContainsUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let value = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected a value argument".to_string(),
             ))?;
         let array = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected an array argument".to_string(),
             ))?;
 
@@ -97,7 +95,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                 let mut results = Vec::new();
                 for (search_val, col_val) in value_array
                     .as_array()
-                    .ok_or(datafusion_common::error::DataFusionError::Internal(
+                    .ok_or(datafusion_common::DataFusionError::Internal(
                         "Expected an array argument".to_string(),
                     ))?
                     .iter()
@@ -118,7 +116,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Expected UTF8 string for array".to_string(),
                         ));
                     }
@@ -127,7 +125,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                 let result = Self::contains_value(&value_scalar, Some(array_str.as_str()))?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Mismatched argument types".to_string(),
             )),
         }
