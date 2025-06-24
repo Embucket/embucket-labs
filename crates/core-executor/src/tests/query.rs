@@ -684,7 +684,7 @@ test_query!(
         "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
         "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
         "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')",
-        "MERGE INTO merge_target t USING merge_source s ON t.ID = s.ID WHEN MATCHED THEN UPDATE SET description = s.description WHEN NOT MATCHED THEN INSERT (ID, description) VALUES (s.ID, s.description)",
+        "MERGE INTO merge_target t USING merge_source s ON t.id = s.id WHEN MATCHED THEN UPDATE SET description = s.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (s.id, s.description)",
     ]
 );
 
