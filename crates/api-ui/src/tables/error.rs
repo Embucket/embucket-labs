@@ -1,7 +1,5 @@
 use crate::error::IntoStatusCode;
 use axum::extract::multipart;
-use core_executor::error::ExecutionError;
-use core_metastore::error::MetastoreError;
 use error_stack_trace;
 use http::StatusCode;
 use snafu::Location;
@@ -76,13 +74,13 @@ pub enum TableError {
     },
     #[snafu(display("Execution error: {source}"))]
     Execution {
-        source: core_executor::error::ExecutionError,
+        source: core_executor::Error,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        source: MetastoreError,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -98,17 +96,17 @@ impl IntoStatusCode for Error {
             | Self::GetTablePreviewData { source, .. }
             | Self::GetTables { source, .. } => match &source {
                 TableError::Metastore { source, .. } => match &source {
-                    MetastoreError::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                    MetastoreError::DatabaseNotFound { .. }
-                    | MetastoreError::SchemaNotFound { .. }
-                    | MetastoreError::TableNotFound { .. }
-                    | MetastoreError::Validation { .. } => StatusCode::BAD_REQUEST,
+                    core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                    core_metastore::Error::DatabaseNotFound { .. }
+                    | core_metastore::Error::SchemaNotFound { .. }
+                    | core_metastore::Error::TableNotFound { .. }
+                    | core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 TableError::Execution { source, .. } => match &source {
-                    ExecutionError::TableNotFound { .. } => StatusCode::NOT_FOUND,
-                    ExecutionError::DataFusion { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-                    ExecutionError::Arrow { .. } => StatusCode::BAD_REQUEST,
+                    core_executor::Error::TableNotFound { .. } => StatusCode::NOT_FOUND,
+                    core_executor::Error::DataFusion { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                    core_executor::Error::Arrow { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 TableError::FileField { .. }

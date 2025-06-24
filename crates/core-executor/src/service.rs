@@ -11,7 +11,7 @@ use datafusion::datasource::memory::MemTable;
 use datafusion_common::TableReference;
 use snafu::ResultExt;
 
-use super::error::{self as ex_error, ExecutionResult};
+use super::error::{self as ex_error, Result};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
 use crate::utils::{Config, query_result_to_history};
 use core_history::history_store::HistoryStore;
@@ -23,14 +23,14 @@ use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
-    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>>;
-    async fn delete_session(&self, session_id: String) -> ExecutionResult<()>;
+    async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>>;
+    async fn delete_session(&self, session_id: String) -> Result<()>;
     async fn query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResult>;
+    ) -> Result<QueryResult>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -38,7 +38,7 @@ pub trait ExecutionService: Send + Sync {
         data: Bytes,
         file_name: &str,
         format: Format,
-    ) -> ExecutionResult<usize>;
+    ) -> Result<usize>;
 }
 
 pub struct CoreExecutionService {
@@ -71,7 +71,7 @@ impl ExecutionService for CoreExecutionService {
         skip(self),
         err
     )]
-    async fn create_session(&self, session_id: String) -> ExecutionResult<Arc<UserSession>> {
+    async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>> {
         {
             let sessions = self.df_sessions.read().await;
             if let Some(session) = sessions.get(&session_id) {
@@ -101,7 +101,7 @@ impl ExecutionService for CoreExecutionService {
         skip(self),
         err
     )]
-    async fn delete_session(&self, session_id: String) -> ExecutionResult<()> {
+    async fn delete_session(&self, session_id: String) -> Result<()> {
         // TODO: Need to have a timeout for the lock
         let mut session_list = self.df_sessions.write().await;
         session_list.remove(&session_id);
@@ -115,7 +115,7 @@ impl ExecutionService for CoreExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> ExecutionResult<QueryResult> {
+    ) -> Result<QueryResult> {
         let user_session = {
             let sessions = self.df_sessions.read().await;
             sessions
@@ -163,7 +163,7 @@ impl ExecutionService for CoreExecutionService {
         data: Bytes,
         file_name: &str,
         format: Format,
-    ) -> ExecutionResult<usize> {
+    ) -> Result<usize> {
         // TODO: is there a way to avoid temp table approach altogether?
         // File upload works as follows:
         // 1. Convert incoming data to a record batch
@@ -234,7 +234,7 @@ impl ExecutionService for CoreExecutionService {
             .build_buffered(data.reader())
             .context(ex_error::ArrowSnafu)?;
 
-        let batches: Result<Vec<_>, _> = csv.collect();
+        let batches: std::result::Result<Vec<_>, _> = csv.collect();
         let batches = batches.context(ex_error::ArrowSnafu)?;
 
         let rows_loaded = batches

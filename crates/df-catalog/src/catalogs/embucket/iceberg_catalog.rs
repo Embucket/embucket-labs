@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use core_metastore::error::{self as metastore_error, MetastoreResult};
+use core_metastore::error::{self as metastore_error, Result as MetastoreResult};
 use core_metastore::{
     Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,

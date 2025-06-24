@@ -1,5 +1,4 @@
 use axum::{Json, response::IntoResponse};
-use core_metastore::error::MetastoreError;
 use error_stack_trace;
 use http;
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ pub enum Error {
     #[snafu(display("[IcebergAPI] Operation '{operation:?}' failed. Metastore error: {source}"))]
     Metastore {
         operation: Operation,
-        source: MetastoreError,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -49,35 +48,37 @@ impl IntoResponse for Error {
 
         let message = metastore_error.to_string();
         let code = match metastore_error {
-            MetastoreError::TableDataExists { .. }
-            | MetastoreError::ObjectAlreadyExists { .. }
-            | MetastoreError::VolumeAlreadyExists { .. }
-            | MetastoreError::DatabaseAlreadyExists { .. }
-            | MetastoreError::SchemaAlreadyExists { .. }
-            | MetastoreError::TableAlreadyExists { .. }
-            | MetastoreError::VolumeInUse { .. } => http::StatusCode::CONFLICT,
-            MetastoreError::TableRequirementFailed { .. } => http::StatusCode::UNPROCESSABLE_ENTITY,
-            MetastoreError::VolumeValidationFailed { .. }
-            | MetastoreError::VolumeMissingCredentials { .. }
-            | MetastoreError::Validation { .. } => http::StatusCode::BAD_REQUEST,
-            MetastoreError::CloudProviderNotImplemented { .. } => {
+            core_metastore::Error::TableDataExists { .. }
+            | core_metastore::Error::ObjectAlreadyExists { .. }
+            | core_metastore::Error::VolumeAlreadyExists { .. }
+            | core_metastore::Error::DatabaseAlreadyExists { .. }
+            | core_metastore::Error::SchemaAlreadyExists { .. }
+            | core_metastore::Error::TableAlreadyExists { .. }
+            | core_metastore::Error::VolumeInUse { .. } => http::StatusCode::CONFLICT,
+            core_metastore::Error::TableRequirementFailed { .. } => {
+                http::StatusCode::UNPROCESSABLE_ENTITY
+            }
+            core_metastore::Error::VolumeValidationFailed { .. }
+            | core_metastore::Error::VolumeMissingCredentials { .. }
+            | core_metastore::Error::Validation { .. } => http::StatusCode::BAD_REQUEST,
+            core_metastore::Error::CloudProviderNotImplemented { .. } => {
                 http::StatusCode::PRECONDITION_FAILED
             }
-            MetastoreError::VolumeNotFound { .. }
-            | MetastoreError::DatabaseNotFound { .. }
-            | MetastoreError::SchemaNotFound { .. }
-            | MetastoreError::TableNotFound { .. }
-            | MetastoreError::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
-            MetastoreError::ObjectStore { .. }
-            | MetastoreError::ObjectStorePath { .. }
-            | MetastoreError::CreateDirectory { .. }
-            | MetastoreError::SlateDB { .. }
-            | MetastoreError::UtilSlateDB { .. }
-            | MetastoreError::Iceberg { .. }
-            | MetastoreError::Serde { .. }
-            | MetastoreError::TableMetadataBuilder { .. }
-            | MetastoreError::TableObjectStoreNotFound { .. }
-            | MetastoreError::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            core_metastore::Error::VolumeNotFound { .. }
+            | core_metastore::Error::DatabaseNotFound { .. }
+            | core_metastore::Error::SchemaNotFound { .. }
+            | core_metastore::Error::TableNotFound { .. }
+            | core_metastore::Error::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
+            core_metastore::Error::ObjectStore { .. }
+            | core_metastore::Error::ObjectStorePath { .. }
+            | core_metastore::Error::CreateDirectory { .. }
+            | core_metastore::Error::SlateDB { .. }
+            | core_metastore::Error::UtilSlateDB { .. }
+            | core_metastore::Error::Iceberg { .. }
+            | core_metastore::Error::Serde { .. }
+            | core_metastore::Error::TableMetadataBuilder { .. }
+            | core_metastore::Error::TableObjectStoreNotFound { .. }
+            | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let error = ErrorResponse {

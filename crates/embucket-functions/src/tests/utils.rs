@@ -1,7 +1,6 @@
 use crate::session::register_session_context_udfs;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
-use core_history::Error as HistoryStoreError;
 use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
@@ -50,7 +49,7 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
         }"#;
         record.result = Some(buf.to_string());
         if id == 500 {
-            return Err(HistoryStoreError::ExecutionResult {
+            return Err(core_history::Error::ExecutionResult {
                 message: "Query not found".to_string(),
                 location: Location::default(),
             });

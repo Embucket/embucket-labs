@@ -3,7 +3,7 @@ use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::Snafu;
 
-pub type HistoryStoreResult<T> = Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]

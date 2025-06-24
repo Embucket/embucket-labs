@@ -2,7 +2,7 @@
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
-use super::error::{self as ex_error, ExecutionResult};
+use super::error::{self as ex_error, Result};
 use crate::datafusion::analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
@@ -50,7 +50,7 @@ impl UserSession {
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,
         config: Arc<Config>,
-    ) -> ExecutionResult<Self> {
+    ) -> Result<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
@@ -117,7 +117,7 @@ impl UserSession {
     }
 
     #[allow(clippy::as_conversions)]
-    pub async fn register_external_catalogs(&self) -> ExecutionResult<()> {
+    pub async fn register_external_catalogs(&self) -> Result<()> {
         let volumes = self
             .metastore
             .iter_volumes()
@@ -182,7 +182,7 @@ impl UserSession {
         &self,
         set: bool,
         params: HashMap<String, SessionProperty>,
-    ) -> ExecutionResult<()> {
+    ) -> Result<()> {
         let state = self.ctx.state_ref();
         let mut write = state.write();
 

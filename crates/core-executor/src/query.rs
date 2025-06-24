@@ -5,7 +5,7 @@ use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
 };
 use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, ExecutionError, ExecutionResult, RefreshCatalogListSnafu};
+use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
@@ -84,7 +84,7 @@ pub struct UserQuery {
 
 pub enum IcebergCatalogResult {
     Catalog(Arc<dyn Catalog>),
-    Result(ExecutionResult<QueryResult>),
+    Result(Result<QueryResult>),
 }
 
 impl UserQuery {
@@ -102,20 +102,20 @@ impl UserQuery {
         }
     }
 
-    pub fn parse_query(&self) -> Result<DFStatement, DataFusionError> {
+    pub fn parse_query(&self) -> std::result::Result<DFStatement, DataFusionError> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
         let mut statement = state.sql_to_statement(&self.raw_query, dialect)?;
         // it is designed to return DataFusionError, this is the reason why we
         // create DataFusionError manually. This is also requires manual unboxing.
         Self::postprocess_query_statement_with_validation(&mut statement).map_err(|e| match e {
-            ExecutionError::DataFusion { error, .. } => *error,
+            Error::DataFusion { error, .. } => *error,
             _ => DataFusionError::NotImplemented(e.to_string()),
         })?;
         Ok(statement)
     }
 
-    pub async fn plan(&self) -> Result<LogicalPlan, DataFusionError> {
+    pub async fn plan(&self) -> std::result::Result<LogicalPlan, DataFusionError> {
         let statement = self.parse_query()?;
         self.session.ctx.state().statement_to_plan(statement).await
     }
@@ -142,7 +142,7 @@ impl UserQuery {
         skip(self),
         err
     )]
-    async fn refresh_catalog_partially(&self, entity: CachedEntity) -> ExecutionResult<()> {
+    async fn refresh_catalog_partially(&self, entity: CachedEntity) -> Result<()> {
         if let Some(catalog_list_impl) = self
             .session
             .ctx
@@ -158,7 +158,7 @@ impl UserQuery {
 
             // Not sure we need this, but just in case
             // TODO: Remove following block when refresh_catalog removed
-            if let Err(ExecutionError::RefreshCatalogList { source, .. }) = res {
+            if let Err(Error::RefreshCatalogList { source, .. }) = res {
                 // refresh entire catalog if cache error happen
                 if let CatalogError::InvalidCache { .. } = *source {
                     self.refresh_catalog().await?;
@@ -168,7 +168,7 @@ impl UserQuery {
         Ok(())
     }
 
-    async fn refresh_catalog(&self) -> ExecutionResult<()> {
+    async fn refresh_catalog(&self) -> Result<()> {
         if let Some(catalog_list_impl) = self
             .session
             .ctx
@@ -211,9 +211,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
-    pub fn postprocess_query_statement_with_validation(
-        statement: &mut DFStatement,
-    ) -> ExecutionResult<()> {
+    pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
         if let DFStatement::Statement(value) = statement {
             json_element::visit(value);
             functions_rewriter::visit(value);
@@ -241,7 +239,7 @@ impl UserQuery {
         fields(statement),
         err
     )]
-    pub async fn execute(&mut self) -> ExecutionResult<QueryResult> {
+    pub async fn execute(&mut self) -> Result<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
@@ -307,7 +305,7 @@ impl UserQuery {
                             )),
                             _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
                         })
-                        .collect::<Result<_, _>>()?;
+                        .collect::<std::result::Result<_, _>>()?;
                     let params = variables
                         .iter()
                         .map(ToString::to_string)
@@ -382,7 +380,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err)]
-    pub fn get_catalog(&self, name: &str) -> ExecutionResult<Arc<dyn CatalogProvider>> {
+    pub fn get_catalog(&self, name: &str) -> Result<Arc<dyn CatalogProvider>> {
         self.session
             .ctx
             .state()
@@ -449,7 +447,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
-    pub async fn drop_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Drop { object_type, .. } = statement.clone() else {
             return ex_error::OnlyDropStatementsSnafu.fail();
         };
@@ -527,7 +525,7 @@ impl UserQuery {
         skip(self),
         err
     )]
-    pub async fn create_table_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn create_table_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
             return ex_error::OnlyCreateTableStatementsSnafu.fail();
         };
@@ -637,7 +635,7 @@ impl UserQuery {
         ident: MetastoreTableIdent,
         statement: CreateTableStatement,
         plan: LogicalPlan,
-    ) -> ExecutionResult<QueryResult> {
+    ) -> Result<QueryResult> {
         let iceberg_catalog = match self
             .resolve_iceberg_catalog_or_execute(catalog, catalog_name, plan.clone())
             .await
@@ -718,7 +716,7 @@ impl UserQuery {
     pub async fn create_external_table_query(
         &self,
         statement: CreateExternalTable,
-    ) -> ExecutionResult<QueryResult> {
+    ) -> Result<QueryResult> {
         let table_location = statement.location.clone();
         let table_format = MetastoreTableFormat::from(statement.file_type);
         let session_context = HashMap::new();
@@ -793,7 +791,7 @@ impl UserQuery {
         skip(self),
         err
     )]
-    pub async fn create_stage_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn create_stage_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CreateStage {
             name,
             stage_params,
@@ -905,10 +903,7 @@ impl UserQuery {
         skip(self),
         err
     )]
-    pub async fn copy_into_snowflake_query(
-        &self,
-        statement: Statement,
-    ) -> ExecutionResult<QueryResult> {
+    pub async fn copy_into_snowflake_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement else {
             return ex_error::OnlyCopyIntoStatementsSnafu.fail();
         };
@@ -929,7 +924,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err)]
-    pub async fn merge_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn merge_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Merge {
             table,
             mut source,
@@ -1011,7 +1006,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
-    pub async fn create_schema(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn create_schema(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CreateSchema {
             schema_name,
             if_not_exists,
@@ -1070,7 +1065,7 @@ impl UserQuery {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub async fn show_query(&self, statement: Statement) -> ExecutionResult<QueryResult> {
+    pub async fn show_query(&self, statement: Statement) -> Result<QueryResult> {
         let query = match statement {
             Statement::ShowDatabases { .. } => {
                 format!(
@@ -1271,7 +1266,7 @@ impl UserQuery {
     pub async fn truncate_table(
         &self,
         table_names: Vec<TruncateTableTarget>,
-    ) -> ExecutionResult<QueryResult> {
+    ) -> Result<QueryResult> {
         let Some(first_table) = table_names.into_iter().next() else {
             return ex_error::NoTableNamesForTruncateTableSnafu {}.fail();
         };
@@ -1322,7 +1317,7 @@ impl UserQuery {
         err,
         ret
     )]
-    pub async fn get_custom_logical_plan(&self, query: &str) -> ExecutionResult<LogicalPlan> {
+    pub async fn get_custom_logical_plan(&self, query: &str) -> Result<LogicalPlan> {
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
 
@@ -1354,7 +1349,7 @@ impl UserQuery {
     ///
     /// # Errors
     /// Returns an error if table resolution fails for any non-CTE, non-table-function reference.
-    pub fn update_statement_references(&self, statement: &mut DFStatement) -> ExecutionResult<()> {
+    pub fn update_statement_references(&self, statement: &mut DFStatement) -> Result<()> {
         let (_tables, ctes) = resolve_table_references(
             statement,
             self.session
@@ -1396,10 +1391,7 @@ impl UserQuery {
         }
     }
 
-    pub async fn sql_statement_to_plan(
-        &self,
-        statement: Statement,
-    ) -> ExecutionResult<LogicalPlan> {
+    pub async fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let tables = self
             .table_references_for_statement(
                 &DFStatement::Statement(Box::new(statement.clone())),
@@ -1417,7 +1409,7 @@ impl UserQuery {
             .context(ex_error::DataFusionSnafu)
     }
 
-    async fn execute_sql(&self, query: &str) -> ExecutionResult<QueryResult> {
+    async fn execute_sql(&self, query: &str) -> Result<QueryResult> {
         let session = self.session.clone();
         let query_id = self.query_context.query_id;
         let query = query.to_string();
@@ -1432,18 +1424,14 @@ impl UserQuery {
                     .context(ex_error::DataFusionSnafu)?;
                 let schema = df.schema().as_arrow().clone();
                 let records = df.collect().await.context(ex_error::DataFusionSnafu)?;
-                Ok::<QueryResult, ExecutionError>(QueryResult::new(
-                    records,
-                    Arc::new(schema),
-                    query_id,
-                ))
+                Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(ex_error::JobSnafu)??;
         Ok(stream)
     }
 
-    async fn execute_logical_plan(&self, plan: LogicalPlan) -> ExecutionResult<QueryResult> {
+    async fn execute_logical_plan(&self, plan: LogicalPlan) -> Result<QueryResult> {
         let session = self.session.clone();
         let query_id = self.query_context.query_id;
         let stream = self
@@ -1459,11 +1447,7 @@ impl UserQuery {
                     .collect()
                     .await
                     .context(ex_error::DataFusionSnafu)?;
-                Ok::<QueryResult, ExecutionError>(QueryResult::new(
-                    records,
-                    Arc::new(schema),
-                    query_id,
-                ))
+                Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
             .context(ex_error::JobSnafu)??;
@@ -1476,7 +1460,7 @@ impl UserQuery {
         skip(self),
         err
     )]
-    pub async fn execute_with_custom_plan(&self, query: &str) -> ExecutionResult<QueryResult> {
+    pub async fn execute_with_custom_plan(&self, query: &str) -> Result<QueryResult> {
         let mut plan = self.get_custom_logical_plan(query).await?;
         plan = self
             .session_context_expr_rewriter()
@@ -1572,7 +1556,7 @@ impl UserQuery {
         &self,
         statement: &DFStatement,
         state: &SessionState,
-    ) -> ExecutionResult<HashMap<ResolvedTableReference, Arc<dyn TableSource>>> {
+    ) -> Result<HashMap<ResolvedTableReference, Arc<dyn TableSource>>> {
         let mut tables = HashMap::new();
 
         let references = state
@@ -1878,7 +1862,7 @@ impl UserQuery {
     pub fn resolve_table_object_name(
         &self,
         mut table_ident: Vec<ObjectNamePart>,
-    ) -> ExecutionResult<NormalizedIdent> {
+    ) -> Result<NormalizedIdent> {
         match table_ident.len() {
             1 => {
                 table_ident.insert(
@@ -1922,7 +1906,7 @@ impl UserQuery {
     pub fn resolve_schema_object_name(
         &self,
         mut schema_ident: Vec<ObjectNamePart>,
-    ) -> ExecutionResult<NormalizedIdent> {
+    ) -> Result<NormalizedIdent> {
         match schema_ident.len() {
             1 => {
                 schema_ident.insert(
@@ -1974,7 +1958,7 @@ impl UserQuery {
         }
     }
 
-    pub fn created_entity_response(&self) -> ExecutionResult<QueryResult> {
+    pub fn created_entity_response(&self) -> Result<QueryResult> {
         let schema = Arc::new(ArrowSchema::new(vec![Field::new(
             "count",
             DataType::Int64,
@@ -1990,7 +1974,7 @@ impl UserQuery {
         ))
     }
 
-    pub fn status_response(&self) -> ExecutionResult<QueryResult> {
+    pub fn status_response(&self) -> Result<QueryResult> {
         let schema = Arc::new(ArrowSchema::new(vec![Field::new(
             "status",
             DataType::Utf8,
@@ -2024,7 +2008,7 @@ fn apply_show_filters(sql: String, filters: &[String]) -> String {
 pub fn cast_input_to_target_schema(
     input: Arc<LogicalPlan>,
     target_schema: &SchemaRef,
-) -> ExecutionResult<Arc<LogicalPlan>> {
+) -> Result<Arc<LogicalPlan>> {
     let input_schema = input.schema().as_arrow();
     let mut projections: Vec<DFExpr> = Vec::with_capacity(target_schema.fields().len());
 

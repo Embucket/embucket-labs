@@ -1,4 +1,4 @@
-use core_executor::error::{self as ex_error, ExecutionError};
+use core_executor::error::{self as ex_error};
 use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
 use serde::Deserialize;
 use std::fmt::Display;
@@ -68,7 +68,7 @@ impl Display for OrderDirection {
 fn downcast_string_column<'a>(
     batch: &'a RecordBatch,
     name: &str,
-) -> std::result::Result<&'a StringArray, ExecutionError> {
+) -> std::result::Result<&'a StringArray, core_executor::Error> {
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<StringArray>())
@@ -78,7 +78,7 @@ fn downcast_string_column<'a>(
 fn downcast_int64_column<'a>(
     batch: &'a RecordBatch,
     name: &str,
-) -> std::result::Result<&'a Int64Array, ExecutionError> {
+) -> std::result::Result<&'a Int64Array, core_executor::Error> {
     batch
         .column_by_name(name)
         .and_then(|col| col.as_any().downcast_ref::<Int64Array>())

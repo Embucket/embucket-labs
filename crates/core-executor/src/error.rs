@@ -8,12 +8,12 @@ use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::Location;
 use snafu::prelude::*;
 
-pub type ExecutionResult<T> = std::result::Result<T, ExecutionError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
-pub enum ExecutionError {
+pub enum Error {
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {
         #[snafu(source(from(DataFusionError, Box::new)))]
@@ -107,8 +107,8 @@ pub enum ExecutionError {
 
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        #[snafu(source(from(core_metastore::error::MetastoreError, Box::new)))]
-        source: Box<core_metastore::error::MetastoreError>,
+        #[snafu(source(from(core_metastore::error::Error, Box::new)))]
+        source: Box<core_metastore::error::Error>,
         #[snafu(implicit)]
         location: Location,
     },

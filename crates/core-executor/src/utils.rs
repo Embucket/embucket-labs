@@ -1,5 +1,5 @@
 use super::models::QueryResult;
-use crate::error::{ArrowSnafu, ExecutionResult, SerdeParseSnafu, Utf8Snafu};
+use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
@@ -40,7 +40,7 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn new() -> Result<Self, strum::ParseError> {
+    pub fn new() -> std::result::Result<Self, strum::ParseError> {
         Ok(Self {
             embucket_version: "0.1.0".to_string(),
         })
@@ -146,7 +146,7 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 pub fn convert_record_batches(
     query_result: QueryResult,
     data_format: DataSerializationFormat,
-) -> ExecutionResult<Vec<RecordBatch>> {
+) -> Result<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
     let column_infos = query_result.column_info();
 
@@ -479,14 +479,16 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_result_to_history(result: &ExecutionResult<QueryResult>) -> Result<ResultSet, String> {
+pub fn query_result_to_history(
+    result: &Result<QueryResult>,
+) -> std::result::Result<ResultSet, String> {
     match result {
         Ok(query_result) => query_result_to_result_set(query_result).map_err(|err| err.to_string()),
         Err(err) => Err(err.to_string()),
     }
 }
 
-pub fn query_result_to_result_set(query_result: &QueryResult) -> ExecutionResult<ResultSet> {
+pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSet> {
     let data_format = DataSerializationFormat::Arrow;
 
     // Convert the QueryResult to RecordBatches using the specified serialization format

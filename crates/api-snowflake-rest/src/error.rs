@@ -1,6 +1,5 @@
 use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
-use core_executor::error::ExecutionError;
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorExt;
 use error_stack_trace;
@@ -96,7 +95,7 @@ pub enum Error {
     },
 
     #[snafu(transparent)]
-    Execution { source: ExecutionError },
+    Execution { source: core_executor::Error },
 }
 
 impl IntoResponse for Error {
@@ -138,77 +137,77 @@ impl IntoResponse for Error {
 }
 
 #[allow(clippy::too_many_lines)]
-fn convert_into_status_code_and_error(error: &ExecutionError) -> (StatusCode, String) {
+fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCode, String) {
     let status_code = match error {
-        ExecutionError::RegisterUDF { .. }
-        | ExecutionError::RegisterUDAF { .. }
-        | ExecutionError::InvalidTableIdentifier { .. }
-        | ExecutionError::InvalidSchemaIdentifier { .. }
-        | ExecutionError::InvalidFilePath { .. }
-        | ExecutionError::InvalidBucketIdentifier { .. }
-        | ExecutionError::TableProviderNotFound { .. }
-        | ExecutionError::MissingDataFusionSession { .. }
-        | ExecutionError::Utf8 { .. }
-        | ExecutionError::VolumeNotFound { .. }
-        | ExecutionError::ObjectStore { .. }
-        | ExecutionError::ObjectAlreadyExists { .. }
-        | ExecutionError::UnsupportedFileFormat { .. }
-        | ExecutionError::RefreshCatalogList { .. }
-        | ExecutionError::UrlParse { .. }
-        | ExecutionError::JobError { .. }
-        | ExecutionError::OnyUseWithVariables { .. }
-        | ExecutionError::OnlyPrimitiveStatements { .. }
-        | ExecutionError::OnlyTableSchemaCreateStatements { .. }
-        | ExecutionError::OnlyDropStatements { .. }
-        | ExecutionError::OnlyDropTableViewStatements { .. }
-        | ExecutionError::OnlyCreateTableStatements { .. }
-        | ExecutionError::OnlyCreateStageStatements { .. }
-        | ExecutionError::OnlyCopyIntoStatements { .. }
-        | ExecutionError::FromObjectRequiredForCopyIntoStatements { .. }
-        | ExecutionError::OnlyCreateSchemaStatements { .. }
-        | ExecutionError::OnlySimpleSchemaNames { .. }
-        | ExecutionError::OnlyMergeStatements { .. }
-        | ExecutionError::UnsupportedShowStatement { .. }
-        | ExecutionError::NoTableNamesForTruncateTable { .. }
-        | ExecutionError::OnlySQLStatements { .. }
-        | ExecutionError::MissingOrInvalidColumn { .. }
-        | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
-        ExecutionError::Arrow { .. }
-        | ExecutionError::SerdeParse { .. }
-        | ExecutionError::S3Tables { .. }
-        | ExecutionError::Iceberg { .. }
-        | ExecutionError::CatalogListDowncast { .. }
-        | ExecutionError::CatalogDownCast { .. }
-        | ExecutionError::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-        ExecutionError::DatabaseNotFound { .. }
-        | ExecutionError::TableNotFound { .. }
-        | ExecutionError::SchemaNotFound { .. }
-        | ExecutionError::CatalogNotFound { .. }
-        | ExecutionError::Metastore { .. }
-        | ExecutionError::DataFusion { .. }
-        | ExecutionError::DataFusionQuery { .. } => http::StatusCode::OK,
+        core_executor::Error::RegisterUDF { .. }
+        | core_executor::Error::RegisterUDAF { .. }
+        | core_executor::Error::InvalidTableIdentifier { .. }
+        | core_executor::Error::InvalidSchemaIdentifier { .. }
+        | core_executor::Error::InvalidFilePath { .. }
+        | core_executor::Error::InvalidBucketIdentifier { .. }
+        | core_executor::Error::TableProviderNotFound { .. }
+        | core_executor::Error::MissingDataFusionSession { .. }
+        | core_executor::Error::Utf8 { .. }
+        | core_executor::Error::VolumeNotFound { .. }
+        | core_executor::Error::ObjectStore { .. }
+        | core_executor::Error::ObjectAlreadyExists { .. }
+        | core_executor::Error::UnsupportedFileFormat { .. }
+        | core_executor::Error::RefreshCatalogList { .. }
+        | core_executor::Error::UrlParse { .. }
+        | core_executor::Error::JobError { .. }
+        | core_executor::Error::OnyUseWithVariables { .. }
+        | core_executor::Error::OnlyPrimitiveStatements { .. }
+        | core_executor::Error::OnlyTableSchemaCreateStatements { .. }
+        | core_executor::Error::OnlyDropStatements { .. }
+        | core_executor::Error::OnlyDropTableViewStatements { .. }
+        | core_executor::Error::OnlyCreateTableStatements { .. }
+        | core_executor::Error::OnlyCreateStageStatements { .. }
+        | core_executor::Error::OnlyCopyIntoStatements { .. }
+        | core_executor::Error::FromObjectRequiredForCopyIntoStatements { .. }
+        | core_executor::Error::OnlyCreateSchemaStatements { .. }
+        | core_executor::Error::OnlySimpleSchemaNames { .. }
+        | core_executor::Error::OnlyMergeStatements { .. }
+        | core_executor::Error::UnsupportedShowStatement { .. }
+        | core_executor::Error::NoTableNamesForTruncateTable { .. }
+        | core_executor::Error::OnlySQLStatements { .. }
+        | core_executor::Error::MissingOrInvalidColumn { .. }
+        | core_executor::Error::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
+        core_executor::Error::Arrow { .. }
+        | core_executor::Error::SerdeParse { .. }
+        | core_executor::Error::S3Tables { .. }
+        | core_executor::Error::Iceberg { .. }
+        | core_executor::Error::CatalogListDowncast { .. }
+        | core_executor::Error::CatalogDownCast { .. }
+        | core_executor::Error::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+        core_executor::Error::DatabaseNotFound { .. }
+        | core_executor::Error::TableNotFound { .. }
+        | core_executor::Error::SchemaNotFound { .. }
+        | core_executor::Error::CatalogNotFound { .. }
+        | core_executor::Error::Metastore { .. }
+        | core_executor::Error::DataFusion { .. }
+        | core_executor::Error::DataFusionQuery { .. } => http::StatusCode::OK,
     };
 
     let message = match error {
-        ExecutionError::DataFusion { .. }
-        | ExecutionError::DataFusionQuery { .. }
-        | ExecutionError::InvalidTableIdentifier { .. }
-        | ExecutionError::InvalidSchemaIdentifier { .. }
-        | ExecutionError::InvalidFilePath { .. }
-        | ExecutionError::InvalidBucketIdentifier { .. }
-        | ExecutionError::Arrow { .. }
-        | ExecutionError::TableProviderNotFound { .. }
-        | ExecutionError::MissingDataFusionSession { .. }
-        | ExecutionError::Utf8 { .. }
-        | ExecutionError::Metastore { .. }
-        | ExecutionError::DatabaseNotFound { .. }
-        | ExecutionError::TableNotFound { .. }
-        | ExecutionError::SchemaNotFound { .. }
-        | ExecutionError::VolumeNotFound { .. }
-        | ExecutionError::ObjectStore { .. }
-        | ExecutionError::ObjectAlreadyExists { .. }
-        | ExecutionError::UnsupportedFileFormat { .. }
-        | ExecutionError::RefreshCatalogList { .. } => error.to_string(),
+        core_executor::Error::DataFusion { .. }
+        | core_executor::Error::DataFusionQuery { .. }
+        | core_executor::Error::InvalidTableIdentifier { .. }
+        | core_executor::Error::InvalidSchemaIdentifier { .. }
+        | core_executor::Error::InvalidFilePath { .. }
+        | core_executor::Error::InvalidBucketIdentifier { .. }
+        | core_executor::Error::Arrow { .. }
+        | core_executor::Error::TableProviderNotFound { .. }
+        | core_executor::Error::MissingDataFusionSession { .. }
+        | core_executor::Error::Utf8 { .. }
+        | core_executor::Error::Metastore { .. }
+        | core_executor::Error::DatabaseNotFound { .. }
+        | core_executor::Error::TableNotFound { .. }
+        | core_executor::Error::SchemaNotFound { .. }
+        | core_executor::Error::VolumeNotFound { .. }
+        | core_executor::Error::ObjectStore { .. }
+        | core_executor::Error::ObjectAlreadyExists { .. }
+        | core_executor::Error::UnsupportedFileFormat { .. }
+        | core_executor::Error::RefreshCatalogList { .. } => error.to_string(),
         _ => "Internal server error".to_string(),
     };
 

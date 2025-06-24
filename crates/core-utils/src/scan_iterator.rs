@@ -1,4 +1,5 @@
-use crate::{DeserializeValueSnafu, Result, ScanFailedSnafu};
+use crate::errors;
+use crate::errors::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
 use serde_json::de;
@@ -13,23 +14,6 @@ pub trait ScanIterator: Sized {
     type Collectable;
     async fn collect(mut self) -> Result<Self::Collectable>;
 }
-
-// #[async_trait]
-// pub trait Map: ScanIterator {
-//     type Iterator: ScanIterator;
-//     type Item: Send + for<'de> serde::de::Deserialize<'de>;
-//     type Transformed;
-//     type Mapper: FnMut(&Self::Item) -> Self::Transformed;
-//     fn map(self, f: Self::Mapper) -> MapScanIterator<Self::Iterator, Self::Item, Self::Transformed, Self::Mapper>;
-// }
-//
-// #[async_trait]
-// pub trait Filter: ScanIterator {
-//     type Iterator: ScanIterator;
-//     type Item: Send + for<'de> serde::de::Deserialize<'de>;
-//     type Predicate: FnMut(&Self::Item) -> bool;
-//     fn filter(self, f: Self::Predicate) -> FilterScanIterator<Self::Iterator, Self::Item, Self::Predicate>;
-// }
 
 #[derive(Clone)]
 pub struct VecScanIterator<T: Send + for<'de> serde::de::Deserialize<'de>> {
@@ -114,12 +98,12 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         tracing::Span::current().record("keys_range", format!("{start}..{end}"));
 
         let range = Bytes::from(start)..Bytes::from(end);
-        let mut iter = self.db.scan(range).await.context(ScanFailedSnafu)?;
+        let mut iter = self.db.scan(range).await.context(errors::ScanFailedSnafu)?;
 
         let mut objects = Self::Collectable::new();
         while let Ok(Some(bytes)) = iter.next().await {
-            let object =
-                de::from_slice(&bytes.value).context(DeserializeValueSnafu { key: bytes.key })?;
+            let object = de::from_slice(&bytes.value)
+                .context(errors::DeserializeValueSnafu { key: bytes.key })?;
             objects.push(object);
             if objects.len() >= limit {
                 break;
@@ -132,97 +116,3 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         Ok(objects)
     }
 }
-
-// #[async_trait]
-// impl<T: Send + for<'de> serde::de::Deserialize<'de>, F: FnMut(&T) -> bool> Filter for VecScanIterator<'_, T> {
-//     type Iterator = Self;
-//     type Item = Self::Next;
-//     type Predicate = F;
-//
-//     fn filter(self, f: Self::Predicate) -> FilterScanIterator<Self::Iterator, Self::Item, Self::Predicate> {
-//         FilterScanIterator {
-//             iter: self,
-//             filter: f,
-//         }
-//     }
-// }
-//
-// #[async_trait]
-// impl<T: Send + for<'de> serde::de::Deserialize<'de>, U, M: FnMut(&T) -> U> Map for VecScanIterator<'_, T> {
-//     type Iterator = Self;
-//     type Item = Self::Next;
-//     type Transformed = U;
-//     type Mapper = M;
-//
-//     fn map(self, f: Self::Mapper) -> MapScanIterator<Self::Iterator, Self::Item, Self::Transformed, Self::Mapper> {
-//         MapScanIterator {
-//             iter: self,
-//             map: f,
-//         }
-//     }
-// }
-//
-// pub struct FilterScanIterator<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, F: FnMut(&T) -> bool> {
-//     iter: I,
-//     filter: F,
-// }
-//
-// #[async_trait]
-// impl<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, F: FnMut(&T) -> bool> ScanIterator for FilterScanIterator<I, T, F>
-// {
-//     type Next = I::Next;
-//
-//     async fn next(&mut self) -> Result<Option<Self::Next>> {
-//         Ok(self.iter.next().await?.map(async |value| {
-//             if self.filter(&value) {
-//             Ok(Some(value))
-//             } else {
-//                 self.next().await
-//             }
-//         }))
-//     }
-// }
-//
-// #[async_trait]
-// impl<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, F: FnMut(&T) -> bool, U, M: FnMut(&T) -> U> Map for FilterScanIterator<I, T, F> {
-//     type Iterator = Self;
-//     type Item = Self::Next;
-//     type Transformed = U;
-//     type Mapper = M;
-//
-//     fn map(self, f: Self::Mapper) -> MapScanIterator<Self::Iterator, Self::Item, Self::Transformed, Self::Mapper> {
-//         MapScanIterator {
-//             iter: self,
-//             map: f,
-//         }
-//     }
-// }
-//
-// pub struct MapScanIterator<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, U, M: FnMut(&T) -> U> {
-//     iter: I,
-//     map: M,
-// }
-//
-// #[async_trait]
-// impl<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, U: std::marker::Send, M: FnMut(&T) -> U> ScanIterator for MapScanIterator<I, T, U, M>
-// {
-//     type Next = U;
-//
-//     async fn next(&mut self) -> Result<Option<Self::Next>> {
-//         Ok(self.iter.next().await?.map(|value| self.map(&value)))
-//     }
-// }
-//
-// #[async_trait]
-// impl<I: ScanIterator, T: Send + for<'de> serde::de::Deserialize<'de>, F: FnMut(&T) -> bool, U, M: FnMut(&T) -> U> Filter for MapScanIterator<I, T, U, M> {
-//     type Iterator = Self;
-//     type Item = Self::Next;
-//     type Predicate = F;
-//
-//     fn filter(self, f: Self::Predicate) -> FilterScanIterator<Self::Iterator, Self::Item, Self::Predicate> {
-//         FilterScanIterator {
-//             iter: self,
-//             filter: f,
-//         }
-//     }
-// }
