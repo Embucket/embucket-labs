@@ -113,12 +113,7 @@ fn apply_parameters(
     );
     //Default order by is the first search column or created at
     let sql_string = parameters.order_by.map_or_else(
-        || {
-            format!(
-                "{sql_string} ORDER BY {}",
-                search_columns.first().unwrap_or(&"created_at")
-            )
-        },
+        || format!("{sql_string} ORDER BY created_at"),
         |order_by| format!("{sql_string} ORDER BY {order_by}"),
     );
     let sql_string = parameters.order_direction.map_or_else(
