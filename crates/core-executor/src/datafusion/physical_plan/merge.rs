@@ -1,12 +1,16 @@
 use datafusion::{
     arrow::{
         array::{Array, BooleanArray, RecordBatch, StringArray, downcast_array},
-        compute::{filter, kernels::cmp::distinct},
+        compute::{
+            filter, filter_record_batch,
+            kernels::cmp::{distinct, eq},
+            or,
+        },
         datatypes::Schema,
     },
     physical_expr::EquivalenceProperties,
 };
-use datafusion_common::{DFSchemaRef, DataFusionError, HashSet};
+use datafusion_common::{DFSchemaRef, DataFusionError, HashMap, HashSet};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PhysicalExpr, PlanProperties,
@@ -234,13 +238,13 @@ pin_project! {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashSet<String>,
         // The current datafiles being processed
-        current_file: Option<String>,
+        last_files: Option<String>,
         // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
         // to buffer the recordbatches. If a "__source_exists" = true is encountered in a later
         // recordbatch, the buffered recordbatches will be returned. If the `current_file` is set
         // to another value, the buffer can be discarded as there won't be more any records from
         // the same file.
-        current_buffer: Vec<RecordBatch>,
+        current_buffers: HashMap<String, RecordBatch>,
         // RecordBatches ready to be consumed
         ready_batches: Vec<RecordBatch>,
 
@@ -253,8 +257,8 @@ impl SourceExistFilterStream {
     fn new(input: SendableRecordBatchStream) -> Self {
         Self {
             matching_files: HashSet::new(),
-            current_file: None,
-            current_buffer: Vec::new(),
+            last_files: None,
+            current_buffers: HashMap::new(),
             ready_batches: Vec::new(),
             input,
         }
@@ -304,7 +308,20 @@ impl Stream for SourceExistFilterStream {
                 if unique_data_files.is_empty() {
                     Poll::Pending
                 } else {
-                    Poll::Ready(Some(Ok(batch)))
+                    let predicate = unique_data_files
+                        .iter()
+                        .try_fold(None::<BooleanArray>, |acc, x| {
+                            let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
+                            if let Some(acc) = acc {
+                                let result = or(&acc, &new)?;
+                                Ok::<_, DataFusionError>(Some(result))
+                            } else {
+                                Ok(Some(new))
+                            }
+                        })?
+                        .expect("Matching files cannot be empty");
+                    let filtered_batch = filter_record_batch(&batch, &predicate)?;
+                    Poll::Ready(Some(Ok(filtered_batch)))
                 }
             }
             x => x,
@@ -331,8 +348,11 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
     let v1 = array.slice(0, slice_len);
     let v2 = array.slice(1, slice_len);
 
+    // Which consecutive entries are different
     let mask = distinct(&v1, &v2)?;
 
+    // only keep values that are diffirent from their previous value, this drastically reduces the
+    // number of values needed to process
     let unique = filter(&v2, &mask)?;
 
     let strings = downcast_array::<StringArray>(&unique);
@@ -355,25 +375,22 @@ fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
         .fields()
         .iter()
         .enumerate()
-        .filter_map(|(i, field)| {
+        .filter_map(|(i, field)| -> Option<(Arc<dyn PhysicalExpr>, String)> {
             let name = field.name();
             if name != SOURCE_EXISTS_COLUMN
                 && name != DATA_FILE_PATH_COLUMN
                 && name != MANIFEST_FILE_PATH_COLUMN
             {
-                Some((
-                    Arc::new(Column::new(name, i)) as Arc<dyn PhysicalExpr>,
-                    name.to_owned(),
-                ))
+                Some((Arc::new(Column::new(name, i)), name.to_owned()))
             } else {
                 None
             }
         })
         .collect()
 }
-
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     use std::sync::Arc;
 
@@ -392,7 +409,9 @@ mod tests {
         let array = Arc::new(StringArray::from(vec!["same", "same", "same"]));
         let result = unique_values(array.as_ref()).unwrap();
 
-        let expected: HashSet<String> = ["same"].iter().map(|&s| s.to_string()).collect();
+        let expected: HashSet<String> = std::iter::once(&"same")
+            .map(std::string::ToString::to_string)
+            .collect();
 
         assert_eq!(result, expected);
     }
