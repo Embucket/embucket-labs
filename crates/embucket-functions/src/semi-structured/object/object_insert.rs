@@ -1,5 +1,5 @@
-use crate::json;
 use crate::macros::make_udf_function;
+use crate::{errors, json};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -133,21 +133,15 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     match array.first() {
                         Some(value) => value.clone(),
                         None => {
-                            return Err(datafusion_common::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string(),
-                            ));
+                            return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                         }
                     }
                 } else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected array for scalar value".to_string(),
-                    ));
+                    return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                 }
             }
             ColumnarValue::Array(_) => {
-                return Err(datafusion_common::DataFusionError::Internal(
-                    "Key argument must be a scalar value".to_string(),
-                ));
+                return errors::ArgumentMustBeAScalarValueSnafu { argument: "Key" }.fail()?;
             }
         };
 
@@ -161,21 +155,15 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     match array.first() {
                         Some(value) => value.clone(),
                         None => {
-                            return Err(datafusion_common::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string(),
-                            ));
+                            return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                         }
                     }
                 } else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected array for scalar value".to_string(),
-                    ));
+                    return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                 }
             }
             ColumnarValue::Array(_) => {
-                return Err(datafusion_common::DataFusionError::Internal(
-                    "Value argument must be a scalar value".to_string(),
-                ));
+                return errors::ArgumentMustBeAScalarValueSnafu { argument: "Value" }.fail()?;
             }
         };
 

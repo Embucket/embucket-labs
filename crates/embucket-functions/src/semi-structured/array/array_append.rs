@@ -41,30 +41,20 @@ impl ArrayAppendUDF {
             match array.first() {
                 Some(value) => value.clone(),
                 None => {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected array for scalar value".to_string(),
-                    ));
+                    return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                 }
             }
         } else {
-            return Err(datafusion_common::DataFusionError::Internal(
-                "Expected array for scalar value".to_string(),
-            ));
+            return errors::ExpectedArrayForScalarValueSnafu.fail()?;
         };
         // Ensure the first argument is an array
         if let Value::Array(ref mut array) = array_value {
             array.push(scalar_value);
 
             // Convert back to JSON string
-            to_string(&array_value).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })
+            Ok(to_string(&array_value).context(errors::FailedToSerializeValueSnafu)?)
         } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
-            ))
+            errors::ArgumentMustBeJsonArraySnafu { argument: "First" }.fail()?
         }
     }
 }
@@ -96,14 +86,10 @@ impl ScalarUDFImpl for ArrayAppendUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
         let element = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected element argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ElementArgumentExpectedSnafu.build())?;
 
         match (array_str, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(element_value)) => {
@@ -119,21 +105,20 @@ impl ScalarUDFImpl for ArrayAppendUDF {
                     }
                 }
 
-                Ok(ColumnarValue::Array(Arc::new(datafusion::arrow::array::StringArray::from(results))))
+                Ok(ColumnarValue::Array(Arc::new(
+                    datafusion::arrow::array::StringArray::from(results),
+                )))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(element_value)) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string()
-                    ))
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 let result = Self::append_element(array_str, element_value)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second argument must be a scalar value".to_string()
-            ))
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondArgumentMustBeScalarValueSnafu
+                .fail()?,
         }
     }
 }

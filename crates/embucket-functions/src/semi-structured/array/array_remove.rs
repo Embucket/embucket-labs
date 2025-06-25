@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
@@ -106,14 +107,10 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),
-                            None => return Err(datafusion_common::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string()
-                            ))
+                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?
                         }
                     } else {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected array for scalar value".to_string()
-                        ))
+                        return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                     }
                 };
 
@@ -153,14 +150,10 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),
-                            None => return Err(datafusion_common::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string()
-                            ))
+                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?
                         }
                     } else {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected array for scalar value".to_string()
-                        ))
+                        return errors::ExpectedArrayForScalarValueSnafu.fail()?
                     }
                 };
 
