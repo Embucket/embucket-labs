@@ -14,62 +14,7 @@ on:
     types: [created]
 
 jobs:
-  # This job builds native binaries for Linux and macOS on both amd64 and arm64.
-  build-binaries:
-    name: Build Binaries
-    strategy:
-      matrix:
-        # Define the build matrix for each target platform
-        include:
-          - platform: 'linux-amd64'
-            os: 'ubuntu-latest'
-            target: 'x86_64-unknown-linux-gnu'
-          - platform: 'linux-arm64'
-            os: 'ubuntu-latest'
-            target: 'aarch64-unknown-linux-gnu'
-          - platform: 'darwin-amd64'
-            os: 'macos-latest'
-            target: 'x86_64-apple-darwin'
-          - platform: 'darwin-arm64'
-            os: 'macos-latest'
-            target: 'aarch64-apple-darwin'
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain with target
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }} --bin embucketd
-
-      - name: Strip binary for size reduction (Linux & macOS)
-        if: runner.os!= 'Windows'
-        run: strip target/${{ matrix.target }}/release/embucketd
-
-      - name: Package binary for artifact upload
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          ARTIFACT_NAME="embucketd-${{ matrix.target }}"
-          cp target/${{ matrix.target }}/release/embucketd "artifacts/${ARTIFACT_NAME}"
-          tar -czf "artifacts/${ARTIFACT_NAME}.tar.gz" -C artifacts "${ARTIFACT_NAME}"
-          rm "artifacts/${ARTIFACT_NAME}"
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: embucket-binaries-${{ matrix.platform }}
-          path: artifacts/*.tar.gz
-
+  
   # This job builds and pushes a multi-arch Docker image to GitHub Container Registry.
   build-docker:
     name: Build and Push Docker Image
