@@ -115,7 +115,6 @@ async fn main() {
     };
 
     let no_bootstrap = opts.no_bootstrap;
-    tracing::error!("{no_bootstrap}");
 
     let object_store = opts
         .object_store_backend()
