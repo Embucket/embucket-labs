@@ -4,7 +4,7 @@ use datafusion::{
         compute::{
             filter, filter_record_batch,
             kernels::cmp::{distinct, eq},
-            not, or,
+            or,
         },
         datatypes::Schema,
     },
@@ -449,5 +449,78 @@ mod tests {
         let expected: HashSet<String> = ["a", "b"].iter().map(|&s| s.to_string()).collect();
 
         assert_eq!(result, expected);
+    }
+
+    #[tokio::test]
+    async fn test_source_exist_filter_stream() {
+        use datafusion::arrow::datatypes::{DataType, Field};
+        use futures::stream;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new(SOURCE_EXISTS_COLUMN, DataType::Boolean, false),
+            Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, false),
+            Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, false),
+            Field::new("data", DataType::Int32, false),
+        ]));
+
+        let batch1 = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(BooleanArray::from(vec![false, false, true, false])),
+                Arc::new(StringArray::from(vec!["file1", "file1", "file2", "file2"])),
+                Arc::new(StringArray::from(vec![
+                    "manifest1",
+                    "manifest1",
+                    "manifest1",
+                    "manifest1",
+                ])),
+                Arc::new(datafusion::arrow::array::Int32Array::from(vec![1, 2, 3, 4])),
+            ],
+        )
+        .unwrap();
+
+        let batch2 = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(BooleanArray::from(vec![false, true, false, true])),
+                Arc::new(StringArray::from(vec!["file2", "file3", "file3", "file3"])),
+                Arc::new(StringArray::from(vec![
+                    "manifest1",
+                    "manifest2",
+                    "manifest2",
+                    "manifest2",
+                ])),
+                Arc::new(datafusion::arrow::array::Int32Array::from(vec![5, 6, 7, 8])),
+            ],
+        )
+        .unwrap();
+
+        let batch3 = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(BooleanArray::from(vec![true, true, false])),
+                Arc::new(StringArray::from(vec!["file4", "file4", "file4"])),
+                Arc::new(StringArray::from(vec![
+                    "manifest3",
+                    "manifest3",
+                    "manifest3",
+                ])),
+                Arc::new(datafusion::arrow::array::Int32Array::from(vec![9, 10, 11])),
+            ],
+        )
+        .unwrap();
+
+        let input_stream = stream::iter(vec![Ok(batch1), Ok(batch2), Ok(batch3)]);
+        let stream = Box::pin(RecordBatchStreamAdapter::new(schema, input_stream));
+
+        let mut filter_stream = SourceExistFilterStream::new(stream);
+
+        let mut total_rows = 0;
+        while let Some(result) = StreamExt::next(&mut filter_stream).await {
+            let batch = result.unwrap();
+            total_rows += batch.num_rows();
+        }
+
+        assert!(total_rows == 9);
     }
 }
