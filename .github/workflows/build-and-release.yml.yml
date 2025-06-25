@@ -17,8 +17,19 @@ jobs:
   
   # This job builds and pushes a multi-arch Docker image to GitHub Container Registry.
   build-docker:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     name: Build and Push Docker Image
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,47 +47,13 @@ jobs:
           username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: docker.io/${{ github.repository }}/embucket
-          tags: |
-            type=schedule,pattern=nightly
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=short
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           # Push only on schedule, release, or manual dispatch on the main branch
           push: ${{ github.event_name == 'schedule' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # This job runs only on a 'release' event to upload the compiled binaries.
-  upload-to-release:
-    name: Upload Binaries to Release
-    if: github.event_name == 'release'
-    needs: [build-binaries]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required to upload assets to a release
-    steps:
-      - name: Download all binary artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          pattern: embucket-binaries-*
-          merge-multiple: true
-
-      - name: Upload binaries to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*.tar.gz
