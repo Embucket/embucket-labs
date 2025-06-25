@@ -21,7 +21,9 @@ export function SchemasPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
-  const { databaseName } = useParams({ from: '/databases/$databaseName/schemas/' });
+  const { databaseName } = useParams({
+    from: '/databases/_dataPagesLayout/$databaseName/schemas/',
+  });
   const {
     data: { items: schemas } = {},
     isFetching: isFetchingSchemas,
@@ -33,43 +35,36 @@ export function SchemasPage() {
 
   return (
     <>
-      <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel collapsible defaultSize={20} minSize={20} order={1}>
-          <DataPageTrees />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel collapsible defaultSize={20} order={1}>
-          <PageHeader
-            title={databaseName}
-            Icon={Database}
-            Action={
-              <Button size="sm" disabled={isFetchingSchemas} onClick={() => setOpened(true)}>
-                Add Schema
-              </Button>
-            }
-          />
+      <PageHeader
+        title={databaseName}
+        Icon={Database}
+        Action={
+          <Button size="sm" disabled={isFetchingSchemas} onClick={() => setOpened(true)}>
+            Add Schema
+          </Button>
+        }
+      />
 
-          <SchemasPageToolbar
-            search={search}
-            onSetSearch={setSearch}
-            schemas={schemas ?? []}
-            isFetchingSchemas={isFetchingSchemas}
-            onRefetchSchemas={refetchSchemas}
-          />
-          {!schemas?.length && !isLoadingSchemas ? (
-            <PageEmptyContainer
-              Icon={FolderTree}
-              variant="toolbar"
-              title="No Schemas Found"
-              description="No schemas have been found for this database."
-            />
-          ) : (
-            <PageScrollArea>
-              <SchemasTable isLoading={isLoadingSchemas} schemas={schemas ?? []} />
-            </PageScrollArea>
-          )}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      <SchemasPageToolbar
+        search={search}
+        onSetSearch={setSearch}
+        schemas={schemas ?? []}
+        isFetchingSchemas={isFetchingSchemas}
+        onRefetchSchemas={refetchSchemas}
+      />
+      {!schemas?.length && !isLoadingSchemas ? (
+        <PageEmptyContainer
+          Icon={FolderTree}
+          variant="toolbar"
+          title="No Schemas Found"
+          description="No schemas have been found for this database."
+        />
+      ) : (
+        <PageScrollArea>
+          <SchemasTable isLoading={isLoadingSchemas} schemas={schemas ?? []} />
+        </PageScrollArea>
+      )}
+
       <CreateSchemaDialog opened={opened} onSetOpened={setOpened} databaseName={databaseName} />
     </>
   );

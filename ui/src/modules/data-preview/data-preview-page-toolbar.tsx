@@ -4,7 +4,7 @@ import { Input, InputIcon, InputRoot } from '@/components/ui/input';
 import { RefreshButton } from '@/components/ui/refresh-button';
 import type { TablePreviewDataColumn } from '@/orval/models';
 
-interface ColumnsPagePreviewDataToolbarProps {
+interface DataPreviewPageToolbarProps {
   previewData: TablePreviewDataColumn[];
   isFetchingPreviewData: boolean;
   search: string;
@@ -12,13 +12,13 @@ interface ColumnsPagePreviewDataToolbarProps {
   onRefetchPreviewData: () => Promise<unknown>;
 }
 
-export function ColumnsPagePreviewDataToolbar({
+export function DataPreviewPageToolbar({
   previewData,
   isFetchingPreviewData,
   search,
   onSearch,
   onRefetchPreviewData,
-}: ColumnsPagePreviewDataToolbarProps) {
+}: DataPreviewPageToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-4 p-4">
       <p className="text-muted-foreground text-sm text-nowrap">
