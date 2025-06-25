@@ -9,11 +9,14 @@ import type {
 } from '@/orval/models';
 import { getGetTablePreviewDataQueryKey, getTablePreviewData } from '@/orval/tables';
 
+const DEFAULT_PAGE_SIZE = 25;
+
 interface UseInfinitePreviewDataProps {
   databaseName: string;
   schemaName: string;
   tableName: string;
   pageSize?: number;
+  enabled?: boolean;
 }
 
 // Helper function to safely get rows from a column
@@ -28,7 +31,8 @@ export function useGetInfiniteTablePreviewData({
   databaseName,
   schemaName,
   tableName,
-  pageSize = 5,
+  pageSize = DEFAULT_PAGE_SIZE,
+  enabled = true,
 }: UseInfinitePreviewDataProps) {
   const {
     data,
@@ -49,12 +53,14 @@ export function useGetInfiniteTablePreviewData({
         offset: pageParam,
       }),
     initialPageParam: 0,
+    enabled,
     getNextPageParam: (lastPage, allPages) => {
       const items = getPageItems(lastPage);
-      if (items.length === 0) return undefined;
+      if (items.length === 0) return;
 
+      // If the first column has less rows than the page size, we've reached the end
       const firstColumnRows = getColumnRows(items[0]);
-      if (firstColumnRows.length < pageSize) return undefined;
+      if (firstColumnRows.length < pageSize) return;
 
       // Return the total number of rows fetched so far as the next offset
       return allPages.reduce((total, page) => {
@@ -65,20 +71,20 @@ export function useGetInfiniteTablePreviewData({
   });
 
   // Flatten all pages into a single array of columns
-  const columns = useMemo(() => {
+  const tableDataPreviewColumns = useMemo(() => {
     if (!data?.pages) return [];
 
-    const columnsMap = new Map<string, TablePreviewDataColumn>();
+    const tableDataPreviewColumnsMap = new Map<string, TablePreviewDataColumn>();
 
     data.pages.forEach((page) => {
       getPageItems(page).forEach((column) => {
-        const existingColumn = columnsMap.get(column.name);
+        const existingColumn = tableDataPreviewColumnsMap.get(column.name);
         const columnRows = getColumnRows(column);
 
         if (existingColumn) {
           existingColumn.rows.push(...columnRows);
         } else {
-          columnsMap.set(column.name, {
+          tableDataPreviewColumnsMap.set(column.name, {
             name: column.name,
             rows: [...columnRows],
           });
@@ -86,7 +92,7 @@ export function useGetInfiniteTablePreviewData({
       });
     });
 
-    return Array.from(columnsMap.values());
+    return Array.from(tableDataPreviewColumnsMap.values());
   }, [data]);
 
   const loadMore = useCallback(() => {
@@ -96,7 +102,7 @@ export function useGetInfiniteTablePreviewData({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return {
-    columns,
+    data: tableDataPreviewColumns,
     isLoading,
     isFetching,
     isFetchingNextPage,

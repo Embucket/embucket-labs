@@ -42,7 +42,7 @@ export function ColumnsPage() {
   } = useGetTableColumns(databaseName, schemaName, tableName);
 
   const {
-    columns: previewData,
+    data: previewData,
     isLoading: isLoadingPreviewData,
     isFetching: isPreviewDataFetching,
     isFetchingNextPage,

@@ -1,3 +1,5 @@
+import { useInView } from 'react-intersection-observer';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DataPreviewTable } from '@/modules/shared/data-preview-table/data-preview-table';
@@ -10,6 +12,9 @@ interface SqlEditorLeftPanelTableColumnsPreviewDialogProps {
   onSetOpened: (opened: boolean) => void;
   previewData: TablePreviewDataColumn[];
   isPreviewDataFetching: boolean;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+  loadMore?: () => void;
 }
 
 export function SqlEditorLeftPanelTableColumnsPreviewDialog({
@@ -17,7 +22,19 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
   onSetOpened,
   previewData,
   isPreviewDataFetching,
+  isFetchingNextPage,
+  hasNextPage,
+  loadMore,
 }: SqlEditorLeftPanelTableColumnsPreviewDialogProps) {
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+  });
+
+  // Load more data when the load more element comes into view
+  if (inView && hasNextPage && !isFetchingNextPage && loadMore) {
+    loadMore();
+  }
+
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
       {/* TODO: Hardcode */}
@@ -31,6 +48,7 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
           className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
         >
           <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
+          {hasNextPage && <div ref={loadMoreRef} />}
           <ScrollBar orientation="horizontal" />
           <ScrollBar orientation="vertical" />
         </ScrollArea>
