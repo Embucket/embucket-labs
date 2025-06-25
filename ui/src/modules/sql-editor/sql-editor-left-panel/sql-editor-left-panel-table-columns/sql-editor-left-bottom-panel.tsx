@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
+import { useGetInfiniteTablePreviewData } from '@/modules/data-preview/use-infinite-preview-data';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { useGetTableColumns } from '@/orval/tables';
 
-import { useGetInfiniteTablePreviewData } from '../../../columns/use-infinite-preview-data';
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
 import { SqlEditorLeftPanelTableColumnsPreviewDialog } from './sql-editor-left-panel-table-columns-preview-dialog';
