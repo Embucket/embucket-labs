@@ -58,7 +58,7 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
@@ -217,16 +217,14 @@ impl UserQuery {
             functions_rewriter::visit(value);
             top_limit::visit(value);
             unimplemented_functions_checker(value)
-                // Can't use context here since underlying Error require handling
-                .map_err(|e| {
-                    ex_error::DataFusionSnafu
-                        .into_error(DataFusionError::NotImplemented(e.to_string()))
-                })?;
+                .map_err(|e| DataFusionError::NotImplemented(e.to_string()))
+                .context(ex_error::DataFusionSnafu)?;
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);
             fetch_to_limit::visit(value)
-                .map_err(|e| ex_error::DataFusionSnafu.into_error(DataFusionError::SQL(e, None)))?;
+                .map_err(|e| DataFusionError::SQL(e, None))
+                .context(ex_error::DataFusionSnafu)?;
             table_functions::visit(value);
             visit_all(value);
         }
