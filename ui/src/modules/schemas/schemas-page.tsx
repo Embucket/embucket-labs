@@ -4,12 +4,10 @@ import { useParams } from '@tanstack/react-router';
 import { Database, FolderTree } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useGetSchemas } from '@/orval/schemas';
 
 import { CreateSchemaDialog } from '../shared/create-schema-dialog/create-schema-dialog';
-import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
 import { PageScrollArea } from '../shared/page/page-scroll-area';
