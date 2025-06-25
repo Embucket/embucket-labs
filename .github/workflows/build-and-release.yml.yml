@@ -28,6 +28,9 @@ jobs:
             runner: ubuntu-24.04-arm
     name: Build and Push Docker Image
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up QEMU for multi-arch builds
         uses: docker/setup-qemu-action@v3
 
