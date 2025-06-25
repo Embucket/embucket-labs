@@ -14,6 +14,9 @@ coverage
 # Turbo
 .turbo
 
+# Tanstack Router
+.tanstack
+
 # Build Outputs
 .next/
 out/
