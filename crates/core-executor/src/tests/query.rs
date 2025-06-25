@@ -680,7 +680,7 @@ test_query!(
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(
     truncate_table_full,
-    "TRUNCATE  TABLE embucket.public.employee_table"
+    "TRUNCATE TABLE embucket.public.employee_table"
 );
 test_query!(
     truncate_table_full_quotes,
