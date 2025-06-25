@@ -7,9 +7,6 @@ on:
   # Allow manual runs from the Actions tab
   workflow_dispatch:
   # Run when a new release is created on GitHub
-  pull_request:
-    branches:
-      - main
   release:
     types: [created]
 
@@ -31,9 +28,6 @@ jobs:
             runner: ubuntu-24.04-arm
     name: Build and Push Docker Image
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Set up QEMU for multi-arch builds
         uses: docker/setup-qemu-action@v3
 
@@ -53,6 +47,7 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
+          tags: embucket/embucket:latest
           # Push only on schedule, release, or manual dispatch on the main branch
           push: ${{ github.event_name == 'schedule' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
           cache-from: type=gha
