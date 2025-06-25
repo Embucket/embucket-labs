@@ -2,12 +2,13 @@ import { useState } from 'react';
 
 import { useParams } from '@tanstack/react-router';
 import { Columns, Table } from 'lucide-react';
+import { useInView } from 'react-intersection-observer';
 
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
-import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
+import { useGetTableColumns } from '@/orval/tables';
 
 import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { DataPreviewTable } from '../shared/data-preview-table/data-preview-table';
@@ -18,6 +19,7 @@ import { ColumnsPagePreviewDataToolbar } from './columns-page-preview-data-toolb
 import { ColumnsTable } from './columns-page-table';
 import { ColumnsPageToolbar } from './columns-page-toolbar';
 import { useColumnsSearch } from './use-columns-search';
+import { useGetInfiniteTablePreviewData } from './use-infinite-preview-data';
 import { usePreviewDataSearch } from './use-preview-data-search';
 
 export function ColumnsPage() {
@@ -27,6 +29,11 @@ export function ColumnsPage() {
   const { databaseName, schemaName, tableName } = useParams({
     from: '/databases/$databaseName/schemas/$schemaName/tables/$tableName/columns/',
   });
+
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+  });
+
   const {
     data: { items: columns } = {},
     isFetching: isFetchingColumns,
@@ -35,11 +42,23 @@ export function ColumnsPage() {
   } = useGetTableColumns(databaseName, schemaName, tableName);
 
   const {
-    data: { items: previewData } = {},
-    isFetching: isPreviewDataFetching,
+    columns: previewData,
     isLoading: isLoadingPreviewData,
+    isFetching: isPreviewDataFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    loadMore,
     refetch: refetchPreviewData,
-  } = useGetTablePreviewData(databaseName, schemaName, tableName);
+  } = useGetInfiniteTablePreviewData({
+    databaseName,
+    schemaName,
+    tableName,
+  });
+
+  // Load more data when the load more element comes into view
+  if (inView && hasNextPage && !isFetchingNextPage) {
+    loadMore();
+  }
 
   const {
     searchedColumns,
@@ -135,6 +154,7 @@ export function ColumnsPage() {
                     columns={searchedPreviewData}
                     isLoading={isLoadingPreviewData}
                   />
+                  {hasNextPage && <div ref={loadMoreRef} />}
                 </PageScrollArea>
               )}
             </TabsContent>

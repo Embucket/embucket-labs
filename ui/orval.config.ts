@@ -20,7 +20,6 @@ const config = {
       override: {
         query: {
           useQuery: true,
-          useInfinite: true,
         },
         mutator: {
           path: 'src/lib/axiosMutator.ts',
