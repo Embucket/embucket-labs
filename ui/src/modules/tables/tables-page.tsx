@@ -5,12 +5,10 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { FolderTree, Table } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useGetTables } from '@/orval/tables';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
-import { DataPageTrees } from '../shared/data-page/data-page-trees';
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
 import { PageScrollArea } from '../shared/page/page-scroll-area';
@@ -29,7 +27,7 @@ export function TablesPage() {
   const debouncedSearch = useDebounce(search, 300);
 
   const { databaseName, schemaName } = useParams({
-    from: '/databases/$databaseName/schemas/$schemaName/tables/',
+    from: '/databases/_dataPagesLayout/$databaseName/schemas/$schemaName/tables/',
   });
   const {
     data: { items: tables } = {},
@@ -77,48 +75,40 @@ export function TablesPage() {
 
   return (
     <>
-      <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel collapsible defaultSize={20} minSize={20} order={1}>
-          <DataPageTrees />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel collapsible defaultSize={20} order={1}>
-          <PageHeader
-            title={schemaName}
-            Icon={FolderTree}
-            Action={
-              <Button size="sm" disabled={isPendingCreateWorksheet} onClick={handleCreateTable}>
-                Add Table
-              </Button>
-            }
-          />
+      <PageHeader
+        title={schemaName}
+        Icon={FolderTree}
+        Action={
+          <Button size="sm" disabled={isPendingCreateWorksheet} onClick={handleCreateTable}>
+            Add Table
+          </Button>
+        }
+      />
 
-          <TablesPageToolbar
-            search={search}
-            onSetSearch={setSearch}
+      <TablesPageToolbar
+        search={search}
+        onSetSearch={setSearch}
+        tables={tables ?? []}
+        isFetchingTables={isFetchingTables}
+        onRefetchTables={refetchTables}
+      />
+      {!tables?.length && !isLoadingTables ? (
+        <PageEmptyContainer
+          Icon={Table}
+          variant="toolbar"
+          title="No Tables Found"
+          description="No tables have been created yet. Create a table to get started."
+        />
+      ) : (
+        <PageScrollArea>
+          <TablesTable
+            isLoading={isLoadingTables}
             tables={tables ?? []}
-            isFetchingTables={isFetchingTables}
-            onRefetchTables={refetchTables}
+            databaseName={databaseName}
+            schemaName={schemaName}
           />
-          {!tables?.length && !isLoadingTables ? (
-            <PageEmptyContainer
-              Icon={Table}
-              variant="toolbar"
-              title="No Tables Found"
-              description="No tables have been created yet. Create a table to get started."
-            />
-          ) : (
-            <PageScrollArea>
-              <TablesTable
-                isLoading={isLoadingTables}
-                tables={tables ?? []}
-                databaseName={databaseName}
-                schemaName={schemaName}
-              />
-            </PageScrollArea>
-          )}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </PageScrollArea>
+      )}
     </>
   );
 }

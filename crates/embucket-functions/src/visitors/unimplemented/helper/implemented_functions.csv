@@ -138,6 +138,7 @@ decode
 degrees
 dense_rank
 digest
+div0
 element_at
 empty
 encode

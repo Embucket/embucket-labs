@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
+import { useGetInfiniteTablePreviewData } from '@/modules/data-preview/use-infinite-preview-data';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
-import { useGetTableColumns, useGetTablePreviewData } from '@/orval/tables';
+import { useGetTableColumns } from '@/orval/tables';
 
 import { useSqlEditorSettingsStore } from '../../sql-editor-settings-store';
 import { SqlEditorLeftPanelTableColumns } from './sql-editor-left-panel-table-columns';
@@ -20,18 +21,18 @@ export function SqlEditorLeftBottomPanel() {
     !!selectedTree.schemaName &&
     !!selectedTree.tableName;
 
-  const { data: { items: previewData } = {}, isFetching: isPreviewDataFetching } =
-    useGetTablePreviewData(
-      selectedTree?.databaseName ?? '',
-      selectedTree?.schemaName ?? '',
-      selectedTree?.tableName ?? '',
-      undefined,
-      {
-        query: {
-          enabled: isEnabled,
-        },
-      },
-    );
+  const {
+    data: previewData,
+    isFetching: isPreviewDataFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    loadMore,
+  } = useGetInfiniteTablePreviewData({
+    databaseName: selectedTree?.databaseName ?? '',
+    schemaName: selectedTree?.schemaName ?? '',
+    tableName: selectedTree?.tableName ?? '',
+    enabled: isEnabled,
+  });
 
   const { data: { items: columns } = {}, isLoading: isLoadingColumns } = useGetTableColumns(
     selectedTree?.databaseName ?? '',
@@ -51,7 +52,7 @@ export function SqlEditorLeftBottomPanel() {
   return (
     <>
       <SqlEditorLeftPanelTableColumnsToolbar
-        previewData={previewData ?? []}
+        previewData={previewData}
         selectedTree={selectedTree}
         onSetOpen={setOpen}
       />
@@ -59,8 +60,11 @@ export function SqlEditorLeftBottomPanel() {
       <SqlEditorLeftPanelTableColumns isLoadingColumns={isLoadingColumns} columns={columns ?? []} />
 
       <SqlEditorLeftPanelTableColumnsPreviewDialog
-        previewData={previewData ?? []}
+        previewData={previewData}
         isPreviewDataFetching={isPreviewDataFetching}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        loadMore={loadMore}
         selectedTree={selectedTree}
         opened={open}
         onSetOpened={setOpen}

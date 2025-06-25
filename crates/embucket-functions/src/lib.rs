@@ -26,6 +26,7 @@ pub mod datetime;
 pub mod errors;
 //pub mod geospatial;
 mod json;
+pub mod numeric;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
@@ -37,6 +38,7 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
+#[allow(clippy::too_many_lines)]
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         datetime::convert_timezone::get_udf(),
@@ -75,6 +77,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
         conversion::to_variant::get_udf(),
+        numeric::div0::get_udf(),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),

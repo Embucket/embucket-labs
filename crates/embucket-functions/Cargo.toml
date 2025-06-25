@@ -32,6 +32,7 @@ tokio = { workspace = true }
 datafusion-functions-json = { workspace = true }
 hex = "0.4.3"
 snafu = { workspace = true }
+rust_decimal = "1.37.2"
 
 [dev-dependencies]
 bytes = { workspace = true }

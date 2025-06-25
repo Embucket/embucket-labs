@@ -2969,6 +2969,7 @@ dependencies = [
  "insta",
  "jsonpath_lib",
  "paste",
+ "rust_decimal",
  "serde",
  "serde_json",
  "snafu",
