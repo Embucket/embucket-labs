@@ -1,0 +1,134 @@
+name: Build and Release
+
+on:
+  # Run nightly at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+  # Allow manual runs from the Actions tab
+  workflow_dispatch:
+  # Run when a new release is created on GitHub
+  release:
+    types: [created]
+
+jobs:
+  # This job builds native binaries for Linux and macOS on both amd64 and arm64.
+  build-binaries:
+    name: Build Binaries
+    strategy:
+      matrix:
+        # Define the build matrix for each target platform
+        include:
+          - platform: 'linux-amd64'
+            os: 'ubuntu-latest'
+            target: 'x86_64-unknown-linux-gnu'
+          - platform: 'linux-arm64'
+            os: 'ubuntu-latest'
+            target: 'aarch64-unknown-linux-gnu'
+          - platform: 'darwin-amd64'
+            os: 'macos-latest'
+            target: 'x86_64-apple-darwin'
+          - platform: 'darwin-arm64'
+            os: 'macos-latest'
+            target: 'aarch64-apple-darwin'
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain with target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }} --bin embucket
+
+      - name: Strip binary for size reduction (Linux & macOS)
+        if: runner.os!= 'Windows'
+        run: strip target/${{ matrix.target }}/release/embucket
+
+      - name: Package binary for artifact upload
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          ARTIFACT_NAME="embucket-${{ matrix.target }}"
+          cp target/${{ matrix.target }}/release/embucket "artifacts/${ARTIFACT_NAME}"
+          tar -czf "artifacts/${ARTIFACT_NAME}.tar.gz" -C artifacts "${ARTIFACT_NAME}"
+          rm "artifacts/${ARTIFACT_NAME}"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: embucket-binaries-${{ matrix.platform }}
+          path: artifacts/*.tar.gz
+
+  # This job builds and pushes a multi-arch Docker image to GitHub Container Registry.
+  build-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/embucket
+          tags: |
+            type=schedule,pattern=nightly
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.embucket
+          platforms: linux/amd64,linux/arm64
+          # Push only on schedule, release, or manual dispatch on the main branch
+          push: ${{ github.event_name == 'schedule' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # This job runs only on a 'release' event to upload the compiled binaries.
+  upload-to-release:
+    name: Upload Binaries to Release
+    if: github.event_name == 'release'
+    needs: [build-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to upload assets to a release
+    steps:
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: embucket-binaries-*
+          merge-multiple: true
+
+      - name: Upload binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.gz
