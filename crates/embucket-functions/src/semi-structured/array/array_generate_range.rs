@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};
@@ -5,6 +6,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, to_string};
+use snafu::ResultExt;
 
 #[derive(Debug, Clone)]
 pub struct ArrayGenerateRangeUDF {
@@ -135,9 +137,8 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
             }
         }
 
-        let json_str = to_string(&Value::Array(results)).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(format!("Failed to serialize JSON: {e}",))
-        })?;
+        let json_str =
+            to_string(&Value::Array(results)).context(errors::FailedToSerializeJsonSnafu)?;
 
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
     }

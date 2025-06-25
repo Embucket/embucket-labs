@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;
@@ -7,6 +8,7 @@ use datafusion_common::arrow::array::StringBuilder;
 use datafusion_common::{DataFusionError, ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -118,15 +120,13 @@ fn to_string(v: &Value, sep: &str) -> DFResult<String> {
                     Value::Number(v) => res.push(v.to_string()),
                     Value::String(v) => res.push(v.to_owned()),
                     Value::Array(v) => {
-                        let r = serde_json::to_string(&v).map_err(|err| {
-                            DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-                        })?;
+                        let r = serde_json::to_string(&v)
+                            .context(errors::FailedToSerializeJsonSnafu)?;
                         res.push(r);
                     }
                     Value::Object(v) => {
-                        let r = serde_json::to_string(&v).map_err(|err| {
-                            DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-                        })?;
+                        let r = serde_json::to_string(&v)
+                            .context(errors::FailedToSerializeJsonSnafu)?;
                         res.push(r);
                     }
                     Value::Null => res.push(String::new()),

@@ -31,6 +31,7 @@ tracing = "0.1.41"
 tokio = { workspace = true }
 datafusion-functions-json = { workspace = true }
 hex = "0.4.3"
+snafu = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

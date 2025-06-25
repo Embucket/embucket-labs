@@ -1,3 +1,4 @@
+use crate::errors;
 use datafusion::arrow::array::as_boolean_array;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::cast::{as_float64_array, as_int64_array};
@@ -7,6 +8,7 @@ use datafusion_expr::{
 };
 use indexmap::IndexMap;
 use serde_json::{Number, Value};
+use snafu::ResultExt;
 
 #[derive(Debug, Clone)]
 pub struct ObjectConstructUDF {
@@ -147,11 +149,7 @@ impl ScalarUDFImpl for ObjectConstructUDF {
         }
 
         let json_str = serde_json::to_string(&Value::Object(serde_json::Map::from_iter(object)))
-            .map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize JSON: {e}",
-                ))
-            })?;
+            .context(errors::FailedToSerializeJsonSnafu)?;
 
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
     }

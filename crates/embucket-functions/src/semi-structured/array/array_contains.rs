@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json::{encode_array, encode_scalar};
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::cast::AsArray;
@@ -84,9 +85,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
             ))?;
         let array = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected an array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         match (value, array) {
             (ColumnarValue::Array(value_array), ColumnarValue::Array(array_array)) => {
@@ -95,9 +94,7 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                 let mut results = Vec::new();
                 for (search_val, col_val) in value_array
                     .as_array()
-                    .ok_or(datafusion_common::DataFusionError::Internal(
-                        "Expected an array argument".to_string(),
-                    ))?
+                    .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?
                     .iter()
                     .zip(array_strings)
                 {

@@ -14,7 +14,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::Result as DFResult;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use datafusion_common::DataFusionError;
+
 #[doc(hidden)]
 pub use std::iter as __std_iter;
 use std::sync::Arc;
@@ -23,6 +23,7 @@ pub(crate) mod aggregate;
 pub mod conditional;
 pub mod conversion;
 pub mod datetime;
+pub mod errors;
 //pub mod geospatial;
 mod json;
 #[path = "semi-structured/mod.rs"]
@@ -246,10 +247,10 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             let arr = arr.as_any().downcast_ref::<StringViewArray>().unwrap();
             for v in arr {
                 if v.is_some() {
-                    return Err(DataFusionError::Internal(format!(
-                        "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
-                        arr.data_type()
-                    )));
+                    return errors::UnsupportedTypeSnafu {
+                        data_type: arr.data_type().clone(),
+                    }
+                    .fail()?;
                 }
 
                 boolean_array.append_null();
@@ -258,10 +259,10 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             boolean_array.finish()
         }
         _ => {
-            return Err(DataFusionError::Internal(format!(
-                "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
-                arr.data_type()
-            )));
+            return errors::UnsupportedTypeSnafu {
+                data_type: arr.data_type().clone(),
+            }
+            .fail()?;
         }
     })
 }

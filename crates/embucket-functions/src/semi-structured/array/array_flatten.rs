@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;
@@ -7,6 +8,7 @@ use datafusion_common::arrow::array::StringBuilder;
 use datafusion_common::{DataFusionError, ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::{Map, Value};
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -143,9 +145,9 @@ fn flatten(v: &str) -> DFResult<Option<String>> {
         }
     };
 
-    Ok(Some(serde_json::to_string(&v).map_err(|err| {
-        DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-    })?))
+    Ok(Some(
+        serde_json::to_string(&v).context(errors::FailedToSerializeJsonSnafu)?,
+    ))
 }
 
 make_udf_function!(ArrayFlattenFunc);
