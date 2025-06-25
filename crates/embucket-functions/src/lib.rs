@@ -1,6 +1,7 @@
 pub use crate::aggregate::register_udafs;
 use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
+use crate::numeric::div0::Div0Func;
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
 use crate::semi_structured::is_typeof::IsTypeofFunc;
@@ -42,6 +43,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         datetime::convert_timezone::get_udf(),
         datetime::date_add::get_udf(),
+        datetime::date_add::get_udf(),
         semi_structured::json::parse_json::get_udf(),
         semi_structured::json::try_parse_json::get_udf(),
         datetime::date_diff::get_udf(),
@@ -76,7 +78,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
         conversion::to_variant::get_udf(),
-        numeric::div0::get_udf(),
+        Arc::new(ScalarUDF::from(Div0Func::new(false))),
+        Arc::new(ScalarUDF::from(Div0Func::new(true))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
