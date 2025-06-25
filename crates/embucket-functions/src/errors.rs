@@ -84,10 +84,30 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Failed to serialize JSON value: {error}"))]
-    FailedToSerializeJson {
+    #[snafu(display("Failed to serialize value to JSON: {error}"))]
+    FailedToSerializeValue {
         #[snafu(source)]
         error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to deserialize JSON: {error}"))]
+    FailedToDeserializeJson {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to deserialize JSON {entity}: {error}"))]
+    FailedToDeserializeJsonEntity {
+        entity: String,
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Arguments must be JSON arrays"))]
+    ArgumentsMustBeJsonArrays {
         #[snafu(implicit)]
         location: Location,
     },
@@ -96,5 +116,22 @@ pub enum DataFusionInternalError {
 impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
     fn from(value: DataFusionInternalError) -> Self {
         Self::Internal(value.to_string())
+    }
+}
+
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
+pub enum DataFusionExecutionError {
+    #[snafu(display("Input must be a JSON object"))]
+    InputMustBeJsonObject {
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl From<DataFusionExecutionError> for datafusion_common::DataFusionError {
+    fn from(value: DataFusionExecutionError) -> Self {
+        Self::Execution(value.to_string())
     }
 }

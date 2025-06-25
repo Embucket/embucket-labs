@@ -100,7 +100,7 @@ impl ScalarUDFImpl for ArrayConstructUDF {
         }
 
         let arr = serde_json::Value::Array(results);
-        let json_str = serde_json::to_string(&arr).context(errors::FailedToSerializeJsonSnafu)?;
+        let json_str = serde_json::to_string(&arr).context(errors::FailedToSerializeValueSnafu)?;
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
     }
 }

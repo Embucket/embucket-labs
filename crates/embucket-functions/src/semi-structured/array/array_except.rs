@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -6,6 +7,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -103,11 +105,10 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                     results.push(
                         result
                             .map(|v| {
-                                serde_json::to_string(&v).map_err(|e| {
-                                    datafusion_common::DataFusionError::Internal(format!(
-                                        "Failed to serialize result: {e}",
-                                    ))
-                                })
+                                serde_json::to_string(&v)
+                                    .context(errors::FailedToSerializeValueSnafu)
+                                    // using map_err as here result pushed and no implicit conversion can be applied
+                                    .map_err(Into::into)
                             })
                             .transpose(),
                     );
@@ -145,13 +146,7 @@ impl ScalarUDFImpl for ArrayExceptUDF {
 
                 let result = Self::array_except(Some(array1_str), Some(array2_str))?;
                 let result = result
-                    .map(|v| {
-                        serde_json::to_string(&v).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to serialize result: {e}",
-                            ))
-                        })
-                    })
+                    .map(|v| serde_json::to_string(&v).context(errors::FailedToSerializeValueSnafu))
                     .transpose()?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }

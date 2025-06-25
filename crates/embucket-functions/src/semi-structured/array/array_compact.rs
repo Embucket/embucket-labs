@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -29,11 +31,8 @@ impl ArrayCompactUDF {
         let array_str = array_str.as_ref();
 
         // Parse the input array
-        let array_value: Value = serde_json::from_str(array_str).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(
-                format!("Failed to parse array JSON: {e}",),
-            )
-        })?;
+        let array_value: Value =
+            serde_json::from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
         // Ensure the input is an array
         if let Value::Array(array) = array_value {

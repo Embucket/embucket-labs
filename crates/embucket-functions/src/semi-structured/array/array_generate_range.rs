@@ -138,7 +138,7 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         }
 
         let json_str =
-            to_string(&Value::Array(results)).context(errors::FailedToSerializeJsonSnafu)?;
+            to_string(&Value::Array(results)).context(errors::FailedToSerializeValueSnafu)?;
 
         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
     }

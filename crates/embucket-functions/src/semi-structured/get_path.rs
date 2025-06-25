@@ -83,7 +83,7 @@ impl ScalarUDFImpl for GetPathFunc {
 
                     res.append_value(
                         serde_json::to_string_pretty(&value)
-                            .context(errors::FailedToSerializeJsonSnafu)?,
+                            .context(errors::FailedToSerializeValueSnafu)?,
                     );
                 }
                 Err(_) => res.append_null(),

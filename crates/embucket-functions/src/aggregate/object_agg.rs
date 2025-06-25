@@ -219,7 +219,7 @@ impl Accumulator for ObjectAggAccumulator {
 
             let value: JsonValue = match v_sv {
                 ScalarValue::Utf8(Some(s)) => {
-                    serde_json::from_str(s).context(errors::FailedToSerializeJsonSnafu)?
+                    serde_json::from_str(s).context(errors::FailedToSerializeValueSnafu)?
                 }
                 _ => continue,
             };

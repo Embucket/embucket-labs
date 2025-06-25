@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::Value;
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -57,9 +59,9 @@ impl ArraysZipUDF {
             result.push(Value::Object(obj));
         }
 
-        Ok(Some(serde_json::to_string(&result).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(format!("Failed to serialize result: {e}"))
-        })?))
+        Ok(Some(
+            serde_json::to_string(&result).context(errors::FailedToSerializeValueSnafu)?,
+        ))
     }
 }
 
@@ -145,11 +147,9 @@ impl ScalarUDFImpl for ArraysZipUDF {
                                 return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                             }
                             if let ScalarValue::Utf8(Some(s)) = scalar {
-                                let array_json: Value = serde_json::from_str(s).map_err(|e| {
-                                    datafusion_common::DataFusionError::Internal(format!(
-                                        "Failed to parse array JSON: {e}"
-                                    ))
-                                })?;
+                                let array_json: Value = serde_json::from_str(s).context(
+                                    errors::FailedToDeserializeJsonEntitySnafu { entity: "array" },
+                                )?;
                                 scalar_arrays.push(array_json);
                             } else {
                                 return Err(datafusion_common::DataFusionError::Internal(

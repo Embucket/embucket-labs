@@ -105,9 +105,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         let arr = as_string_array(arr)?;
         let mut buf = Vec::with_capacity(arr.len());
         for v in arr.into_iter().flatten() {
-            let json: Value = serde_json::from_str(v).map_err(|err| {
-                DataFusionError::Execution(format!("failed to deserialize JSON: {err:?}"))
-            })?;
+            let json: Value =
+                serde_json::from_str(v).context(errors::FailedToSerializeValueSnafu)?;
 
             if let Value::Array(v) = json {
                 buf.clear();
@@ -258,12 +257,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                     .map(|v| {
                         if let ScalarValue::Utf8(v) = v {
                             if let Some(v) = v {
-                                let v: Value = serde_json::from_str(v).map_err(|err| {
-                                    DataFusionError::Execution(format!(
-                                        "failed to deserialize JSON: {err:?}"
-                                    ))
-                                })?;
-                                Ok(v)
+                                Ok(serde_json::from_str(v)
+                                    .context(errors::FailedToSerializeValueSnafu)?)
                             } else {
                                 Ok(Value::Null)
                             }
@@ -277,7 +272,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         };
 
         Ok(ScalarValue::Utf8(Some(
-            serde_json::to_string(&arr).context(errors::FailedToSerializeJsonSnafu)?,
+            serde_json::to_string(&arr).context(errors::FailedToSerializeValueSnafu)?,
         )))
     }
 

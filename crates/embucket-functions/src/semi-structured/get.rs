@@ -129,7 +129,7 @@ impl ScalarUDFImpl for GetFunc {
 
                     res.append_value(
                         serde_json::to_string(&value)
-                            .context(errors::FailedToSerializeJsonSnafu)?,
+                            .context(errors::FailedToSerializeValueSnafu)?,
                     );
                 }
                 ScalarValue::Int64(Some(key)) => {
@@ -144,7 +144,8 @@ impl ScalarUDFImpl for GetFunc {
                     };
 
                     res.append_value(
-                        serde_json::to_string(value).context(errors::FailedToSerializeJsonSnafu)?,
+                        serde_json::to_string(value)
+                            .context(errors::FailedToSerializeValueSnafu)?,
                     );
                 }
                 _ => {

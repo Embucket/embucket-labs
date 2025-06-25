@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
@@ -8,6 +9,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -40,11 +42,8 @@ impl ArrayInsertUDF {
         let array_str = array_str.as_ref();
 
         // Parse the input array
-        let mut array_value: Value = serde_json::from_str(array_str).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(
-                format!("Failed to parse array JSON: {e}",),
-            )
-        })?;
+        let mut array_value: Value =
+            serde_json::from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
         let scalar_value = json::encode_scalar(element)?;
 
