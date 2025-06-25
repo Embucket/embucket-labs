@@ -159,6 +159,11 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Arguments must both be either scalar UTF8 strings or arrays"))]
+    InvalidArgumentTypesForArrayConcat {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
