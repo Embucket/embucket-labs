@@ -49,18 +49,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }} --bin embucket
+        run: cargo build --release --target ${{ matrix.target }} --bin embucketd
 
       - name: Strip binary for size reduction (Linux & macOS)
         if: runner.os!= 'Windows'
-        run: strip target/${{ matrix.target }}/release/embucket
+        run: strip target/${{ matrix.target }}/release/embucketd
 
       - name: Package binary for artifact upload
         shell: bash
         run: |
           mkdir -p artifacts
-          ARTIFACT_NAME="embucket-${{ matrix.target }}"
-          cp target/${{ matrix.target }}/release/embucket "artifacts/${ARTIFACT_NAME}"
+          ARTIFACT_NAME="embucketd-${{ matrix.target }}"
+          cp target/${{ matrix.target }}/release/embucketd "artifacts/${ARTIFACT_NAME}"
           tar -czf "artifacts/${ARTIFACT_NAME}.tar.gz" -C artifacts "${ARTIFACT_NAME}"
           rm "artifacts/${ARTIFACT_NAME}"
 
