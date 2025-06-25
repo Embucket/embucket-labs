@@ -6,16 +6,16 @@ SKIP: 229
 TOTAL: 1588
 
 # Total top 10 errors
-     38 DataFusion error: This feature is not implemented: Function 'encrypt_raw' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/encrypt_raw, location: crates/core-executor/src/query.rs:245:44
+     38 DataFusion error: This feature is not implemented: Function 'encrypt_raw' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/encrypt_raw
      10 DataFusion error: Optimizer rule 'common_sub_expression_eliminate' failed
-      8 DataFusion error: This feature is not implemented: Arrays with unspecified type is not supported, location: crates/core-executor/src/query.rs:1417:14
-      7 DataFusion error: This feature is not implemented: Function 'to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/to_decimal, location: crates/core-executor/src/query.rs:245:44
-      5 DataFusion error: This feature is not implemented: Function 'try_to_date' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_date, location: crates/core-executor/src/query.rs:245:44
-      5 DataFusion error: External error: Feature Arrow datatype Null is not supported. is not supported., location: crates/core-executor/src/query.rs:684:10
+      8 DataFusion error: This feature is not implemented: Arrays with unspecified type is not supported
+      7 DataFusion error: This feature is not implemented: Function 'to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/to_decimal
+      5 DataFusion error: This feature is not implemented: Function 'try_to_date' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_date
+      5 DataFusion error: External error: Feature Arrow datatype Null is not supported. is not supported.
       4 DataFusion error: type_coercion
-      4 DataFusion error: Error during planning: Unexpected argument type to 'json_get' at position 1, expected a string, got Boolean., location: crates/core-executor/src/query.rs:1417:14
-      4 DataFusion error: Arrow error: External error: Execution error: Iff function requires the third argument to be a scalar, location: crates/core-executor/src/query.rs:1461:22
-      3 DataFusion error: This feature is not implemented: Function 'try_to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal, location: crates/core-executor/src/query.rs:245:44
+      4 DataFusion error: Error during planning: Unexpected argument type to 'json_get' at position 1, expected a string, got Boolean.
+      4 DataFusion error: Arrow error: External error: Execution error: Iff function requires the third argument to be a scalar
+      3 DataFusion error: This feature is not implemented: Function 'try_to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal
 
 # Top function errors
       1 DataFusion error: Error during planning: Invalid function 'to_timestamp_ntz'.
