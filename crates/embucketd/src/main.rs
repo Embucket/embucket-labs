@@ -29,7 +29,10 @@ use clap::Parser;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_metastore::error::Error as MetastoreError;
+use core_metastore::{
+    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, Volume, VolumeType,
+};
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
@@ -111,6 +114,9 @@ async fn main() {
         port: opts.assets_port.unwrap(),
     };
 
+    let no_bootstrap = opts.no_bootstrap;
+    tracing::error!("{no_bootstrap}");
+
     let object_store = opts
         .object_store_backend()
         .expect("Failed to create object store");
@@ -125,6 +131,53 @@ async fn main() {
     ));
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    if !no_bootstrap {
+        let ident = "embucket".to_string();
+        if let Err(error) = metastore
+            .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
+            .await
+        {
+            match error {
+                MetastoreError::VolumeAlreadyExists { .. }
+                | MetastoreError::ObjectAlreadyExists { .. } => {}
+                _ => tracing::error!("Failed to bootstrap volume: {}", error),
+            }
+        }
+        if let Err(error) = metastore
+            .create_database(
+                &ident,
+                Database {
+                    ident: ident.clone(),
+                    properties: None,
+                    volume: ident.clone(),
+                },
+            )
+            .await
+        {
+            match error {
+                MetastoreError::DatabaseAlreadyExists { .. }
+                | MetastoreError::ObjectAlreadyExists { .. } => {}
+                _ => tracing::error!("Failed to bootstrap database: {}", error),
+            }
+        }
+        let schema_ident = SchemaIdent::new(ident.clone(), "public".to_string());
+        if let Err(error) = metastore
+            .create_schema(
+                &schema_ident,
+                Schema {
+                    ident: schema_ident.clone(),
+                    properties: None,
+                },
+            )
+            .await
+        {
+            match error {
+                MetastoreError::SchemaAlreadyExists { .. }
+                | MetastoreError::ObjectAlreadyExists { .. } => {}
+                _ => tracing::error!("Failed to bootstrap schema: {}", error),
+            }
+        }
+    }
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
 
     let execution_svc = Arc::new(CoreExecutionService::new(
