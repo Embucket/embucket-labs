@@ -4,7 +4,7 @@ use datafusion::{
         compute::{
             filter, filter_record_batch,
             kernels::cmp::{distinct, eq},
-            or,
+            not, or,
         },
         datatypes::Schema,
     },
@@ -291,24 +291,39 @@ impl Stream for SourceExistFilterStream {
                 let data_file_path = batch.column(data_file_path_index);
                 let manifest_file_path = batch.column(manifest_file_path_index);
 
-                let required_data_files = filter(
+                let filtered_data_file_path = filter(
                     &data_file_path,
                     &downcast_array::<BooleanArray>(source_exists),
                 )?;
 
-                let unique_data_files = unique_values(&required_data_files)?;
+                let all_data_files = unique_values(&data_file_path)?;
 
-                let required_manifest_files = filter(
+                let mut matching_data_files = unique_values(&filtered_data_file_path)?;
+
+                let not_matching_data_files: HashSet<String> = all_data_files
+                    .difference(&matching_data_files)
+                    .map(ToOwned::to_owned)
+                    .collect();
+
+                let already_matched_data_files: HashSet<String> = project
+                    .matching_files
+                    .intersection(&not_matching_data_files)
+                    .map(ToOwned::to_owned)
+                    .collect();
+
+                matching_data_files.extend(already_matched_data_files);
+
+                let filtered_manifest_files = filter(
                     &manifest_file_path,
                     &downcast_array::<BooleanArray>(source_exists),
                 )?;
 
-                let _unique_manifest_files = unique_values(&required_manifest_files)?;
+                let _matching_manifest_files = unique_values(&filtered_manifest_files)?;
 
-                if unique_data_files.is_empty() {
+                if matching_data_files.is_empty() {
                     Poll::Pending
                 } else {
-                    let predicate = unique_data_files
+                    let predicate = matching_data_files
                         .iter()
                         .try_fold(None::<BooleanArray>, |acc, x| {
                             let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
@@ -320,7 +335,11 @@ impl Stream for SourceExistFilterStream {
                             }
                         })?
                         .expect("Matching files cannot be empty");
+
+                    project.matching_files.extend(matching_data_files);
+
                     let filtered_batch = filter_record_batch(&batch, &predicate)?;
+
                     Poll::Ready(Some(Ok(filtered_batch)))
                 }
             }
