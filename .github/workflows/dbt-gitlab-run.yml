@@ -14,8 +14,7 @@ concurrency:
 
 jobs:
   sql-logic-tests:
-    runs-on:
-      group: large-runners
+    runs-on: ubuntu-latest
     name: DBT Gitlab run
     env:
       SNOWFLAKE_ACCOUNT: test

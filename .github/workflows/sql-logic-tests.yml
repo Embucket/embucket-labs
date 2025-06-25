@@ -21,8 +21,7 @@ concurrency:
 
 jobs:
   sql-logic-tests:
-    runs-on:
-      group: large-runners
+    runs-on: ubuntu-latest
     name: SQL Logic Tests
     env:
       SNOWFLAKE_ACCOUNT: test

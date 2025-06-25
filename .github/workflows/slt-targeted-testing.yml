@@ -107,8 +107,7 @@ jobs:
   run-slt-tests:
     needs: select-slts
     if: needs.select-slts.outputs.has-tests == 'true'
-    runs-on:
-      group: large-runners
+    runs-on: ubuntu-latest
     name: Run Selected SLT Tests
     env:
       SNOWFLAKE_ACCOUNT: test
