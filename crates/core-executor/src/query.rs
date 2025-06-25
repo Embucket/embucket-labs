@@ -2056,7 +2056,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
             _ => (),
         }
     }
-    let exprs = target_schema
+    let mut exprs: Vec<datafusion_expr::Expr> = target_schema
         .iter()
         .map(|(table_reference, field)| {
             let name = table_reference
@@ -2086,6 +2086,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
         })
         .collect::<Result<_, DataFusionError>>()
         .context(ex_error::DataFusionSnafu)?;
+    exprs.push(col(SOURCE_EXISTS));
     Ok(exprs)
 }
 
