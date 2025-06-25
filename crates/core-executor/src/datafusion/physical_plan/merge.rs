@@ -97,7 +97,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 "MergeIntoSinkExec requires exactly one child".to_string(),
             ));
         }
-        Ok(Arc::new(MergeIntoSinkExec::new(
+        Ok(Arc::new(Self::new(
             self.schema.clone(),
             children[0].clone(),
             self.target.clone(),
@@ -188,7 +188,7 @@ impl DisplayAs for SourceExistFilterExec {
 }
 
 impl ExecutionPlan for SourceExistFilterExec {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "SourceExistFilterExec"
     }
 
@@ -213,7 +213,7 @@ impl ExecutionPlan for SourceExistFilterExec {
                 "SourceExistFilterExec requires exactly one child".to_string(),
             ));
         }
-        Ok(Arc::new(SourceExistFilterExec::new(children[0].clone())))
+        Ok(Arc::new(Self::new(children[0].clone())))
     }
 
     fn execute(
