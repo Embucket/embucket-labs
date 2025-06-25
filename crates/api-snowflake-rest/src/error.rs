@@ -173,6 +173,9 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | core_executor::Error::MissingOrInvalidColumn { .. }
         | core_executor::Error::NotMatchedBySourceNotSupported { .. }
         | core_executor::Error::MergeInsertOnlyOneRow { .. }
+        | core_executor::Error::MergeTargetMustBeTable { .. }
+        | core_executor::Error::MergeSourceMustBeTable { .. }
+        | core_executor::Error::MergeTargetMustBeIcebergTable { .. }
         | core_executor::Error::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         core_executor::Error::Arrow { .. }
         | core_executor::Error::SerdeParse { .. }

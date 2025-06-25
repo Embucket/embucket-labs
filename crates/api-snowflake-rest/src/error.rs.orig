@@ -172,10 +172,13 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | core_executor::Error::NoTableNamesForTruncateTable { .. }
         | core_executor::Error::OnlySQLStatements { .. }
         | core_executor::Error::MissingOrInvalidColumn { .. }
+        | core_executor::Error::NotMatchedBySourceNotSupported { .. }
+        | core_executor::Error::MergeInsertOnlyOneRow { .. }
         | core_executor::Error::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         core_executor::Error::Arrow { .. }
         | core_executor::Error::SerdeParse { .. }
         | core_executor::Error::S3Tables { .. }
+        | core_executor::Error::SqlParser { .. }
         | core_executor::Error::Iceberg { .. }
         | core_executor::Error::CatalogListDowncast { .. }
         | core_executor::Error::CatalogDownCast { .. }
@@ -222,6 +225,9 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | ExecutionError::MissingOrInvalidColumn { .. }
         | ExecutionError::NotMatchedBySourceNotSupported { .. }
         | ExecutionError::MergeInsertOnlyOneRow { .. }
+        | ExecutionError::MergeTargetMustBeTable { .. }
+        | ExecutionError::MergeSourceMustBeTable { .. }
+        | ExecutionError::MergeTargetMustBeIcebergTable { .. }
         | ExecutionError::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         ExecutionError::Arrow { .. }
         | ExecutionError::SerdeParse { .. }
@@ -238,7 +244,7 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | ExecutionError::Metastore { .. }
         | ExecutionError::DataFusion { .. }
         | ExecutionError::DataFusionQuery { .. } => http::StatusCode::OK,
->>>>>>> d8f915e2 (fix errors)
+>>>>>>> f1a49e47 (use boolean source_exists and target_exists columns)
     };
 
     let message = match error {

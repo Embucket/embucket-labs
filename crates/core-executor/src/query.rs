@@ -27,7 +27,7 @@ use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
-use datafusion::prelude::{CsvReadOptions, DataFrame, coalesce};
+use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::planner::ParserOptions;
@@ -45,7 +45,7 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType, LogicalPlanBuilder,
-    Projection, TryCast, build_join_schema, case, lit,
+    Projection, TryCast, and, build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -1030,7 +1030,7 @@ impl UserQuery {
                 .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
-        .with_column(TARGET_EXISTS, lit(1u8))
+        .with_column(TARGET_EXISTS, lit(true))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
 
@@ -1055,7 +1055,7 @@ impl UserQuery {
                 .build()
                 .context(ex_error::DataFusionSnafu)?,
         )
-        .with_column(SOURCE_EXISTS, lit(2u8))
+        .with_column(SOURCE_EXISTS, lit(true))
         .context(ex_error::DataFusionSnafu)?
         .into_unoptimized_plan();
 
@@ -1881,30 +1881,6 @@ impl UserQuery {
         })
     }
 
-    #[allow(clippy::only_used_in_recursion)]
-    fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> Vec<String> {
-        match expr {
-            Expr::CompoundIdentifier(ident) => {
-                if ident.len() > 1 && ident[0].value == target_alias {
-                    let ident_str = ident
-                        .iter()
-                        .map(|v| v.value.clone())
-                        .collect::<Vec<String>>()
-                        .join(".");
-                    return vec![ident_str];
-                }
-                vec![]
-            }
-            Expr::BinaryOp { left, right, .. } => {
-                let mut left_expr = self.get_expr_where_clause(*left, target_alias);
-                let right_expr = self.get_expr_where_clause(*right, target_alias);
-                left_expr.extend(right_expr);
-                left_expr
-            }
-            _ => vec![],
-        }
-    }
-
     #[must_use]
     pub fn get_table_path(&self, statement: &DFStatement) -> Option<TableReference> {
         let empty = String::new;
@@ -2118,8 +2094,11 @@ pub fn merge_clause_projection<S: ContextProvider>(
 
     for merge_clause in merge_clause {
         let op = match merge_clause.clause_kind {
-            MergeClauseKind::Matched => Ok(lit(3)),
-            MergeClauseKind::NotMatched | MergeClauseKind::NotMatchedByTarget => Ok(lit(2)),
+            MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS), col(SOURCE_EXISTS))),
+            MergeClauseKind::NotMatched => {
+                Ok(or(is_null(col(TARGET_EXISTS)), is_null(col(TARGET_EXISTS))))
+            }
+            MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS))),
             MergeClauseKind::NotMatchedBySource => {
                 return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
             }
@@ -2178,27 +2157,16 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 return Ok(col(name));
             }
 
-            let match_expr = coalesce(vec![
-                // 3 => matched
-                col(TARGET_EXISTS) + col(SOURCE_EXISTS),
-                // 2 => not matched by target
-                col(SOURCE_EXISTS),
-                // 1 => not matched by source
-                col(TARGET_EXISTS),
-                // 0 => not matched
-                lit(0),
-            ]);
-
-            let mut case_builder = case(match_expr);
-            if let Some((when, then)) = update {
-                case_builder.when(when, then);
+            let case_expr = match (update, insert) {
+                (Some((update_when, update_then)), Some((insert_when, insert_then))) => {
+                    when(update_when, update_then)
+                        .when(insert_when, insert_then)
+                        .otherwise(col(name))?
+                }
+                (Some((w, t)), None) | (None, Some((w, t))) => when(w, t).otherwise(col(name))?,
+                (None, None) => col(name),
             }
-            if let Some((when, then)) = insert {
-                case_builder.when(when, then);
-            }
-            let case_expr = case_builder
-                .otherwise(col(name))?
-                .alias(field.name().clone());
+            .alias(field.name().clone());
 
             Ok::<_, DataFusionError>(case_expr)
         })
