@@ -1,5 +1,7 @@
 use crate::json::{PathToken, tokenize_path};
 use crate::table::flatten::provider::{FlattenArgs, FlattenMode, FlattenTableProvider, Out};
+use arrow_schema::SchemaRef;
+use datafusion::arrow::array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, TableReference, exec_err};
@@ -80,6 +82,38 @@ impl FlattenTableFunc {
         Self {
             row_id: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
+    #[must_use]
+    pub fn empty_record_batch(
+        &self,
+        schema: SchemaRef,
+        path: &[PathToken],
+        last_outer: Option<Value>,
+        null: bool,
+    ) -> RecordBatch {
+        let arrays: Vec<ArrayRef> = if null {
+            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
+            vec![
+                Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)])) as ArrayRef,
+                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
+                Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
+                Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
+                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
+            ]
+        } else {
+            vec![
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+            ]
+        };
+        RecordBatch::try_new(schema, arrays).unwrap()
     }
 
     #[allow(

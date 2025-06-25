@@ -1,6 +1,7 @@
 use crate::json::{get_json_value, PathToken};
 use crate::table::flatten::func::FlattenTableFunc;
-use arrow_schema::{DataType, Field, SchemaRef};
+use arrow_schema::{DataType, Field, Fields, SchemaRef};
+use async_trait::async_trait;
 use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};
@@ -171,6 +172,7 @@ impl ExecutionPlan for FlattenExec {
         let flatten_func = FlattenTableFunc::new();
 
         let mut all_batches = vec![];
+        let mut last_outer: Option<Value> = None;
         for batch in batches {
             let array = batch
                 .column(0)
@@ -221,8 +223,24 @@ impl ExecutionPlan for FlattenExec {
                 Arc::new(out.this.finish()),
             ];
 
+            last_outer.clone_from(&out.last_outer);
             let batch = RecordBatch::try_new(self.schema.inner().clone(), cols)?;
-            all_batches.push(batch);
+            if batch.num_rows() > 0 {
+                all_batches.push(batch);
+            }
+        }
+
+        if all_batches.is_empty() {
+            return Ok(Box::pin(MemoryStream::try_new(
+                vec![flatten_func.empty_record_batch(
+                    self.schema.inner().clone(),
+                    &self.args.path,
+                    last_outer,
+                    self.args.is_outer,
+                )],
+                self.schema.inner().clone(),
+                None,
+            )?));
         }
 
         Ok(Box::pin(MemoryStream::try_new(
@@ -244,21 +262,20 @@ impl FlattenExec {
             let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
             Ok(vec![batch])
         } else {
+            let expr = self.args.input_expr.clone();
+            let session_state = self.session_state.clone();
             futures::executor::block_on(async move {
-                let schema = build_schema_from_expr(&self.args.input_expr.clone())?;
+                let schema = build_schema_from_expr(&expr)?;
                 let empty_plan = LogicalPlan::EmptyRelation(EmptyRelation {
-                    produce_one_row: false,
+                    produce_one_row: true,
                     schema: schema.clone(),
                 });
                 let projection_plan = LogicalPlan::Projection(Projection::try_new_with_schema(
-                    vec![self.args.input_expr.clone().alias("input")],
+                    vec![expr.alias("input")],
                     Arc::new(empty_plan),
                     schema,
                 )?);
-                let plan = self
-                    .session_state
-                    .create_physical_plan(&projection_plan)
-                    .await?;
+                let plan = session_state.create_physical_plan(&projection_plan).await?;
                 let input_stream = plan.execute(partition, context)?;
                 collect(input_stream).await
             })
@@ -274,6 +291,14 @@ fn build_schema_from_expr(expr: &Expr) -> Result<DFSchemaRef> {
         }
         Ok(TreeNodeRecursion::Continue)
     })?;
+
+    if columns.is_empty() {
+        let field = Field::new("input", DataType::Utf8, true);
+        return Ok(Arc::new(DFSchema::from_unqualified_fields(
+            Fields::from(vec![field]),
+            HashMap::default(),
+        )?));
+    }
 
     let qualified_fields = columns
         .into_iter()
