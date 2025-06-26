@@ -102,7 +102,7 @@ pub async fn create_schema(
         .get_schema(&schema_ident)
         .await
         .map(|opt_rw_obj| {
-            // Here we create MetastoreError since Metastore instead of error returns Option = None
+            // Here we create core_metastore::Error since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
             opt_rw_obj
                 .ok_or_else(|| {
@@ -197,7 +197,7 @@ pub async fn get_schema(
         .get_schema(&schema_ident)
         .await
         .map(|opt_rw_obj| {
-            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // We create here core_metastore::Error since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
             opt_rw_obj
                 .ok_or_else(|| {

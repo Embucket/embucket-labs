@@ -41,7 +41,7 @@ impl ArraysOverlapUDF {
 
             Ok(Some(false))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "Both arguments must be JSON arrays".to_string(),
             ))
         }
@@ -73,14 +73,14 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1_arg =
-            args.first()
-                .ok_or(datafusion_common::error::DataFusionError::Internal(
-                    "Expected first array argument".to_string(),
-                ))?;
+        let array1_arg = args
+            .first()
+            .ok_or(datafusion_common::DataFusionError::Internal(
+                "Expected first array argument".to_string(),
+            ))?;
         let array2_arg = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected second array argument".to_string(),
             ))?;
 
@@ -98,13 +98,13 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                         let array2_str = string_array2.value(i);
 
                         let array1_json: Value = from_str(array1_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse first array JSON: {e}"
                             ))
                         })?;
 
                         let array2_json: Value = from_str(array2_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse second array JSON: {e}"
                             ))
                         })?;
@@ -124,25 +124,25 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                 }
 
                 let ScalarValue::Utf8(Some(array1_str)) = array1_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string for first array".to_string(),
                     ));
                 };
                 let ScalarValue::Utf8(Some(array2_str)) = array2_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string for first array".to_string(),
                     ));
                 };
 
                 // Parse array strings to JSON Values
                 let array1_json: Value = from_str(array1_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
+                    datafusion_common::DataFusionError::Internal(format!(
                         "Failed to parse first array JSON: {e}"
                     ))
                 })?;
 
                 let array2_json: Value = from_str(array2_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
+                    datafusion_common::DataFusionError::Internal(format!(
                         "Failed to parse second array JSON: {e}",
                     ))
                 })?;
@@ -150,7 +150,7 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                 let result = Self::arrays_have_overlap(array1_json, array2_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Both arguments must be JSON array strings".to_string(),
             )),
         }

@@ -1,5 +1,7 @@
+use crate::errors;
 use crate::macros::make_udaf_function;
 use serde_json::Value as JsonValue;
+use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -12,7 +14,7 @@ use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 
 use datafusion_common::utils::SingleRowListArrayBuilder;
-use datafusion_common::{DataFusionError, Result, exec_err, internal_err};
+use datafusion_common::{Result, exec_err, internal_err};
 use datafusion_expr::Volatility;
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
@@ -155,18 +157,14 @@ impl Accumulator for ObjectAggAccumulator {
 
             let key_arr = array
                 .column_by_name("key")
-                .ok_or(DataFusionError::Internal("Missing key column".to_string()))?
+                .ok_or_else(|| errors::MissingKeyColumnSnafu.build())?
                 .as_any()
                 .downcast_ref::<StringArray>()
-                .ok_or(DataFusionError::Internal(
-                    "Key column is not a StringArray".to_string(),
-                ))?;
+                .ok_or_else(|| errors::KeyColumnShouldBeStringTypeSnafu.build())?;
 
             let val_arr = array
                 .column_by_name("value")
-                .ok_or(DataFusionError::Internal(
-                    "Missing value column".to_string(),
-                ))?;
+                .ok_or_else(|| errors::MissingValueColumnSnafu.build())?;
 
             for i in 0..array.len() {
                 if array.is_null(i) {
@@ -221,7 +219,7 @@ impl Accumulator for ObjectAggAccumulator {
 
             let value: JsonValue = match v_sv {
                 ScalarValue::Utf8(Some(s)) => {
-                    serde_json::from_str(s).map_err(|e| DataFusionError::Internal(e.to_string()))?
+                    serde_json::from_str(s).context(errors::FailedToSerializeValueSnafu)?
                 }
                 _ => continue,
             };

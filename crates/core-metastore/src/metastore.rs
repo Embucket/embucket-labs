@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use crate::{
-    error::{self as metastore_error, MetastoreResult},
+    error::{self as metastore_error, Result},
     models::{
         RwObject,
         database::{Database, DatabaseIdent},
@@ -40,78 +40,51 @@ pub enum MetastoreObjectType {
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
     fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>>;
-    async fn create_volume(
-        &self,
-        name: &VolumeIdent,
-        volume: Volume,
-    ) -> MetastoreResult<RwObject<Volume>>;
-    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<Option<RwObject<Volume>>>;
-    async fn update_volume(
-        &self,
-        name: &VolumeIdent,
-        volume: Volume,
-    ) -> MetastoreResult<RwObject<Volume>>;
-    async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> MetastoreResult<()>;
-    async fn volume_object_store(
-        &self,
-        name: &VolumeIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
+    async fn create_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
+    async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
+    async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
+    async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
+    async fn volume_object_store(&self, name: &VolumeIdent)
+    -> Result<Option<Arc<dyn ObjectStore>>>;
 
     fn iter_databases(&self) -> VecScanIterator<RwObject<Database>>;
     async fn create_database(
         &self,
         name: &DatabaseIdent,
         database: Database,
-    ) -> MetastoreResult<RwObject<Database>>;
-    async fn get_database(
-        &self,
-        name: &DatabaseIdent,
-    ) -> MetastoreResult<Option<RwObject<Database>>>;
+    ) -> Result<RwObject<Database>>;
+    async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>>;
     async fn update_database(
         &self,
         name: &DatabaseIdent,
         database: Database,
-    ) -> MetastoreResult<RwObject<Database>>;
-    async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> MetastoreResult<()>;
+    ) -> Result<RwObject<Database>>;
+    async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> Result<()>;
 
     fn iter_schemas(&self, database: &DatabaseIdent) -> VecScanIterator<RwObject<Schema>>;
-    async fn create_schema(
-        &self,
-        ident: &SchemaIdent,
-        schema: Schema,
-    ) -> MetastoreResult<RwObject<Schema>>;
-    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<Option<RwObject<Schema>>>;
-    async fn update_schema(
-        &self,
-        ident: &SchemaIdent,
-        schema: Schema,
-    ) -> MetastoreResult<RwObject<Schema>>;
-    async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> MetastoreResult<()>;
+    async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
+    async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>>;
+    async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
+    async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()>;
 
     fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>>;
     async fn create_table(
         &self,
         ident: &TableIdent,
         table: TableCreateRequest,
-    ) -> MetastoreResult<RwObject<Table>>;
-    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<Option<RwObject<Table>>>;
+    ) -> Result<RwObject<Table>>;
+    async fn get_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Table>>>;
     async fn update_table(
         &self,
         ident: &TableIdent,
         update: TableUpdate,
-    ) -> MetastoreResult<RwObject<Table>>;
-    async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> MetastoreResult<()>;
-    async fn table_object_store(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>>;
+    ) -> Result<RwObject<Table>>;
+    async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> Result<()>;
+    async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>>;
 
-    async fn table_exists(&self, ident: &TableIdent) -> MetastoreResult<bool>;
-    async fn url_for_table(&self, ident: &TableIdent) -> MetastoreResult<String>;
-    async fn volume_for_table(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<RwObject<Volume>>>;
+    async fn table_exists(&self, ident: &TableIdent) -> Result<bool>;
+    async fn url_for_table(&self, ident: &TableIdent) -> Result<String>;
+    async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>>;
 }
 
 ///
@@ -178,7 +151,7 @@ impl SlateDBMetastore {
         key: &str,
         object_type: MetastoreObjectType,
         object: T,
-    ) -> MetastoreResult<RwObject<T>>
+    ) -> Result<RwObject<T>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
@@ -210,7 +183,7 @@ impl SlateDBMetastore {
         skip(self, object),
         err
     )]
-    async fn update_object<T>(&self, key: &str, object: T) -> MetastoreResult<RwObject<T>>
+    async fn update_object<T>(&self, key: &str, object: T) -> Result<RwObject<T>>
     where
         T: serde::Serialize + DeserializeOwned + Eq + PartialEq + Send + Sync,
     {
@@ -237,7 +210,7 @@ impl SlateDBMetastore {
         skip(self),
         err
     )]
-    async fn delete_object(&self, key: &str) -> MetastoreResult<()> {
+    async fn delete_object(&self, key: &str) -> Result<()> {
         self.db.delete(key).await.ok();
         Ok(())
     }
@@ -274,21 +247,14 @@ impl Metastore for SlateDBMetastore {
         skip(self, volume),
         err
     )]
-    async fn create_volume(
-        &self,
-        name: &VolumeIdent,
-        volume: Volume,
-    ) -> MetastoreResult<RwObject<Volume>> {
+    async fn create_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
         let key = format!("{KEY_VOLUME}/{name}");
         let object_store = volume.get_object_store()?;
         let rwobject = self
             .create_object(&key, MetastoreObjectType::Volume, volume)
             .await
             .map_err(|e| {
-                if matches!(
-                    e,
-                    metastore_error::MetastoreError::ObjectAlreadyExists { .. }
-                ) {
+                if matches!(e, metastore_error::Error::ObjectAlreadyExists { .. }) {
                     metastore_error::VolumeAlreadyExistsSnafu {
                         volume: name.clone(),
                     }
@@ -302,7 +268,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::get_volume", level = "debug", skip(self), err)]
-    async fn get_volume(&self, name: &VolumeIdent) -> MetastoreResult<Option<RwObject<Volume>>> {
+    async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
         let key = format!("{KEY_VOLUME}/{name}");
         self.db
             .get(&key)
@@ -316,11 +282,7 @@ impl Metastore for SlateDBMetastore {
         skip(self, volume),
         err
     )]
-    async fn update_volume(
-        &self,
-        name: &VolumeIdent,
-        volume: Volume,
-    ) -> MetastoreResult<RwObject<Volume>> {
+    async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
         let key = format!("{KEY_VOLUME}/{name}");
         let updated_volume = self.update_object(&key, volume.clone()).await?;
         let object_store = updated_volume.get_object_store()?;
@@ -330,7 +292,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::delete_volume", level = "debug", skip(self), err)]
-    async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> MetastoreResult<()> {
+    async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()> {
         let key = format!("{KEY_VOLUME}/{name}");
         let databases_using = self
             .iter_databases()
@@ -369,7 +331,7 @@ impl Metastore for SlateDBMetastore {
     async fn volume_object_store(
         &self,
         name: &VolumeIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
+    ) -> Result<Option<Arc<dyn ObjectStore>>> {
         if let Some(store) = self.object_store_cache.get(name) {
             Ok(Some(store.clone()))
         } else {
@@ -401,7 +363,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         name: &DatabaseIdent,
         database: Database,
-    ) -> MetastoreResult<RwObject<Database>> {
+    ) -> Result<RwObject<Database>> {
         self.get_volume(&database.volume).await?.ok_or_else(|| {
             metastore_error::VolumeNotFoundSnafu {
                 volume: database.volume.clone(),
@@ -414,10 +376,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::get_database", level = "debug", skip(self), err)]
-    async fn get_database(
-        &self,
-        name: &DatabaseIdent,
-    ) -> MetastoreResult<Option<RwObject<Database>>> {
+    async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
         let key = format!("{KEY_DATABASE}/{name}");
         self.db
             .get(&key)
@@ -435,13 +394,13 @@ impl Metastore for SlateDBMetastore {
         &self,
         name: &DatabaseIdent,
         database: Database,
-    ) -> MetastoreResult<RwObject<Database>> {
+    ) -> Result<RwObject<Database>> {
         let key = format!("{KEY_DATABASE}/{name}");
         self.update_object(&key, database).await
     }
 
     #[instrument(name = "Metastore::delete_database", level = "debug", skip(self), err)]
-    async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> MetastoreResult<()> {
+    async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> Result<()> {
         let schemas = self
             .iter_schemas(name)
             .collect()
@@ -474,11 +433,7 @@ impl Metastore for SlateDBMetastore {
         skip(self, schema),
         err
     )]
-    async fn create_schema(
-        &self,
-        ident: &SchemaIdent,
-        schema: Schema,
-    ) -> MetastoreResult<RwObject<Schema>> {
+    async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         if self.get_database(&ident.database).await?.is_some() {
             self.create_object(&key, MetastoreObjectType::Schema, schema)
@@ -492,7 +447,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::get_schema", level = "debug", skip(self), err)]
-    async fn get_schema(&self, ident: &SchemaIdent) -> MetastoreResult<Option<RwObject<Schema>>> {
+    async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         self.db
             .get(&key)
@@ -506,17 +461,13 @@ impl Metastore for SlateDBMetastore {
         skip(self, schema),
         err
     )]
-    async fn update_schema(
-        &self,
-        ident: &SchemaIdent,
-        schema: Schema,
-    ) -> MetastoreResult<RwObject<Schema>> {
+    async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         self.update_object(&key, schema).await
     }
 
     #[instrument(name = "Metastore::delete_schema", level = "debug", skip(self), err)]
-    async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> MetastoreResult<()> {
+    async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()> {
         let tables = self
             .iter_tables(ident)
             .collect()
@@ -550,7 +501,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         ident: &TableIdent,
         mut table: TableCreateRequest,
-    ) -> MetastoreResult<RwObject<Table>> {
+    ) -> Result<RwObject<Table>> {
         if let Some(_schema) = self.get_schema(&ident.clone().into()).await? {
             let key = format!(
                 "{KEY_TABLE}/{}/{}/{}",
@@ -687,7 +638,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         ident: &TableIdent,
         update: TableUpdate,
-    ) -> MetastoreResult<RwObject<Table>> {
+    ) -> Result<RwObject<Table>> {
         let mut table = self
             .get_table(ident)
             .await?
@@ -754,7 +705,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::delete_table", level = "debug", skip(self), err)]
-    async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> MetastoreResult<()> {
+    async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> Result<()> {
         if let Some(table) = self.get_table(ident).await? {
             if cascade {
                 let object_store = self.table_object_store(ident).await?.ok_or_else(|| {
@@ -805,7 +756,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::get_table", level = "debug", skip(self))]
-    async fn get_table(&self, ident: &TableIdent) -> MetastoreResult<Option<RwObject<Table>>> {
+    async fn get_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Table>>> {
         let key = format!(
             "{KEY_TABLE}/{}/{}/{}",
             ident.database, ident.schema, ident.table
@@ -817,10 +768,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::table_object_store", level = "debug", skip(self))]
-    async fn table_object_store(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<Arc<dyn ObjectStore>>> {
+    async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>> {
         if let Some(volume) = self.volume_for_table(ident).await? {
             self.volume_object_store(&volume.ident).await
         } else {
@@ -829,12 +777,12 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::table_exists", level = "debug", skip(self))]
-    async fn table_exists(&self, ident: &TableIdent) -> MetastoreResult<bool> {
+    async fn table_exists(&self, ident: &TableIdent) -> Result<bool> {
         self.get_table(ident).await.map(|table| table.is_some())
     }
 
     #[instrument(name = "Metastore::url_for_table", level = "debug", skip(self))]
-    async fn url_for_table(&self, ident: &TableIdent) -> MetastoreResult<String> {
+    async fn url_for_table(&self, ident: &TableIdent) -> Result<String> {
         if let Some(tbl) = self.get_table(ident).await? {
             let database = self.get_database(&ident.database).await?.ok_or_else(|| {
                 metastore_error::DatabaseNotFoundSnafu {
@@ -890,10 +838,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(name = "Metastore::volume_for_table", level = "debug", skip(self))]
-    async fn volume_for_table(
-        &self,
-        ident: &TableIdent,
-    ) -> MetastoreResult<Option<RwObject<Volume>>> {
+    async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>> {
         let volume_ident = if let Some(Some(volume_ident)) = self
             .get_table(ident)
             .await?
@@ -926,6 +871,7 @@ mod tests {
         types::{PrimitiveType, StructField, Type},
     };
     use slatedb::Db as SlateDb;
+    use std::result::Result;
     use std::sync::Arc;
 
     fn insta_filters() -> Vec<(&'static str, &'static str)> {

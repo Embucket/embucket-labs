@@ -33,12 +33,12 @@ impl ArrayReverseUDF {
 
             // Convert back to JSON string
             Ok(Some(to_string(&array).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}"
                 ))
             })?))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "Argument must be a JSON array".to_string(),
             ))
         }
@@ -72,7 +72,7 @@ impl ScalarUDFImpl for ArrayReverseUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
 
@@ -87,7 +87,7 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                     } else {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse array JSON: {e}"
                             ))
                         })?;
@@ -107,14 +107,14 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                 }
 
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string for array".to_string(),
                     ));
                 };
 
                 // Parse array string to JSON Value
                 let array_json: Value = from_str(array_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
+                    datafusion_common::DataFusionError::Internal(format!(
                         "Failed to parse array JSON: {e}"
                     ))
                 })?;

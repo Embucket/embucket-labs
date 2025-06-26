@@ -1,5 +1,8 @@
+pub mod errors;
 pub mod iterable;
 pub mod scan_iterator;
+
+pub use errors::{Error, Result};
 
 use crate::scan_iterator::{ScanIterator, VecScanIterator};
 use async_trait::async_trait;
@@ -10,8 +13,6 @@ use serde_json::de;
 use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
-use slatedb::SlateDBError;
-use snafu::Location;
 use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -20,79 +21,6 @@ use std::string::ToString;
 use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
-
-type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Snafu)]
-#[snafu(visibility(pub))]
-#[error_stack_trace::debug]
-pub enum Error {
-    #[snafu(display("SlateDB error: {error}"))]
-    Database {
-        #[snafu(source)]
-        error: SlateDBError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("SlateDB error while fetching key {key}: {error}"))]
-    KeyGet {
-        key: String,
-        #[snafu(source)]
-        error: SlateDBError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("SlateDB error while deleting key {key}: {error}"))]
-    KeyDelete {
-        key: String,
-        #[snafu(source)]
-        error: SlateDBError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("SlateDB error while putting key {key}: {error}"))]
-    KeyPut {
-        key: String,
-        #[snafu(source)]
-        error: SlateDBError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Error serializing value: {error}"))]
-    SerializeValue {
-        #[snafu(source)]
-        error: serde_json::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Deserialize error: {error}, key: {key:?}"))]
-    DeserializeValue {
-        #[snafu(source)]
-        error: serde_json::Error,
-        key: Bytes,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Key Not found"))]
-    KeyNotFound {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Scan Failed: {error}"))]
-    ScanFailed {
-        #[snafu(source)]
-        error: SlateDBError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-}
 
 #[derive(Clone)]
 pub struct Db(Arc<SlateDb>);
@@ -120,7 +48,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
-        self.0.close().await.context(DatabaseSnafu)?;
+        self.0.close().await.context(errors::DatabaseSnafu)?;
         Ok(())
     }
 
@@ -131,9 +59,12 @@ impl Db {
     /// This function will return a `DbError` if the underlying database operation fails.
     #[instrument(name = "Db::delete", level = "trace", skip(self), err)]
     pub async fn delete(&self, key: &str) -> Result<()> {
-        self.0.delete(key.as_bytes()).await.context(KeyDeleteSnafu {
-            key: key.to_string(),
-        })
+        self.0
+            .delete(key.as_bytes())
+            .await
+            .context(errors::KeyDeleteSnafu {
+                key: key.to_string(),
+            })
     }
 
     /// Deletes a key-value pair from the database.
@@ -143,9 +74,12 @@ impl Db {
     /// This function will return a `DbError` if the underlying database operation fails.
     #[instrument(name = "Db::delete_key", level = "trace", skip(self), err)]
     pub async fn delete_key(&self, key: Bytes) -> Result<()> {
-        self.0.delete(key.as_ref()).await.context(KeyDeleteSnafu {
-            key: format!("{key:?}"),
-        })
+        self.0
+            .delete(key.as_ref())
+            .await
+            .context(errors::KeyDeleteSnafu {
+                key: format!("{key:?}"),
+            })
     }
 
     /// Stores a key-value pair in the database.
@@ -156,11 +90,11 @@ impl Db {
     /// Returns a `DbError` if the underlying database operation fails.
     #[instrument(name = "Db::put", level = "trace", skip(self, value), err)]
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
-        let serialized = ser::to_vec(value).context(SerializeValueSnafu)?;
+        let serialized = ser::to_vec(value).context(errors::SerializeValueSnafu)?;
         self.0
             .put(key.as_bytes(), serialized)
             .await
-            .context(KeyPutSnafu {
+            .context(errors::KeyPutSnafu {
                 key: key.to_string(),
             })
     }
@@ -177,61 +111,21 @@ impl Db {
         key: &str,
     ) -> Result<Option<T>> {
         let value: Option<bytes::Bytes> =
-            self.0.get(key.as_bytes()).await.context(KeyGetSnafu {
-                key: key.to_string(),
-            })?;
+            self.0
+                .get(key.as_bytes())
+                .await
+                .context(errors::KeyGetSnafu {
+                    key: key.to_string(),
+                })?;
         value.map_or_else(
             || Ok(None),
             |bytes| {
-                de::from_slice(&bytes).context(DeserializeValueSnafu {
+                de::from_slice(&bytes).context(errors::DeserializeValueSnafu {
                     key: Bytes::from(key.to_string()),
                 })
             },
         )
     }
-
-    // /// Retrieves a list of objects from the database.
-    // ///
-    // /// # Errors
-    // ///
-    // /// Returns a `DbError` if the underlying database operation fails.
-    // /// Returns a `DeserializeError` if the value cannot be deserialized from JSON.
-    // #[allow(clippy::unwrap_used)]
-    // pub async fn list_objects<T: Send + for<'de> serde::de::Deserialize<'de>>(
-    //     &self,
-    //     key: &str,
-    //     list_config: ListConfig,
-    // ) -> Result<Vec<T>> {
-    //     //We can look with respect to limit
-    //     // from start to end (full scan),
-    //     // from starts_with to start_with (search),
-    //     // from cursor to end (looking not from the start)
-    //     // and from cursor to prefix (search without starting at the start and looking to the end (no full scan))
-    //     // more info in `list_config` file
-    //     let start = list_config.token.clone().map_or_else(
-    //         || format!("{key}/"),
-    //         |search_prefix| format!("{key}/{search_prefix}"),
-    //     );
-    //     let start = list_config
-    //         .cursor
-    //         .map_or_else(|| start, |cursor| format!("{key}/{cursor}\x00"));
-    //     let end = list_config.token.map_or_else(
-    //         || format!("{key}/\x7F"),
-    //         |search_prefix| format!("{key}/{search_prefix}\x7F"),
-    //     );
-    //     let range = Bytes::from(start)..Bytes::from(end);
-    //     let limit = list_config.limit.unwrap_or(usize::MAX);
-    //     let mut iter = self.0.scan(range).await.context(ScanFailedSnafu)?;
-    //     let mut objects: Vec<T> = vec![];
-    //     while let Ok(Some(value)) = iter.next().await {
-    //         let value = de::from_slice(&value.value).context(DeserializeValueSnafu)?;
-    //         objects.push(value);
-    //         if objects.len() >= limit {
-    //             break;
-    //         }
-    //     }
-    //     Ok(objects)
-    // }
 
     #[must_use]
     #[instrument(name = "Db::iter_objects", level = "trace", skip(self))]
@@ -253,11 +147,11 @@ impl Db {
         &self,
         entity: &T,
     ) -> Result<()> {
-        let serialized = ser::to_vec(entity).context(SerializeValueSnafu)?;
+        let serialized = ser::to_vec(entity).context(errors::SerializeValueSnafu)?;
         self.0
             .put(entity.key().as_ref(), serialized)
             .await
-            .context(DatabaseSnafu)
+            .context(errors::DatabaseSnafu)
     }
 
     /// Iterator for iterating in range
@@ -270,7 +164,7 @@ impl Db {
         &self,
         range: R,
     ) -> Result<DbIterator<'_>> {
-        self.0.scan(range).await.context(DatabaseSnafu)
+        self.0.scan(range).await.context(errors::DatabaseSnafu)
     }
 
     /// Fetch iterable items from database
@@ -297,8 +191,8 @@ impl Db {
         let mut iter = self.range_iterator(range).await?;
         let mut items: Vec<T> = vec![];
         while let Ok(Some(item)) = iter.next().await {
-            let item =
-                de::from_slice(&item.value).context(DeserializeValueSnafu { key: item.key })?;
+            let item = de::from_slice(&item.value)
+                .context(errors::DeserializeValueSnafu { key: item.key })?;
             items.push(item);
             if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                 break;
@@ -523,7 +417,7 @@ mod test {
                 item.value,
                 Bytes::from(
                     ser::to_string(&items[i])
-                        .context(SerializeValueSnafu)
+                        .context(errors::SerializeValueSnafu)
                         .unwrap()
                 )
             );
@@ -562,10 +456,14 @@ mod test {
         );
         for (i, item) in created_items.iter().enumerate() {
             assert_eq!(
-                Bytes::from(ser::to_string(&item).context(SerializeValueSnafu).unwrap()),
+                Bytes::from(
+                    ser::to_string(&item)
+                        .context(errors::SerializeValueSnafu)
+                        .unwrap()
+                ),
                 Bytes::from(
                     ser::to_string(&retrieved_items[i])
-                        .context(SerializeValueSnafu)
+                        .context(errors::SerializeValueSnafu)
                         .unwrap()
                 ),
             );

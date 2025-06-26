@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, json};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -69,12 +71,12 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let keys_arg = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected keys array argument".to_string(),
             ))?;
         let values_arg = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected values array argument".to_string(),
             ))?;
 
@@ -138,17 +140,11 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                 };
 
                 // Parse arrays
-                let keys: Value = serde_json::from_str(keys_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse keys JSON array: {e}"
-                    ))
-                })?;
+                let keys: Value = serde_json::from_str(keys_str)
+                    .context(errors::FailedToDeserializeJsonEntitySnafu { entity: "keys" })?;
 
-                let values: Value = serde_json::from_str(values_str).map_err(|e| {
-                    datafusion_common::error::DataFusionError::Internal(format!(
-                        "Failed to parse values JSON array: {e}"
-                    ))
-                })?;
+                let values: Value = serde_json::from_str(values_str)
+                    .context(errors::FailedToDeserializeJsonEntitySnafu { entity: "values" })?;
 
                 if let (Value::Array(key_array), Value::Array(value_array)) = (keys, values) {
                     let keys: Vec<Option<String>> = key_array
@@ -163,14 +159,10 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
                     let result = Self::create_object(&keys, &value_array);
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 } else {
-                    Err(datafusion_common::error::DataFusionError::Internal(
-                        "Both arguments must be JSON arrays".to_string(),
-                    ))
+                    errors::ArgumentsMustBeJsonArraysSnafu.fail()?
                 }
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
-                "Arguments must be arrays".to_string(),
-            )),
+            _ => errors::ArgumentsMustBeJsonArraysSnafu.fail()?,
         }
     }
 }

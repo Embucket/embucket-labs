@@ -1,12 +1,14 @@
+use crate::errors;
 use crate::json;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::{Array, StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
-use datafusion_common::{DataFusionError, ScalarValue, exec_err};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -79,9 +81,10 @@ impl ScalarUDFImpl for GetPathFunc {
                         continue;
                     };
 
-                    res.append_value(serde_json::to_string_pretty(&value).map_err(|e| {
-                        DataFusionError::Internal(format!("Failed to serialize JSON value: {e}"))
-                    })?);
+                    res.append_value(
+                        serde_json::to_string_pretty(&value)
+                            .context(errors::FailedToSerializeValueSnafu)?,
+                    );
                 }
                 Err(_) => res.append_null(),
             }

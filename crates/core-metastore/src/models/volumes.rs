@@ -1,4 +1,4 @@
-use crate::error::{self as metastore_error, MetastoreResult};
+use crate::error::{self as metastore_error, Result};
 use object_store::{ObjectStore, aws::AmazonS3Builder, path::Path};
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -36,7 +36,7 @@ pub enum AwsCredentials {
 }
 
 impl Validate for AwsCredentials {
-    fn validate(&self) -> Result<(), ValidationErrors> {
+    fn validate(&self) -> std::result::Result<(), ValidationErrors> {
         match self {
             Self::AccessKey(creds) => creds.validate(),
             Self::Token(token) => {
@@ -99,7 +99,7 @@ impl S3TablesVolume {
     }
 }
 
-fn validate_bucket_name(bucket_name: &str) -> Result<(), ValidationError> {
+fn validate_bucket_name(bucket_name: &str) -> std::result::Result<(), ValidationError> {
     if !bucket_name
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
@@ -148,7 +148,7 @@ impl Display for VolumeType {
 }
 
 impl Validate for VolumeType {
-    fn validate(&self) -> Result<(), ValidationErrors> {
+    fn validate(&self) -> std::result::Result<(), ValidationErrors> {
         match self {
             Self::S3(volume) => volume.validate(),
             Self::S3Tables(volume) => volume.validate(),
@@ -176,7 +176,7 @@ impl Volume {
         Self { ident, volume }
     }
 
-    pub fn get_object_store(&self) -> MetastoreResult<Arc<dyn ObjectStore>> {
+    pub fn get_object_store(&self) -> Result<Arc<dyn ObjectStore>> {
         match &self.volume {
             VolumeType::S3(volume) => {
                 let s3_builder = Self::get_s3_builder(volume);
@@ -253,7 +253,7 @@ impl Volume {
         }
     }
 
-    pub async fn validate_credentials(&self) -> MetastoreResult<()> {
+    pub async fn validate_credentials(&self) -> Result<()> {
         let object_store = self.get_object_store()?;
         object_store
             .get(&Path::from(self.prefix()))

@@ -1,11 +1,11 @@
 use crate::array_to_boolean;
+use crate::errors;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::arrow::array::cast::as_string_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
-use datafusion_common::DataFusionError;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
@@ -96,9 +96,7 @@ impl ScalarUDFImpl for ToBooleanFunc {
                         } else if self.try_ {
                             res.append_null();
                         } else {
-                            return Err(DataFusionError::Internal(format!(
-                                "Invalid boolean string: {v}"
-                            )));
+                            return errors::InvalidBooleanStringSnafu { v }.fail()?;
                         }
                     }
                 }

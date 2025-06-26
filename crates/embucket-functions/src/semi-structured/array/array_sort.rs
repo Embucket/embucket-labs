@@ -101,12 +101,12 @@ impl ArraySortUDF {
                 .collect();
 
             Ok(Some(to_string(&sorted_array).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}"
                 ))
             })?))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "First argument must be a JSON array".to_string(),
             ))
         }
@@ -142,7 +142,7 @@ impl ScalarUDFImpl for ArraySortUDF {
         // Get array argument
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
 
@@ -169,7 +169,7 @@ impl ScalarUDFImpl for ArraySortUDF {
                     } else {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse array JSON: {e}"
                             ))
                         })?;
@@ -185,7 +185,7 @@ impl ScalarUDFImpl for ArraySortUDF {
             ColumnarValue::Scalar(array_value) => match array_value {
                 ScalarValue::Utf8(Some(array_str)) => {
                     let array_json: Value = from_str(array_str).map_err(|e| {
-                        datafusion_common::error::DataFusionError::Internal(format!(
+                        datafusion_common::DataFusionError::Internal(format!(
                             "Failed to parse array JSON: {e}"
                         ))
                     })?;
@@ -194,7 +194,7 @@ impl ScalarUDFImpl for ArraySortUDF {
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 }
                 ScalarValue::Utf8(None) => Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
-                _ => Err(datafusion_common::error::DataFusionError::Internal(
+                _ => Err(datafusion_common::DataFusionError::Internal(
                     "First argument must be a JSON array string".to_string(),
                 )),
             },

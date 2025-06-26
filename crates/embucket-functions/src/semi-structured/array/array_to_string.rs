@@ -1,12 +1,14 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::arrow::array::StringBuilder;
-use datafusion_common::{DataFusionError, ScalarValue, exec_err, internal_err};
+use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -77,11 +79,8 @@ impl ScalarUDFImpl for ArrayToStringFunc {
                 let arr = as_string_array(arr);
                 for v in arr {
                     if let Some(v) = v {
-                        let json: Value = serde_json::from_str(v).map_err(|err| {
-                            DataFusionError::Execution(format!(
-                                "failed to deserialize JSON: {err:?}"
-                            ))
-                        })?;
+                        let json: Value = serde_json::from_str(v)
+                            .context(errors::FailedToDeserializeJsonSnafu)?;
                         res.append_value(to_string(&json, sep)?);
                     } else {
                         res.append_null();
@@ -94,9 +93,8 @@ impl ScalarUDFImpl for ArrayToStringFunc {
                 ColumnarValue::Scalar(ScalarValue::Utf8(Some(sep))),
             ) => {
                 if let Some(v) = v {
-                    let json: Value = serde_json::from_str(v).map_err(|err| {
-                        DataFusionError::Execution(format!("failed to deserialize JSON: {err:?}"))
-                    })?;
+                    let json: Value =
+                        serde_json::from_str(v).context(errors::FailedToDeserializeJsonSnafu)?;
                     let res = to_string(&json, sep)?;
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(res))))
                 } else {
@@ -118,15 +116,13 @@ fn to_string(v: &Value, sep: &str) -> DFResult<String> {
                     Value::Number(v) => res.push(v.to_string()),
                     Value::String(v) => res.push(v.to_owned()),
                     Value::Array(v) => {
-                        let r = serde_json::to_string(&v).map_err(|err| {
-                            DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-                        })?;
+                        let r = serde_json::to_string(&v)
+                            .context(errors::FailedToSerializeValueSnafu)?;
                         res.push(r);
                     }
                     Value::Object(v) => {
-                        let r = serde_json::to_string(&v).map_err(|err| {
-                            DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-                        })?;
+                        let r = serde_json::to_string(&v)
+                            .context(errors::FailedToSerializeValueSnafu)?;
                         res.push(r);
                     }
                     Value::Null => res.push(String::new()),

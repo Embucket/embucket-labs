@@ -1,3 +1,4 @@
+use crate::errors;
 use datafusion::arrow::array::{ArrayRef, StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
@@ -5,6 +6,7 @@ use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -67,9 +69,8 @@ impl ScalarUDFImpl for ObjectKeysFunc {
                 continue;
             };
 
-            let json = serde_json::from_str::<Value>(v).map_err(|e| {
-                datafusion_common::DataFusionError::Execution(format!("Invalid JSON: {e}"))
-            })?;
+            let json =
+                serde_json::from_str::<Value>(v).context(errors::FailedToDeserializeJsonSnafu)?;
 
             if let Value::Object(map) = json {
                 let mut keys = vec![];
@@ -77,16 +78,11 @@ impl ScalarUDFImpl for ObjectKeysFunc {
                     keys.push(Value::String(key));
                 }
 
-                let v = serde_json::to_string(&Value::Array(keys)).map_err(|e| {
-                    datafusion_common::DataFusionError::Execution(format!(
-                        "Failed to serialize keys: {e}",
-                    ))
-                })?;
+                let v = serde_json::to_string(&Value::Array(keys))
+                    .context(errors::FailedToSerializeValueSnafu)?;
                 res.append_value(v);
             } else {
-                return Err(datafusion_common::DataFusionError::Execution(
-                    "Input must be a JSON object".to_string(),
-                ));
+                return errors::InputMustBeJsonObjectSnafu.fail()?;
             }
         }
 

@@ -55,12 +55,12 @@ impl ArraySliceUDF {
 
             // Convert back to JSON string
             Ok(Some(to_string(&slice).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}"
                 ))
             })?))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "First argument must be a JSON array".to_string(),
             ))
         }
@@ -94,17 +94,17 @@ impl ScalarUDFImpl for ArraySliceUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
         let from = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected from argument".to_string(),
             ))?;
         let to = args
             .get(2)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected to argument".to_string(),
             ))?;
 
@@ -119,7 +119,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
                     ScalarValue::Int64(None) | ScalarValue::Null => {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                    _ => return Err(datafusion_common::DataFusionError::Internal(
                         "From index must be an integer".to_string()
                     ))
                 };
@@ -129,7 +129,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
                     ScalarValue::Int64(None) | ScalarValue::Null => {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                    _ => return Err(datafusion_common::DataFusionError::Internal(
                         "To index must be an integer".to_string()
                     ))
                 };
@@ -140,7 +140,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
                     } else {
                         let array_str = string_array.value(i);
                         let array_json: Value = from_str(array_str)
-                            .map_err(|e| datafusion_common::error::DataFusionError::Internal(
+                            .map_err(|e| datafusion_common::DataFusionError::Internal(
                                 format!("Failed to parse array JSON: {e}"
                             )))?;
                         results.push(Self::slice_array(array_json, from, to)?);
@@ -151,7 +151,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(from_value), ColumnarValue::Scalar(to_value)) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string for array".to_string()
                     ))
                 };
@@ -163,28 +163,28 @@ impl ScalarUDFImpl for ArraySliceUDF {
 
                 let from = match from_value {
                     ScalarValue::Int64(Some(pos)) => *pos,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                    _ => return Err(datafusion_common::DataFusionError::Internal(
                         "From index must be an integer".to_string()
                     ))
                 };
 
                 let to = match to_value {
                     ScalarValue::Int64(Some(pos)) => *pos,
-                    _ => return Err(datafusion_common::error::DataFusionError::Internal(
+                    _ => return Err(datafusion_common::DataFusionError::Internal(
                         "To index must be an integer".to_string()
                     ))
                 };
 
                 // Parse array string to JSON Value
                 let array_json: Value = from_str(array_str)
-                    .map_err(|e| datafusion_common::error::DataFusionError::Internal(
+                    .map_err(|e| datafusion_common::DataFusionError::Internal(
                         format!("Failed to parse array JSON: {e}"
                     )))?;
 
                 let result = Self::slice_array(array_json, from, to)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "First argument must be a JSON array string, second and third arguments must be integers".to_string()
             ))
         }

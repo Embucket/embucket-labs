@@ -68,26 +68,23 @@ export function DataTable<T>({
         ))}
       </TableHeader>
       <TableBody>
-        {isLoading ? (
-          <DataTableLoadingRows columnsLength={columns.length} />
-        ) : (
-          table.getRowModel().rows.map((row) => (
-            <TableRow
-              className={cn('text-left text-nowrap', {
-                'hover:bg-hover cursor-pointer': Boolean(onRowClick),
-              })}
-              onClick={() => onRowClick?.(row.original)}
-              key={row.id}
-              data-state={row.getIsSelected() && 'selected'}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
-        )}
+        {table.getRowModel().rows.map((row) => (
+          <TableRow
+            className={cn('text-left text-nowrap', {
+              'hover:bg-hover cursor-pointer': Boolean(onRowClick),
+            })}
+            onClick={() => onRowClick?.(row.original)}
+            key={row.id}
+            data-state={row.getIsSelected() && 'selected'}
+          >
+            {row.getVisibleCells().map((cell) => (
+              <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+        {isLoading && <DataTableLoadingRows columnsLength={columns.length} />}
       </TableBody>
     </Table>
   );

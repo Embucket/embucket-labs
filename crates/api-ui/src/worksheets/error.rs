@@ -1,5 +1,4 @@
 use crate::error::IntoStatusCode;
-use core_history::Error as HistoryStoreError;
 use http::status::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
@@ -7,7 +6,7 @@ use snafu::prelude::*;
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
-pub enum WorksheetsAPIError {
+pub enum Error {
     #[snafu(display("Create worksheet error: {source}"))]
     Create {
         source: WorksheetError,
@@ -47,7 +46,7 @@ pub enum WorksheetsAPIError {
 pub enum WorksheetError {
     #[snafu(display("HistoryStore error: {source}"))]
     Store {
-        source: HistoryStoreError,
+        source: core_history::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -59,7 +58,7 @@ pub enum WorksheetError {
 }
 
 // Select which status code to return.
-impl IntoStatusCode for WorksheetsAPIError {
+impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Create { source, .. }
@@ -69,13 +68,13 @@ impl IntoStatusCode for WorksheetsAPIError {
             | Self::List { source, .. } => match &source {
                 WorksheetError::Store { source, .. } => match source {
                     // use `match self` to return different status_code on the same error
-                    HistoryStoreError::WorksheetAdd { .. } => StatusCode::CONFLICT,
-                    HistoryStoreError::BadKey { .. }
-                    | HistoryStoreError::WorksheetGet { .. }
-                    | HistoryStoreError::WorksheetsList { .. }
-                    | HistoryStoreError::WorksheetUpdate { .. }
-                    | HistoryStoreError::WorksheetDelete { .. } => StatusCode::BAD_REQUEST,
-                    HistoryStoreError::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
+                    core_history::Error::WorksheetAdd { .. } => StatusCode::CONFLICT,
+                    core_history::Error::BadKey { .. }
+                    | core_history::Error::WorksheetGet { .. }
+                    | core_history::Error::WorksheetsList { .. }
+                    | core_history::Error::WorksheetUpdate { .. }
+                    | core_history::Error::WorksheetDelete { .. } => StatusCode::BAD_REQUEST,
+                    core_history::Error::WorksheetNotFound { .. } => StatusCode::NOT_FOUND,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
                 WorksheetError::NothingToUpdate { .. } => StatusCode::BAD_REQUEST,

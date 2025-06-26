@@ -1,3 +1,4 @@
+use crate::errors;
 use base64::Engine;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray, BinaryBuilder};
 use datafusion::arrow::datatypes::DataType;
@@ -5,7 +6,6 @@ use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
     Coercion, ColumnarValue, Signature, TypeSignature, TypeSignatureClass, Volatility,
 };
-use datafusion_common::DataFusionError;
 use datafusion_common::cast::{
     as_binary_array, as_large_string_array, as_string_array, as_string_view_array,
 };
@@ -100,9 +100,7 @@ impl ScalarUDFImpl for ToBinaryFunc {
                         let format_arr = as_string_array(arr)?;
                         Some(format_arr.value(0).to_string())
                     } else {
-                        return Err(DataFusionError::Internal(
-                            "Format must be a non-null scalar value".to_string(),
-                        ));
+                        return errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
                     }
                 }
             }
@@ -161,10 +159,10 @@ impl ScalarUDFImpl for ToBinaryFunc {
                 Arc::new(builder.finish())
             }
             _ => {
-                return Err(DataFusionError::Internal(format!(
-                    "Unsupported input type: {:?}",
-                    input_array.data_type()
-                )));
+                return errors::UnsupportedInputTypeSnafu {
+                    data_type: input_array.data_type().clone(),
+                }
+                .fail()?;
             }
         };
 
@@ -197,9 +195,10 @@ where
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return Err(DataFusionError::Internal(format!(
-                                    "Failed to decode hex string: {e}"
-                                )));
+                                return errors::FailedToDecodeHexStringSnafu {
+                                    error: e.to_string(),
+                                }
+                                .fail()?;
                             }
                         }
                     }
@@ -212,9 +211,10 @@ where
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return Err(DataFusionError::Internal(format!(
-                                    "Failed to decode base64 string: {e}"
-                                )));
+                                return errors::FailedToDecodeBase64StringSnafu {
+                                    error: e.to_string(),
+                                }
+                                .fail()?;
                             }
                         }
                     }
@@ -227,9 +227,7 @@ where
                     if try_mode {
                         builder.append_null();
                     } else {
-                        return Err(DataFusionError::Internal(format!(
-                            "Unsupported format: {format}. Valid formats are HEX, BASE64, and UTF-8"
-                        )));
+                        return errors::UnsupportedFormatSnafu { format }.fail()?;
                     }
                 }
             }

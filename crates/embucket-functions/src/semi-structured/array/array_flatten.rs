@@ -1,12 +1,14 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::arrow::array::StringBuilder;
-use datafusion_common::{DataFusionError, ScalarValue, exec_err, internal_err};
+use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::{Map, Value};
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -112,9 +114,7 @@ fn flatten_inner(v: Value) -> DFResult<Value> {
 
 fn flatten(v: &str) -> DFResult<Option<String>> {
     let v = v.to_lowercase(); // normalize to lowercase so NULL become null
-    let v = serde_json::from_str::<Value>(&v).map_err(|err| {
-        DataFusionError::Execution(format!("failed to deserialize JSON: {err:?}"))
-    })?;
+    let v = serde_json::from_str::<Value>(&v).context(errors::FailedToDeserializeJsonSnafu)?;
 
     let v = match v {
         Value::Array(arr) => {
@@ -143,9 +143,9 @@ fn flatten(v: &str) -> DFResult<Option<String>> {
         }
     };
 
-    Ok(Some(serde_json::to_string(&v).map_err(|err| {
-        DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-    })?))
+    Ok(Some(
+        serde_json::to_string(&v).context(errors::FailedToSerializeValueSnafu)?,
+    ))
 }
 
 make_udf_function!(ArrayFlattenFunc);

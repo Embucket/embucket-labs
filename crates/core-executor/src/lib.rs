@@ -10,3 +10,5 @@ pub mod utils;
 
 #[cfg(test)]
 pub mod tests;
+
+pub use error::{Error, Result};

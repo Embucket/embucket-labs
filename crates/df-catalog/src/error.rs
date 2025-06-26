@@ -1,5 +1,4 @@
 use core_history::errors::Error as HistoryError;
-use core_metastore::error::MetastoreError;
 use core_utils::Error as CoreError;
 use datafusion_common::DataFusionError;
 use error_stack_trace;
@@ -16,8 +15,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[snafu(display("Metastore error: {source}"))]
     Metastore {
-        #[snafu(source(from(MetastoreError, Box::new)))]
-        source: Box<MetastoreError>,
+        #[snafu(source(from(core_metastore::Error, Box::new)))]
+        source: Box<core_metastore::Error>,
         #[snafu(implicit)]
         location: Location,
     },

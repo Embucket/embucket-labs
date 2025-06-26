@@ -1,5 +1,5 @@
-use crate::json;
 use crate::macros::make_udf_function;
+use crate::{errors, json};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -36,16 +36,16 @@ impl ObjectInsertUDF {
         if let Value::Object(mut obj) = object_value {
             // Get the key string
             let Value::String(key_str) = key else {
-                return Err(datafusion_common::error::DataFusionError::Internal(
+                return Err(datafusion_common::DataFusionError::Internal(
                     "Key must be a string".to_string(),
                 ));
             };
 
             // Check if key exists and handle according to update_flag
             if obj.contains_key(key_str) && !update_flag {
-                return Err(datafusion_common::error::DataFusionError::Internal(
-                    format!("Key '{key_str}' already exists and update_flag is false",),
-                ));
+                return Err(datafusion_common::DataFusionError::Internal(format!(
+                    "Key '{key_str}' already exists and update_flag is false",
+                )));
             }
 
             // Insert or update the key-value pair
@@ -53,12 +53,12 @@ impl ObjectInsertUDF {
 
             // Convert back to JSON string
             Ok(Some(to_string(&obj).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to serialize result: {e}",
                 ))
             })?))
         } else {
-            Err(datafusion_common::error::DataFusionError::Internal(
+            Err(datafusion_common::DataFusionError::Internal(
                 "First argument must be a JSON object".to_string(),
             ))
         }
@@ -91,23 +91,23 @@ impl ScalarUDFImpl for ObjectInsertUDF {
     #[allow(clippy::too_many_lines)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let object_str =
-            args.first()
-                .ok_or(datafusion_common::error::DataFusionError::Internal(
-                    "Expected object argument".to_string(),
-                ))?;
+        let object_str = args
+            .first()
+            .ok_or(datafusion_common::DataFusionError::Internal(
+                "Expected object argument".to_string(),
+            ))?;
 
         // Get key argument
         let key_arg = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected key argument".to_string(),
             ))?;
 
         // Get value argument
         let value_arg = args
             .get(2)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected value argument".to_string(),
             ))?;
 
@@ -116,7 +116,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
             if let ColumnarValue::Scalar(ScalarValue::Boolean(Some(b))) = arg {
                 Ok(*b)
             } else {
-                Err(datafusion_common::error::DataFusionError::Internal(
+                Err(datafusion_common::DataFusionError::Internal(
                     "Update flag must be a boolean".to_string(),
                 ))
             }
@@ -133,21 +133,15 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     match array.first() {
                         Some(value) => value.clone(),
                         None => {
-                            return Err(datafusion_common::error::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string(),
-                            ));
+                            return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                         }
                     }
                 } else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
-                        "Expected array for scalar value".to_string(),
-                    ));
+                    return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                 }
             }
             ColumnarValue::Array(_) => {
-                return Err(datafusion_common::error::DataFusionError::Internal(
-                    "Key argument must be a scalar value".to_string(),
-                ));
+                return errors::ArgumentMustBeAScalarValueSnafu { argument: "Key" }.fail()?;
             }
         };
 
@@ -161,21 +155,15 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     match array.first() {
                         Some(value) => value.clone(),
                         None => {
-                            return Err(datafusion_common::error::DataFusionError::Internal(
-                                "Expected array for scalar value".to_string(),
-                            ));
+                            return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                         }
                     }
                 } else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
-                        "Expected array for scalar value".to_string(),
-                    ));
+                    return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                 }
             }
             ColumnarValue::Array(_) => {
-                return Err(datafusion_common::error::DataFusionError::Internal(
-                    "Value argument must be a scalar value".to_string(),
-                ));
+                return errors::ArgumentMustBeAScalarValueSnafu { argument: "Value" }.fail()?;
             }
         };
 
@@ -190,7 +178,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     } else {
                         let object_str = string_array.value(i);
                         let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse object JSON: {e}"
                             ))
                         })?;
@@ -212,7 +200,7 @@ impl ScalarUDFImpl for ObjectInsertUDF {
                     ScalarValue::Utf8(Some(object_str)) => {
                         // Parse object string to JSON Value
                         let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
+                            datafusion_common::DataFusionError::Internal(format!(
                                 "Failed to parse object JSON: {e}"
                             ))
                         })?;

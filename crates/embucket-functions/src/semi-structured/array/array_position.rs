@@ -67,12 +67,12 @@ impl ScalarUDFImpl for ArrayPositionUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let element = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected element argument".to_string(),
             ))?;
         let array = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected array argument".to_string(),
             ))?;
 
@@ -94,7 +94,7 @@ impl ScalarUDFImpl for ArrayPositionUDF {
                         } else {
                             let array_value: Value = from_slice(string_array.value(i).as_bytes())
                                 .map_err(|e| {
-                                datafusion_common::error::DataFusionError::Internal(e.to_string())
+                                datafusion_common::DataFusionError::Internal(e.to_string())
                             })?;
 
                             let result = Self::array_position(&element_array[i], &array_value);
@@ -112,11 +112,10 @@ impl ScalarUDFImpl for ArrayPositionUDF {
                 let array_scalar = match array_scalar {
                     ScalarValue::Utf8(Some(s))
                     | ScalarValue::LargeUtf8(Some(s))
-                    | ScalarValue::Utf8View(Some(s)) => from_slice(s.as_bytes()).map_err(|e| {
-                        datafusion_common::error::DataFusionError::Internal(e.to_string())
-                    })?,
+                    | ScalarValue::Utf8View(Some(s)) => from_slice(s.as_bytes())
+                        .map_err(|e| datafusion_common::DataFusionError::Internal(e.to_string()))?,
                     _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Array argument must be a string type".to_string(),
                         ));
                     }
@@ -125,7 +124,7 @@ impl ScalarUDFImpl for ArrayPositionUDF {
                 let result = Self::array_position(&element_scalar, &array_scalar);
                 Ok(ColumnarValue::Scalar(ScalarValue::Int64(result)))
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Mismatched argument types".to_string(),
             )),
         }

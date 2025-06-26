@@ -128,7 +128,7 @@ pub async fn get_volume(
         .get_volume(&volume_name)
         .await
         .map(|opt_rw_obj| {
-            // We create here MetastoreError since Metastore instead of error returns Option = None
+            // We create here core_metastore::Error since Metastore instead of error returns Option = None
             // TODO: Remove after refactor Metastore
             opt_rw_obj
                 .ok_or_else(|| {

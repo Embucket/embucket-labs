@@ -55,7 +55,7 @@ pub async fn get_namespace(
             operation: Operation::GetNamespace,
         })?
         // TBD:
-        // - get_schema should return no Option, like this: Result<Schema, MetastoreError>
+        // - get_schema should return no Option, like this: Result<Schema, core_metastore::Error>
         // - Should we just use Metastore context without artificially creating it?
         // - Only create IcebergAPIError context ?
         .ok_or_else(|| {
@@ -153,7 +153,7 @@ pub async fn register_table(
         })?
         .map(|v| v.data)
         // TBD:
-        // - get_volume should return no Option, like this: Result<Schema, MetastoreError>
+        // - get_volume should return no Option, like this: Result<Schema, core_metastore::Error>
         .ok_or_else(|| {
             metastore_error::VolumeNotFoundSnafu {
                 volume: format!(

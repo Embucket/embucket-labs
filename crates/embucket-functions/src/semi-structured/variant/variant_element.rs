@@ -106,14 +106,14 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
         } else if args.len() == 2 {
             (None, args.pop().unwrap(), args.pop().unwrap())
         } else {
-            return Err(datafusion_common::error::DataFusionError::Internal(
+            return Err(datafusion_common::DataFusionError::Internal(
                 "Invalid number of arguments".to_string(),
             ));
         };
         match (array_str, index) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(index_value)) => {
                 let ScalarValue::Utf8(Some(index)) = index_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected JSONPath value for index".to_string(),
                     ));
                 };
@@ -157,13 +157,13 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(index_value)) => {
                 let ScalarValue::Utf8(Some(index)) = index_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected JSONPath value for index".to_string(),
                     ));
                 };
 
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected string array".to_string(),
                     ));
                 };
@@ -192,7 +192,7 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
                     None => Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
                 }
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Invalid argument types".to_string(),
             )),
         }

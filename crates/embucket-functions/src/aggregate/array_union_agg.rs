@@ -1,4 +1,5 @@
 use crate::aggregate::macros::make_udaf_function;
+use crate::errors;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
 use datafusion::arrow::datatypes::{DataType, Field};
@@ -10,6 +11,7 @@ use datafusion_expr::AggregateUDFImpl;
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
 use serde_json::{Number, Value};
+use snafu::ResultExt;
 use std::any::Any;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -103,9 +105,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         let arr = as_string_array(arr)?;
         let mut buf = Vec::with_capacity(arr.len());
         for v in arr.into_iter().flatten() {
-            let json: Value = serde_json::from_str(v).map_err(|err| {
-                DataFusionError::Execution(format!("failed to deserialize JSON: {err:?}"))
-            })?;
+            let json: Value =
+                serde_json::from_str(v).context(errors::FailedToSerializeValueSnafu)?;
 
             if let Value::Array(v) = json {
                 buf.clear();
@@ -171,9 +172,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                             Ok(Value::Null)
                         }
                     } else {
-                        Err(DataFusionError::Internal(
-                            "state values should be string type".to_string(),
-                        ))
+                        // since error is not returned right away we do explicit into conversion
+                        Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
                     }
                 })
                 .collect::<DFResult<Vec<_>>>()?,
@@ -193,9 +193,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            Err(DataFusionError::Internal(
-                                "state values should be string type".to_string(),
-                            ))
+                            // since error is not returned right away we do explicit into conversion
+                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -230,9 +229,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                     Ok(Value::Null)
                                 }
                             } else {
-                                Err(DataFusionError::Internal(
-                                    "state values should be string type".to_string(),
-                                ))
+                                // since error is not returned right away we do explicit into conversion
+                                Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
                             }
                         })
                         .collect::<DFResult<Vec<_>>>()?
@@ -248,9 +246,8 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            Err(DataFusionError::Internal(
-                                "state values should be string type".to_string(),
-                            ))
+                            // since error is not returned right away we do explicit into conversion
+                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -260,19 +257,14 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                     .map(|v| {
                         if let ScalarValue::Utf8(v) = v {
                             if let Some(v) = v {
-                                let v: Value = serde_json::from_str(v).map_err(|err| {
-                                    DataFusionError::Execution(format!(
-                                        "failed to deserialize JSON: {err:?}"
-                                    ))
-                                })?;
-                                Ok(v)
+                                Ok(serde_json::from_str(v)
+                                    .context(errors::FailedToSerializeValueSnafu)?)
                             } else {
                                 Ok(Value::Null)
                             }
                         } else {
-                            Err(DataFusionError::Internal(
-                                "state values should be string type".to_string(),
-                            ))
+                            // since error is not returned right away we do explicit into conversion
+                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -280,9 +272,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         };
 
         Ok(ScalarValue::Utf8(Some(
-            serde_json::to_string(&arr).map_err(|err| {
-                DataFusionError::Execution(format!("failed to serialize JSON: {err:?}"))
-            })?,
+            serde_json::to_string(&arr).context(errors::FailedToSerializeValueSnafu)?,
         )))
     }
 

@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -6,6 +7,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -28,13 +30,13 @@ impl ArrayExceptUDF {
         if let (Some(arr1), Some(arr2)) = (array1_str, array2_str) {
             // Parse both arrays
             let array1_value: Value = from_slice(arr1.as_bytes()).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to parse first array: {e}",
                 ))
             })?;
 
             let array2_value: Value = from_slice(arr2.as_bytes()).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
+                datafusion_common::DataFusionError::Internal(format!(
                     "Failed to parse second array: {e}",
                 ))
             })?;
@@ -83,12 +85,12 @@ impl ScalarUDFImpl for ArrayExceptUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array1 = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected first array argument".to_string(),
             ))?;
         let array2 = args
             .get(1)
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected second array argument".to_string(),
             ))?;
 
@@ -103,11 +105,10 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                     results.push(
                         result
                             .map(|v| {
-                                serde_json::to_string(&v).map_err(|e| {
-                                    datafusion_common::error::DataFusionError::Internal(format!(
-                                        "Failed to serialize result: {e}",
-                                    ))
-                                })
+                                serde_json::to_string(&v)
+                                    .context(errors::FailedToSerializeValueSnafu)
+                                    // using map_err as here result pushed and no implicit conversion can be applied
+                                    .map_err(Into::into)
                             })
                             .transpose(),
                     );
@@ -125,7 +126,7 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Expected UTF8 string for first array".to_string(),
                         ));
                     }
@@ -137,7 +138,7 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Expected UTF8 string for second array".to_string(),
                         ));
                     }
@@ -145,17 +146,11 @@ impl ScalarUDFImpl for ArrayExceptUDF {
 
                 let result = Self::array_except(Some(array1_str), Some(array2_str))?;
                 let result = result
-                    .map(|v| {
-                        serde_json::to_string(&v).map_err(|e| {
-                            datafusion_common::error::DataFusionError::Internal(format!(
-                                "Failed to serialize result: {e}",
-                            ))
-                        })
-                    })
+                    .map(|v| serde_json::to_string(&v).context(errors::FailedToSerializeValueSnafu))
                     .transpose()?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Mismatched argument types".to_string(),
             )),
         }

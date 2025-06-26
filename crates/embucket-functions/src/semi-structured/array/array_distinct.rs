@@ -34,7 +34,7 @@ impl ArrayDistinctUDF {
     fn distinct_array(string: impl AsRef<str>) -> DFResult<Option<String>> {
         let string = string.as_ref();
         let array_value: Value = from_slice(string.as_bytes()).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
+            datafusion_common::DataFusionError::Internal(format!(
                 "Couldn't parse the JSON string: {e}",
             ))
         })?;
@@ -89,7 +89,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::error::DataFusionError::Internal(
+            .ok_or(datafusion_common::DataFusionError::Internal(
                 "Expected a variant argument".to_string(),
             ))?;
         match array_str {
@@ -112,7 +112,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
             }
             ColumnarValue::Scalar(array_value) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::error::DataFusionError::Internal(
+                    return Err(datafusion_common::DataFusionError::Internal(
                         "Expected UTF8 string".to_string(),
                     ));
                 };

@@ -1,5 +1,4 @@
 use crate::error::IntoStatusCode;
-use core_history::Error as HistoryStoreError;
 use http::status::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
@@ -37,14 +36,14 @@ pub enum Error {
 pub enum QueryError {
     #[snafu(display("Query execution error: {source}"))]
     Execution {
-        source: core_executor::error::ExecutionError,
+        source: core_executor::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
     #[snafu(display("History store: {source}"))]
     Store {
-        source: HistoryStoreError,
+        source: core_history::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -93,7 +92,7 @@ impl IntoStatusCode for Error {
             },
             Self::GetQueryRecord { source, .. } => match &source {
                 QueryError::Store { source, .. } => match &source {
-                    HistoryStoreError::QueryGet { .. } | HistoryStoreError::BadKey { .. } => {
+                    core_history::Error::QueryGet { .. } | core_history::Error::BadKey { .. } => {
                         StatusCode::NOT_FOUND
                     }
                     _ => StatusCode::INTERNAL_SERVER_ERROR,

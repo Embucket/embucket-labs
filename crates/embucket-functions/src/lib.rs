@@ -1,6 +1,7 @@
 pub use crate::aggregate::register_udafs;
 use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
+use crate::numeric::div0::Div0Func;
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
 use crate::semi_structured::is_typeof::IsTypeofFunc;
@@ -14,7 +15,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::Result as DFResult;
 use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
-use datafusion_common::DataFusionError;
+
 #[doc(hidden)]
 pub use std::iter as __std_iter;
 use std::sync::Arc;
@@ -23,8 +24,10 @@ pub(crate) mod aggregate;
 pub mod conditional;
 pub mod conversion;
 pub mod datetime;
+pub mod errors;
 //pub mod geospatial;
 mod json;
+pub mod numeric;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
@@ -36,9 +39,11 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
+#[allow(clippy::too_many_lines)]
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         datetime::convert_timezone::get_udf(),
+        datetime::date_add::get_udf(),
         datetime::date_add::get_udf(),
         semi_structured::json::parse_json::get_udf(),
         semi_structured::json::try_parse_json::get_udf(),
@@ -74,6 +79,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         semi_structured::typeof_func::get_udf(),
         to_array::get_udf(),
         conversion::to_variant::get_udf(),
+        Arc::new(ScalarUDF::from(Div0Func::new(false))),
+        Arc::new(ScalarUDF::from(Div0Func::new(true))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
@@ -246,10 +253,10 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             let arr = arr.as_any().downcast_ref::<StringViewArray>().unwrap();
             for v in arr {
                 if v.is_some() {
-                    return Err(DataFusionError::Internal(format!(
-                        "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
-                        arr.data_type()
-                    )));
+                    return errors::UnsupportedTypeSnafu {
+                        data_type: arr.data_type().clone(),
+                    }
+                    .fail()?;
                 }
 
                 boolean_array.append_null();
@@ -258,10 +265,10 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             boolean_array.finish()
         }
         _ => {
-            return Err(DataFusionError::Internal(format!(
-                "unsupported {:?} type. Only supports boolean, numeric, decimal, float types",
-                arr.data_type()
-            )));
+            return errors::UnsupportedTypeSnafu {
+                data_type: arr.data_type().clone(),
+            }
+            .fail()?;
         }
     })
 }

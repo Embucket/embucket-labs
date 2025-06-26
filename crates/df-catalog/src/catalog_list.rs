@@ -176,7 +176,7 @@ impl EmbucketCatalogList {
             let catalog = S3TablesCatalog::new(
                 &config,
                 volume.arn.as_str(),
-                ObjectStoreBuilder::S3(volume.s3_builder()),
+                ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
             )
             .context(df_catalog_error::S3TablesSnafu)?;
 

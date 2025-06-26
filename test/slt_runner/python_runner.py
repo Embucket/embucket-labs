@@ -73,6 +73,12 @@ class EmbucketHelper:
                 else:
                     # Empty response is acceptable for some endpoints
                     return None
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 409:
+                    print(f"Resource already exists: {e.response.text[:200]}")
+                    return None
+                else:
+                    raise
             except requests.exceptions.RequestException as e:
                 print(f"Error making request to {url}: {e}")
                 if hasattr(e, 'response') and e.response is not None:

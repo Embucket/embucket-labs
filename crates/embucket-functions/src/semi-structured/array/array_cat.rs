@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -30,28 +32,22 @@ impl ArrayCatUDF {
 
         for array_str in arrays {
             // Parse each input array
-            let array_value: Value = from_str(array_str).map_err(|e| {
-                datafusion_common::error::DataFusionError::Internal(format!(
-                    "Failed to parse array JSON: {e}",
-                ))
-            })?;
+            let array_value: Value = from_str(array_str)
+                .context(errors::FailedToDeserializeJsonEntitySnafu { entity: "array" })?;
 
             // Ensure each argument is an array
             if let Value::Array(array) = array_value {
                 result_array.extend(array);
             } else {
-                return Err(datafusion_common::error::DataFusionError::Internal(
-                    "All arguments must be JSON arrays".to_string(),
-                ));
+                return errors::ArgumentsMustBeJsonArraysSnafu.fail()?;
             }
         }
 
         // Convert back to JSON string
-        to_string(&Value::Array(result_array)).map_err(|e| {
-            datafusion_common::error::DataFusionError::Internal(format!(
-                "Failed to serialize result: {e}",
-            ))
-        })
+        let res =
+            to_string(&Value::Array(result_array)).context(errors::FailedToSerializeValueSnafu)?;
+
+        Ok(res)
     }
 }
 
@@ -83,9 +79,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
 
         // Check for exactly two arguments
         if args.len() != 2 {
-            return Err(datafusion_common::error::DataFusionError::Internal(
-                "array_cat expects exactly two arguments".to_string(),
-            ));
+            return errors::ArrayCatExpectsExactlyTwoArgumentsSnafu.fail()?;
         }
 
         match (&args[0], &args[1]) {
@@ -106,9 +100,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array2.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
-                            "Cannot concatenate arrays with null values".to_string(),
-                        ));
+                        return errors::CannotConcatenateArraysWithNullValuesSnafu.fail()?;
                     }
                     let result = Self::concatenate_arrays(&[
                         s1.as_str(),
@@ -130,7 +122,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
@@ -155,7 +147,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) || string_array2.is_null(i) {
-                        return Err(datafusion_common::error::DataFusionError::Internal(
+                        return Err(datafusion_common::DataFusionError::Internal(
                             "Cannot concatenate arrays with null values".to_string(),
                         ));
                     }
@@ -171,7 +163,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 )))
             }
 
-            _ => Err(datafusion_common::error::DataFusionError::Internal(
+            _ => Err(datafusion_common::DataFusionError::Internal(
                 "Arguments must both be either scalar UTF8 strings or arrays".to_string(),
             )),
         }

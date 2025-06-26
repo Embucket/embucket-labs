@@ -1,3 +1,4 @@
+use arrow_schema::DECIMAL128_MAX_PRECISION;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::common::Result;
 use datafusion::logical_expr::planner::TypePlanner;
@@ -34,7 +35,7 @@ impl TypePlanner for CustomTypePlanner {
                 }
                 "NUMBER" => {
                     let (precision, scale) = match b.len() {
-                        0 => (None, None),
+                        0 => (Some(u64::from(DECIMAL128_MAX_PRECISION)), None),
                         1 => {
                             let precision = b[0].parse().map_err(|_| {
                                 DataFusionError::Plan(format!("Invalid precision: {}", b[0]))
