@@ -1,9 +1,9 @@
 pub use crate::aggregate::register_udafs;
 use crate::conversion::to_binary::ToBinaryFunc;
 use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
+use crate::numeric::div0::Div0Func;
 use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof;
-use crate::semi_structured::is_typeof::IsTypeofFunc;
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
     Float16Array, Float32Array, Float64Array, GenericStringArray, Int8Array, Int16Array,
@@ -40,76 +40,12 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
-#[allow(clippy::too_many_lines)]
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
-    let functions: Vec<Arc<ScalarUDF>> = vec![
-        datetime::convert_timezone::get_udf(),
-        datetime::date_add::get_udf(),
-        semi_structured::json::parse_json::get_udf(),
-        semi_structured::json::try_parse_json::get_udf(),
-        datetime::date_diff::get_udf(),
-        datetime::timestamp_from_parts::get_udf(),
-        datetime::time_from_parts::get_udf(),
-        datetime::date_from_parts::get_udf(),
-        datetime::last_day::get_udf(),
-        datetime::add_months::get_udf(),
-        datetime::monthname::get_udf(),
-        datetime::dayname::get_udf(),
-        datetime::previous_day::get_udf(),
-        datetime::next_day::get_udf(),
-        conditional::booland::get_udf(),
-        conditional::boolor::get_udf(),
-        conditional::boolxor::get_udf(),
-        conditional::iff::get_udf(),
-        conditional::equal_null::get_udf(),
-        conditional::nullifzero::get_udf(),
-        semi_structured::object::is_object::get_udf(),
-        semi_structured::array::is_array::get_udf(),
-        string_binary::rtrimmed_length::get_udf(),
-        semi_structured::get_path::get_udf(),
-        string_binary::insert::get_udf(),
-        string_binary::strtok::get_udf(),
-        string_binary::jarowinkler_similarity::get_udf(),
-        string_binary::length::get_udf(),
-        string_binary::split::get_udf(),
-        string_binary::lower::get_udf(),
-        semi_structured::array::strtok_to_array::get_udf(),
-        semi_structured::object::object_keys::get_udf(),
-        semi_structured::json::try_parse_json::get_udf(),
-        semi_structured::typeof_func::get_udf(),
-        to_array::get_udf(),
-        conversion::to_variant::get_udf(),
-        numeric::div0::get_udf(),
-        Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
-        Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
-        Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
-        Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
-        Arc::new(ScalarUDF::from(ToBinaryFunc::new(true))),
-        Arc::new(ScalarUDF::from(ToBinaryFunc::new(false))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Real))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Integer))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
-        Arc::new(ScalarUDF::from(GetFunc::new(true))),
-        Arc::new(ScalarUDF::from(GetFunc::new(false))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Real))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Integer))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
-        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
-    ];
-
-    for func in functions {
-        registry.register_udf(func)?;
-    }
-
+    conditional::register_udfs(registry)?;
+    conversion::register_udfs(registry)?;
+    datetime::register_udfs(registry)?;
+    numeric::register_udfs(registry)?;
+    string_binary::register_udfs(registry)?;
     semi_structured::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
     Ok(())

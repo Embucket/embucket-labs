@@ -28,12 +28,13 @@ INNER JOIN target_table t ON t.id = s.id
 
 exclude-from-coverage
 statement ok
-DELETE FROM target_table
-WHERE ID IN (
+CREATE OR REPLACE TABLE target_table AS
+SELECT ID, description FROM target_table
+WHERE NOT (ID IN (
     SELECT t.ID
     FROM target_table t
     INNER JOIN source_table s ON t.id = s.id
-) AND description = 'To be updated (this is the old value)';
+) AND description = 'To be updated (this is the old value)');
 
 query TT
 SELECT * FROM target_table
@@ -49,13 +50,14 @@ statement ok
 CREATE OR REPLACE TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
 
 statement ok
-DELETE FROM t1
-WHERE t1Key IN (
+CREATE OR REPLACE TABLE t1 AS
+SELECT t1Key, val, status FROM t1
+WHERE NOT (t1Key IN (
     SELECT t1.t1Key
     FROM t1
     INNER JOIN t2 ON t1.t1Key = t2.t2Key
     WHERE t2.marked = 1
-);
+));
 
 statement ok
 INSERT INTO t1 (t1Key, val, status)
@@ -66,8 +68,9 @@ WHERE t2.isNewStatus = 1;
 
 exclude-from-coverage
 statement ok
-DELETE FROM t1
-WHERE t1Key IN (
+CREATE OR REPLACE TABLE t1 AS
+SELECT t1Key, val, status FROM t1
+WHERE NOT (t1Key IN (
     SELECT t1.t1Key
     FROM t1
     INNER JOIN t2 ON t1.t1Key = t2.t2Key
@@ -76,7 +79,7 @@ WHERE t1Key IN (
     SELECT t2.newVal, t2.newStatus
     FROM t2
     WHERE t2.isNewStatus = 1
-);
+));
 
 statement ok
 INSERT INTO t1 (t1Key, val, status)
@@ -87,8 +90,9 @@ WHERE t2.isNewStatus != 1 OR t2.isNewStatus IS NULL;
 
 exclude-from-coverage
 statement ok
-DELETE FROM t1
-WHERE t1Key IN (
+CREATE OR REPLACE TABLE t1 AS
+SELECT t1Key, val, status FROM t1
+WHERE NOT (t1Key IN (
     SELECT t1.t1Key
     FROM t1
     INNER JOIN t2 ON t1.t1Key = t2.t2Key
@@ -97,7 +101,7 @@ WHERE t1Key IN (
     SELECT t2.newVal
     FROM t2
     WHERE (t2.isNewStatus != 1 OR t2.isNewStatus IS NULL)
-);
+));
 
 statement ok
 INSERT INTO t1 (t1Key, val, status)

@@ -330,4 +330,18 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("{error}"))]
+    UnimplementedFunction {
+        #[snafu(source)]
+        error: embucket_functions::visitors::unimplemented::functions_checker::UnimplementedFunctionError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("SQL parser error: {error}"))]
+    SqlParser {
+        #[snafu(source)]
+        error: datafusion::sql::sqlparser::parser::ParserError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

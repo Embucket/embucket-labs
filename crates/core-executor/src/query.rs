@@ -46,8 +46,8 @@ use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
-    copy_into_identifiers, functions_rewriter, inline_aliases_in_query, json_element,
-    select_expr_aliases, table_functions, top_limit,
+    copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
+    json_element, select_expr_aliases, table_functions, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -58,7 +58,7 @@ use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
-use snafu::{IntoError, ResultExt};
+use snafu::ResultExt;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
     BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
@@ -216,15 +216,11 @@ impl UserQuery {
             json_element::visit(value);
             functions_rewriter::visit(value);
             top_limit::visit(value);
-            unimplemented_functions_checker(value)
-                // Can't use context here since underlying Error require handling
-                .map_err(|e| {
-                    ex_error::DataFusionSnafu
-                        .into_error(DataFusionError::NotImplemented(e.to_string()))
-                })?;
+            unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);
+            fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
             visit_all(value);
         }

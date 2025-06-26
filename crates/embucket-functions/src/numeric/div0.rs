@@ -31,19 +31,21 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct Div0Func {
     signature: Signature,
+    null: bool,
 }
 
 impl Default for Div0Func {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl Div0Func {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(null: bool) -> Self {
         Self {
             signature: Signature::any(2, Volatility::Immutable),
+            null,
         }
     }
 }
@@ -54,7 +56,7 @@ impl ScalarUDFImpl for Div0Func {
     }
 
     fn name(&self) -> &'static str {
-        "div0"
+        if self.null { "div0null" } else { "div0" }
     }
 
     fn signature(&self) -> &Signature {
@@ -63,7 +65,13 @@ impl ScalarUDFImpl for Div0Func {
 
     fn return_type(&self, arg_types: &[DataType]) -> DFResult<DataType> {
         Ok(if arg_types[0].is_null() || arg_types[1].is_null() {
-            DataType::Null
+            if self.null && arg_types[1].is_null() {
+                let (p, s) =
+                    calculate_precision_and_scale(&arg_types[0], &DataType::Decimal128(38, 0));
+                DataType::Decimal128(p, s)
+            } else {
+                DataType::Null
+            }
         } else if arg_types[0].is_floating() || arg_types[1].is_floating() {
             DataType::Float64
         } else {
@@ -88,7 +96,7 @@ impl ScalarUDFImpl for Div0Func {
         let dividend = args[0].clone().into_array(number_rows)?;
         let divisor = args[1].clone().into_array(number_rows)?;
 
-        if dividend.data_type().is_null() || divisor.data_type().is_null() {
+        if (dividend.data_type().is_null() || divisor.data_type().is_null()) && !self.null {
             return Ok(ColumnarValue::Scalar(ScalarValue::Null));
         }
 
@@ -146,7 +154,13 @@ impl ScalarUDFImpl for Div0Func {
                             Some(dividend / divisor)
                         }
                     }
-                    _ => None,
+                    _ => {
+                        if self.null {
+                            Some(0.0)
+                        } else {
+                            None
+                        }
+                    }
                 })
                 .collect::<Vec<_>>();
 
@@ -226,7 +240,13 @@ impl ScalarUDFImpl for Div0Func {
                             Some(r.mantissa())
                         }
                     }
-                    _ => None,
+                    _ => {
+                        if self.null {
+                            Some(0)
+                        } else {
+                            None
+                        }
+                    }
                 })
                 .collect::<Vec<_>>();
 
@@ -264,8 +284,6 @@ fn calculate_precision_and_scale(dividend: &DataType, divisor: &DataType) -> (u8
     (final_p, s_output as i8)
 }
 
-crate::macros::make_udf_function!(Div0Func);
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn test_float() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(1, 0.1) as a, DIV0(0.1,1) as b, DIV0(0.1, 0.1) as c";
         let result = ctx.sql(q).await?.collect().await?;
@@ -298,7 +316,7 @@ mod tests {
     #[tokio::test]
     async fn test_decimal() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(1.0::DECIMAL(5,3), 1) as a, DIV0(0.1::decimal,1) as b, DIV0(0.1::decimal, 10000) as c";
         let result = ctx.sql(q).await?.collect().await?;
@@ -320,7 +338,7 @@ mod tests {
     #[tokio::test]
     async fn test_nulls() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(NULL, 2) AS null_dividend, 
                        DIV0(10, NULL) AS null_divisor, 
@@ -344,7 +362,7 @@ mod tests {
     #[tokio::test]
     async fn test_basic() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(10, 2) AS normal_division, DIV0(10, 0) AS zero_division";
         let result = ctx.sql(q).await?.collect().await?;
@@ -366,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn test_numeric_types() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(10, 2) AS int_int, 
                        DIV0(10.5, 2) AS float_int, 
@@ -391,7 +409,7 @@ mod tests {
     #[tokio::test]
     async fn test_negative_types() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         let q = "SELECT DIV0(-10, 2) AS int_int, 
                        DIV0(10.5, -2) AS float_int, 
@@ -416,7 +434,7 @@ mod tests {
     #[tokio::test]
     async fn test_table_input() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(Div0Func::new()));
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(false)));
 
         // Create a test table
         ctx.sql("CREATE TABLE div0_test (a INT, b INT)")
@@ -444,6 +462,28 @@ mod tests {
                 "| 10 |   |          |",
                 "|    |   |          |",
                 "+----+---+----------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_div0null() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(Div0Func::new(true)));
+
+        let q = "SELECT DIV0NULL(10, 0) AS a, DIV0NULL(10, NULL) AS b,  DIV0NULL(10::DECIMAL(20,10), 0) AS c";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+----------+----------+----------------+",
+                "| a        | b        | c              |",
+                "+----------+----------+----------------+",
+                "| 0.000000 | 0.000000 | 0.000000000000 |",
+                "+----------+----------+----------------+",
             ],
             &result
         );

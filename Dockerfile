@@ -1,29 +1,37 @@
-FROM rust:latest AS builder
+# Multi-stage Dockerfile optimized for caching and minimal final image size
+ARG RUST_VERSION=1.87.0
 
-RUN update-ca-certificates
-
+FROM rust:${RUST_VERSION} AS builder
 WORKDIR /app
 
-COPY ./ .
-COPY rest-catalog-open-api.yaml rest-catalog-open-api.yaml
+# Install required system dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install cmake
-RUN apt-get update && apt-get install -y cmake
+# Copy source code
+COPY . .
 
-RUN cargo build --release
+# Build the application with optimizations
+RUN cargo build --release --bin embucketd
 
-####################################################################################################
-## Final image
-####################################################################################################
+# Stage 4: Final runtime image
+FROM gcr.io/distroless/cc-debian12 AS runtime
 
-FROM debian:bookworm-slim
-
-# Copy the binary from the builder stage
+# Set working directory
+USER nonroot:nonroot
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Copy the binary and required files
+COPY --from=builder /app/target/release/embucketd ./embucketd
+COPY --from=builder /app/rest-catalog-open-api.yaml ./rest-catalog-open-api.yaml
 
-COPY --from=builder /app/target/release/bucketd ./
-COPY --from=builder /app/rest-catalog-open-api.yaml rest-catalog-open-api.yaml
+# Expose port (adjust as needed)
+EXPOSE 8080
+EXPOSE 3000
 
-CMD ["./bucketd"]
+# Default command
+CMD ["./embucketd"]

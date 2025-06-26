@@ -127,13 +127,6 @@ test_query!(
     snapshot_path = "unimplemented"
 );
 
-// NUMERIC_FUNCTIONS
-test_query!(
-    unimplemented_numeric_function,
-    "SELECT DIV0NULL(10, 0)",
-    snapshot_path = "unimplemented"
-);
-
 // SEMISTRUCTURED_FUNCTIONS
 test_query!(
     unimplemented_semistructured_function,

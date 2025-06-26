@@ -1999,12 +1999,6 @@ pub const NOTIFICATION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
 ];
 
 pub const NUMERIC_FUNCTIONS: &[(&str, FunctionInfo)] = &[
-    ("DIV0NULL", FunctionInfo::new(
-        "DIV0NULL",
-        "Performs division like the division operator (/), but returns 0 when the divisor is 0 or NULL (rather than reporting an error or returning NULL)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/div0null")
-    ),
     ("MOD", FunctionInfo::new(
         "MOD",
         "Returns the remainder of input expr1 divided by input expr2."

@@ -17,6 +17,8 @@ use crate::semi_structured::array::{
     array_size, array_slice, array_sort, array_to_string, arrays_overlap, arrays_to_object,
     arrays_zip,
 };
+use crate::semi_structured::get::GetFunc;
+use crate::semi_structured::is_typeof::IsTypeofFunc;
 use crate::semi_structured::object::object_construct::ObjectConstructUDF;
 use crate::semi_structured::object::{object_delete, object_insert, object_pick};
 use crate::semi_structured::variant::variant_element;
@@ -34,6 +36,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         array_contains::get_udf(),
         array_distinct::get_udf(),
         array_except::get_udf(),
+        array_flatten::get_udf(),
         array_generate_range::get_udf(),
         array_insert::get_udf(),
         array_intersection::get_udf(),
@@ -47,18 +50,35 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         array_size::get_udf(),
         array_slice::get_udf(),
         array_sort::get_udf(),
+        array_to_string::get_udf(),
         arrays_overlap::get_udf(),
         arrays_to_object::get_udf(),
         arrays_zip::get_udf(),
-        variant_element::get_udf(),
+        conversion::as_func::get_udf(),
+        get_path::get_udf(),
+        array::is_array::get_udf(),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Integer))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Real))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::String))),
+        object::is_object::get_udf(),
+        Arc::new(ScalarUDF::from(ObjectConstructUDF::new(false))),
+        Arc::new(ScalarUDF::from(ObjectConstructUDF::new(true))),
         object_delete::get_udf(),
         object_insert::get_udf(),
+        object::object_keys::get_udf(),
         object_pick::get_udf(),
-        array_flatten::get_udf(),
-        array_to_string::get_udf(),
-        Arc::new(ScalarUDF::from(ObjectConstructUDF::new(true))),
-        Arc::new(ScalarUDF::from(ObjectConstructUDF::new(false))),
-        conversion::as_func::get_udf(),
+        json::parse_json::get_udf(),
+        array::strtok_to_array::get_udf(),
+        json::try_parse_json::get_udf(),
+        Arc::new(ScalarUDF::from(GetFunc::new(false))),
+        Arc::new(ScalarUDF::from(GetFunc::new(true))),
+        typeof_func::get_udf(),
+        variant_element::get_udf(),
     ];
 
     for func in functions {

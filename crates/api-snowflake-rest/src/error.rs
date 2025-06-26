@@ -185,7 +185,9 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | core_executor::Error::CatalogNotFound { .. }
         | core_executor::Error::Metastore { .. }
         | core_executor::Error::DataFusion { .. }
-        | core_executor::Error::DataFusionQuery { .. } => http::StatusCode::OK,
+        | core_executor::Error::DataFusionQuery { .. }
+        | core_executor::Error::UnimplementedFunction { .. }
+        | core_executor::Error::SqlParser { .. } => http::StatusCode::OK,
     };
 
     let message = match error {

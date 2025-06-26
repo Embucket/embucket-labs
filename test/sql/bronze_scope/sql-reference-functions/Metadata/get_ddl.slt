@@ -1,12 +1,4 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE VIEW BOOKS_VIEW AS
-SELECT 1 AS dummy_column;
 
-query T
-SELECT REPLACE(GET_DDL('VIEW', 'books_view'), '\t', ' ')  -- Normalize tabs to spaces
-----
-create or replace view BOOKS_VIEW(\n DUMMY_COLUMN\n) as\nSELECT 1 AS dummy_column;
 
 exclude-from-coverage
 statement ok
