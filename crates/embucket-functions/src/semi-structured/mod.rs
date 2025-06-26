@@ -17,15 +17,15 @@ use crate::semi_structured::array::{
     array_size, array_slice, array_sort, array_to_string, arrays_overlap, arrays_to_object,
     arrays_zip,
 };
+use crate::semi_structured::get::GetFunc;
+use crate::semi_structured::is_typeof::IsTypeofFunc;
 use crate::semi_structured::object::object_construct::ObjectConstructUDF;
 use crate::semi_structured::object::{object_delete, object_insert, object_pick};
-use crate::semi_structured::is_typeof::IsTypeofFunc;
 use crate::semi_structured::variant::variant_element;
 use datafusion::common::Result;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
-use crate::semi_structured::get::GetFunc;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

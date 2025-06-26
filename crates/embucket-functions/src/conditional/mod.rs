@@ -5,9 +5,9 @@ pub mod equal_null;
 pub mod iff;
 pub mod nullifzero;
 
-use std::sync::Arc;
-use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::ScalarUDF;
+use datafusion_expr::registry::FunctionRegistry;
+use std::sync::Arc;
 // Re-export the get_udf functions
 pub use booland::get_udf as booland_get_udf;
 pub use boolor::get_udf as boolor_get_udf;

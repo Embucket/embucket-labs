@@ -5,14 +5,12 @@ pub mod to_array;
 pub mod to_binary;
 pub mod to_variant;
 
-use std::sync::Arc;
-use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::ScalarUDF;
+use datafusion_expr::registry::FunctionRegistry;
+use std::sync::Arc;
 pub use to_binary::ToBinaryFunc;
 pub use to_boolean::ToBooleanFunc;
 pub use to_time::ToTimeFunc;
-
-
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

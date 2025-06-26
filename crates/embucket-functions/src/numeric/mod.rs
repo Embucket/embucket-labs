@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use datafusion_expr::registry::FunctionRegistry;
-use datafusion_expr::ScalarUDF;
 use crate::numeric::div0::Div0Func;
+use datafusion_expr::ScalarUDF;
+use datafusion_expr::registry::FunctionRegistry;
+use std::sync::Arc;
 
 pub mod div0;
 
