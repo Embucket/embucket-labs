@@ -9,9 +9,3 @@ mod string_binary;
 mod table;
 mod utils;
 mod visitors;
-pub mod udf_ordering_tests;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
