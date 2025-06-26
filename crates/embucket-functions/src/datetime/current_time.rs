@@ -18,11 +18,13 @@
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::DataType::Time32;
 use datafusion::arrow::datatypes::TimeUnit::Second;
-use std::any::Any;
 use datafusion_common::{Result, ScalarValue, internal_err};
 use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
-use datafusion_expr::{ColumnarValue, Documentation, Expr, ScalarUDFImpl, Signature, Volatility};
+use datafusion_expr::{
+    ColumnarValue, Documentation, Expr, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use datafusion_macros::user_doc;
+use std::any::Any;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
@@ -36,6 +38,7 @@ The `current_time()` return value is determined at query time and will return th
 #[derive(Debug)]
 pub struct CurrentTimeFunc {
     signature: Signature,
+    aliases: Vec<String>,
 }
 
 impl Default for CurrentTimeFunc {
@@ -48,7 +51,11 @@ impl CurrentTimeFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::nullary(Volatility::Stable),
+            signature: Signature::one_of(
+                vec![TypeSignature::Nullary, TypeSignature::Numeric(1)],
+                Volatility::Stable,
+            ),
+            aliases: vec!["localtime".to_string()],
         }
     }
 }
@@ -73,6 +80,8 @@ impl ScalarUDFImpl for CurrentTimeFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        //TODO: support different return type precision based on the provided number
+        // this only works with `ALTER SESSION SET TIME_OUTPUT_FORMAT = 'HH24:MI:SS.FF';`
         Ok(Time32(Second))
     }
 
@@ -81,6 +90,10 @@ impl ScalarUDFImpl for CurrentTimeFunc {
         _args: datafusion_expr::ScalarFunctionArgs,
     ) -> Result<ColumnarValue> {
         internal_err!("invoke should not be called on a simplified current_time() function")
+    }
+
+    fn aliases(&self) -> &[String] {
+        &self.aliases
     }
 
     #[allow(clippy::unwrap_in_result)]
