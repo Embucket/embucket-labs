@@ -91,7 +91,8 @@ async fn main() {
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
-    let mut snowflake_rest_cfg = Config::new(&data_format).expect("Failed to create snowflake config");
+    let mut snowflake_rest_cfg =
+        Config::new(&data_format).expect("Failed to create snowflake config");
     snowflake_rest_cfg.with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),
