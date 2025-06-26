@@ -35,9 +35,9 @@ use uuid::Uuid;
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
-#[tracing::instrument(level = "debug", skip(_state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
 ) -> Result<Json<LoginResponse>> {
@@ -49,8 +49,15 @@ pub async fn login(
         .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let _body_json: LoginRequestBody =
+    let body_json: LoginRequestBody =
         serde_json::from_str(&s).context(api_snowflake_rest_error::LoginRequestParseSnafu)?;
+
+    if body_json.data.login_name != *state.config.auth.demo_user
+        || body_json.data.password != *state.config.auth.demo_password
+    {
+        tracing::error!("{} - {}", body_json.data.login_name, body_json.data.password);
+        return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
+    }
 
     let token = Uuid::new_v4().to_string();
 
