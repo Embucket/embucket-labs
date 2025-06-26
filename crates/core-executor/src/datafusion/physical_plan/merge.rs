@@ -10,7 +10,7 @@ use datafusion::{
     },
     physical_expr::EquivalenceProperties,
 };
-use datafusion_common::{DFSchemaRef, DataFusionError, HashMap, HashSet};
+use datafusion_common::{DFSchemaRef, DataFusionError};
 use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PhysicalExpr, PlanProperties,
@@ -27,6 +27,7 @@ use iceberg_rust::{
 };
 use pin_project_lite::pin_project;
 use std::{
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
     task::Poll,
 };
@@ -123,7 +124,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
         // Filter out rows whoose __data_file_path doesn't have a matching row
         let filtered: Arc<dyn ExecutionPlan> = Arc::new(SourceExistFilterExec::new(
             self.input.clone(),
-            matching_files,
+            matching_files.clone(),
         ));
 
         // Remove auxiliary columns
@@ -153,10 +154,15 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 )
                 .await?;
 
+                let matching_files = {
+                    let mut lock = matching_files.lock().unwrap();
+                    lock.take().unwrap()
+                };
+
                 // Commit transaction on Iceberg table
                 table
                     .new_transaction(branch.as_deref())
-                    .append_data(datafiles)
+                    .overwrite(datafiles, matching_files)
                     .commit()
                     .await
                     .map_err(DataFusionIcebergError::from)?;
