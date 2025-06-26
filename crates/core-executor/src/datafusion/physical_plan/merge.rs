@@ -118,7 +118,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        let matching_files: Arc<Mutex<Option<HashSet<String>>>> = Arc::default();
+        let matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>> = Arc::default();
 
         // Filter out rows whoose __data_file_path doesn't have a matching row
         let filtered: Arc<dyn ExecutionPlan> = Arc::new(SourceExistFilterExec::new(
@@ -177,13 +177,13 @@ impl ExecutionPlan for MergeIntoSinkExec {
 struct SourceExistFilterExec {
     input: Arc<dyn ExecutionPlan>,
     properties: PlanProperties,
-    matching_files: Arc<Mutex<Option<HashSet<String>>>>,
+    matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
 }
 
 impl SourceExistFilterExec {
     fn new(
         input: Arc<dyn ExecutionPlan>,
-        matching_files: Arc<Mutex<Option<HashSet<String>>>>,
+        matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
     ) -> Self {
         let properties = input.properties().clone();
         Self {
@@ -255,8 +255,9 @@ impl ExecutionPlan for SourceExistFilterExec {
 pin_project! {
     pub struct SourceExistFilterStream {
         // Files which already encountered a "__source_exists" = true value
-        matching_files: HashSet<String>,
-        matching_files_ref: Arc<Mutex<Option<HashSet<String>>>>,
+        matching_files: HashMap<String,String>,
+        // Reference to store the mathcing files after the stream has finished executing
+        matching_files_ref: Arc<Mutex<Option<HashMap<String,Vec<String>>>>>,
         // The current datafiles being processed
         last_files: Option<String>,
         // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
@@ -276,10 +277,10 @@ pin_project! {
 impl SourceExistFilterStream {
     fn new(
         input: SendableRecordBatchStream,
-        matching_files_ref: Arc<Mutex<Option<HashSet<String>>>>,
+        matching_files_ref: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
     ) -> Self {
         Self {
-            matching_files: HashSet::new(),
+            matching_files: HashMap::new(),
             last_files: None,
             current_buffers: HashMap::new(),
             ready_batches: Vec::new(),
@@ -320,31 +321,35 @@ impl Stream for SourceExistFilterStream {
                     &downcast_array::<BooleanArray>(source_exists),
                 )?;
 
-                let all_data_files = unique_values(&data_file_path)?;
+                let mut all_data_and_manifest_files =
+                    unique_files_and_manifests(&data_file_path, &manifest_file_path)?;
 
                 let mut matching_data_files = unique_values(&filtered_data_file_path)?;
 
-                let not_matching_data_files: HashSet<String> = all_data_files
-                    .difference(&matching_data_files)
-                    .map(ToOwned::to_owned)
-                    .collect();
+                let all_data_files: HashSet<String> =
+                    HashSet::from_iter(all_data_and_manifest_files.keys().map(ToOwned::to_owned));
 
-                let already_matched_data_files: HashSet<String> = project
-                    .matching_files
-                    .intersection(&not_matching_data_files)
-                    .map(ToOwned::to_owned)
-                    .collect();
+                let already_matched_data_files: HashSet<String> =
+                    HashSet::from_iter(project.matching_files.keys().map(ToOwned::to_owned))
+                        .intersection(&all_data_files)
+                        .map(ToOwned::to_owned)
+                        .collect();
 
                 matching_data_files.extend(already_matched_data_files);
 
-                let filtered_manifest_files = filter(
-                    &manifest_file_path,
-                    &downcast_array::<BooleanArray>(source_exists),
-                )?;
+                let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
+                let mut not_matching_data_and_manifest_files: HashMap<String, String> =
+                    HashMap::new();
 
-                let _matching_manifest_files = unique_values(&filtered_manifest_files)?;
+                for (file, manifest) in all_data_and_manifest_files.drain() {
+                    if matching_data_files.contains(&file) {
+                        matching_data_and_manifest_files.insert(file, manifest);
+                    } else {
+                        not_matching_data_and_manifest_files.insert(file, manifest);
+                    }
+                }
 
-                if matching_data_files.is_empty() {
+                if matching_data_and_manifest_files.is_empty() {
                     Poll::Pending
                 } else {
                     let predicate = matching_data_files
@@ -360,7 +365,9 @@ impl Stream for SourceExistFilterStream {
                         })?
                         .expect("Matching files cannot be empty");
 
-                    project.matching_files.extend(matching_data_files);
+                    project
+                        .matching_files
+                        .extend(matching_data_and_manifest_files);
 
                     let filtered_batch = filter_record_batch(&batch, &predicate)?;
 
@@ -368,10 +375,19 @@ impl Stream for SourceExistFilterStream {
                 }
             }
             Poll::Ready(None) => {
-                let matching_files = std::mem::take(project.matching_files);
-                let mut lock = project.matching_files_ref.lock().unwrap();
-                lock.replace(matching_files);
-                Poll::Pending
+                let mut matching_files = std::mem::take(project.matching_files);
+                let mut new: HashMap<String, Vec<String>> = HashMap::new();
+                for (file, manifest) in matching_files.drain() {
+                    new.entry(manifest)
+                        .and_modify(|v| v.push(file.clone()))
+                        .or_insert(vec![file]);
+                }
+                let mut lock = project
+                    .matching_files_ref
+                    .lock()
+                    .expect("Failed to get lock on the matching files hashmap.");
+                lock.replace(new);
+                Poll::Ready(None)
             }
             x => x,
         }
@@ -414,6 +430,50 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
             }
             acc
         });
+
+    Ok(result)
+}
+
+// Computes a HashSet of all string values in the array
+fn unique_files_and_manifests(
+    files: &dyn Array,
+    manifests: &dyn Array,
+) -> Result<HashMap<String, String>, DataFusionError> {
+    let first_file = downcast_array::<StringArray>(files).value(0).to_owned();
+    let first_manifest = downcast_array::<StringArray>(manifests).value(0).to_owned();
+
+    let slice_len = files.len() - 1;
+
+    if slice_len == 0 {
+        return Ok(HashMap::from_iter([(first_file, first_manifest)]));
+    }
+
+    let v1 = files.slice(0, slice_len);
+    let v2 = files.slice(1, slice_len);
+
+    let manifests = files.slice(1, slice_len);
+
+    // Which consecutive entries are different
+    let mask = distinct(&v1, &v2)?;
+
+    // only keep values that are diffirent from their previous value, this drastically reduces the
+    // number of values needed to process
+    let unique_files = filter(&v2, &mask)?;
+
+    let unique_manifests = filter(&manifests, &mask)?;
+
+    let file_strings = downcast_array::<StringArray>(&unique_files);
+    let manifest_strings = downcast_array::<StringArray>(&unique_manifests);
+
+    let result = manifest_strings.iter().zip(file_strings.iter()).fold(
+        HashMap::from_iter([(first_file, first_manifest)]),
+        |mut acc, (manifest, file)| {
+            if let (Some(manifest), Some(file)) = (manifest, file) {
+                acc.insert(file.to_owned(), manifest.to_owned());
+            }
+            acc
+        },
+    );
 
     Ok(result)
 }
