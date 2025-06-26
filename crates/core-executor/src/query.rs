@@ -79,6 +79,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::ops::ControlFlow;
+use std::result::Result as StdResult;
 use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
@@ -2086,7 +2087,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
     target_schema: &DFSchema,
     source_schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
-) -> ExecutionResult<Vec<logical_expr::Expr>> {
+) -> Result<Vec<logical_expr::Expr>> {
     let mut updates: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
     let mut inserts: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
 
@@ -2170,7 +2171,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
 
             Ok::<_, DataFusionError>(case_expr)
         })
-        .collect::<Result<_, DataFusionError>>()
+        .collect::<StdResult<_, DataFusionError>>()
         .context(ex_error::DataFusionSnafu)?;
     exprs.push(col(SOURCE_EXISTS));
     Ok(exprs)
