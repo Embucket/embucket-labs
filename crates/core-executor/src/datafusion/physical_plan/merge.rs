@@ -26,7 +26,10 @@ use iceberg_rust::{
     error::Error as IcebergError,
 };
 use pin_project_lite::pin_project;
-use std::{sync::Arc, task::Poll};
+use std::{
+    sync::{Arc, Mutex},
+    task::Poll,
+};
 
 static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
 pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
@@ -115,9 +118,13 @@ impl ExecutionPlan for MergeIntoSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let schema = Arc::new(self.schema.as_arrow().clone());
 
+        let matching_files: Arc<Mutex<Option<HashSet<String>>>> = Arc::default();
+
         // Filter out rows whoose __data_file_path doesn't have a matching row
-        let filtered: Arc<dyn ExecutionPlan> =
-            Arc::new(SourceExistFilterExec::new(self.input.clone()));
+        let filtered: Arc<dyn ExecutionPlan> = Arc::new(SourceExistFilterExec::new(
+            self.input.clone(),
+            matching_files,
+        ));
 
         // Remove auxiliary columns
         let projection =
@@ -170,12 +177,20 @@ impl ExecutionPlan for MergeIntoSinkExec {
 struct SourceExistFilterExec {
     input: Arc<dyn ExecutionPlan>,
     properties: PlanProperties,
+    matching_files: Arc<Mutex<Option<HashSet<String>>>>,
 }
 
 impl SourceExistFilterExec {
-    fn new(input: Arc<dyn ExecutionPlan>) -> Self {
+    fn new(
+        input: Arc<dyn ExecutionPlan>,
+        matching_files: Arc<Mutex<Option<HashSet<String>>>>,
+    ) -> Self {
         let properties = input.properties().clone();
-        Self { input, properties }
+        Self {
+            input,
+            properties,
+            matching_files,
+        }
     }
 }
 
@@ -217,7 +232,10 @@ impl ExecutionPlan for SourceExistFilterExec {
                 "SourceExistFilterExec requires exactly one child".to_string(),
             ));
         }
-        Ok(Arc::new(Self::new(children[0].clone())))
+        Ok(Arc::new(Self::new(
+            children[0].clone(),
+            self.matching_files.clone(),
+        )))
     }
 
     fn execute(
@@ -227,6 +245,7 @@ impl ExecutionPlan for SourceExistFilterExec {
     ) -> datafusion_common::Result<SendableRecordBatchStream> {
         Ok(Box::pin(SourceExistFilterStream::new(
             self.input.execute(partition, context)?,
+            self.matching_files.clone(),
         )))
     }
 }
@@ -237,6 +256,7 @@ pin_project! {
     pub struct SourceExistFilterStream {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashSet<String>,
+        matching_files_ref: Arc<Mutex<Option<HashSet<String>>>>,
         // The current datafiles being processed
         last_files: Option<String>,
         // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
@@ -249,17 +269,21 @@ pin_project! {
         ready_batches: Vec<RecordBatch>,
 
         #[pin]
-        input: SendableRecordBatchStream
+        input: SendableRecordBatchStream,
     }
 }
 
 impl SourceExistFilterStream {
-    fn new(input: SendableRecordBatchStream) -> Self {
+    fn new(
+        input: SendableRecordBatchStream,
+        matching_files_ref: Arc<Mutex<Option<HashSet<String>>>>,
+    ) -> Self {
         Self {
             matching_files: HashSet::new(),
             last_files: None,
             current_buffers: HashMap::new(),
             ready_batches: Vec::new(),
+            matching_files_ref,
             input,
         }
     }
@@ -342,6 +366,12 @@ impl Stream for SourceExistFilterStream {
 
                     Poll::Ready(Some(Ok(filtered_batch)))
                 }
+            }
+            Poll::Ready(None) => {
+                let matching_files = std::mem::take(project.matching_files);
+                let mut lock = project.matching_files_ref.lock().unwrap();
+                lock.replace(matching_files);
+                Poll::Pending
             }
             x => x,
         }
@@ -513,7 +543,9 @@ mod tests {
         let input_stream = stream::iter(vec![Ok(batch1), Ok(batch2), Ok(batch3)]);
         let stream = Box::pin(RecordBatchStreamAdapter::new(schema, input_stream));
 
-        let mut filter_stream = SourceExistFilterStream::new(stream);
+        let matching_files = Arc::default();
+
+        let mut filter_stream = SourceExistFilterStream::new(stream, matching_files);
 
         let mut total_rows = 0;
         while let Some(result) = StreamExt::next(&mut filter_stream).await {
