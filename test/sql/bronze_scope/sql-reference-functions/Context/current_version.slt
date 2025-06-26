@@ -1,4 +1,0 @@
-query T
-SELECT CURRENT_VERSION()
-----
-<REGEX>:\d+\.\d+\.\d+

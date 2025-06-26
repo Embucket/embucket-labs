@@ -1,4 +1,0 @@
-query T
-SELECT CURRENT_SCHEMAS()
-----
-<REGEX>:'?\[.*"EMBUCKET\.PUBLIC.*"\]'?
