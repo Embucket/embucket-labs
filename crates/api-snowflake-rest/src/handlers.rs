@@ -55,7 +55,6 @@ pub async fn login(
     if body_json.data.login_name != *state.config.auth.demo_user
         || body_json.data.password != *state.config.auth.demo_password
     {
-        tracing::error!("{} - {}", body_json.data.login_name, body_json.data.password);
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
 
