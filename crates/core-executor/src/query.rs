@@ -216,15 +216,11 @@ impl UserQuery {
             json_element::visit(value);
             functions_rewriter::visit(value);
             top_limit::visit(value);
-            unimplemented_functions_checker(value)
-                .map_err(|e| DataFusionError::NotImplemented(e.to_string()))
-                .context(ex_error::DataFusionSnafu)?;
+            unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);
-            fetch_to_limit::visit(value)
-                .map_err(|e| DataFusionError::SQL(e, None))
-                .context(ex_error::DataFusionSnafu)?;
+            fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
             visit_all(value);
         }
