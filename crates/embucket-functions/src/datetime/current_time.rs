@@ -96,7 +96,7 @@ impl ScalarUDFImpl for CurrentTimeFunc {
         &self.aliases
     }
 
-    #[allow(clippy::unwrap_in_result)]
+    #[allow(clippy::unwrap_used)]
     fn simplify(&self, _args: Vec<Expr>, info: &dyn SimplifyInfo) -> Result<ExprSimplifyResult> {
         let now_ts = info.execution_props().query_execution_start_time;
         let time = now_ts.timestamp_nanos_opt().map(|ts| {
@@ -117,7 +117,7 @@ impl ScalarUDFImpl for CurrentTimeFunc {
 crate::macros::make_udf_function!(CurrentTimeFunc);
 
 #[cfg(test)]
-#[allow(clippy::unwrap_in_result)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use datafusion_expr::execution_props::ExecutionProps;
