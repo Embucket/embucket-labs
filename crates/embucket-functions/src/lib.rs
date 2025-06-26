@@ -1,9 +1,4 @@
 pub use crate::aggregate::register_udafs;
-use crate::conversion::to_binary::ToBinaryFunc;
-use crate::conversion::{ToBooleanFunc, ToTimeFunc, to_array};
-use crate::numeric::div0::Div0Func;
-use crate::semi_structured::get::GetFunc;
-use crate::semi_structured::is_typeof;
 use datafusion::arrow::array::{
     Array, ArrayRef, ArrowNativeTypeOp, BooleanArray, Decimal128Array, Decimal256Array,
     Float16Array, Float32Array, Float64Array, GenericStringArray, Int8Array, Int16Array,
@@ -13,7 +8,7 @@ use datafusion::arrow::array::{
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::Result as DFResult;
-use datafusion::{common::Result, execution::FunctionRegistry, logical_expr::ScalarUDF};
+use datafusion::{common::Result, execution::FunctionRegistry};
 
 #[doc(hidden)]
 pub use std::iter as __std_iter;

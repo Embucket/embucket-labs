@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub mod add_months;
 pub mod convert_timezone;
+pub mod current_time;
 pub mod date_add;
 pub mod date_diff;
 pub mod date_from_parts;
@@ -29,6 +30,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         previous_day::get_udf(),
         time_from_parts::get_udf(),
         timestamp_from_parts::get_udf(),
+        current_time::get_udf(),
     ];
 
     for func in functions {
