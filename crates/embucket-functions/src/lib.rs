@@ -42,6 +42,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     conditional::register_udfs(registry)?;
     conversion::register_udfs(registry)?;
     datetime::register_udfs(registry)?;
+    numeric::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;
     semi_structured::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
