@@ -29,8 +29,8 @@ use pin_project_lite::pin_project;
 use std::{sync::Arc, task::Poll};
 
 static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
-static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
-static MANIFEST_FILE_PATH_COLUMN: &str = "__manfiest_file_path";
+pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
+pub(crate) static MANIFEST_FILE_PATH_COLUMN: &str = "__manfiest_file_path";
 
 #[derive(Debug)]
 pub struct MergeIntoSinkExec {

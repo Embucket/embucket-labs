@@ -9,8 +9,10 @@ use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoSink;
+use crate::datafusion::physical_plan::merge::{DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
+use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -49,6 +51,7 @@ use datafusion_expr::{
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::error::Error as CatalogError;
@@ -1006,13 +1009,20 @@ impl UserQuery {
                 .clone()
         };
 
+        let target_ref = target_provider
+            .as_any()
+            .downcast_ref::<DataFusionTable>()
+            .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
         let target = DataFusionTable {
-            branch: None,
-            ..target_provider
-                .as_any()
-                .downcast_ref::<DataFusionTable>()
-                .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?
-                .clone()
+            config: Some(
+                DataFusionTableConfigBuilder::default()
+                    .enable_data_file_path_column(true)
+                    .enable_manifest_file_path_column(true)
+                    .build()
+                    .unwrap(),
+            ),
+            schema: Arc::new(build_target_schema(target_ref.schema.as_ref())),
+            ..target_ref.clone()
         };
 
         let target_table_source: Arc<dyn TableSource> =
@@ -1979,6 +1989,17 @@ impl UserQuery {
             self.query_context.query_id,
         ))
     }
+}
+
+/// Builds a target schema with metadata columns added.
+///
+/// This function takes a base schema and adds data file path and manifest file path columns
+/// to create a schema suitable for merge operations that require metadata tracking.
+fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
+    let mut builder = SchemaBuilder::from(base_schema);
+    builder.push(Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.push(Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.finish()
 }
 
 /// Converts merge clauses into projection expressions for copy-on-write operations.
