@@ -1,4 +1,5 @@
-use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
+use crate::errors;
+use crate::geospatial::data_types::parse_to_native_array;
 use datafusion::arrow::array::builder::Float64Builder;
 use datafusion::arrow::array::{Array, Float64Array};
 use datafusion::arrow::datatypes::DataType;
@@ -71,9 +72,7 @@ macro_rules! match_point_distance_data_type {
                 EuclideanDistance::euclidean_distance($left.$left_method(), $rhs.as_point())
             }
             _ => {
-                return Err(DataFusionError::Execution(
-                    "ST_Distance does not support this right geometry type".to_string(),
-                ))
+                return errors::STDistanceDoesNotSupportThisRightGeometryTypeSnafu.fail()?;
             }
         }
     };
@@ -92,9 +91,7 @@ macro_rules! match_line_distance_data_type {
                 EuclideanDistance::euclidean_distance($left.$left_method(), $rhs.as_polygon())
             }
             _ => {
-                return Err(DataFusionError::Execution(
-                    "ST_Distance does not support this rhs geometry type".to_string(),
-                ))
+                return errors::STDistanceDoesNotSupportThisRhsGeometryTypeSnafu.fail()?;
             }
         }
     };
@@ -102,9 +99,7 @@ macro_rules! match_line_distance_data_type {
 fn distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?;
     if array.len() > 2 {
-        return Err(DataFusionError::Execution(
-            "ST_Contains takes two arguments".to_string(),
-        ));
+        return errors::STContainsTakesTwoArgumentsSnafu.fail()?;
     }
 
     let left = parse_to_native_array(&array[0])?;
@@ -131,9 +126,7 @@ fn distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
                     point_array.euclidean_distance(right.as_multi_polygon())
                 }
                 _ => {
-                    return Err(DataFusionError::Execution(
-                        "ST_Distance does not support this rhs geometry type".to_string(),
-                    ))
+                    return errors::STDistanceDoesNotSupportThisRhsGeometryTypeSnafu.fail()?;
                 }
             }
         }
@@ -149,9 +142,7 @@ fn distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
             match_point_distance_data_type!(left, as_multi_polygon, right)
         }
         _ => {
-            return Err(DataFusionError::Execution(
-                "ST_Distance does not support this left geometry type".to_string(),
-            ))
+            return errors::STDistanceDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
         }
     };
     // Convert to meters
@@ -175,15 +166,15 @@ fn to_meters(array: &Float64Array) -> Float64Array {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::types::Float64Type;
-    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used, clippy::float_cmp)]

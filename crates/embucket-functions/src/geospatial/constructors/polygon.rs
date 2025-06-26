@@ -1,18 +1,17 @@
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    parse_to_native_array, LINE_STRING_TYPE, POLYGON_2D_TYPE,
-};
-use crate::execution::datafusion::functions::geospatial::error as geo_error;
-use crate::execution::datafusion::functions::macros::make_udf_function;
+use crate::errors;
+use crate::geospatial::data_types::{LINE_STRING_TYPE, POLYGON_2D_TYPE, parse_to_native_array};
+use crate::geospatial::error as geo_error;
+use crate::macros::make_udf_function;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::LineStringTrait;
+use geoarrow::ArrayBase;
 use geoarrow::array::{AsNativeArray, PolygonBuilder};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
 use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 use std::any::Any;
@@ -88,9 +87,7 @@ unsafe fn make_polygon(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let parsed_arrays = ColumnarValue::values_to_arrays(args)?;
 
     if parsed_arrays.len() > 1 {
-        return Err(DataFusionError::Execution(
-            "Expected only one argument in ST_MakePolygon".to_string(),
-        ));
+        return errors::ExpectedOnlyOneArgumentInSTMakePolygonSnafu.fail()?;
     }
 
     let line_string_array = parse_to_native_array(&parsed_arrays[0])?;
@@ -106,18 +103,16 @@ unsafe fn make_polygon(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         PolygonBuilder::new_with_options(Dimension::XY, CoordType::Separated, Arc::default());
     for i in 0..line_string_array.len() {
         if let Some(line) = line_string_array.get(i) {
-            builder.try_push_geom_offset(1).map_err(|e| {
-                DataFusionError::Execution(format!("failed to push geom offset: {e}"))
-            })?;
+            builder
+                .try_push_geom_offset(1)
+                .context(errors::FailedToPushGeomOffsetSnafu)?;
             builder
                 .try_push_ring_offset(line.num_coords())
-                .map_err(|e| {
-                    DataFusionError::Execution(format!("failed to push geom offset: {e}"))
-                })?;
+                .context(errors::FailedToPushGeomOffsetSnafu)?;
             for coord in line.coords() {
                 builder
                     .push_coord(&coord)
-                    .map_err(|e| DataFusionError::Execution(format!("failed to add coord: {e}")))?;
+                    .context(errors::FailedToAddCoordSnafu)?;
             }
         }
     }

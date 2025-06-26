@@ -5,7 +5,7 @@ use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::types::{logical_int64, logical_string};
-use datafusion_common::{DataFusionError, ScalarValue, exec_err};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl, TypeSignatureClass};
 use serde_json::Value;
 use snafu::ResultExt;
@@ -95,8 +95,8 @@ impl ScalarUDFImpl for GetFunc {
                 continue;
             }
 
-            let json_input: Value = serde_json::from_str(input)
-                .map_err(|e| DataFusionError::Execution(format!("Failed to parse JSON: {e}")))?;
+            let json_input: Value =
+                serde_json::from_str(input).context(errors::FailedToDeserializeJsonSnafu)?;
 
             match &path {
                 ScalarValue::Utf8(Some(key)) => {

@@ -4,10 +4,35 @@ version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
 
+[features]
+geospatial = [
+    "dep:geoarrow",
+    "dep:geohash",
+    "dep:geozero",
+    "dep:geoarrow-schema",
+    "dep:geo-traits",
+    "dep:geo-types",
+    "dep:geoarrow-array",
+    "dep:geoarrow-cast",
+    "dep:geoarrow-geoparquet",
+    "dep:geoarrow-test",
+]
+
 [dependencies]
 core-history = { path = "../core-history" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
+
+geo-traits = { version = "0.2.0", optional = true }
+geo-types = { version = "0.7.15", optional = true }
+geozero = { version = "0.14.0", optional = true }
+geohash = { version = "0.13.1", optional = true }
+geoarrow = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
+geoarrow-array = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow-array", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
+geoarrow-cast = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow-cast", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
+geoarrow-geoparquet = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow-geoparquet", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
+geoarrow-schema = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow-schema", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
+geoarrow-test = { git = "https://github.com/geoarrow/geoarrow-rs.git" , optional = true, package = "geoarrow-test", rev = "c241034f98eb1709342fc8da6d2cb87140f10cc5" }
 
 arrow-schema = { version = "55", features = ["serde"] }
 chrono = { workspace = true }

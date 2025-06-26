@@ -1,23 +1,22 @@
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    parse_to_native_array, LINE_STRING_TYPE,
-};
-use crate::execution::datafusion::functions::geospatial::error as geo_error;
-use crate::execution::datafusion::functions::macros::make_udf_function;
+use crate::errors;
+use crate::geospatial::data_types::{LINE_STRING_TYPE, parse_to_native_array};
+use crate::geospatial::error as geo_error;
+use crate::macros::make_udf_function;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_doc::Documentation;
 use datafusion_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use geo_traits::{LineStringTrait, MultiPointTrait, PointTrait};
+use geoarrow::ArrayBase;
 use geoarrow::array::{
     AsNativeArray, LineStringArray, LineStringBuilder, MultiPointArray, PointArray,
 };
 use geoarrow::datatypes::NativeType;
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
 use geoarrow_schema::{CoordType, Dimension};
 use geozero::GeomProcessor;
 use snafu::ResultExt;
@@ -127,9 +126,7 @@ unsafe fn make_line(args: &[ColumnarValue]) -> Result<ColumnarValue> {
                     .context(geo_error::GeoArrowSnafu)?
                     .clone(),
                 _ => {
-                    return Err(DataFusionError::Execution(
-                        "Expected Point, LineString, or MultiPoint in ST_Makeline".to_string(),
-                    ));
+                    return errors::ExpectedPointLineStringOrMultiPointInSTMakeLineSnafu.fail()?;
                 }
             };
             Ok(point_array)
@@ -146,7 +143,7 @@ fn multi_points_to_line(multi_point_array: &MultiPointArray) -> Result<LineStrin
     for (idx, mp) in multi_point_array.iter_geo_values().enumerate() {
         builder
             .linestring_begin(true, mp.len(), idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
+            .context(errors::FailedToStartLinestringSnafu)?;
         for point in mp.points() {
             unsafe {
                 if let Some(coord) = point.coord() {
@@ -158,7 +155,7 @@ fn multi_points_to_line(multi_point_array: &MultiPointArray) -> Result<LineStrin
         }
         builder
             .linestring_end(true, idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
+            .context(errors::FailedToEndLinestringSnafu)?;
     }
 
     Ok(builder.finish())
@@ -171,7 +168,7 @@ fn points_to_line(points: &PointArray) -> Result<LineStringArray> {
     for (idx, point) in points.iter_geo_values().enumerate() {
         builder
             .linestring_begin(true, 1, idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
+            .context(errors::FailedToStartLinestringSnafu)?;
         unsafe {
             if let Some(coord) = point.coord() {
                 builder
@@ -181,7 +178,7 @@ fn points_to_line(points: &PointArray) -> Result<LineStringArray> {
         }
         builder
             .linestring_end(true, idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
+            .context(errors::FailedToEndLinestringSnafu)?;
     }
     Ok(builder.finish())
 }
@@ -207,7 +204,7 @@ unsafe fn merge_lines(
         }
         builder
             .linestring_begin(true, coords.len(), idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to start linestring: {e}")))?;
+            .context(errors::FailedToStartLinestringSnafu)?;
         for coord in coords {
             builder
                 .push_coord(&coord)
@@ -215,7 +212,7 @@ unsafe fn merge_lines(
         }
         builder
             .linestring_end(true, idx)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to end linestring: {e}")))?;
+            .context(errors::FailedToEndLinestringSnafu)?;
     }
     Ok(builder.finish())
 }
@@ -225,7 +222,7 @@ make_udf_function!(MakeLine);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execution::datafusion::functions::geospatial::data_types::LINE_STRING_TYPE;
+    use crate::geospatial::data_types::LINE_STRING_TYPE;
     use datafusion::arrow::array::Array;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point};

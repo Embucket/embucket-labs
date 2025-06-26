@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json;
 use crate::json::{PathToken, get_json_value, tokenize_path};
 use datafusion::arrow::array::builder::{StringBuilder, UInt64Builder};
@@ -7,10 +8,11 @@ use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion::datasource::MemTable;
 use datafusion::physical_expr::create_physical_expr;
 use datafusion::physical_plan::ColumnarValue;
-use datafusion_common::{DFSchema, DataFusionError, Result as DFResult, ScalarValue, exec_err};
+use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, exec_err};
 use datafusion_expr::Expr;
 use datafusion_expr::execution_props::ExecutionProps;
 use serde_json::Value;
+use snafu::ResultExt;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -260,8 +262,8 @@ impl TableFunctionImpl for FlattenTableFunc {
             )?
         };
 
-        let input: Value = serde_json::from_str(&input_str)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to parse array JSON: {e}")))?;
+        let input: Value =
+            serde_json::from_str(&input_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
         let schema_fields = vec![
             Field::new("SEQ", DataType::UInt64, false),

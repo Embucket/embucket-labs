@@ -1,14 +1,13 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    any_single_geometry_type_input, parse_to_native_array,
-};
-use crate::execution::datafusion::functions::geospatial::error as geo_error;
+use crate::errors;
+use crate::geospatial::data_types::{any_single_geometry_type_input, parse_to_native_array};
+use crate::geospatial::error as geo_error;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_expr::ScalarFunctionArgs;
 use geoarrow::algorithm::geo::ChamberlainDuquetteArea;
 use snafu::ResultExt;
@@ -66,9 +65,7 @@ fn area(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            DataFusionError::Execution("Expected only one argument in ST_Area".to_string())
-        })?;
+        .ok_or_else(|| errors::ExpectedOnlyOneArgumentInSTAreaSnafu.build())?;
     let native_array = parse_to_native_array(&array)?;
     let area = native_array
         .as_ref()
@@ -80,15 +77,15 @@ fn area(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::types::Float64Type;
-    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used, clippy::float_cmp)]

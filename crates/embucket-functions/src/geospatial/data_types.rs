@@ -1,17 +1,15 @@
 use std::sync::Arc;
 
-use crate::execution::datafusion::functions::geospatial::error::{
-    self as geo_error, GeoDataFusionError, GeoDataFusionResult,
-};
+use crate::errors;
+use crate::geospatial::error::{self as geo_error, GeoDataFusionResult};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{Signature, Volatility};
+use geoarrow::NativeArray;
 use geoarrow::array::{
     GeometryArray, GeometryCollectionArray, LineStringArray, PointArray, PolygonArray, RectArray,
 };
 use geoarrow::datatypes::NativeType;
-use geoarrow::NativeArray;
 use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 
@@ -83,8 +81,16 @@ pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn Na
                 .context(geo_error::GeoArrowSnafu)?,
         ))
     } else {
-        Err(GeoDataFusionError::DataFusion {
-            source: DataFusionError::Execution(format!("Unexpected input data type: {data_type}")),
-        })
+        errors::UnexpectedInputDataTypeSnafu {
+            data_type: data_type.clone(),
+        }
+        .fail()
+        .map_err(Into::into)
+        .context(geo_error::DataFusionSnafu)?
+        // Alternative:
+        // Err(GeoDataFusionError::DataFusion {
+        //     error: errors::UnexpectedInputDataTypeSnafu { data_type: data_type.clone() }.build().into(),
+        //     location: location!(),
+        // })
     }
 }

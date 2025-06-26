@@ -1,10 +1,11 @@
-use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
+use crate::errors;
+use crate::geospatial::data_types::parse_to_native_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, Volatility,
 };
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_expr::ScalarFunctionArgs;
 use geoarrow::algorithm::geo::Contains as ContainsTrait;
 use geoarrow::array::AsNativeArray;
@@ -87,9 +88,7 @@ macro_rules! match_rhs_data_type {
                 ContainsTrait::contains($left.$left_method(), $rhs.as_multi_polygon())
             }
             _ => {
-                return Err(DataFusionError::Execution(
-                    "ST_Contains does not support this rhs geometry type".to_string(),
-                ))
+                return errors::STContainsDoesNotSupportThisRhsGeometryTypeSnafu.fail()?;
             }
         }
     };
@@ -98,9 +97,7 @@ macro_rules! match_rhs_data_type {
 fn contains(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?;
     if array.len() > 2 {
-        return Err(DataFusionError::Execution(
-            "ST_Contains takes two arguments".to_string(),
-        ));
+        return errors::STContainsTakesTwoArgumentsSnafu.fail()?;
     }
 
     let left = parse_to_native_array(&array[0])?;
@@ -116,9 +113,7 @@ fn contains(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         NativeType::MultiLineString(_, _) => match_rhs_data_type!(left, as_multi_line_string, rhs),
         NativeType::MultiPolygon(_, _) => match_rhs_data_type!(left, as_multi_polygon, rhs),
         _ => {
-            return Err(DataFusionError::Execution(
-                "ST_Contains does not support this left geometry type".to_string(),
-            ))
+            return errors::STContainsDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
         }
     };
     Ok(ColumnarValue::Array(Arc::new(result)))
@@ -127,14 +122,14 @@ fn contains(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used)]

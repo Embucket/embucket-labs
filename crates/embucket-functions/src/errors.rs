@@ -1,6 +1,10 @@
 use error_stack_trace;
 use snafu::{Location, Snafu};
 
+// In this file we create 2 types of errors: DataFusionInternalError and DataFusionExecutionError
+// TBD: Basic principles when to use which error type as they look interchangeable
+// TBD: May be move errors from this file to a separate crate, like datafusion-external-errors
+
 // Following error is defined with display message to use its message text
 // when constructing DataFusionError::Internal, when calling .into conversion.
 // This is done to avoid inlining error texts just in code.
@@ -388,12 +392,6 @@ pub enum DataFusionInternalError {
     },
 }
 
-impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
-    fn from(value: DataFusionInternalError) -> Self {
-        Self::Internal(value.to_string())
-    }
-}
-
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
@@ -403,6 +401,254 @@ pub enum DataFusionExecutionError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Failed to create Tokio runtime: {error}"))]
+    FailedToCreateTokioRuntime {
+        #[snafu(source)]
+        error: std::io::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Thread panicked while executing future"))]
+    ThreadPanickedWhileExecutingFuture {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("array_union_agg only supports JSON array"))]
+    ArrayUnionAggOnlySupportsJsonArray {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("failed to parse boolean: {error}"))]
+    FailedToParseBoolean {
+        #[snafu(source)]
+        error: std::str::ParseBoolError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("failed to parse float: {error}"))]
+    FailedToParseFloat {
+        #[snafu(source)]
+        error: std::num::ParseFloatError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("failed to parse float"))]
+    FailedToParseFloatNoSource {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("array_union_agg only supports boolean, float64, and utf8"))]
+    ArrayUnionAggOnlySupportsBooleanFloat64AndUtf8 {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("can't parse date"))]
+    CantParseDate {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("timestamp is out of range"))]
+    TimestampIsOutOfRange {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Unexpected input data type: {data_type}"))]
+    UnexpectedInputDataType {
+        data_type: arrow_schema::DataType,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_Dimension"))]
+    ExpectedOnlyOneArgumentInSTDimension {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Unsupported geometry type"))]
+    UnsupportedGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Null geometry found"))]
+    NullGeometryFound {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument"))]
+    ExpectedOnlyOneArgument {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected at least one argument"))]
+    ExpectedAtLeastOneArgument {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Error getting bounding rect: {error}"))]
+    ErrorGettingBoundingRect {
+        error: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Index out of bounds"))]
+    IndexOutOfBounds {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected two arguments in ST_PointN"))]
+    ExpectedTwoArgumentsInSTPointN {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected Geometry-typed array"))]
+    ExpectedGeometryTypedArray {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Within takes two arguments"))]
+    STWithinTakesTwoArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Within does not support this rhs geometry type"))]
+    STWithinDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Within does not support this left geometry type"))]
+    STWithinDoesNotSupportThisLeftGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Coordinate is None"))]
+    CoordinateIsNone {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_SRID"))]
+    ExpectedOnlyOneArgumentInSTSRID {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected Point, LineString, or MultiPoint in ST_Makeline"))]
+    ExpectedPointLineStringOrMultiPointInSTMakeLine {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_MakePolygon"))]
+    ExpectedOnlyOneArgumentInSTMakePolygon {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[cfg(feature = "geospatial")]
+    #[snafu(display("Failed to start linestring: {error}"))]
+    FailedToStartLinestring {
+        #[snafu(source)]
+        error: geozero::error::GeozeroError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[cfg(feature = "geospatial")]
+    #[snafu(display("Failed to end linestring: {error}"))]
+    FailedToEndLinestring {
+        #[snafu(source)]
+        error: geozero::error::GeozeroError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[cfg(feature = "geospatial")]
+    #[snafu(display("failed to push geom offset: {error}"))]
+    FailedToPushGeomOffset {
+        #[snafu(source)]
+        error: geoarrow::error::GeoArrowError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[cfg(feature = "geospatial")]
+    #[snafu(display("failed to add coord: {error}"))]
+    FailedToAddCoord {
+        #[snafu(source)]
+        error: geoarrow::error::GeoArrowError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_Area"))]
+    ExpectedOnlyOneArgumentInSTArea {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Contains does not support this rhs geometry type"))]
+    STContainsDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Contains takes two arguments"))]
+    STContainsTakesTwoArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Contains does not support this left geometry type"))]
+    STContainsDoesNotSupportThisLeftGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Distance does not support this right geometry type"))]
+    STDistanceDoesNotSupportThisRightGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Distance does not support this rhs geometry type"))]
+    STDistanceDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Distance does not support this left geometry type"))]
+    STDistanceDoesNotSupportThisLeftGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("object_construct requires an even number of arguments (key-value pairs)"))]
+    ObjectConstructRequiresEvenNumberOfArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("object_construct key cannot be null"))]
+    ObjectConstructKeyCannotBeNull {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("object_construct key must be a string"))]
+    ObjectConstructKeyMustBeAString {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("object_construct value must be a number"))]
+    ObjectConstructValueMustBeANumber {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("object_construct value must be a string, number, or boolean"))]
+    ObjectConstructValueMustBeAStringNumberOrBoolean {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("No query found for index {index}"))]
+    NoQueryFoundForIndex {
+        index: i64,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("No result data for query_id {query_id}"))]
+    NoResultDataForQueryId {
+        query_id: i64,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
+    fn from(value: DataFusionInternalError) -> Self {
+        Self::Internal(value.to_string())
+    }
 }
 
 impl From<DataFusionExecutionError> for datafusion_common::DataFusionError {

@@ -24,7 +24,8 @@ pub mod conditional;
 pub mod conversion;
 pub mod datetime;
 pub mod errors;
-//pub mod geospatial;
+#[cfg(feature = "geospatial")]
+pub mod geospatial;
 mod json;
 pub mod numeric;
 #[path = "semi-structured/mod.rs"]

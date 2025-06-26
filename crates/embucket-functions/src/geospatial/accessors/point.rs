@@ -1,7 +1,6 @@
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    parse_to_native_array, POINT2D_TYPE,
-};
-use crate::execution::datafusion::functions::geospatial::error as geo_error;
+use crate::errors;
+use crate::geospatial::data_types::{POINT2D_TYPE, parse_to_native_array};
+use crate::geospatial::error as geo_error;
 use datafusion::arrow::array::builder::Float64Builder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::DataType::Float64;
@@ -12,10 +11,10 @@ use datafusion::logical_expr::{
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::{CoordTrait, PointTrait};
+use geoarrow::ArrayBase;
 use geoarrow::array::AsNativeArray;
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
@@ -90,7 +89,7 @@ fn get_coord(args: &[ColumnarValue], n: i64) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| DataFusionError::Execution("Expected at least one argument".to_string()))?;
+        .ok_or_else(|| errors::ExpectedAtLeastOneArgumentSnafu.build());
 
     let native_array = parse_to_native_array(&array)?;
     let native_array_ref = native_array.as_ref();
@@ -107,14 +106,12 @@ fn get_coord(args: &[ColumnarValue], n: i64) -> Result<ColumnarValue> {
         if let Some(point) = line {
             let coord = point
                 .coord()
-                .ok_or_else(|| DataFusionError::Execution("Coordinate is None".to_string()))?;
+                .ok_or_else(|| errors::CoordinateIsNoneSnafu.build())?;
             let value = match n {
                 0 => coord.x(),
                 1 => coord.y(),
                 _ => {
-                    return Err(DataFusionError::Execution(
-                        "Index out of bounds".to_string(),
-                    ))
+                    return errors::IndexOutOfBoundsSnafu.fail()?;
                 }
             };
             output_builder.append_value(value);

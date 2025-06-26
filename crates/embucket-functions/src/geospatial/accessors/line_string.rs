@@ -1,25 +1,27 @@
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    parse_to_native_array, BOX2D_TYPE, BOX3D_TYPE, GEOMETRY_TYPE, LINE_STRING_TYPE, POINT2D_TYPE,
-    POINT3D_TYPE, POLYGON_2D_TYPE,
+use crate::datetime::timestamp_from_parts::to_primitive_array;
+use crate::errors;
+use crate::geospatial::data_types::{
+    BOX2D_TYPE, BOX3D_TYPE, GEOMETRY_TYPE, LINE_STRING_TYPE, POINT2D_TYPE, POINT3D_TYPE,
+    POLYGON_2D_TYPE, parse_to_native_array,
 };
-use crate::execution::datafusion::functions::geospatial::error as geo_error;
-use crate::execution::datafusion::functions::timestamp_from_parts::to_primitive_array;
+use crate::geospatial::error as geo_error;
 use datafusion::arrow::array::types::Int64Type;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
     ColumnarValue, Documentation, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::LineStringTrait;
+use geoarrow::ArrayBase;
 use geoarrow::array::{AsNativeArray, PointBuilder};
 use geoarrow::error::GeoArrowError;
 use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
 use geoarrow_schema::{CoordType, Dimension};
 use snafu::ResultExt;
 use std::any::Any;
+use std::error::Error;
 use std::sync::{Arc, OnceLock};
 
 static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
@@ -138,9 +140,7 @@ impl ScalarUDFImpl for PointN {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
         let args = args.args;
         if args.len() < 2 {
-            return Err(DataFusionError::Execution(
-                "Expected two arguments in ST_PointN".to_string(),
-            ));
+            return errors::ExpectedTwoArgumentsInSTPointNSnafu.fail()?;
         }
         let index = to_primitive_array::<Int64Type>(&args[1])?.value(0);
         get_n_point(&args, Some(index))
@@ -162,16 +162,14 @@ fn get_n_point(args: &[ColumnarValue], n: Option<i64>) -> Result<ColumnarValue> 
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| DataFusionError::Execution("Expected at least one argument".to_string()))?;
+        .ok_or_else(|| errors::ExpectedAtLeastOneArgumentSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
+
     let native_array_ref = native_array.as_ref();
     let line_string_array = native_array_ref
         .as_line_string_opt()
-        .ok_or(GeoArrowError::General(
-            "Expected Geometry-typed array".to_string(),
-        ))
-        .context(geo_error::GeoArrowSnafu)?;
+        .ok_or_else(|| errors::ExpectedGeometryTypedArraySnafu.build())?;
 
     let mut output_builder = PointBuilder::with_capacity_and_options(
         Dimension::XY,
@@ -190,7 +188,7 @@ fn get_n_point(args: &[ColumnarValue], n: Option<i64>) -> Result<ColumnarValue> 
                 };
                 index
                     .try_into()
-                    .map_err(|_| DataFusionError::Execution("Index out of bounds".to_string()))?
+                    .map_err(|_| errors::IndexOutOfBoundsSnafu.build())?
             } else {
                 line_string.num_coords() - 1
             };

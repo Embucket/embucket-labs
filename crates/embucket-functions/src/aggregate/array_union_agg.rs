@@ -5,8 +5,8 @@ use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
+use datafusion_common::ScalarValue;
 use datafusion_common::cast::{as_string_array, as_uint64_array};
-use datafusion_common::{DataFusionError, ScalarValue};
 use datafusion_expr::AggregateUDFImpl;
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
@@ -143,9 +143,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                     self.hash.insert(v.to_owned());
                 }
             } else {
-                return Err(DataFusionError::Execution(
-                    "array_union_agg only supports JSON array".to_string(),
-                ));
+                return errors::ArrayUnionAggOnlySupportsJsonArraySnafu.fail()?;
             }
         }
 
@@ -184,11 +182,10 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                     .map(|v| {
                         if let ScalarValue::Utf8(v) = v {
                             if let Some(v) = v {
-                                Ok(Value::Bool(v.parse::<bool>().map_err(|err| {
-                                    DataFusionError::Execution(format!(
-                                        "failed to parse boolean: {err:?}"
-                                    ))
-                                })?))
+                                Ok(Value::Bool(
+                                    v.parse::<bool>()
+                                        .context(errors::FailedToParseBooleanSnafu)?,
+                                ))
                             } else {
                                 Ok(Value::Null)
                             }
@@ -204,24 +201,20 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                         .map(|v| {
                             if let ScalarValue::Utf8(v) = v {
                                 if let Some(v) = v {
-                                    let vv = v.parse::<f64>().map_err(|err| {
-                                        DataFusionError::Execution(format!(
-                                            "failed to parse float: {err:?}"
-                                        ))
-                                    })?;
+                                    let vv = v
+                                        .parse::<f64>()
+                                        .context(errors::FailedToParseFloatSnafu)?;
                                     if vv.fract() == 0.0 {
                                         Ok(Value::Number(Number::from(vv as i64)))
                                     } else {
                                         Ok(Value::Number(
-                                            Number::from_f64(v.parse::<f64>().map_err(|err| {
-                                                DataFusionError::Execution(format!(
-                                                    "failed to parse float: {err:?}"
-                                                ))
-                                            })?)
+                                            // here we loose context error when returning result as Option
+                                            Number::from_f64(
+                                                v.parse::<f64>()
+                                                    .context(errors::FailedToParseFloatSnafu)?,
+                                            )
                                             .ok_or_else(|| {
-                                                DataFusionError::Execution(
-                                                    "failed to parse float".to_string(),
-                                                )
+                                                errors::FailedToParseFloatNoSourceSnafu.build()
                                             })?,
                                         ))
                                     }
@@ -229,8 +222,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                     Ok(Value::Null)
                                 }
                             } else {
-                                // since error is not returned right away we do explicit into conversion
-                                Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
+                                errors::StateValuesShouldBeStringTypeSnafu.fail()?
                             }
                         })
                         .collect::<DFResult<Vec<_>>>()?
@@ -246,8 +238,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            // since error is not returned right away we do explicit into conversion
-                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -301,9 +292,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                 2 => self.data_type = Some(DType::Utf8),
                 3 => self.data_type = Some(DType::SemiStructured),
                 _ => {
-                    return Err(DataFusionError::Execution(
-                        "array_union_agg only supports boolean, float64, and utf8".to_string(),
-                    ));
+                    return errors::ArrayUnionAggOnlySupportsBooleanFloat64AndUtf8Snafu.fail()?;
                 }
             }
         }
