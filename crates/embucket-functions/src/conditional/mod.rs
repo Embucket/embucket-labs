@@ -4,6 +4,7 @@ pub mod boolxor;
 pub mod equal_null;
 pub mod iff;
 pub mod nullifzero;
+pub mod zeroifnull;
 
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
