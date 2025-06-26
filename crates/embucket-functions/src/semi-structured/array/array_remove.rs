@@ -9,6 +9,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -35,9 +36,7 @@ impl ArrayRemoveUDF {
         if element_value.is_none() {
             return Ok(None);
         }
-        let element_value = element_value.ok_or(datafusion_common::DataFusionError::Internal(
-            "Element value is null".to_string(),
-        ))?;
+        let element_value = element_value.ok_or_else(|| errors::ElementValueIsNullSnafu.build())?;
 
         // Ensure the first argument is an array
         if let Value::Array(array) = array_value {
@@ -45,15 +44,11 @@ impl ArrayRemoveUDF {
             let filtered: Vec<Value> = array.into_iter().filter(|x| x != &element_value).collect();
 
             // Convert back to JSON string
-            Ok(Some(to_string(&filtered).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
+            Ok(Some(
+                to_string(&filtered).context(errors::FailedToSerializeValueSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonArraySnafu { argument: "first" }.fail()?
         }
     }
 }
@@ -85,14 +80,10 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
         let element = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected element argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedElementArgumentSnafu.build())?;
 
         match (array_str, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(element_value)) => {
@@ -107,7 +98,7 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),
-                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?
+                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?,
                         }
                     } else {
                         return errors::ExpectedArrayForScalarValueSnafu.fail()?;
@@ -119,28 +110,24 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str)
-                            .map_err(|e| datafusion_common::DataFusionError::Internal(
-                                format!("Failed to parse array JSON: {e}")
-                            ))?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
                         results.push(Self::remove_element(array_json, element_json.clone())?);
                     }
                 }
 
-                Ok(ColumnarValue::Array(Arc::new(datafusion::arrow::array::StringArray::from(results))))
+                Ok(ColumnarValue::Array(Arc::new(
+                    datafusion::arrow::array::StringArray::from(results),
+                )))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(element_value)) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string()
-                    ));
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 // Parse array string to JSON Value
-                let array_json: Value = from_str(array_str)
-                    .map_err(|e| datafusion_common::DataFusionError::Internal(
-                        format!("Failed to parse array JSON: {e}")
-                    ))?;
+                let array_json: Value =
+                    from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                 // Convert element to JSON Value if not null
                 let element_json = if element_value.is_null() {
@@ -150,19 +137,17 @@ impl ScalarUDFImpl for ArrayRemoveUDF {
                     if let Value::Array(array) = element_json {
                         match array.first() {
                             Some(value) => Some(value.clone()),
-                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?
+                            None => return errors::ExpectedArrayForScalarValueSnafu.fail()?,
                         }
                     } else {
-                        return errors::ExpectedArrayForScalarValueSnafu.fail()?
+                        return errors::ExpectedArrayForScalarValueSnafu.fail()?;
                     }
                 };
 
                 let result = Self::remove_element(array_json, element_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second argument must be a scalar value".to_string()
-            ))
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondScalarSnafu.fail()?,
         }
     }
 }

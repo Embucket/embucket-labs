@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json::{encode_array, encode_scalar};
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
@@ -8,6 +9,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -67,14 +69,10 @@ impl ScalarUDFImpl for ArrayPositionUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let element = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected element argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedElementArgumentSnafu.build())?;
         let array = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         match (element, array) {
             (ColumnarValue::Array(element_array), ColumnarValue::Array(array_array)) => {
@@ -93,9 +91,7 @@ impl ScalarUDFImpl for ArrayPositionUDF {
                             results.push(None);
                         } else {
                             let array_value: Value = from_slice(string_array.value(i).as_bytes())
-                                .map_err(|e| {
-                                datafusion_common::DataFusionError::Internal(e.to_string())
-                            })?;
+                                .context(errors::SerdeJsonMessageSnafu)?;
 
                             let result = Self::array_position(&element_array[i], &array_value);
                             results.push(result);
@@ -112,21 +108,18 @@ impl ScalarUDFImpl for ArrayPositionUDF {
                 let array_scalar = match array_scalar {
                     ScalarValue::Utf8(Some(s))
                     | ScalarValue::LargeUtf8(Some(s))
-                    | ScalarValue::Utf8View(Some(s)) => from_slice(s.as_bytes())
-                        .map_err(|e| datafusion_common::DataFusionError::Internal(e.to_string()))?,
+                    | ScalarValue::Utf8View(Some(s)) => {
+                        from_slice(s.as_bytes()).context(errors::SerdeJsonMessageSnafu)?
+                    }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Array argument must be a string type".to_string(),
-                        ));
+                        return errors::ArrayArgumentMustBeAStringTypeSnafu.fail()?;
                     }
                 };
 
                 let result = Self::array_position(&element_scalar, &array_scalar);
                 Ok(ColumnarValue::Scalar(ScalarValue::Int64(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Mismatched argument types".to_string(),
-            )),
+            _ => errors::MismatchedArgumentTypesSnafu.fail()?,
         }
     }
 }

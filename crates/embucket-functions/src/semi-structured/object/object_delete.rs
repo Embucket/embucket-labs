@@ -9,6 +9,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -38,15 +39,11 @@ impl ObjectDeleteUDF {
             }
 
             // Convert back to JSON string
-            Ok(Some(to_string(&obj).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON object".to_string(),
+            Ok(Some(
+                to_string(&obj).context(errors::FailedToSerializeResultSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonArraySnafu { argument: "First" }.fail()?
         }
     }
 }
@@ -78,9 +75,7 @@ impl ScalarUDFImpl for ObjectDeleteUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let object_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected object argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "object" }.build())?;
 
         // Collect all keys to delete
         let keys: Vec<Value> = args[1..]
@@ -101,9 +96,7 @@ impl ScalarUDFImpl for ObjectDeleteUDF {
                         }
                     }
                 } else {
-                    Err(datafusion_common::DataFusionError::Internal(
-                        "Key arguments must be scalar values".to_string(),
-                    ))
+                    errors::KeyArgumentsMustBeScalarValuesSnafu.fail()?
                 }
             })
             .collect::<DFResult<Vec<Value>>>()?;
@@ -118,11 +111,8 @@ impl ScalarUDFImpl for ObjectDeleteUDF {
                         results.push(None);
                     } else {
                         let object_str = string_array.value(i);
-                        let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse object JSON: {e}"
-                            ))
-                        })?;
+                        let object_json: Value =
+                            from_str(object_str).context(errors::FailedToDeserializeJsonSnafu)?;
                         results.push(Self::delete_keys(object_json, &keys)?);
                     }
                 }
@@ -135,11 +125,8 @@ impl ScalarUDFImpl for ObjectDeleteUDF {
                 match object_value {
                     ScalarValue::Utf8(Some(object_str)) => {
                         // Parse object string to JSON Value
-                        let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse object JSON: {e}"
-                            ))
-                        })?;
+                        let object_json: Value =
+                            from_str(object_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         let result = Self::delete_keys(object_json, &keys)?;
                         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))

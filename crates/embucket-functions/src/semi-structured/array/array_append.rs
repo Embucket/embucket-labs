@@ -89,7 +89,7 @@ impl ScalarUDFImpl for ArrayAppendUDF {
             .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
         let element = args
             .get(1)
-            .ok_or_else(|| errors::ElementArgumentExpectedSnafu.build())?;
+            .ok_or_else(|| errors::ExpectedElementArgumentSnafu.build())?;
 
         match (array_str, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(element_value)) => {
@@ -117,8 +117,7 @@ impl ScalarUDFImpl for ArrayAppendUDF {
                 let result = Self::append_element(array_str, element_value)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
-            _ => errors::FirstArgumentMustBeJsonArrayStringSecondArgumentMustBeScalarValueSnafu
-                .fail()?,
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondScalarSnafu.fail()?,
         }
     }
 }

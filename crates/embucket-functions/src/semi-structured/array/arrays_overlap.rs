@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -41,9 +43,7 @@ impl ArraysOverlapUDF {
 
             Ok(Some(false))
         } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "Both arguments must be JSON arrays".to_string(),
-            ))
+            errors::BothArgumentsMustBeJsonArraysSnafu.fail()?
         }
     }
 }
@@ -73,16 +73,18 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1_arg = args
-            .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected first array argument".to_string(),
-            ))?;
-        let array2_arg = args
-            .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected second array argument".to_string(),
-            ))?;
+        let array1_arg = args.first().ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "first array",
+            }
+            .build()
+        })?;
+        let array2_arg = args.get(1).ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "second array",
+            }
+            .build()
+        })?;
 
         match (array1_arg, array2_arg) {
             (ColumnarValue::Array(array1), ColumnarValue::Array(array2)) => {
@@ -97,17 +99,17 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                         let array1_str = string_array1.value(i);
                         let array2_str = string_array2.value(i);
 
-                        let array1_json: Value = from_str(array1_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse first array JSON: {e}"
-                            ))
-                        })?;
+                        let array1_json: Value = from_str(array1_str).context(
+                            errors::FailedToDeserializeJsonEntitySnafu {
+                                entity: "first array",
+                            },
+                        )?;
 
-                        let array2_json: Value = from_str(array2_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse second array JSON: {e}"
-                            ))
-                        })?;
+                        let array2_json: Value = from_str(array2_str).context(
+                            errors::FailedToDeserializeJsonEntitySnafu {
+                                entity: "second array",
+                            },
+                        )?;
 
                         results.push(Self::arrays_have_overlap(array1_json, array2_json)?);
                     }
@@ -124,35 +126,33 @@ impl ScalarUDFImpl for ArraysOverlapUDF {
                 }
 
                 let ScalarValue::Utf8(Some(array1_str)) = array1_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for first array".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForNamedArraySnafu {
+                        name: "first array",
+                    }
+                    .fail()?;
                 };
                 let ScalarValue::Utf8(Some(array2_str)) = array2_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for first array".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForNamedArraySnafu {
+                        name: "second array",
+                    }
+                    .fail()?;
                 };
 
                 // Parse array strings to JSON Values
-                let array1_json: Value = from_str(array1_str).map_err(|e| {
-                    datafusion_common::DataFusionError::Internal(format!(
-                        "Failed to parse first array JSON: {e}"
-                    ))
-                })?;
+                let array1_json: Value =
+                    from_str(array1_str).context(errors::FailedToDeserializeJsonEntitySnafu {
+                        entity: "first array",
+                    })?;
 
-                let array2_json: Value = from_str(array2_str).map_err(|e| {
-                    datafusion_common::DataFusionError::Internal(format!(
-                        "Failed to parse second array JSON: {e}",
-                    ))
-                })?;
+                let array2_json: Value =
+                    from_str(array2_str).context(errors::FailedToDeserializeJsonEntitySnafu {
+                        entity: "second array",
+                    })?;
 
                 let result = Self::arrays_have_overlap(array1_json, array2_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Both arguments must be JSON array strings".to_string(),
-            )),
+            _ => errors::BothArgumentsMustBeJsonArraysSnafu.fail()?,
         }
     }
 }

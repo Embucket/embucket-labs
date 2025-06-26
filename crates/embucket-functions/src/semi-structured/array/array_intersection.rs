@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -6,6 +7,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -30,17 +32,11 @@ impl ArrayIntersectionUDF {
     ) -> DFResult<Option<Value>> {
         if let (Some(arr1), Some(arr2)) = (array1_str, array2_str) {
             // Parse both arrays
-            let array1_value: Value = from_slice(arr1.as_bytes()).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to parse first array: {e}",
-                ))
-            })?;
+            let array1_value: Value =
+                from_slice(arr1.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
-            let array2_value: Value = from_slice(arr2.as_bytes()).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to parse second array: {e}",
-                ))
-            })?;
+            let array2_value: Value =
+                from_slice(arr2.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
             if let (Value::Array(arr1), Value::Array(arr2)) = (array1_value, array2_value) {
                 // Create a new array with elements that exist in both arr1 and arr2
@@ -84,16 +80,18 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1 = args
-            .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected first array argument".to_string(),
-            ))?;
-        let array2 = args
-            .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected second array argument".to_string(),
-            ))?;
+        let array1 = args.first().ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "first array",
+            }
+            .build()
+        })?;
+        let array2 = args.get(1).ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "second array",
+            }
+            .build()
+        })?;
 
         match (array1, array2) {
             (ColumnarValue::Array(array1_array), ColumnarValue::Array(array2_array)) => {
@@ -108,11 +106,7 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
 
                 let results: Result<Vec<Option<String>>, serde_json::Error> =
                     results.into_iter().collect();
-                let results = results.map_err(|e| {
-                    datafusion_common::DataFusionError::Internal(format!(
-                        "Failed to serialize result: {e}",
-                    ))
-                })?;
+                let results = results.context(errors::FailedToSerializeResultSnafu)?;
 
                 Ok(ColumnarValue::Array(Arc::new(
                     datafusion::arrow::array::StringArray::from(results),
@@ -125,9 +119,8 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected UTF8 string for first array".to_string(),
-                        ));
+                        return errors::ExpectedUtf8StringForNamedArraySnafu { name: "first" }
+                            .fail()?;
                     }
                 };
 
@@ -137,9 +130,8 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected UTF8 string for second array".to_string(),
-                        ));
+                        return errors::ExpectedUtf8StringForNamedArraySnafu { name: "second" }
+                            .fail()?;
                     }
                 };
 
@@ -147,17 +139,11 @@ impl ScalarUDFImpl for ArrayIntersectionUDF {
                 let result = result
                     .map(|v| serde_json::to_string(&v))
                     .transpose()
-                    .map_err(|_e| {
-                        datafusion_common::DataFusionError::Internal(
-                            "Failed to serialize result".to_string(),
-                        )
-                    })?;
+                    .context(errors::FailedToSerializeResultSnafu)?;
 
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Mismatched argument types".to_string(),
-            )),
+            _ => errors::MismatchedArgumentTypesSnafu.fail()?,
         }
     }
 }

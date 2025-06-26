@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -61,9 +63,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         match array_arg {
             ColumnarValue::Array(array) => {
@@ -75,11 +75,8 @@ impl ScalarUDFImpl for ArraySizeUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {e}"
-                            ))
-                        })?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         results.push(Self::get_array_size(array_json));
                     }
@@ -91,11 +88,8 @@ impl ScalarUDFImpl for ArraySizeUDF {
             }
             ColumnarValue::Scalar(array_value) => match array_value {
                 ScalarValue::Utf8(Some(s)) => {
-                    let array_json: Value = from_str(s).map_err(|e| {
-                        datafusion_common::DataFusionError::Internal(format!(
-                            "Failed to parse array JSON: {e}"
-                        ))
-                    })?;
+                    let array_json: Value =
+                        from_str(s).context(errors::FailedToDeserializeJsonSnafu)?;
 
                     let size = Self::get_array_size(array_json);
                     Ok(ColumnarValue::Scalar(ScalarValue::Int64(size)))
@@ -103,9 +97,7 @@ impl ScalarUDFImpl for ArraySizeUDF {
                 ScalarValue::Utf8(None) | ScalarValue::Null => {
                     Ok(ColumnarValue::Scalar(ScalarValue::Int64(None)))
                 }
-                _ => Err(datafusion_common::DataFusionError::Internal(
-                    "Expected UTF8 string for array".to_string(),
-                )),
+                _ => errors::ExpectedUtf8StringSnafu.fail()?,
             },
         }
     }

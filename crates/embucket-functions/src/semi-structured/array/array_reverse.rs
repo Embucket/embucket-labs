@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -32,15 +34,11 @@ impl ArrayReverseUDF {
             array.reverse();
 
             // Convert back to JSON string
-            Ok(Some(to_string(&array).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}"
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "Argument must be a JSON array".to_string(),
+            Ok(Some(
+                to_string(&array).context(errors::FailedToSerializeValueSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonArraySnafu { argument: "" }.fail()?
         }
     }
 }
@@ -72,9 +70,7 @@ impl ScalarUDFImpl for ArrayReverseUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         match array_arg {
             ColumnarValue::Array(array) => {
@@ -86,11 +82,8 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {e}"
-                            ))
-                        })?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         results.push(Self::reverse_array(array_json)?);
                     }
@@ -107,17 +100,12 @@ impl ScalarUDFImpl for ArrayReverseUDF {
                 }
 
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 // Parse array string to JSON Value
-                let array_json: Value = from_str(array_str).map_err(|e| {
-                    datafusion_common::DataFusionError::Internal(format!(
-                        "Failed to parse array JSON: {e}"
-                    ))
-                })?;
+                let array_json: Value =
+                    from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                 let result = Self::reverse_array(array_json)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))

@@ -1,7 +1,7 @@
+use crate::errors;
 use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
-use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
@@ -69,10 +69,7 @@ impl ScalarUDFImpl for LowerFunc {
         let ScalarFunctionArgs { args, .. } = args;
 
         if args.len() != 1 {
-            return Err(DataFusionError::Internal(format!(
-                "LOWER expects 1 argument, got {}",
-                args.len()
-            )));
+            return errors::LowerExpectsOneArgumentSnafu { count: args.len() }.fail()?;
         }
 
         let arg = &args[0];
@@ -102,7 +99,10 @@ impl ScalarUDFImpl for LowerFunc {
             _ => {
                 let string_array = datafusion::arrow::compute::cast(&array, &DataType::Utf8)
                     .map_err(|e| {
-                        DataFusionError::Internal(format!("Failed to cast to Utf8: {e}"))
+                        errors::FailedToCastToUtf8Snafu {
+                            error: e.to_string(),
+                        }
+                        .build()
                     })?;
 
                 Ok(ColumnarValue::Array(string_array))

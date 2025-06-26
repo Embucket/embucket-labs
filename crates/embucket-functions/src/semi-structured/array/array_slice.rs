@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -54,15 +56,11 @@ impl ArraySliceUDF {
             let slice = array[actual_from as usize..actual_to as usize].to_vec();
 
             // Convert back to JSON string
-            Ok(Some(to_string(&slice).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}"
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
+            Ok(Some(
+                to_string(&slice).context(errors::FailedToSerializeResultSnafu)?,
             ))
+        } else {
+            errors::InputMustBeJsonArraySnafu.fail()?
         }
     }
 }
@@ -94,22 +92,20 @@ impl ScalarUDFImpl for ArraySliceUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
         let from = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected from argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "from" }.build())?;
         let to = args
             .get(2)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected to argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "to" }.build())?;
 
         match (array_str, from, to) {
-            (ColumnarValue::Array(array), ColumnarValue::Scalar(from_value), ColumnarValue::Scalar(to_value)) => {
+            (
+                ColumnarValue::Array(array),
+                ColumnarValue::Scalar(from_value),
+                ColumnarValue::Scalar(to_value),
+            ) => {
                 let string_array = array.as_string::<i32>();
                 let mut results = Vec::new();
 
@@ -119,9 +115,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
                     ScalarValue::Int64(None) | ScalarValue::Null => {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
-                    _ => return Err(datafusion_common::DataFusionError::Internal(
-                        "From index must be an integer".to_string()
-                    ))
+                    _ => return errors::NamedIndexMustBeAnIntegerSnafu { name: "From" }.fail()?,
                 };
 
                 let to = match to_value {
@@ -129,9 +123,7 @@ impl ScalarUDFImpl for ArraySliceUDF {
                     ScalarValue::Int64(None) | ScalarValue::Null => {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
-                    _ => return Err(datafusion_common::DataFusionError::Internal(
-                        "To index must be an integer".to_string()
-                    ))
+                    _ => return errors::NamedIndexMustBeAnIntegerSnafu { name: "To" }.fail()?,
                 };
 
                 for i in 0..string_array.len() {
@@ -139,21 +131,23 @@ impl ScalarUDFImpl for ArraySliceUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str)
-                            .map_err(|e| datafusion_common::DataFusionError::Internal(
-                                format!("Failed to parse array JSON: {e}"
-                            )))?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
                         results.push(Self::slice_array(array_json, from, to)?);
                     }
                 }
 
-                Ok(ColumnarValue::Array(Arc::new(datafusion::arrow::array::StringArray::from(results))))
+                Ok(ColumnarValue::Array(Arc::new(
+                    datafusion::arrow::array::StringArray::from(results),
+                )))
             }
-            (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(from_value), ColumnarValue::Scalar(to_value)) => {
+            (
+                ColumnarValue::Scalar(array_value),
+                ColumnarValue::Scalar(from_value),
+                ColumnarValue::Scalar(to_value),
+            ) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string()
-                    ))
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 // If any argument is NULL, return NULL
@@ -163,30 +157,22 @@ impl ScalarUDFImpl for ArraySliceUDF {
 
                 let from = match from_value {
                     ScalarValue::Int64(Some(pos)) => *pos,
-                    _ => return Err(datafusion_common::DataFusionError::Internal(
-                        "From index must be an integer".to_string()
-                    ))
+                    _ => return errors::NamedIndexMustBeAnIntegerSnafu { name: "From" }.fail()?,
                 };
 
                 let to = match to_value {
                     ScalarValue::Int64(Some(pos)) => *pos,
-                    _ => return Err(datafusion_common::DataFusionError::Internal(
-                        "To index must be an integer".to_string()
-                    ))
+                    _ => return errors::NamedIndexMustBeAnIntegerSnafu { name: "To" }.fail()?,
                 };
 
                 // Parse array string to JSON Value
-                let array_json: Value = from_str(array_str)
-                    .map_err(|e| datafusion_common::DataFusionError::Internal(
-                        format!("Failed to parse array JSON: {e}"
-                    )))?;
+                let array_json: Value =
+                    from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                 let result = Self::slice_array(array_json, from, to)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second and third arguments must be integers".to_string()
-            ))
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondAndThirdIntegersSnafu.fail()?,
         }
     }
 }

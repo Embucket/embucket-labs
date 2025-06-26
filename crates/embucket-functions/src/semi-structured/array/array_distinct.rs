@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -9,6 +10,7 @@ use datafusion_expr::{
     TypeSignatureClass, Volatility,
 };
 use serde_json::{Value, from_slice, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -33,11 +35,8 @@ impl ArrayDistinctUDF {
 
     fn distinct_array(string: impl AsRef<str>) -> DFResult<Option<String>> {
         let string = string.as_ref();
-        let array_value: Value = from_slice(string.as_bytes()).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(format!(
-                "Couldn't parse the JSON string: {e}",
-            ))
-        })?;
+        let array_value: Value =
+            from_slice(string.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
         if let Value::Array(array) = array_value {
             if array.is_empty() {
@@ -53,9 +52,9 @@ impl ArrayDistinctUDF {
                 }
             }
 
-            Ok(Some(to_string(&distinct_values).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(e.to_string())
-            })?))
+            Ok(Some(
+                to_string(&distinct_values).context(errors::SerdeJsonMessageSnafu)?,
+            ))
         } else {
             Ok(None)
         }
@@ -89,9 +88,8 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected a variant argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "a variant" }.build())?;
+
         match array_str {
             ColumnarValue::Array(array) => {
                 let string_array = array.as_string::<i32>();
@@ -112,9 +110,7 @@ impl ScalarUDFImpl for ArrayDistinctUDF {
             }
             ColumnarValue::Scalar(array_value) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 let result = Self::distinct_array(array_str)?;
