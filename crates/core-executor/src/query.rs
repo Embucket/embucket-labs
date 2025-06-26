@@ -46,8 +46,8 @@ use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
-    copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, select_expr_aliases, table_functions, top_limit,
+    binary_to_bytea, copy_into_identifiers, fetch_to_limit, functions_rewriter,
+    inline_aliases_in_query, json_element, select_expr_aliases, table_functions, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -217,6 +217,7 @@ impl UserQuery {
             functions_rewriter::visit(value);
             top_limit::visit(value);
             unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
+            binary_to_bytea::visit(value);
             copy_into_identifiers::visit(value);
             select_expr_aliases::visit(value);
             inline_aliases_in_query::visit(value);

@@ -1,3 +1,4 @@
+pub mod binary_to_bytea;
 pub mod copy_into_identifiers;
 pub mod fetch_to_limit;
 pub mod functions_rewriter;
