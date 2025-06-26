@@ -330,7 +330,7 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Unimplemented function: {error}"))]
+    #[snafu(display("{error}"))]
     UnimplementedFunction {
         #[snafu(source)]
         error: embucket_functions::visitors::unimplemented::functions_checker::UnimplementedFunctionError,
