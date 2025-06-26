@@ -1050,7 +1050,7 @@ impl UserQuery {
         let source_provider = self
             .session
             .ctx
-            .table_provider(&target_table)
+            .table_provider(&source_table)
             .await
             .context(ex_error::DataFusionSnafu)?;
 
