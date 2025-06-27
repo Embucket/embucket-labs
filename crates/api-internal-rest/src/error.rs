@@ -4,6 +4,7 @@ use http;
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
+use error_stack::ErrorExt;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -77,6 +78,7 @@ pub struct ErrorResponse {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!("{}", self.output_msg());
         let metastore_error = match self {
             Self::ListVolumes { error, .. }
             | Self::GetVolume { error, .. }

@@ -98,7 +98,7 @@ impl IntoResponse for Error {
         tracing::error!("{}", self.output_msg());
         let code = self.status_code();
         let error = ErrorResponse {
-            message: self.output_msg(),
+            message: self.to_string(),
             status_code: code.as_u16(),
         };
         match self {
