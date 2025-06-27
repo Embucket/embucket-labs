@@ -7,7 +7,6 @@ use datafusion::catalog::{TableFunctionImpl, TableProvider};
 use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, TableReference, exec_err};
 use datafusion_expr::Expr;
 use serde_json::Value;
-use snafu::ResultExt;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;

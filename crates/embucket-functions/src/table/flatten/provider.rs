@@ -1,4 +1,4 @@
-use crate::json::{get_json_value, PathToken};
+use crate::json::{PathToken, get_json_value};
 use crate::table::flatten::func::FlattenTableFunc;
 use arrow_schema::{Schema, SchemaRef};
 use async_trait::async_trait;
@@ -10,16 +10,9 @@ use datafusion::execution::{SendableRecordBatchStream, SessionState, TaskContext
 use datafusion::logical_expr::{ColumnarValue, Expr};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, create_physical_expr};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
-<<<<<<< HEAD
-use datafusion_common::{
-    exec_err, DFSchema, DFSchemaRef, DataFusionError, Result, ScalarValue, TableReference,
-};
-use datafusion_expr::{EmptyRelation, Projection, TableType};
-=======
 use datafusion_common::{Column, DFSchema, DataFusionError, Result, ScalarValue, TableReference};
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::{LogicalPlanBuilder, TableType};
->>>>>>> 71a08d43 (Rebase)
 use datafusion_physical_plan::common::collect;
 use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion_physical_plan::memory::MemoryStream;
@@ -30,8 +23,8 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlattenMode {
