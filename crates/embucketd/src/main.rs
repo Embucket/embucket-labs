@@ -384,51 +384,52 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 ///
 /// Only traces the errors, doesn't panic.
 async fn bootstrap(metastore: Arc<dyn Metastore>, no_bootstrap: bool) {
-    if !no_bootstrap {
-        let ident = DEFAULT_CATALOG.to_string();
-        if let Err(error) = metastore
-            .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
-            .await
-        {
-            match error {
-                MetastoreError::VolumeAlreadyExists { .. }
-                | MetastoreError::ObjectAlreadyExists { .. } => {}
-                _ => tracing::error!("Failed to bootstrap volume: {}", error),
-            }
+    if no_bootstrap {
+        return;
+    }
+    let ident = DEFAULT_CATALOG.to_string();
+    if let Err(error) = metastore
+        .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
+        .await
+    {
+        match error {
+            MetastoreError::VolumeAlreadyExists { .. }
+            | MetastoreError::ObjectAlreadyExists { .. } => {}
+            _ => tracing::error!("Failed to bootstrap volume: {}", error),
         }
-        if let Err(error) = metastore
-            .create_database(
-                &ident,
-                Database {
-                    ident: ident.clone(),
-                    properties: None,
-                    volume: ident.clone(),
-                },
-            )
-            .await
-        {
-            match error {
-                MetastoreError::DatabaseAlreadyExists { .. }
-                | MetastoreError::ObjectAlreadyExists { .. } => {}
-                _ => tracing::error!("Failed to bootstrap database: {}", error),
-            }
+    }
+    if let Err(error) = metastore
+        .create_database(
+            &ident,
+            Database {
+                ident: ident.clone(),
+                properties: None,
+                volume: ident.clone(),
+            },
+        )
+        .await
+    {
+        match error {
+            MetastoreError::DatabaseAlreadyExists { .. }
+            | MetastoreError::ObjectAlreadyExists { .. } => {}
+            _ => tracing::error!("Failed to bootstrap database: {}", error),
         }
-        let schema_ident = SchemaIdent::new(ident.clone(), "public".to_string());
-        if let Err(error) = metastore
-            .create_schema(
-                &schema_ident,
-                Schema {
-                    ident: schema_ident.clone(),
-                    properties: None,
-                },
-            )
-            .await
-        {
-            match error {
-                MetastoreError::SchemaAlreadyExists { .. }
-                | MetastoreError::ObjectAlreadyExists { .. } => {}
-                _ => tracing::error!("Failed to bootstrap schema: {}", error),
-            }
+    }
+    let schema_ident = SchemaIdent::new(ident.clone(), "public".to_string());
+    if let Err(error) = metastore
+        .create_schema(
+            &schema_ident,
+            Schema {
+                ident: schema_ident.clone(),
+                properties: None,
+            },
+        )
+        .await
+    {
+        match error {
+            MetastoreError::SchemaAlreadyExists { .. }
+            | MetastoreError::ObjectAlreadyExists { .. } => {}
+            _ => tracing::error!("Failed to bootstrap schema: {}", error),
         }
     }
 }
