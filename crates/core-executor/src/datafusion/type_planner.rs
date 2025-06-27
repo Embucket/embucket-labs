@@ -16,10 +16,11 @@ impl TypePlanner for CustomTypePlanner {
             SQLDataType::Int32 => Ok(Some(DataType::Int32)),
             SQLDataType::Int64 => Ok(Some(DataType::Int64)),
             SQLDataType::UInt32 => Ok(Some(DataType::UInt32)),
-            SQLDataType::Blob(_) => Ok(Some(DataType::Binary)),
             SQLDataType::Float(_) | SQLDataType::Float32 => Ok(Some(DataType::Float32)),
             SQLDataType::Float64 => Ok(Some(DataType::Float64)),
-
+            SQLDataType::Blob(_) | SQLDataType::Binary(_) | SQLDataType::Varbinary(_) => {
+                Ok(Some(DataType::Binary))
+            }
             // https://github.com/apache/datafusion/issues/12644
             SQLDataType::JSON => Ok(Some(DataType::Utf8)),
             SQLDataType::Datetime(precision) => {
