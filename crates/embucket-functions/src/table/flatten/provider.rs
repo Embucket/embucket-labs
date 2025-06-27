@@ -1,6 +1,6 @@
 use crate::json::{PathToken, get_json_value};
 use crate::table::flatten::func::FlattenTableFunc;
-use arrow_schema::{Schema, SchemaRef};
+use arrow_schema::{Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
 use datafusion::arrow::record_batch::RecordBatch;
@@ -75,7 +75,7 @@ impl TableProvider for FlattenTableProvider {
     }
 
     fn schema(&self) -> SchemaRef {
-        self.schema.inner().clone()
+        normalize_schema(&self.schema.clone())
     }
 
     fn table_type(&self) -> TableType {
@@ -85,9 +85,9 @@ impl TableProvider for FlattenTableProvider {
     async fn scan(
         &self,
         state: &dyn Session,
-        _projection: Option<&Vec<usize>>,
-        _filters: &[Expr],
-        _limit: Option<usize>,
+        projection: Option<&Vec<usize>>,
+        filters: &[Expr],
+        limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session_state = state
             .as_any()
@@ -105,6 +105,9 @@ impl TableProvider for FlattenTableProvider {
             args: self.args.clone(),
             schema: self.schema.clone(),
             session_state: Arc::new(session_state.clone()),
+            projection: projection.cloned(),
+            filters: filters.to_vec(),
+            limit,
             properties,
         }))
     }
@@ -115,6 +118,9 @@ pub struct FlattenExec {
     schema: Arc<DFSchema>,
     session_state: Arc<SessionState>,
     properties: PlanProperties,
+    projection: Option<Vec<usize>>,
+    filters: Vec<Expr>,
+    limit: Option<usize>,
 }
 
 impl Debug for FlattenExec {
@@ -159,6 +165,9 @@ impl ExecutionPlan for FlattenExec {
             args: self.args.clone(),
             schema: self.schema.clone(),
             properties: self.properties.clone(),
+            projection: self.projection.clone(),
+            filters: self.filters.clone(),
+            limit: self.limit,
         }))
     }
 
@@ -238,14 +247,13 @@ impl ExecutionPlan for FlattenExec {
                     self.args.is_outer,
                 )],
                 self.schema(),
-                None,
+                self.projection.clone(),
             )?));
         }
-        Ok(Box::pin(MemoryStream::try_new(
-            all_batches,
-            self.schema.inner().clone(),
-            None,
-        )?))
+        Ok(Box::pin(
+            MemoryStream::try_new(all_batches, self.schema(), self.projection.clone())?
+                .with_fetch(self.limit),
+        ))
     }
 }
 
@@ -332,4 +340,20 @@ async fn evaluate_expr_or_plan(
             collect(input_stream).await
         }
     }
+}
+
+pub fn normalize_schema(schema: &DFSchema) -> SchemaRef {
+    let fields = schema
+        .fields()
+        .iter()
+        .map(|field| {
+            Arc::new(Field::new(
+                field.name().to_ascii_lowercase(),
+                field.data_type().clone(),
+                field.is_nullable(),
+            ))
+        })
+        .collect::<Vec<_>>();
+
+    Arc::new(Schema::new(fields))
 }

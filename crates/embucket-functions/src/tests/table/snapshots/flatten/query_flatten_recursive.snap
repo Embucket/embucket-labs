@@ -1,6 +1,6 @@
 ---
 source: crates/embucket-functions/src/tests/table/flatten.rs
-description: "r#\"SELECT * FROM\n    FLATTEN(INPUT => PARSE_JSON('{\"a\":1, \"b\":[77,88], \"c\": {\"d\":\"X\"}}'), RECURSIVE => TRUE, MODE => 'OBJECT' ) f;\"#"
+description: "r#\"SELECT * FROM  FLATTEN(INPUT => PARSE_JSON('{\"a\":1, \"b\":[77,88], \"c\": {\"d\":\"X\"}}'), RECURSIVE => TRUE ) f;\"#"
 ---
 Ok(
     [
