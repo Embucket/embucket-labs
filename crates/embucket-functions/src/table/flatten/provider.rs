@@ -1,18 +1,25 @@
 use crate::json::{get_json_value, PathToken};
 use crate::table::flatten::func::FlattenTableFunc;
-use arrow_schema::{DataType, Field, Fields, SchemaRef};
+use arrow_schema::{Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};
+use datafusion::datasource::provider_as_source;
 use datafusion::execution::{SendableRecordBatchStream, SessionState, TaskContext};
-use datafusion::logical_expr::{Expr, LogicalPlan};
-use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
+use datafusion::logical_expr::{ColumnarValue, Expr};
+use datafusion::physical_expr::{EquivalenceProperties, Partitioning, create_physical_expr};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
+<<<<<<< HEAD
 use datafusion_common::{
     exec_err, DFSchema, DFSchemaRef, DataFusionError, Result, ScalarValue, TableReference,
 };
 use datafusion_expr::{EmptyRelation, Projection, TableType};
+=======
+use datafusion_common::{Column, DFSchema, DataFusionError, Result, ScalarValue, TableReference};
+use datafusion_expr::execution_props::ExecutionProps;
+use datafusion_expr::{LogicalPlanBuilder, TableType};
+>>>>>>> 71a08d43 (Rebase)
 use datafusion_physical_plan::common::collect;
 use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion_physical_plan::memory::MemoryStream;
@@ -20,7 +27,6 @@ use datafusion_physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, Plan
 use serde_json::Value;
 use std::any::Any;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
@@ -224,7 +230,7 @@ impl ExecutionPlan for FlattenExec {
             ];
 
             last_outer.clone_from(&out.last_outer);
-            let batch = RecordBatch::try_new(self.schema.inner().clone(), cols)?;
+            let batch = RecordBatch::try_new(self.schema(), cols)?;
             if batch.num_rows() > 0 {
                 all_batches.push(batch);
             }
@@ -233,16 +239,15 @@ impl ExecutionPlan for FlattenExec {
         if all_batches.is_empty() {
             return Ok(Box::pin(MemoryStream::try_new(
                 vec![flatten_func.empty_record_batch(
-                    self.schema.inner().clone(),
+                    self.schema(),
                     &self.args.path,
                     last_outer,
                     self.args.is_outer,
                 )],
-                self.schema.inner().clone(),
+                self.schema(),
                 None,
             )?));
         }
-
         Ok(Box::pin(MemoryStream::try_new(
             all_batches,
             self.schema.inner().clone(),
@@ -254,63 +259,84 @@ impl ExecutionPlan for FlattenExec {
 impl FlattenExec {
     fn get_input_batches(
         &self,
-        partition: usize,
-        context: Arc<TaskContext>,
+        _partition: usize,
+        _context: Arc<TaskContext>,
     ) -> Result<Vec<RecordBatch>> {
-        if let Expr::Literal(ScalarValue::Utf8(Some(s))) = self.args.input_expr.clone() {
+        let expr = self.args.input_expr.clone();
+
+        // Fast path for literal input
+        if let Expr::Literal(ScalarValue::Utf8(Some(s))) = expr {
             let array: ArrayRef = Arc::new(StringArray::from(vec![s]));
             let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
-            Ok(vec![batch])
-        } else {
-            let expr = self.args.input_expr.clone();
-            let session_state = self.session_state.clone();
-            futures::executor::block_on(async move {
-                let schema = build_schema_from_expr(&expr)?;
-                let empty_plan = LogicalPlan::EmptyRelation(EmptyRelation {
-                    produce_one_row: true,
-                    schema: schema.clone(),
-                });
-                let projection_plan = LogicalPlan::Projection(Projection::try_new_with_schema(
-                    vec![expr.alias("input")],
-                    Arc::new(empty_plan),
-                    schema,
-                )?);
-                let plan = session_state.create_physical_plan(&projection_plan).await?;
-                let input_stream = plan.execute(partition, context)?;
-                collect(input_stream).await
-            })
+            return Ok(vec![batch]);
         }
+
+        // Evaluate the expression or plan to get the input batches
+        let session_state = self.session_state.clone();
+        futures::executor::block_on(async move {
+            evaluate_expr_or_plan(&expr, session_state.as_ref()).await
+        })
     }
 }
 
-fn build_schema_from_expr(expr: &Expr) -> Result<DFSchemaRef> {
-    let mut columns = HashSet::new();
-    expr.apply(&mut |e: &Expr| {
-        if let Expr::Column(col) = e {
-            columns.insert(col.clone());
+fn extract_table_ref(expr: &Expr) -> Option<TableReference> {
+    let mut table_ref: Option<TableReference> = None;
+    let _ = expr.apply(&mut |e: &Expr| {
+        if let Expr::Column(Column {
+            relation: Some(r), ..
+        }) = e
+        {
+            table_ref = Some(r.clone());
         }
         Ok(TreeNodeRecursion::Continue)
-    })?;
+    });
+    table_ref
+}
 
-    if columns.is_empty() {
-        let field = Field::new("input", DataType::Utf8, true);
-        return Ok(Arc::new(DFSchema::from_unqualified_fields(
-            Fields::from(vec![field]),
-            HashMap::default(),
-        )?));
+async fn evaluate_expr_or_plan(
+    expr: &Expr,
+    session_state: &SessionState,
+) -> Result<Vec<RecordBatch>> {
+    match extract_table_ref(expr) {
+        // Evaluates the expression directly without column references
+        None => {
+            let exec_props = ExecutionProps::new();
+            let phys_expr = create_physical_expr(expr, &DFSchema::empty(), &exec_props)?;
+            let batch = RecordBatch::new_empty(Arc::new(Schema::empty()));
+            let result = phys_expr.evaluate(&batch)?;
+
+            let array = match result {
+                ColumnarValue::Scalar(scalar) => scalar.to_array()?,
+                ColumnarValue::Array(array) => array,
+            };
+            let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
+            Ok(vec![batch])
+        }
+        // If the expression contains a table reference, execute the plan
+        Some(table_ref) => {
+            let table_ref_cloned = table_ref.clone();
+            let expr_cloned = expr.clone();
+
+            let table = session_state
+                .schema_for_ref(table_ref)?
+                .table(table_ref_cloned.table())
+                .await?
+                .ok_or_else(|| {
+                    DataFusionError::Execution(
+                        "No table found for reference in expression".to_string(),
+                    )
+                })?;
+
+            let plan = LogicalPlanBuilder::scan(
+                table_ref_cloned.table(),
+                provider_as_source(table),
+                None,
+            )?
+            .project(vec![expr_cloned.alias("input")])?
+            .build()?;
+            let physical_plan = session_state.create_physical_plan(&plan).await?;
+            let input_stream = physical_plan.execute(0, session_state.task_ctx())?;
+            collect(input_stream).await
+        }
     }
-
-    let qualified_fields = columns
-        .into_iter()
-        .map(|col| {
-            (
-                col.relation,
-                Arc::new(Field::new(col.name, DataType::Utf8, true)),
-            )
-        })
-        .collect::<Vec<(Option<TableReference>, Arc<Field>)>>();
-    Ok(Arc::new(DFSchema::new_with_metadata(
-        qualified_fields,
-        HashMap::default(),
-    )?))
 }

@@ -1368,7 +1368,7 @@ impl UserQuery {
                     let is_table_func = self
                         .session
                         .ctx
-                        .table_function(table_name.to_string().to_lowercase().as_str())
+                        .table_function(table_name.to_string().to_ascii_lowercase().as_str())
                         .is_ok();
                     if !cte_names.contains(&table_name.to_string()) && !is_table_func {
                         match self.resolve_table_object_name(table_name.0.clone()) {
@@ -1418,8 +1418,11 @@ impl UserQuery {
                     .sql(&query)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
-                let schema = df.schema().as_arrow().clone();
+                let mut schema = df.schema().as_arrow().clone();
                 let records = df.collect().await.context(ex_error::DataFusionSnafu)?;
+                if !records.is_empty() {
+                    schema = records[0].schema().as_ref().clone();
+                }
                 Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
@@ -1434,7 +1437,7 @@ impl UserQuery {
             .session
             .executor
             .spawn(async move {
-                let schema = plan.schema().as_arrow().clone();
+                let mut schema = plan.schema().as_arrow().clone();
                 let records = session
                     .ctx
                     .execute_logical_plan(plan)
@@ -1443,6 +1446,9 @@ impl UserQuery {
                     .collect()
                     .await
                     .context(ex_error::DataFusionSnafu)?;
+                if !records.is_empty() {
+                    schema = records[0].schema().as_ref().clone();
+                }
                 Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
             })
             .await
