@@ -1,7 +1,6 @@
 use crate::json::{PathToken, get_json_value};
 use crate::table::flatten::func::FlattenTableFunc;
 use arrow_schema::{DataType, Field, SchemaRef};
-use async_trait::async_trait;
 use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};

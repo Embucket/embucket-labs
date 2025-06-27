@@ -58,6 +58,7 @@ datafusion-functions-json = { workspace = true }
 hex = "0.4.3"
 snafu = { workspace = true }
 rust_decimal = "1.37.2"
+async-trait = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

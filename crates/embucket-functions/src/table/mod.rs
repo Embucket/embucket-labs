@@ -1,4 +1,4 @@
-use crate::table::flatten::FlattenTableFunc;
+use crate::table::flatten::func::FlattenTableFunc;
 use crate::table::result_scan::ResultScanFunc;
 use core_history::HistoryStore;
 use datafusion::prelude::SessionContext;

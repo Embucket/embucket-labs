@@ -2992,6 +2992,7 @@ version = "0.1.0"
 dependencies = [
  "ahash 0.8.12",
  "arrow-schema 55.2.0",
+ "async-trait",
  "base64 0.22.1",
  "bytes",
  "chrono",
