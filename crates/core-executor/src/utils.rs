@@ -1,14 +1,14 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
-use chrono::{DateTime, SubsecRound};
+use chrono::DateTime;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
+    Time32MillisecondArray, Time32SecondArray, Time64MicrosecondArray, Time64NanosecondArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
-    Time32SecondArray, Time32MillisecondArray, Time64MicrosecondArray, Time64NanosecondArray,
 };
 use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
@@ -443,15 +443,19 @@ fn convert_uint_to_int_datatypes(
         }
     }
 }
-
-fn convert_time(column: &ArrayRef, unit: TimeUnit, data_format: DataSerializationFormat) -> ArrayRef {
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+fn convert_time(
+    column: &ArrayRef,
+    unit: TimeUnit,
+    data_format: DataSerializationFormat,
+) -> ArrayRef {
     match data_format {
-        DataSerializationFormat::Json =>  {
+        DataSerializationFormat::Json => {
             let time: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, Time32SecondArray)
                     .map(|time| {
                         time.map(|ts| {
-                            let ts = DateTime::from_timestamp(ts as i64, 0).unwrap();
+                            let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap();
                             format!("{}000000000", ts.timestamp())
                         })
                     })
@@ -459,7 +463,7 @@ fn convert_time(column: &ArrayRef, unit: TimeUnit, data_format: DataSerializatio
                 TimeUnit::Millisecond => downcast_and_iter!(column, Time32MillisecondArray)
                     .map(|time| {
                         time.map(|ts| {
-                            let ts = DateTime::from_timestamp_millis(ts as i64).unwrap();
+                            let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
                             format!("{}000000", ts.timestamp())
                         })
                     })

@@ -1,3 +1,5 @@
+use arrow_schema::DataType::Time64;
+use arrow_schema::TimeUnit::Microsecond;
 use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result, ScalarValue, internal_err};
 use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
@@ -6,8 +8,6 @@ use datafusion_expr::{
 };
 use datafusion_macros::user_doc;
 use std::any::Any;
-use arrow_schema::DataType::Time64;
-use arrow_schema::TimeUnit::Microsecond;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
@@ -84,7 +84,8 @@ impl ScalarUDFImpl for CurrentTimeFunc {
         let now_ts = info
             .execution_props()
             .query_execution_start_time
-            .timestamp_micros() % 86_400_000_000;
+            .timestamp_micros()
+            % 86_400_000_000;
         // let time = i32::try_from(now_ts % 86_400).ok();
         Ok(ExprSimplifyResult::Simplified(Expr::Literal(
             ScalarValue::Time64Microsecond(Some(now_ts)),
@@ -112,7 +113,9 @@ mod tests {
         let context = SimplifyContext::new(&props);
         let result = CurrentTimeFunc::new().simplify(vec![], &context);
         match result {
-            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time64Microsecond(Some(time))))) => {
+            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time64Microsecond(
+                Some(time),
+            )))) => {
                 assert_eq!(time, now_ts % 86_400_000_000);
             }
             _ => panic!("unexpected result"),
