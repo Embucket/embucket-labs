@@ -170,10 +170,12 @@ impl Config {
             ..Self::default()
         })
     }
-    pub fn with_demo_credentials(&mut self, demo_user: String, demo_password: String) {
+    #[must_use]
+    pub fn with_demo_credentials(mut self, demo_user: String, demo_password: String) -> Self {
         self.auth = Auth {
             demo_user,
             demo_password,
-        }
+        };
+        self
     }
 }

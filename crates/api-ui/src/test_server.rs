@@ -29,8 +29,7 @@ pub async fn run_test_server_with_demo_auth(
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBHistoryStore::new(db));
-    let mut auth_config = AuthConfig::new(jwt_secret);
-    auth_config.with_demo_credentials(demo_user, demo_password);
+    let auth_config = AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
     let app = make_app(
         metastore,

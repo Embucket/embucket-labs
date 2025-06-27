@@ -25,9 +25,11 @@ impl AuthConfig {
         }
     }
 
-    pub fn with_demo_credentials(&mut self, demo_user: String, demo_password: String) {
+    #[must_use]
+    pub fn with_demo_credentials(mut self, demo_user: String, demo_password: String) -> Self {
         self.demo_user = demo_user;
         self.demo_password = demo_password;
+        self
     }
 
     #[must_use]

@@ -91,18 +91,18 @@ async fn main() {
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
-    let mut snowflake_rest_cfg =
-        Config::new(&data_format).expect("Failed to create snowflake config");
-    snowflake_rest_cfg.with_demo_credentials(
-        opts.auth_demo_user.clone().unwrap(),
-        opts.auth_demo_password.clone().unwrap(),
-    );
+    let snowflake_rest_cfg = Config::new(&data_format)
+        .expect("Failed to create snowflake config")
+        .with_demo_credentials(
+            opts.auth_demo_user.clone().unwrap(),
+            opts.auth_demo_password.clone().unwrap(),
+        );
     let execution_cfg = ExecutionConfig::new().expect("Failed to create execution config");
-    let mut auth_config = UIAuthConfig::new(opts.jwt_secret());
-    auth_config.with_demo_credentials(
-        opts.auth_demo_user.clone().unwrap(),
-        opts.auth_demo_password.clone().unwrap(),
-    );
+    let auth_config = UIAuthConfig::new(opts.jwt_secret())
+        .with_demo_credentials(
+            opts.auth_demo_user.clone().unwrap(),
+            opts.auth_demo_password.clone().unwrap(),
+        );
     let web_config = UIWebConfig {
         host: opts.host.clone().unwrap(),
         port: opts.port.unwrap(),
