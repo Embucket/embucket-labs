@@ -1,57 +1,16 @@
-use crate::errors;
-use crate::json;
-use crate::json::{PathToken, get_json_value, tokenize_path};
-use datafusion::arrow::array::builder::{StringBuilder, UInt64Builder};
-use datafusion::arrow::array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
-use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use crate::json::{PathToken, tokenize_path};
+use crate::table::flatten::provider::{FlattenArgs, FlattenMode, FlattenTableProvider, Out};
+use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
-use datafusion::datasource::MemTable;
-use datafusion::physical_expr::create_physical_expr;
-use datafusion::physical_plan::ColumnarValue;
-use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, exec_err};
+use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, TableReference, exec_err};
 use datafusion_expr::Expr;
-use datafusion_expr::execution_props::ExecutionProps;
 use serde_json::Value;
 use snafu::ResultExt;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-#[derive(Debug)]
-enum Mode {
-    Object,
-    Array,
-    Both,
-}
-
-impl Mode {
-    const fn is_object(&self) -> bool {
-        matches!(self, Self::Object | Self::Both)
-    }
-
-    const fn is_array(&self) -> bool {
-        matches!(self, Self::Array | Self::Both)
-    }
-}
-
-struct Out {
-    seq: UInt64Builder,
-    key: StringBuilder,
-    path: StringBuilder,
-    index: UInt64Builder,
-    value: StringBuilder,
-    this: StringBuilder,
-    last_outer: Option<Value>,
-}
-
-struct Args {
-    input_str: String,
-    path: Vec<PathToken>,
-    is_outer: bool,
-    is_recursive: bool,
-    mode: Mode,
-}
 
 /// Flatten function
 /// Flattens (explodes) compound values into multiple rows
@@ -106,7 +65,7 @@ struct Args {
 
 #[derive(Debug, Clone)]
 pub struct FlattenTableFunc {
-    row_id: Arc<AtomicU64>,
+    pub row_id: Arc<AtomicU64>,
 }
 
 impl Default for FlattenTableFunc {
@@ -123,60 +82,18 @@ impl FlattenTableFunc {
         }
     }
 
-    #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    fn empty_table(
-        &self,
-        schema: SchemaRef,
-        path: &[PathToken],
-        last_outer: Option<Value>,
-        null: bool,
-    ) -> Arc<MemTable> {
-        let batch = if null {
-            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
-
-            RecordBatch::try_new(
-                schema.clone(),
-                vec![
-                    Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)]))
-                        as ArrayRef,
-                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                    Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
-                    Arc::new(UInt64Array::from(vec![None])) as ArrayRef,
-                    Arc::new(StringArray::from(vec![None::<&str>])) as ArrayRef,
-                    Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
-                ],
-            )
-            .unwrap()
-        } else {
-            RecordBatch::try_new(
-                schema.clone(),
-                vec![
-                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                    Arc::new(StringArray::new_null(0)) as ArrayRef,
-                    Arc::new(StringArray::new_null(0)) as ArrayRef,
-                    Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                    Arc::new(StringArray::new_null(0)) as ArrayRef,
-                    Arc::new(StringArray::new_null(0)) as ArrayRef,
-                ],
-            )
-            .unwrap()
-        };
-
-        Arc::new(MemTable::try_new(schema, vec![vec![batch]]).unwrap())
-    }
-
     #[allow(
         clippy::unwrap_used,
         clippy::as_conversions,
         clippy::only_used_in_recursion
     )]
-    fn flatten(
+    pub fn flatten(
         &self,
         value: &Value,
         path: &[PathToken],
         outer: bool,
         recursive: bool,
-        mode: &Mode,
+        mode: &FlattenMode,
         out: &Rc<RefCell<Out>>,
     ) -> DFResult<()> {
         match value {
@@ -245,13 +162,7 @@ impl TableFunctionImpl for FlattenTableFunc {
             return exec_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
         }
 
-        let Args {
-            input_str,
-            path,
-            is_outer,
-            is_recursive,
-            mode,
-        } = if named_args_count > 0 {
+        let flatten_args = if named_args_count > 0 {
             get_named_args(args)?
         } else {
             get_args(
@@ -262,9 +173,6 @@ impl TableFunctionImpl for FlattenTableFunc {
             )?
         };
 
-        let input: Value =
-            serde_json::from_str(&input_str).context(errors::FailedToDeserializeJsonSnafu)?;
-
         let schema_fields = vec![
             Field::new("SEQ", DataType::UInt64, false),
             Field::new("KEY", DataType::Utf8, true),
@@ -273,44 +181,18 @@ impl TableFunctionImpl for FlattenTableFunc {
             Field::new("VALUE", DataType::Utf8, true),
             Field::new("THIS", DataType::Utf8, true),
         ];
-
-        let schema = Arc::new(Schema::new(schema_fields));
-
-        self.row_id.fetch_add(1, Ordering::Acquire);
-
-        let input = match get_json_value(&input, &path) {
-            None => return Ok(self.empty_table(schema, &[], None, is_outer)),
-            Some(v) => v,
-        };
-
-        let out = Rc::new(RefCell::new(Out {
-            seq: UInt64Builder::new(),
-            key: StringBuilder::new(),
-            path: StringBuilder::new(),
-            index: UInt64Builder::new(),
-            value: StringBuilder::new(),
-            this: StringBuilder::new(),
-            last_outer: None,
-        }));
-
-        self.flatten(input, &path, is_outer, is_recursive, &mode, &out)?;
-
-        let mut out = out.borrow_mut();
-        let cols: Vec<ArrayRef> = vec![
-            Arc::new(out.seq.finish()),
-            Arc::new(out.key.finish()),
-            Arc::new(out.path.finish()),
-            Arc::new(out.index.finish()),
-            Arc::new(out.value.finish()),
-            Arc::new(out.this.finish()),
-        ];
-
-        let batch = RecordBatch::try_new(schema.clone(), cols)?;
-        Ok(if batch.num_rows() == 0 {
-            self.empty_table(schema, &path, out.last_outer.clone(), is_outer)
-        } else {
-            Arc::new(MemTable::try_new(schema, vec![vec![batch]])?)
-        })
+        let qualified_fields = schema_fields
+            .into_iter()
+            .map(|f| (None, Arc::new(f)))
+            .collect::<Vec<(Option<TableReference>, Arc<Field>)>>();
+        let schema = Arc::new(DFSchema::new_with_metadata(
+            qualified_fields,
+            HashMap::default(),
+        )?);
+        Ok(Arc::new(FlattenTableProvider {
+            args: flatten_args,
+            schema,
+        }))
     }
 }
 
@@ -336,18 +218,6 @@ fn path_to_string(path: &[PathToken]) -> String {
     out
 }
 
-fn eval_expr(expr: &Expr) -> DFResult<ScalarValue> {
-    let exec_props = ExecutionProps::new();
-    let phys_expr = create_physical_expr(expr, &DFSchema::empty(), &exec_props)?;
-    let batch = RecordBatch::new_empty(Arc::new(Schema::empty()));
-    let result = phys_expr.evaluate(&batch)?;
-
-    match result {
-        ColumnarValue::Scalar(s) => Ok(s),
-        ColumnarValue::Array(arr) => ScalarValue::try_from_array(&arr, 0),
-    }
-}
-
 #[allow(clippy::unwrap_used)]
 fn get_arg(args: &[(Expr, Option<String>)], name: &str) -> Option<Expr> {
     args.iter().find_map(|(expr, n)| {
@@ -359,21 +229,16 @@ fn get_arg(args: &[(Expr, Option<String>)], name: &str) -> Option<Expr> {
     })
 }
 
-fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<Args> {
+fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<FlattenArgs> {
     let mut path: Vec<PathToken> = vec![];
     let mut is_outer: bool = false;
     let mut is_recursive: bool = false;
-    let mut mode = Mode::Both;
+    let mut mode = FlattenMode::Both;
 
     // input
-    let input_str = if let Some(v) = get_arg(args, "input") {
-        if let ScalarValue::Utf8(Some(v)) = eval_expr(&v)? {
-            v
-        } else {
-            return exec_err!("Wrong INPUT argument");
-        }
-    } else {
-        return exec_err!("Missing INPUT argument");
+    let input_expr = match get_arg(args, "input") {
+        Some(expr) => expr.clone(),
+        None => return exec_err!("Missing required argument: INPUT"),
     };
 
     // path
@@ -398,15 +263,15 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<Args> {
     // mode
     if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = get_arg(args, "mode") {
         mode = match v.to_lowercase().as_str() {
-            "object" => Mode::Object,
-            "array" => Mode::Array,
-            "both" => Mode::Both,
+            "object" => FlattenMode::Object,
+            "array" => FlattenMode::Array,
+            "both" => FlattenMode::Both,
             _ => return exec_err!("MODE must be one of: object, array, both"),
         }
     }
 
-    Ok(Args {
-        input_str,
+    Ok(FlattenArgs {
+        input_expr,
         path,
         is_outer,
         is_recursive,
@@ -414,15 +279,10 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<Args> {
     })
 }
 
-fn get_args(args: &[&Expr]) -> DFResult<Args> {
-    // input
-    let ScalarValue::Utf8(Some(input_str)) = eval_expr(args[0])? else {
-        return exec_err!("INPUT must be a string");
-    };
-
+fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
     // path
     let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
-        if let Some(p) = json::tokenize_path(v) {
+        if let Some(p) = tokenize_path(v) {
             p
         } else {
             return exec_err!("Invalid JSON path");
@@ -448,17 +308,17 @@ fn get_args(args: &[&Expr]) -> DFResult<Args> {
     // mode
     let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4] {
         match v.to_lowercase().as_str() {
-            "object" => Mode::Object,
-            "array" => Mode::Array,
-            "both" => Mode::Both,
+            "object" => FlattenMode::Object,
+            "array" => FlattenMode::Array,
+            "both" => FlattenMode::Both,
             _ => return exec_err!("MODE must be one of: object, array, both"),
         }
     } else {
-        Mode::Both
+        FlattenMode::Both
     };
 
-    Ok(Args {
-        input_str,
+    Ok(FlattenArgs {
+        input_expr: args[0].clone(),
         path,
         is_outer,
         is_recursive,
