@@ -2991,7 +2991,11 @@ name = "embucket-functions"
 version = "0.1.0"
 dependencies = [
  "ahash 0.8.12",
+<<<<<<< HEAD
  "arrow-schema 55.2.0",
+=======
+ "arrow-schema 55.1.0",
+>>>>>>> ced5dc11 (Extend flatten as relation)
  "async-trait",
  "base64 0.22.1",
  "bytes",
@@ -3006,6 +3010,7 @@ dependencies = [
  "datafusion-physical-plan",
  "error-stack",
  "error-stack-trace",
+<<<<<<< HEAD
  "geo-traits",
  "geo-types",
  "geoarrow",
@@ -3016,6 +3021,9 @@ dependencies = [
  "geoarrow-test",
  "geohash",
  "geozero",
+=======
+ "futures",
+>>>>>>> ced5dc11 (Extend flatten as relation)
  "hex",
  "indexmap 2.10.0",
  "insta",

@@ -236,9 +236,8 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<FlattenArgs> {
     let mut mode = FlattenMode::Both;
 
     // input
-    let input_expr = match get_arg(args, "input") {
-        Some(expr) => expr.clone(),
-        None => return exec_err!("Missing required argument: INPUT"),
+    let Some(input_expr) = get_arg(args, "input") else {
+        return exec_err!("Missing required argument: INPUT");
     };
 
     // path

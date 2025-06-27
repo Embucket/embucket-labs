@@ -7,7 +7,15 @@ database = "embucket"
 schema = "public"
 
 def bootstrap(catalog, schema, table_name="sample_table"):
-    response = requests.get(f"{url}/v1/metastore/databases")
+    headers = {'Content-Type': 'application/json'}
+    res = requests.request(
+        "POST", f'http://localhost:3000/ui/auth/login',
+        headers=headers,
+        data=json.dumps({"username":"embucket","password":"embucket"})
+    ).json()
+    headers['authorization'] = f'Bearer {res['accessToken']}'
+
+    response = requests.get(f"{url}/v1/metastore/databases", headers=headers)
     response.raise_for_status()
 
     wh_list = [wh for wh in response.json() if wh["ident"] == catalog]
@@ -17,6 +25,7 @@ def bootstrap(catalog, schema, table_name="sample_table"):
         # Create Volume
         response = requests.post(
             f"{url}/v1/metastore/volumes",
+            headers=headers,
             json={
                 "ident": "test",
                 "type": "file",
@@ -29,6 +38,7 @@ def bootstrap(catalog, schema, table_name="sample_table"):
         # Create Database
         response = requests.post(
             f"{url}/v1/metastore/databases",
+            headers=headers,
             json={
                 "volume": "test",
                 "ident": catalog,
@@ -39,7 +49,6 @@ def bootstrap(catalog, schema, table_name="sample_table"):
 
     # Create Schema
     query = f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}"
-    headers = {"Content-Type": "application/json"}
     response = requests.post(
         f"{url}/ui/queries",
         headers=headers,

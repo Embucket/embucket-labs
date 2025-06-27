@@ -1,4 +1,4 @@
-use crate::json::{PathToken, get_json_value};
+use crate::json::{get_json_value, PathToken};
 use crate::table::flatten::func::FlattenTableFunc;
 use arrow_schema::{DataType, Field, SchemaRef};
 use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
@@ -9,7 +9,7 @@ use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
 use datafusion_common::{
-    DFSchema, DFSchemaRef, DataFusionError, Result, ScalarValue, TableReference, exec_err,
+    exec_err, DFSchema, DFSchemaRef, DataFusionError, Result, ScalarValue, TableReference,
 };
 use datafusion_expr::{EmptyRelation, Projection, TableType};
 use datafusion_physical_plan::common::collect;
@@ -23,8 +23,8 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlattenMode {

@@ -35,6 +35,9 @@ dummyprefix/
 tests/benchmark/*.json
 test/errors.log
 test/test_statistics.csv
+test/dbt_integration_tests/dbt-gitlab/logs/*
+test/dbt_integration_tests/dbt-gitlab/run.log
+test/dbt_integration_tests/dbt-gitlab/top_errors.txt
 snowplow
 
 *.manifest
