@@ -81,12 +81,11 @@ impl ScalarUDFImpl for CurrentTimeFunc {
 
     #[allow(clippy::unwrap_used)]
     fn simplify(&self, _args: Vec<Expr>, info: &dyn SimplifyInfo) -> Result<ExprSimplifyResult> {
-        let now_ts = info.execution_props().query_execution_start_time;
-        let time = now_ts.timestamp_nanos_opt().map(|ts| {
-            i32::try_from((ts % 86_400_000_000_000) / 1_000_000_000)
-                .ok()
-                .unwrap()
-        });
+        let now_ts = info
+            .execution_props()
+            .query_execution_start_time
+            .timestamp();
+        let time = i32::try_from(now_ts % 86_400).ok();
         Ok(ExprSimplifyResult::Simplified(Expr::Literal(
             ScalarValue::Time32Second(time),
         )))
@@ -109,22 +108,12 @@ mod tests {
     #[test]
     fn test_current_time() {
         let props = ExecutionProps::new();
-        let now_ts = props.query_execution_start_time;
+        let now_ts = props.query_execution_start_time.timestamp();
         let context = SimplifyContext::new(&props);
         let result = CurrentTimeFunc::new().simplify(vec![], &context);
         match result {
-            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time32Second(Some(
-                time,
-            ))))) => {
-                assert_eq!(
-                    time,
-                    i32::try_from(
-                        (now_ts.timestamp_nanos_opt().unwrap() % 86_400_000_000_000)
-                            / 1_000_000_000
-                    )
-                    .ok()
-                    .unwrap()
-                );
+            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time32Second(time)))) => {
+                assert_eq!(time, i32::try_from(now_ts % 86_400).ok());
             }
             _ => panic!("unexpected result"),
         }
