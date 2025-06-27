@@ -1,6 +1,4 @@
 use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::datatypes::DataType::Time32;
-use datafusion::arrow::datatypes::TimeUnit::Second;
 use datafusion_common::{Result, ScalarValue, internal_err};
 use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
 use datafusion_expr::{
@@ -8,6 +6,8 @@ use datafusion_expr::{
 };
 use datafusion_macros::user_doc;
 use std::any::Any;
+use arrow_schema::DataType::Time64;
+use arrow_schema::TimeUnit::Microsecond;
 
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
@@ -65,7 +65,7 @@ impl ScalarUDFImpl for CurrentTimeFunc {
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
         //TODO: support different return type precision based on the provided number
         // this only works with `ALTER SESSION SET TIME_OUTPUT_FORMAT = 'HH24:MI:SS.FF';`
-        Ok(Time32(Second))
+        Ok(Time64(Microsecond))
     }
 
     fn invoke_with_args(
@@ -84,10 +84,10 @@ impl ScalarUDFImpl for CurrentTimeFunc {
         let now_ts = info
             .execution_props()
             .query_execution_start_time
-            .timestamp();
-        let time = i32::try_from(now_ts % 86_400).ok();
+            .timestamp_micros() % 86_400_000_000;
+        // let time = i32::try_from(now_ts % 86_400).ok();
         Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-            ScalarValue::Time32Second(time),
+            ScalarValue::Time64Microsecond(Some(now_ts)),
         )))
     }
 
@@ -108,12 +108,12 @@ mod tests {
     #[test]
     fn test_current_time() {
         let props = ExecutionProps::new();
-        let now_ts = props.query_execution_start_time.timestamp();
+        let now_ts = props.query_execution_start_time.timestamp_micros();
         let context = SimplifyContext::new(&props);
         let result = CurrentTimeFunc::new().simplify(vec![], &context);
         match result {
-            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time32Second(time)))) => {
-                assert_eq!(time, i32::try_from(now_ts % 86_400).ok());
+            Ok(ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Time64Microsecond(Some(time))))) => {
+                assert_eq!(time, now_ts % 86_400_000_000);
             }
             _ => panic!("unexpected result"),
         }
