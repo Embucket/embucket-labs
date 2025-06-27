@@ -1,10 +1,10 @@
 use axum::{Json, response::IntoResponse};
+use error_stack::ErrorExt;
 use error_stack_trace;
 use http;
 use serde::{Deserialize, Serialize};
 use snafu::Location;
 use snafu::prelude::*;
-use error_stack::ErrorExt;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
