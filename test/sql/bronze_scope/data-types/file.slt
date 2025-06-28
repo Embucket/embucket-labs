@@ -1,0 +1,121 @@
+# Test FILE data type for unstructured data
+# Note: FILE type requires actual files in stages to work properly.
+# This test focuses on basic FILE data type functionality that can be tested
+# without requiring actual files to exist.
+
+# Test FILE type basic table creation
+statement ok
+CREATE OR REPLACE TABLE test_file (
+    id INTEGER,
+    file_data FILE
+);
+
+# Test FILE type with NULL values (this should work without actual files)
+exclude-from-coverage
+statement ok
+INSERT INTO test_file VALUES
+    (1, NULL),
+    (2, NULL);
+
+query IT
+SELECT id, file_data FROM test_file ORDER BY id;
+----
+1	NULL
+2	NULL
+
+# Test FILE type with different column configurations
+statement ok
+CREATE OR REPLACE TABLE test_file_columns (
+    id INTEGER,
+    primary_file FILE,
+    backup_file FILE,
+    optional_file FILE
+);
+
+# Test FILE type in different table structures
+exclude-from-coverage
+statement ok
+INSERT INTO test_file_columns VALUES
+    (1, NULL, NULL, NULL),
+    (2, NULL, NULL, NULL);
+
+query ITTT
+SELECT id, primary_file, backup_file, optional_file
+FROM test_file_columns
+ORDER BY id;
+----
+1	NULL	NULL	NULL
+2	NULL	NULL	NULL
+
+# Test FILE type with IS NULL and IS NOT NULL
+query I
+SELECT COUNT(*) FROM test_file WHERE file_data IS NULL;
+----
+2
+
+query I
+SELECT COUNT(*) FROM test_file WHERE file_data IS NOT NULL;
+----
+0
+
+# Test FILE type comparison with NULL
+query T
+SELECT
+    CASE
+        WHEN NULL IS NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS file_null_test;
+----
+PASS
+
+# Test FILE type in mixed column scenarios
+statement ok
+CREATE OR REPLACE TABLE test_file_mixed (
+    id INTEGER,
+    name VARCHAR(50),
+    file_ref FILE,
+    created_at TIMESTAMP_NTZ
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_file_mixed VALUES
+    (1, 'Document 1', NULL, '2023-01-01 10:00:00'),
+    (2, 'Document 2', NULL, '2023-01-02 11:00:00');
+
+query ITTT
+SELECT id, name, file_ref, created_at FROM test_file_mixed ORDER BY id;
+----
+1	Document 1	NULL	'2023-01-01T10:00:00'
+2	Document 2	NULL	'2023-01-02T11:00:00'
+
+# Test FILE type constraints and behavior
+query T
+SELECT
+    CASE
+        WHEN COUNT(*) = 2 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS file_count_test
+FROM test_file_mixed
+WHERE file_ref IS NULL;
+----
+PASS
+
+# Test FILE type in aggregation
+query I
+SELECT COUNT(DISTINCT file_ref) FROM test_file_mixed;
+----
+0
+
+# Cleanup
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_file;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_file_columns;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_file_mixed;

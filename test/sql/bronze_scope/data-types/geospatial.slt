@@ -1,0 +1,354 @@
+# Test GEOGRAPHY and GEOMETRY geospatial data types
+
+# Test GEOGRAPHY type
+statement ok
+CREATE OR REPLACE TABLE test_geography (
+    id INTEGER,
+    location GEOGRAPHY
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_geography VALUES 
+    (1, 'POINT(-122.35 37.55)'),                    -- San Francisco
+    (2, 'POINT(-74.006 40.7128)'),                  -- New York City
+    (3, 'POINT(2.3522 48.8566)'),                   -- Paris
+    (4, 'LINESTRING(-122.35 37.55, -74.006 40.7128)'), -- Line from SF to NYC
+    (5, 'POLYGON((-122.4 37.8, -122.4 37.4, -122.0 37.4, -122.0 37.8, -122.4 37.8))'), -- Bay Area rectangle
+    (6, 'MULTIPOINT(-122.35 37.55, -74.006 40.7128, 2.3522 48.8566)'), -- Multiple cities
+    (7, NULL);
+
+query IT
+SELECT id, location FROM test_geography ORDER BY id;
+----
+1	'{"coordinates":[-122.35,37.55],"type":"Point"}'
+2	'{"coordinates":[-74.006,40.7128],"type":"Point"}'
+3	'{"coordinates":[2.3522,48.8566],"type":"Point"}'
+4	'{"coordinates":[[-122.35,37.55],[-74.006,40.7128]],"type":"LineString"}'
+5	'{"coordinates":[[[-122.4,37.8],[-122.4,37.4],[-122,37.4],[-122,37.8],[-122.4,37.8]]],"type":"Polygon"}'
+6	'{"coordinates":[[-122.35,37.55],[-74.006,40.7128],[2.3522,48.8566]],"type":"MultiPoint"}'
+7	NULL
+
+# Test GEOMETRY type
+statement ok
+CREATE OR REPLACE TABLE test_geometry (
+    id INTEGER,
+    shape GEOMETRY
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_geometry VALUES
+    (1, 'POINT(0.5 0.5)'),                           -- Point clearly inside the unit square
+    (2, 'POINT(1 1)'),
+    (3, 'LINESTRING(0 0, 1 1, 2 2)'),
+    (4, 'POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))'),      -- Unit square
+    (5, 'POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.5 0.5, 0.5 1.5, 1.5 1.5, 1.5 0.5, 0.5 0.5))'), -- Square with hole
+    (6, 'MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)), ((2 2, 2 3, 3 3, 3 2, 2 2)))'), -- Two squares
+    (7, NULL);
+
+query IT
+SELECT id, shape FROM test_geometry ORDER BY id;
+----
+1	'{"coordinates":[0.5,0.5],"type":"Point"}'
+2	'{"coordinates":[1.0,1.0],"type":"Point"}'
+3	'{"coordinates":[[0.0,0.0],[1.0,1.0],[2.0,2.0]],"type":"LineString"}'
+4	'{"coordinates":[[[0.0,0.0],[0.0,1.0],[1.0,1.0],[1.0,0.0],[0.0,0.0]]],"type":"Polygon"}'
+5	'{"coordinates":[[[0.0,0.0],[0.0,2.0],[2.0,2.0],[2.0,0.0],[0.0,0.0]],[[0.5,0.5],[0.5,1.5],[1.5,1.5],[1.5,0.5],[0.5,0.5]]],"type":"Polygon"}'
+6	'{"coordinates":[[[[0.0,0.0],[0.0,1.0],[1.0,1.0],[1.0,0.0],[0.0,0.0]]],[[[2.0,2.0],[2.0,3.0],[3.0,3.0],[3.0,2.0],[2.0,2.0]]]],"type":"MultiPolygon"}'
+7	NULL
+
+# Test geospatial functions - distance
+query T
+SELECT
+    CASE
+        WHEN ST_DISTANCE(
+            (SELECT shape FROM test_geometry WHERE id = 1),
+            (SELECT shape FROM test_geometry WHERE id = 2)
+        ) > 0 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS distance_test;
+----
+PASS
+
+# Test geospatial functions - area
+query T
+SELECT
+    CASE
+        WHEN ST_AREA(
+            (SELECT shape FROM test_geometry WHERE id = 4)
+        ) > 0 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS area_test;
+----
+PASS
+
+# Test geospatial functions - length
+query T
+SELECT
+    CASE
+        WHEN ST_LENGTH(
+            (SELECT shape FROM test_geometry WHERE id = 3)
+        ) > 0 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS length_test;
+----
+PASS
+
+# Test geospatial functions - contains
+query T
+SELECT
+    CASE
+        WHEN ST_CONTAINS(
+            (SELECT shape FROM test_geometry WHERE id = 4),
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) THEN 'PASS'
+        ELSE 'FAIL'
+    END AS contains_test;
+----
+PASS
+
+# Test geospatial functions - intersects
+query T
+SELECT
+    CASE
+        WHEN ST_INTERSECTS(
+            (SELECT shape FROM test_geometry WHERE id = 3),
+            (SELECT shape FROM test_geometry WHERE id = 4)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS intersects_test;
+----
+PASS
+
+# Test geospatial functions - within
+query T
+SELECT
+    CASE
+        WHEN ST_WITHIN(
+            (SELECT shape FROM test_geometry WHERE id = 1),
+            (SELECT shape FROM test_geometry WHERE id = 4)
+        ) THEN 'PASS'
+        ELSE 'FAIL'
+    END AS within_test;
+----
+PASS
+
+# Test geospatial functions - buffer
+query T
+SELECT
+    CASE
+        WHEN ST_BUFFER(
+            (SELECT shape FROM test_geometry WHERE id = 1),
+            1.0
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS buffer_test;
+----
+PASS
+
+# Test geospatial functions - centroid
+query T
+SELECT
+    CASE
+        WHEN ST_CENTROID(
+            (SELECT shape FROM test_geometry WHERE id = 4)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS centroid_test;
+----
+PASS
+
+# Test geospatial functions - envelope
+query T
+SELECT
+    CASE
+        WHEN ST_ENVELOPE(
+            (SELECT shape FROM test_geometry WHERE id = 3)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS envelope_test;
+----
+PASS
+
+# Test geospatial coordinate extraction
+query T
+SELECT
+    CASE
+        WHEN ST_X(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) = 0.5 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS x_coordinate_test;
+----
+PASS
+
+query T
+SELECT
+    CASE
+        WHEN ST_Y(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) = 0.5 THEN 'PASS'
+        ELSE 'FAIL'
+    END AS y_coordinate_test;
+----
+PASS
+
+# Test geospatial type checking (ST_GEOMETRYTYPE not supported in Snowflake)
+# Using alternative approach with ST_ASTEXT to verify geometry types
+query T
+SELECT
+    CASE
+        WHEN ST_ASTEXT(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) LIKE 'POINT%' THEN 'PASS'
+        ELSE 'FAIL'
+    END AS geometry_type_point_test;
+----
+PASS
+
+query T
+SELECT
+    CASE
+        WHEN ST_ASTEXT(
+            (SELECT shape FROM test_geometry WHERE id = 3)
+        ) LIKE 'LINESTRING%' THEN 'PASS'
+        ELSE 'FAIL'
+    END AS geometry_type_linestring_test;
+----
+PASS
+
+query T
+SELECT
+    CASE
+        WHEN ST_ASTEXT(
+            (SELECT shape FROM test_geometry WHERE id = 4)
+        ) LIKE 'POLYGON%' THEN 'PASS'
+        ELSE 'FAIL'
+    END AS geometry_type_polygon_test;
+----
+PASS
+
+# Test Well-Known Text (WKT) functions
+query T
+SELECT
+    CASE
+        WHEN ST_ASTEXT(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS as_text_test;
+----
+PASS
+
+query T
+SELECT
+    CASE
+        WHEN ST_GEOMFROMTEXT('POINT(1 2)') IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS geom_from_text_test;
+----
+PASS
+
+# Test Well-Known Binary (WKB) functions
+query T
+SELECT
+    CASE
+        WHEN ST_ASBINARY(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS as_binary_test;
+----
+PASS
+
+# Test GeoJSON functions (ST_ASGEOJSON returns OBJECT, not string)
+query T
+SELECT
+    CASE
+        WHEN ST_ASGEOJSON(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS as_geojson_test;
+----
+PASS
+
+# Test spatial reference system functions
+query T
+SELECT
+    CASE
+        WHEN ST_SRID(
+            (SELECT shape FROM test_geometry WHERE id = 1)
+        ) IS NOT NULL THEN 'PASS'
+        ELSE 'FAIL'
+    END AS srid_test;
+----
+PASS
+
+# Test geography vs geometry distance comparison
+statement ok
+CREATE OR REPLACE TABLE test_geo_comparison (
+    id INTEGER,
+    geo_point GEOGRAPHY,
+    geom_point GEOMETRY
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_geo_comparison VALUES 
+    (1, 'POINT(-122.35 37.55)', 'POINT(-122.35 37.55)'),
+    (2, 'POINT(-74.006 40.7128)', 'POINT(-74.006 40.7128)');
+
+# Test that geography uses spherical distance while geometry uses planar
+query T
+SELECT 
+    CASE 
+        WHEN ST_DISTANCE(
+            (SELECT geo_point FROM test_geo_comparison WHERE id = 1),
+            (SELECT geo_point FROM test_geo_comparison WHERE id = 2)
+        ) > ST_DISTANCE(
+            (SELECT geom_point FROM test_geo_comparison WHERE id = 1),
+            (SELECT geom_point FROM test_geo_comparison WHERE id = 2)
+        ) THEN 'PASS'
+        ELSE 'FAIL'
+    END AS geography_vs_geometry_distance_test;
+----
+PASS
+
+# Test complex geospatial operations
+statement ok
+CREATE OR REPLACE TABLE test_complex_geo (
+    id INTEGER,
+    region GEOGRAPHY,
+    poi GEOGRAPHY
+);
+
+exclude-from-coverage
+statement ok
+INSERT INTO test_complex_geo VALUES 
+    (1, 'POLYGON((-122.5 37.7, -122.5 37.9, -122.3 37.9, -122.3 37.7, -122.5 37.7))', 'POINT(-122.4 37.8)'),
+    (2, 'POLYGON((-74.1 40.6, -74.1 40.8, -73.9 40.8, -73.9 40.6, -74.1 40.6))', 'POINT(-74.0 40.7)'),
+    (3, 'POLYGON((2.2 48.8, 2.2 48.9, 2.4 48.9, 2.4 48.8, 2.2 48.8))', 'POINT(2.3 48.85)');
+
+query I
+SELECT COUNT(*) FROM test_complex_geo WHERE ST_CONTAINS(region, poi);
+----
+3
+
+# Cleanup
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_geography;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_geometry;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_geo_comparison;
+
+exclude-from-coverage
+statement ok
+DROP TABLE IF EXISTS test_complex_geo;
