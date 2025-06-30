@@ -945,6 +945,7 @@ impl UserQuery {
         else {
             return ex_error::OnlyMergeStatementsSnafu.fail();
         };
+        // Currently only tables are supported
         if !matches!(
             &target,
             TableFactor::Table {
@@ -982,17 +983,17 @@ impl UserQuery {
 
         let df_session_state = self.session.ctx.state();
 
-        let (target_table, target_alias) = Self::get_table_with_alias(target);
-        let (source_table, source_alias) = Self::get_table_with_alias(source.clone());
+        let (target_ident, target_alias) = Self::get_table_with_alias(target);
+        let (source_ident, source_alias) = Self::get_table_with_alias(source.clone());
 
-        let target_table = self.resolve_table_object_name(target_table.0)?;
-        let source_table = self.resolve_table_object_name(source_table.0)?;
+        let target_ident = self.resolve_table_object_name(target_ident.0)?;
+        let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
         let target_provider = {
             let target_cache = self
                 .session
                 .ctx
-                .table_provider(&target_table)
+                .table_provider(&target_ident)
                 .await
                 .context(ex_error::DataFusionSnafu)?;
 
@@ -1013,7 +1014,8 @@ impl UserQuery {
             .as_any()
             .downcast_ref::<DataFusionTable>()
             .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
-        let target = DataFusionTable {
+
+        let target_table = DataFusionTable {
             config: Some(
                 //TODO Return proper Error
                 #[allow(clippy::unwrap_used)]
@@ -1028,11 +1030,11 @@ impl UserQuery {
         };
 
         let target_table_source: Arc<dyn TableSource> =
-            Arc::new(DefaultTableSource::new(Arc::new(target.clone())));
+            Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
 
         let target_plan = DataFrame::new(
             df_session_state.clone(),
-            LogicalPlanBuilder::scan(&target_table, target_table_source.clone(), None)
+            LogicalPlanBuilder::scan(&target_ident, target_table_source.clone(), None)
                 .context(ex_error::DataFusionSnafu)?
                 .alias(&target_alias)
                 .context(ex_error::DataFusionSnafu)?
@@ -1048,7 +1050,7 @@ impl UserQuery {
         let source_provider = self
             .session
             .ctx
-            .table_provider(&source_table)
+            .table_provider(&source_ident)
             .await
             .context(ex_error::DataFusionSnafu)?;
 
@@ -1057,7 +1059,7 @@ impl UserQuery {
 
         let source_plan = DataFrame::new(
             df_session_state.clone(),
-            LogicalPlanBuilder::scan(&source_table, source_table_source.clone(), None)
+            LogicalPlanBuilder::scan(&source_ident, source_table_source.clone(), None)
                 .context(ex_error::DataFusionSnafu)?
                 .alias(&source_alias)
                 .context(ex_error::DataFusionSnafu)?
@@ -1071,8 +1073,8 @@ impl UserQuery {
         let source_schema = source_plan.schema().clone();
 
         let tables = HashMap::from_iter(vec![
-            (self.resolve_table_ref(&target_table), target_table_source),
-            (self.resolve_table_ref(&source_table), source_table_source),
+            (self.resolve_table_ref(&target_ident), target_table_source),
+            (self.resolve_table_ref(&source_ident), source_table_source),
         ]);
 
         let session_context_planner = SessionContextProvider {
@@ -1101,7 +1103,7 @@ impl UserQuery {
             .build()
             .context(ex_error::DataFusionSnafu)?;
 
-        let merge_into_plan = MergeIntoCOWSink::new(Arc::new(join_plan), target)
+        let merge_into_plan = MergeIntoCOWSink::new(Arc::new(join_plan), target_table)
             .context(ex_error::DataFusionSnafu)?;
 
         self.execute_logical_plan(LogicalPlan::Extension(Extension {
