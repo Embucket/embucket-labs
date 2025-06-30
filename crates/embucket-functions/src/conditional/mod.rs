@@ -25,6 +25,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         equal_null::get_udf(),
         iff::get_udf(),
         nullifzero::get_udf(),
+        zeroifnull::get_udf(),
     ];
 
     for func in functions {
