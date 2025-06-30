@@ -993,45 +993,20 @@ impl UserQuery {
         let target_ident = self.resolve_table_object_name(target_ident.0)?;
         let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
-        let target_provider = {
-            let target_cache = self
-                .session
-                .ctx
-                .table_provider(&target_ident)
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-
-            target_cache
-                .as_any()
-                .downcast_ref::<CachingTable>()
-                .ok_or_else(|| {
-                    ex_error::CatalogDownCastSnafu {
-                        catalog: "DataFusionTable".to_string(),
-                    }
-                    .build()
-                })?
-                .table
-                .clone()
-        };
-
-        let target_ref = target_provider
-            .as_any()
-            .downcast_ref::<DataFusionTable>()
-            .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
-
-        let target_table = DataFusionTable {
-            config: Some(
-                //TODO Return proper Error
-                #[allow(clippy::unwrap_used)]
-                DataFusionTableConfigBuilder::default()
-                    .enable_data_file_path_column(true)
-                    .enable_manifest_file_path_column(true)
-                    .build()
-                    .unwrap(),
-            ),
-            schema: Arc::new(build_target_schema(target_ref.schema.as_ref())),
-            ..target_ref.clone()
-        };
+        let target_table = self
+            .get_iceberg_table_provider(
+                &target_ident,
+                Some(
+                    //TODO Return proper Error
+                    #[allow(clippy::unwrap_used)]
+                    DataFusionTableConfigBuilder::default()
+                        .enable_data_file_path_column(true)
+                        .enable_manifest_file_path_column(true)
+                        .build()
+                        .unwrap(),
+                ),
+            )
+            .await?;
 
         let target_table_source: Arc<dyn TableSource> =
             Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
@@ -2090,6 +2065,46 @@ fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
     builder.push(Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true));
     builder.push(Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true));
     builder.finish()
+}
+
+impl UserQuery {
+    async fn get_iceberg_table_provider(
+        &self,
+        target_ident: &ResolvedTableReference,
+        config: Option<datafusion_iceberg::table::DataFusionTableConfig>,
+    ) -> Result<DataFusionTable> {
+        let target_provider = {
+            let target_cache = self
+                .session
+                .ctx
+                .table_provider(target_ident)
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+
+            target_cache
+                .as_any()
+                .downcast_ref::<CachingTable>()
+                .ok_or_else(|| {
+                    ex_error::CatalogDownCastSnafu {
+                        catalog: "DataFusionTable".to_string(),
+                    }
+                    .build()
+                })?
+                .table
+                .clone()
+        };
+
+        let target_ref = target_provider
+            .as_any()
+            .downcast_ref::<DataFusionTable>()
+            .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
+
+        Ok(DataFusionTable {
+            config,
+            schema: Arc::new(build_target_schema(target_ref.schema.as_ref())),
+            ..target_ref.clone()
+        })
+    }
 }
 
 /// Converts merge clauses into projection expressions for copy-on-write operations.
