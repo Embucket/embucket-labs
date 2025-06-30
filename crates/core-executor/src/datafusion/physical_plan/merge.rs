@@ -157,7 +157,11 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 let matching_files = {
                     #[allow(clippy::unwrap_used)]
                     let mut lock = matching_files.lock().unwrap();
-                    lock.take().unwrap()
+                    lock.take().ok_or_else(|| {
+                        DataFusionError::Internal(
+                            "Matching files have already been consumed".to_string(),
+                        )
+                    })?
                 };
 
                 // Commit transaction on Iceberg table
