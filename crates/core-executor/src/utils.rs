@@ -469,7 +469,12 @@ fn convert_time(
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
                             //If millis == 0, 4 zeroes after the `.` instead of 3
-                            format!("{}.{}{}", ts.timestamp(), leading_zeros(3, ts.timestamp_subsec_millis().to_string().len()), ts.timestamp_subsec_millis())
+                            format!(
+                                "{}.{}{}",
+                                ts.timestamp(),
+                                leading_zeros(3, ts.timestamp_subsec_millis().to_string().len()),
+                                ts.timestamp_subsec_millis()
+                            )
                         })
                     })
                     .collect(),
@@ -478,7 +483,12 @@ fn convert_time(
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap();
                             //If nanos == micros, 7 zeroes after the `.` instead of 6
-                            format!("{}.{}{}", ts.timestamp(), leading_zeros(6, ts.timestamp_subsec_micros().to_string().len()), ts.timestamp_subsec_micros())
+                            format!(
+                                "{}.{}{}",
+                                ts.timestamp(),
+                                leading_zeros(6, ts.timestamp_subsec_micros().to_string().len()),
+                                ts.timestamp_subsec_micros()
+                            )
                         })
                     })
                     .collect(),
@@ -487,7 +497,12 @@ fn convert_time(
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
                             //If nanos == 0, 10 zeroes after the `.` instead of 9
-                            format!("{}.{}{}", ts.timestamp(), leading_zeros(9, ts.timestamp_subsec_nanos().to_string().len()), ts.timestamp_subsec_nanos())
+                            format!(
+                                "{}.{}{}",
+                                ts.timestamp(),
+                                leading_zeros(9, ts.timestamp_subsec_nanos().to_string().len()),
+                                ts.timestamp_subsec_nanos()
+                            )
                         })
                     })
                     .collect(),
