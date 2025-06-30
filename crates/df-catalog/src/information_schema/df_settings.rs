@@ -6,7 +6,6 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::DataFusionError;
 use datafusion_common::config::{ConfigEntry, ConfigField, ConfigOptions, Visit};
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
@@ -61,9 +60,7 @@ impl PartitionStream for InformationSchemaDfSettings {
         InformationSchemaConfig::make_df_settings(ctx.session_config().options(), &mut builder);
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            futures::stream::iter([builder
-                .finish()
-                .map_err(|e| DataFusionError::ArrowError(e, None))]),
+            futures::stream::iter([builder.finish().map_err(From::from)]),
         ))
     }
 }

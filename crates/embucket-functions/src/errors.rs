@@ -643,6 +643,40 @@ pub enum DataFusionExecutionError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Expected SessionState in flatten"))]
+    ExpectedSessionStateInFlatten {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected input column to be Utf8"))]
+    ExpectedInputColumnToBeUtf8 {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("No table found for reference in expression"))]
+    NoTableFoundForReferenceInExpression {
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
+pub enum ArrowInvalidArgumentError {
+    #[snafu(display("{data_type} arrays only support Second and Millisecond units, got {unit:?}"))]
+    ArraysSupportSecondAndMillisecondUnits {
+        data_type: String,
+        unit: arrow_schema::TimeUnit,
+    },
+
+    #[snafu(display("Expected {data_type} array, got {actual_type:?}"))]
+    ExpectedArrayOfType {
+        data_type: String,
+        actual_type: arrow_schema::DataType,
+    },
+    #[snafu(display("Unsupported primitive type: {data_type:?}"))]
+    UnsupportedPrimitiveType { data_type: arrow_schema::DataType },
 }
 
 impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
@@ -654,5 +688,11 @@ impl From<DataFusionInternalError> for datafusion_common::DataFusionError {
 impl From<DataFusionExecutionError> for datafusion_common::DataFusionError {
     fn from(value: DataFusionExecutionError) -> Self {
         Self::Execution(value.to_string())
+    }
+}
+
+impl From<ArrowInvalidArgumentError> for arrow_schema::ArrowError {
+    fn from(value: ArrowInvalidArgumentError) -> Self {
+        Self::InvalidArgumentError(value.to_string())
     }
 }

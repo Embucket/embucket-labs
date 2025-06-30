@@ -2,9 +2,11 @@ use crate::catalogs::slatedb::databases::DatabasesViewBuilder;
 use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
+use crate::error as errors;
 use core_metastore::{Metastore, SchemaIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -23,7 +25,7 @@ impl MetastoreViewConfig {
             .iter_volumes()
             .collect()
             .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get volumes: {e}")))?;
+            .context(errors::DFExecutionCoreUtilsSnafu)?;
         for volume in volumes {
             builder.add_volume(
                 &volume.ident,
@@ -44,7 +46,7 @@ impl MetastoreViewConfig {
             .iter_databases()
             .collect()
             .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get databases: {e}")))?;
+            .context(errors::DFExecutionCoreUtilsSnafu)?;
         for database in databases {
             builder.add_database(
                 database.ident.as_str(),
@@ -64,7 +66,7 @@ impl MetastoreViewConfig {
             .iter_schemas(&String::new())
             .collect()
             .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get schemas: {e}")))?;
+            .context(errors::DFExecutionCoreUtilsSnafu)?;
         for schema in schemas {
             builder.add_schema(
                 &schema.ident.schema,
@@ -84,7 +86,7 @@ impl MetastoreViewConfig {
             .iter_tables(&SchemaIdent::default())
             .collect()
             .await
-            .map_err(|e| DataFusionError::Execution(format!("failed to get tables: {e}")))?;
+            .context(errors::DFExecutionCoreUtilsSnafu)?;
         for table in tables {
             let mut total_bytes = 0;
             let mut total_rows = 0;

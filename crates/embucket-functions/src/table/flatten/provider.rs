@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::json::{PathToken, get_json_value};
 use crate::table::flatten::func::FlattenTableFunc;
 use arrow_schema::{Field, Schema, SchemaRef};
@@ -10,7 +11,7 @@ use datafusion::execution::{SendableRecordBatchStream, SessionState, TaskContext
 use datafusion::logical_expr::{ColumnarValue, Expr};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, create_physical_expr};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
-use datafusion_common::{Column, DFSchema, DataFusionError, Result, ScalarValue, TableReference};
+use datafusion_common::{Column, DFSchema, Result, ScalarValue, TableReference};
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::{LogicalPlanBuilder, TableType};
 use datafusion_physical_plan::common::collect;
@@ -18,6 +19,7 @@ use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion_physical_plan::memory::MemoryStream;
 use datafusion_physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::cell::RefCell;
 use std::fmt;
@@ -92,9 +94,7 @@ impl TableProvider for FlattenTableProvider {
         let session_state = state
             .as_any()
             .downcast_ref::<SessionState>()
-            .ok_or_else(|| {
-                DataFusionError::Execution("Expected SessionState in flatten".to_string())
-            })?;
+            .ok_or_else(|| errors::ExpectedSessionStateInFlattenSnafu.build())?;
         let properties = PlanProperties::new(
             EquivalenceProperties::new(self.schema.inner().clone()),
             Partitioning::UnknownPartitioning(1),
@@ -186,9 +186,7 @@ impl ExecutionPlan for FlattenExec {
                 .column(0)
                 .as_any()
                 .downcast_ref::<StringArray>()
-                .ok_or_else(|| {
-                    DataFusionError::Internal("Expected input column to be Utf8".to_string())
-                })?;
+                .ok_or_else(|| errors::ExpectedInputColumnToBeUtf8Snafu.build())?;
 
             flatten_func.row_id.fetch_add(1, Ordering::Acquire);
 
@@ -204,8 +202,8 @@ impl ExecutionPlan for FlattenExec {
 
             for i in 0..array.len() {
                 let json_str = array.value(i);
-                let json_val: Value = serde_json::from_str(json_str)
-                    .map_err(|e| DataFusionError::Execution(format!("Invalid JSON input: {e}")))?;
+                let json_val: Value =
+                    serde_json::from_str(json_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                 let Some(input) = get_json_value(&json_val, &self.args.path) else {
                     continue;
@@ -322,11 +320,7 @@ async fn evaluate_expr_or_plan(
                 .schema_for_ref(table_ref)?
                 .table(table_ref_cloned.table())
                 .await?
-                .ok_or_else(|| {
-                    DataFusionError::Execution(
-                        "No table found for reference in expression".to_string(),
-                    )
-                })?;
+                .ok_or_else(|| errors::NoTableFoundForReferenceInExpressionSnafu.build())?;
 
             let plan = LogicalPlanBuilder::scan(
                 table_ref_cloned.table(),
