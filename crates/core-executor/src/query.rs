@@ -2060,20 +2060,30 @@ impl UserQuery {
             self.query_context.query_id,
         ))
     }
-}
 
-/// Builds a target schema with metadata columns added.
-///
-/// This function takes a base schema and adds data file path and manifest file path columns
-/// to create a schema suitable for merge operations that require metadata tracking.
-fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
-    let mut builder = SchemaBuilder::from(base_schema);
-    builder.push(Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true));
-    builder.push(Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true));
-    builder.finish()
-}
-
-impl UserQuery {
+    /// Retrieves and configures an Iceberg table provider with enhanced schema.
+    ///
+    /// This function resolves a table identifier to a `DataFusionTable` with an enhanced schema
+    /// that includes metadata columns for tracking data and manifest file paths. It performs
+    /// the necessary downcasting from the cached table provider to ensure the table is an
+    /// Iceberg table.
+    ///
+    /// # Arguments
+    ///
+    /// * `target_ident` - The normalized table identifier to resolve
+    /// * `config` - Optional DataFusion table configuration. If provided, overrides the table's
+    ///   default configuration. Commonly used to enable metadata columns.
+    ///
+    /// # Returns
+    ///
+    /// Returns a configured `DataFusionTable` with an enhanced schema that includes data file
+    /// path and manifest file path columns.
+    ///
+    /// # Errors
+    ///
+    /// * `DataFusionSnafu` - If the table provider cannot be retrieved from the session context
+    /// * `CatalogDownCastSnafu` - If the cached table cannot be downcast to `CachingTable`
+    /// * `MergeTargetMustBeIcebergTableSnafu` - If the table provider is not an Iceberg table
     async fn get_iceberg_table_provider(
         &self,
         target_ident: &NormalizedIdent,
@@ -2111,6 +2121,17 @@ impl UserQuery {
             ..target_ref.clone()
         })
     }
+}
+
+/// Builds a target schema with metadata columns added.
+///
+/// This function takes a base schema and adds data file path and manifest file path columns
+/// to create a schema suitable for merge operations that require metadata tracking.
+fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
+    let mut builder = SchemaBuilder::from(base_schema);
+    builder.push(Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.push(Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.finish()
 }
 
 /// Converts merge clauses into projection expressions for copy-on-write operations.
