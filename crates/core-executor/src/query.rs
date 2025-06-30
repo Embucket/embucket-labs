@@ -1015,6 +1015,8 @@ impl UserQuery {
             .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
         let target = DataFusionTable {
             config: Some(
+                //TODO Return proper Error
+                #[allow(clippy::unwrap_used)]
                 DataFusionTableConfigBuilder::default()
                     .enable_data_file_path_column(true)
                     .enable_manifest_file_path_column(true)
@@ -2062,11 +2064,14 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 if values.rows.len() != 1 {
                     return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
                 }
-                for (column, value) in insert
-                    .columns
-                    .iter()
-                    .zip(values.rows.into_iter().next().unwrap().into_iter())
-                {
+                for (column, value) in insert.columns.iter().zip(
+                    values
+                        .rows
+                        .into_iter()
+                        .next()
+                        .ok_or_else(|| ex_error::MergeInsertOnlyOneRowSnafu.build())?
+                        .into_iter(),
+                ) {
                     let column_name = column.value.clone();
                     let expr = sql_planner
                         .as_ref()
@@ -2075,7 +2080,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                     inserts.insert(column_name, (op.clone(), expr));
                 }
             }
-            _ => (),
+            MergeAction::Delete => (),
         }
     }
     let mut exprs: Vec<datafusion_expr::Expr> = target_schema
