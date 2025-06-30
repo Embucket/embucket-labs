@@ -356,8 +356,12 @@ impl Stream for SourceExistFilterStream {
                 matching_data_files.extend(already_matched_data_files);
 
                 let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
-                let mut not_matching_data_and_manifest_files: HashMap<String, String> =
-                    HashMap::new();
+                //TODO handle files that are only matched later
+                #[allow(clippy::collection_is_never_read)]
+                let mut not_matching_data_and_manifest_files: HashMap<
+                    String,
+                    String,
+                > = HashMap::new();
 
                 for (file, manifest) in all_data_and_manifest_files.drain() {
                     if matching_data_files.contains(&file) {

@@ -85,7 +85,11 @@ impl UserDefinedLogicalNode for MergeIntoSink {
         }
 
         Ok(Arc::new(Self {
-            input: Arc::new(inputs.into_iter().next().unwrap()),
+            input: Arc::new(inputs.into_iter().next().ok_or(
+                datafusion_common::DataFusionError::Internal(
+                    "MergeIntoSink requires exactly one input".to_string(),
+                ),
+            )?),
             target: self.target.clone(),
             schema: self.schema.clone(),
         }))
