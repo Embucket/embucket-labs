@@ -456,7 +456,7 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap();
-                            format!("{}{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                            format!("{}", ts.timestamp_millis())
                         })
                     })
                     .collect(),
@@ -464,7 +464,7 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
-                            format!("{}", ts.timestamp_micros())
+                            format!("{}", ts.timestamp_millis())
                         })
                     })
                     .collect(),
@@ -472,13 +472,6 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                            tracing::error!(
-                                "secs: {} micros_subsec: {} micros: {} millis: {}",
-                                ts.timestamp(),
-                                ts.timestamp_subsec_micros(),
-                                ts.timestamp_micros(),
-                                ts.timestamp_millis()
-                            );
                             format!("{}", ts.timestamp_millis())
                         })
                     })
@@ -487,7 +480,7 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
-                            format!("{}", ts.timestamp())
+                            format!("{}", ts.timestamp_millis())
                         })
                     })
                     .collect(),
