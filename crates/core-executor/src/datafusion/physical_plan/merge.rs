@@ -79,7 +79,8 @@ impl DisplayAs for MergeIntoCOWSinkExec {
     }
 }
 
-type ManifestAndFiles = HashMap<String, Vec<String>>;
+// Map from Manifest file to contained Datafiles
+type ManifestAndDataFiles = HashMap<String, Vec<String>>;
 
 impl ExecutionPlan for MergeIntoCOWSinkExec {
     fn name(&self) -> &'static str {
@@ -121,10 +122,10 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        let matching_files: Arc<Mutex<Option<ManifestAndFiles>>> = Arc::default();
+        let matching_files: Arc<Mutex<Option<ManifestAndDataFiles>>> = Arc::default();
 
         // Filter out rows whoose __data_file_path doesn't have a matching row
-        let filtered: Arc<dyn ExecutionPlan> = Arc::new(SourceExistFilterExec::new(
+        let filtered: Arc<dyn ExecutionPlan> = Arc::new(MergeCOWFilterExec::new(
             self.input.clone(),
             matching_files.clone(),
         ));
@@ -184,16 +185,16 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
 }
 
 #[derive(Debug)]
-struct SourceExistFilterExec {
+struct MergeCOWFilterExec {
     input: Arc<dyn ExecutionPlan>,
     properties: PlanProperties,
-    matching_files: Arc<Mutex<Option<ManifestAndFiles>>>,
+    matching_files: Arc<Mutex<Option<ManifestAndDataFiles>>>,
 }
 
-impl SourceExistFilterExec {
+impl MergeCOWFilterExec {
     fn new(
         input: Arc<dyn ExecutionPlan>,
-        matching_files: Arc<Mutex<Option<ManifestAndFiles>>>,
+        matching_files: Arc<Mutex<Option<ManifestAndDataFiles>>>,
     ) -> Self {
         let properties = input.properties().clone();
         Self {
@@ -204,7 +205,7 @@ impl SourceExistFilterExec {
     }
 }
 
-impl DisplayAs for SourceExistFilterExec {
+impl DisplayAs for MergeCOWFilterExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default
@@ -216,7 +217,7 @@ impl DisplayAs for SourceExistFilterExec {
     }
 }
 
-impl ExecutionPlan for SourceExistFilterExec {
+impl ExecutionPlan for MergeCOWFilterExec {
     fn name(&self) -> &'static str {
         "SourceExistFilterExec"
     }
@@ -267,7 +268,7 @@ pin_project! {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashMap<String,String>,
         // Reference to store the mathcing files after the stream has finished executing
-        matching_files_ref: Arc<Mutex<Option<HashMap<String,Vec<String>>>>>,
+        matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
         // The current datafiles being processed
         last_files: Option<String>,
         // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
@@ -287,7 +288,7 @@ pin_project! {
 impl SourceExistFilterStream {
     fn new(
         input: SendableRecordBatchStream,
-        matching_files_ref: Arc<Mutex<Option<ManifestAndFiles>>>,
+        matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
     ) -> Self {
         Self {
             matching_files: HashMap::new(),
