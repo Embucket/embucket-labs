@@ -155,6 +155,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
                 .await?;
 
                 let matching_files = {
+                    #[allow(clippy::unwrap_used)]
                     let mut lock = matching_files.lock().unwrap();
                     lock.take().unwrap()
                 };
