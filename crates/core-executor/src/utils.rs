@@ -456,8 +456,8 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap();
-                            //Snow sql expects value where `time = float(value[0 : scale + -6])`
-                            // `scale` for some reason by default is 3 (millis)
+                            //Snow sql expects value where `time = float(value[0 : -scale + 6])`
+                            // `scale` for some reason by default is 9 (nanos)
                             // if we don't add this, time truncation is incorrect
                             // for any time function with seconds
                             format!("{}.000", ts.timestamp())
@@ -468,11 +468,8 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
-                            if ts.timestamp_subsec_millis() == 0 {
-                                format!("{}.000", ts.timestamp())
-                            } else {
-                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
-                            }
+                            //If millis == 0, 4 zeroes after the `.` instead of 3
+                            format!("{}.{}{}", ts.timestamp(), leading_zeros(3, ts.timestamp_subsec_millis().to_string().len()), ts.timestamp_subsec_millis())
                         })
                     })
                     .collect(),
@@ -480,11 +477,8 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                            if ts.timestamp_subsec_micros() == 0 {
-                                format!("{}.000000", ts.timestamp())
-                            } else {
-                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
-                            }
+                            //If nanos == micros, 7 zeroes after the `.` instead of 6
+                            format!("{}.{}{}", ts.timestamp(), leading_zeros(6, ts.timestamp_subsec_micros().to_string().len()), ts.timestamp_subsec_micros())
                         })
                     })
                     .collect(),
@@ -492,11 +486,8 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
-                            if ts.timestamp_subsec_nanos() == 0 {
-                                format!("{}.000000000", ts.timestamp())
-                            } else {
-                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
-                            }
+                            //If nanos == 0, 10 zeroes after the `.` instead of 9
+                            format!("{}.{}{}", ts.timestamp(), leading_zeros(9, ts.timestamp_subsec_nanos().to_string().len()), ts.timestamp_subsec_nanos())
                         })
                     })
                     .collect(),
@@ -505,6 +496,11 @@ fn convert_time(
         }
         DataSerializationFormat::Arrow => column.clone(),
     }
+}
+
+fn leading_zeros(target: usize, len: usize) -> String {
+    let zeroes = target - len;
+    format!("{:0>zeroes$}", "")
 }
 
 #[derive(Debug, Clone)]
