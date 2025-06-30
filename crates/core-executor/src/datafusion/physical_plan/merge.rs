@@ -25,9 +25,11 @@ use iceberg_rust::{
     arrow::write::write_parquet_partitioned, catalog::tabular::Tabular,
     error::Error as IcebergError,
 };
+use lru::LruCache;
 use pin_project_lite::pin_project;
 use std::{
     collections::{HashMap, HashSet},
+    num::NonZeroUsize,
     sync::{Arc, Mutex},
     task::Poll,
 };
@@ -35,6 +37,7 @@ use std::{
 static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
 pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
 pub(crate) static MANIFEST_FILE_PATH_COLUMN: &str = "__manifest_file_path";
+static BUFFER_SIZE: usize = 2;
 
 #[derive(Debug)]
 pub struct MergeIntoCOWSinkExec {
@@ -271,14 +274,10 @@ pin_project! {
         matching_files: HashMap<String,String>,
         // Reference to store the mathcing files after the stream has finished executing
         matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
-        // The current datafiles being processed
-        last_files: Option<String>,
-        // If the current datafiles hasn't had any rows with "__source_exists" = true, this is used
-        // to buffer the recordbatches. If a "__source_exists" = true is encountered in a later
-        // recordbatch, the buffered recordbatches will be returned. If the `current_file` is set
-        // to another value, the buffer can be discarded as there won't be more any records from
-        // the same file.
-        current_buffers: HashMap<String, RecordBatch>,
+        // Files which already encountered a "__source_exists" = true value
+        not_matching_files: HashMap<String,String>,
+        // Buffer of RecordBatches whoose origin data files haven't had a matching row yet
+        not_matched_buffer: LruCache<String, Vec<RecordBatch>>,
         // RecordBatches ready to be consumed
         ready_batches: Vec<RecordBatch>,
 
@@ -294,8 +293,8 @@ impl MergeCOWFilterStream {
     ) -> Self {
         Self {
             matching_files: HashMap::new(),
-            last_files: None,
-            current_buffers: HashMap::new(),
+            not_matching_files: HashMap::new(),
+            not_matched_buffer: LruCache::new(NonZeroUsize::new(BUFFER_SIZE).unwrap()),
             ready_batches: Vec::new(),
             matching_files_ref,
             input,
@@ -344,7 +343,7 @@ impl Stream for MergeCOWFilterStream {
                     .map(ToOwned::to_owned)
                     .collect();
 
-                let already_matched_data_files: HashSet<String> = project
+                let previously_matched_data_files: HashSet<String> = project
                     .matching_files
                     .keys()
                     .map(ToOwned::to_owned)
@@ -353,22 +352,51 @@ impl Stream for MergeCOWFilterStream {
                     .map(ToOwned::to_owned)
                     .collect();
 
-                matching_data_files.extend(already_matched_data_files);
+                matching_data_files.extend(previously_matched_data_files);
+
+                let newly_matched_data_files: HashSet<String> = project
+                    .not_matching_files
+                    .keys()
+                    .map(ToOwned::to_owned)
+                    .collect::<HashSet<String>>()
+                    .intersection(&matching_data_files)
+                    .map(ToOwned::to_owned)
+                    .collect();
 
                 let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
-                //TODO handle files that are only matched later
-                #[allow(clippy::collection_is_never_read)]
-                let mut not_matching_data_and_manifest_files: HashMap<
-                    String,
-                    String,
-                > = HashMap::new();
 
                 for (file, manifest) in all_data_and_manifest_files.drain() {
                     if matching_data_files.contains(&file) {
                         matching_data_and_manifest_files.insert(file, manifest);
                     } else {
-                        not_matching_data_and_manifest_files.insert(file, manifest);
+                        if let Some(batches) = project.not_matched_buffer.get_mut(&file) {
+                            batches.push(batch.clone());
+                        } else {
+                            project.not_matched_buffer.put(file, vec![batch.clone()]);
+                        }
                     }
+                }
+
+                for file in newly_matched_data_files {
+                    let manifest = project.not_matching_files.remove(&file).unwrap();
+
+                    let batches = project.not_matched_buffer.pop(&file).unwrap();
+
+                    for batch in batches {
+                        let schema = batch.schema();
+
+                        let data_file_path_index = schema.index_of(DATA_FILE_PATH_COLUMN)?;
+
+                        let data_file_path = batch.column(data_file_path_index);
+
+                        let predicate = eq(&data_file_path, &StringArray::new_scalar(&file))?;
+
+                        let filtered_batch = filter_record_batch(&batch, &predicate)?;
+
+                        project.ready_batches.push(filtered_batch);
+                    }
+
+                    project.matching_files.insert(file, manifest);
                 }
 
                 if matching_data_and_manifest_files.is_empty() {
