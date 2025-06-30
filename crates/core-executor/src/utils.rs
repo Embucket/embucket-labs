@@ -278,11 +278,7 @@ macro_rules! downcast_and_iter {
     };
 }
 
-#[allow(
-    clippy::unwrap_used,
-    clippy::as_conversions,
-    clippy::cast_possible_truncation
-)]
+#[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
 fn convert_timestamp_to_struct(
     column: &ArrayRef,
     unit: TimeUnit,
@@ -309,7 +305,7 @@ fn convert_timestamp_to_struct(
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
                     .map(|x| {
                         x.map(|ts| {
-                            let ts = DateTime::from_timestamp(ts, 0).unwrap();
+                            let ts = DateTime::from_timestamp(ts, 0).unwrap_or_default();
                             format!("{}", ts.timestamp())
                         })
                     })
@@ -317,7 +313,7 @@ fn convert_timestamp_to_struct(
                 TimeUnit::Millisecond => downcast_and_iter!(column, TimestampMillisecondArray)
                     .map(|x| {
                         x.map(|ts| {
-                            let ts = DateTime::from_timestamp_millis(ts).unwrap();
+                            let ts = DateTime::from_timestamp_millis(ts).unwrap_or_default();
                             format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
                         })
                     })
@@ -325,7 +321,7 @@ fn convert_timestamp_to_struct(
                 TimeUnit::Microsecond => downcast_and_iter!(column, TimestampMicrosecondArray)
                     .map(|x| {
                         x.map(|ts| {
-                            let ts = DateTime::from_timestamp_micros(ts).unwrap();
+                            let ts = DateTime::from_timestamp_micros(ts).unwrap_or_default();
                             format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
                         })
                     })
@@ -443,7 +439,7 @@ fn convert_uint_to_int_datatypes(
         }
     }
 }
-#[allow(clippy::unwrap_used, clippy::as_conversions)]
+#[allow(clippy::as_conversions)]
 fn convert_time(
     column: &ArrayRef,
     unit: TimeUnit,
@@ -455,7 +451,7 @@ fn convert_time(
                 TimeUnit::Second => downcast_and_iter!(column, Time32SecondArray)
                     .map(|time| {
                         time.map(|ts| {
-                            let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap();
+                            let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap_or_default();
                             //Snow sql expects value where `time = float(value[0 : -scale + 6])`
                             // `scale` for some reason by default is 9 (nanos)
                             // if we don't add this, time truncation is incorrect
@@ -467,7 +463,8 @@ fn convert_time(
                 TimeUnit::Millisecond => downcast_and_iter!(column, Time32MillisecondArray)
                     .map(|time| {
                         time.map(|ts| {
-                            let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
+                            let ts =
+                                DateTime::from_timestamp_millis(i64::from(ts)).unwrap_or_default();
                             //If millis == 0, 4 zeroes after the `.` instead of 3
                             format!(
                                 "{}.{}{}",
@@ -481,7 +478,7 @@ fn convert_time(
                 TimeUnit::Microsecond => downcast_and_iter!(column, Time64MicrosecondArray)
                     .map(|time| {
                         time.map(|ts| {
-                            let ts = DateTime::from_timestamp_micros(ts).unwrap();
+                            let ts = DateTime::from_timestamp_micros(ts).unwrap_or_default();
                             //If nanos == micros, 7 zeroes after the `.` instead of 6
                             format!(
                                 "{}.{}{}",
@@ -636,6 +633,7 @@ mod tests {
     use datafusion::arrow::buffer::ScalarBuffer;
     use datafusion::arrow::datatypes::{DataType, Field};
     use datafusion::arrow::record_batch::RecordBatch;
+    use embucket_functions::datetime::timestamp_from_parts::make_time;
     use std::sync::Arc;
 
     #[test]
@@ -698,6 +696,72 @@ mod tests {
             };
             let result =
                 convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
+            let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
+            assert_eq!(string_array.len(), 2);
+            assert_eq!(string_array.value(0), *expected);
+            assert!(string_array.is_null(1));
+        }
+    }
+
+    #[test]
+    fn test_convert_time() {
+        let cases = [
+            (
+                TimeUnit::Second,
+                make_time(12, 54, 33, None) / 1_000_000_000,
+                "46473.000",
+            ),
+            (
+                TimeUnit::Millisecond,
+                make_time(12, 54, 33, Some(333_000_000)) / 1_000_000,
+                "46473.333",
+            ),
+            (
+                TimeUnit::Millisecond,
+                make_time(12, 54, 33, None) / 1_000_000,
+                "46473.000",
+            ),
+            (
+                TimeUnit::Microsecond,
+                make_time(12, 54, 33, Some(333_000)) / 1_000,
+                "46473.000333",
+            ),
+            (
+                TimeUnit::Microsecond,
+                make_time(12, 54, 33, None) / 1_000,
+                "46473.000000",
+            ),
+            (
+                TimeUnit::Nanosecond,
+                make_time(12, 54, 33, Some(333)),
+                "46473.000000333",
+            ),
+            (
+                TimeUnit::Nanosecond,
+                make_time(12, 54, 33, None),
+                "46473.000000000",
+            ),
+        ];
+        for (unit, timestamp, expected) in &cases {
+            let time_array = match unit {
+                TimeUnit::Second => {
+                    let values = vec![i32::try_from(*timestamp).ok(), None];
+                    Arc::new(Time32SecondArray::from(values)) as ArrayRef
+                }
+                TimeUnit::Millisecond => {
+                    let values = vec![i32::try_from(*timestamp).ok(), None];
+                    Arc::new(Time32MillisecondArray::from(values)) as ArrayRef
+                }
+                TimeUnit::Microsecond => {
+                    let values = vec![Some(*timestamp), None];
+                    Arc::new(Time64MicrosecondArray::from(values)) as ArrayRef
+                }
+                TimeUnit::Nanosecond => {
+                    let values = vec![Some(*timestamp), None];
+                    Arc::new(Time64NanosecondArray::from(values)) as ArrayRef
+                }
+            };
+            let result = convert_time(&time_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected);
