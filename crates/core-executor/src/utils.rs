@@ -548,7 +548,7 @@ impl From<NormalizedIdent> for ObjectName {
 
 impl From<&NormalizedIdent> for TableReference {
     fn from(ident: &NormalizedIdent) -> Self {
-        TableReference::parse_str(&String::from(ident))
+        Self::parse_str(&String::from(ident))
     }
 }
 
