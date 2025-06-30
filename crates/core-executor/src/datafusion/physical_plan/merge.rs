@@ -37,14 +37,14 @@ pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
 pub(crate) static MANIFEST_FILE_PATH_COLUMN: &str = "__manifest_file_path";
 
 #[derive(Debug)]
-pub struct MergeIntoSinkExec {
+pub struct MergeIntoCOWSinkExec {
     schema: DFSchemaRef,
     input: Arc<dyn ExecutionPlan>,
     target: DataFusionTable,
     properties: PlanProperties,
 }
 
-impl MergeIntoSinkExec {
+impl MergeIntoCOWSinkExec {
     pub fn new(
         schema: DFSchemaRef,
         input: Arc<dyn ExecutionPlan>,
@@ -67,7 +67,7 @@ impl MergeIntoSinkExec {
     }
 }
 
-impl DisplayAs for MergeIntoSinkExec {
+impl DisplayAs for MergeIntoCOWSinkExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default
@@ -81,7 +81,7 @@ impl DisplayAs for MergeIntoSinkExec {
 
 type ManifestAndFiles = HashMap<String, Vec<String>>;
 
-impl ExecutionPlan for MergeIntoSinkExec {
+impl ExecutionPlan for MergeIntoCOWSinkExec {
     fn name(&self) -> &'static str {
         "MergeIntoSinkExec"
     }
