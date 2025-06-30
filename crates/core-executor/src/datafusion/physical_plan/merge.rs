@@ -79,6 +79,8 @@ impl DisplayAs for MergeIntoSinkExec {
     }
 }
 
+type ManifestAndFiles = HashMap<String, Vec<String>>;
+
 impl ExecutionPlan for MergeIntoSinkExec {
     fn name(&self) -> &'static str {
         "MergeIntoSinkExec"
@@ -119,7 +121,7 @@ impl ExecutionPlan for MergeIntoSinkExec {
     ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
         let schema = Arc::new(self.schema.as_arrow().clone());
 
-        let matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>> = Arc::default();
+        let matching_files: Arc<Mutex<Option<ManifestAndFiles>>> = Arc::default();
 
         // Filter out rows whoose __data_file_path doesn't have a matching row
         let filtered: Arc<dyn ExecutionPlan> = Arc::new(SourceExistFilterExec::new(
@@ -188,13 +190,13 @@ impl ExecutionPlan for MergeIntoSinkExec {
 struct SourceExistFilterExec {
     input: Arc<dyn ExecutionPlan>,
     properties: PlanProperties,
-    matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
+    matching_files: Arc<Mutex<Option<ManifestAndFiles>>>,
 }
 
 impl SourceExistFilterExec {
     fn new(
         input: Arc<dyn ExecutionPlan>,
-        matching_files: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
+        matching_files: Arc<Mutex<Option<ManifestAndFiles>>>,
     ) -> Self {
         let properties = input.properties().clone();
         Self {
@@ -288,7 +290,7 @@ pin_project! {
 impl SourceExistFilterStream {
     fn new(
         input: SendableRecordBatchStream,
-        matching_files_ref: Arc<Mutex<Option<HashMap<String, Vec<String>>>>>,
+        matching_files_ref: Arc<Mutex<Option<ManifestAndFiles>>>,
     ) -> Self {
         Self {
             matching_files: HashMap::new(),
@@ -337,14 +339,19 @@ impl Stream for SourceExistFilterStream {
 
                 let mut matching_data_files = unique_values(&filtered_data_file_path)?;
 
-                let all_data_files: HashSet<String> =
-                    HashSet::from_iter(all_data_and_manifest_files.keys().map(ToOwned::to_owned));
+                let all_data_files: HashSet<String> = all_data_and_manifest_files
+                    .keys()
+                    .map(ToOwned::to_owned)
+                    .collect();
 
-                let already_matched_data_files: HashSet<String> =
-                    HashSet::from_iter(project.matching_files.keys().map(ToOwned::to_owned))
-                        .intersection(&all_data_files)
-                        .map(ToOwned::to_owned)
-                        .collect();
+                let already_matched_data_files: HashSet<String> = project
+                    .matching_files
+                    .keys()
+                    .map(ToOwned::to_owned)
+                    .collect::<HashSet<String>>()
+                    .intersection(&all_data_files)
+                    .map(ToOwned::to_owned)
+                    .collect();
 
                 matching_data_files.extend(already_matched_data_files);
 
@@ -374,7 +381,11 @@ impl Stream for SourceExistFilterStream {
                                 Ok(Some(new))
                             }
                         })?
-                        .expect("Matching files cannot be empty");
+                        .ok_or_else(|| {
+                            DataFusionError::Internal(
+                                "When there are matching data files, there must be filter predicates".to_string(),
+                            )
+                        })?;
 
                     project
                         .matching_files
@@ -391,8 +402,9 @@ impl Stream for SourceExistFilterStream {
                 for (file, manifest) in matching_files.drain() {
                     new.entry(manifest)
                         .and_modify(|v| v.push(file.clone()))
-                        .or_insert(vec![file]);
+                        .or_insert_with(|| vec![file]);
                 }
+                #[allow(clippy::expect_used)]
                 let mut lock = project
                     .matching_files_ref
                     .lock()
