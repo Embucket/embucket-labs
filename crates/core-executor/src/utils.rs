@@ -456,7 +456,11 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp(i64::from(ts), 0).unwrap();
-                            format!("{}", ts.timestamp_millis())
+                            //Snow sql expects value where `time = float(value[0 : scale + -6])`
+                            // `scale` for some reason by default is 3 (millis)
+                            // if we don't add this, time truncation is incorrect
+                            // for any time function with seconds
+                            format!("{}.000", ts.timestamp())
                         })
                     })
                     .collect(),
@@ -464,7 +468,11 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_millis(i64::from(ts)).unwrap();
-                            format!("{}", ts.timestamp_millis())
+                            if ts.timestamp_subsec_millis() == 0 {
+                                format!("{}.000", ts.timestamp())
+                            } else {
+                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
+                            }
                         })
                     })
                     .collect(),
@@ -472,7 +480,11 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap();
-                            format!("{}", ts.timestamp_millis())
+                            if ts.timestamp_subsec_micros() == 0 {
+                                format!("{}.000000", ts.timestamp())
+                            } else {
+                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+                            }
                         })
                     })
                     .collect(),
@@ -480,7 +492,11 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
-                            format!("{}", ts.timestamp_millis())
+                            if ts.timestamp_subsec_nanos() == 0 {
+                                format!("{}.000000000", ts.timestamp())
+                            } else {
+                                format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                            }
                         })
                     })
                     .collect(),
