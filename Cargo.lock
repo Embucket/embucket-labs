@@ -1942,6 +1942,7 @@ dependencies = [
  "iceberg-s3tables-catalog",
  "indexmap 2.10.0",
  "insta",
+ "lru",
  "object_store",
  "paste",
  "pin-project-lite",
@@ -4923,6 +4924,15 @@ dependencies = [
  "scoped-tls",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lru"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0281c2e25e62316a5c9d98f2d2e9e95a37841afdaf4383c177dbb5c1dfab0568"
+dependencies = [
+ "hashbrown 0.15.4",
 ]
 
 [[package]]
