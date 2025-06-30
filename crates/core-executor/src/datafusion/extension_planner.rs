@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 
-use super::{logical_plan::merge::MergeIntoSink, physical_plan::merge::MergeIntoSinkExec};
+use super::{logical_plan::merge::MergeIntoCOWSink, physical_plan::merge::MergeIntoCOWSinkExec};
 
 #[derive(Debug, Default)]
 pub struct CustomExtensionPlanner {}
@@ -20,11 +20,11 @@ impl ExtensionPlanner for CustomExtensionPlanner {
     ) -> datafusion_common::Result<
         Option<std::sync::Arc<dyn datafusion_physical_plan::ExecutionPlan>>,
     > {
-        if let Some(merge) = node.as_any().downcast_ref::<MergeIntoSink>() {
+        if let Some(merge) = node.as_any().downcast_ref::<MergeIntoCOWSink>() {
             let input = planner
                 .create_physical_plan(&merge.input, session_state)
                 .await?;
-            Ok(Some(Arc::new(MergeIntoSinkExec::new(
+            Ok(Some(Arc::new(MergeIntoCOWSinkExec::new(
                 merge.schema.clone(),
                 input,
                 merge.target.clone(),

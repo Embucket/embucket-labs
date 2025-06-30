@@ -8,7 +8,7 @@ use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
-use crate::datafusion::logical_plan::merge::MergeIntoSink;
+use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
 use crate::datafusion::physical_plan::merge::{DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
@@ -1101,8 +1101,8 @@ impl UserQuery {
             .build()
             .context(ex_error::DataFusionSnafu)?;
 
-        let merge_into_plan =
-            MergeIntoSink::new(Arc::new(join_plan), target).context(ex_error::DataFusionSnafu)?;
+        let merge_into_plan = MergeIntoCOWSink::new(Arc::new(join_plan), target)
+            .context(ex_error::DataFusionSnafu)?;
 
         self.execute_logical_plan(LogicalPlan::Extension(Extension {
             node: Arc::new(merge_into_plan),

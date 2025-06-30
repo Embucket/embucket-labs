@@ -8,20 +8,20 @@ use datafusion_expr::{Expr, InvariantLevel, LogicalPlan, UserDefinedLogicalNode}
 use datafusion_iceberg::DataFusionTable;
 
 #[derive(Debug, Clone)]
-// The MergeIntoSink performs the final writing step of the "MERGE INTO" statement. It assumes
+// The MergeIntoCOWSink performs the final writing step of the "MERGE INTO" statement. It assumes
 // that the typical Join of the target and source tables is already performed and that the Recordbatches
 // have a particular form. As such the Recordbatches must contain a "__target_exists" and
 // "__source_exists" column that indicate whether the given row exists in the target and source
 // tables respectivaly. Additionally, it requires a "__data_file_path" column to keep track of which files to overwrite.
 // It then writes the resulting data to parquet files and updates the target
 // table accordingly.
-pub struct MergeIntoSink {
+pub struct MergeIntoCOWSink {
     pub input: Arc<LogicalPlan>,
     pub target: DataFusionTable,
     pub schema: DFSchemaRef,
 }
 
-impl MergeIntoSink {
+impl MergeIntoCOWSink {
     pub fn new(
         input: Arc<LogicalPlan>,
         target: DataFusionTable,
@@ -40,7 +40,7 @@ impl MergeIntoSink {
     }
 }
 
-impl UserDefinedLogicalNode for MergeIntoSink {
+impl UserDefinedLogicalNode for MergeIntoCOWSink {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
