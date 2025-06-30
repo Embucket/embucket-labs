@@ -254,7 +254,7 @@ impl ExecutionPlan for MergeCOWFilterExec {
         partition: usize,
         context: Arc<datafusion::execution::TaskContext>,
     ) -> datafusion_common::Result<SendableRecordBatchStream> {
-        Ok(Box::pin(SourceExistFilterStream::new(
+        Ok(Box::pin(MergeCOWFilterStream::new(
             self.input.execute(partition, context)?,
             self.matching_files.clone(),
         )))
@@ -262,9 +262,11 @@ impl ExecutionPlan for MergeCOWFilterExec {
 }
 
 // Filters a stream of Recordbatches by whether the value in the "__data_file_column" already had
-// a row where the "__source_exists" column equals "true".
+// a row where the "__source_exists" column equals "true". Meaning that the file has to be
+// rewritten for the CopyOnWrite operation. Rows from files that don't need to be rewritten are
+// filtered out.
 pin_project! {
-    pub struct SourceExistFilterStream {
+    pub struct MergeCOWFilterStream {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashMap<String,String>,
         // Reference to store the mathcing files after the stream has finished executing
@@ -285,7 +287,7 @@ pin_project! {
     }
 }
 
-impl SourceExistFilterStream {
+impl MergeCOWFilterStream {
     fn new(
         input: SendableRecordBatchStream,
         matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
@@ -301,7 +303,7 @@ impl SourceExistFilterStream {
     }
 }
 
-impl Stream for SourceExistFilterStream {
+impl Stream for MergeCOWFilterStream {
     type Item = Result<RecordBatch, DataFusionError>;
 
     fn poll_next(
@@ -419,7 +421,7 @@ impl Stream for SourceExistFilterStream {
     }
 }
 
-impl RecordBatchStream for SourceExistFilterStream {
+impl RecordBatchStream for MergeCOWFilterStream {
     fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
         self.input.schema()
     }
@@ -630,7 +632,7 @@ mod tests {
 
         let matching_files = Arc::default();
 
-        let mut filter_stream = SourceExistFilterStream::new(stream, matching_files);
+        let mut filter_stream = MergeCOWFilterStream::new(stream, matching_files);
 
         let mut total_rows = 0;
         while let Some(result) = StreamExt::next(&mut filter_stream).await {
