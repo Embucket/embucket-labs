@@ -993,6 +993,8 @@ impl UserQuery {
         let target_ident = self.resolve_table_object_name(target_ident.0)?;
         let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
+        // Create a LogicalPlan for the target table
+
         let target_table = self
             .get_iceberg_table_provider(
                 &target_ident,
@@ -1026,6 +1028,8 @@ impl UserQuery {
 
         let target_schema = target_plan.schema().clone();
 
+        // Create a LogicalPlan for the source table
+
         let source_provider = self
             .session
             .ctx
@@ -1050,6 +1054,8 @@ impl UserQuery {
         .into_unoptimized_plan();
 
         let source_schema = source_plan.schema().clone();
+
+        // Create the LogicalPlan for the join
 
         let tables = HashMap::from_iter(vec![
             (self.resolve_table_ref(&target_ident), target_table_source),
@@ -2070,7 +2076,7 @@ fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
 impl UserQuery {
     async fn get_iceberg_table_provider(
         &self,
-        target_ident: &ResolvedTableReference,
+        target_ident: &NormalizedIdent,
         config: Option<datafusion_iceberg::table::DataFusionTableConfig>,
     ) -> Result<DataFusionTable> {
         let target_provider = {

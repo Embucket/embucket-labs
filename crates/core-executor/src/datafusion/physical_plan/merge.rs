@@ -174,9 +174,6 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                     .await
                     .map_err(DataFusionIcebergError::from)?;
 
-                //TODO
-                // remove files to be overwritten from iceberg metadata
-
                 Ok(RecordBatch::new_empty(schema))
             }
         })
