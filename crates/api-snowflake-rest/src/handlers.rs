@@ -23,7 +23,6 @@ use snafu::ResultExt;
 use std::io::Read;
 use std::net::SocketAddr;
 use tracing::debug;
-use uuid::Uuid;
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory
@@ -35,6 +34,7 @@ const ARROW_IPC_ALIGNMENT: usize = 8;
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
@@ -56,10 +56,8 @@ pub async fn login(
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
 
-    let token = Uuid::new_v4().to_string();
-
     Ok(Json(LoginResponse {
-        data: Option::from(LoginData { token }),
+        data: Option::from(LoginData { token: session_id }),
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))

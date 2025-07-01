@@ -7,6 +7,7 @@ use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum::routing::post;
+use core_executor::models::QueryContext;
 use regex::Regex;
 
 pub fn create_router() -> Router<AppState> {
@@ -20,9 +21,7 @@ pub async fn require_auth(
     next: Next,
 ) -> Result<impl IntoResponse> {
     // no demo user -> no auth required
-    if (state.config.auth.demo_user.is_empty() || state.config.auth.demo_password.is_empty())
-        && state.config.auth.token.is_none()
-    {
+    if state.config.auth.demo_user.is_empty() || state.config.auth.demo_password.is_empty() {
         return Ok(next.run(req).await);
     }
 
@@ -30,8 +29,13 @@ pub async fn require_auth(
         return api_snowflake_rest_error::MissingAuthTokenSnafu.fail();
     };
 
-    //Safe to `.unwarp()`, since we checked before that `.is_none()` is false
-    if token != state.config.auth.token.unwrap() {
+    //TODO: check if session exists
+    if state
+        .execution_svc
+        .query(token.as_str(), "SELECT 1", QueryContext::default())
+        .await
+        .is_err()
+    {
         return api_snowflake_rest_error::InvalidAuthTokenSnafu.fail();
     }
 

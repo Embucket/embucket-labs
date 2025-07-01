@@ -1,6 +1,8 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
+use http::HeaderMap;
 use http::request::Parts;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use snafu::prelude::*;
@@ -18,7 +20,7 @@ pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 
 #[derive(Clone)]
 pub struct RequestSessionStore {
-    store: Arc<Mutex<HashMap<Id, Record>>>,
+    pub store: Arc<Mutex<HashMap<Id, Record>>>,
     execution_svc: Arc<dyn ExecutionService>,
 }
 
@@ -123,6 +125,7 @@ impl ExpiredDeletion for RequestSessionStore {
         drop(store_guard);
 
         for id in expired {
+            tracing::error!("Deleting expired: {id}");
             self.delete(&id).await?;
         }
         Ok(())
@@ -155,6 +158,14 @@ where
         let session_id = if let Ok(Some(id)) = session.get::<String>("DF_SESSION_ID").await {
             tracing::debug!("Found DF session_id: {}", id);
             id
+        } else if let Some(token) = extract_token(&req.headers) {
+            tracing::debug!("Found DF session_id in headers: {}", token);
+            session
+                .insert("DF_SESSION_ID", token.clone())
+                .await
+                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
+            token
         } else {
             let id = uuid::Uuid::new_v4().to_string();
             tracing::debug!("Creating new DF session_id: {}", id);
@@ -167,6 +178,18 @@ where
         };
         Ok(Self(session_id))
     }
+}
+
+#[must_use]
+pub fn extract_token(headers: &HeaderMap) -> Option<String> {
+    headers.get("authorization").and_then(|value| {
+        value.to_str().ok().and_then(|auth| {
+            #[allow(clippy::unwrap_used)]
+            let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
+            re.captures(auth)
+                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+        })
+    })
 }
 
 #[derive(Debug, Snafu)]
