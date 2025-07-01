@@ -8,7 +8,6 @@ use api_sessions::DFSessionId;
 use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{ConnectInfo, Query, State};
-use axum::http::HeaderMap;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
@@ -20,7 +19,6 @@ use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use flate2::read::GzDecoder;
-use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -110,7 +108,6 @@ pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
-    headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<JsonResponse>> {
     // Decompress the gzip-encoded body
@@ -122,10 +119,6 @@ pub async fn query(
     // Deserialize the JSON body
     let body_json: QueryRequestBody =
         serde_json::from_str(&s).context(api_snowflake_rest_error::QueryBodyParseSnafu)?;
-
-    let Some(_token) = extract_token(&headers) else {
-        return api_snowflake_rest_error::MissingAuthTokenSnafu.fail();
-    };
 
     let serialization_format = state.config.dbt_serialization_format;
     let query_result = state
@@ -180,16 +173,4 @@ pub async fn query(
 
 pub async fn abort() -> Result<Json<serde_json::value::Value>> {
     api_snowflake_rest_error::NotImplementedSnafu.fail()
-}
-
-#[must_use]
-pub fn extract_token(headers: &HeaderMap) -> Option<String> {
-    headers.get("authorization").and_then(|value| {
-        value.to_str().ok().and_then(|auth| {
-            #[allow(clippy::unwrap_used)]
-            let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
-            re.captures(auth)
-                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
-        })
-    })
 }

@@ -7,8 +7,8 @@ use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
-use api_snowflake_rest::handlers::query;
-use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
+use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
+use api_snowflake_rest::auth::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::schemas::Config;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
@@ -171,15 +171,14 @@ async fn main() {
         execution_svc,
         config: snowflake_rest_cfg,
     };
-    let snowflake_query_router = Router::new()
-        .route("/queries/v1/query-request", post(query))
+    let snowflake_router = create_snowflake_router()
         .with_state(snowflake_state.clone())
         .layer(middleware::from_fn_with_state(
             snowflake_state.clone(),
             snowflake_require_auth,
         ));
-    let snowflake_router = create_snowflake_router().with_state(snowflake_state.clone());
-    let snowflake_router = snowflake_router.merge(snowflake_query_router);
+    let snowflake_auth_router = create_snowflake_auth_router().with_state(snowflake_state.clone());
+    let snowflake_router = snowflake_router.merge(snowflake_auth_router);
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
         metastore,
         config: Arc::new(iceberg_config),
