@@ -3,15 +3,23 @@ use aes_gcm::aead::{Aead, Payload};
 use aes_gcm::{Aes128Gcm, Aes256Gcm, AesGcm, KeyInit, Nonce};
 use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::error::Result as DFResult;
+use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common;
 use datafusion_common::cast::{as_binary_array, as_string_array};
-use datafusion_common::{exec_err, plan_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use rand::RngCore;
 use serde_json::json;
+
 use std::any::Any;
 use std::sync::Arc;
+
+use crate::encryption::errors::{
+    ArrayLengthMismatchSnafu, CipherCreationSnafu, EncryptionFailedSnafu,
+    InvalidArgumentTypesSnafu, InvalidIvSizeSnafu, InvalidKeySizeSnafu,
+    MalformedEncryptionMethodSnafu, UnsupportedEncryptionAlgorithmSnafu,
+    UnsupportedEncryptionModeSnafu,
+};
 
 type Aes192Gcm = AesGcm<Aes192, aes_gcm::aead::consts::U12>;
 
@@ -78,7 +86,7 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 if arg_type.is_null() {
                     match i {
                         0..=3 => DataType::Binary, // data, key, iv, aad
-                        4 => DataType::Utf8,               // method
+                        4 => DataType::Utf8,       // method
                         _ => arg_type.clone(),
                     }
                 } else {
@@ -106,10 +114,12 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    plan_err!(
-                        "Invalid argument types for function 'ENCRYPT_RAW': {}",
-                        format_types(arg_types)
-                    )
+                    Err(InvalidArgumentTypesSnafu {
+                        function_name: self.name().to_uppercase(),
+                        types: format_types(arg_types),
+                    }
+                    .build()
+                    .into())
                 }
             }
             4 => {
@@ -120,10 +130,12 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    plan_err!(
-                        "Invalid argument types for function 'ENCRYPT_RAW': {}",
-                        format_types(arg_types)
-                    )
+                    Err(InvalidArgumentTypesSnafu {
+                        function_name: self.name().to_uppercase(),
+                        types: format_types(arg_types),
+                    }
+                    .build()
+                    .into())
                 }
             }
             5 => {
@@ -135,16 +147,20 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    plan_err!(
-                        "Invalid argument types for function 'ENCRYPT_RAW': {}",
-                        format_types(arg_types)
-                    )
+                    Err(InvalidArgumentTypesSnafu {
+                        function_name: self.name().to_uppercase(),
+                        types: format_types(arg_types),
+                    }
+                    .build()
+                    .into())
                 }
             }
-            _ => plan_err!(
-                "Invalid argument types for function 'ENCRYPT_RAW': {}",
-                format_types(arg_types)
-            ),
+            _ => Err(InvalidArgumentTypesSnafu {
+                function_name: self.name().to_uppercase(),
+                types: format_types(arg_types),
+            }
+            .build()
+            .into()),
         }
     }
 
@@ -185,14 +201,12 @@ impl ScalarUDFImpl for EncryptRawFunc {
             || aad_arr.as_ref().is_some_and(|a| a.len() != len)
             || method_arr.as_ref().is_some_and(|a| a.len() != len)
         {
-            return exec_err!("All arguments must have the same length");
+            return Err(ArrayLengthMismatchSnafu.build().into());
         }
         let vals = as_binary_array(&val_arr)?;
         let keys = as_binary_array(&key_arr)?;
         let ivs = as_binary_array(&iv_arr)?;
-        let aads = aad_arr
-            .map(|a| as_binary_array(&a).cloned())
-            .transpose()?;
+        let aads = aad_arr.map(|a| as_binary_array(&a).cloned()).transpose()?;
         let methods = method_arr
             .map(|a| as_string_array(&a).cloned())
             .transpose()?;
@@ -214,18 +228,30 @@ impl ScalarUDFImpl for EncryptRawFunc {
             let method_upper = method.to_uppercase();
             let parts: Vec<&str> = method_upper.split('-').collect();
             if parts.len() != 2 {
-                return exec_err!("Malformed encryption method parameter: {}", method);
+                return Err(MalformedEncryptionMethodSnafu {
+                    method: method.to_string(),
+                }
+                .build()
+                .into());
             }
 
             let algorithm = parts[0];
             let mode = parts[1];
 
             if algorithm != "AES" {
-                return exec_err!("Unsupported encryption algorithm: {}", algorithm);
+                return Err(UnsupportedEncryptionAlgorithmSnafu {
+                    algorithm: algorithm.to_string(),
+                }
+                .build()
+                .into());
             }
 
             if mode != "GCM" {
-                return exec_err!("Unsupported encryption mode: {}", mode);
+                return Err(UnsupportedEncryptionModeSnafu {
+                    mode: mode.to_string(),
+                }
+                .build()
+                .into());
             }
 
             // Handle NULL IV by generating random IV
@@ -237,10 +263,13 @@ impl ScalarUDFImpl for EncryptRawFunc {
 
             // Validate IV size for GCM mode (must be 12 bytes / 96 bits)
             if iv.len() != 12 {
-                return exec_err!(
-                    "IV/Nonce of size {} bits needs to be of size of 96 bits for encryption mode GCM",
-                    iv.len() * 8
-                );
+                return Err(InvalidIvSizeSnafu {
+                    bits: iv.len() * 8,
+                    expected_bits: 96_usize,
+                    mode: "GCM".to_string(),
+                }
+                .build()
+                .into());
             }
 
             let (ciphertext, tag) = match key.len() {
@@ -248,7 +277,12 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 24 => encrypt::<Aes192Gcm>(value, key, &iv, aad)?,
                 32 => encrypt::<Aes256Gcm>(value, key, &iv, aad)?,
                 _ => {
-                    return exec_err!("Key size of 160 bits not found for encryption algorithm AES");
+                    return Err(InvalidKeySizeSnafu {
+                        bits: key.len() * 8,
+                        algorithm: "AES".to_string(),
+                    }
+                    .build()
+                    .into());
                 }
             };
             let json = json!({
@@ -275,13 +309,15 @@ fn encrypt<C: Aead + KeyInit>(
     iv: &[u8],
     aad: &[u8],
 ) -> DFResult<(Vec<u8>, Vec<u8>)> {
+    // Using map_err instead of .context() to avoid exposing crypto library implementation details
+    // and to maintain a clean abstraction layer over the underlying AES-GCM operations
     let cipher = C::new_from_slice(key)
-        .map_err(|e| datafusion_common::DataFusionError::Execution(e.to_string()))?;
+        .map_err(|_| -> DataFusionError { CipherCreationSnafu.build().into() })?;
     let nonce = Nonce::from_slice(iv);
     let payload = Payload { msg: value, aad };
     let mut ct = cipher
         .encrypt(nonce, payload)
-        .map_err(|e| datafusion_common::DataFusionError::Execution(e.to_string()))?;
+        .map_err(|_| -> DataFusionError { EncryptionFailedSnafu.build().into() })?;
     let tag = ct.split_off(ct.len() - 16);
     Ok((ct, tag))
 }
