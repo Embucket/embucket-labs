@@ -384,7 +384,11 @@ impl Stream for MergeCOWFilterStream {
                         ))
                     })?;
 
-                    let batches = project.not_matched_buffer.pop(&file).unwrap();
+                    let batches = project.not_matched_buffer.pop(&file).ok_or_else(|| {
+                        DataFusionError::Internal(format!(
+                            "Newly matched data file '{file}' must be present in not_matched_buffer"
+                        ))
+                    })?;
 
                     for batch in batches {
                         let schema = batch.schema();
