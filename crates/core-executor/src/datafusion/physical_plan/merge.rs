@@ -310,7 +310,7 @@ impl Stream for MergeCOWFilterStream {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        let mut project = self.project();
+        let project = self.project();
 
         // Return early if a batch is ready
         if let Some(batch) = project.ready_batches.pop() {
