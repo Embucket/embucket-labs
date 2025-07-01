@@ -517,7 +517,21 @@ fn create_matching_data_files(
     matching_data_files.extend(previously_matched_data_files);
     Ok(matching_data_files)
 }
-// Computes a HashSet of all string values in the array
+
+/// Extracts unique string values from an array efficiently by only comparing consecutive elements.
+///
+/// This function assumes the input array is sorted and leverages this property to find unique values
+/// by only checking consecutive pairs rather than comparing all elements. It:
+/// 1. Takes the first element as a starting point
+/// 2. Identifies positions where consecutive elements differ
+/// 3. Filters to keep only the distinct values
+/// 4. Returns a `HashSet` containing all unique string values
+///
+/// # Arguments
+/// * `array` - A reference to an Array (expected to be a `StringArray`)
+///
+/// # Returns
+/// * `Result<HashSet<String>, DataFusionError>` - `HashSet` of unique string values or an error
 fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> {
     let first = downcast_array::<StringArray>(array).value(0).to_owned();
 
