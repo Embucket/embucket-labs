@@ -8,10 +8,41 @@ use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{Statement, VisitorMut};
 use std::ops::ControlFlow;
 
-/// Visitor that converts BINARY and VARBINARY types to BYTEA in CREATE TABLE statements
+/// A visitor that rewrites SQL queries containing `QUALIFY` clauses into standard
+/// SQL constructs that are compatible with engines lacking native `QUALIFY` support.
 ///
-/// This allows `DataFusion` to support standard SQL BINARY types by converting them to
-/// the supported BYTEA type, which maps to `DataType::Binary` internally.
+/// # Behavior
+/// This visitor walks through the SQL AST (`Query`) and transforms any `SELECT` statement
+/// containing a `QUALIFY` clause into an equivalent query using subqueries with
+/// `ROW_NUMBER()` exposed as a named projection and filtered via `WHERE`.
+///
+/// ## Transformation Rules:
+/// - If a `SELECT` contains both `QUALIFY` and `WHERE`, the entire `SELECT` is wrapped
+///   into a subquery (excluding the `QUALIFY`), and then the `QUALIFY` filter is applied
+///   on the outer query.
+/// - If a `SELECT` contains only `QUALIFY`, it is directly transformed by:
+///   - removing the `QUALIFY` clause,
+///   - adding the expression (e.g. `ROW_NUMBER() OVER ...`) to the projection as `qualify_alias`,
+///   - wrapping the `SELECT` into a subquery,
+///   - applying a `WHERE qualify_alias <op> <value>` filter in the outer query.
+///
+/// ## Example:
+/// ```sql
+/// -- Input:
+/// SELECT * FROM table
+/// WHERE some_condition
+/// QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY ts DESC) = 1
+///
+/// -- Output:
+/// SELECT * FROM (
+///     SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY ts DESC) AS qualify_alias
+///     FROM table
+///     WHERE some_condition
+/// ) WHERE qualify_alias = 1
+/// ```
+///
+/// This transformation makes it possible to execute `QUALIFY`-style logic in SQL engines
+/// that support window functions but do not support `QUALIFY`.
 #[derive(Debug, Default)]
 pub struct QualifyInQuery;
 
