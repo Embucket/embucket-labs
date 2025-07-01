@@ -565,7 +565,22 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
     Ok(result)
 }
 
-// Computes a HashSet of all string values in the array
+/// Creates a mapping of unique file paths to their corresponding manifest paths.
+///
+/// This function efficiently extracts unique file-manifest pairs from two sorted arrays by
+/// comparing consecutive elements. It assumes both arrays are sorted and of equal length.
+/// The function:
+/// 1. Takes the first file-manifest pair as a starting point
+/// 2. Identifies positions where consecutive file entries differ
+/// 3. Filters both arrays to keep only the distinct file-manifest pairs
+/// 4. Returns a `HashMap` mapping file paths to manifest paths
+///
+/// # Arguments
+/// * `files` - A reference to an Array containing file paths (expected to be a `StringArray`)
+/// * `manifests` - A reference to an Array containing manifest paths (expected to be a `StringArray`)
+///
+/// # Returns
+/// * `Result<HashMap<String, String>, DataFusionError>` - `HashMap` mapping file paths to manifest paths or an error
 fn unique_files_and_manifests(
     files: &dyn Array,
     manifests: &dyn Array,
