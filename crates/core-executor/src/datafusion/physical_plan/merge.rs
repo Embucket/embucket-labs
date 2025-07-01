@@ -310,7 +310,7 @@ impl Stream for MergeCOWFilterStream {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        let project = self.project();
+        let mut project = self.project();
 
         // Return early if a batch is ready
         if let Some(batch) = project.ready_batches.pop() {
@@ -321,20 +321,16 @@ impl Stream for MergeCOWFilterStream {
             Poll::Ready(Some(Ok(batch))) => {
                 let schema = batch.schema();
 
-                let source_exists_index = schema.index_of(SOURCE_EXISTS_COLUMN)?;
-                let data_file_path_index = schema.index_of(DATA_FILE_PATH_COLUMN)?;
-                let manifest_file_path_index = schema.index_of(MANIFEST_FILE_PATH_COLUMN)?;
-
-                let source_exists = batch.column(source_exists_index);
-                let data_file_path = batch.column(data_file_path_index);
-                let manifest_file_path = batch.column(manifest_file_path_index);
+                let source_exists = batch.column(schema.index_of(SOURCE_EXISTS_COLUMN)?);
+                let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
+                let manifest_file_path = batch.column(schema.index_of(MANIFEST_FILE_PATH_COLUMN)?);
 
                 let filtered_data_file_path = filter(
                     &data_file_path,
                     &downcast_array::<BooleanArray>(source_exists),
                 )?;
 
-                let mut all_data_and_manifest_files =
+                let all_data_and_manifest_files =
                     unique_files_and_manifests(&data_file_path, &manifest_file_path)?;
 
                 let matching_data_files = create_matching_data_files(
@@ -352,17 +348,12 @@ impl Stream for MergeCOWFilterStream {
                     .map(ToOwned::to_owned)
                     .collect();
 
-                let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
-
-                for (file, manifest) in all_data_and_manifest_files.drain() {
-                    if matching_data_files.contains(&file) {
-                        matching_data_and_manifest_files.insert(file, manifest);
-                    } else if let Some(batches) = project.not_matched_buffer.get_mut(&file) {
-                        batches.push(batch.clone());
-                    } else {
-                        project.not_matched_buffer.put(file, vec![batch.clone()]);
-                    }
-                }
+                let matching_data_and_manifest_files = collect_matching_data_and_manifest_files(
+                    &batch,
+                    all_data_and_manifest_files,
+                    &matching_data_files,
+                    &mut project.not_matched_buffer,
+                );
 
                 // When datafile didn't match in previous record batches but matches now, the
                 // previous record batches have to be appended to the output
@@ -382,9 +373,7 @@ impl Stream for MergeCOWFilterStream {
                     for batch in batches {
                         let schema = batch.schema();
 
-                        let data_file_path_index = schema.index_of(DATA_FILE_PATH_COLUMN)?;
-
-                        let data_file_path = batch.column(data_file_path_index);
+                        let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
 
                         let predicate = eq(&data_file_path, &StringArray::new_scalar(&file))?;
 
@@ -444,6 +433,26 @@ impl Stream for MergeCOWFilterStream {
             x => x,
         }
     }
+}
+
+fn collect_matching_data_and_manifest_files(
+    batch: &RecordBatch,
+    mut all_data_and_manifest_files: HashMap<String, String>,
+    matching_data_files: &HashSet<String>,
+    not_matched_buffer: &mut &mut LruCache<String, Vec<RecordBatch>>,
+) -> HashMap<String, String> {
+    let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
+
+    for (file, manifest) in all_data_and_manifest_files.drain() {
+        if matching_data_files.contains(&file) {
+            matching_data_and_manifest_files.insert(file, manifest);
+        } else if let Some(batches) = not_matched_buffer.get_mut(&file) {
+            batches.push(batch.clone());
+        } else {
+            not_matched_buffer.put(file, vec![batch.clone()]);
+        }
+    }
+    matching_data_and_manifest_files
 }
 
 impl RecordBatchStream for MergeCOWFilterStream {
