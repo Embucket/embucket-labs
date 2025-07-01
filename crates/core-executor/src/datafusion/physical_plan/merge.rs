@@ -352,7 +352,7 @@ impl Stream for MergeCOWFilterStream {
                     &batch,
                     all_data_and_manifest_files,
                     &matching_data_files,
-                    &mut project.not_matched_buffer,
+                    project.not_matched_buffer,
                 );
 
                 // When datafile didn't match in previous record batches but matches now, the
@@ -439,7 +439,7 @@ fn collect_matching_data_and_manifest_files(
     batch: &RecordBatch,
     mut all_data_and_manifest_files: HashMap<String, String>,
     matching_data_files: &HashSet<String>,
-    not_matched_buffer: &mut &mut LruCache<String, Vec<RecordBatch>>,
+    not_matched_buffer: &mut LruCache<String, Vec<RecordBatch>>,
 ) -> HashMap<String, String> {
     let mut matching_data_and_manifest_files: HashMap<String, String> = HashMap::new();
 
