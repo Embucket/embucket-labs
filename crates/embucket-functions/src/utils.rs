@@ -1,6 +1,7 @@
 use crate::errors;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
+use std::future::Future;
 use tokio::runtime::Builder;
 
 pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>

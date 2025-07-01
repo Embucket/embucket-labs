@@ -1,6 +1,7 @@
 mod aggregate;
 mod conversion;
 mod datetime;
+mod encryption;
 mod numeric;
 mod query;
 #[path = "semi-structured/mod.rs"]

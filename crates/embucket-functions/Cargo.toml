@@ -60,6 +60,9 @@ snafu = { workspace = true }
 rust_decimal = "1.37.2"
 futures = { workspace = true }
 async-trait = { workspace = true }
+aes-gcm = "0.10"
+aes = "0.8"
+rand = "0.8"
 
 [dev-dependencies]
 bytes = { workspace = true }

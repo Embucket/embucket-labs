@@ -22,6 +22,7 @@ pub mod errors;
 // Explicitely disable non-working geospatial, as workaround for cargo test --all-features
 // #[cfg(feature = "geospatial")]
 // pub mod geospatial;
+pub mod encryption;
 mod json;
 pub mod numeric;
 #[path = "semi-structured/mod.rs"]
@@ -40,6 +41,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     conversion::register_udfs(registry)?;
     datetime::register_udfs(registry)?;
     numeric::register_udfs(registry)?;
+    encryption::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;
     semi_structured::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
