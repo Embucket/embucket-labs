@@ -495,17 +495,12 @@ fn convert_time(
     }
 }
 
-fn leading_zeros(target: usize, len: usize) -> String {
-    let zeroes = target.saturating_sub(len);
-    format!("{:0>zeroes$}", "")
-}
-
 /// Formats the timestamp and subsecond part into a string with the given scale.
 /// `scale` is the number of digits to pad the subsecond value to.
 fn format_time_string<T: std::fmt::Display>(timestamp: i64, subsecond: T, scale: usize) -> String {
     let sub_str = subsecond.to_string();
-    let zeros = leading_zeros(scale, sub_str.len());
-    format!("{timestamp}.{zeros}{sub_str}")
+    let zeroes = scale.saturating_sub(sub_str.len());
+    format!("{timestamp}.{:0>zeroes$}{sub_str}", "")
 }
 
 #[derive(Debug, Clone)]
