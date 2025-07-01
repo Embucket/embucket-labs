@@ -378,7 +378,11 @@ impl Stream for MergeCOWFilterStream {
                 // When datafile didn't match in previous record batches but matches now, the
                 // previous record batches have to be appended to the output
                 for file in newly_matched_data_files {
-                    let manifest = project.not_matching_files.remove(&file).unwrap();
+                    let manifest = project.not_matching_files.remove(&file).ok_or_else(|| {
+                        DataFusionError::Internal(format!(
+                            "Newly matched data file '{file}' must be present in not-matched-data-files set"
+                        ))
+                    })?;
 
                     let batches = project.not_matched_buffer.pop(&file).unwrap();
 
