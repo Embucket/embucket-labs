@@ -437,6 +437,27 @@ impl Stream for MergeCOWFilterStream {
     }
 }
 
+impl RecordBatchStream for MergeCOWFilterStream {
+    fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
+        self.input.schema()
+    }
+}
+
+/// Separates data files into matching and non-matching categories.
+///
+/// For each data file in `all_data_and_manifest_files`:
+/// - If the file is in `matching_data_files`, it's added to the returned map
+/// - If the file is not matching, the current batch is buffered in `not_matched_buffer`
+///   for potential future processing if the file becomes matching later
+///
+/// # Arguments
+/// * `batch` - The current record batch to buffer for non-matching files
+/// * `all_data_and_manifest_files` - Map of data file paths to their manifest file paths
+/// * `matching_data_files` - Set of data file paths that have matching conditions
+/// * `not_matched_buffer` - LRU cache to buffer batches for non-matching files
+///
+/// # Returns
+/// A map containing only the data files that match, paired with their manifest files
 fn collect_matching_data_and_manifest_files(
     batch: &RecordBatch,
     mut all_data_and_manifest_files: HashMap<String, String>,
@@ -457,12 +478,22 @@ fn collect_matching_data_and_manifest_files(
     matching_data_and_manifest_files
 }
 
-impl RecordBatchStream for MergeCOWFilterStream {
-    fn schema(&self) -> datafusion::arrow::datatypes::SchemaRef {
-        self.input.schema()
-    }
-}
-
+/// Creates a set of data files that need to be processed based on matching criteria.
+///
+/// This function combines:
+/// 1. Files from the current batch that have `__source_exists` = true (`filtered_data_file_path`)
+/// 2. Files that were previously identified as matching and are present in the current batch
+///
+/// The result represents all data files that require Copy-on-Write rewriting because they
+/// contain rows that match the merge condition.
+///
+/// # Arguments
+/// * `project_matching_files` - Previously identified matching files from earlier batches
+/// * `filtered_data_file_path` - Array of data file paths where `__source_exists` is true
+/// * `all_data_and_manifest_files` - All data files present in the current batch
+///
+/// # Returns
+/// A set of data file paths that need to be processed for the merge operation
 fn create_matching_data_files(
     project_matching_files: &HashMap<String, String>,
     filtered_data_file_path: &dyn Array,
