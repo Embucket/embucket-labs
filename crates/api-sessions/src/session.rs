@@ -20,7 +20,7 @@ pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
 
 #[derive(Clone)]
 pub struct RequestSessionStore {
-    pub store: Arc<Mutex<HashMap<Id, Record>>>,
+    store: Arc<Mutex<HashMap<Id, Record>>>,
     execution_svc: Arc<dyn ExecutionService>,
 }
 

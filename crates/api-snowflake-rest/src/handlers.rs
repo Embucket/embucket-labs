@@ -172,3 +172,51 @@ pub async fn query(
 pub async fn abort() -> Result<Json<serde_json::value::Value>> {
     api_snowflake_rest_error::NotImplementedSnafu.fail()
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
+    use axum::body::Bytes;
+    use crate::schemas::{ClientData, ClientEnvironment, LoginRequestBody};
+
+    #[tokio::test]
+    async fn test_login() {
+        let login_request = LoginRequestBody { 
+            data: ClientData {
+                client_app_id: "".to_string(),
+                client_app_version: "".to_string(),
+                svn_revision: None,
+                account_name: "".to_string(),
+                login_name: "embucket".to_string(),
+                client_environment: ClientEnvironment {
+                    application: "".to_string(),
+                    os: "".to_string(),
+                    os_version: "".to_string(),
+                    python_version: "".to_string(),
+                    python_runtime: "".to_string(),
+                    python_compiler: "".to_string(),
+                    ocsp_mode: "".to_string(),
+                    tracing: 0,
+                    login_timeout: None,
+                    network_timeout: None,
+                    socket_timeout: None,
+                },
+                password: "embucket".to_string(),
+                session_parameters: Default::default(),
+            } 
+        };
+        let json = serde_json::to_string(&login_request).expect("Failed to serialize JSON");
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(json.as_bytes()).expect("Failed to write to encoder");
+        let compressed_data = encoder.finish().expect("Failed to finish compression");
+
+        // Step 4: Wrap the compressed data as Bytes
+        let compressed_bytes = Bytes::from(compressed_data);
+
+        // Optional: Test whether the compression and encoding process worked
+        assert!(!compressed_bytes.is_empty(), "Compressed data should not be empty");
+
+    }
+}
