@@ -2071,7 +2071,7 @@ impl UserQuery {
     /// # Arguments
     ///
     /// * `target_ident` - The normalized table identifier to resolve
-    /// * `config` - Optional DataFusion table configuration. If provided, overrides the table's
+    /// * `config` - Optional `DataFusion` table configuration. If provided, overrides the table's
     ///   default configuration. Commonly used to enable metadata columns.
     ///
     /// # Returns
