@@ -7,10 +7,12 @@ use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
 use api_sessions::{RequestSessionMemory, RequestSessionStore};
+use api_snowflake_rest::handlers::query;
+use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::schemas::Config;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
-use api_ui::auth::layer::require_auth;
+use api_ui::auth::layer::require_auth as ui_require_auth;
 use api_ui::auth::router::create_router as create_ui_auth_router;
 use api_ui::config::AuthConfig as UIAuthConfig;
 use api_ui::config::WebConfig as UIWebConfig;
@@ -98,11 +100,10 @@ async fn main() {
             opts.auth_demo_password.clone().unwrap(),
         );
     let execution_cfg = ExecutionConfig::new().expect("Failed to create execution config");
-    let auth_config = UIAuthConfig::new(opts.jwt_secret())
-        .with_demo_credentials(
-            opts.auth_demo_user.clone().unwrap(),
-            opts.auth_demo_password.clone().unwrap(),
-        );
+    let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
+        opts.auth_demo_user.clone().unwrap(),
+        opts.auth_demo_password.clone().unwrap(),
+    );
     let web_config = UIWebConfig {
         host: opts.host.clone().unwrap(),
         port: opts.port.unwrap(),
@@ -163,13 +164,22 @@ async fn main() {
     let ui_router = create_ui_router().with_state(ui_state.clone());
     let ui_router = ui_router.layer(middleware::from_fn_with_state(
         ui_state.clone(),
-        require_auth,
+        ui_require_auth,
     ));
     let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
-    let snowflake_router = create_snowflake_router().with_state(SnowflakeAppState {
+    let snowflake_state = SnowflakeAppState {
         execution_svc,
         config: snowflake_rest_cfg,
-    });
+    };
+    let snowflake_query_router = Router::new()
+        .route("/queries/v1/query-request", post(query))
+        .with_state(snowflake_state.clone())
+        .layer(middleware::from_fn_with_state(
+            snowflake_state.clone(),
+            snowflake_require_auth,
+        ));
+    let snowflake_router = create_snowflake_router().with_state(snowflake_state.clone());
+    let snowflake_router = snowflake_router.merge(snowflake_query_router);
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
         metastore,
         config: Arc::new(iceberg_config),
