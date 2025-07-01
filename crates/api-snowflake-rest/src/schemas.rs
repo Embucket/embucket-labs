@@ -155,6 +155,7 @@ impl From<ColumnInfoModel> for ColumnInfo {
 pub struct Auth {
     pub demo_user: String,
     pub demo_password: String,
+    pub token: Option<String>,
 }
 
 #[derive(Clone, Default)]
@@ -175,6 +176,7 @@ impl Config {
         self.auth = Auth {
             demo_user,
             demo_password,
+            token: None,
         };
         self
     }
