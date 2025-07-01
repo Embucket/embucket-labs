@@ -269,6 +269,7 @@ impl ExecutionPlan for MergeCOWFilterExec {
 // rewritten for the CopyOnWrite operation. Rows from files that don't need to be rewritten are
 // filtered out.
 pin_project! {
+    #[project = MergeCOWFilterStreamProjection]
     pub struct MergeCOWFilterStream {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashMap<String,String>,
@@ -336,23 +337,11 @@ impl Stream for MergeCOWFilterStream {
                 let mut all_data_and_manifest_files =
                     unique_files_and_manifests(&data_file_path, &manifest_file_path)?;
 
-                let mut matching_data_files = unique_values(&filtered_data_file_path)?;
-
-                let all_data_files: HashSet<String> = all_data_and_manifest_files
-                    .keys()
-                    .map(ToOwned::to_owned)
-                    .collect();
-
-                let previously_matched_data_files: HashSet<String> = project
-                    .matching_files
-                    .keys()
-                    .map(ToOwned::to_owned)
-                    .collect::<HashSet<String>>()
-                    .intersection(&all_data_files)
-                    .map(ToOwned::to_owned)
-                    .collect();
-
-                matching_data_files.extend(previously_matched_data_files);
+                let matching_data_files = create_matching_data_files(
+                    project.matching_files,
+                    &filtered_data_file_path,
+                    &all_data_and_manifest_files,
+                )?;
 
                 let newly_matched_data_files: HashSet<String> = project
                     .not_matching_files
@@ -463,6 +452,29 @@ impl RecordBatchStream for MergeCOWFilterStream {
     }
 }
 
+fn create_matching_data_files(
+    project_matching_files: &HashMap<String, String>,
+    filtered_data_file_path: &dyn Array,
+    all_data_and_manifest_files: &HashMap<String, String>,
+) -> Result<HashSet<String>, DataFusionError> {
+    let mut matching_data_files = unique_values(filtered_data_file_path)?;
+
+    let all_data_files: HashSet<String> = all_data_and_manifest_files
+        .keys()
+        .map(ToOwned::to_owned)
+        .collect();
+
+    let previously_matched_data_files: HashSet<String> = project_matching_files
+        .keys()
+        .map(ToOwned::to_owned)
+        .collect::<HashSet<String>>()
+        .intersection(&all_data_files)
+        .map(ToOwned::to_owned)
+        .collect();
+
+    matching_data_files.extend(previously_matched_data_files);
+    Ok(matching_data_files)
+}
 // Computes a HashSet of all string values in the array
 fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> {
     let first = downcast_array::<StringArray>(array).value(0).to_owned();
