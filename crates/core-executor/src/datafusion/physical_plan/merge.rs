@@ -264,11 +264,18 @@ impl ExecutionPlan for MergeCOWFilterExec {
     }
 }
 
-// Filters a stream of Recordbatches by whether the value in the "__data_file_column" already had
-// a row where the "__source_exists" column equals "true". Meaning that the file has to be
-// rewritten for the CopyOnWrite operation. Rows from files that don't need to be rewritten are
-// filtered out.
 pin_project! {
+    /// A streaming filter for Copy-on-Write (COW) merge operations that tracks file matching state.
+    ///
+    /// This stream processes record batches and maintains state about which data files have
+    /// matching rows (where `__source_exists` = true) and which do not. It buffers batches
+    /// from non-matching files until their matching status is determined, then releases them
+    /// when appropriate.
+    ///
+    /// The stream is used to efficiently handle merge operations by:
+    /// - Tracking files that have already found matching rows
+    /// - Buffering data from files that haven't found matches yet
+    /// - Managing the flow of data to optimize merge performance
     pub struct MergeCOWFilterStream {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashMap<String,String>,
