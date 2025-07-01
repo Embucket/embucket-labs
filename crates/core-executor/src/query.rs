@@ -31,7 +31,7 @@ use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor, TableWithJoins,
+    TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
@@ -47,7 +47,7 @@ use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, select_expr_aliases, table_functions, top_limit,
+    json_element, qualify_in_query, select_expr_aliases, table_functions, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -59,11 +59,10 @@ use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
-use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{
-    BinaryOperator, GroupByExpr, MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart,
-    ObjectType, PivotValueSource, Select, SelectItem, ShowObjects, ShowStatementFilter,
-    ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
+    MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource,
+    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
+    visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -222,6 +221,7 @@ impl UserQuery {
             inline_aliases_in_query::visit(value);
             fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
+            qualify_in_query::visit(value);
             visit_all(value);
         }
         Ok(())
@@ -356,7 +356,6 @@ impl UserQuery {
                     return result;
                 }
                 Statement::Query(mut subquery) => {
-                    self.update_qualify_in_query(subquery.as_mut());
                     self.traverse_and_update_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
@@ -543,10 +542,6 @@ impl UserQuery {
         create_table_statement.catalog_sync = None;
         create_table_statement.storage_serialization_policy = None;
         create_table_statement.cluster_by = None;
-
-        if let Some(ref mut query) = create_table_statement.query {
-            self.update_qualify_in_query(query);
-        }
 
         let plan = self
             .get_custom_logical_plan(&create_table_statement.to_string())
@@ -1469,88 +1464,6 @@ impl UserQuery {
             .rewrite_plan(&plan)
             .context(ex_error::DataFusionSnafu)?;
         self.execute_logical_plan(plan).await
-    }
-
-    #[allow(clippy::only_used_in_recursion)]
-    fn update_qualify_in_query(&self, query: &mut Query) {
-        if let Some(with) = query.with.as_mut() {
-            for cte in &mut with.cte_tables {
-                self.update_qualify_in_query(&mut cte.query);
-            }
-        }
-
-        match query.body.as_mut() {
-            sqlparser::ast::SetExpr::Select(select) => {
-                if let Some(Expr::BinaryOp { left, op, right }) = select.qualify.as_ref() {
-                    if matches!(
-                        op,
-                        BinaryOperator::Eq | BinaryOperator::Lt | BinaryOperator::LtEq
-                    ) {
-                        let mut inner_select = select.clone();
-                        inner_select.qualify = None;
-                        inner_select.projection.push(SelectItem::ExprWithAlias {
-                            expr: *(left.clone()),
-                            alias: Ident::new("qualify_alias".to_string()),
-                        });
-                        let subquery = Query {
-                            with: None,
-                            body: Box::new(sqlparser::ast::SetExpr::Select(inner_select)),
-                            order_by: None,
-                            limit: None,
-                            limit_by: vec![],
-                            offset: None,
-                            fetch: None,
-                            locks: vec![],
-                            for_clause: None,
-                            settings: None,
-                            format_clause: None,
-                        };
-                        let outer_select = Select {
-                            select_token: AttachedToken::empty(),
-                            distinct: None,
-                            top: None,
-                            top_before_distinct: false,
-                            projection: vec![SelectItem::UnnamedExpr(Expr::Identifier(
-                                Ident::new("*"),
-                            ))],
-                            into: None,
-                            from: vec![TableWithJoins {
-                                relation: TableFactor::Derived {
-                                    lateral: false,
-                                    subquery: Box::new(subquery),
-                                    alias: None,
-                                },
-                                joins: vec![],
-                            }],
-                            lateral_views: vec![],
-                            prewhere: None,
-                            selection: Some(Expr::BinaryOp {
-                                left: Box::new(Expr::Identifier(Ident::new("qualify_alias"))),
-                                op: op.clone(),
-                                right: Box::new(*right.clone()),
-                            }),
-                            group_by: GroupByExpr::Expressions(vec![], vec![]),
-                            cluster_by: vec![],
-                            distribute_by: vec![],
-                            sort_by: vec![],
-                            having: None,
-                            named_window: vec![],
-                            qualify: None,
-                            window_before_qualify: false,
-                            value_table_mode: None,
-                            connect_by: None,
-                            flavor: sqlparser::ast::SelectFlavor::Standard,
-                        };
-
-                        *query.body = sqlparser::ast::SetExpr::Select(Box::new(outer_select));
-                    }
-                }
-            }
-            sqlparser::ast::SetExpr::Query(q) => {
-                self.update_qualify_in_query(q);
-            }
-            _ => {}
-        }
     }
 
     #[allow(clippy::unwrap_used)]
