@@ -269,17 +269,16 @@ impl ExecutionPlan for MergeCOWFilterExec {
 // rewritten for the CopyOnWrite operation. Rows from files that don't need to be rewritten are
 // filtered out.
 pin_project! {
-    #[project = MergeCOWFilterStreamProjection]
     pub struct MergeCOWFilterStream {
         // Files which already encountered a "__source_exists" = true value
         matching_files: HashMap<String,String>,
-        // Reference to store the mathcing files after the stream has finished executing
+        // Reference to store the matching files after the stream has finished executing
         matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
-        // Files which already encountered a "__source_exists" = true value
+        // Files which haven't encountered a "__source_exists" = true value
         not_matching_files: HashMap<String,String>,
-        // Buffer of RecordBatches whoose origin data files haven't had a matching row yet
+        // Buffer of RecordBatches whoose data files haven't had a matching row yet
         not_matched_buffer: LruCache<String, Vec<RecordBatch>>,
-        // RecordBatches ready to be consumed
+        // Previously buffered RecordBatches that are now ready to be consumed
         ready_batches: Vec<RecordBatch>,
 
         #[pin]
@@ -295,6 +294,7 @@ impl MergeCOWFilterStream {
         Self {
             matching_files: HashMap::new(),
             not_matching_files: HashMap::new(),
+            #[allow(clippy::unwrap_used)]
             not_matched_buffer: LruCache::new(NonZeroUsize::new(BUFFER_SIZE).unwrap()),
             ready_batches: Vec::new(),
             matching_files_ref,
@@ -415,6 +415,8 @@ impl Stream for MergeCOWFilterStream {
                 }
             }
             Poll::Ready(None) => {
+                // The stream has finished, we now have to pass the list of matched files to the
+                // matching_files_ref to be accessed from outside of this stream
                 let mut matching_files = std::mem::take(project.matching_files);
                 let mut new: HashMap<String, Vec<String>> = HashMap::new();
                 for (file, manifest) in matching_files.drain() {
