@@ -624,7 +624,20 @@ fn unique_files_and_manifests(
     Ok(result)
 }
 
-// Remove auxiliary columns from schema
+/// Creates a projection expression list from a schema by filtering out auxiliary columns.
+///
+/// This function builds a vector of physical expressions and column names from the given schema,
+/// excluding internal auxiliary columns used for merge operations. The auxiliary columns that
+/// are filtered out are:
+/// - `__source_exists`: Indicates if the source record exists
+/// - `__data_file_path`: Path to the data file  
+/// - `__manifest_file_path`: Path to the manifest file
+///
+/// # Arguments
+/// * `schema` - The schema to create projections from
+///
+/// # Returns
+/// * `Vec<(Arc<dyn PhysicalExpr>, String)>` - Vector of tuples containing physical expressions and column names
 fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
     schema
         .fields()
@@ -643,6 +656,7 @@ fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
         })
         .collect()
 }
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
