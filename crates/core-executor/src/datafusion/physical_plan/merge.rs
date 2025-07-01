@@ -368,15 +368,15 @@ impl Stream for MergeCOWFilterStream {
                 for (file, manifest) in all_data_and_manifest_files.drain() {
                     if matching_data_files.contains(&file) {
                         matching_data_and_manifest_files.insert(file, manifest);
+                    } else if let Some(batches) = project.not_matched_buffer.get_mut(&file) {
+                        batches.push(batch.clone());
                     } else {
-                        if let Some(batches) = project.not_matched_buffer.get_mut(&file) {
-                            batches.push(batch.clone());
-                        } else {
-                            project.not_matched_buffer.put(file, vec![batch.clone()]);
-                        }
+                        project.not_matched_buffer.put(file, vec![batch.clone()]);
                     }
                 }
 
+                // When datafile didn't match in previous record batches but matches now, the
+                // previous record batches have to be appended to the output
                 for file in newly_matched_data_files {
                     let manifest = project.not_matching_files.remove(&file).unwrap();
 
