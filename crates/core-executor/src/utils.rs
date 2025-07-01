@@ -456,7 +456,7 @@ fn convert_time(
                             // `scale` for some reason by default is 9 (nanos)
                             // if we don't add this, time truncation is incorrect
                             // for any time function with seconds
-                            format!("{}.000", ts.timestamp())
+                            format_time_string(ts.timestamp(), "000", 0)
                         })
                     })
                     .collect(),
@@ -466,12 +466,7 @@ fn convert_time(
                             let ts =
                                 DateTime::from_timestamp_millis(i64::from(ts)).unwrap_or_default();
                             //If millis == 0, 4 zeroes after the `.` instead of 3
-                            format!(
-                                "{}.{}{}",
-                                ts.timestamp(),
-                                leading_zeros(3, ts.timestamp_subsec_millis().to_string().len()),
-                                ts.timestamp_subsec_millis()
-                            )
+                            format_time_string(ts.timestamp(), ts.timestamp_subsec_millis(), 3)
                         })
                     })
                     .collect(),
@@ -479,13 +474,8 @@ fn convert_time(
                     .map(|time| {
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap_or_default();
-                            //If nanos == micros, 7 zeroes after the `.` instead of 6
-                            format!(
-                                "{}.{}{}",
-                                ts.timestamp(),
-                                leading_zeros(6, ts.timestamp_subsec_micros().to_string().len()),
-                                ts.timestamp_subsec_micros()
-                            )
+                            //If micros == 0, 7 zeroes after the `.` instead of 6
+                            format_time_string(ts.timestamp(), ts.timestamp_subsec_micros(), 6)
                         })
                     })
                     .collect(),
@@ -494,12 +484,7 @@ fn convert_time(
                         time.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
                             //If nanos == 0, 10 zeroes after the `.` instead of 9
-                            format!(
-                                "{}.{}{}",
-                                ts.timestamp(),
-                                leading_zeros(9, ts.timestamp_subsec_nanos().to_string().len()),
-                                ts.timestamp_subsec_nanos()
-                            )
+                            format_time_string(ts.timestamp(), ts.timestamp_subsec_nanos(), 9)
                         })
                     })
                     .collect(),
@@ -511,8 +496,16 @@ fn convert_time(
 }
 
 fn leading_zeros(target: usize, len: usize) -> String {
-    let zeroes = target - len;
+    let zeroes = target.saturating_sub(len);
     format!("{:0>zeroes$}", "")
+}
+
+/// Formats the timestamp and subsecond part into a string with the given scale.
+/// `scale` is the number of digits to pad the subsecond value to.
+fn format_time_string<T: std::fmt::Display>(timestamp: i64, subsecond: T, scale: usize) -> String {
+    let sub_str = subsecond.to_string();
+    let zeros = leading_zeros(scale, sub_str.len());
+    format!("{timestamp}.{zeros}{sub_str}")
 }
 
 #[derive(Debug, Clone)]
