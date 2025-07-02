@@ -269,12 +269,11 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 24 => encrypt::<Aes192Gcm>(value, key, &iv, aad)?,
                 32 => encrypt::<Aes256Gcm>(value, key, &iv, aad)?,
                 _ => {
-                    return Err(InvalidKeySizeSnafu {
+                    return InvalidKeySizeSnafu {
                         bits: key.len() * 8,
                         algorithm: "AES".to_string(),
                     }
-                    .build()
-                    .into());
+                    .fail()?;
                 }
             };
             let json = json!({

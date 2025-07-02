@@ -311,7 +311,7 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 24 => decrypt::<Aes192Gcm>(&combined_ct, key, iv, aad)?,
                 32 => decrypt::<Aes256Gcm>(&combined_ct, key, iv, aad)?,
                 _ => {
-                    return Err(InvalidKeyLengthSnafu { length: key.len() }.build().into());
+                    return InvalidKeyLengthSnafu { length: key.len() }.fail()?;
                 }
             };
             builder.append_value(pt);
