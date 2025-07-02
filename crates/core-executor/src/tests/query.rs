@@ -677,6 +677,18 @@ test_query!(
 );
 
 test_query!(
+    merge_into_only_update,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (1, 'updated row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET merge_target.description = merge_source.description",
+    ]
+);
+
+test_query!(
     merge_into_insert_and_update,
     "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
     setup_queries = [
