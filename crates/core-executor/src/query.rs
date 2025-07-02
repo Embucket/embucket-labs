@@ -48,7 +48,7 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType, LogicalPlanBuilder,
-    Projection, TryCast, and, build_join_schema, is_null, lit, or, when,
+    Projection, SubqueryAlias, TryCast, and, build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -1053,7 +1053,7 @@ impl UserQuery {
             TableFactor::Derived {
                 lateral: _,
                 subquery,
-                alias: _,
+                alias,
             } => {
                 let query = Statement::Query(subquery.clone());
 
@@ -1072,6 +1072,23 @@ impl UserQuery {
                 let source_plan = sql_planner
                     .sql_statement_to_plan(query)
                     .context(ex_error::DataFusionSnafu)?;
+
+                let source_plan = if let Some(alias) = alias {
+                    LogicalPlan::SubqueryAlias(
+                        SubqueryAlias::try_new(
+                            Arc::new(source_plan),
+                            TableReference::parse_str(&alias.to_string()),
+                        )
+                        .context(ex_error::DataFusionSnafu)?,
+                    )
+                } else {
+                    source_plan
+                };
+
+                let source_plan = DataFrame::new(df_session_state.clone(), source_plan)
+                    .with_column(SOURCE_EXISTS, lit(true))
+                    .context(ex_error::DataFusionSnafu)?
+                    .into_unoptimized_plan();
 
                 Ok(source_plan)
             }
