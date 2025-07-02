@@ -302,13 +302,12 @@ fn encrypt<C: Aead + KeyInit>(
 ) -> DFResult<(Vec<u8>, Vec<u8>)> {
     // Using map_err instead of .context() to avoid exposing crypto library implementation details
     // and to maintain a clean abstraction layer over the underlying AES-GCM operations
-    let cipher = C::new_from_slice(key)
-        .map_err(|_| -> DataFusionError { CipherCreationSnafu.build().into() })?;
+    let cipher = C::new_from_slice(key).map_err(|_| CipherCreationSnafu.build())?;
     let nonce = Nonce::from_slice(iv);
     let payload = Payload { msg: value, aad };
     let mut ct = cipher
         .encrypt(nonce, payload)
-        .map_err(|_| -> DataFusionError { EncryptionFailedSnafu.build().into() })?;
+        .map_err(|_| EncryptionFailedSnafu.build())?;
     let tag = ct.split_off(ct.len() - 16);
     Ok((ct, tag))
 }

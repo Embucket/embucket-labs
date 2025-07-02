@@ -311,7 +311,7 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 24 => decrypt::<Aes192Gcm>(&combined_ct, key, iv, aad)?,
                 32 => decrypt::<Aes256Gcm>(&combined_ct, key, iv, aad)?,
                 _ => {
-                    return InvalidKeyLengthSnafu { length: key.len() }.fail()?;
+                    InvalidKeyLengthSnafu { length: key.len() }.fail()?
                 }
             };
             builder.append_value(pt);
@@ -324,13 +324,12 @@ impl ScalarUDFImpl for DecryptRawFunc {
 fn decrypt<C: Aead + KeyInit>(ct: &[u8], key: &[u8], iv: &[u8], aad: &[u8]) -> DFResult<Vec<u8>> {
     // Using map_err instead of .context() to avoid exposing crypto library implementation details
     // and to maintain a clean abstraction layer over the underlying AES-GCM operations
-    let cipher = C::new_from_slice(key)
-        .map_err(|_| -> DataFusionError { DecryptionFailedSnafu.build().into() })?;
+    let cipher = C::new_from_slice(key).map_err(|_| DecryptionFailedSnafu.build())?;
     let nonce = Nonce::from_slice(iv);
     let payload = Payload { msg: ct, aad };
     let pt = cipher
         .decrypt(nonce, payload)
-        .map_err(|_| -> DataFusionError { DecryptionFailedSnafu.build().into() })?;
+        .map_err(|_| DecryptionFailedSnafu.build())?;
     Ok(pt)
 }
 
