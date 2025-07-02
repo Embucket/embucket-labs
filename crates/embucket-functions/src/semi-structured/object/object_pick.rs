@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -38,15 +40,11 @@ impl ObjectPickUDF {
             }
 
             // Convert back to JSON string
-            Ok(Some(to_string(&Value::Object(new_obj)).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON object".to_string(),
+            Ok(Some(
+                to_string(&Value::Object(new_obj)).context(errors::FailedToSerializeResultSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonObjectSnafu { argument: "First" }.fail()?
         }
     }
 }
@@ -78,9 +76,7 @@ impl ScalarUDFImpl for ObjectPickUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let object_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected object argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "object" }.build())?;
 
         // Get all keys from remaining arguments
         let mut keys = Vec::new();
@@ -119,11 +115,8 @@ impl ScalarUDFImpl for ObjectPickUDF {
                         results.push(None);
                     } else {
                         let object_str = string_array.value(i);
-                        let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse object JSON: {e}"
-                            ))
-                        })?;
+                        let object_json: Value =
+                            from_str(object_str).context(errors::FailedToDeserializeJsonSnafu)?;
                         results.push(Self::pick_keys(object_json, keys.clone())?);
                     }
                 }
@@ -136,11 +129,8 @@ impl ScalarUDFImpl for ObjectPickUDF {
                 match object_value {
                     ScalarValue::Utf8(Some(object_str)) => {
                         // Parse object string to JSON Value
-                        let object_json: Value = from_str(object_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse object JSON: {e}"
-                            ))
-                        })?;
+                        let object_json: Value =
+                            from_str(object_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         let result = Self::pick_keys(object_json, keys)?;
                         Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))

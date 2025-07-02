@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::utils::block_in_new_runtime;
 use core_history::result_set::ResultSet;
 use core_history::{GetQueriesParams, HistoryStore, QueryRecord};
@@ -48,9 +49,8 @@ impl ResultScanFunc {
                 .into_iter()
                 .map(|q| q.id.to_string())
                 .collect::<Vec<_>>();
-            let query_id = get_query_by_index(&queries, index).ok_or_else(|| {
-                DataFusionError::Execution(format!("No query found for index {index}"))
-            })?;
+            let query_id = get_query_by_index(&queries, index)
+                .ok_or_else(|| errors::NoQueryFoundForIndexSnafu { index }.build())?;
             Ok::<String, DataFusionError>(query_id)
         })??;
         Ok(utf8_val(&id))
@@ -78,7 +78,10 @@ impl ResultScanFunc {
         }
 
         let result_json = query_record.result.ok_or_else(|| {
-            DataFusionError::Execution(format!("No result data for query_id {query_id_parsed}"))
+            errors::NoResultDataForQueryIdSnafu {
+                query_id: query_id_parsed,
+            }
+            .build()
         })?;
 
         // Deserialize ResultSet string

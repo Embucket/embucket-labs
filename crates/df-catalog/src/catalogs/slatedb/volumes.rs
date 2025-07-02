@@ -6,7 +6,6 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::DataFusionError;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -54,9 +53,7 @@ impl PartitionStream for VolumesView {
             Arc::clone(&self.schema),
             futures::stream::once(async move {
                 config.make_volumes(&mut builder).await?;
-                builder
-                    .finish()
-                    .map_err(|e| DataFusionError::ArrowError(e, None))
+                Ok(builder.finish()?)
             }),
         ))
     }

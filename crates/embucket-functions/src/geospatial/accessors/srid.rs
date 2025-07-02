@@ -1,19 +1,18 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    any_single_geometry_type_input, parse_to_native_array,
-};
+use crate::errors;
+use crate::geospatial::data_types::{any_single_geometry_type_input, parse_to_native_array};
 use datafusion::arrow::array::builder::Int32Builder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::ScalarFunctionArgs;
+use geoarrow::ArrayBase;
 use geoarrow::array::AsNativeArray;
 use geoarrow::datatypes::NativeType;
 use geoarrow::trait_::ArrayAccessor;
-use geoarrow::ArrayBase;
 use geozero::GeozeroGeometry;
 
 #[derive(Debug)]
@@ -84,9 +83,7 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            DataFusionError::Execution("Expected only one argument in ST_SRID".to_string())
-        })?;
+        .ok_or_else(|| errors::ExpectedOnlyOneArgumentInSTSRIDSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
     let native_array_ref = native_array.as_ref();
@@ -106,25 +103,23 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         NativeType::GeometryCollection(_, _) => {
             build_output_array!(native_array_ref.as_geometry_collection())
         }
-        NativeType::Rect(_) => Err(DataFusionError::Execution(
-            "Unsupported geometry type".to_string(),
-        )),
+        NativeType::Rect(_) => errors::UnsupportedGeometryTypeSnafu.fail()?,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::types::Int32Type;
-    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_expr::ScalarFunctionArgs;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used)]

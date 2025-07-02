@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -52,15 +54,11 @@ impl ArrayRemoveAtUDF {
             array.remove(actual_pos as usize);
 
             // Convert back to JSON string
-            Ok(Some(to_string(&array).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
+            Ok(Some(
+                to_string(&array).context(errors::FailedToSerializeValueSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonArraySnafu { argument: "first" }.fail()?
         }
     }
 }
@@ -92,14 +90,11 @@ impl ScalarUDFImpl for ArrayRemoveAtUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
+
         let position = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected position argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "position" }.build())?;
 
         match (array_str, position) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(position_value)) => {
@@ -114,9 +109,7 @@ impl ScalarUDFImpl for ArrayRemoveAtUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Position must be an integer".to_string(),
-                        ));
+                        return errors::PositionMustBeAnIntegerSnafu.fail()?;
                     }
                 };
 
@@ -125,11 +118,8 @@ impl ScalarUDFImpl for ArrayRemoveAtUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {e}",
-                            ))
-                        })?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         results.push(Self::remove_at_position(array_json, position)?);
                     }
@@ -141,9 +131,7 @@ impl ScalarUDFImpl for ArrayRemoveAtUDF {
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(position_value)) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 // If either array or position is NULL, return NULL
@@ -153,27 +141,17 @@ impl ScalarUDFImpl for ArrayRemoveAtUDF {
 
                 let position = match position_value {
                     ScalarValue::Int64(Some(pos)) => *pos,
-                    _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Position must be an integer".to_string(),
-                        ));
-                    }
+                    _ => return errors::PositionMustBeAnIntegerSnafu.fail()?,
                 };
 
                 // Parse array string to JSON Value
-                let array_json: Value = from_str(array_str).map_err(|e| {
-                    datafusion_common::DataFusionError::Internal(format!(
-                        "Failed to parse array JSON: {e}",
-                    ))
-                })?;
+                let array_json: Value =
+                    from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                 let result = Self::remove_at_position(array_json, position)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second argument must be an integer"
-                    .to_string(),
-            )),
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondIntegerSnafu.fail()?,
         }
     }
 }

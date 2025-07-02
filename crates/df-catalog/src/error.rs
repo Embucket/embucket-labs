@@ -1,4 +1,3 @@
-use core_history::errors::Error as HistoryError;
 use core_utils::Error as CoreError;
 use datafusion_common::DataFusionError;
 use error_stack_trace;
@@ -64,15 +63,15 @@ pub enum Error {
 
     #[snafu(display("Failed to get worksheets: {error}"))]
     FailedToGetWorksheets {
-        #[snafu(source(from(HistoryError, Box::new)))]
-        error: Box<HistoryError>,
+        #[snafu(source(from(core_history::Error, Box::new)))]
+        error: Box<core_history::Error>,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Failed to get queries: {error}"))]
     FailedToGetQueries {
-        #[snafu(source(from(HistoryError, Box::new)))]
-        error: Box<HistoryError>,
+        #[snafu(source(from(core_history::Error, Box::new)))]
+        error: Box<core_history::Error>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -95,3 +94,69 @@ impl fmt::Display for PanicWrapper {
 }
 
 impl std::error::Error for PanicWrapper {}
+
+// This errors list created from inlined errors texts
+// Not sure how location and error_stack_tarce of this error could be used in future
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
+pub enum DataFusionExecutionError {
+    #[snafu(display("Object store not found for url {url}"))]
+    ObjectStoreNotFound {
+        url: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Ordinal position param overflow: {error}"))]
+    OrdinalPositionParamOverflow {
+        #[snafu(source)]
+        error: std::num::TryFromIntError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("rid param doesn't fit in u8"))]
+    RidParamDoesntFitInU8 {
+        #[snafu(source)]
+        error: std::num::TryFromIntError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Core history error: {error}"))]
+    DFExecutionCoreHistory {
+        #[snafu(source)]
+        error: core_history::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Core utils error: {error}"))]
+    DFExecutionCoreUtils {
+        #[snafu(source)]
+        error: core_utils::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl From<DataFusionExecutionError> for datafusion_common::DataFusionError {
+    fn from(value: DataFusionExecutionError) -> Self {
+        Self::Internal(value.to_string())
+    }
+}
+
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
+pub enum DataFusionPlanError {
+    #[snafu(display("Catalog '{name}' not found in catalog list"))]
+    DFPlanErrorCatalogNotFound {
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl From<DataFusionPlanError> for datafusion_common::DataFusionError {
+    fn from(value: DataFusionPlanError) -> Self {
+        Self::Internal(value.to_string())
+    }
+}

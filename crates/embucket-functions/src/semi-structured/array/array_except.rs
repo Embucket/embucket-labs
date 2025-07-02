@@ -29,17 +29,11 @@ impl ArrayExceptUDF {
     fn array_except(array1_str: Option<&str>, array2_str: Option<&str>) -> DFResult<Option<Value>> {
         if let (Some(arr1), Some(arr2)) = (array1_str, array2_str) {
             // Parse both arrays
-            let array1_value: Value = from_slice(arr1.as_bytes()).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to parse first array: {e}",
-                ))
-            })?;
+            let array1_value: Value =
+                from_slice(arr1.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
-            let array2_value: Value = from_slice(arr2.as_bytes()).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to parse second array: {e}",
-                ))
-            })?;
+            let array2_value: Value =
+                from_slice(arr2.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
             if let (Value::Array(arr1), Value::Array(arr2)) = (array1_value, array2_value) {
                 // Create a new array with elements from arr1 that are not in arr2
@@ -83,16 +77,18 @@ impl ScalarUDFImpl for ArrayExceptUDF {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-        let array1 = args
-            .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected first array argument".to_string(),
-            ))?;
-        let array2 = args
-            .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected second array argument".to_string(),
-            ))?;
+        let array1 = args.first().ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "first array",
+            }
+            .build()
+        })?;
+        let array2 = args.get(1).ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "second array",
+            }
+            .build()
+        })?;
 
         match (array1, array2) {
             (ColumnarValue::Array(array1_array), ColumnarValue::Array(array2_array)) => {
@@ -126,9 +122,8 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected UTF8 string for first array".to_string(),
-                        ));
+                        return errors::ExpectedUtf8StringForNamedArraySnafu { name: "first" }
+                            .fail()?;
                     }
                 };
 
@@ -138,9 +133,8 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected UTF8 string for second array".to_string(),
-                        ));
+                        return errors::ExpectedUtf8StringForNamedArraySnafu { name: "second" }
+                            .fail()?;
                     }
                 };
 
@@ -150,9 +144,7 @@ impl ScalarUDFImpl for ArrayExceptUDF {
                     .transpose()?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Mismatched argument types".to_string(),
-            )),
+            _ => errors::MismatchedArgumentTypesSnafu.fail()?,
         }
     }
 }

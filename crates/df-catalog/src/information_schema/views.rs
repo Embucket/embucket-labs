@@ -10,7 +10,6 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::DataFusionError;
 use datafusion_expr::TableType;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
@@ -64,9 +63,7 @@ impl PartitionStream for InformationSchemaViews {
             // TODO: Stream this
             futures::stream::once(async move {
                 config.make_views(&mut builder).await?;
-                builder
-                    .finish()
-                    .map_err(|e| DataFusionError::ArrowError(e, None))
+                Ok(builder.finish()?)
             }),
         ))
     }

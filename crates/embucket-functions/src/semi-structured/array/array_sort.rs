@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_str, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -100,15 +102,11 @@ impl ArraySortUDF {
                 .map(|opt| opt.unwrap_or(Value::Null))
                 .collect();
 
-            Ok(Some(to_string(&sorted_array).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}"
-                ))
-            })?))
-        } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
+            Ok(Some(
+                to_string(&sorted_array).context(errors::FailedToSerializeResultSnafu)?,
             ))
+        } else {
+            errors::ArgumentMustBeJsonArraySnafu { argument: "First" }.fail()?
         }
     }
 }
@@ -142,9 +140,7 @@ impl ScalarUDFImpl for ArraySortUDF {
         // Get array argument
         let array_arg = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         // Get optional sort_ascending argument (default: true)
         let sort_ascending = args.get(1).is_none_or(|v| match v {
@@ -168,11 +164,8 @@ impl ScalarUDFImpl for ArraySortUDF {
                         results.push(None);
                     } else {
                         let array_str = string_array.value(i);
-                        let array_json: Value = from_str(array_str).map_err(|e| {
-                            datafusion_common::DataFusionError::Internal(format!(
-                                "Failed to parse array JSON: {e}"
-                            ))
-                        })?;
+                        let array_json: Value =
+                            from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                         results.push(Self::sort_array(array_json, sort_ascending, nulls_first)?);
                     }
@@ -184,19 +177,14 @@ impl ScalarUDFImpl for ArraySortUDF {
             }
             ColumnarValue::Scalar(array_value) => match array_value {
                 ScalarValue::Utf8(Some(array_str)) => {
-                    let array_json: Value = from_str(array_str).map_err(|e| {
-                        datafusion_common::DataFusionError::Internal(format!(
-                            "Failed to parse array JSON: {e}"
-                        ))
-                    })?;
+                    let array_json: Value =
+                        from_str(array_str).context(errors::FailedToDeserializeJsonSnafu)?;
 
                     let result = Self::sort_array(array_json, sort_ascending, nulls_first)?;
                     Ok(ColumnarValue::Scalar(ScalarValue::Utf8(result)))
                 }
                 ScalarValue::Utf8(None) => Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
-                _ => Err(datafusion_common::DataFusionError::Internal(
-                    "First argument must be a JSON array string".to_string(),
-                )),
+                _ => errors::ArgumentMustBeJsonArraySnafu { argument: "First" }.fail()?,
             },
         }
     }

@@ -12,6 +12,14 @@ use tracing_subscriber::filter::LevelFilter;
 #[command(version, about, long_about=None)]
 pub struct CliOpts {
     #[arg(
+        long,
+        env = "NO_BOOTSTRAP",
+        default_value = "false",
+        help = "Disable bootstrap functionality"
+    )]
+    pub no_bootstrap: bool,
+
+    #[arg(
         short,
         long,
         value_enum,

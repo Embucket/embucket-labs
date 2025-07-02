@@ -18,7 +18,7 @@ renamed AS (
     value::VARCHAR          AS candidate_survey_question,
     answer_type::VARCHAR    AS answer_type,
     priority::NUMBER        AS question_priority,
-    active:BOOLEAN          AS is_question_active,
+    active::BOOLEAN         AS is_question_active,
     created_at::TIMESTAMP   AS created_at,
     updated_at::TIMESTAMP   AS updated_at
 

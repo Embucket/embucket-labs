@@ -1,4 +1,5 @@
-use crate::execution::datafusion::functions::geospatial::data_types::parse_to_native_array;
+use crate::errors;
+use crate::geospatial::data_types::parse_to_native_array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{
@@ -87,9 +88,7 @@ macro_rules! match_rhs_within_data_type {
                 WithinTrait::is_within($left.$left_method(), $rhs.as_multi_polygon())
             }
             _ => {
-                return Err(DataFusionError::Execution(
-                    "ST_Within does not support this rhs geometry type".to_string(),
-                ))
+                return errors::STWithinDoesNotSupportThisRhsGeometryTypeSnafu.fail()?;
             }
         }
     };
@@ -98,9 +97,7 @@ macro_rules! match_rhs_within_data_type {
 fn within(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?;
     if array.len() > 2 {
-        return Err(DataFusionError::Execution(
-            "ST_Within takes two arguments".to_string(),
-        ));
+        return errors::STWithinTakesTwoArgumentsSnafu.fail()?;
     }
 
     let left = parse_to_native_array(&array[0])?;
@@ -118,9 +115,7 @@ fn within(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         }
         NativeType::MultiPolygon(_, _) => match_rhs_within_data_type!(left, as_multi_polygon, rhs),
         _ => {
-            return Err(DataFusionError::Execution(
-                "ST_Within does not support this left geometry type".to_string(),
-            ))
+            return errors::STWithinDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
         }
     };
     Ok(ColumnarValue::Array(Arc::new(result)))
@@ -129,14 +124,14 @@ fn within(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::ArrayRef;
+    use datafusion::arrow::array::cast::AsArray;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used)]

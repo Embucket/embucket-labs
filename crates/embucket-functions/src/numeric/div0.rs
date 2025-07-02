@@ -1,13 +1,14 @@
+use crate::errors;
 use arrow_schema::DECIMAL128_MAX_PRECISION;
 use datafusion::arrow::array::{Array, ArrowNativeTypeOp, Decimal128Array, Float64Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
-use datafusion::error::DataFusionError;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use datafusion::scalar::ScalarValue;
 use rust_decimal::Decimal;
+use snafu::ResultExt;
 use std::any::Any;
 use std::cmp::{max, min};
 use std::sync::Arc;
@@ -103,31 +104,43 @@ impl ScalarUDFImpl for Div0Func {
             let dividend = if dividend.data_type().is_floating() {
                 dividend
             } else {
-                datafusion::arrow::compute::cast(&dividend, &DataType::Float64).map_err(|e| {
-                    DataFusionError::Internal(format!("Failed to cast to Float64: {e}"))
-                })?
+                datafusion::arrow::compute::cast(&dividend, &DataType::Float64).context(
+                    errors::CastToTypeSnafu {
+                        target_type: "Float64",
+                    },
+                )?
             };
 
             let divisor = if divisor.data_type().is_floating() {
                 divisor
             } else {
-                datafusion::arrow::compute::cast(&divisor, &DataType::Float64).map_err(|e| {
-                    DataFusionError::Internal(format!("Failed to cast to Float64: {e}"))
-                })?
+                datafusion::arrow::compute::cast(&divisor, &DataType::Float64).context(
+                    errors::CastToTypeSnafu {
+                        target_type: "Float64",
+                    },
+                )?
             };
 
             let divided = dividend
                 .as_any()
                 .downcast_ref::<Float64Array>()
                 .ok_or_else(|| {
-                    DataFusionError::Internal("Expected Float64Array for dividend".to_string())
+                    errors::UnexpectedArrayTypeSnafu {
+                        expected: "Float64Array",
+                        actual: format!("{:?}", dividend.data_type()),
+                    }
+                    .build()
                 })?;
 
             let divisor = divisor
                 .as_any()
                 .downcast_ref::<Float64Array>()
                 .ok_or_else(|| {
-                    DataFusionError::Internal("Expected Float64Array for divisor".to_string())
+                    errors::UnexpectedArrayTypeSnafu {
+                        expected: "Float64Array",
+                        actual: format!("{:?}", divisor.data_type()),
+                    }
+                    .build()
                 })?;
 
             let result = divided
@@ -163,8 +176,8 @@ impl ScalarUDFImpl for Div0Func {
                         &dividend,
                         &DataType::Decimal128(DECIMAL128_MAX_PRECISION, 0),
                     )
-                    .map_err(|e| {
-                        DataFusionError::Internal(format!("Failed to cast to Decimal128: {e}"))
+                    .context(errors::CastToTypeSnafu {
+                        target_type: "Decimal128",
                     })?
                 }
             };
@@ -173,7 +186,11 @@ impl ScalarUDFImpl for Div0Func {
                 .as_any()
                 .downcast_ref::<Decimal128Array>()
                 .ok_or_else(|| {
-                    DataFusionError::Internal("Expected Decimal128Array for dividend".to_string())
+                    errors::UnexpectedArrayTypeSnafu {
+                        expected: "Decimal128Array",
+                        actual: format!("{:?}", dividend.data_type()),
+                    }
+                    .build()
                 })?;
 
             let divisor = {
@@ -184,8 +201,8 @@ impl ScalarUDFImpl for Div0Func {
                         &divisor,
                         &DataType::Decimal128(DECIMAL128_MAX_PRECISION, 0),
                     )
-                    .map_err(|e| {
-                        DataFusionError::Internal(format!("Failed to cast to Decimal128: {e}"))
+                    .context(errors::CastToTypeSnafu {
+                        target_type: "Decimal128",
                     })?
                 }
             };
@@ -194,7 +211,11 @@ impl ScalarUDFImpl for Div0Func {
                 .as_any()
                 .downcast_ref::<Decimal128Array>()
                 .ok_or_else(|| {
-                    DataFusionError::Internal("Expected Decimal128Array for divisor".to_string())
+                    errors::UnexpectedArrayTypeSnafu {
+                        expected: "Decimal128Array",
+                        actual: format!("{:?}", divisor.data_type()),
+                    }
+                    .build()
                 })?;
 
             let (p, s) = calculate_precision_and_scale(dividend.data_type(), divisor.data_type());

@@ -1,12 +1,11 @@
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    any_single_geometry_type_input, parse_to_native_array,
-};
+use crate::errors;
+use crate::geospatial::data_types::{any_single_geometry_type_input, parse_to_native_array};
 use datafusion::arrow::array::builder::Float64Builder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::DataType::Float64;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_expr::ScalarFunctionArgs;
 use geo_traits::CoordTrait;
 use geo_traits::RectTrait;
@@ -108,18 +107,20 @@ fn get_extremum(args: &[ColumnarValue], index: i64, is_max: bool) -> Result<Colu
     let arg = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| DataFusionError::Execution("Expected only one argument".to_string()))?;
+        .ok_or_else(|| errors::ExpectedOnlyOneArgumentSnafu.build())?;
 
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| DataFusionError::Execution("Expected at least one argument".to_string()))?;
+        .ok_or_else(|| errors::ExpectedAtLeastOneArgumentSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
-    let native_array_ref = native_array
-        .as_ref()
-        .bounding_rect()
-        .map_err(|e| DataFusionError::Execution(format!("Error getting bounding rect: {e}")))?;
+    let native_array_ref = native_array.as_ref().bounding_rect().map_err(|e| {
+        errors::ErrorGettingBoundingRectSnafu {
+            error: e.to_string(),
+        }
+        .fail()
+    })?;
 
     let mut output_array = Float64Builder::with_capacity(arg.len());
     for rect in native_array_ref.iter() {
@@ -128,11 +129,7 @@ fn get_extremum(args: &[ColumnarValue], index: i64, is_max: bool) -> Result<Colu
             (1, false) => output_array.append_option(rect.map(|r| r.min().y())),
             (0, true) => output_array.append_option(rect.map(|r| r.max().x())),
             (1, true) => output_array.append_option(rect.map(|r| r.max().y())),
-            _ => {
-                return Err(DataFusionError::Execution(
-                    "Index out of bounds".to_string(),
-                ))
-            }
+            _ => errors::IndexOutOfBoundsSnafu.fail()?,
         }
     }
     Ok(ColumnarValue::Array(Arc::new(output_array.finish())))
@@ -142,14 +139,14 @@ fn get_extremum(args: &[ColumnarValue], index: i64, is_max: bool) -> Result<Colu
 mod tests {
     use super::*;
     use super::{MaxX, MaxY, MinX, MinY};
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::types::Float64Type;
-    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::{CoordType, LineStringBuilder, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used, clippy::float_cmp)]

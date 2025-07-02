@@ -71,14 +71,13 @@ impl ScalarUDFImpl for ArraysToObjectUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let keys_arg = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected keys array argument".to_string(),
-            ))?;
-        let values_arg = args
-            .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected values array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "keys array" }.build())?;
+        let values_arg = args.get(1).ok_or_else(|| {
+            errors::ExpectedNamedArgumentSnafu {
+                name: "values array",
+            }
+            .build()
+        })?;
 
         match (keys_arg, values_arg) {
             (ColumnarValue::Array(keys_array), ColumnarValue::Array(values_array)) => {

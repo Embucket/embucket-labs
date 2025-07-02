@@ -65,17 +65,13 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         } = args;
 
         if args.len() < 2 || args.len() > 3 {
-            return Err(datafusion_common::DataFusionError::Internal(
-                "array_generate_range requires 2 or 3 arguments".to_string(),
-            ));
+            return errors::ArrayGenerateRangeInvalidArgumentCountSnafu.fail()?;
         }
 
         let mut args = args;
         let step = if args.len() == 3 {
             args.pop()
-                .ok_or(datafusion_common::DataFusionError::Internal(
-                    "Expected step argument".to_string(),
-                ))?
+                .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "step" }.build())?
                 .into_array(number_rows)?
         } else {
             // Default step is 1
@@ -84,15 +80,11 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
         };
         let stop = args
             .pop()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected stop argument".to_string(),
-            ))?
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "stop" }.build())?
             .into_array(number_rows)?;
         let start = args
             .pop()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected start argument".to_string(),
-            ))?
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "start" }.build())?
             .into_array(number_rows)?;
 
         let mut results = Vec::new();
@@ -104,9 +96,9 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
                 start
                     .as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::DataFusionError::Internal(
-                        "Expected start argument to be an Int64Array".to_string(),
-                    ))?
+                    .ok_or_else(|| {
+                        errors::ExpectedNamedArgumentToBeAnInt64ArraySnafu { name: "start" }.build()
+                    })?
                     .value(i)
             };
 
@@ -115,9 +107,9 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
             } else {
                 stop.as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::DataFusionError::Internal(
-                        "Expected stop argument to be an Int64Array".to_string(),
-                    ))?
+                    .ok_or_else(|| {
+                        errors::ExpectedNamedArgumentToBeAnInt64ArraySnafu { name: "stop" }.build()
+                    })?
                     .value(i)
             };
 
@@ -126,9 +118,9 @@ impl ScalarUDFImpl for ArrayGenerateRangeUDF {
             } else {
                 step.as_any()
                     .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                    .ok_or(datafusion_common::DataFusionError::Internal(
-                        "Expected step argument to be an Int64Array".to_string(),
-                    ))?
+                    .ok_or_else(|| {
+                        errors::ExpectedNamedArgumentToBeAnInt64ArraySnafu { name: "step" }.build()
+                    })?
                     .value(i)
             };
 

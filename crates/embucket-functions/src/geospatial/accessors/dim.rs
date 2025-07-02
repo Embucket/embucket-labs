@@ -1,14 +1,13 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::execution::datafusion::functions::geospatial::data_types::{
-    any_single_geometry_type_input, parse_to_native_array,
-};
+use crate::errors;
+use crate::geospatial::data_types::{any_single_geometry_type_input, parse_to_native_array};
 use datafusion::arrow::array::UInt8Builder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::scalar_doc_sections::DOC_SECTION_OTHER;
 use datafusion::logical_expr::{ColumnarValue, Documentation, ScalarUDFImpl, Signature};
-use datafusion_common::{DataFusionError, Result};
+use datafusion_common::Result;
 use datafusion_expr::ScalarFunctionArgs;
 use geoarrow::array::AsNativeArray;
 use geoarrow::datatypes::NativeType;
@@ -78,9 +77,7 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| {
-            DataFusionError::Execution("Expected only one argument in ST_Dimension".to_string())
-        })?;
+        .ok_or_else(|| errors::ExpectedOnlyOneArgumentInSTDimensionSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
     let native_array_ref = native_array.as_ref();
@@ -107,16 +104,10 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
                         Geometry::LineString(_) | Geometry::MultiLineString(_) => 1,
                         Geometry::Polygon(_) | Geometry::MultiPolygon(_) | Geometry::Rect(_) => 2,
                         Geometry::GeometryCollection(_) => {
-                            return Err(DataFusionError::Execution(
-                                "Unsupported geometry type".to_string(),
-                            ))
+                            errors::UnsupportedGeometryTypeSnafu.fail()?
                         }
                     },
-                    None => {
-                        return Err(DataFusionError::Execution(
-                            "Null geometry found".to_string(),
-                        ))
-                    }
+                    None => errors::NullGeometryFoundSnafu.fail()?,
                 };
                 output_array.append_value(dim);
             }
@@ -128,15 +119,15 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::ArrayRef;
     use datafusion::arrow::array::cast::AsArray;
     use datafusion::arrow::array::types::UInt8Type;
-    use datafusion::arrow::array::ArrayRef;
     use datafusion::logical_expr::ColumnarValue;
     use geo_types::{line_string, point, polygon};
+    use geoarrow::ArrayBase;
     use geoarrow::array::LineStringBuilder;
     use geoarrow::array::{CoordType, PointBuilder, PolygonBuilder};
     use geoarrow::datatypes::Dimension;
-    use geoarrow::ArrayBase;
 
     #[test]
     #[allow(clippy::unwrap_used)]

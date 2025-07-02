@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/conditional/iff.rs
+description: "\"SELECT IFF(FALSE, 'true', 'false');\""
+---
+Ok(
+    [
+        "+------------------------------------------------+",
+        "| iff(Boolean(false),Utf8(\"true\"),Utf8(\"false\")) |",
+        "+------------------------------------------------+",
+        "| false                                          |",
+        "+------------------------------------------------+",
+    ],
+)

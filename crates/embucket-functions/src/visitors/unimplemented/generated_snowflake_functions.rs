@@ -366,14 +366,6 @@ pub const CONDITIONAL_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         )
         .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regr_valy"),
     ),
-    (
-        "ZEROIFNULL",
-        FunctionInfo::new(
-            "ZEROIFNULL",
-            "Returns 0 if its argument is null; otherwise, returns its argument.",
-        )
-        .with_docs("https://docs.snowflake.com/en/sql-reference/functions/zeroifnull"),
-    ),
 ];
 
 pub const CONTEXT_FUNCTIONS: &[(&str, FunctionInfo)] = &[

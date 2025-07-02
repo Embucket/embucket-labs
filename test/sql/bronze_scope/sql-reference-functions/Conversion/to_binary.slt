@@ -1,13 +1,7 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE binary_test (v VARCHAR, b BINARY);
-
-exclude-from-coverage
-statement ok
-INSERT INTO binary_test(v, b)
-SELECT 'SNOW' AS v, TO_BINARY(HEX_ENCODE('SNOW'), 'HEX') AS b;
-
 query TT
+WITH binary_test AS (
+  SELECT 'SNOW' AS v, TO_BINARY(HEX_ENCODE('SNOW'), 'HEX') AS b
+)
 SELECT v, HEX_DECODE_STRING(TO_VARCHAR(b, 'HEX')) FROM binary_test
 ----
 SNOW	SNOW

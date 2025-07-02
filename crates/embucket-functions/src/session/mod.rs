@@ -88,16 +88,16 @@ fn current_ip_address_udf() -> ScalarUDF {
 
 pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     let udfs = [
+        current_client_udf(),
         current_database_udf(),
+        current_ip_address_udf(),
+        current_role_udf(),
+        current_role_type_udf(),
         current_schema_udf(),
         current_schemas_udf(),
-        current_warehouse_udf(),
-        current_version_udf(),
-        current_client_udf(),
-        current_role_type_udf(),
-        current_role_udf(),
         current_session_udf(),
-        current_ip_address_udf(),
+        current_version_udf(),
+        current_warehouse_udf(),
     ];
 
     for udf in udfs {

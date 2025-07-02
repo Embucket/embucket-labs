@@ -1,10 +1,11 @@
+use crate::errors;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
-use datafusion_common::{DataFusionError, ScalarValue, exec_err};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
@@ -99,11 +100,12 @@ impl ScalarUDFImpl for AddMonthsFunc {
 
             let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
             let new_naive = add_months(&naive, to_add as i32)
-                .ok_or_else(|| DataFusionError::Execution("can't parse date".to_string()))?;
+                .ok_or_else(|| errors::CantParseDateSnafu.build())?;
 
-            let v = new_naive.and_utc().timestamp_nanos_opt().ok_or_else(|| {
-                DataFusionError::Execution("timestamp is out of range".to_string())
-            })?;
+            let v = new_naive
+                .and_utc()
+                .timestamp_nanos_opt()
+                .ok_or_else(|| errors::TimestampIsOutOfRangeSnafu.build())?;
             let tsv = ScalarValue::TimestampNanosecond(Some(v), None);
             res.push(tsv.cast_to(arr.data_type())?);
         }

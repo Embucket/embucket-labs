@@ -2,6 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
+use crate::error as errors;
 use crate::error::{self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, Result};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
@@ -17,7 +18,6 @@ use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
     execution::object_store::ObjectStoreRegistry,
 };
-use datafusion_common::DataFusionError;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
@@ -443,9 +443,7 @@ impl ObjectStoreRegistry for EmbucketCatalogList {
         if let Some(object_store) = self.table_object_store.get(&url) {
             Ok(object_store.clone())
         } else {
-            Err(DataFusionError::Execution(format!(
-                "Object store not found for url {url}"
-            )))
+            errors::ObjectStoreNotFoundSnafu { url }.fail()?
         }
     }
 }

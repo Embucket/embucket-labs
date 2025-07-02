@@ -7,7 +7,6 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::DataFusionError;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -77,9 +76,7 @@ impl PartitionStream for InformationSchemaRoutines {
 
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            futures::stream::iter([builder
-                .finish()
-                .map_err(|e| DataFusionError::ArrowError(e, None))]),
+            futures::stream::iter([builder.finish().map_err(From::from)]),
         ))
     }
 }

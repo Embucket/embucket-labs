@@ -58,24 +58,20 @@ impl ArrayInsertUDF {
 
             // Ensure position is within bounds
             if pos > array.len() {
-                return Err(datafusion_common::DataFusionError::Internal(format!(
-                    "Position {pos} is out of bounds for array of length {}",
-                    array.len()
-                )));
+                return errors::PositionOutOfBoundsForArrayLengthSnafu {
+                    pos,
+                    length: array.len(),
+                }
+                .fail()?;
             }
 
             array.insert(pos, scalar_value);
 
             // Convert back to JSON string
-            to_string(&array_value).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })
+            let res = to_string(&array_value).context(errors::FailedToSerializeValueSnafu)?;
+            Ok(res)
         } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
-            ))
+            errors::ArgumentMustBeJsonArraySnafu { argument: "First" }.fail()?
         }
     }
 }
@@ -107,30 +103,26 @@ impl ScalarUDFImpl for ArrayInsertUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "array" }.build())?;
         let pos = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected position argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "position" }.build())?;
         let element = args
             .get(2)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected element argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "element" }.build())?;
 
         match (array_str, pos, element) {
-            (ColumnarValue::Array(array), ColumnarValue::Scalar(pos_value), ColumnarValue::Scalar(element_value)) => {
+            (
+                ColumnarValue::Array(array),
+                ColumnarValue::Scalar(pos_value),
+                ColumnarValue::Scalar(element_value),
+            ) => {
                 let string_array = array.as_string::<i32>();
                 let mut results = Vec::new();
 
                 // Get position as i64
                 let ScalarValue::Int64(Some(pos)) = pos_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Position must be an integer".to_string()
-                    ))
+                    return errors::PositionMustBeAnIntegerSnafu.fail()?;
                 };
 
                 for i in 0..string_array.len() {
@@ -138,31 +130,35 @@ impl ScalarUDFImpl for ArrayInsertUDF {
                         results.push(None);
                     } else {
                         let array_value = string_array.value(i);
-                        results.push(Some(Self::insert_element(array_value, *pos, element_value)?));
+                        results.push(Some(Self::insert_element(
+                            array_value,
+                            *pos,
+                            element_value,
+                        )?));
                     }
                 }
 
-                Ok(ColumnarValue::Array(Arc::new(datafusion::arrow::array::StringArray::from(results))))
+                Ok(ColumnarValue::Array(Arc::new(
+                    datafusion::arrow::array::StringArray::from(results),
+                )))
             }
-            (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(pos_value), ColumnarValue::Scalar(element_value)) => {
+            (
+                ColumnarValue::Scalar(array_value),
+                ColumnarValue::Scalar(pos_value),
+                ColumnarValue::Scalar(element_value),
+            ) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string()
-                    ))
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 let ScalarValue::Int64(Some(pos)) = pos_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Position must be an integer".to_string()
-                    ))
+                    return errors::PositionMustBeAnIntegerSnafu.fail()?;
                 };
 
                 let result = Self::insert_element(array_str, *pos, element_value)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second argument must be an integer, third argument must be a scalar value".to_string()
-            ))
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondIntegerThirdScalarSnafu.fail()?,
         }
     }
 }

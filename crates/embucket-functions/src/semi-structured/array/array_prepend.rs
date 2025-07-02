@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -7,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice, to_string};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 use crate::json::encode_scalar;
@@ -36,15 +38,9 @@ impl ArrayPrependUDF {
             new_array.extend(array.iter().cloned());
 
             // Convert back to JSON string
-            to_string(&Value::Array(new_array)).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })
+            Ok(to_string(&Value::Array(new_array)).context(errors::FailedToSerializeValueSnafu)?)
         } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array".to_string(),
-            ))
+            errors::ArgumentMustBeJsonArraySnafu { argument: "first" }.fail()?
         }
     }
 }
@@ -76,14 +72,11 @@ impl ScalarUDFImpl for ArrayPrependUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
+
         let element = args
             .get(1)
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected element argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedElementArgumentSnafu.build())?;
 
         match (array_str, element) {
             (ColumnarValue::Array(array), ColumnarValue::Scalar(element_value)) => {
@@ -96,29 +89,27 @@ impl ScalarUDFImpl for ArrayPrependUDF {
                         results.push(None);
                     } else {
                         let array_value = from_slice(string_array.value(i).as_bytes())
-                            .map_err(|e| datafusion_common::DataFusionError::Internal(e.to_string()))?;
+                            .context(errors::FailedToDeserializeJsonSnafu)?;
                         results.push(Some(Self::prepend_element(&array_value, &element_value)?));
                     }
                 }
 
-                Ok(ColumnarValue::Array(Arc::new(datafusion::arrow::array::StringArray::from(results))))
+                Ok(ColumnarValue::Array(Arc::new(
+                    datafusion::arrow::array::StringArray::from(results),
+                )))
             }
             (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(element_value)) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string()
-                    ))
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
                 let array_value = from_slice(array_str.as_bytes())
-                    .map_err(|e| datafusion_common::DataFusionError::Internal(e.to_string()))?;
+                    .context(errors::FailedToDeserializeJsonSnafu)?;
                 let element_value = encode_scalar(element_value)?;
 
                 let result = Self::prepend_element(&array_value, &element_value)?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(result))))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "First argument must be a JSON array string, second argument must be a scalar value".to_string()
-            ))
+            _ => errors::FirstArgumentMustBeJsonArrayStringSecondScalarSnafu.fail()?,
         }
     }
 }

@@ -1,4 +1,5 @@
 use axum::{Json, response::IntoResponse};
+use error_stack::ErrorExt;
 use error_stack_trace;
 use http;
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,7 @@ pub struct ErrorResponse {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!("{}", self.output_msg());
         let metastore_error = match self {
             Self::Metastore { source, .. } => source,
         };

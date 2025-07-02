@@ -43,15 +43,9 @@ impl ArrayCompactUDF {
             let compacted_array = Value::Array(compacted.cloned().collect());
 
             // Convert back to JSON string
-            to_string(&compacted_array).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!(
-                    "Failed to serialize result: {e}",
-                ))
-            })
+            Ok(to_string(&compacted_array).context(errors::FailedToSerializeResultSnafu)?)
         } else {
-            Err(datafusion_common::DataFusionError::Internal(
-                "Input must be a JSON array".to_string(),
-            ))
+            errors::InputMustBeJsonArraySnafu.fail()?
         }
     }
 }
@@ -83,9 +77,7 @@ impl ScalarUDFImpl for ArrayCompactUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected array argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
 
         match array_str {
             ColumnarValue::Array(array) => {
@@ -107,9 +99,7 @@ impl ScalarUDFImpl for ArrayCompactUDF {
             }
             ColumnarValue::Scalar(array_value) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string for array".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                 };
 
                 let result = Self::compact_array(array_str)?;

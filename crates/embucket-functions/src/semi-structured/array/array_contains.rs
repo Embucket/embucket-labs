@@ -8,6 +8,7 @@ use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -29,9 +30,8 @@ impl ArrayContainsUDF {
     fn contains_value(search_value: &Value, array_str: Option<&str>) -> DFResult<Option<bool>> {
         if let Some(array_str) = array_str {
             // Parse the array
-            let array_value: Value = from_slice(array_str.as_bytes()).map_err(|e| {
-                datafusion_common::DataFusionError::Internal(format!("Failed to parse array: {e}",))
-            })?;
+            let array_value: Value =
+                from_slice(array_str.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
             if let Value::Array(array) = array_value {
                 // If search value is null, check if array contains null
@@ -80,12 +80,10 @@ impl ScalarUDFImpl for ArrayContainsUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let value = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected a value argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "first" }.build())?;
         let array = args
             .get(1)
-            .ok_or_else(|| errors::ArrayArgumentExpectedSnafu.build())?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "second" }.build())?;
 
         match (value, array) {
             (ColumnarValue::Array(value_array), ColumnarValue::Array(array_array)) => {
@@ -113,18 +111,14 @@ impl ScalarUDFImpl for ArrayContainsUDF {
                         return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(None)));
                     }
                     _ => {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Expected UTF8 string for array".to_string(),
-                        ));
+                        return errors::ExpectedUtf8StringForArraySnafu.fail()?;
                     }
                 };
 
                 let result = Self::contains_value(&value_scalar, Some(array_str.as_str()))?;
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Mismatched argument types".to_string(),
-            )),
+            _ => errors::MismatchedArgumentTypesSnafu.fail()?,
         }
     }
 }

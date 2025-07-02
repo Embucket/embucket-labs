@@ -1,10 +1,10 @@
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
+use error_stack_trace;
 use geoarrow::error::GeoArrowError;
 use geohash::GeohashError;
-use snafu::Snafu;
 use snafu::Location;
-use error_stack_trace;
+use snafu::Snafu;
 
 pub type GeoDataFusionResult<T> = Result<T, GeoDataFusionError>;
 
@@ -44,4 +44,3 @@ pub enum GeoDataFusionError {
         location: Location,
     },
 }
-

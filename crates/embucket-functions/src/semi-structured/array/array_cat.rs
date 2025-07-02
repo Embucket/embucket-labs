@@ -122,9 +122,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Cannot concatenate arrays with null values".to_string(),
-                        ));
+                        return errors::CannotConcatenateArraysWithNullValuesSnafu.fail()?;
                     }
                     let result = Self::concatenate_arrays(&[
                         string_array1.value(i).to_string().as_str(),
@@ -147,9 +145,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 let mut results = Vec::with_capacity(len);
                 for i in 0..len {
                     if string_array1.is_null(i) || string_array2.is_null(i) {
-                        return Err(datafusion_common::DataFusionError::Internal(
-                            "Cannot concatenate arrays with null values".to_string(),
-                        ));
+                        return errors::CannotConcatenateArraysWithNullValuesSnafu.fail()?;
                     }
                     let result = Self::concatenate_arrays(&[
                         string_array1.value(i).to_string().as_str(),
@@ -163,9 +159,7 @@ impl ScalarUDFImpl for ArrayCatUDF {
                 )))
             }
 
-            _ => Err(datafusion_common::DataFusionError::Internal(
-                "Arguments must both be either scalar UTF8 strings or arrays".to_string(),
-            )),
+            _ => errors::InvalidArgumentTypesForArrayConcatSnafu.fail()?,
         }
     }
 }

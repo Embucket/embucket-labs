@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
@@ -9,6 +10,7 @@ use datafusion_expr::{
     TypeSignatureClass, Volatility,
 };
 use serde_json::{Value, from_slice};
+use snafu::ResultExt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -33,11 +35,8 @@ impl ArrayMaxUDF {
 
     fn find_max(string: impl AsRef<str>) -> DFResult<Option<String>> {
         let string = string.as_ref();
-        let array_value: Value = from_slice(string.as_bytes()).map_err(|e| {
-            datafusion_common::DataFusionError::Internal(format!(
-                "Failed to parse the JSON string: {e}",
-            ))
-        })?;
+        let array_value: Value =
+            from_slice(string.as_bytes()).context(errors::FailedToDeserializeJsonSnafu)?;
 
         if let Value::Array(array) = array_value {
             if array.is_empty() {
@@ -51,11 +50,9 @@ impl ArrayMaxUDF {
             for value in array {
                 match value {
                     Value::Number(n) if n.is_i64() => {
-                        let num =
-                            n.as_i64()
-                                .ok_or(datafusion_common::DataFusionError::Internal(
-                                    "Failed to parse number".to_string(),
-                                ))?;
+                        let num = n
+                            .as_i64()
+                            .ok_or_else(|| errors::FailedToParseNumberSnafu.build())?;
                         let should_update = match max_value.as_ref() {
                             None => true,
                             Some(current) => {
@@ -72,11 +69,9 @@ impl ArrayMaxUDF {
                         }
                     }
                     Value::Number(n) if n.is_f64() => {
-                        let num =
-                            n.as_f64()
-                                .ok_or(datafusion_common::DataFusionError::Internal(
-                                    "Failed to parse number".to_string(),
-                                ))?;
+                        let num = n
+                            .as_f64()
+                            .ok_or_else(|| errors::FailedToParseNumberSnafu.build())?;
                         let should_update = match max_value.as_ref() {
                             None => true,
                             Some(current) => {
@@ -130,9 +125,7 @@ impl ScalarUDFImpl for ArrayMaxUDF {
         let ScalarFunctionArgs { args, .. } = args;
         let array_str = args
             .first()
-            .ok_or(datafusion_common::DataFusionError::Internal(
-                "Expected a variant argument".to_string(),
-            ))?;
+            .ok_or_else(|| errors::ExpectedNamedArgumentSnafu { name: "variant" }.build())?;
         match array_str {
             ColumnarValue::Array(array) => {
                 let string_array = array.as_string::<i32>();
@@ -153,9 +146,7 @@ impl ScalarUDFImpl for ArrayMaxUDF {
             }
             ColumnarValue::Scalar(array_value) => {
                 let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return Err(datafusion_common::DataFusionError::Internal(
-                        "Expected UTF8 string".to_string(),
-                    ));
+                    return errors::ExpectedUtf8StringSnafu.fail()?;
                 };
 
                 let result = Self::find_max(array_str)?;

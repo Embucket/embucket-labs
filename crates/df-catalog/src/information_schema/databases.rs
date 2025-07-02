@@ -10,7 +10,6 @@ use datafusion::arrow::{
     record_batch::RecordBatch,
 };
 use datafusion::execution::TaskContext;
-use datafusion_common::DataFusionError;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -54,9 +53,7 @@ impl PartitionStream for InformationSchemaDatabases {
     fn execute(&self, _ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
         self.config.make_databases(&mut builder);
-        let result = builder
-            .finish()
-            .map_err(|e| DataFusionError::ArrowError(e, None));
+        let result = builder.finish().map_err(From::from);
 
         let stream = futures::stream::iter(vec![result]);
         Box::pin(RecordBatchStreamAdapter::new(

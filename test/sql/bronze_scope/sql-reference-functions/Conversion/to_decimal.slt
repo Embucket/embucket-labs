@@ -1,22 +1,21 @@
 exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE number_conv(expr VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO number_conv VALUES ('12.3456'), ('98.76546');
-
 statement error
+WITH number_conv AS (
+  SELECT column1 as expr FROM VALUES ('12.3456'), ('98.76546')
+)
 SELECT expr, TO_NUMBER(expr, 10, 9) FROM number_conv
 ----
 100039 (22003): Numeric value '12.3456' is out of range
 
 query TTTT
+WITH input_values AS (
+  SELECT column1 FROM VALUES ('1.0'), ('-12.3'), ('0.0'), ('- 0.1')
+)
 SELECT column1,
        TO_DECIMAL(column1, '99.9') as D0,
        TO_DECIMAL(column1, '99.9', 9, 5) as D5,
        TO_DECIMAL(column1, 'TM9', 9, 5) as TD5
-  FROM VALUES ('1.0'), ('-12.3'), ('0.0'), ('- 0.1')
+FROM input_values
 ----
 1.0	1	1.00000	1.00000
 -12.3	-12	-12.30000	-12.30000

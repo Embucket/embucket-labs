@@ -205,7 +205,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test4".to_string(),
+        "test".to_string(),
         databases_response.items.first().unwrap().name
     );
     //Get list databases with parameters
@@ -221,7 +221,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test2".to_string(),
+        "test3".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -252,7 +252,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(4, databases_response.items.len());
     assert_eq!(
-        "test4".to_string(),
+        "test".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -271,9 +271,16 @@ async fn test_ui_databases() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let databases_response: DatabasesResponse = res.json().await.unwrap();
+    assert_eq!(4, databases_response.items.len());
+    //Since we are using ASC, the first element is the one with the name "test2",
+    // because we deleted "test" and added it back, and we are sorting by 'created_at'
+    assert_eq!(
+        "test2".to_string(),
+        databases_response.items.first().unwrap().name
+    );
     assert_eq!(
         "test".to_string(),
-        databases_response.items.first().unwrap().name
+        databases_response.items.last().unwrap().name
     );
 
     //Get list databases with search
@@ -289,7 +296,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test4".to_string(),
+        "test".to_string(),
         databases_response.items.first().unwrap().name
     );
 
@@ -306,7 +313,7 @@ async fn test_ui_databases() {
     let databases_response: DatabasesResponse = res.json().await.unwrap();
     assert_eq!(2, databases_response.items.len());
     assert_eq!(
-        "test2".to_string(),
+        "test3".to_string(),
         databases_response.items.first().unwrap().name
     );
 

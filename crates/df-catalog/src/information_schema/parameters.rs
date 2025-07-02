@@ -8,7 +8,6 @@ use datafusion::arrow::{
 };
 use datafusion::execution::TaskContext;
 use datafusion::logical_expr::Signature;
-use datafusion_common::DataFusionError;
 use datafusion_expr::{AggregateUDF, ScalarUDF, WindowUDF};
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
@@ -77,11 +76,7 @@ impl PartitionStream for InformationSchemaParameters {
             ctx.session_config().options(),
             &mut builder,
         )
-        .and_then(|()| {
-            builder
-                .finish()
-                .map_err(|e| DataFusionError::ArrowError(e, None))
-        });
+        .and_then(|()| Ok(builder.finish()?));
 
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
