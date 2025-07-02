@@ -3,7 +3,7 @@ use aes_gcm::aead::{Aead, Payload};
 use aes_gcm::{Aes128Gcm, Aes256Gcm, AesGcm, KeyInit, Nonce};
 use datafusion::arrow::array::{Array, BinaryBuilder};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::error::{DataFusionError, Result as DFResult};
+use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::cast::{as_binary_array, as_string_array};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
@@ -310,9 +310,7 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 16 => decrypt::<Aes128Gcm>(&combined_ct, key, iv, aad)?,
                 24 => decrypt::<Aes192Gcm>(&combined_ct, key, iv, aad)?,
                 32 => decrypt::<Aes256Gcm>(&combined_ct, key, iv, aad)?,
-                _ => {
-                    InvalidKeyLengthSnafu { length: key.len() }.fail()?
-                }
+                _ => InvalidKeyLengthSnafu { length: key.len() }.fail()?,
             };
             builder.append_value(pt);
         }
