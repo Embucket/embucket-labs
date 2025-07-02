@@ -359,8 +359,8 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("MERGE statement currently supports only tables as sources"))]
-    MergeSourceMustBeTable {
+    #[snafu(display("MERGE statement currently supports only tables and subqueries as sources"))]
+    MergeSourceNotSupported {
         #[snafu(implicit)]
         location: Location,
     },

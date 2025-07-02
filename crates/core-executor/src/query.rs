@@ -963,31 +963,18 @@ impl UserQuery {
         ) {
             return ex_error::MergeTargetMustBeTableSnafu.fail();
         }
-        if !matches!(
-            &source,
-            TableFactor::Table {
-                name: _,
-                alias: _,
-                args: _,
-                with_hints: _,
-                version: _,
-                with_ordinality: _,
-                partitions: _,
-                json_path: _,
-                sample: _,
-                index_hints: _
-            }
-        ) {
-            return ex_error::MergeSourceMustBeTableSnafu.fail();
-        }
 
         let df_session_state = self.session.ctx.state();
 
+        let mut session_context_provider = SessionContextProvider {
+            state: &df_session_state,
+            tables: HashMap::new(),
+        };
+        let mut planner_context = datafusion::sql::planner::PlannerContext::new();
+
         let (target_ident, target_alias) = Self::get_table_with_alias(target);
-        let (source_ident, source_alias) = Self::get_table_with_alias(source.clone());
 
         let target_ident = self.resolve_table_object_name(target_ident.0)?;
-        let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
         // Create a LogicalPlan for the target table
 
@@ -1024,46 +1011,92 @@ impl UserQuery {
 
         let target_schema = target_plan.schema().clone();
 
+        session_context_provider
+            .tables
+            .insert(self.resolve_table_ref(&target_ident), target_table_source);
+
         // Create a LogicalPlan for the source table
 
-        let source_provider = self
-            .session
-            .ctx
-            .table_provider(&source_ident)
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let (source_ident, source_alias) = Self::get_table_with_alias(source.clone());
 
-        let source_table_source: Arc<dyn TableSource> =
-            Arc::new(DefaultTableSource::new(source_provider));
+        let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
-        let source_plan = DataFrame::new(
-            df_session_state.clone(),
-            LogicalPlanBuilder::scan(&source_ident, source_table_source.clone(), None)
+        let source_plan = match &source {
+            TableFactor::Table {
+                name: _,
+                alias: _,
+                args: _,
+                with_hints: _,
+                version: _,
+                with_ordinality: _,
+                partitions: _,
+                json_path: _,
+                sample: _,
+                index_hints: _,
+            } => {
+                let source_provider = self
+                    .session
+                    .ctx
+                    .table_provider(&source_ident)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+
+                let source_table_source: Arc<dyn TableSource> =
+                    Arc::new(DefaultTableSource::new(source_provider));
+
+                session_context_provider.tables.insert(
+                    self.resolve_table_ref(&source_ident),
+                    source_table_source.clone(),
+                );
+
+                let source_plan = DataFrame::new(
+                    df_session_state.clone(),
+                    LogicalPlanBuilder::scan(&source_ident, source_table_source, None)
+                        .context(ex_error::DataFusionSnafu)?
+                        .alias(&source_alias)
+                        .context(ex_error::DataFusionSnafu)?
+                        .build()
+                        .context(ex_error::DataFusionSnafu)?,
+                )
+                .with_column(SOURCE_EXISTS, lit(true))
                 .context(ex_error::DataFusionSnafu)?
-                .alias(&source_alias)
-                .context(ex_error::DataFusionSnafu)?
-                .build()
-                .context(ex_error::DataFusionSnafu)?,
-        )
-        .with_column(SOURCE_EXISTS, lit(true))
-        .context(ex_error::DataFusionSnafu)?
-        .into_unoptimized_plan();
+                .into_unoptimized_plan();
+                Ok(source_plan)
+            }
+            TableFactor::Derived {
+                lateral: _,
+                subquery,
+                alias: _,
+            } => {
+                let query = Statement::Query(subquery.clone());
+
+                let tables = self
+                    .table_references_for_statement(
+                        &DFStatement::Statement(Box::new(query.clone())),
+                        &df_session_state,
+                    )
+                    .await?;
+
+                session_context_provider.tables.extend(tables);
+
+                let sql_planner =
+                    ExtendedSqlToRel::new(&session_context_provider, ParserOptions::default());
+
+                let source_plan = sql_planner
+                    .sql_statement_to_plan(query)
+                    .context(ex_error::DataFusionSnafu)?;
+
+                Ok(source_plan)
+            }
+            _ => ex_error::MergeSourceNotSupportedSnafu.fail(),
+        }?;
 
         let source_schema = source_plan.schema().clone();
 
         // Create the LogicalPlan for the join
 
-        let tables = HashMap::from_iter(vec![
-            (self.resolve_table_ref(&target_ident), target_table_source),
-            (self.resolve_table_ref(&source_ident), source_table_source),
-        ]);
-
-        let session_context_planner = SessionContextProvider {
-            state: &df_session_state,
-            tables,
-        };
-        let sql_planner = ExtendedSqlToRel::new(&session_context_planner, ParserOptions::default());
-        let mut planner_context = datafusion::sql::planner::PlannerContext::new();
+        let sql_planner =
+            ExtendedSqlToRel::new(&session_context_provider, ParserOptions::default());
 
         let schema = build_join_schema(&target_schema, &source_schema, &JoinType::Full)
             .context(ex_error::DataFusionSnafu)?;
