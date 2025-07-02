@@ -94,7 +94,12 @@ impl IntoStatusCode for Error {
 }
 
 impl IntoResponse for Error {
-    #[tracing::instrument(name = "api-ui::Error::into_response", level = "info", fields(status_code), skip(self))]
+    #[tracing::instrument(
+        name = "api-ui::Error::into_response",
+        level = "info",
+        fields(status_code),
+        skip(self)
+    )]
     fn into_response(self) -> axum::response::Response {
         tracing::error!("{}", self.output_msg());
 

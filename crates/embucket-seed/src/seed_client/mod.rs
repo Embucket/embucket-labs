@@ -80,6 +80,7 @@ impl SeedClient {
     /// # Errors
     ///
     /// Returns `SeedError` if any database operation fails
+    #[allow(clippy::cognitive_complexity)]
     pub async fn seed_all(&mut self) -> SeedResult<usize> {
         let mut seeded_entities: usize = 0;
         for seed_volume in &self.seed_data {
@@ -144,6 +145,7 @@ impl SeedClient {
 /// * `seed_variant` - The seed variant to use for populating the database
 /// * `user` - Username for server authentication
 /// * `pass` - Password for server authentication
+#[allow(clippy::cognitive_complexity)]
 pub async fn seed_database(
     addr: SocketAddr,
     seed_variant: SeedVariant,
