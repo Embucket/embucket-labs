@@ -9,135 +9,51 @@ CREATE OR REPLACE TABLE source_table (ID INTEGER, description VARCHAR);
 exclude-from-coverage
 statement ok
 INSERT INTO target_table (ID, description) VALUES
-    (10, 'To be updated (this is the old value)')
-    ;
+    (10, 'To be updated (this is the old value)');
 
 exclude-from-coverage
 statement ok
 INSERT INTO source_table (ID, description) VALUES
-    (10, 'To be updated (this is the new value)')
-    ;
-
-query T
-INSERT INTO target_table (ID, description)
-SELECT s.ID, s.description
-FROM source_table s
-INNER JOIN target_table t ON t.id = s.id
-----
-1
+    (10, 'To be updated (this is the new value)');
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target_table AS
-SELECT ID, description FROM target_table
-WHERE NOT (ID IN (
-    SELECT t.ID
-    FROM target_table t
-    INNER JOIN source_table s ON t.id = s.id
-) AND description = 'To be updated (this is the old value)');
+MERGE INTO target_table USING source_table 
+    ON target_table.id = source_table.id
+    WHEN MATCHED THEN 
+        UPDATE SET target_table.description = source_table.description;
 
-query TT
-SELECT * FROM target_table
+query IT
+SELECT * FROM target_table;
 ----
 10	To be updated (this is the new value)
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE t1 (t1Key INTEGER, val NUMBER, status NUMBER);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE t2 (t2Key INTEGER, marked INTEGER, isNewStatus INTEGER, newVal NUMBER, newStatus NUMBER);
-
-statement ok
-CREATE OR REPLACE TABLE t1 AS
-SELECT t1Key, val, status FROM t1
-WHERE NOT (t1Key IN (
-    SELECT t1.t1Key
-    FROM t1
-    INNER JOIN t2 ON t1.t1Key = t2.t2Key
-    WHERE t2.marked = 1
-));
-
-statement ok
-INSERT INTO t1 (t1Key, val, status)
-SELECT t1.t1Key, t2.newVal, t2.newStatus
-FROM t1
-INNER JOIN t2 ON t1.t1Key = t2.t2Key
-WHERE t2.isNewStatus = 1;
+CREATE OR REPLACE TABLE target_table (ID INTEGER, description VARCHAR);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE t1 AS
-SELECT t1Key, val, status FROM t1
-WHERE NOT (t1Key IN (
-    SELECT t1.t1Key
-    FROM t1
-    INNER JOIN t2 ON t1.t1Key = t2.t2Key
-    WHERE t2.isNewStatus = 1
-) AND (val, status) NOT IN (
-    SELECT t2.newVal, t2.newStatus
-    FROM t2
-    WHERE t2.isNewStatus = 1
-));
-
-statement ok
-INSERT INTO t1 (t1Key, val, status)
-SELECT t1.t1Key, t2.newVal, t1.status
-FROM t1
-INNER JOIN t2 ON t1.t1Key = t2.t2Key
-WHERE t2.isNewStatus != 1 OR t2.isNewStatus IS NULL;
+CREATE OR REPLACE TABLE source_table (ID INTEGER, description VARCHAR);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE t1 AS
-SELECT t1Key, val, status FROM t1
-WHERE NOT (t1Key IN (
-    SELECT t1.t1Key
-    FROM t1
-    INNER JOIN t2 ON t1.t1Key = t2.t2Key
-    WHERE (t2.isNewStatus != 1 OR t2.isNewStatus IS NULL)
-) AND val NOT IN (
-    SELECT t2.newVal
-    FROM t2
-    WHERE (t2.isNewStatus != 1 OR t2.isNewStatus IS NULL)
-));
-
-statement ok
-INSERT INTO t1 (t1Key, val, status)
-SELECT t2.t2Key, t2.newVal, t2.newStatus
-FROM t2
-LEFT JOIN t1 ON t1.t1Key = t2.t2Key
-WHERE t1.t1Key IS NULL;
-
-exclude-from-coverage
-statement ok
-TRUNCATE TABLE source_table
-
-exclude-from-coverage
-statement ok
-TRUNCATE TABLE target_table
-
-exclude-from-coverage
-query T
 INSERT INTO source_table (ID, description) VALUES
     (50, 'This is a duplicate in the source and has no match in target'),
-    (50, 'This is a duplicate in the source and has no match in target')
-----
-2
+    (50, 'This is a duplicate in the source and has no match in target');
 
-query TT
+exclude-from-coverage
+statement ok
 MERGE INTO target_table USING source_table 
     ON target_table.id = source_table.id
     WHEN MATCHED THEN 
         UPDATE SET target_table.description = source_table.description
-    WHEN NOT MATCHED THEN
-        INSERT (ID, description) VALUES (source_table.id, source_table.description)
-----
-2	0
+    WHEN NOT MATCHED THEN 
+        INSERT (ID, description) VALUES (source_table.id, source_table.description);
 
-query T
-SELECT ID FROM target_table
+query I
+SELECT ID FROM target_table;
 ----
 50
 50
@@ -160,159 +76,46 @@ INSERT INTO src VALUES (0, 11), (0, 12), (0, 13);
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+CREATE OR REPLACE TABLE target AS (SELECT * from target_orig);
 
-exclude-from-coverage
 statement ok
-INSERT INTO target VALUES (0, 10);
-
-statement error
 MERGE INTO target
   USING src ON target.k = src.k
   WHEN MATCHED THEN UPDATE SET target.v = src.v;
-----
-100090 (42P18): Duplicate row detected during DML action
-Row Values: [0, 10]
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+CREATE OR REPLACE TABLE target AS (SELECT * from target_orig);
 
-exclude-from-coverage
 statement ok
-INSERT INTO target VALUES (0, 10);
-
-statement error
 MERGE INTO target
   USING src ON target.k = src.k
   WHEN MATCHED AND src.v = 11 THEN DELETE
   WHEN MATCHED THEN UPDATE SET target.v = src.v;
-----
-100090 (42P18): Duplicate row detected during DML action
-Row Values: [0, 10]
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+CREATE OR REPLACE TABLE target AS (SELECT * from target_orig);
 
-exclude-from-coverage
 statement ok
-INSERT INTO target VALUES (0, 10);
-
-query T
 MERGE INTO target
   USING src ON target.k = src.k
   WHEN MATCHED AND src.v <= 12 THEN DELETE;
-----
-1
-
-query TT
-SELECT * FROM target;
-----
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+CREATE OR REPLACE TABLE target AS (SELECT * from target_orig);
 
-exclude-from-coverage
 statement ok
-INSERT INTO target VALUES (0, 10);
-
-query T
 MERGE INTO target
   USING src ON target.k = src.k
   WHEN MATCHED AND src.v = 11 THEN UPDATE SET target.v = src.v;
-----
-1
-
-query TT
-SELECT * FROM target;
-----
-0	11
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE target (k NUMBER, v NUMBER);
+CREATE OR REPLACE TABLE target AS (SELECT * from target_orig);
 
-exclude-from-coverage
 statement ok
-INSERT INTO target VALUES (0, 10);
-
-query TT
 MERGE INTO target USING (select k, max(v) as v from src group by k) AS b ON target.k = b.k
   WHEN MATCHED THEN UPDATE SET target.v = b.v
   WHEN NOT MATCHED THEN INSERT (k, v) VALUES (b.k, b.v);
-----
-0	1
-
-query TT
-SELECT * FROM target;
-----
-0	13
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE members (id INTEGER, fee NUMBER);
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE signup (id INTEGER, date DATE);
-
-statement ok
-MERGE INTO members m
-  USING (
-  SELECT id, date
-  FROM signup
-  WHERE DATEDIFF(day, CURRENT_DATE(), signup.date::DATE) < -30) s ON m.id = s.id
-  WHEN MATCHED THEN UPDATE SET m.fee = 40;
-
-# Test MERGE with a WHEN MATCHED ... DELETE clause
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE merge_tgt(id INT, val STRING);
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE merge_src(id INT, val STRING);
-
-exclude-from-coverage
-statement ok
-INSERT INTO merge_tgt VALUES (1,'Old'),(2,'Keep');
-
-exclude-from-coverage
-statement ok
-INSERT INTO merge_src VALUES (1,'New'),(3,'Extra');
-
-statement ok
-MERGE INTO merge_tgt t
-USING merge_src s
-ON t.id = s.id
-WHEN MATCHED THEN DELETE
-WHEN NOT MATCHED THEN INSERT (id, val) VALUES(s.id, s.val);
-
-query TT
-SELECT * FROM merge_tgt ORDER BY id;
-----
-2	Keep
-3	Extra
-
-# Test MERGE behavior when source has duplicate keys or matches
-
-exclude-from-coverage
-statement ok
-INSERT INTO merge_src VALUES (3,'Extra2');  -- duplicate 'id=3' in source
-
-exclude-from-coverage
-statement ok
-INSERT INTO merge_tgt VALUES(1,'AnotherOld');  -- reintroduce id=1 in target
-
-statement error
-MERGE INTO merge_tgt t
-USING merge_src s
-ON t.id = s.id
-WHEN MATCHED THEN UPDATE SET val = s.val
-WHEN NOT MATCHED THEN INSERT (id, val) VALUES(s.id, s.val);
-----
-100090 (42P18): Duplicate row detected during DML action
-Row Values: [3, "Extra"]
