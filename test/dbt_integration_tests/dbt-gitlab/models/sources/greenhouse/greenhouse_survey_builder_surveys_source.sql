@@ -15,7 +15,7 @@ renamed AS (
 
     --info
     key::VARCHAR            AS survey_key,
-    active:BOOLEAN          AS is_survey_active,
+    active::BOOLEAN         AS is_survey_active,
     activated_at::TIMESTAMP AS activated_at,
     created_at::TIMESTAMP   AS created_at,
     updated_at::TIMESTAMP   AS updated_at
