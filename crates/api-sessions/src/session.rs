@@ -112,8 +112,9 @@ impl ExpiredDeletion for RequestSessionStore {
         ret
     )]
     async fn delete_expired(&self) -> session_store::Result<()> {
-        let store_guard = self.store.lock().await;
+        let mut store_guard = self.store.lock().await;
         let now = OffsetDateTime::now_utc();
+        tracing::error!("Deleting expired acquired a lock, to expire <=: {now}");
         let expired = store_guard
             .iter()
             .filter_map(
@@ -122,12 +123,25 @@ impl ExpiredDeletion for RequestSessionStore {
                 },
             )
             .collect::<Vec<_>>();
-        //If it is dropped here, the session maybe updated and still get deleted 
+        //If it is dropped here, the session maybe updated and still get deleted
         //drop(store_guard);
         //Somewhere here we update the session expiry time, but the `delete fn` doesn't check this (and it shouldn't)
         for id in expired {
-            tracing::error!("Deleting expired: {id}");
-            self.delete(&id).await?;
+            if let Some(record) = store_guard.get(&id) {
+                if let Some(df_session_id) =
+                    record.data.get("DF_SESSION_ID").and_then(|v| v.as_str())
+                {
+                    tracing::error!(
+                        "Deleting expired: {df_session_id} with expiry: {}",
+                        record.expiry_date
+                    );
+                    self.execution_svc
+                        .delete_session(df_session_id.to_string())
+                        .await
+                        .map_err(|e| session_store::Error::Backend(e.to_string()))?;
+                }
+            }
+            store_guard.remove(&id);
         }
         //If here we hang since deleting also needs to acquire the lock
         //drop(store_guard);
@@ -159,35 +173,32 @@ where
             }
         })?;
         let session_id = if let Ok(Some(id)) = session.get::<String>("DF_SESSION_ID").await {
-            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
             tracing::error!("Found DF session_id: {}", id);
             session
                 .insert("DF_SESSION_ID", id.clone())
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("expiry date: {}", session.expiry_date());
             id
         } else if let Some(token) = extract_token(&req.headers) {
-            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
             tracing::error!("Found DF session_id in headers: {}", token);
             session
                 .insert("DF_SESSION_ID", token.clone())
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("expiry date: {}", session.expiry_date());
             token
         } else {
             let id = uuid::Uuid::new_v4().to_string();
-            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
             tracing::error!("Creating new DF session_id: {}", id);
             session
                 .insert("DF_SESSION_ID", id.clone())
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("expiry date: {}", session.expiry_date());
             id
         };
         Ok(Self(session_id))
