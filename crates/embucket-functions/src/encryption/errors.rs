@@ -1,4 +1,5 @@
 use datafusion::error::DataFusionError;
+use snafu::Location;
 use snafu::Snafu;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -11,19 +12,36 @@ pub enum Error {
     InvalidArgumentTypes {
         function_name: String,
         types: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("All arguments must have the same length"))]
-    ArrayLengthMismatch,
+    ArrayLengthMismatch {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Malformed encryption method parameter: {method}"))]
-    MalformedEncryptionMethod { method: String },
+    MalformedEncryptionMethod {
+        method: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Unsupported encryption algorithm: {algorithm}"))]
-    UnsupportedEncryptionAlgorithm { algorithm: String },
+    UnsupportedEncryptionAlgorithm {
+        algorithm: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Unsupported encryption mode: {mode}"))]
-    UnsupportedEncryptionMode { mode: String },
+    UnsupportedEncryptionMode {
+        mode: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display(
         "IV/Nonce of size {bits} bits needs to be of size of {expected_bits} bits for encryption mode {mode}"
@@ -32,43 +50,58 @@ pub enum Error {
         bits: usize,
         expected_bits: usize,
         mode: String,
+        #[snafu(implicit)]
+        location: Location,
     },
 
     #[snafu(display("Key size of {bits} bits not found for encryption algorithm {algorithm}"))]
-    InvalidKeySize { bits: usize, algorithm: String },
+    InvalidKeySize {
+        bits: usize,
+        algorithm: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Invalid key length {length}. Supported lengths: 16, 24, 32 bytes"))]
-    InvalidKeyLength { length: usize },
+    InvalidKeyLength {
+        length: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Ciphertext too short to contain authentication tag"))]
-    CiphertextTooShort,
+    CiphertextTooShort {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Failed to create cipher from key"))]
-    CipherCreation,
+    CipherCreation {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Encryption failed"))]
-    EncryptionFailed,
+    EncryptionFailed {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Decryption failed. Check encrypted data, key, AAD, or AEAD tag."))]
-    DecryptionFailed,
+    DecryptionFailed {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Decryption failed. Check encrypted data, key, AAD, or AEAD tag."))]
-    NullIvForDecryption,
-
-    #[snafu(display("DataFusion error: {message}"))]
-    DataFusion { message: String },
+    NullIvForDecryption {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl From<Error> for DataFusionError {
     fn from(error: Error) -> Self {
-        Self::Execution(error.to_string())
-    }
-}
-
-impl From<DataFusionError> for Error {
-    fn from(error: DataFusionError) -> Self {
-        Self::DataFusion {
-            message: error.to_string(),
-        }
+        Self::External(Box::new(error))
     }
 }

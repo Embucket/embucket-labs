@@ -114,12 +114,11 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
             4 => {
@@ -130,12 +129,11 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
             5 => {
@@ -147,20 +145,18 @@ impl ScalarUDFImpl for EncryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
-            _ => Err(InvalidArgumentTypesSnafu {
+            _ => InvalidArgumentTypesSnafu {
                 function_name: self.name().to_uppercase(),
                 types: format_types(arg_types),
             }
-            .build()
-            .into()),
+            .fail()?,
         }
     }
 
@@ -201,7 +197,7 @@ impl ScalarUDFImpl for EncryptRawFunc {
             || aad_arr.as_ref().is_some_and(|a| a.len() != len)
             || method_arr.as_ref().is_some_and(|a| a.len() != len)
         {
-            return Err(ArrayLengthMismatchSnafu.build().into());
+            ArrayLengthMismatchSnafu.fail()?;
         }
         let vals = as_binary_array(&val_arr)?;
         let keys = as_binary_array(&key_arr)?;
@@ -228,30 +224,27 @@ impl ScalarUDFImpl for EncryptRawFunc {
             let method_upper = method.to_uppercase();
             let parts: Vec<&str> = method_upper.split('-').collect();
             if parts.len() != 2 {
-                return Err(MalformedEncryptionMethodSnafu {
+                MalformedEncryptionMethodSnafu {
                     method: method.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             let algorithm = parts[0];
             let mode = parts[1];
 
             if algorithm != "AES" {
-                return Err(UnsupportedEncryptionAlgorithmSnafu {
+                UnsupportedEncryptionAlgorithmSnafu {
                     algorithm: algorithm.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             if mode != "GCM" {
-                return Err(UnsupportedEncryptionModeSnafu {
+                UnsupportedEncryptionModeSnafu {
                     mode: mode.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             // Handle NULL IV by generating random IV
@@ -263,13 +256,12 @@ impl ScalarUDFImpl for EncryptRawFunc {
 
             // Validate IV size for GCM mode (must be 12 bytes / 96 bits)
             if iv.len() != 12 {
-                return Err(InvalidIvSizeSnafu {
+                InvalidIvSizeSnafu {
                     bits: iv.len() * 8,
                     expected_bits: 96_usize,
                     mode: "GCM".to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             let (ciphertext, tag) = match key.len() {

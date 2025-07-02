@@ -111,12 +111,11 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
             4 => {
@@ -127,12 +126,11 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
             5 => {
@@ -144,12 +142,11 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
             6 => {
@@ -162,20 +159,18 @@ impl ScalarUDFImpl for DecryptRawFunc {
                 {
                     Ok(coerced_types)
                 } else {
-                    Err(InvalidArgumentTypesSnafu {
+                    InvalidArgumentTypesSnafu {
                         function_name: self.name().to_uppercase(),
                         types: format_types(arg_types),
                     }
-                    .build()
-                    .into())
+                    .fail()?
                 }
             }
-            _ => Err(InvalidArgumentTypesSnafu {
+            _ => InvalidArgumentTypesSnafu {
                 function_name: self.name().to_uppercase(),
                 types: format_types(arg_types),
             }
-            .build()
-            .into()),
+            .fail()?,
         }
     }
 
@@ -225,7 +220,7 @@ impl ScalarUDFImpl for DecryptRawFunc {
             || method_arr.as_ref().is_some_and(|a| a.len() != len)
             || tag_arr.as_ref().is_some_and(|a| a.len() != len)
         {
-            return Err(ArrayLengthMismatchSnafu.build().into());
+            ArrayLengthMismatchSnafu.fail()?;
         }
         let cts = as_binary_array(&ct_arr)?;
         let keys = as_binary_array(&key_arr)?;
@@ -238,7 +233,7 @@ impl ScalarUDFImpl for DecryptRawFunc {
         let mut builder = BinaryBuilder::new();
         for i in 0..len {
             if ivs.is_null(i) {
-                return Err(NullIvForDecryptionSnafu.build().into());
+                NullIvForDecryptionSnafu.fail()?;
             }
 
             if cts.is_null(i) || keys.is_null(i) {
@@ -263,47 +258,43 @@ impl ScalarUDFImpl for DecryptRawFunc {
 
             // Validate IV size for GCM mode (must be 12 bytes / 96 bits)
             if iv.len() != 12 {
-                return Err(InvalidIvSizeSnafu {
+                InvalidIvSizeSnafu {
                     bits: iv.len() * 8,
                     expected_bits: 96_usize,
                     mode: "GCM".to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             let method_upper = method.to_uppercase();
             let parts: Vec<&str> = method_upper.split('-').collect();
             if parts.len() != 2 {
-                return Err(MalformedEncryptionMethodSnafu {
+                MalformedEncryptionMethodSnafu {
                     method: method.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             let algorithm = parts[0];
             let mode = parts[1];
 
             if algorithm != "AES" {
-                return Err(UnsupportedEncryptionAlgorithmSnafu {
+                UnsupportedEncryptionAlgorithmSnafu {
                     algorithm: algorithm.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             if mode != "GCM" {
-                return Err(UnsupportedEncryptionModeSnafu {
+                UnsupportedEncryptionModeSnafu {
                     mode: mode.to_string(),
                 }
-                .build()
-                .into());
+                .fail()?;
             }
 
             let (ciphertext_data, tag_data): (&[u8], &[u8]) = if tag.is_empty() {
                 if ct.len() < 16 {
-                    return Err(CiphertextTooShortSnafu.build().into());
+                    CiphertextTooShortSnafu.fail()?;
                 }
                 let (ct_part, tag_part) = ct.split_at(ct.len() - 16);
                 (ct_part, tag_part)
