@@ -946,23 +946,14 @@ impl UserQuery {
             return ex_error::OnlyMergeStatementsSnafu.fail();
         };
         // Currently only tables are supported
-        if !matches!(
-            &target,
-            TableFactor::Table {
-                name: _,
-                alias: _,
-                args: _,
-                with_hints: _,
-                version: _,
-                with_ordinality: _,
-                partitions: _,
-                json_path: _,
-                sample: _,
-                index_hints: _
-            }
-        ) {
+        let TableFactor::Table {
+            name: target_ident,
+            alias: target_alias,
+            ..
+        } = target
+        else {
             return ex_error::MergeTargetMustBeTableSnafu.fail();
-        }
+        };
 
         let df_session_state = self.session.ctx.state();
 
@@ -971,8 +962,6 @@ impl UserQuery {
             tables: HashMap::new(),
         };
         let mut planner_context = datafusion::sql::planner::PlannerContext::new();
-
-        let (target_ident, target_alias) = Self::get_table_with_alias(target);
 
         let target_ident = self.resolve_table_object_name(target_ident.0)?;
 
@@ -996,14 +985,17 @@ impl UserQuery {
         let target_table_source: Arc<dyn TableSource> =
             Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
 
+        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source.clone(), None)
+            .context(ex_error::DataFusionSnafu)?;
+        let plan = if let Some(target_alias) = target_alias {
+            plan.alias(target_alias.name.to_string())
+                .context(ex_error::DataFusionSnafu)?
+        } else {
+            plan
+        };
         let target_plan = DataFrame::new(
             df_session_state.clone(),
-            LogicalPlanBuilder::scan(&target_ident, target_table_source.clone(), None)
-                .context(ex_error::DataFusionSnafu)?
-                .alias(&target_alias)
-                .context(ex_error::DataFusionSnafu)?
-                .build()
-                .context(ex_error::DataFusionSnafu)?,
+            plan.build().context(ex_error::DataFusionSnafu)?,
         )
         .with_column(TARGET_EXISTS, lit(true))
         .context(ex_error::DataFusionSnafu)?
@@ -1017,23 +1009,14 @@ impl UserQuery {
 
         // Create a LogicalPlan for the source table
 
-        let (source_ident, source_alias) = Self::get_table_with_alias(source.clone());
-
-        let source_ident = self.resolve_table_object_name(source_ident.0)?;
-
-        let source_plan = match &source {
+        let source_plan = match source {
             TableFactor::Table {
-                name: _,
-                alias: _,
-                args: _,
-                with_hints: _,
-                version: _,
-                with_ordinality: _,
-                partitions: _,
-                json_path: _,
-                sample: _,
-                index_hints: _,
+                name: source_ident,
+                alias: source_alias,
+                ..
             } => {
+                let source_ident = self.resolve_table_object_name(source_ident.0)?;
+
                 let source_provider = self
                     .session
                     .ctx
@@ -1049,14 +1032,17 @@ impl UserQuery {
                     source_table_source.clone(),
                 );
 
+                let plan = LogicalPlanBuilder::scan(&source_ident, source_table_source, None)
+                    .context(ex_error::DataFusionSnafu)?;
+                let plan = if let Some(source_alias) = source_alias {
+                    plan.alias(source_alias.name.to_string())
+                        .context(ex_error::DataFusionSnafu)?
+                } else {
+                    plan
+                };
                 let source_plan = DataFrame::new(
                     df_session_state.clone(),
-                    LogicalPlanBuilder::scan(&source_ident, source_table_source, None)
-                        .context(ex_error::DataFusionSnafu)?
-                        .alias(&source_alias)
-                        .context(ex_error::DataFusionSnafu)?
-                        .build()
-                        .context(ex_error::DataFusionSnafu)?,
+                    plan.build().context(ex_error::DataFusionSnafu)?,
                 )
                 .with_column(SOURCE_EXISTS, lit(true))
                 .context(ex_error::DataFusionSnafu)?
@@ -1960,22 +1946,6 @@ impl UserQuery {
         match ident.quote_style {
             Some(qs) => Ident::with_quote(qs, ident.value),
             None => Ident::new(self.session.ident_normalizer.normalize(ident)),
-        }
-    }
-
-    #[allow(clippy::only_used_in_recursion)]
-    fn get_table_with_alias(factor: TableFactor) -> (ObjectName, String) {
-        match factor {
-            TableFactor::Table { name, alias, .. } => {
-                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
-                (name, target_alias)
-            }
-            // Return only alias for derived tables
-            TableFactor::Derived { alias, .. } => {
-                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
-                (ObjectName(vec![]), target_alias)
-            }
-            _ => (ObjectName(vec![]), String::new()),
         }
     }
 
