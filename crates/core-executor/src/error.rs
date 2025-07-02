@@ -38,6 +38,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid column identifier: {ident}"))]
+    InvalidColumnIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid table identifier: {ident}"))]
     InvalidTableIdentifier {
         ident: String,

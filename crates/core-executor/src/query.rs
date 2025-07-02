@@ -11,6 +11,7 @@ use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
 use crate::datafusion::physical_plan::merge::{DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::error::InvalidColumnIdentifierSnafu;
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -2092,8 +2093,17 @@ pub fn merge_clause_projection<S: ContextProvider>(
             MergeAction::Update { assignments } => {
                 for assignment in assignments {
                     match assignment.target {
-                        AssignmentTarget::ColumnName(column) => {
-                            let column_name = column.to_string();
+                        AssignmentTarget::ColumnName(mut column) => {
+                            let column_name = column
+                                .0
+                                .pop()
+                                .ok_or_else(|| {
+                                    InvalidColumnIdentifierSnafu {
+                                        ident: column.to_string(),
+                                    }
+                                    .build()
+                                })?
+                                .to_string();
                             let expr = sql_planner
                                 .as_ref()
                                 .sql_to_expr(assignment.value, source_schema, &mut planner_context)
