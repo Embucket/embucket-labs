@@ -122,12 +122,15 @@ impl ExpiredDeletion for RequestSessionStore {
                 },
             )
             .collect::<Vec<_>>();
-        drop(store_guard);
-
+        //If it is dropped here, the session maybe updated and still get deleted 
+        //drop(store_guard);
+        //Somewhere here we update the session expiry time, but the `delete fn` doesn't check this (and it shouldn't)
         for id in expired {
             tracing::error!("Deleting expired: {id}");
             self.delete(&id).await?;
         }
+        //If here we hang since deleting also needs to acquire the lock
+        //drop(store_guard);
         Ok(())
     }
 }
@@ -156,24 +159,35 @@ where
             }
         })?;
         let session_id = if let Ok(Some(id)) = session.get::<String>("DF_SESSION_ID").await {
-            tracing::debug!("Found DF session_id: {}", id);
-            id
-        } else if let Some(token) = extract_token(&req.headers) {
-            tracing::debug!("Found DF session_id in headers: {}", token);
-            session
-                .insert("DF_SESSION_ID", token.clone())
-                .await
-                .context(SessionPersistSnafu)?;
-            session.save().await.context(SessionPersistSnafu)?;
-            token
-        } else {
-            let id = uuid::Uuid::new_v4().to_string();
-            tracing::debug!("Creating new DF session_id: {}", id);
+            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("Found DF session_id: {}", id);
             session
                 .insert("DF_SESSION_ID", id.clone())
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
+            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            id
+        } else if let Some(token) = extract_token(&req.headers) {
+            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("Found DF session_id in headers: {}", token);
+            session
+                .insert("DF_SESSION_ID", token.clone())
+                .await
+                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
+            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            token
+        } else {
+            let id = uuid::Uuid::new_v4().to_string();
+            tracing::error!("before: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
+            tracing::error!("Creating new DF session_id: {}", id);
+            session
+                .insert("DF_SESSION_ID", id.clone())
+                .await
+                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
+            tracing::error!("after: expiry date: {}, expiry age: {}", session.expiry_date(), session.expiry_age());
             id
         };
         Ok(Self(session_id))

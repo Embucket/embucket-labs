@@ -145,12 +145,12 @@ async fn main() {
     tokio::task::spawn(
         session_store
             .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
+            .continuously_delete_expired(tokio::time::Duration::from_secs(15)),
     );
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 3)));
 
     let internal_router =
         create_internal_router().with_state(InternalAppState::new(metastore.clone()));
