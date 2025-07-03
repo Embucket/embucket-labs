@@ -33,9 +33,7 @@ pub enum Error {
     },
 }
 
-// When directly converting to a DataFusionError
-// then crate-level error wouldn't be needed anymore
-//
+// Enum variants from this error return DataFusionError
 // Following is made to preserve logical structure of error:
 // DataFusionError::External
 // |---- DataFusionInternalError::StringBinary
@@ -44,7 +42,7 @@ pub enum Error {
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
         Self::External(Box::new(
-            crate::errors::DataFusionExternalError::StringBinary { source: value },
+            crate::df_error::DFExternalError::StringBinary { source: value },
         ))
     }
 }

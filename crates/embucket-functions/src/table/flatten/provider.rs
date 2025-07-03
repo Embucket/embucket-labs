@@ -1,4 +1,4 @@
-use crate::errors as ef_errors;
+use crate::df_error;
 use crate::json::{PathToken, get_json_value};
 use crate::table::errors;
 use crate::table::flatten::func::FlattenTableFunc;
@@ -204,7 +204,7 @@ impl ExecutionPlan for FlattenExec {
             for i in 0..array.len() {
                 let json_str = array.value(i);
                 let json_val: Value = serde_json::from_str(json_str)
-                    .context(ef_errors::FailedToDeserializeJsonSnafu)?;
+                    .context(df_error::FailedToDeserializeJsonSnafu)?;
 
                 let Some(input) = get_json_value(&json_val, &self.args.path) else {
                     continue;

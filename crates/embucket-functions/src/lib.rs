@@ -19,11 +19,11 @@ pub use crate::conversion::errors as conversion_errors;
 pub use crate::datetime::errors as datetime_errors;
 
 pub(crate) mod aggregate;
-pub mod arrow_error;
 pub mod conditional;
 pub mod conversion;
 pub mod datetime;
-pub mod errors;
+pub mod df_error;
+pub mod arrow_error;
 
 // Explicitely disable non-working geospatial, as workaround for cargo test --all-features
 // #[cfg(feature = "geospatial")]
@@ -189,7 +189,7 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             let arr = arr.as_any().downcast_ref::<StringViewArray>().unwrap();
             for v in arr {
                 if v.is_some() {
-                    return errors::UnsupportedTypeSnafu {
+                    return df_error::UnsupportedTypeSnafu {
                         data_type: arr.data_type().clone(),
                     }
                     .fail()?;
@@ -201,7 +201,7 @@ pub(crate) fn array_to_boolean(arr: &ArrayRef) -> Result<BooleanArray> {
             boolean_array.finish()
         }
         _ => {
-            return errors::UnsupportedTypeSnafu {
+            return df_error::UnsupportedTypeSnafu {
                 data_type: arr.data_type().clone(),
             }
             .fail()?;

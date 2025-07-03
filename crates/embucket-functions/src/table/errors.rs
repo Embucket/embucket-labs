@@ -38,8 +38,16 @@ pub enum Error {
     },
 }
 
+// Enum variants from this error return DataFusionError
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::Table
+//       |---- Error
+
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        Self::External(Box::new(value))
+        Self::External(Box::new(
+            crate::df_error::DFExternalError::Table { source: value },
+        ))
     }
 }

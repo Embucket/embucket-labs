@@ -7,7 +7,7 @@ use snafu::prelude::*;
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
-pub enum DataFusionExternalError {
+pub enum DFExternalError {
     #[snafu(display("Object store not found for url {url}"))]
     ObjectStoreNotFound {
         url: String,
@@ -50,8 +50,8 @@ pub enum DataFusionExternalError {
     },
 }
 
-impl From<DataFusionExternalError> for datafusion_common::DataFusionError {
-    fn from(value: DataFusionExternalError) -> Self {
+impl From<DFExternalError> for datafusion_common::DataFusionError {
+    fn from(value: DFExternalError) -> Self {
         Self::External(Box::new(value))
     }
 }

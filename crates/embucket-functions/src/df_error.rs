@@ -7,7 +7,7 @@ use snafu::{Location, Snafu};
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
-pub enum DataFusionExternalError {
+pub enum DFExternalError {
     #[snafu(transparent)]
     Aggregate { source: crate::aggregate::Error },
     #[snafu(transparent)]
@@ -27,6 +27,24 @@ pub enum DataFusionExternalError {
     #[cfg(feature = "geospatial")]
     #[snafu(transparent)]
     Geospatial { source: crate::geospatial::Error },
+    #[snafu(transparent)]
+    Crate { source: CrateError },
+}
+
+
+impl From<DFExternalError> for datafusion_common::DataFusionError {
+    fn from(value: DFExternalError) -> Self {
+        Self::External(Box::new(value))
+    }
+}
+
+
+// Following enum added for consitent error's structure
+
+#[derive(Snafu)]
+#[snafu(visibility(pub(crate)))]
+#[error_stack_trace::debug]
+pub enum CrateError {
     #[snafu(display("Failed to create Tokio runtime: {error}"))]
     FailedToCreateTokioRuntime {
         #[snafu(source)]
@@ -77,8 +95,16 @@ pub enum DataFusionExternalError {
     },
 }
 
-impl From<DataFusionExternalError> for datafusion_common::DataFusionError {
-    fn from(value: DataFusionExternalError) -> Self {
-        Self::External(Box::new(value))
+// Enum variants from this error return DataFusionError
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::CrateError
+//       |---- Error
+
+impl From<CrateError> for datafusion_common::DataFusionError {
+    fn from(value: CrateError) -> Self {
+        Self::External(Box::new(
+            crate::df_error::DFExternalError::Crate { source: value },
+        ))
     }
 }
