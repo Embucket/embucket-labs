@@ -163,6 +163,8 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | core_executor::Error::DataFusionLogicalPlanMergeTarget { .. }
         | core_executor::Error::DataFusionLogicalPlanMergeSource { .. }
         | core_executor::Error::DataFusionLogicalPlanMergeJoin { .. }
+        | core_executor::Error::LogicalExtensionChildCount { .. }
+        | core_executor::Error::MergeFilterStreamNotMatching { .. }
         | core_executor::Error::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         _ => http::StatusCode::OK,
     };

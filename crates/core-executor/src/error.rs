@@ -408,4 +408,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Data for not-matching file {file} is not available"))]
+    MergeFilterStreamNotMatching {
+        file: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

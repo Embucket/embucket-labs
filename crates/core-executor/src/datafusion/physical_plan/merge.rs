@@ -327,6 +327,7 @@ impl MergeCOWFilterStream {
 impl Stream for MergeCOWFilterStream {
     type Item = Result<RecordBatch, DataFusionError>;
 
+    #[allow(clippy::too_many_lines)]
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -380,24 +381,26 @@ impl Stream for MergeCOWFilterStream {
                 // previous record batches have to be appended to the output
                 for file in newly_matched_data_files {
                     let manifest = project.not_matching_files.remove(&file).ok_or_else(|| {
-                        DataFusionError::Internal(format!(
-                            "Newly matched data file '{file}' must be present in not-matched-data-files set"
-                        ))
+                        DataFusionError::Internal(
+                            error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
+                                .build()
+                                .to_string(),
+                        )
                     })?;
 
                     let batches = project.not_matched_buffer.pop(&file).ok_or_else(|| {
-                        DataFusionError::Internal(format!(
-                            "Newly matched data file '{file}' must be present in not_matched_buffer"
-                        ))
+                        DataFusionError::Internal(
+                            error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
+                                .build()
+                                .to_string(),
+                        )
                     })?;
 
                     for batch in batches {
                         let schema = batch.schema();
-
                         let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
 
                         let predicate = eq(&data_file_path, &StringArray::new_scalar(&file))?;
-
                         let filtered_batch = filter_record_batch(&batch, &predicate)?;
 
                         project.ready_batches.push(filtered_batch);
