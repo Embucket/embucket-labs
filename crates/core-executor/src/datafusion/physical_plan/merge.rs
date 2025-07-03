@@ -34,6 +34,8 @@ use std::{
     task::Poll,
 };
 
+use crate::error;
+
 pub(crate) static TARGET_EXISTS_COLUMN: &str = "__target_exists";
 pub(crate) static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
 pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
@@ -88,7 +90,7 @@ type ManifestAndDataFiles = HashMap<String, Vec<String>>;
 
 impl ExecutionPlan for MergeIntoCOWSinkExec {
     fn name(&self) -> &'static str {
-        "MergeIntoSinkExec"
+        "MergeIntoCOWSinkExec"
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -108,8 +110,14 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
         children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
         if children.len() != 1 {
+            // Using DataFusionError::External is currently not possible as it requires Sync
             return Err(DataFusionError::Internal(
-                "MergeIntoSinkExec requires exactly one child".to_string(),
+                error::LogicalExtensionChildCountSnafu {
+                    name: "MergeIntoCOWSinkExec",
+                    expected: 1usize,
+                }
+                .build()
+                .to_string(),
             ));
         }
         Ok(Arc::new(Self::new(
@@ -223,7 +231,7 @@ impl DisplayAs for MergeCOWFilterExec {
 
 impl ExecutionPlan for MergeCOWFilterExec {
     fn name(&self) -> &'static str {
-        "SourceExistFilterExec"
+        "MergeCOWFilterExec"
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -244,7 +252,12 @@ impl ExecutionPlan for MergeCOWFilterExec {
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
         if children.len() != 1 {
             return Err(DataFusionError::Internal(
-                "SourceExistFilterExec requires exactly one child".to_string(),
+                error::LogicalExtensionChildCountSnafu {
+                    name: "MergeCOWFilterExec",
+                    expected: 1usize,
+                }
+                .build()
+                .to_string(),
             ));
         }
         Ok(Arc::new(Self::new(

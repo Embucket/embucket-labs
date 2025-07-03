@@ -400,4 +400,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("LogicalPlan Extension {name} requires exactly {expected} child(ren)"))]
+    LogicalExtensionChildCount {
+        name: String,
+        expected: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
