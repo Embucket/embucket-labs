@@ -34,7 +34,8 @@ use std::{
     task::Poll,
 };
 
-static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
+pub(crate) static TARGET_EXISTS_COLUMN: &str = "__target_exists";
+pub(crate) static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
 pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
 pub(crate) static MANIFEST_FILE_PATH_COLUMN: &str = "__manifest_file_path";
 static BUFFER_SIZE: usize = 2;

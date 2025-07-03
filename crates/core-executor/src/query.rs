@@ -9,7 +9,9 @@ use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
-use crate::datafusion::physical_plan::merge::{DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN};
+use crate::datafusion::physical_plan::merge::{
+    DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
+};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::error::InvalidColumnIdentifierSnafu;
 use crate::models::{QueryContext, QueryResult};
@@ -86,9 +88,6 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
-
-static SOURCE_EXISTS: &str = "__source_exists";
-static TARGET_EXISTS: &str = "__target_exists";
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -986,7 +985,12 @@ impl UserQuery {
         let target_table_source: Arc<dyn TableSource> =
             Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
 
-        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source.clone(), None)
+        session_context_provider.tables.insert(
+            self.resolve_table_ref(&target_ident),
+            target_table_source.clone(),
+        );
+
+        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
             .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?;
         let plan = if let Some(target_alias) = target_alias {
             plan.alias(target_alias.name.to_string())
@@ -999,15 +1003,11 @@ impl UserQuery {
             plan.build()
                 .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?,
         )
-        .with_column(TARGET_EXISTS, lit(true))
+        .with_column(TARGET_EXISTS_COLUMN, lit(true))
         .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
         .into_unoptimized_plan();
 
         let target_schema = target_plan.schema().clone();
-
-        session_context_provider
-            .tables
-            .insert(self.resolve_table_ref(&target_ident), target_table_source);
 
         // Create a LogicalPlan for the source table
 
@@ -1047,7 +1047,7 @@ impl UserQuery {
                     plan.build()
                         .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?,
                 )
-                .with_column(SOURCE_EXISTS, lit(true))
+                .with_column(SOURCE_EXISTS_COLUMN, lit(true))
                 .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                 .into_unoptimized_plan();
                 Ok(source_plan)
@@ -1088,7 +1088,7 @@ impl UserQuery {
                 };
 
                 let source_plan = DataFrame::new(df_session_state.clone(), source_plan)
-                    .with_column(SOURCE_EXISTS, lit(true))
+                    .with_column(SOURCE_EXISTS_COLUMN, lit(true))
                     .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                     .into_unoptimized_plan();
 
@@ -2099,11 +2099,14 @@ pub fn merge_clause_projection<S: ContextProvider>(
 
     for merge_clause in merge_clause {
         let op = match merge_clause.clause_kind {
-            MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS), col(SOURCE_EXISTS))),
-            MergeClauseKind::NotMatched => {
-                Ok(or(is_null(col(TARGET_EXISTS)), is_null(col(TARGET_EXISTS))))
+            MergeClauseKind::Matched => {
+                Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN)))
             }
-            MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS))),
+            MergeClauseKind::NotMatched => Ok(or(
+                is_null(col(TARGET_EXISTS_COLUMN)),
+                is_null(col(TARGET_EXISTS_COLUMN)),
+            )),
+            MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
             MergeClauseKind::NotMatchedBySource => {
                 return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
             }
@@ -2189,7 +2192,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
         })
         .collect::<StdResult<_, DataFusionError>>()
         .context(ex_error::DataFusionSnafu)?;
-    exprs.push(col(SOURCE_EXISTS));
+    exprs.push(col(SOURCE_EXISTS_COLUMN));
     Ok(exprs)
 }
 
