@@ -25,7 +25,7 @@ use uuid::Uuid;
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>>;
     async fn delete_session(&self, session_id: String) -> Result<()>;
-    async fn get_session(&self, session_id: String) -> Option<Arc<UserSession>>;
+    async fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
     async fn query(
         &self,
         session_id: &str,
@@ -73,8 +73,11 @@ impl ExecutionService for CoreExecutionService {
         err
     )]
     async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>> {
-        if let Some(session) = self.get_session(session_id.clone()).await {
-            return Ok(session);
+        {
+            let sessions = self.df_sessions.read().await;
+            if let Some(session) = sessions.get(&session_id) {
+                return Ok(session.clone());
+            }
         }
         let user_session = Arc::new(
             UserSession::new(
@@ -105,9 +108,8 @@ impl ExecutionService for CoreExecutionService {
         session_list.remove(&session_id);
         Ok(())
     }
-    async fn get_session(&self, session_id: String) -> Option<Arc<UserSession>> {
-        let sessions = self.df_sessions.read().await;
-        sessions.get(&session_id).cloned()
+    async fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>> {
+        self.df_sessions.clone()
     }
 
     #[tracing::instrument(name = "ExecutionService::query", level = "debug", skip(self), err)]

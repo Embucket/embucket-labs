@@ -6,6 +6,8 @@ use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::error::Result;
 use crate::state::AppState;
 
+use api_sessions::DFSessionId;
+use api_sessions::session::SESSION_ID_COOKIE_NAME;
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -20,8 +22,6 @@ use time::Duration;
 use tower_sessions::cookie::{Cookie, SameSite};
 use tracing;
 use utoipa::OpenApi;
-use api_sessions::DFSessionId;
-use api_sessions::session::SESSION_ID_COOKIE_NAME;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;
@@ -300,7 +300,7 @@ pub async fn logout(
     let mut headers = HeaderMap::new();
     set_cookies(&mut headers, REFRESH_COOKIE_NAME, "")?;
     set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, "")?;
-    
+
     Ok((headers, ()))
 }
 

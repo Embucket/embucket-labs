@@ -1,5 +1,6 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
+use core_executor::session::SESSION_EXPIRATION_SECONDS;
 use http::HeaderMap;
 use http::request::Parts;
 use regex::Regex;
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tower_sessions::{
     ExpiredDeletion, Session, SessionStore,
@@ -29,7 +30,7 @@ pub struct RequestSessionStore {
 #[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
     pub fn new(
-        store: Arc<Mutex<HashMap<Id, Record>>>,
+        _store: Arc<Mutex<HashMap<Id, Record>>>,
         execution_svc: Arc<dyn ExecutionService>,
     ) -> Self {
         Self {
@@ -74,6 +75,16 @@ impl SessionStore for RequestSessionStore {
     #[tracing::instrument(name = "SessionStore::save", level = "trace", skip(self), err, ret)]
     async fn save(&self, record: &Record) -> session_store::Result<()> {
         //self.store.lock().await.insert(record.id, record.clone());
+        if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
+            let sessions = self.execution_svc.get_sessions().await;
+
+            let mut sessions = sessions.write().await;
+
+            if let Some(session) = sessions.get_mut(df_session_id) {
+                let mut expiry = session.expiry.lock().await;
+                *expiry += Duration::seconds(SESSION_EXPIRATION_SECONDS);
+            }
+        }
         Ok(())
     }
 
@@ -115,6 +126,24 @@ impl ExpiredDeletion for RequestSessionStore {
         ret
     )]
     async fn delete_expired(&self) -> session_store::Result<()> {
+        let sessions = self.execution_svc.get_sessions().await;
+
+        let mut sessions = sessions.write().await;
+
+        let now = OffsetDateTime::now_utc();
+
+        //sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
+        let mut session_ids = Vec::new();
+        for (session_id, session) in sessions.iter() {
+            let expiry = session.expiry.lock().await;
+            if *expiry <= now {
+                session_ids.push(session_id.clone());
+            }
+        }
+
+        for session_id in session_ids {
+            sessions.remove(&session_id);
+        }
         // let mut store_guard = self.store.lock().await;
         // let now = OffsetDateTime::now_utc();
         // tracing::error!("Deleting expired acquired a lock, to expire <=: {now}");
@@ -184,15 +213,15 @@ where
         //     session.save().await.context(SessionPersistSnafu)?;
         //     tracing::error!("expiry date: {}", session.expiry_date());
         //     id
-        // } else 
+        // } else
         let session_id = if let Some(token) = extract_token(&req.headers) {
             tracing::error!("Found DF session_id in headers: {}", token);
-            // session
-            //     .insert("DF_SESSION_ID", token.clone())
-            //     .await
-            //     .context(SessionPersistSnafu)?;
-            //session.save().await.context(SessionPersistSnafu)?;
-            //tracing::error!("expiry date: {}", session.expiry_date());
+            session
+                .insert("DF_SESSION_ID", token.clone())
+                .await
+                .context(SessionPersistSnafu)?;
+            session.save().await.context(SessionPersistSnafu)?;
+            tracing::error!("expiry date: {}", session.expiry_date());
             token
         } else {
             let id = uuid::Uuid::new_v4().to_string();
@@ -211,19 +240,25 @@ where
 
 #[must_use]
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
-    headers.get("authorization").and_then(|value| {
-        value.to_str().ok().and_then(|auth| {
-            #[allow(clippy::unwrap_used)]
-            let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
-            re.captures(auth)
-                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+    headers
+        .get("authorization")
+        .and_then(|value| {
+            value.to_str().ok().and_then(|auth| {
+                #[allow(clippy::unwrap_used)]
+                let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
+                re.captures(auth)
+                    .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+            })
         })
-    }).map_or_else(|| {
-        let cookies = cookies_from_header(headers);
-        cookies.get(SESSION_ID_COOKIE_NAME).map(|str_ref| str_ref.to_string())
-    }, |token| { 
-        Some(token) 
-    }) 
+        .map_or_else(
+            || {
+                let cookies = cookies_from_header(headers);
+                cookies
+                    .get(SESSION_ID_COOKIE_NAME)
+                    .map(|str_ref| (*str_ref).to_string())
+            },
+            Some,
+        )
 }
 #[allow(clippy::explicit_iter_loop)]
 pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
