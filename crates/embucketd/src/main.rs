@@ -159,7 +159,7 @@ async fn main() {
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 3)));
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(30)));
 
     let internal_router =
         create_internal_router().with_state(InternalAppState::new(metastore.clone()));
