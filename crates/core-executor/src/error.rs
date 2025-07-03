@@ -415,4 +415,16 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Matching files have already been consumed"))]
+    MatchingFilesAlreadyConsumed {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("When there are matching data files, there must be filter predicates"))]
+    MissingFilterPredicates {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

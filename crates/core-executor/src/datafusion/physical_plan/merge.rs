@@ -113,7 +113,7 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
             // Using DataFusionError::External is currently not possible as it requires Sync
             return Err(DataFusionError::Internal(
                 error::LogicalExtensionChildCountSnafu {
-                    name: "MergeIntoCOWSinkExec",
+                    name: "MergeIntoCOWSinkExec".to_string(),
                     expected: 1usize,
                 }
                 .build()
@@ -174,7 +174,9 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                     let mut lock = matching_files.lock().unwrap();
                     lock.take().ok_or_else(|| {
                         DataFusionError::Internal(
-                            "Matching files have already been consumed".to_string(),
+                            error::MatchingFilesAlreadyConsumedSnafu {}
+                                .build()
+                                .to_string(),
                         )
                     })?
                 };
@@ -253,7 +255,7 @@ impl ExecutionPlan for MergeCOWFilterExec {
         if children.len() != 1 {
             return Err(DataFusionError::Internal(
                 error::LogicalExtensionChildCountSnafu {
-                    name: "MergeCOWFilterExec",
+                    name: "MergeCOWFilterExec".to_string(),
                     expected: 1usize,
                 }
                 .build()
@@ -425,7 +427,9 @@ impl Stream for MergeCOWFilterStream {
                         })?
                         .ok_or_else(|| {
                             DataFusionError::Internal(
-                                "When there are matching data files, there must be filter predicates".to_string(),
+                                error::MissingFilterPredicatesSnafu {}
+                                    .build()
+                                    .to_string(),
                             )
                         })?;
 
