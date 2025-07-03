@@ -294,7 +294,7 @@ pub async fn get_config(
     let config = CatalogConfig {
         defaults: HashMap::new(),
         overrides: HashMap::from([
-            ("uri".into(), format!("{catalog_url}/catalog")),
+            ("uri".into(), catalog_url),
             ("prefix".into(), params.warehouse.unwrap_or_default()),
         ]),
         // TODO: I think it can be useful and should be utilized somehow
