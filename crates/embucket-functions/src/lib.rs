@@ -19,11 +19,11 @@ pub use crate::conversion::errors as conversion_errors;
 pub use crate::datetime::errors as datetime_errors;
 
 pub(crate) mod aggregate;
+pub mod arrow_error;
 pub mod conditional;
 pub mod conversion;
 pub mod datetime;
 pub mod df_error;
-pub mod arrow_error;
 
 // Explicitely disable non-working geospatial, as workaround for cargo test --all-features
 // #[cfg(feature = "geospatial")]

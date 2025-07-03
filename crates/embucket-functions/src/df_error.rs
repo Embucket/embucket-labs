@@ -31,13 +31,11 @@ pub enum DFExternalError {
     Crate { source: CrateError },
 }
 
-
 impl From<DFExternalError> for datafusion_common::DataFusionError {
     fn from(value: DFExternalError) -> Self {
         Self::External(Box::new(value))
     }
 }
-
 
 // Following enum added for consitent error's structure
 
@@ -103,8 +101,8 @@ pub enum CrateError {
 
 impl From<CrateError> for datafusion_common::DataFusionError {
     fn from(value: CrateError) -> Self {
-        Self::External(Box::new(
-            crate::df_error::DFExternalError::Crate { source: value },
-        ))
+        Self::External(Box::new(crate::df_error::DFExternalError::Crate {
+            source: value,
+        }))
     }
 }

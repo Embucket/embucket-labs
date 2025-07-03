@@ -41,9 +41,9 @@ pub enum Error {
 
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        Self::External(Box::new(
-            crate::df_error::DFExternalError::StringBinary { source: value },
-        ))
+        Self::External(Box::new(crate::df_error::DFExternalError::StringBinary {
+            source: value,
+        }))
     }
 }
 
