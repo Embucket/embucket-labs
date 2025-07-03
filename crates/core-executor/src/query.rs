@@ -987,19 +987,20 @@ impl UserQuery {
             Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
 
         let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source.clone(), None)
-            .context(ex_error::DataFusionSnafu)?;
+            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?;
         let plan = if let Some(target_alias) = target_alias {
             plan.alias(target_alias.name.to_string())
-                .context(ex_error::DataFusionSnafu)?
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
         } else {
             plan
         };
         let target_plan = DataFrame::new(
             df_session_state.clone(),
-            plan.build().context(ex_error::DataFusionSnafu)?,
+            plan.build()
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?,
         )
         .with_column(TARGET_EXISTS, lit(true))
-        .context(ex_error::DataFusionSnafu)?
+        .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
         .into_unoptimized_plan();
 
         let target_schema = target_plan.schema().clone();
@@ -1034,19 +1035,20 @@ impl UserQuery {
                 );
 
                 let plan = LogicalPlanBuilder::scan(&source_ident, source_table_source, None)
-                    .context(ex_error::DataFusionSnafu)?;
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?;
                 let plan = if let Some(source_alias) = source_alias {
                     plan.alias(source_alias.name.to_string())
-                        .context(ex_error::DataFusionSnafu)?
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                 } else {
                     plan
                 };
                 let source_plan = DataFrame::new(
                     df_session_state.clone(),
-                    plan.build().context(ex_error::DataFusionSnafu)?,
+                    plan.build()
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?,
                 )
                 .with_column(SOURCE_EXISTS, lit(true))
-                .context(ex_error::DataFusionSnafu)?
+                .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                 .into_unoptimized_plan();
                 Ok(source_plan)
             }
@@ -1071,7 +1073,7 @@ impl UserQuery {
 
                 let source_plan = sql_planner
                     .sql_statement_to_plan(query)
-                    .context(ex_error::DataFusionSnafu)?;
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?;
 
                 let source_plan = if let Some(alias) = alias {
                     LogicalPlan::SubqueryAlias(
@@ -1079,7 +1081,7 @@ impl UserQuery {
                             Arc::new(source_plan),
                             TableReference::parse_str(&alias.to_string()),
                         )
-                        .context(ex_error::DataFusionSnafu)?,
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?,
                     )
                 } else {
                     source_plan
@@ -1087,7 +1089,7 @@ impl UserQuery {
 
                 let source_plan = DataFrame::new(df_session_state.clone(), source_plan)
                     .with_column(SOURCE_EXISTS, lit(true))
-                    .context(ex_error::DataFusionSnafu)?
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                     .into_unoptimized_plan();
 
                 Ok(source_plan)
@@ -1103,23 +1105,23 @@ impl UserQuery {
             ExtendedSqlToRel::new(&session_context_provider, ParserOptions::default());
 
         let schema = build_join_schema(&target_schema, &source_schema, &JoinType::Full)
-            .context(ex_error::DataFusionSnafu)?;
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
 
         let on_expr = sql_planner
             .as_ref()
             .sql_to_expr((*on).clone(), &schema, &mut planner_context)
-            .context(ex_error::DataFusionSnafu)?;
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
 
         let merge_clause_projection =
             merge_clause_projection(&sql_planner, &target_schema, &source_schema, clauses)?;
 
         let join_plan = LogicalPlanBuilder::new(target_plan)
             .join_on(source_plan, JoinType::Full, [on_expr; 1])
-            .context(ex_error::DataFusionSnafu)?
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?
             .project(merge_clause_projection)
-            .context(ex_error::DataFusionSnafu)?
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?
             .build()
-            .context(ex_error::DataFusionSnafu)?;
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
 
         let merge_into_plan = MergeIntoCOWSink::new(Arc::new(join_plan), target_table)
             .context(ex_error::DataFusionSnafu)?;

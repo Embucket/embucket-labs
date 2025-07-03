@@ -104,6 +104,30 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("DataFusion error when building logical plan for merge target: {error}"))]
+    DataFusionLogicalPlanMergeTarget {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion error when building logical plan for merge source: {error}"))]
+    DataFusionLogicalPlanMergeSource {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion erro when building logical plan for join of merge target and source: {error}"))]
+    DataFusionLogicalPlanMergeJoin {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Error encoding UTF8 string: {error}"))]
     Utf8 {
         #[snafu(source)]
