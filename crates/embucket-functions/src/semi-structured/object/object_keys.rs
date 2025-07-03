@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::semi_structured::errors;
 use datafusion::arrow::array::{ArrayRef, StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;

@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::semi_structured::errors;
 use crate::json;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::{Array, StringBuilder, as_string_array};

@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::semi_structured::errors;
 use datafusion::arrow::array::as_boolean_array;
 use datafusion::arrow::{array::AsArray, datatypes::DataType};
 use datafusion_common::cast::{as_float64_array, as_int64_array};

@@ -28,6 +28,9 @@ pub mod boolxor_agg;
 pub mod listagg;
 pub mod object_agg;
 pub mod percentile_cont;
+pub mod errors;
+
+pub use errors::Error;
 
 pub fn register_udafs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let aggregate_functions: Vec<Arc<AggregateUDF>> = vec![

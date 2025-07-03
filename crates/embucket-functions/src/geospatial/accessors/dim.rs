@@ -77,7 +77,7 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| errors::ExpectedOnlyOneArgumentInSTDimensionSnafu.build())?;
+        .ok_or_else(|| geo_error::ExpectedOnlyOneArgumentInSTDimensionSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
     let native_array_ref = native_array.as_ref();
@@ -104,10 +104,10 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
                         Geometry::LineString(_) | Geometry::MultiLineString(_) => 1,
                         Geometry::Polygon(_) | Geometry::MultiPolygon(_) | Geometry::Rect(_) => 2,
                         Geometry::GeometryCollection(_) => {
-                            errors::UnsupportedGeometryTypeSnafu.fail()?
+                            geo_error::UnsupportedGeometryTypeSnafu.fail()?
                         }
                     },
-                    None => errors::NullGeometryFoundSnafu.fail()?,
+                    None => geo_error::NullGeometryFoundSnafu.fail()?,
                 };
                 output_array.append_value(dim);
             }

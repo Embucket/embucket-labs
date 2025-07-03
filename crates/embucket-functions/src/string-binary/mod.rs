@@ -9,6 +9,7 @@ pub mod lower;
 pub mod rtrimmed_length;
 pub mod split;
 pub mod strtok;
+pub mod errors;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

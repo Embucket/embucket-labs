@@ -1,4 +1,4 @@
-use crate::errors;
+use super::errors as dtime_errors;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
@@ -100,12 +100,12 @@ impl ScalarUDFImpl for AddMonthsFunc {
 
             let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
             let new_naive = add_months(&naive, to_add as i32)
-                .ok_or_else(|| errors::CantParseDateSnafu.build())?;
+                .ok_or_else(|| dtime_errors::CantParseDateSnafu.build())?;
 
             let v = new_naive
                 .and_utc()
                 .timestamp_nanos_opt()
-                .ok_or_else(|| errors::TimestampIsOutOfRangeSnafu.build())?;
+                .ok_or_else(|| dtime_errors::TimestampIsOutOfRangeSnafu.build())?;
             let tsv = ScalarValue::TimestampNanosecond(Some(v), None);
             res.push(tsv.cast_to(arr.data_type())?);
         }

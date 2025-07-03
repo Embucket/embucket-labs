@@ -7,8 +7,10 @@ pub mod query;
 pub mod service;
 pub mod session;
 pub mod utils;
+pub mod snowflake_error;
 
 #[cfg(test)]
 pub mod tests;
 
 pub use error::{Error, Result};
+pub use snowflake_error::SnowflakeError;

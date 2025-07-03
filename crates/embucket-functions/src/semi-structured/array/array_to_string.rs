@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::semi_structured::errors;
 use crate::macros::make_udf_function;
 use datafusion::arrow::array::as_string_array;
 use datafusion::arrow::datatypes::DataType;

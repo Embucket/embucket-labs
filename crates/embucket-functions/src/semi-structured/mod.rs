@@ -4,6 +4,7 @@ pub mod get_path;
 pub mod json;
 pub mod object;
 pub mod variant;
+pub mod errors;
 
 pub mod typeof_func;
 

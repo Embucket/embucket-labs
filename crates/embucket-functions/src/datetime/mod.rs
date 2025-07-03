@@ -14,6 +14,8 @@ pub mod next_day;
 pub mod previous_day;
 pub mod time_from_parts;
 pub mod timestamp_from_parts;
+pub mod errors;
+pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

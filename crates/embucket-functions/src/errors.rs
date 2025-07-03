@@ -1,6 +1,5 @@
 use error_stack_trace;
 use snafu::{Location, Snafu};
-
 // In this file we create 2 types of errors: DataFusionInternalError and DataFusionExecutionError
 // TBD: Basic principles when to use which error type as they look interchangeable
 // TBD: May be move errors from this file to a separate crate, like datafusion-external-errors
@@ -16,32 +15,13 @@ use snafu::{Location, Snafu};
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum DataFusionInternalError {
-    #[snafu(display("Expected an array argument"))]
-    ArrayArgumentExpected {
-        #[snafu(implicit)]
-        location: Location,
+    #[snafu(transparent)]
+    Aggregate{
+        source: crate::aggregate::Error
     },
-    #[snafu(display("Expected element argument"))]
-    ExpectedElementArgument {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected {name} argument"))]
-    ExpectedNamedArgument {
-        name: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected {name} argument to be an Int64Array"))]
-    ExpectedNamedArgumentToBeAnInt64Array {
-        name: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected array for scalar value"))]
-    ExpectedArrayForScalarValue {
-        #[snafu(implicit)]
-        location: Location,
+    #[snafu(transparent)]
+    Conversion{
+        source: crate::conversion::Error
     },
     #[snafu(display("Expected JSONPath value for index"))]
     ExpectedJsonPathValueForIndex {
@@ -66,77 +46,6 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Missing key column"))]
-    MissingKeyColumn {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Key column should be string type"))]
-    KeyColumnShouldBeStringType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Missing value column"))]
-    MissingValueColumn {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("{error}"))]
-    SerdeJsonMessage {
-        #[snafu(source)]
-        error: serde_json::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Format must be a non-null scalar value"))]
-    FormatMustBeNonNullScalarValue {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Unsupported input type: {data_type:?}"))]
-    UnsupportedInputType {
-        data_type: arrow_schema::DataType,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to decode hex string: {error}"))]
-    FailedToDecodeHexString {
-        error: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to decode base64 string: {error}"))]
-    FailedToDecodeBase64String {
-        error: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Unsupported format: {format}. Valid formats are HEX, BASE64, and UTF-8"))]
-    UnsupportedFormat {
-        format: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Invalid boolean string: {v}"))]
-    InvalidBooleanString {
-        v: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to serialize value to JSON: {error}"))]
-    FailedToSerializeValue {
-        #[snafu(source)]
-        error: serde_json::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to serialize result: {error}"))]
-    FailedToSerializeResult {
-        #[snafu(source)]
-        error: serde_json::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Failed to deserialize JSON: {error}"))]
     FailedToDeserializeJson {
         #[snafu(source)]
@@ -144,48 +53,8 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Failed to deserialize JSON {entity}: {error}"))]
-    FailedToDeserializeJsonEntity {
-        entity: String,
-        #[snafu(source)]
-        error: serde_json::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Arguments must be JSON arrays"))]
-    ArgumentsMustBeJsonArrays {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Key arguments must be scalar values"))]
-    KeyArgumentsMustBeScalarValues {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Array argument must be a string type"))]
-    ArrayArgumentMustBeAStringType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("{argument} argument must be a scalar value"))]
-    ArgumentMustBeAScalarValue {
-        argument: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected UTF8 string"))]
-    ExpectedUtf8String {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Expected UTF8 string for array"))]
     ExpectedUtf8StringForArray {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected UTF8 string for {name} array"))]
-    ExpectedUtf8StringForNamedArray {
-        name: String,
         #[snafu(implicit)]
         location: Location,
     },
@@ -240,11 +109,6 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Arguments must both be either scalar UTF8 strings or arrays"))]
-    InvalidArgumentTypesForArrayConcat {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Failed to cast to UTF8: {error}"))]
     FailedToCastToUtf8 {
         error: String,
@@ -274,11 +138,6 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Element value is null"))]
-    ElementValueIsNull {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Failed to process array: {error}"))]
     ArrayProcessing {
         error: String,
@@ -300,83 +159,9 @@ pub enum DataFusionInternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Both arguments must be JSON arrays"))]
-    BothArgumentsMustBeJsonArrays {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Input must be a JSON array"))]
-    InputMustBeJsonArray {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Mismatched argument types"))]
-    MismatchedArgumentTypes {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("array_generate_range requires 2 or 3 arguments"))]
-    ArrayGenerateRangeInvalidArgumentCount {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Position {pos} is out of bounds for array of length {length}"))]
-    PositionOutOfBoundsForArrayLength {
-        pos: usize,
-        length: usize,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Position must be an integer"))]
-    PositionMustBeAnInteger {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("{name} index must be an integer"))]
-    NamedIndexMustBeAnInteger {
-        name: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("All arguments must be arrays"))]
-    AllArgumentsMustBeArrays {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Mixed scalar and array arguments are not supported"))]
-    MixedScalarAndArrayArgumentsNotSupported {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("ARRAYS_ZIP requires at least one array argument"))]
-    ArraysZipRequiresAtLeastOneArrayArgument {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("LOWER expects 1 argument, got {count}"))]
     LowerExpectsOneArgument {
         count: usize,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to parse number"))]
-    FailedToParseNumber {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Key must be a string"))]
-    KeyMustBeAString {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Key '{name}' already exists and update_flag is false"))]
-    KeyAlreadyExistsAndUpdateFlagIsFalse {
-        name: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Update flag must be a boolean"))]
-    UpdateFlagMustBeABoolean {
         #[snafu(implicit)]
         location: Location,
     },
@@ -396,11 +181,6 @@ pub enum DataFusionInternalError {
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum DataFusionExecutionError {
-    #[snafu(display("Input must be a JSON object"))]
-    InputMustBeJsonObject {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Failed to create Tokio runtime: {error}"))]
     FailedToCreateTokioRuntime {
         #[snafu(source)]
@@ -410,66 +190,6 @@ pub enum DataFusionExecutionError {
     },
     #[snafu(display("Thread panicked while executing future"))]
     ThreadPanickedWhileExecutingFuture {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("array_union_agg only supports JSON array"))]
-    ArrayUnionAggOnlySupportsJsonArray {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("failed to parse boolean: {error}"))]
-    FailedToParseBoolean {
-        #[snafu(source)]
-        error: std::str::ParseBoolError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("failed to parse float: {error}"))]
-    FailedToParseFloat {
-        #[snafu(source)]
-        error: std::num::ParseFloatError,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("failed to parse float"))]
-    FailedToParseFloatNoSource {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("array_union_agg only supports boolean, float64, and utf8"))]
-    ArrayUnionAggOnlySupportsBooleanFloat64AndUtf8 {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("can't parse date"))]
-    CantParseDate {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("timestamp is out of range"))]
-    TimestampIsOutOfRange {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Unexpected input data type: {data_type}"))]
-    UnexpectedInputDataType {
-        data_type: arrow_schema::DataType,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected only one argument in ST_Dimension"))]
-    ExpectedOnlyOneArgumentInSTDimension {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Unsupported geometry type"))]
-    UnsupportedGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Null geometry found"))]
-    NullGeometryFound {
         #[snafu(implicit)]
         location: Location,
     },
@@ -514,18 +234,8 @@ pub enum DataFusionExecutionError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("ST_Within does not support this left geometry type"))]
-    STWithinDoesNotSupportThisLeftGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Coordinate is None"))]
     CoordinateIsNone {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Expected only one argument in ST_SRID"))]
-    ExpectedOnlyOneArgumentInSTSRID {
         #[snafu(implicit)]
         location: Location,
     },
@@ -586,48 +296,8 @@ pub enum DataFusionExecutionError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("ST_Contains does not support this left geometry type"))]
-    STContainsDoesNotSupportThisLeftGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("ST_Distance does not support this right geometry type"))]
-    STDistanceDoesNotSupportThisRightGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("ST_Distance does not support this rhs geometry type"))]
     STDistanceDoesNotSupportThisRhsGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("ST_Distance does not support this left geometry type"))]
-    STDistanceDoesNotSupportThisLeftGeometryType {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("object_construct requires an even number of arguments (key-value pairs)"))]
-    ObjectConstructRequiresEvenNumberOfArguments {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("object_construct key cannot be null"))]
-    ObjectConstructKeyCannotBeNull {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("object_construct key must be a string"))]
-    ObjectConstructKeyMustBeAString {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("object_construct value must be a number"))]
-    ObjectConstructValueMustBeANumber {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("object_construct value must be a string, number, or boolean"))]
-    ObjectConstructValueMustBeAStringNumberOrBoolean {
         #[snafu(implicit)]
         location: Location,
     },

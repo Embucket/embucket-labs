@@ -115,7 +115,7 @@ fn within(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         }
         NativeType::MultiPolygon(_, _) => match_rhs_within_data_type!(left, as_multi_polygon, rhs),
         _ => {
-            return errors::STWithinDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
+            return geo_errors::STWithinDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
         }
     };
     Ok(ColumnarValue::Array(Arc::new(result)))

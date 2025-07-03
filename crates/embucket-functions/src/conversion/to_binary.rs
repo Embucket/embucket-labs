@@ -1,4 +1,4 @@
-use crate::errors;
+use super::errors as conv_errors;
 use base64::Engine;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray, BinaryBuilder};
 use datafusion::arrow::datatypes::DataType;
@@ -100,7 +100,7 @@ impl ScalarUDFImpl for ToBinaryFunc {
                         let format_arr = as_string_array(arr)?;
                         Some(format_arr.value(0).to_string())
                     } else {
-                        return errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
+                        return conv_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
                     }
                 }
             }
@@ -159,7 +159,7 @@ impl ScalarUDFImpl for ToBinaryFunc {
                 Arc::new(builder.finish())
             }
             _ => {
-                return errors::UnsupportedInputTypeSnafu {
+                return conv_errors::UnsupportedInputTypeSnafu {
                     data_type: input_array.data_type().clone(),
                 }
                 .fail()?;
@@ -195,7 +195,7 @@ where
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return errors::FailedToDecodeHexStringSnafu {
+                                return conv_errors::FailedToDecodeHexStringSnafu {
                                     error: e.to_string(),
                                 }
                                 .fail()?;
@@ -211,7 +211,7 @@ where
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return errors::FailedToDecodeBase64StringSnafu {
+                                return conv_errors::FailedToDecodeBase64StringSnafu {
                                     error: e.to_string(),
                                 }
                                 .fail()?;
@@ -227,7 +227,7 @@ where
                     if try_mode {
                         builder.append_null();
                     } else {
-                        return errors::UnsupportedFormatSnafu { format }.fail()?;
+                        return conv_errors::UnsupportedFormatSnafu { format }.fail()?;
                     }
                 }
             }
