@@ -134,7 +134,9 @@ pub async fn create_table(
         .context(api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::CreateTable,
         })?;
-    Ok(Json(LoadTableResult::new(table.data.metadata)))
+    let mut result = LoadTableResult::new(table.data.metadata);
+    result.metadata_location = Some(table.data.metadata_location);
+    Ok(Json(result))
 }
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -169,7 +171,9 @@ pub async fn register_table(
         .context(api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::RegisterTable,
         })?
-        .get(&object_store::path::Path::from(register.metadata_location))
+        .get(&object_store::path::Path::from(
+            register.metadata_location.clone(),
+        ))
         .await
         .context(metastore_error::ObjectStoreSnafu)
         .context(api_iceberg_rest_error::MetastoreSnafu {
@@ -187,7 +191,9 @@ pub async fn register_table(
         .context(api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::RegisterTable,
         })?;
-    Ok(Json(LoadTableResult::new(table_metadata)))
+    let mut result = LoadTableResult::new(table_metadata);
+    result.metadata_location = Some(register.metadata_location);
+    Ok(Json(result))
 }
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -235,7 +241,9 @@ pub async fn get_table(
         .context(api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::GetTable,
         })?;
-    Ok(Json(LoadTableResult::new(table.data.metadata)))
+    let mut result = LoadTableResult::new(table.data.metadata);
+    result.metadata_location = Some(table.data.metadata_location);
+    Ok(Json(result))
 }
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
