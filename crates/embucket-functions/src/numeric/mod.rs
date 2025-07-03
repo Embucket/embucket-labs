@@ -4,6 +4,9 @@ use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
 pub mod div0;
+pub mod errors;
+
+pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

@@ -1,5 +1,5 @@
-use crate::array_to_boolean;
 use super::errors as conv_errors;
+use crate::array_to_boolean;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::arrow::array::cast::as_string_array;

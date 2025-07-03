@@ -2,7 +2,7 @@ use crate::catalogs::slatedb::databases::DatabasesViewBuilder;
 use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
-use crate::error as errors;
+use crate::df_error;
 use core_metastore::{Metastore, SchemaIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
@@ -25,7 +25,7 @@ impl MetastoreViewConfig {
             .iter_volumes()
             .collect()
             .await
-            .context(errors::DFExecutionCoreUtilsSnafu)?;
+            .context(df_error::CoreUtilsSnafu)?;
         for volume in volumes {
             builder.add_volume(
                 &volume.ident,
@@ -46,7 +46,7 @@ impl MetastoreViewConfig {
             .iter_databases()
             .collect()
             .await
-            .context(errors::DFExecutionCoreUtilsSnafu)?;
+            .context(df_error::CoreUtilsSnafu)?;
         for database in databases {
             builder.add_database(
                 database.ident.as_str(),
@@ -66,7 +66,7 @@ impl MetastoreViewConfig {
             .iter_schemas(&String::new())
             .collect()
             .await
-            .context(errors::DFExecutionCoreUtilsSnafu)?;
+            .context(df_error::CoreUtilsSnafu)?;
         for schema in schemas {
             builder.add_schema(
                 &schema.ident.schema,
@@ -86,7 +86,7 @@ impl MetastoreViewConfig {
             .iter_tables(&SchemaIdent::default())
             .collect()
             .await
-            .context(errors::DFExecutionCoreUtilsSnafu)?;
+            .context(df_error::CoreUtilsSnafu)?;
         for table in tables {
             let mut total_bytes = 0;
             let mut total_rows = 0;

@@ -46,14 +46,27 @@ pub enum Error {
     },
 }
 
+// When directly converting to a DataFusionError
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::Conversion
+//       |---- Error
+
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        Self::External(Box::new(
+            crate::errors::DataFusionExternalError::Conversion { source: value },
+        ))
     }
 }
 
 impl Default for Error {
     fn default() -> Self {
-        UnsupportedInputTypeSnafu{ data_type: arrow_schema::DataType::Boolean }.build()
+        UnsupportedInputTypeSnafu {
+            data_type: arrow_schema::DataType::Boolean,
+        }
+        .build()
     }
 }

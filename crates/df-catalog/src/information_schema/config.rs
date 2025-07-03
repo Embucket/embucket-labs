@@ -9,7 +9,7 @@ use super::routines::InformationSchemaRoutinesBuilder;
 use super::schemata::InformationSchemataBuilder;
 use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
-use crate::error as errors;
+use crate::df_error;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
 use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
 use crate::information_schema::session_params::SessionParams;
@@ -80,7 +80,7 @@ impl InformationSchemaConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         for catalog_name in self.catalog_list.catalog_names() {
             let catalog = self.catalog_list.catalog(&catalog_name).ok_or_else(|| {
-                errors::DFPlanErrorCatalogNotFoundSnafu {
+                df_error::CatalogNotFoundSnafu {
                     name: catalog_name.clone(),
                 }
                 .build()
@@ -362,11 +362,11 @@ impl InformationSchemaConfig {
                                   is_variadic: bool,
                                   rid: usize|
          -> datafusion_common::Result<()> {
-            let rid = u8::try_from(rid).context(errors::RidParamDoesntFitInU8Snafu)?;
+            let rid = u8::try_from(rid).context(df_error::RidParamDoesntFitInU8Snafu)?;
             for (position, type_name) in arg_types.iter().enumerate() {
                 let param_name = args.and_then(|a| a.get(position).map(|arg| arg.0.as_str()));
                 let ordinal_position = u64::try_from(position + 1)
-                    .context(errors::OrdinalPositionParamOverflowSnafu)?;
+                    .context(df_error::OrdinalPositionParamOverflowSnafu)?;
 
                 builder.add_parameter(
                     catalog_name,

@@ -1,11 +1,11 @@
 use axum::Json;
 use axum::response::IntoResponse;
+use core_executor::SnowflakeError;
 use error_stack::ErrorExt;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 use std::fmt::Debug;
-use core_executor::SnowflakeError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -100,12 +100,14 @@ impl IntoResponse for Error {
         let code = self.status_code();
         match self {
             Self::Auth { source, .. } => source.into_response(),
-            _ => {
-                (code, Json(ErrorResponse {
+            _ => (
+                code,
+                Json(ErrorResponse {
                     message: self.snowflake_error_message(),
                     status_code: code.as_u16(),
-                })).into_response()
-            }
+                }),
+            )
+                .into_response(),
         }
     }
 }
@@ -116,12 +118,12 @@ impl Error {
         let error_str = self.to_string();
         match self {
             Self::QueriesError { source, .. } => match *source {
-                crate::queries::Error::Query { 
-                    source: crate::queries::error::QueryError::Execution { source, .. }, 
+                crate::queries::Error::Query {
+                    source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
                 } => SnowflakeError::from(source).to_string(),
                 _ => error_str,
-            }
+            },
             _ => self.to_string(),
         }
     }

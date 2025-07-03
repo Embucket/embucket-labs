@@ -98,11 +98,125 @@ pub enum Error {
     ExpectedOnlyOneArgumentInSTSRID {
         #[snafu(implicit)]
         location: Location,
-    },        
+    },
+    #[snafu(display("Expected only one argument"))]
+    ExpectedOnlyOneArgument {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected at least one argument"))]
+    ExpectedAtLeastOneArgument {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Error getting bounding rect: {error}"))]
+    ErrorGettingBoundingRect {
+        error: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Index out of bounds"))]
+    IndexOutOfBounds {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected two arguments in ST_PointN"))]
+    ExpectedTwoArgumentsInSTPointN {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected Geometry-typed array"))]
+    ExpectedGeometryTypedArray {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Within takes two arguments"))]
+    STWithinTakesTwoArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Within does not support this rhs geometry type"))]
+    STWithinDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Coordinate is None"))]
+    CoordinateIsNone {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected Point, LineString, or MultiPoint in ST_Makeline"))]
+    ExpectedPointLineStringOrMultiPointInSTMakeLine {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_MakePolygon"))]
+    ExpectedOnlyOneArgumentInSTMakePolygon {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to start linestring: {error}"))]
+    FailedToStartLinestring {
+        #[snafu(source)]
+        error: geozero::error::GeozeroError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to end linestring: {error}"))]
+    FailedToEndLinestring {
+        #[snafu(source)]
+        error: geozero::error::GeozeroError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("failed to push geom offset: {error}"))]
+    FailedToPushGeomOffset {
+        #[snafu(source)]
+        error: geoarrow::error::GeoArrowError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("failed to add coord: {error}"))]
+    FailedToAddCoord {
+        #[snafu(source)]
+        error: geoarrow::error::GeoArrowError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Expected only one argument in ST_Area"))]
+    ExpectedOnlyOneArgumentInSTArea {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Contains does not support this rhs geometry type"))]
+    STContainsDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Contains takes two arguments"))]
+    STContainsTakesTwoArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("ST_Distance does not support this rhs geometry type"))]
+    STDistanceDoesNotSupportThisRhsGeometryType {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
+
+// When directly converting to a DataFusionError 
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::Geospatial
+//       |---- Error
 
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        datafusion_common::DataFusionError::External(Box::new(
+            crate::errors::DataFusionExternalError::Geospatial{source: value}
+        ))
     }
 }

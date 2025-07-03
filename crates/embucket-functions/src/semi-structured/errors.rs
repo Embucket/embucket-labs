@@ -1,5 +1,5 @@
-use snafu::{Location, Snafu};
 use snafu::location;
+use snafu::{Location, Snafu};
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -327,18 +327,52 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Expected JSONPath value for index"))]
+    ExpectedJsonPathValueForIndex {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid number of arguments"))]
+    InvalidNumberOfArguments {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Expected string array"))]
+    ExpectedStringArray {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid argument types"))]
+    InvalidArgumentTypes {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
+
+// When directly converting to a DataFusionError
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::SemiStructured
+//       |---- Error
 
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        Self::External(Box::new(
+            crate::errors::DataFusionExternalError::SemiStructured { source: value },
+        ))
     }
 }
 
 impl Default for Error {
     fn default() -> Self {
         Self::ArgumentMustBeJsonObject {
-            argument: "".to_string(),
+            argument: String::new(),
             location: location!(),
         }
     }

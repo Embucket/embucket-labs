@@ -6,8 +6,8 @@ pub mod models;
 pub mod query;
 pub mod service;
 pub mod session;
-pub mod utils;
 pub mod snowflake_error;
+pub mod utils;
 
 #[cfg(test)]
 pub mod tests;

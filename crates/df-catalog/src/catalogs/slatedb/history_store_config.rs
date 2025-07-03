@@ -1,6 +1,6 @@
 use crate::catalogs::slatedb::queries::QueriesViewBuilder;
 use crate::catalogs::slatedb::worksheets::WorksheetsViewBuilder;
-use crate::error as errors;
+use crate::df_error;
 use core_history::{GetQueriesParams, HistoryStore};
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
@@ -21,7 +21,7 @@ impl HistoryStoreViewConfig {
             .history_store
             .get_worksheets()
             .await
-            .context(errors::DFExecutionCoreHistorySnafu)?;
+            .context(df_error::CoreHistorySnafu)?;
         for worksheet in worksheets {
             builder.add_worksheet(worksheet);
         }
@@ -36,7 +36,7 @@ impl HistoryStoreViewConfig {
             .history_store
             .get_queries(GetQueriesParams::default())
             .await
-            .context(errors::DFExecutionCoreHistorySnafu)?;
+            .context(df_error::CoreHistorySnafu)?;
         for query in queries {
             builder.add_query(query);
         }

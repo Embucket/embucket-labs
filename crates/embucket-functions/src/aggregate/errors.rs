@@ -70,9 +70,19 @@ pub enum Error {
     },
 }
 
+// When directly converting to a DataFusionError
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::Aggregate
+//       |---- Error
+
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        Self::External(Box::new(
+            crate::errors::DataFusionExternalError::Aggregate { source: value },
+        ))
     }
 }
 

@@ -1,5 +1,5 @@
-use snafu::{Location, Snafu};
 use snafu::location;
+use snafu::{Location, Snafu};
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -11,12 +11,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Expected UTF8 string for array"))]
-    ExpectedUtf8StringForArray {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Expected UTF8 string for {name} array"))]
     ExpectedUtf8StringForNamedArray {
         name: String,
@@ -24,23 +18,34 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Invalid encoding: {message}"))]
-    InvalidEncoding {
-        message: String,
+    #[snafu(display("Failed to cast to UTF8: {error}"))]
+    FailedToCastToUtf8 {
+        error: String,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("String index out of bounds"))]
-    StringIndexOutOfBounds {
+    #[snafu(display("LOWER expects 1 argument, got {count}"))]
+    LowerExpectsOneArgument {
+        count: usize,
         #[snafu(implicit)]
         location: Location,
     },
 }
 
+// When directly converting to a DataFusionError
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::StringBinary
+//       |---- Error
+
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        Self::External(Box::new(
+            crate::errors::DataFusionExternalError::StringBinary { source: value },
+        ))
     }
 }
 

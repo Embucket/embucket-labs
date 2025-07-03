@@ -1,11 +1,11 @@
+use super::errors;
 use crate::aggregate::macros::make_udaf_function;
-use super::errors as agg_errors;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
-use datafusion_common::{DataFusionError, ScalarValue};
+use datafusion_common::ScalarValue;
 use datafusion_common::cast::{as_string_array, as_uint64_array};
 use datafusion_expr::AggregateUDFImpl;
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -106,7 +106,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         let mut buf = Vec::with_capacity(arr.len());
         for v in arr.into_iter().flatten() {
             let json: Value =
-                serde_json::from_str(v).context(agg_errors::FailedToSerializeValueSnafu)?;
+                serde_json::from_str(v).context(errors::FailedToSerializeValueSnafu)?;
 
             if let Value::Array(v) = json {
                 buf.clear();
@@ -143,7 +143,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                     self.hash.insert(v.to_owned());
                 }
             } else {
-                return agg_errors::ArrayUnionAggOnlySupportsJsonArraySnafu.fail()?;
+                return errors::ArrayUnionAggOnlySupportsJsonArraySnafu.fail()?;
             }
         }
 
@@ -170,7 +170,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                             Ok(Value::Null)
                         }
                     } else {
-                        agg_errors::StateValuesShouldBeStringTypeSnafu.fail()?
+                        errors::StateValuesShouldBeStringTypeSnafu.fail()?
                     }
                 })
                 .collect::<DFResult<Vec<_>>>()?,
@@ -183,13 +183,13 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                             if let Some(v) = v {
                                 Ok(Value::Bool(
                                     v.parse::<bool>()
-                                        .context(agg_errors::FailedToParseBooleanSnafu)?,
+                                        .context(errors::FailedToParseBooleanSnafu)?,
                                 ))
                             } else {
                                 Ok(Value::Null)
                             }
                         } else {
-                            agg_errors::StateValuesShouldBeStringTypeSnafu.fail()?
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -201,7 +201,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 if let Some(v) = v {
                                     let vv = v
                                         .parse::<f64>()
-                                        .context(agg_errors::FailedToParseFloatSnafu)?;
+                                        .context(errors::FailedToParseFloatSnafu)?;
                                     if vv.fract() == 0.0 {
                                         Ok(Value::Number(Number::from(vv as i64)))
                                     } else {
@@ -209,10 +209,10 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                             // here we loose context error when returning result as Option
                                             Number::from_f64(
                                                 v.parse::<f64>()
-                                                    .context(agg_errors::FailedToParseFloatSnafu)?,
+                                                    .context(errors::FailedToParseFloatSnafu)?,
                                             )
                                             .ok_or_else(|| {
-                                                agg_errors::FailedToParseFloatNoSourceSnafu.build()
+                                                errors::FailedToParseFloatNoSourceSnafu.build()
                                             })?,
                                         ))
                                     }
@@ -220,7 +220,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                     Ok(Value::Null)
                                 }
                             } else {
-                                agg_errors::StateValuesShouldBeStringTypeSnafu.fail()?
+                                errors::StateValuesShouldBeStringTypeSnafu.fail()?
                             }
                         })
                         .collect::<DFResult<Vec<_>>>()?
@@ -236,7 +236,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            agg_errors::StateValuesShouldBeStringTypeSnafu.fail()?
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -247,12 +247,12 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                         if let ScalarValue::Utf8(v) = v {
                             if let Some(v) = v {
                                 Ok(serde_json::from_str(v)
-                                    .context(agg_errors::FailedToSerializeValueSnafu)?)
+                                    .context(errors::FailedToSerializeValueSnafu)?)
                             } else {
                                 Ok(Value::Null)
                             }
                         } else {
-                            agg_errors::StateValuesShouldBeStringTypeSnafu.fail()?
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -260,7 +260,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
         };
 
         Ok(ScalarValue::Utf8(Some(
-            serde_json::to_string(&arr).context(agg_errors::FailedToSerializeValueSnafu)?,
+            serde_json::to_string(&arr).context(errors::FailedToSerializeValueSnafu)?,
         )))
     }
 
@@ -289,7 +289,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                 2 => self.data_type = Some(DType::Utf8),
                 3 => self.data_type = Some(DType::SemiStructured),
                 _ => {
-                    return agg_errors::ArrayUnionAggOnlySupportsBooleanFloat64AndUtf8Snafu.fail()?;
+                    return errors::ArrayUnionAggOnlySupportsBooleanFloat64AndUtf8Snafu.fail()?;
                 }
             }
         }

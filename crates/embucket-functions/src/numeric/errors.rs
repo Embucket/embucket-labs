@@ -4,20 +4,11 @@ use snafu::{Location, Snafu};
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display(
-        "Unsupported type: {data_type:?}. Only supports boolean, numeric, decimal, float types"
-    ))]
-    UnsupportedType {
-        data_type: arrow_schema::DataType,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Failed to cast to {target_type}"))]
+    #[snafu(display("Failed to cast to {target_type}: {error}"))]
     CastToType {
-        target_type: &'static str,
+        target_type: String,
         #[snafu(source)]
-        source: datafusion_common::DataFusionError,
+        error: datafusion::arrow::error::ArrowError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -40,19 +31,37 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Unexpected array type: expected {expected}, got {actual}"))]
+    UnexpectedArrayType {
+        expected: String,
+        actual: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
+
+// When directly converting to a DataFusionError
+// then crate-level error wouldn't be needed anymore
+//
+// Following is made to preserve logical structure of error:
+// DataFusionError::External
+// |---- DataFusionInternalError::Numeric
+//       |---- Error
 
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        datafusion_common::DataFusionError::External(Box::new(value))
+        Self::External(Box::new(crate::errors::DataFusionExternalError::Numeric {
+            source: value,
+        }))
     }
 }
-
 impl Default for Error {
     fn default() -> Self {
-        Self::UnsupportedType {
-            data_type: arrow_schema::DataType::Boolean,
-            location: snafu::Location::caller(),
+        Self::CastToType {
+            target_type: "Float64".to_string(),
+            error: datafusion::arrow::error::ArrowError::NotYetImplemented("test".into()),
+            location: snafu::location!(),
         }
     }
 }
