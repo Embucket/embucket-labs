@@ -427,9 +427,7 @@ impl Stream for MergeCOWFilterStream {
                         })?
                         .ok_or_else(|| {
                             DataFusionError::Internal(
-                                error::MissingFilterPredicatesSnafu {}
-                                    .build()
-                                    .to_string(),
+                                error::MissingFilterPredicatesSnafu {}.build().to_string(),
                             )
                         })?;
 
@@ -452,11 +450,8 @@ impl Stream for MergeCOWFilterStream {
                         .and_modify(|v| v.push(file.clone()))
                         .or_insert_with(|| vec![file]);
                 }
-                #[allow(clippy::expect_used)]
-                let mut lock = project
-                    .matching_files_ref
-                    .lock()
-                    .expect("Failed to get lock on the matching files hashmap.");
+                #[allow(clippy::unwrap_used)]
+                let mut lock = project.matching_files_ref.lock().unwrap();
                 lock.replace(new);
                 Poll::Ready(None)
             }
