@@ -1,12 +1,16 @@
+exclude-from-coverage
 statement ok
 create table t1(a int,b string, c string);
 
+exclude-from-coverage
 statement ok
 create table t2(a int,b string, c string);
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1,'b1','c1'),(2,'b2','c2');
 
+exclude-from-coverage
 statement ok
 insert into t1 values(2,'b3','c3'),(3,'b4','c4');
 
@@ -18,9 +22,11 @@ select * from t1 order by a,b,c;
 2 b3 c3
 3 b4 c4
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'b_5','c_5'),(3,'b_6','c_6');
 
+exclude-from-coverage
 statement ok
 insert into t2 values(2,'b_7','c_7');
 
@@ -57,6 +63,7 @@ select * from t1 order by a,b,c;
 2 b3 c_7
 3 b4 c_6
 
+exclude-from-coverage
 statement ok
 insert into t2 values(4,'b_8','c_8');
 
@@ -82,6 +89,7 @@ select * from t1 order by a,b,c;
 3 b4 c_6
 4 b_8 c_8
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'b_9','c_9');
 
@@ -99,6 +107,7 @@ select * from t1 order by a,b,c;
 3 b4 c_6
 4 b_8 c_8
 
+exclude-from-coverage
 statement ok
 delete from t2 where a = 1;
 
@@ -109,6 +118,7 @@ select * from t2 order by a,b,c;
 3 b_6 c_6
 4 b_8 c_8
 
+exclude-from-coverage
 statement ok
 insert into t2 values(5,'b_9','c_9');
 
@@ -131,6 +141,7 @@ select * from t1 order by a,b,c;
 1 b1 c_5
 
 # section 2 multi clauses
+exclude-from-coverage
 statement ok
 insert into t1 values(2,'b_1','c_1'),(3,'b_2','c_2');
 
@@ -182,6 +193,7 @@ select * from t1 order by a,b,c;
 4 b_8 NULL
 5 b_9 c_9
 
+exclude-from-coverage
 statement ok
 insert into t2 values(5,'b_10','c_10');
 
@@ -211,9 +223,11 @@ select * from t1 order by a,b,c;
 1 b1 c_5
 
 ## test star for merge into
+exclude-from-coverage
 statement ok
 truncate table t1;
 
+exclude-from-coverage
 statement ok
 truncate table t2;
 
@@ -227,6 +241,7 @@ select count(*) from t2;
 ----
 0
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1,'b1','c1'),(2,'b2','c2');
 
@@ -236,6 +251,7 @@ select * from t1 order by a,b,c;
 1 b1 c1
 2 b2 c2
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'b3','c3'),(3,'b4','c4');
 
@@ -276,15 +292,19 @@ merge into t1 using (select a,b,c,a,b from t2 ) as t2 on t1.a = t2.a  when not m
 1065
 
 ## stage file test
+exclude-from-coverage
 statement ok
 drop table if exists test_stage;
 
+exclude-from-coverage
 statement ok
 drop table if exists target_table;
 
+exclude-from-coverage
 statement ok
 create table target_table(a int,b string,c string) cluster by(a,b);
 
+exclude-from-coverage
 statement ok
 insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
 
@@ -294,9 +314,11 @@ select * from target_table order by a,b,c;
 1 a_1 b_1
 2 a_2 b_2
 
+exclude-from-coverage
 statement ok
 create table test_stage(a int,b string,c string) cluster by(a,b);
 
+exclude-from-coverage
 statement ok
 insert into test_stage values(1,'a1','b1'),(2,'a2','b2'),(3,'a3','b3');
 
@@ -307,18 +329,23 @@ select * from test_stage order by a,b,c;
 2 a2 b2
 3 a3 b3
 
+exclude-from-coverage
 statement ok
 drop stage if exists s5_merge_into;
 
+exclude-from-coverage
 statement ok
 drop stage if exists s4_merge_into;
 
+exclude-from-coverage
 statement ok
 create stage s5_merge_into FILE_FORMAT = (TYPE = CSV);
 
+exclude-from-coverage
 statement ok
 remove @s5_merge_into;
 
+exclude-from-coverage
 statement ok
 copy into @s5_merge_into from (select a,b,c from test_stage order by a,b,c);
 
@@ -341,6 +368,7 @@ select * from target_table order by a,b,c;
 3 a3 b3
 
 ## test parquet
+exclude-from-coverage
 statement ok
 truncate table target_table;
 
@@ -349,12 +377,15 @@ select count(*) from target_table;
 ----
 0
 
+exclude-from-coverage
 statement ok
 create stage s4_merge_into FILE_FORMAT = (TYPE = PARQUET);
 
+exclude-from-coverage
 statement ok
 remove @s4_merge_into;
 
+exclude-from-coverage
 statement ok
 copy into @s4_merge_into from (select a,b,c from test_stage order by a,b,c);
 
@@ -365,6 +396,7 @@ select a,b,c from @s4_merge_into order by a,b,c;
 2 a2 b2
 3 a3 b3
 
+exclude-from-coverage
 statement ok
 insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
 
@@ -386,9 +418,11 @@ select * from target_table order by a,b,c;
 
 ## NULL test, for join, if join_expr result is
 ## NULL, it will be treated as not matched.
+exclude-from-coverage
 statement ok
 truncate table t1;
 
+exclude-from-coverage
 statement ok
 truncate table t2;
 
@@ -402,6 +436,7 @@ select count(*) from t2;
 ----
 0
 
+exclude-from-coverage
 statement ok
 insert into t1 values(NULL,'b_1','c_1');
 
@@ -410,6 +445,7 @@ select * from t1 order by a,b,c;
 ----
 NULL b_1 c_1
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'b_4','c_4'),(2,'b_2','c_2'),(NULL,'b_3','c_3');
 
@@ -444,9 +480,11 @@ select * from t1 order by a,b,c;
 NULL b_1 c_1
 NULL b_3 c_3
 
+exclude-from-coverage
 statement ok
 truncate table t1;
 
+exclude-from-coverage
 statement ok
 truncate table t2;
 
@@ -461,6 +499,7 @@ select count(*) from t2;
 0
 
 ## test target table alias
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'a1','b1');
 
@@ -474,24 +513,31 @@ select * from t1 order by a,b,c;
 ----
 1 a1 b1
 
+exclude-from-coverage
 statement ok
 drop table if exists employees;
 
+exclude-from-coverage
 statement ok
 drop table if exists salaries;
 
+exclude-from-coverage
 statement ok
 CREATE TABLE employees (employee_id INT, employee_name VARCHAR(255),department VARCHAR(255))  cluster by(employee_id,employee_name);
 
+exclude-from-coverage
 statement ok
 drop table if exists salaries;
 
+exclude-from-coverage
 statement ok
 CREATE TABLE salaries (employee_id INT,salary DECIMAL(10, 2)) cluster by(employee_id,salary);
 
+exclude-from-coverage
 statement ok
 INSERT INTO employees VALUES(1, 'Alice', 'HR'),(2, 'Bob', 'IT'),(3, 'Charlie', 'Finance'),(4, 'David', 'HR');
 
+exclude-from-coverage
 statement ok
 INSERT INTO salaries VALUES(1, 50000.00),(2, 60000.00);
 
@@ -508,28 +554,36 @@ select * from salaries order by employee_id;
 3 55000.00
 4 55000.00
 
+exclude-from-coverage
 statement ok
 drop table if exists t1_target;
 
 ## null cast bug fix
+exclude-from-coverage
 statement ok
 drop table if exists t1_target;
 
+exclude-from-coverage
 statement ok
 drop table if exists t2_source;
 
+exclude-from-coverage
 statement ok
 create table t1_target(a int not null) cluster by(a);
 
+exclude-from-coverage
 statement ok
 drop table if exists t2_source;
 
+exclude-from-coverage
 statement ok
 create table t2_source(a int not null) cluster by(a);
 
+exclude-from-coverage
 statement ok
 insert into t1_target values(1);
 
+exclude-from-coverage
 statement ok
 insert into t2_source values(1),(2);
 
@@ -544,25 +598,32 @@ select * from t1_target order by a;
 1
 2
 
+exclude-from-coverage
 statement ok
 drop table if exists cluster_target;
 
 ## cluster table test
+exclude-from-coverage
 statement ok
 drop table if exists cluster_target;
 
+exclude-from-coverage
 statement ok
 drop table if exists cluster_source;
 
+exclude-from-coverage
 statement ok
 create table cluster_target(a int,b string,c int) cluster by(a,b);
 
+exclude-from-coverage
 statement ok
 drop table if exists cluster_source;
 
+exclude-from-coverage
 statement ok
 create table cluster_source(a int,b string,c int);
 
+exclude-from-coverage
 statement ok
 insert into cluster_source values(12,'b',1),(1,'a',2),(2,'b',3),(2,'a',4),(3,'a',3);
 
