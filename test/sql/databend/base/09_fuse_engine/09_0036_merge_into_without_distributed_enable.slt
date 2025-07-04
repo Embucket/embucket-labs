@@ -18,10 +18,10 @@ exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c1
-2 b2 c2
-2 b3 c3
-3 b4 c4
+1	b1	c1
+2	b2	c2
+2	b3	c3
+3	b4	c4
 
 exclude-from-coverage
 statement ok
