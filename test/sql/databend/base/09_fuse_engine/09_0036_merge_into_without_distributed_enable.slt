@@ -35,9 +35,9 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-1 b_5 c_5
-2 b_7 c_7
-3 b_6 c_6
+1	b_5	c_5
+2	b_7	c_7
+3	b_6	c_6
 
 ## test source alias
 statement error
@@ -58,10 +58,10 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-2 b2 c_7
-2 b3 c_7
-3 b4 c_6
+1	b1	c_5
+2	b2	c_7
+2	b3	c_7
+3	b4	c_6
 
 exclude-from-coverage
 statement ok
@@ -71,10 +71,10 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-1 b_5 c_5
-2 b_7 c_7
-3 b_6 c_6
-4 b_8 c_8
+1	b_5	c_5
+2	b_7	c_7
+3	b_6	c_6
+4	b_8	c_8
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update set t1.c = t2.c  when not matched then insert (a,b,c) values(t2.a,t2.b,t2.c);
@@ -82,11 +82,11 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-2 b2 c_7
-2 b3 c_7
-3 b4 c_6
-4 b_8 c_8
+1	b1	c_5
+2	b2	c_7
+2	b3	c_7
+3	b4	c_6
+4	b_8	c_8
 
 exclude-from-coverage
 statement ok
@@ -100,11 +100,11 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-2 b2 c_7
-2 b3 c_7
-3 b4 c_6
-4 b_8 c_8
+1	b1	c_5
+2	b2	c_7
+2	b3	c_7
+3	b4	c_6
+4	b_8	c_8
 
 exclude-from-coverage
 statement ok
@@ -114,9 +114,9 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-2 b_7 c_7
-3 b_6 c_6
-4 b_8 c_8
+2	b_7	c_7
+3	b_6	c_6
+4	b_8	c_8
 
 exclude-from-coverage
 statement ok
@@ -126,10 +126,10 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-2 b_7 c_7
-3 b_6 c_6
-4 b_8 c_8
-5 b_9 c_9
+2	b_7	c_7
+3	b_6	c_6
+4	b_8	c_8
+5	b_9	c_9
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then delete;
@@ -137,7 +137,7 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query ITT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
+1	b1	c_5
 
 # section 2 multi clauses
 exclude-from-coverage
@@ -148,9 +148,9 @@ exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-2 b_1 c_1
-3 b_2 c_2
+1	b1	c_5
+2	b_1	c_1
+3	b_2	c_2
 
 statement error
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then delete when matched then update set t1.c = t2.c when not matched and t2.c = 'c_8' then insert (a,b,c) values(t2.a,t2.b,t2.c);
@@ -163,9 +163,9 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched and t
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-3 b_2 c_6
-4 b_8 c_8
+1	b1	c_5
+3	b_2	c_6
+4	b_8	c_8
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then delete when not matched and t2.c = 'c_9' then insert (a,b,c) values(t2.a,t2.b,t2.c);
@@ -173,8 +173,8 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-5 b_9 c_9
+1	b1	c_5
+5	b_9	c_9
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when not matched and t2.c = 'c_8' then insert (a,b) values(t2.a,t2.b) when not matched and t2.c = 'c_7' then insert (a,c) values(t2.a,t2.c);
@@ -182,10 +182,10 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when not matched an
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
-2 NULL c_7
-4 b_8 NULL
-5 b_9 c_9
+1	b1	c_5
+2	NULL	c_7
+4	b_8	NULL
+5	b_9	c_9
 
 exclude-from-coverage
 statement ok
@@ -195,11 +195,11 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-2 b_7 c_7
-3 b_6 c_6
-4 b_8 c_8
-5 b_10 c_10
-5 b_9 c_9
+2	b_7	c_7
+3	b_6	c_6
+4	b_8	c_8
+5	b_10	c_10
+5	b_9	c_9
 
 statement error
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when matched and t2.c = 'c_9' then update set t1.b = 'b_11' when matched and t2.c = 'c_10' then delete;
@@ -213,7 +213,7 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when matched then d
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c_5
+1	b1	c_5
 
 ## test star for merge into
 exclude-from-coverage
@@ -244,8 +244,8 @@ exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b1 c1
-2 b2 c2
+1	b1	c1
+2	b2	c2
 
 exclude-from-coverage
 statement ok
@@ -255,8 +255,8 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-1 b3 c3
-3 b4 c4
+1	b3	c3
+3	b4	c4
 
 ## test insert columns mismatch
 statement error
@@ -271,9 +271,9 @@ merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b3 c3
-2 b2 c2
-3 b4 c4
+1	b3	c3
+2	b2	c2
+3	b4	c4
 
 ## test multi same name for star
 statement error
@@ -307,8 +307,8 @@ exclude-from-coverage
 query TTT
 select * from target_table order by a,b,c;
 ----
-1 a_1 b_1
-2 a_2 b_2
+1	a_1	b_1
+2	a_2	b_2
 
 exclude-from-coverage
 statement ok
@@ -322,9 +322,9 @@ exclude-from-coverage
 query TTT
 select * from test_stage order by a,b,c;
 ----
-1 a1 b1
-2 a2 b2
-3 a3 b3
+1	a1	b1
+2	a2	b2
+3	a3	b3
 
 exclude-from-coverage
 statement ok
@@ -348,20 +348,20 @@ copy into @s5_merge_into from (select a,b,c from test_stage order by a,b,c);
 
 exclude-from-coverage
 query TTT
-select $1,$2,$3 from @s5_merge_into order by $1,$2,$3;
+select $1,$2,$3	from @s5_merge_into order by $1,$2,$3;
 ----
-1 a1 b1
-2 a2 b2
-3 a3 b3
+1	a1	b1
+2	a2	b2
+3	a3	b3
 
 ## test CSV
 statement ok
-merge into target_table using (select $1,$2,$3 from @s5_merge_into) as cdc on cast(cdc.$1 as int) = target_table.a when matched then delete when not matched then insert values(cdc.$1,cdc.$2,cdc.$3);
+merge into target_table using (select $1,$2,$3	from @s5_merge_into) as cdc on cast(cdc.$1 as int) = target_table.a when matched then delete when not matched then insert values(cdc.$1,cdc.$2,cdc.$3);
 
 query TTT
 select * from target_table order by a,b,c;
 ----
-3 a3 b3
+3	a3	b3
 
 ## test parquet
 exclude-from-coverage
@@ -390,9 +390,9 @@ exclude-from-coverage
 query TTT
 select a,b,c from @s4_merge_into order by a,b,c;
 ----
-1 a1 b1
-2 a2 b2
-3 a3 b3
+1	a1	b1
+2	a2	b2
+3	a3	b3
 
 exclude-from-coverage
 statement ok
@@ -402,8 +402,8 @@ exclude-from-coverage
 query TTT
 select * from target_table order by a,b,c;
 ----
-1 a_1 b_1
-2 a_2 b_2
+1	a_1	b_1
+2	a_2	b_2
 
 statement ok
 merge into target_table using (select a,b,c from @s4_merge_into) as cdc on cdc.a = target_table.a when matched then delete when not matched then insert values(cdc.a,cdc.b,cdc.c);
@@ -411,7 +411,7 @@ merge into target_table using (select a,b,c from @s4_merge_into) as cdc on cdc.a
 query TTT
 select * from target_table order by a,b,c;
 ----
-3 a3 b3
+3	a3	b3
 
 ## NULL test, for join, if join_expr result is
 ## NULL, it will be treated as not matched.
@@ -443,7 +443,7 @@ exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
-NULL b_1 c_1
+NULL	b_1	c_1
 
 exclude-from-coverage
 statement ok
@@ -453,9 +453,9 @@ exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
-1 b_4 c_4
-2 b_2 c_2
-NULL b_3 c_3
+1	b_4	c_4
+2	b_2	c_2
+NULL	b_3	c_3
 
 statement ok
 merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then delete when not matched then insert *;
@@ -463,10 +463,10 @@ merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then de
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 b_4 c_4
-2 b_2 c_2
-NULL b_1 c_1
-NULL b_3 c_3
+1	b_4	c_4
+2	b_2	c_2
+NULL	b_1	c_1
+NULL	b_3	c_3
 
 statement ok
 merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then delete;
@@ -474,8 +474,8 @@ merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then de
 query TTT
 select * from t1 order by a,b,c;
 ----
-NULL b_1 c_1
-NULL b_3 c_3
+NULL	b_1	c_1
+NULL	b_3	c_3
 
 exclude-from-coverage
 statement ok
@@ -508,7 +508,7 @@ merge into t1 as t3 using (select * from t2 ) as t2 on t3.a = t2.a  when not mat
 query TTT
 select * from t1 order by a,b,c;
 ----
-1 a1 b1
+1	a1	b1
 
 exclude-from-coverage
 statement ok
@@ -544,10 +544,10 @@ MERGE INTO salaries USING (SELECT * FROM employees) as employees ON salaries.emp
 query TTT
 select * from salaries order by employee_id;
 ----
-1 51000.00
-2 60500.00
-3 55000.00
-4 55000.00
+1	51000.00
+2	60500.00
+3	55000.00
+4	55000.00
 
 exclude-from-coverage
 statement ok
@@ -641,11 +641,11 @@ merge into cluster_target as t1 using (select * from cluster_source) as t2 on t1
 query TTT
 select * from cluster_target;
 ----
-1 a 2
-2 a 4
-2 b 3
-3 a 3
-12 b 1
+1	a	2
+2	a	4
+2	b	3
+3	a	3
+12	b	1
 
 ## add more tests
 exclude-from-coverage
@@ -696,8 +696,8 @@ when matched and ss.`delete_flag` = true then delete when matched then update * 
 query TT
 select * from target_test order by a;
 ----
-3 f
-5 f
+3	f
+5	f
 
 ## test not match cast and predicate index
 exclude-from-coverage
@@ -795,8 +795,8 @@ merge into tt2 using(select true as x) as t on (x and tt2.a) when matched and tt
 query TTT
 select a, b, c from tt2 order by b;
 ----
-0 20 {'k2':'v2'}
-1 30 {'k1':'v1'}
+0	20	{'k2':'v2'}
+1	30	{'k1':'v1'}
 
 ## add test: source is table
 exclude-from-coverage
@@ -889,17 +889,17 @@ exclude-from-coverage
 query TTT
 select * from t1;
 ----
-1 a1 1
-2 a2 0
-3 a3 1
+1	a1	1
+2	a2	0
+3	a3	1
 
 exclude-from-coverage
 query TTT
 select * from t2;
 ----
-1 b1 1
-2 b2 0
-3 b3 1
+1	b1	1
+2	b2	0
+3	b3	1
 
 statement ok
 merge into t1 using t2 on t1.a = t2.a when matched and t1.a = 1 then delete when matched and t1.a = 2 then update * when matched and t1.a = 3 then delete;
@@ -907,7 +907,7 @@ merge into t1 using t2 on t1.a = t2.a when matched and t1.a = 1 then delete when
 query TTT
 select * from t1;
 ----
-2 b2 0
+2	b2	0
 
 statement ok
 merge into t1 using t2 on t1.a = t2.a when matched then delete;
@@ -927,8 +927,8 @@ merge into t1 using t2 on t1.a = t2.a when matched and t1.a = 2 then update * wh
 query TTT
 select * from t1;
 ----
-2 b2 0
-3 b3 1
+2	b2	0
+3	b3	1
 
 ## issue 13454
 exclude-from-coverage
@@ -949,7 +949,7 @@ merge into tt1 using (select 1 as x) as tt2 on (2 > 1) when matched and a then d
 query TT
 select * from tt1;
 ----
-0 2
+0	2
 
 ## issue #13298
 exclude-from-coverage
@@ -1166,7 +1166,7 @@ SELECT SUM(quantity) AS total_quantity,
        MAX(quantity) AS max_quantity
 FROM orders;
 ----
-64.16764110 6.416764110000 1.97683658 19.29134884
+64.16764110	6.416764110000	1.97683658	19.29134884
 
 exclude-from-coverage
 statement ok
@@ -1184,9 +1184,9 @@ statement ok
 merge into  tb_01 as T using ( select * from tmp_01) as S on t.id = s.id when matched then update * when not matched then insert *;
 
 query TTT
-select id,c1,to_date(c2),c3 from tb_01;
+select id,c1,to_date(c2),c3	from tb_01;
 ----
-1 abc 2023-11-29 {"a":1}
+1	abc	2023-11-29	{"a":1}
 
 ## test #issue13932
 exclude-from-coverage
@@ -1230,8 +1230,8 @@ when not matched then insert (b) values(null_source.b);
 query TT
 select * from null_target order by a,b;
 ----
-1 a3
-2 a2
+1	a3
+2	a2
 
 ## issue#13972
 exclude-from-coverage
@@ -1258,7 +1258,7 @@ MERGE INTO tt1_ USING
 query TTT
 select * from tt1_;
 ----
-0 20 21
+0	20	21
 
 ## issue#14474
 exclude-from-coverage
@@ -1273,7 +1273,7 @@ exclude-from-coverage
 query TT
 select * from target_tt1;
 ----
-1 20
+1	20
 
 ## test multi insert clauses with specified default values
 exclude-from-coverage
@@ -1316,9 +1316,9 @@ then insert(b) values(t2.b);
 query TT
 select * from target_default_values order by a,b;
 ----
-1 c
-3 yes
-12 f
+1	c
+3	yes
+12	f
 
 
 ## test update column only optimization
@@ -1358,14 +1358,14 @@ exclude-from-coverage
 query TT
 select * from column_only_optimization_target order by a,b;
 ----
-1 a1
-2 a2
-3 a3
-4 a4
-5 a5
-6 a6
-7 a7
-8 a8
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+6	a6
+7	a7
+8	a8
 
 exclude-from-coverage
 statement ok
@@ -1379,10 +1379,10 @@ exclude-from-coverage
 query TT
 select * from column_only_optimization_source order by a,b;
 ----
-1 b1
-2 b2
-3 b3
-4 b4
+1	b1
+2	b2
+3	b3
+4	b4
 
 statement ok
 merge into column_only_optimization_target as t1 using column_only_optimization_source as t2 on
@@ -1391,14 +1391,14 @@ t1.a = t2.a when matched then update set t1.b = t2.b when not matched then inser
 query TT
 select * from column_only_optimization_target order by a,b;
 ----
-1 b1
-2 b2
-3 b3
-4 b4
-5 a5
-6 a6
-7 a7
-8 a8
+1	b1
+2	b2
+3	b3
+4	b4
+5	a5
+6	a6
+7	a7
+8	a8
 
 ## add more tests cases for distributed modes.
 exclude-from-coverage
