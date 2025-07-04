@@ -620,7 +620,7 @@ fn unique_files_and_manifests(
     let v1 = files.slice(0, slice_len);
     let v2 = files.slice(1, slice_len);
 
-    let manifests = files.slice(1, slice_len);
+    let manifests = manifests.slice(1, slice_len);
 
     // Which consecutive entries are different
     let mask = distinct(&v1, &v2)?;
@@ -797,5 +797,30 @@ mod tests {
         }
 
         assert!(total_rows == 9);
+    }
+
+    #[test]
+    fn test_unique_files_and_manifests_with_duplicates() {
+        let files = Arc::new(StringArray::from(vec![
+            "file1", "file2", "file3", "file4", "file5",
+        ]));
+        let manifests = Arc::new(StringArray::from(vec![
+            "manifest1",
+            "manifest1",
+            "manifest2",
+            "manifest2",
+            "manifest3",
+        ]));
+
+        let result = unique_files_and_manifests(files.as_ref(), manifests.as_ref()).unwrap();
+
+        let expected = HashMap::from_iter([
+            ("file1".to_string(), "manifest1".to_string()),
+            ("file2".to_string(), "manifest1".to_string()),
+            ("file3".to_string(), "manifest2".to_string()),
+            ("file4".to_string(), "manifest2".to_string()),
+            ("file5".to_string(), "manifest3".to_string()),
+        ]);
+        assert_eq!(result, expected);
     }
 }

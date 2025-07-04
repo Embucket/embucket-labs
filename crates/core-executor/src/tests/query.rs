@@ -723,3 +723,19 @@ test_query!(
     "TRUNCATE TABLE 'EMBUCKET'.'PUBLIC'.'EMPLOYEE_TABLE'"
 );
 test_query!(truncate_missing, "TRUNCATE TABLE missing_table");
+
+test_query!(
+    merge_into_column_only_optimization,
+    "SELECT * FROM column_only_optimization_target ORDER BY a,b",
+    setup_queries = [
+        "CREATE TABLE column_only_optimization_target(a int,b string)",
+        "CREATE TABLE column_only_optimization_source(a int,b string)",
+        "INSERT INTO column_only_optimization_target VALUES(1,'a1'),(2,'a2')",
+        "INSERT INTO column_only_optimization_target VALUES(3,'a3'),(4,'a4')",
+        "INSERT INTO column_only_optimization_target VALUES(5,'a5'),(6,'a6')",
+        "INSERT INTO column_only_optimization_target VALUES(7,'a7'),(8,'a8')",
+        "INSERT INTO column_only_optimization_source VALUES(1,'b1'),(2,'b2')",
+        "INSERT INTO column_only_optimization_source VALUES(3,'b3'),(4,'b4')",
+        "MERGE INTO column_only_optimization_target AS t1 USING column_only_optimization_source AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.b = t2.b WHEN NOT MATCHED THEN INSERT (a,b) VALUES (t2.a, t2.b)",
+    ]
+);
