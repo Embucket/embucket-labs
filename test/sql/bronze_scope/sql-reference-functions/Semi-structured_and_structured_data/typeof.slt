@@ -1,26 +1,19 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE vartab (n NUMBER(2), v VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO vartab
-  SELECT column1 AS n, PARSE_JSON(column2) AS v
-    FROM VALUES (1, 'null'), 
-                (2, null), 
-                (3, 'true'),
-                (4, '-17'), 
-                (5, '123.12'), 
-                (6, '1.912e2'),
-                (7, '"Om ara pa ca na dhih"  '), 
-                (8, '[-1, 12, 289, 2188, false,]'), 
-                (9, '{ "x" : "abc", "y" : false, "z": 10} ') 
-       AS vals;
-
 query TTT
+WITH vartab AS (
+  SELECT column1 AS n, PARSE_JSON(column2) AS v
+  FROM VALUES (1, 'null'), 
+               (2, null), 
+               (3, 'true'),
+               (4, '-17'), 
+               (5, '123.12'), 
+               (6, '1.912e2'),
+               (7, '"Om ara pa ca na dhih"  '), 
+               (8, '[-1, 12, 289, 2188, false,]'), 
+               (9, '{ "x" : "abc", "y" : false, "z": 10} ') 
+)
 SELECT n, v, TYPEOF(v)
-  FROM vartab
-  ORDER BY n
+FROM vartab
+ORDER BY n
 ----
 1	null	NULL_VALUE
 2	NULL	NULL
@@ -32,20 +25,14 @@ SELECT n, v, TYPEOF(v)
 8	'[-1,12,289,2188,false,null]'	ARRAY
 9	'{"x":"abc","y":false,"z":10}'	OBJECT
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE typeof_cast(status VARCHAR, time TIMESTAMP);
-
-exclude-from-coverage
-statement ok
-INSERT INTO typeof_cast VALUES('check in', '2024-01-17 19:00:00.000 -0800');
-
 query TTTT
+WITH typeof_cast AS (
+  SELECT 'check in' AS status, '2024-01-17 19:00:00.000 -0800'::TIMESTAMP AS time
+)
 SELECT status,
        TYPEOF(status::VARIANT) AS "TYPE OF STATUS",
        time,
        TYPEOF(time::VARIANT) AS "TYPE OF TIME"
-  FROM typeof_cast
+FROM typeof_cast
 ----
 check in	VARCHAR	'2024-01-17T19:00:00'	TIMESTAMP_NTZ
-

@@ -1,12 +1,10 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE temp_values AS
-SELECT * FROM VALUES
-    (1, 10), (1, 11), (1, 12),
-    (2, 20), (2, 21), (2, 22) 
-    AS temp_values(column1, column2);
-
 query TTT
+WITH temp_values AS (
+    SELECT * FROM VALUES
+        (1, 10), (1, 11), (1, 12),
+        (2, 20), (2, 21), (2, 22)
+    AS temp_values(column1, column2)
+)
 SELECT
     column1,
     column2,
@@ -19,4 +17,3 @@ FROM temp_values
 2	20	22
 2	21	22
 2	22	22
-

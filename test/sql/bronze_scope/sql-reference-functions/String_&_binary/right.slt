@@ -3,25 +3,14 @@ SELECT RIGHT('ABCDEFG', 3)
 ----
 EFG
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE customer_contact_example (
-    cust_id INT,
-    cust_email VARCHAR,
-    cust_phone VARCHAR,
-    activation_date VARCHAR)
-  AS SELECT
-    column1,
-    column2,
-    column3,
-    column4
-  FROM
-    VALUES
-      (1, 'some_text@example.com', '800-555-0100', '20210320'),
-      (2, 'some_other_text@example.org', '800-555-0101', '20240509'),
-      (3, 'some_different_text@example.net', '800-555-0102', '20191017');
-
 query TTT
+WITH customer_contact_example AS (
+  SELECT * FROM VALUES
+    (1, 'some_text@example.com', '800-555-0100', '20210320'),
+    (2, 'some_other_text@example.org', '800-555-0101', '20240509'),
+    (3, 'some_different_text@example.net', '800-555-0102', '20191017')
+  AS t(cust_id, cust_email, cust_phone, activation_date)
+)
 SELECT cust_id,
        cust_email,
        RIGHT(cust_email, LENGTH(cust_email) - (POSITION('@' IN cust_email))) AS domain
@@ -32,6 +21,13 @@ SELECT cust_id,
 3	some_different_text@example.net	example.net
 
 query TTT
+WITH customer_contact_example AS (
+  SELECT * FROM VALUES
+    (1, 'some_text@example.com', '800-555-0100', '20210320'),
+    (2, 'some_other_text@example.org', '800-555-0101', '20240509'),
+    (3, 'some_different_text@example.net', '800-555-0102', '20191017')
+  AS t(cust_id, cust_email, cust_phone, activation_date)
+)
 SELECT cust_id,
        cust_phone,
        RIGHT(cust_phone, 8) AS phone_without_area_code
@@ -42,6 +38,13 @@ SELECT cust_id,
 3	800-555-0102	555-0102
 
 query TTT
+WITH customer_contact_example AS (
+  SELECT * FROM VALUES
+    (1, 'some_text@example.com', '800-555-0100', '20210320'),
+    (2, 'some_other_text@example.org', '800-555-0101', '20240509'),
+    (3, 'some_different_text@example.net', '800-555-0102', '20191017')
+  AS t(cust_id, cust_email, cust_phone, activation_date)
+)
 SELECT cust_id,
        activation_date,
        RIGHT(activation_date, 2) AS day
@@ -50,4 +53,3 @@ SELECT cust_id,
 1	20210320	20
 2	20240509	09
 3	20191017	17
-

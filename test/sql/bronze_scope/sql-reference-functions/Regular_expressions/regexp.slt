@@ -1,16 +1,11 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE strings (v VARCHAR(50));
-
-exclude-from-coverage
-statement ok
-INSERT INTO strings (v) VALUES
-  ('San Francisco'),
-  ('San Jose'),
-  ('Santa Clara'),
-  ('Sacramento');
-
 query T
+WITH strings(v) AS (SELECT * FROM
+  VALUES
+    ('San Francisco'),
+    ('San Jose'),
+    ('Santa Clara'),
+    ('Sacramento')
+)
 SELECT v
   FROM strings
   WHERE v REGEXP 'San* [fF].*'
@@ -18,12 +13,15 @@ SELECT v
 ----
 San Francisco
 
-exclude-from-coverage
-statement ok
-INSERT INTO strings (v) VALUES
-  ('Contains embedded single \\backslash');
-
 query TT
+WITH strings(v) AS (SELECT * FROM
+  VALUES
+    ('San Francisco'),
+    ('San Jose'),
+    ('Santa Clara'),
+    ('Sacramento'),
+    ('Contains embedded single \\backslash')
+)
 SELECT v, v REGEXP 'San\\b.*' AS matches
   FROM strings
   ORDER BY v
@@ -35,6 +33,14 @@ San Jose	TRUE
 Santa Clara	FALSE
 
 query TT
+WITH strings(v) AS (SELECT * FROM
+  VALUES
+    ('San Francisco'),
+    ('San Jose'),
+    ('Santa Clara'),
+    ('Sacramento'),
+    ('Contains embedded single \\backslash')
+)
 SELECT v, v REGEXP '.*\\s\\\\.*' AS matches
   FROM strings
   ORDER BY v
@@ -46,6 +52,14 @@ San Jose	FALSE
 Santa Clara	FALSE
 
 query TT
+WITH strings(v) AS (SELECT * FROM
+  VALUES
+    ('San Francisco'),
+    ('San Jose'),
+    ('Santa Clara'),
+    ('Sacramento'),
+    ('Contains embedded single \\backslash')
+)
 SELECT v, v REGEXP $$.*\s\\.*$$ AS MATCHES
   FROM strings
   ORDER BY v
@@ -55,4 +69,3 @@ Sacramento	FALSE
 San Francisco	FALSE
 San Jose	FALSE
 Santa Clara	FALSE
-

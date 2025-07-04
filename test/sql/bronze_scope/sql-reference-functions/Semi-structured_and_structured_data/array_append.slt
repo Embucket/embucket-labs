@@ -1,38 +1,23 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE array_append_examples (array_column ARRAY);
-
-exclude-from-coverage
-statement ok
-INSERT INTO array_append_examples (array_column)
-  SELECT ARRAY_CONSTRUCT(1, 2, 3);
-
 query T
-INSERT INTO array_append_examples (array_column)
-  SELECT ARRAY_APPEND(array_column, 4) FROM array_append_examples
-----
-1
-
-exclude-from-coverage
-statement ok
-DELETE FROM array_append_examples WHERE array_column = ARRAY_CONSTRUCT(1, 2, 3);
-
-query T
-SELECT * FROM array_append_examples
+WITH array_append_examples AS (
+  SELECT ARRAY_CONSTRUCT(1, 2, 3) AS array_column
+)
+SELECT ARRAY_APPEND(array_column, 4) FROM array_append_examples
 ----
 '[1,2,3,4]'
 
 query T
-INSERT INTO array_append_examples (array_column)
-  SELECT ARRAY_APPEND(array_column, 'five') FROM array_append_examples
+WITH array_append_examples AS (
+  SELECT ARRAY_CONSTRUCT(1, 2, 3, 4) AS array_column
+)
+SELECT ARRAY_APPEND(array_column, 'five') FROM array_append_examples
 ----
-1
-
-exclude-from-coverage
-statement ok
-DELETE FROM array_append_examples WHERE array_column = ARRAY_CONSTRUCT(1, 2, 3, 4);
+'[1,2,3,4,"five"]'
 
 query TT
+WITH array_append_examples AS (
+  SELECT ARRAY_CONSTRUCT(1, 2, 3, 4, 'five') AS array_column
+)
 SELECT array_column,
        ARRAY_CONSTRUCT(
         TYPEOF(array_column[0]),

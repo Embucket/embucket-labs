@@ -1,16 +1,13 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE aggr(k INT, v DECIMAL(10,2), v2 DECIMAL(10,2));
-
-exclude-from-coverage
-statement ok
-INSERT INTO aggr VALUES (1, 10, NULL);
-
-exclude-from-coverage
-statement ok
-INSERT INTO aggr VALUES (2, 10, 11), (2, 20, 22), (2, 25, NULL), (2, 30, 35);
-
 query TT
+WITH aggr AS (
+    SELECT * FROM VALUES
+    (1, 10::DECIMAL(10,2), NULL::DECIMAL(10,2)),
+    (2, 10::DECIMAL(10,2), 11::DECIMAL(10,2)),
+    (2, 20::DECIMAL(10,2), 22::DECIMAL(10,2)),
+    (2, 25::DECIMAL(10,2), NULL::DECIMAL(10,2)),
+    (2, 30::DECIMAL(10,2), 35::DECIMAL(10,2))
+    AS aggr(k, v, v2)
+)
 SELECT k, COVAR_POP(v, v2) FROM aggr GROUP BY k;
 ----
 1	NULL

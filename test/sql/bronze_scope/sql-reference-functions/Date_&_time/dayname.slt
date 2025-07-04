@@ -8,26 +8,24 @@ SELECT DAYNAME(TO_TIMESTAMP_NTZ('2024-04-02 10:00')) AS DAY
 ----
 Tue
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE dates (d DATE);
-
-exclude-from-coverage
-statement ok
-INSERT INTO dates (d) VALUES 
-  ('2024-01-01'::DATE),
-  ('2024-01-02'::DATE),
-  ('2024-01-03'::DATE),
-  ('2024-01-04'::DATE),
-  ('2024-01-05'::DATE),
-  ('2024-01-06'::DATE),
-  ('2024-01-07'::DATE),
-  ('2024-01-08'::DATE);
-
 query TT
-SELECT d, DAYNAME(d) 
-  FROM dates
-  ORDER BY d
+WITH dates AS (
+  SELECT * FROM VALUES
+    ('2024-01-01'::DATE),
+    ('2024-01-02'::DATE),
+    ('2024-01-03'::DATE),
+    ('2024-01-04'::DATE),
+    ('2024-01-05'::DATE),
+    ('2024-01-06'::DATE),
+    ('2024-01-07'::DATE),
+    ('2024-01-08'::DATE)
+  AS t(d)
+)
+SELECT
+  d,
+  DAYNAME(d)
+FROM dates
+ORDER BY d;
 ----
 '2024-01-01'	Mon
 '2024-01-02'	Tue
@@ -37,4 +35,3 @@ SELECT d, DAYNAME(d)
 '2024-01-06'	Sat
 '2024-01-07'	Sun
 '2024-01-08'	Mon
-

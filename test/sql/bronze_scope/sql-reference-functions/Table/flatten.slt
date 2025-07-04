@@ -53,25 +53,23 @@ SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88], "c": {"d":
 1	c	c	NULL	'{"d":"X"}'	'{"a":1,"b":[77,88],"c":{"d":"X"}}'
 1	d	c.d	NULL	"X"	'{"d":"X"}'
 
-exclude-from-coverage
-statement ok
-create or replace table persons as
-    select column1 as id, parse_json(column2) as c
- from values
-   (12712555,
-   '{ name:  { first: "John", last: "Smith"},
-     contact: [
-     { business:[
-       { type: "phone", content:"555-1234" },
-       { type: "email", content:"j.smith@company.com" } ] } ] }'),
-   (98127771,
-   '{ name:  { first: "Jane", last: "Doe"},
-     contact: [
-     { business:[
-       { type: "phone", content:"555-1236" },
-       { type: "email", content:"j.doe@company.com" } ] } ] }') v;
-
 query TTTT
+WITH persons AS (
+    SELECT column1 as id, parse_json(column2) as c
+    FROM VALUES
+    (12712555,
+    '{ name:  { first: "John", last: "Smith"},
+      contact: [
+      { business:[
+        { type: "phone", content:"555-1234" },
+        { type: "email", content:"j.smith@company.com" } ] } ] }'),
+    (98127771,
+    '{ name:  { first: "Jane", last: "Doe"},
+      contact: [
+      { business:[
+        { type: "phone", content:"555-1236" },
+        { type: "email", content:"j.doe@company.com" } ] } ] }') v
+)
 SELECT id as "ID",
    f.value AS "Contact",
    f1.value:type AS "Type",
@@ -84,4 +82,3 @@ SELECT id as "ID",
 12712555	'{"business":[{"content":"555-1234","type":"phone"},{"content":"j.smith@company.com","type":"email"}]}'	"email"	"j.smith@company.com"
 98127771	'{"business":[{"content":"555-1236","type":"phone"},{"content":"j.doe@company.com","type":"email"}]}'	"phone"	"555-1236"
 98127771	'{"business":[{"content":"555-1236","type":"phone"},{"content":"j.doe@company.com","type":"email"}]}'	"email"	"j.doe@company.com"
-

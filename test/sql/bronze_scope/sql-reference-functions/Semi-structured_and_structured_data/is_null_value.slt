@@ -1,39 +1,13 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE test_is_null_value_function (
-  variant_value VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON('"string value"'));
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON('null'));
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON('{}'));
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON('{"x": null}'));
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON('{"x": "foo"}'));
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_is_null_value_function (variant_value)
-  (SELECT PARSE_JSON(NULL));
-
 query TTTTT
+WITH test_is_null_value_function AS (
+  SELECT PARSE_JSON(column1) AS variant_value FROM VALUES
+    ('"string value"'),
+    ('null'),
+    ('{}'),
+    ('{"x": null}'),
+    ('{"x": "foo"}'),
+    (NULL)
+)
 SELECT variant_value,
        variant_value:x value_of_x,
        IS_NULL_VALUE(variant_value) is_variant_value_a_json_null,
@@ -47,4 +21,3 @@ null	NULL	TRUE	NULL	NULL
 '{"x":null}'	null	FALSE	TRUE	NULL
 '{"x":"foo"}'	"foo"	FALSE	FALSE	NULL
 NULL	NULL	NULL	NULL	NULL
-

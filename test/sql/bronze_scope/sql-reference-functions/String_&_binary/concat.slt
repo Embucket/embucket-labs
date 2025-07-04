@@ -3,17 +3,13 @@ SELECT CONCAT('George Washington ', 'Carver')
 ----
 George Washington Carver
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE concat_function_example (s1 VARCHAR, s2 VARCHAR, s3 VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO concat_function_example (s1, s2, s3) VALUES
-  ('co', 'd', 'e'),
-  ('Colorado ', 'River ', NULL);
-
 query T
+WITH concat_function_example AS (
+  SELECT * FROM VALUES
+    ('co', 'd', 'e'),
+    ('Colorado ', 'River ', NULL)
+    AS t(s1, s2, s3)
+)
 SELECT CONCAT(s1, s2)
   FROM concat_function_example
 ----
@@ -21,6 +17,12 @@ cod
 Colorado River 
 
 query T
+WITH concat_function_example AS (
+  SELECT * FROM VALUES
+    ('co', 'd', 'e'),
+    ('Colorado ', 'River ', NULL)
+    AS t(s1, s2, s3)
+)
 SELECT CONCAT(s1, s2, s3)
   FROM concat_function_example
 ----
@@ -28,6 +30,12 @@ code
 NULL
 
 query T
+WITH concat_function_example AS (
+  SELECT * FROM VALUES
+    ('co', 'd', 'e'),
+    ('Colorado ', 'River ', NULL)
+    AS t(s1, s2, s3)
+)
 SELECT CONCAT(
     IFF(s1 IS NULL, '', s1),
     IFF(s2 IS NULL, '', s2),
@@ -41,4 +49,3 @@ query T
 SELECT 'This ' || 'is ' || 'another ' || 'concatenation ' || 'technique.'
 ----
 This is another concatenation technique.
-

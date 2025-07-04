@@ -1,19 +1,14 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE rtrimmed_length_test (s VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO rtrimmed_length_test VALUES
-  ('  hello  '),
-  ('hello'),
-  ('   '),
-  (''),
-  ('test   '),
-  ('  test'),
-  (NULL);
-
 query TT
+WITH rtrimmed_length_test AS (
+  SELECT column1 AS s FROM VALUES
+    ('  hello  '),
+    ('hello'),
+    ('   '),
+    (''),
+    ('test   '),
+    ('  test'),
+    (NULL)
+)
 SELECT s, RTRIMMED_LENGTH(s) FROM rtrimmed_length_test
 ----
   hello  	7

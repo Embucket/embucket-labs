@@ -1,19 +1,14 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE like_ex(name VARCHAR(20));
-
-exclude-from-coverage
-statement ok
-INSERT INTO like_ex VALUES
-   ('John  Dddoe'),
-   ('John \'alias\' Doe'),
-   ('Joe   Doe'),
-   ('John_down'),
-   ('Joe down'),
-   ('Elaine'),
-   (null);
-
 query T
+WITH like_ex(name) AS (SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
   WHERE name LIKE '%Jo%oe%'
@@ -24,6 +19,16 @@ John  Dddoe
 John 'alias' Doe
 
 query T
+WITH like_ex(name) AS (SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
   WHERE name NOT LIKE '%Jo%oe%'
@@ -34,6 +39,16 @@ Joe down
 John_down
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
   WHERE name NOT LIKE 'John%'
@@ -44,6 +59,16 @@ Joe   Doe
 Joe down
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
   WHERE name NOT LIKE ''
@@ -57,14 +82,34 @@ John 'alias' Doe
 John_down
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
-  WHERE name LIKE '%\'%'
+  WHERE name LIKE '%''%'
   ORDER BY name
 ----
 John 'alias' Doe
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null)
+)
 SELECT name
   FROM like_ex
   WHERE name LIKE '%J%h%^_do%' ESCAPE '^'
@@ -72,14 +117,20 @@ SELECT name
 ----
 John_down
 
-exclude-from-coverage
-statement ok
-INSERT INTO like_ex (name) VALUES 
-  ('100 times'),
-  ('1000 times'),
-  ('100%');
-
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null),
+    ('100 times'),
+    ('1000 times'),
+    ('100%')
+)
 SELECT * FROM like_ex WHERE name LIKE '100%'
   ORDER BY 1
 ----
@@ -88,14 +139,39 @@ SELECT * FROM like_ex WHERE name LIKE '100%'
 1000 times
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null),
+    ('100 times'),
+    ('1000 times'),
+    ('100%')
+)
 SELECT * FROM like_ex WHERE name LIKE '100^%' ESCAPE '^'
   ORDER BY 1
 ----
 100%
 
 query T
+WITH like_ex(name) AS ( SELECT * FROM
+  VALUES
+    ('John  Dddoe'),
+    ('John ''alias'' Doe'),
+    ('Joe   Doe'),
+    ('John_down'),
+    ('Joe down'),
+    ('Elaine'),
+    (null),
+    ('100 times'),
+    ('1000 times'),
+    ('100%')
+)
 SELECT * FROM like_ex WHERE name LIKE '100\\%' ESCAPE '\\'
   ORDER BY 1
 ----
 100%
-
