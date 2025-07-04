@@ -202,7 +202,7 @@ impl std::fmt::Debug for RequestSessionStore {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DFSessionId(pub String);
 
 impl<S> FromRequestParts<S> for DFSessionId
@@ -238,8 +238,10 @@ where
                 tracing::error!("ID: {}", id);
             },
         );
-        let session_id = if let Some(cookie) = cookies.get(SESSION_ID_COOKIE_NAME) {
-            Self::create_session(&session, (*cookie).to_string()).await
+        //If UI Auth middleware generated a new session id
+        let session_id = if let Some(DFSessionId(session_id)) = req.extensions.get::<DFSessionId>() {
+            Self::create_session(&session, session_id.clone()).await
+        //If the session is alive
         } else if let Some(token) = extract_token(&req.headers) {
             tracing::error!("Found DF session_id in headers: {}", token);
             session
@@ -248,6 +250,7 @@ where
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
             Ok(Self(token))
+        //If the session is dead
         } else {
             let id = uuid::Uuid::new_v4().to_string();
             Self::create_session(&session, id.clone()).await

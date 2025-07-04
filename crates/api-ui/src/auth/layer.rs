@@ -12,6 +12,7 @@ use http::{HeaderMap, HeaderName};
 use snafu::ResultExt;
 use tower_sessions::cookie::{Cookie, SameSite};
 use uuid;
+use api_sessions::DFSessionId;
 
 fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     let auth = headers.get(http::header::AUTHORIZATION);
@@ -38,7 +39,7 @@ fn set_headers_in_flight(
     token: &str,
 ) -> Result<()> {
     headers
-        .try_append(
+        .try_insert(
             header_name,
             Cookie::build((name, token))
                 .http_only(true)
@@ -84,12 +85,7 @@ pub async fn require_auth(
         if !sessions.contains_key(&token) {
             drop(sessions);
             let session_id = uuid::Uuid::new_v4().to_string();
-            set_headers_in_flight(
-                req.headers_mut(),
-                SET_COOKIE,
-                SESSION_ID_COOKIE_NAME,
-                session_id.as_str(),
-            )?;
+            req.extensions_mut().insert(DFSessionId(session_id.clone()));
             let mut res = next.run(req).await;
             set_headers_in_flight(
                 res.headers_mut(),
