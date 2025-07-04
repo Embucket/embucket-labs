@@ -37,8 +37,16 @@ pub enum Error {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
-    pub message: String,
+    pub error: ErrorResponseMessage,
     pub status_code: u16,
+}
+
+// https://github.com/apache/iceberg/blob/main/open-api/rest-catalog-open-api.yaml
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponseMessage {
+    pub message: String,
+    pub r#type: String,
+    pub code: u16,
 }
 
 impl IntoResponse for Error {
@@ -93,7 +101,11 @@ impl IntoResponse for Error {
         tracing::Span::current().record("status_code", code.as_u16());
 
         let error = ErrorResponse {
-            message,
+            error: ErrorResponseMessage {
+                message,
+                r#type: metastore_error.as_ref().to_string(),
+                code: code.as_u16(),
+            },
             status_code: code.as_u16(),
         };
         (code, Json(error)).into_response()

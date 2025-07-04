@@ -65,6 +65,7 @@ slatedb = { version = "0.6.1" }
 snafu = { version = "0.8.5", features = ["futures"] }
 snmalloc-rs = { version = "0.3" }
 strum = { version = "0.26.3", features = ["derive"] }
+strum_macros = { version = "0.26.3" }
 tar = "0.4.44"
 tempfile = { version = "3" }
 time = "0.3.37"
