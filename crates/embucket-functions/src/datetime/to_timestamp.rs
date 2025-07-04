@@ -4,6 +4,7 @@ use datafusion::arrow::array::{
     Array, Date64Builder, Decimal128Array, Int32Array, Int64Array, StringArray, StringViewArray,
     TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Array, UInt64Array,
 };
+use datafusion::arrow::compute::kernels;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
@@ -11,6 +12,7 @@ use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
 use datafusion_common::arrow::array::{
     ArrayRef, TimestampMicrosecondBuilder, TimestampSecondBuilder,
 };
+use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::types::logical_string;
 use datafusion_common::{ScalarValue, exec_err, internal_err, plan_err};
 use datafusion_expr::{
@@ -20,7 +22,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 macro_rules! build_from_int_scale {
-    ($args:expr,$arr:expr, $type:ty) => {{
+    ($tz:expr,$args:expr,$arr:expr, $type:ty) => {{
         let scale = if $args.len() == 1 {
             0
         } else {
@@ -39,7 +41,7 @@ macro_rules! build_from_int_scale {
         let arr = $arr.as_any().downcast_ref::<$type>().unwrap();
         let arr: ArrayRef = match scale {
             0 => {
-                let mut b = TimestampSecondBuilder::with_capacity(arr.len());
+                let mut b = TimestampSecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
                 for v in arr {
                     match v {
                         None => b.append_null(),
@@ -49,7 +51,8 @@ macro_rules! build_from_int_scale {
                 Arc::new(b.finish())
             }
             3 => {
-                let mut b = TimestampMillisecondBuilder::with_capacity(arr.len());
+                let mut b =
+                    TimestampMillisecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
                 for v in arr {
                     match v {
                         None => b.append_null(),
@@ -59,7 +62,8 @@ macro_rules! build_from_int_scale {
                 Arc::new(b.finish())
             }
             6 => {
-                let mut b = TimestampMicrosecondBuilder::with_capacity(arr.len());
+                let mut b =
+                    TimestampMicrosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
                 for v in arr {
                     match v {
                         None => b.append_null(),
@@ -69,7 +73,8 @@ macro_rules! build_from_int_scale {
                 Arc::new(b.finish())
             }
             9 => {
-                let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
+                let mut b =
+                    TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
                 for v in arr {
                     match v {
                         None => b.append_null(),
@@ -86,9 +91,9 @@ macro_rules! build_from_int_scale {
 }
 
 macro_rules! build_from_int_string {
-    ($args:expr,$arr:expr, $type:ty) => {{
+    ($format:expr,$tz:expr,$args:expr,$arr:expr, $type:ty) => {{
         let format = if $args.len() == 1 {
-            convert_snowflake_format_to_chrono("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM")
+            convert_snowflake_format_to_chrono($format)
         } else {
             if let ColumnarValue::Scalar(v) = &$args[1] {
                 let format = v.cast_to(&DataType::Utf8)?;
@@ -103,7 +108,7 @@ macro_rules! build_from_int_string {
         };
 
         let arr = $arr.as_any().downcast_ref::<$type>().unwrap();
-        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
+        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
         for v in arr {
             match v {
                 None => b.append_null(),
@@ -122,7 +127,7 @@ macro_rules! build_from_int_string {
                         }
                     } else {
                         let v = NaiveDateTime::parse_from_str(s, &format).unwrap();
-                        let t = v.timestamp_nanos_opt().unwrap();
+                        let t = v.and_utc().timestamp_nanos_opt().unwrap();
                         b.append_value(t);
                     }
                 }
@@ -137,20 +142,24 @@ macro_rules! build_from_int_string {
 pub struct ToTimestampFunc {
     signature: Signature,
     aliases: Vec<String>,
+    timezone: Option<Arc<str>>,
+    format: String,
 }
 
 impl Default for ToTimestampFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(None, "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string())
     }
 }
 
 impl ToTimestampFunc {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(timezone: Option<Arc<str>>, format: String) -> Self {
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
             aliases: vec!["to_timestamp_ntz".to_string()],
+            timezone,
+            format,
         }
     }
 }
@@ -176,7 +185,14 @@ impl ScalarUDFImpl for ToTimestampFunc {
     }
 
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
-        if args.scalar_arguments.len() == 2 {
+        if args.scalar_arguments.len() == 1 {
+            if args.arg_types[0].is_numeric() {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    TimeUnit::Second,
+                    self.timezone.clone(),
+                )));
+            }
+        } else if args.scalar_arguments.len() == 2 {
             if args.arg_types[0].is_numeric() {
                 if let Some(v) = args.scalar_arguments[1] {
                     let scale = v.cast_to(&DataType::Int64)?;
@@ -187,22 +203,22 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     return if s == 0 {
                         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
                             TimeUnit::Second,
-                            None,
+                            self.timezone.clone(),
                         )))
                     } else if s == 3 {
                         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
                             TimeUnit::Millisecond,
-                            None,
+                            self.timezone.clone(),
                         )))
                     } else if s == 6 {
                         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
                             TimeUnit::Microsecond,
-                            None,
+                            self.timezone.clone(),
                         )))
                     } else if s == 9 {
                         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
                             TimeUnit::Nanosecond,
-                            None,
+                            self.timezone.clone(),
                         )))
                     } else {
                         return plan_err!("invalid scale");
@@ -213,7 +229,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
 
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
             TimeUnit::Nanosecond,
-            None,
+            self.timezone.clone(),
         )))
     }
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -226,7 +242,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
 
         Ok(match arr.data_type() {
             DataType::Int64 => {
-                let arr = build_from_int_scale!(args, arr, Int64Array);
+                let arr = build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array);
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -235,7 +251,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::UInt64 => {
-                let arr = build_from_int_scale!(args, arr, UInt64Array);
+                let arr = build_from_int_scale!(self.timezone.clone(), args, arr, UInt64Array);
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -244,7 +260,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Int32 => {
-                let arr = build_from_int_scale!(args, arr, Int32Array);
+                let arr = build_from_int_scale!(self.timezone.clone(), args, arr, Int32Array);
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -253,7 +269,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::UInt32 => {
-                let arr = build_from_int_scale!(args, arr, UInt32Array);
+                let arr = build_from_int_scale!(self.timezone.clone(), args, arr, UInt32Array);
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -281,7 +297,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 let arr = arr.as_any().downcast_ref::<Decimal128Array>().unwrap();
                 let arr: ArrayRef = match scale {
                     0 => {
-                        let mut b = TimestampSecondBuilder::with_capacity(arr.len());
+                        let mut b = TimestampSecondBuilder::with_capacity(arr.len())
+                            .with_timezone_opt(self.timezone.clone());
                         for v in arr {
                             match v {
                                 None => b.append_null(),
@@ -291,7 +308,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
                         Arc::new(b.finish())
                     }
                     3 => {
-                        let mut b = TimestampMillisecondBuilder::with_capacity(arr.len());
+                        let mut b = TimestampMillisecondBuilder::with_capacity(arr.len())
+                            .with_timezone_opt(self.timezone.clone());
                         for v in arr {
                             match v {
                                 None => b.append_null(),
@@ -301,7 +319,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
                         Arc::new(b.finish())
                     }
                     6 => {
-                        let mut b = TimestampMicrosecondBuilder::with_capacity(arr.len());
+                        let mut b = TimestampMicrosecondBuilder::with_capacity(arr.len())
+                            .with_timezone_opt(self.timezone.clone());
                         for v in arr {
                             match v {
                                 None => b.append_null(),
@@ -311,7 +330,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
                         Arc::new(b.finish())
                     }
                     9 => {
-                        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
+                        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len())
+                            .with_timezone_opt(self.timezone.clone());
                         for v in arr {
                             match v {
                                 None => b.append_null(),
@@ -329,7 +349,13 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Utf8 => {
-                let arr = build_from_int_string!(args, arr, StringArray);
+                let arr = build_from_int_string!(
+                    &self.format,
+                    self.timezone.clone(),
+                    args,
+                    arr,
+                    StringArray
+                );
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -338,7 +364,26 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Utf8View => {
-                let arr = build_from_int_string!(args, arr, StringViewArray);
+                let arr = build_from_int_string!(
+                    &self.format,
+                    self.timezone.clone(),
+                    args,
+                    arr,
+                    StringViewArray
+                );
+
+                if arr.len() == 1 {
+                    ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+                } else {
+                    ColumnarValue::Array(Arc::new(arr))
+                }
+            }
+            DataType::Date32 | DataType::Date64 | DataType::Timestamp(_, _) => {
+                let arr = kernels::cast::cast_with_options(
+                    &arr,
+                    &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
+                    &DEFAULT_CAST_OPTIONS,
+                )?;
 
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -406,8 +451,6 @@ pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
 
     chrono_format
 }
-crate::macros::make_udf_function!(NextDayFunc);
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,7 +461,10 @@ mod tests {
     #[tokio::test]
     async fn test_scale() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
        TO_TIMESTAMP(1000000000, 0) AS "Scale in seconds",
@@ -444,10 +490,13 @@ mod tests {
     #[tokio::test]
     async fn test_scaled() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
-       TO_TIMESTAMP(1000000000, 0) AS "Scale in seconds",
+       TO_TIMESTAMP(1000000000) AS "Scale in seconds",
        TO_TIMESTAMP(1000000000000, 3) AS "Scale in milliseconds",
        TO_TIMESTAMP(1000000000000000, 6) AS "Scale in microseconds",
        TO_TIMESTAMP(1000000000000000000, 9) AS "Scale in nanoseconds";"#;
@@ -470,7 +519,10 @@ mod tests {
     #[tokio::test]
     async fn test_scale_decimal() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
        TO_TIMESTAMP(1000000000::DECIMAL, 0) AS "Scale in seconds",
@@ -496,7 +548,10 @@ mod tests {
     #[tokio::test]
     async fn test_scale_decimal_scaled() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
        TO_TIMESTAMP(1000000000::DECIMAL, 0) AS "Scale in seconds",
@@ -522,7 +577,10 @@ mod tests {
     #[tokio::test]
     async fn test_scale_int_str() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
        TO_TIMESTAMP('1000000000') AS "Scale in seconds",
@@ -546,25 +604,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_str_auto_format() -> DFResult<()> {
+    async fn test_str_format() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "mm/dd/yyyy hh24:mi:ss".to_string(),
+        )));
 
         let sql = r#"SELECT
-       TO_TIMESTAMP('2024-04-05 01:02:03') as "a",
-       TO_TIMESTAMP('2020-09-08T13:42:29.190855-05:00') AS "b",
-       TO_TIMESTAMP('2020-09-08T13:42:29.190855Z') AS "c",
-       TO_TIMESTAMP('2019-01-31 01:02:03.004') AS "d",
-       TO_TIMESTAMP('2020-09-08T13:42:29Z') AS "e";"#;
+       TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as "a",
+       TO_TIMESTAMP('04/05/2024 01:02:03') as "b"
+       "#;
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
-                "+---------------------+-----------------------+-----------------------+----------------------+",
-                "| Scale in seconds    | Scale in milliseconds | Scale in microseconds | Scale in nanoseconds |",
-                "+---------------------+-----------------------+-----------------------+----------------------+",
-                "| 2001-09-09T01:46:40 | 2001-09-09T01:46:40   | 2001-09-09T01:46:40   | 2001-09-09T01:46:40  |",
-                "+---------------------+-----------------------+-----------------------+----------------------+",
+                "+---------------------+---------------------+",
+                "| a                   | b                   |",
+                "+---------------------+---------------------+",
+                "| 2024-04-05T01:02:03 | 2024-04-05T01:02:03 |",
+                "+---------------------+---------------------+",
             ],
             &result
         );
@@ -573,12 +632,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_str_format() -> DFResult<()> {
+    async fn test_timestamp() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
 
         let sql = r#"SELECT
-       TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as "a""#;
+       TO_TIMESTAMP(1000000000::TIMESTAMP) as "a""#;
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
@@ -586,8 +648,60 @@ mod tests {
                 "+---------------------+",
                 "| a                   |",
                 "+---------------------+",
-                "| 2024-04-05T01:02:03 |",
+                "| 2001-09-09T01:46:40 |",
                 "+---------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_date() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
+
+        let sql = r#"SELECT
+       TO_TIMESTAMP('2022-01-01 11:30:00'::date) as "a""#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+",
+                "| a                   |",
+                "+---------------------+",
+                "| 2022-01-01T00:00:00 |",
+                "+---------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_timezone() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            Some(Arc::from("America/Los_Angeles")),
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+        )));
+
+        let sql = r#"SELECT
+       TO_TIMESTAMP(1000000000) as "a""#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------------+",
+                "| a                         |",
+                "+---------------------------+",
+                "| 2001-09-08T18:46:40-07:00 |",
+                "+---------------------------+",
             ],
             &result
         );
