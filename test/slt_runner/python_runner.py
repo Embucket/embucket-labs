@@ -1,4 +1,3 @@
-import json
 import os
 import glob
 import time
@@ -55,58 +54,45 @@ class EmbucketHelper:
                                    database,
                                    schema
                                    ):
-        headers = {'Content-Type': 'application/json'}
+        """Setup database environment using python-snowflake-connector interface"""
+        try:
+            # Create connection using the same pattern as the rest of the SLT library
+            connection = connect(**self.config)
+            cursor = connection.cursor()
 
-        def make_request_with_error_handling(method, url, headers, data=None):
-            """Helper function to make HTTP requests with proper error handling"""
+            # Create volume first
             try:
-                response = requests.request(method, url, headers=headers, data=data)
-                response.raise_for_status()  # Raise an exception for bad status codes
+                volume_query = "CREATE VOLUME IF NOT EXISTS local TYPE = memory"
+                cursor.execute(volume_query, _no_retry=True)
+                print(f"Created or verified volume: local")
+            except Exception as e:
+                # Volume might already exist, which is acceptable
+                print(f"Volume creation result: {e}")
 
-                # Check if response has content before trying to parse JSON
-                if response.text.strip():
-                    try:
-                        return response.json()
-                    except json.JSONDecodeError as e:
-                        print(f"Warning: Response is not valid JSON: {response.text[:100]}")
-                        return None
-                else:
-                    # Empty response is acceptable for some endpoints
-                    return None
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 409:
-                    print(f"Resource already exists: {e.response.text[:200]}")
-                    return None
-                else:
-                    raise
-            except requests.exceptions.RequestException as e:
-                print(f"Error making request to {url}: {e}")
-                if hasattr(e, 'response') and e.response is not None:
-                    print(f"Response status: {e.response.status_code}")
-                    print(f"Response text: {e.response.text[:200]}")
-                raise
+            # Create database (requires volume to exist)
+            try:
+                database_query = f"CREATE DATABASE IF NOT EXISTS {database} VOLUME = 'local'"
+                cursor.execute(database_query, _no_retry=True)
+                print(f"Created or verified database: {database}")
+            except Exception as e:
+                # Database might already exist, which is acceptable
+                print(f"Database creation result: {e}")
 
-        # Create volume first
-        payload = json.dumps({
-                "type": "memory",
-                "ident": "local",
-            })
-        make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/volumes', headers, payload)
+            # Create schema (requires database to exist)
+            try:
+                schema_query = f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}"
+                cursor.execute(schema_query, _no_retry=True)
+                print(f"Created or verified schema: {database}.{schema}")
+            except Exception as e:
+                # Schema might already exist, which is acceptable
+                print(f"Schema creation result: {e}")
 
-        # Create database (requires volume to exist)
-        payload = json.dumps({
-            "ident": database,
-            "volume": "local"
-        })
-        make_request_with_error_handling("POST", f'{embucket_url}/v1/metastore/databases', headers, payload)
+            # Close the connection
+            connection.close()
 
-        # Create schema (requires database to exist)
-        query = f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}"
-        make_request_with_error_handling(
-            "POST", f"{embucket_url}/ui/queries",
-            headers,
-            json.dumps({"query": query})
-        )
+        except Exception as e:
+            print(f"Error setting up database environment: {e}")
+            raise
 
 def reset_database(config, con: SnowflakeConnection):
     if 'embucket' not in config:
@@ -630,10 +616,12 @@ class SQLLogicPythonRunner:
         # Handle Embucket setup separately from Snowflake
         if is_embucket:
             try:
-                embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}"
-                headers = {'Content-Type': 'application/json'}
                 database = config.get('database', 'embucket')
                 schema = config.get('schema', 'public')
+
+                # Create connection using python-snowflake-connector interface
+                connection = connect(**config)
+                cursor = connection.cursor()
 
                 # Create unique schemas for each worker in Embucket
                 print('Creating worker schemas for Embucket:')
@@ -641,18 +629,17 @@ class SQLLogicPythonRunner:
                     worker_schema = f"{schema}_{worker_id}"
                     worker_schemas.append(worker_schema)
                     try:
-                        # Create schema using Embucket API
+                        # Create schema using python-snowflake-connector interface
                         query = f"CREATE SCHEMA IF NOT EXISTS {database}.{worker_schema}"
-                        requests.request(
-                            "POST", f"{embucket_url}/ui/queries",
-                            headers=headers,
-                            data=json.dumps({"query": query})
-                        ).json()
+                        cursor.execute(query, _no_retry=True)
                         print(f"Created worker schema for Embucket: {worker_schema}")
                     except Exception as e:
                         print(f"Error creating Embucket worker schema {worker_schema}: {e}")
                         # Fall back to base schema if creation fails
                         worker_schemas[-1] = schema
+
+                # Close the connection
+                connection.close()
 
             except Exception as e:
                 print(f"Error setting up Embucket schema: {e}")
@@ -743,15 +730,16 @@ class SQLLogicPythonRunner:
             # Clean up worker schemas after all tests are done
             if is_embucket:
                 try:
-                    # Setup Embucket API URL for cleanup
-                    embucket_url = f"{config.get('protocol', 'http')}://{config.get('host', 'localhost')}:{config.get('port', '3000')}"
-                    headers = {'Content-Type': 'application/json'}
                     database = config.get('database', 'embucket')
+
+                    # Create connection using python-snowflake-connector interface
+                    connection = connect(**config)
+                    cursor = connection.cursor()
 
                     # clean up any temporary objects created
                     print("Cleaning up Embucket workers data:")
 
-                    # Use Embucket API to run cleanup queries as needed
+                    # Use python-snowflake-connector interface to run cleanup queries
                     for schema in set(worker_schemas):
                         if schema == config['schema']:  # Skip primary schema if it matches default
                             continue
@@ -759,14 +747,14 @@ class SQLLogicPythonRunner:
                         try:
                             # Drop the entire worker schema instead of individual tables
                             drop_query = f"DROP SCHEMA IF EXISTS {database}.{schema} CASCADE"
-                            requests.request(
-                                "POST", f"{embucket_url}/ui/queries",
-                                headers=headers,
-                                data=json.dumps({"query": drop_query})
-                            )
+                            cursor.execute(drop_query, _no_retry=True)
                             print(f"Dropped schema {schema} in Embucket")
                         except Exception as e:
                             print(f"Error cleaning up Embucket schema {schema}: {e}")
+
+                    # Close the connection
+                    connection.close()
+
                 except Exception as e:
                     print(f"Error in Embucket cleanup: {e}")
             else:
