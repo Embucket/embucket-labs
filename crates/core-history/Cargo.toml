@@ -19,6 +19,7 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
 mockall = "0.13.1"
+git2 = "0.20.2"
 
 [dev-dependencies]
 tokio = { workspace = true }

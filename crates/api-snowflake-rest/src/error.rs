@@ -106,7 +106,7 @@ impl IntoResponse for Error {
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        tracing::error!("{}", self.output_msg());
+        tracing::error!(" {}", self.output_msg());
         let (status_code, message) = if let Self::Execution { source } = &self {
             convert_into_status_code_and_error(source)
         } else {

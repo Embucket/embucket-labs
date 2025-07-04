@@ -19,6 +19,23 @@ pub enum SortOrder {
     Descending,
 }
 
+#[derive(Debug)]
+pub struct QueryResultError {
+    pub message: String,
+    pub diagnostic_message: String,
+}
+impl std::fmt::Display for QueryResultError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "QueryResultError: {} | Diagnostic: {}",
+            self.message, self.diagnostic_message
+        )
+    }
+}
+
+impl std::error::Error for QueryResultError {}
+
 #[derive(Default, Debug)]
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
@@ -80,7 +97,7 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        execution_result: std::result::Result<ResultSet, String>,
+        execution_result: std::result::Result<ResultSet, QueryResultError>,
     );
 }
 
@@ -306,7 +323,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        execution_result: std::result::Result<ResultSet, String>,
+        execution_result: std::result::Result<ResultSet, QueryResultError>,
     ) {
         match execution_result {
             Ok(result_set) => match serde_json::to_string(&result_set) {
@@ -314,7 +331,10 @@ impl HistoryStore for SlateDBHistoryStore {
                     let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
                     query_record.finished(result_count, Some(encoded_res));
                 }
-                Err(err) => query_record.finished_with_error(err.to_string()),
+                Err(err) => query_record.finished_with_error(QueryResultError {
+                    message: err.to_string(),
+                    diagnostic_message: format!("{err:?}"),
+                }),
             },
             Err(execution_err) => query_record.finished_with_error(execution_err),
         }
@@ -360,7 +380,10 @@ mod tests {
                 }
                 QueryStatus::Failed => {
                     let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
-                    item.finished_with_error(String::from("Test query pseudo error"));
+                    item.finished_with_error(QueryResultError {
+                        message: String::from("Test query pseudo error"),
+                        diagnostic_message: String::from("diagnostic message"),
+                    });
                     item
                 }
             };

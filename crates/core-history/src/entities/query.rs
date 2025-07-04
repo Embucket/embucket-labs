@@ -39,6 +39,7 @@ pub struct QueryRecord {
     pub result: Option<String>,
     pub status: QueryStatus,
     pub error: Option<String>,
+    pub diagnostic_error: Option<String>,
 }
 
 impl QueryRecord {
@@ -56,6 +57,7 @@ impl QueryRecord {
             result: None,
             status: QueryStatus::Successful,
             error: None,
+            diagnostic_error: None,
         }
     }
 
@@ -74,10 +76,11 @@ impl QueryRecord {
             .num_milliseconds();
     }
 
-    pub fn finished_with_error(&mut self, error: String) {
+    pub fn finished_with_error(&mut self, error: crate::QueryResultError) {
         self.finished(0, None);
         self.status = QueryStatus::Failed;
-        self.error = Some(error);
+        self.error = Some(error.message);
+        self.diagnostic_error = Some(error.diagnostic_message);
     }
 
     // Returns a key with inverted id for descending order
