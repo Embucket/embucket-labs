@@ -114,11 +114,11 @@ fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> Result<()> {
     Ok(())
 }
 
-fn set_cookies(headers: &mut HeaderMap, name: &str, refresh_token: &str) -> Result<()> {
+fn set_cookies(headers: &mut HeaderMap, name: &str, token: &str) -> Result<()> {
     headers
         .try_append(
             SET_COOKIE,
-            Cookie::build((name, refresh_token))
+            Cookie::build((name, token))
                 .http_only(true)
                 .secure(true)
                 .same_site(SameSite::Strict)

@@ -1,13 +1,14 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
 use core_executor::session::SESSION_EXPIRATION_SECONDS;
-use http::HeaderMap;
+use http::{HeaderMap, HeaderName};
 use http::request::Parts;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
+use http::header::{COOKIE, SET_COOKIE};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tower_sessions::{
@@ -15,6 +16,7 @@ use tower_sessions::{
     session::{Id, Record},
     session_store,
 };
+use tower_sessions::cookie::{Cookie, SameSite};
 use uuid;
 
 pub const SESSION_ID_COOKIE_NAME: &str = "session_id";
@@ -64,10 +66,21 @@ impl SessionStore for RequestSessionStore {
         // store_guard.insert(record.id, record.clone());
 
         if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
-            self.execution_svc
-                .create_session(df_session_id.to_string())
-                .await
-                .map_err(|e| session_store::Error::Backend(e.to_string()))?;
+            let sessions = self.execution_svc.get_sessions().await;
+
+            let mut sessions = sessions.write().await;
+
+            if let Some(session) = sessions.get_mut(df_session_id) {
+                let mut expiry = session.expiry.lock().await;
+                *expiry = OffsetDateTime::now_utc() + Duration::seconds(SESSION_EXPIRATION_SECONDS);
+                tracing::error!("Updating expiry: {}", *expiry);
+            } else {
+                drop(sessions);
+                self.execution_svc
+                    .create_session(df_session_id.to_string())
+                    .await
+                    .map_err(|e| session_store::Error::Backend(e.to_string()))?;
+            }
         }
         Ok(())
     }
@@ -75,16 +88,17 @@ impl SessionStore for RequestSessionStore {
     #[tracing::instrument(name = "SessionStore::save", level = "trace", skip(self), err, ret)]
     async fn save(&self, record: &Record) -> session_store::Result<()> {
         //self.store.lock().await.insert(record.id, record.clone());
-        if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
-            let sessions = self.execution_svc.get_sessions().await;
-
-            let mut sessions = sessions.write().await;
-
-            if let Some(session) = sessions.get_mut(df_session_id) {
-                let mut expiry = session.expiry.lock().await;
-                *expiry += Duration::seconds(SESSION_EXPIRATION_SECONDS);
-            }
-        }
+        // if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
+        //     let sessions = self.execution_svc.get_sessions().await;
+        //
+        //     let mut sessions = sessions.write().await;
+        //
+        //     if let Some(session) = sessions.get_mut(df_session_id) {
+        //         let mut expiry = session.expiry.lock().await;
+        //         *expiry = OffsetDateTime::now_utc() + Duration::seconds(SESSION_EXPIRATION_SECONDS);
+        //         tracing::error!("Updating expiry: {}", *expiry);
+        //     }
+        // }
         Ok(())
     }
 
@@ -131,7 +145,7 @@ impl ExpiredDeletion for RequestSessionStore {
         let mut sessions = sessions.write().await;
 
         let now = OffsetDateTime::now_utc();
-
+        tracing::error!("Starting to delete expired for: {}", now);
         //sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
         let mut session_ids = Vec::new();
         for (session_id, session) in sessions.iter() {
@@ -142,6 +156,7 @@ impl ExpiredDeletion for RequestSessionStore {
         }
 
         for session_id in session_ids {
+            tracing::error!("Deleting expired: {}", session_id);
             sessions.remove(&session_id);
         }
         // let mut store_guard = self.store.lock().await;
@@ -214,6 +229,7 @@ where
         //     tracing::error!("expiry date: {}", session.expiry_date());
         //     id
         // } else
+        session.id().map_or_else(||{tracing::error!("ID: None");}, |id| {tracing::error!("ID: {}", id);});
         let session_id = if let Some(token) = extract_token(&req.headers) {
             tracing::error!("Found DF session_id in headers: {}", token);
             session
@@ -221,7 +237,6 @@ where
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            tracing::error!("expiry date: {}", session.expiry_date());
             token
         } else {
             let id = uuid::Uuid::new_v4().to_string();
@@ -231,9 +246,10 @@ where
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            //tracing::error!("expiry date: {}", session.expiry_date());
             id
         };
+        //We don't rely on their cookie :)
+        session.flush().await.context(SessionPersistSnafu)?;
         Ok(Self(session_id))
     }
 }
@@ -252,7 +268,7 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
         })
         .map_or_else(
             || {
-                let cookies = cookies_from_header(headers);
+                let cookies = cookies_from_header(headers, COOKIE);
                 cookies
                     .get(SESSION_ID_COOKIE_NAME)
                     .map(|str_ref| (*str_ref).to_string())
@@ -261,16 +277,18 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
         )
 }
 #[allow(clippy::explicit_iter_loop)]
-pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
+pub fn cookies_from_header(headers: &HeaderMap, header_name: HeaderName) -> HashMap<&str, &str> {
     let mut cookies_map = HashMap::new();
 
-    let cookies = headers.get_all(http::header::COOKIE);
+    let cookies = headers.get_all(header_name);
 
     for value in cookies.iter() {
         if let Ok(cookie_str) = value.to_str() {
             for cookie in cookie_str.split(';') {
                 let parts: Vec<&str> = cookie.trim().split('=').collect();
-                cookies_map.insert(parts[0], parts[1]);
+                if parts.len() > 1 {
+                    cookies_map.insert(parts[0], parts[1]);
+                }
             }
         }
     }

@@ -1,13 +1,17 @@
 use super::error::{self as auth_error, BadAuthTokenSnafu, Result};
-use super::handlers::get_claims_validate_jwt_token;
+use super::handlers::{get_claims_validate_jwt_token};
 use crate::state::AppState;
 use axum::{
     extract::{Request, State},
     middleware::Next,
     response::IntoResponse,
 };
-use http::HeaderMap;
+use http::header::{COOKIE, SET_COOKIE};
+use http::{HeaderMap, HeaderName};
 use snafu::ResultExt;
+use tower_sessions::cookie::{Cookie, SameSite};
+use api_sessions::session::{extract_token, SESSION_ID_COOKIE_NAME};
+use uuid;
 
 fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     let auth = headers.get(http::header::AUTHORIZATION);
@@ -27,9 +31,27 @@ fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     }
 }
 
+fn set_headers_in_flight(headers: &mut HeaderMap, header_name: HeaderName, name: &str, token: &str) -> Result<()> {
+    headers
+        .try_append(
+            header_name,
+            Cookie::build((name, token))
+                .http_only(true)
+                .secure(true)
+                .same_site(SameSite::Strict)
+                .path("/")
+                .to_string()
+                .parse()
+                .context(auth_error::ResponseHeaderSnafu)?,
+        )
+        .context(auth_error::SetCookieSnafu)?;
+
+    Ok(())
+}
+
 pub async fn require_auth(
     State(state): State<AppState>,
-    req: Request,
+    mut req: Request,
     next: Next,
 ) -> Result<impl IntoResponse> {
     // no demo user -> no auth required
@@ -47,5 +69,23 @@ pub async fn require_auth(
     let _ = get_claims_validate_jwt_token(access_token, &audience, jwt_secret)
         .context(BadAuthTokenSnafu)?;
 
+    if let Some(token) = extract_token(req.headers()) {
+        let sessions = state.execution_svc.get_sessions().await; // `get_sessions` returns an RwLock
+
+        // Step 2: Acquire the read lock on the session data
+        let sessions = sessions.read().await;
+
+        // Step 3: Check if the token is in the session data
+        if !sessions.contains_key(&token) {
+            drop(sessions);
+            let session_id = uuid::Uuid::new_v4().to_string();
+            set_headers_in_flight(req.headers_mut(), COOKIE, SESSION_ID_COOKIE_NAME, session_id.as_str())?;
+            //fix unwarp
+            state.execution_svc.create_session(session_id.clone()).await.unwrap();
+            let mut res = next.run(req).await;
+            set_headers_in_flight(res.headers_mut(), SET_COOKIE, SESSION_ID_COOKIE_NAME, session_id.as_str())?;
+            return Ok(res);
+        }
+    }
     Ok(next.run(req).await)
 }
