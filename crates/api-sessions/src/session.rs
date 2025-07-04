@@ -1,7 +1,7 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
 use core_executor::session::SESSION_EXPIRATION_SECONDS;
-use http::header::{COOKIE, SET_COOKIE};
+use http::header::COOKIE;
 use http::request::Parts;
 use http::{HeaderMap, HeaderName};
 use regex::Regex;
@@ -85,46 +85,17 @@ impl SessionStore for RequestSessionStore {
     }
 
     #[tracing::instrument(name = "SessionStore::save", level = "trace", skip(self), err, ret)]
-    async fn save(&self, record: &Record) -> session_store::Result<()> {
-        //self.store.lock().await.insert(record.id, record.clone());
-        // if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
-        //     let sessions = self.execution_svc.get_sessions().await;
-        //
-        //     let mut sessions = sessions.write().await;
-        //
-        //     if let Some(session) = sessions.get_mut(df_session_id) {
-        //         let mut expiry = session.expiry.lock().await;
-        //         *expiry = OffsetDateTime::now_utc() + Duration::seconds(SESSION_EXPIRATION_SECONDS);
-        //         tracing::error!("Updating expiry: {}", *expiry);
-        //     }
-        // }
+    async fn save(&self, _record: &Record) -> session_store::Result<()> {
         Ok(())
     }
 
     #[tracing::instrument(name = "SessionStore::load", level = "trace", skip(self), err, ret)]
-    async fn load(&self, id: &Id) -> session_store::Result<Option<Record>> {
-        // Ok(self
-        //     .store
-        //     .lock()
-        //     .await
-        //     .get(id)
-        //     .filter(|Record { expiry_date, .. }| *expiry_date > OffsetDateTime::now_utc())
-        //     .cloned())
+    async fn load(&self, _id: &Id) -> session_store::Result<Option<Record>> {
         Ok(None)
     }
 
     #[tracing::instrument(name = "SessionStore::delete", level = "trace", skip(self), err, ret)]
-    async fn delete(&self, id: &Id) -> session_store::Result<()> {
-        // let mut store_guard = self.store.lock().await;
-        // if let Some(record) = store_guard.get(id) {
-        //     if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
-        //         self.execution_svc
-        //             .delete_session(df_session_id.to_string())
-        //             .await
-        //             .map_err(|e| session_store::Error::Backend(e.to_string()))?;
-        //     }
-        // }
-        // store_guard.remove(id);
+    async fn delete(&self, _id: &Id) -> session_store::Result<()> {
         Ok(())
     }
 }
@@ -145,7 +116,7 @@ impl ExpiredDeletion for RequestSessionStore {
 
         let now = OffsetDateTime::now_utc();
         tracing::error!("Starting to delete expired for: {}", now);
-        //sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
+        //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
         let mut session_ids = Vec::new();
         for (session_id, session) in sessions.iter() {
             let expiry = session.expiry.lock().await;
@@ -158,39 +129,7 @@ impl ExpiredDeletion for RequestSessionStore {
             tracing::error!("Deleting expired: {}", session_id);
             sessions.remove(&session_id);
         }
-        // let mut store_guard = self.store.lock().await;
-        // let now = OffsetDateTime::now_utc();
-        // tracing::error!("Deleting expired acquired a lock, to expire <=: {now}");
-        // let expired = store_guard
-        //     .iter()
-        //     .filter_map(
-        //         |(id, Record { expiry_date, .. })| {
-        //             if *expiry_date <= now { Some(*id) } else { None }
-        //         },
-        //     )
-        //     .collect::<Vec<_>>();
-        //If it is dropped here, the session maybe updated and still get deleted
-        //drop(store_guard);
-        //Somewhere here we update the session expiry time, but the `delete fn` doesn't check this (and it shouldn't)
-        // for id in expired {
-        //     if let Some(record) = store_guard.get(&id) {
-        //         if let Some(df_session_id) =
-        //             record.data.get("DF_SESSION_ID").and_then(|v| v.as_str())
-        //         {
-        //             tracing::error!(
-        //                 "Deleting expired: {df_session_id} with expiry: {}",
-        //                 record.expiry_date
-        //             );
-        //             self.execution_svc
-        //                 .delete_session(df_session_id.to_string())
-        //                 .await
-        //                 .map_err(|e| session_store::Error::Backend(e.to_string()))?;
-        //         }
-        //     }
-        //     store_guard.remove(&id);
-        // }
-        //If here we hang since deleting also needs to acquire the lock
-        //drop(store_guard);
+
         Ok(())
     }
 }
@@ -218,28 +157,12 @@ where
                 msg: e.1.to_string(),
             }
         })?;
-        // let session_id = if let Ok(Some(id)) = session.get::<String>("DF_SESSION_ID").await {
-        //     tracing::error!("Found DF session_id: {}", id);
-        //     session
-        //         .insert("DF_SESSION_ID", id.clone())
-        //         .await
-        //         .context(SessionPersistSnafu)?;
-        //     session.save().await.context(SessionPersistSnafu)?;
-        //     tracing::error!("expiry date: {}", session.expiry_date());
-        //     id
-        // } else
-        let cookies = cookies_from_header(&req.headers, SET_COOKIE);
-
-        session.id().map_or_else(
-            || {
-                tracing::error!("ID: None");
-            },
-            |id| {
-                tracing::error!("ID: {}", id);
-            },
-        );
         //If UI Auth middleware generated a new session id
-        let session_id = if let Some(DFSessionId(session_id)) = req.extensions.get::<DFSessionId>() {
+        let session_id = if let Some(Self(session_id)) = req.extensions.get::<Self>() {
+            tracing::error!(
+                "Found DF session_id in extensions for creation: {}",
+                session_id
+            );
             Self::create_session(&session, session_id.clone()).await
         //If the session is alive
         } else if let Some(token) = extract_token(&req.headers) {

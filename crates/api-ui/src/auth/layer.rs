@@ -1,6 +1,7 @@
 use super::error::{self as auth_error, BadAuthTokenSnafu, Result};
 use super::handlers::get_claims_validate_jwt_token;
 use crate::state::AppState;
+use api_sessions::DFSessionId;
 use api_sessions::session::{SESSION_ID_COOKIE_NAME, extract_token};
 use axum::{
     extract::{Request, State},
@@ -12,7 +13,6 @@ use http::{HeaderMap, HeaderName};
 use snafu::ResultExt;
 use tower_sessions::cookie::{Cookie, SameSite};
 use uuid;
-use api_sessions::DFSessionId;
 
 fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     let auth = headers.get(http::header::AUTHORIZATION);
@@ -84,6 +84,8 @@ pub async fn require_auth(
         // Step 3: Check if the token is in the session data
         if !sessions.contains_key(&token) {
             drop(sessions);
+            //If no session_id, get a new one to the extractor,
+            // in a way that we can provide it to the response header for the browser also
             let session_id = uuid::Uuid::new_v4().to_string();
             req.extensions_mut().insert(DFSessionId(session_id.clone()));
             let mut res = next.run(req).await;
