@@ -6,7 +6,8 @@ use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
-use api_sessions::{RequestSessionMemory, RequestSessionStore};
+use api_sessions::RequestSessionStore;
+use api_sessions::session::SESSION_EXPIRATION_SECONDS;
 use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
 use api_snowflake_rest::auth::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
@@ -30,6 +31,7 @@ use axum::{
 use clap::Parser;
 use core_executor::catalog::catalog_list::DEFAULT_CATALOG;
 use core_executor::service::CoreExecutionService;
+use core_executor::session::SESSION_INACTIVITY_EXPIRATION_SECONDS;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::error::Error as MetastoreError;
@@ -148,18 +150,21 @@ async fn main() {
         Arc::new(execution_cfg),
     ));
 
-    let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+    let session_store = RequestSessionStore::new(execution_svc.clone());
 
     tokio::task::spawn(
         session_store
             .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(15)),
+            .continuously_delete_expired(tokio::time::Duration::from_secs(
+                SESSION_EXPIRATION_SECONDS,
+            )),
     );
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(30)));
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(
+            SESSION_INACTIVITY_EXPIRATION_SECONDS,
+        )));
 
     let internal_router =
         create_internal_router().with_state(InternalAppState::new(metastore.clone()));

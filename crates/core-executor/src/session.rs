@@ -38,7 +38,7 @@ use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 
-pub const SESSION_EXPIRATION_SECONDS: i64 = 15;
+pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
@@ -117,7 +117,8 @@ impl UserSession {
             executor: DedicatedExecutor::builder().build(),
             config,
             expiry: Arc::from(Mutex::from(
-                OffsetDateTime::now_utc() + Duration::seconds(SESSION_EXPIRATION_SECONDS),
+                OffsetDateTime::now_utc()
+                    + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
         };
         session.register_external_catalogs().await?;

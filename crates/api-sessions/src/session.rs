@@ -1,6 +1,6 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
-use core_executor::session::SESSION_EXPIRATION_SECONDS;
+use core_executor::session::SESSION_INACTIVITY_EXPIRATION_SECONDS;
 use http::header::COOKIE;
 use http::request::Parts;
 use http::{HeaderMap, HeaderName};
@@ -10,7 +10,6 @@ use snafu::ResultExt;
 use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration, OffsetDateTime};
-use tokio::sync::Mutex;
 use tower_sessions::{
     ExpiredDeletion, Session, SessionStore,
     session::{Id, Record},
@@ -20,20 +19,16 @@ use uuid;
 
 pub const SESSION_ID_COOKIE_NAME: &str = "session_id";
 
-pub type RequestSessionMemory = Arc<Mutex<HashMap<Id, Record>>>;
+pub const SESSION_EXPIRATION_SECONDS: u64 = 60;
 
 #[derive(Clone)]
 pub struct RequestSessionStore {
-    //store: Arc<Mutex<HashMap<Id, Record>>>,
     execution_svc: Arc<dyn ExecutionService>,
 }
 
 #[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
-    pub fn new(
-        _store: Arc<Mutex<HashMap<Id, Record>>>,
-        execution_svc: Arc<dyn ExecutionService>,
-    ) -> Self {
+    pub fn new(execution_svc: Arc<dyn ExecutionService>) -> Self {
         Self {
             //store,
             execution_svc,
@@ -57,13 +52,6 @@ impl RequestSessionStore {
 impl SessionStore for RequestSessionStore {
     #[tracing::instrument(name = "SessionStore::create", level = "trace", skip(self), err, ret)]
     async fn create(&self, record: &mut Record) -> session_store::Result<()> {
-        // let mut store_guard = self.store.lock().await;
-        // while store_guard.contains_key(&record.id) {
-        //     // Session ID collision mitigation.
-        //     record.id = Id::default();
-        // }
-        // store_guard.insert(record.id, record.clone());
-
         if let Some(df_session_id) = record.data.get("DF_SESSION_ID").and_then(|v| v.as_str()) {
             let sessions = self.execution_svc.get_sessions().await;
 
@@ -71,8 +59,9 @@ impl SessionStore for RequestSessionStore {
 
             if let Some(session) = sessions.get_mut(df_session_id) {
                 let mut expiry = session.expiry.lock().await;
-                *expiry = OffsetDateTime::now_utc() + Duration::seconds(SESSION_EXPIRATION_SECONDS);
-                tracing::error!("Updating expiry: {}", *expiry);
+                *expiry = OffsetDateTime::now_utc()
+                    + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS);
+                tracing::debug!("Updating expiry: {}", *expiry);
             } else {
                 drop(sessions);
                 self.execution_svc
@@ -115,7 +104,7 @@ impl ExpiredDeletion for RequestSessionStore {
         let mut sessions = sessions.write().await;
 
         let now = OffsetDateTime::now_utc();
-        tracing::error!("Starting to delete expired for: {}", now);
+        tracing::debug!("Starting to delete expired for: {}", now);
         //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
         let mut session_ids = Vec::new();
         for (session_id, session) in sessions.iter() {
@@ -126,7 +115,7 @@ impl ExpiredDeletion for RequestSessionStore {
         }
 
         for session_id in session_ids {
-            tracing::error!("Deleting expired: {}", session_id);
+            tracing::debug!("Deleting expired: {}", session_id);
             sessions.remove(&session_id);
         }
 
@@ -159,14 +148,14 @@ where
         })?;
         //If UI Auth middleware generated a new session id
         let session_id = if let Some(Self(session_id)) = req.extensions.get::<Self>() {
-            tracing::error!(
+            tracing::debug!(
                 "Found DF session_id in extensions for creation: {}",
                 session_id
             );
             Self::create_session(&session, session_id.clone()).await
         //If the session is alive
         } else if let Some(token) = extract_token(&req.headers) {
-            tracing::error!("Found DF session_id in headers: {}", token);
+            tracing::debug!("Found DF session_id in headers: {}", token);
             session
                 .insert("DF_SESSION_ID", token.clone())
                 .await
@@ -186,7 +175,7 @@ where
 
 impl DFSessionId {
     async fn create_session(session: &Session, id: String) -> Result<Self, SessionError> {
-        tracing::error!("Creating new DF session_id: {}", id);
+        tracing::debug!("Creating new DF session_id: {}", id);
         session
             .insert("DF_SESSION_ID", id.clone())
             .await
@@ -198,6 +187,7 @@ impl DFSessionId {
 
 #[must_use]
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
+    //First we check the header, second the cookie
     headers
         .get("authorization")
         .and_then(|value| {
@@ -282,8 +272,7 @@ mod tests {
     async fn test_expiration() {
         let execution_svc = make_text_execution_svc().await;
 
-        let session_memory = RequestSessionMemory::default();
-        let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+        let session_store = RequestSessionStore::new(execution_svc.clone());
 
         let df_session_id = "fasfsafsfasafsass".to_string();
         let data = HashMap::new();

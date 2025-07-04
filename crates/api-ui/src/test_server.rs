@@ -4,7 +4,7 @@ use crate::layers::make_cors_middleware;
 use crate::router;
 use crate::state;
 use crate::{config::AuthConfig, config::WebConfig};
-use api_sessions::{RequestSessionMemory, RequestSessionStore};
+use api_sessions::RequestSessionStore;
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
@@ -68,8 +68,7 @@ pub fn make_app(
         history_store.clone(),
         Arc::new(Config::default()),
     ));
-    let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+    let session_store = RequestSessionStore::new(execution_svc.clone());
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
