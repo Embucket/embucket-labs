@@ -14,15 +14,15 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Embucket/embucket' }],
       sidebar: [
         {
-          label: 'Guides',
+          label: 'Start Here',
           items: [
             // Each item here is one entry in the navigation menu.
-            { label: 'Example Guide', slug: 'guides/example' },
+            { label: 'Getting Started', link: '/' },
           ],
         },
         {
-          label: 'Reference',
-          autogenerate: { directory: 'reference' },
+          label: 'Guides',
+          autogenerate: { directory: 'guides' },
         },
       ],
       customCss: ['./src/styles/global.css'],
