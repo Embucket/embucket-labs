@@ -11,7 +11,7 @@ use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration, OffsetDateTime};
 use tower_sessions::{
-    ExpiredDeletion, Session, SessionStore,
+    ExpiredDeletion, Expiry, Session, SessionStore,
     session::{Id, Record},
     session_store,
 };
@@ -59,8 +59,7 @@ impl SessionStore for RequestSessionStore {
 
             if let Some(session) = sessions.get_mut(df_session_id) {
                 let mut expiry = session.expiry.lock().await;
-                *expiry = OffsetDateTime::now_utc()
-                    + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS);
+                *expiry = record.expiry_date;
                 tracing::debug!("Updating expiry: {}", *expiry);
             } else {
                 drop(sessions);
@@ -160,6 +159,9 @@ where
                 .insert("DF_SESSION_ID", token.clone())
                 .await
                 .context(SessionPersistSnafu)?;
+            session.set_expiry(Some(Expiry::OnInactivity(Duration::seconds(
+                SESSION_INACTIVITY_EXPIRATION_SECONDS,
+            ))));
             session.save().await.context(SessionPersistSnafu)?;
             Ok(Self(token))
         //If the session is dead
@@ -272,9 +274,14 @@ mod tests {
     async fn test_expiration() {
         let execution_svc = make_text_execution_svc().await;
 
+        let df_session_id = "fasfsafsfasafsass".to_string();
+        execution_svc
+            .create_session(df_session_id.clone())
+            .await
+            .expect("Failed to create a session");
+
         let session_store = RequestSessionStore::new(execution_svc.clone());
 
-        let df_session_id = "fasfsafsfasafsass".to_string();
         let data = HashMap::new();
         let mut record = Record {
             id: Id::default(),
@@ -292,7 +299,7 @@ mod tests {
         let () = session_store
             .create(&mut record)
             .await
-            .expect("Failed to create session");
+            .expect("Failed to get a session");
         let () = sleep(core::time::Duration::from_secs(11)).await;
         execution_svc
             .query(&df_session_id, "SELECT 1", QueryContext::default())
