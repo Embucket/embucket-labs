@@ -1,14 +1,14 @@
 use axum::{Json, extract::FromRequestParts, response::IntoResponse};
 use core_executor::service::ExecutionService;
 use core_executor::session::SESSION_EXPIRATION_SECONDS;
-use http::{HeaderMap, HeaderName};
+use http::header::{COOKIE, SET_COOKIE};
 use http::request::Parts;
+use http::{HeaderMap, HeaderName};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use snafu::prelude::*;
 use std::{collections::HashMap, sync::Arc};
-use http::header::{COOKIE, SET_COOKIE};
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
 use tower_sessions::{
@@ -16,7 +16,6 @@ use tower_sessions::{
     session::{Id, Record},
     session_store,
 };
-use tower_sessions::cookie::{Cookie, SameSite};
 use uuid;
 
 pub const SESSION_ID_COOKIE_NAME: &str = "session_id";
@@ -229,28 +228,45 @@ where
         //     tracing::error!("expiry date: {}", session.expiry_date());
         //     id
         // } else
-        session.id().map_or_else(||{tracing::error!("ID: None");}, |id| {tracing::error!("ID: {}", id);});
-        let session_id = if let Some(token) = extract_token(&req.headers) {
+        let cookies = cookies_from_header(&req.headers, SET_COOKIE);
+
+        session.id().map_or_else(
+            || {
+                tracing::error!("ID: None");
+            },
+            |id| {
+                tracing::error!("ID: {}", id);
+            },
+        );
+        let session_id = if let Some(cookie) = cookies.get(SESSION_ID_COOKIE_NAME) {
+            Self::create_session(&session, (*cookie).to_string()).await
+        } else if let Some(token) = extract_token(&req.headers) {
             tracing::error!("Found DF session_id in headers: {}", token);
             session
                 .insert("DF_SESSION_ID", token.clone())
                 .await
                 .context(SessionPersistSnafu)?;
             session.save().await.context(SessionPersistSnafu)?;
-            token
+            Ok(Self(token))
         } else {
             let id = uuid::Uuid::new_v4().to_string();
-            tracing::error!("Creating new DF session_id: {}", id);
-            session
-                .insert("DF_SESSION_ID", id.clone())
-                .await
-                .context(SessionPersistSnafu)?;
-            session.save().await.context(SessionPersistSnafu)?;
-            id
+            Self::create_session(&session, id.clone()).await
         };
         //We don't rely on their cookie :)
         session.flush().await.context(SessionPersistSnafu)?;
-        Ok(Self(session_id))
+        session_id
+    }
+}
+
+impl DFSessionId {
+    async fn create_session(session: &Session, id: String) -> Result<Self, SessionError> {
+        tracing::error!("Creating new DF session_id: {}", id);
+        session
+            .insert("DF_SESSION_ID", id.clone())
+            .await
+            .context(SessionPersistSnafu)?;
+        session.save().await.context(SessionPersistSnafu)?;
+        Ok(Self(id))
     }
 }
 

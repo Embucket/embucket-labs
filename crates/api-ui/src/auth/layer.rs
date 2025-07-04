@@ -1,16 +1,16 @@
 use super::error::{self as auth_error, BadAuthTokenSnafu, Result};
-use super::handlers::{get_claims_validate_jwt_token};
+use super::handlers::get_claims_validate_jwt_token;
 use crate::state::AppState;
+use api_sessions::session::{SESSION_ID_COOKIE_NAME, extract_token};
 use axum::{
     extract::{Request, State},
     middleware::Next,
     response::IntoResponse,
 };
-use http::header::{COOKIE, SET_COOKIE};
+use http::header::SET_COOKIE;
 use http::{HeaderMap, HeaderName};
 use snafu::ResultExt;
 use tower_sessions::cookie::{Cookie, SameSite};
-use api_sessions::session::{extract_token, SESSION_ID_COOKIE_NAME};
 use uuid;
 
 fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
@@ -31,7 +31,12 @@ fn get_authorization_token(headers: &HeaderMap) -> Result<&str> {
     }
 }
 
-fn set_headers_in_flight(headers: &mut HeaderMap, header_name: HeaderName, name: &str, token: &str) -> Result<()> {
+fn set_headers_in_flight(
+    headers: &mut HeaderMap,
+    header_name: HeaderName,
+    name: &str,
+    token: &str,
+) -> Result<()> {
     headers
         .try_append(
             header_name,
@@ -79,11 +84,19 @@ pub async fn require_auth(
         if !sessions.contains_key(&token) {
             drop(sessions);
             let session_id = uuid::Uuid::new_v4().to_string();
-            set_headers_in_flight(req.headers_mut(), COOKIE, SESSION_ID_COOKIE_NAME, session_id.as_str())?;
-            //fix unwarp
-            state.execution_svc.create_session(session_id.clone()).await.unwrap();
+            set_headers_in_flight(
+                req.headers_mut(),
+                SET_COOKIE,
+                SESSION_ID_COOKIE_NAME,
+                session_id.as_str(),
+            )?;
             let mut res = next.run(req).await;
-            set_headers_in_flight(res.headers_mut(), SET_COOKIE, SESSION_ID_COOKIE_NAME, session_id.as_str())?;
+            set_headers_in_flight(
+                res.headers_mut(),
+                SET_COOKIE,
+                SESSION_ID_COOKIE_NAME,
+                session_id.as_str(),
+            )?;
             return Ok(res);
         }
     }
