@@ -14,55 +14,6 @@ pub struct TimestampVisitor {}
 impl VisitorMut for TimestampVisitor {
     type Break = ();
 
-    /*
-        Cast {
-        kind: DoubleColon,
-        expr: Value(
-            ValueWithSpan {
-                value: Number(
-                    "1000000000",
-                    false,
-                ),
-                span: Span(Location(1,8)..Location(1,18)),
-            },
-        ),
-        data_type: Custom(
-            ObjectName(
-                [
-                    Identifier(
-                        Ident {
-                            value: "TIMESTAMP_TZ",
-                            quote_style: None,
-                            span: Span(Location(1,20)..Location(1,32)),
-                        },
-                    ),
-                ],
-            ),
-            [],
-        ),
-        format: None,
-    }
-         */
-
-    /*
-        Cast {
-        kind: DoubleColon,
-        expr: Value(
-            ValueWithSpan {
-                value: Number(
-                    "1000000000",
-                    false,
-                ),
-                span: Span(Location(1,8)..Location(1,18)),
-            },
-        ),
-        data_type: Timestamp(
-            None,
-            None,
-        ),
-        format: None,
-    }
-         */
     fn post_visit_expr(&mut self, expr: &mut ASTExpr) -> ControlFlow<Self::Break> {
         *expr = match expr.clone() {
             ASTExpr::Cast {
@@ -106,7 +57,7 @@ impl VisitorMut for TimestampVisitor {
                                     within_group: vec![],
                                 })
                             }
-                            other => expr.clone(),
+                            _ => expr.clone(),
                         }
                     }
                 },
