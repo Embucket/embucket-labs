@@ -1,8 +1,8 @@
 # DBT Run Summary
-PASS: 1002
+PASS: 999
 WARN: 0
-ERROR: 375
-SKIP: 211
+ERROR: 377
+SKIP: 212
 TOTAL: 1588
 
 # Total top 10 errors
