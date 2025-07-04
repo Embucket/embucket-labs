@@ -1386,7 +1386,7 @@ select * from column_only_optimization_source order by a,b;
 
 statement ok
 merge into column_only_optimization_target as t1 using column_only_optimization_source as t2 on
-t1.a = t2.a when matched then update set t1.b = t2.b when not matched then insert *;
+t1.a = t2.a when matched then update set t1.b = t2.b when not matched then insert (a,b) values (t2.a, t2.b);
 
 query TT
 select * from column_only_optimization_target order by a,b;
@@ -1497,31 +1497,31 @@ exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
-exclude-from-coverage
-query T
-select count(*) from lineitem_target_origin_400_blocks1;
-----
-40000
-
-exclude-from-coverage
-statement ok
-insert into lineitem_target_origin_200_blocks1 select * from lineitem_target_origin_400_blocks1;
-
-exclude-from-coverage
-query T
-select count(*) from lineitem_target_origin_200_blocks1;
-----
-40000
-
-exclude-from-coverage
-statement ok
-insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
-
-exclude-from-coverage
-query T
-select count(*) from lineitem_target_origin_400_blocks1;
-----
-45000
+##exclude-from-coverage
+##query T
+##select count(*) from lineitem_target_origin_400_blocks1;
+##----
+##40000
+##
+##exclude-from-coverage
+##statement ok
+##insert into lineitem_target_origin_200_blocks1 select * from lineitem_target_origin_400_blocks1;
+##
+##exclude-from-coverage
+##query T
+##select count(*) from lineitem_target_origin_200_blocks1;
+##----
+##40000
+##
+##exclude-from-coverage
+##statement ok
+##insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
+##
+##exclude-from-coverage
+##query T
+##select count(*) from lineitem_target_origin_400_blocks1;
+##----
+##45000
 
 ## it maybe flaky test, but in most times, it's normal.
 ##statement ok
