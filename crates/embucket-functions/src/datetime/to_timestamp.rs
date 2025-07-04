@@ -141,25 +141,29 @@ macro_rules! build_from_int_string {
 #[derive(Debug)]
 pub struct ToTimestampFunc {
     signature: Signature,
-    aliases: Vec<String>,
     timezone: Option<Arc<str>>,
     format: String,
+    name: String,
 }
 
 impl Default for ToTimestampFunc {
     fn default() -> Self {
-        Self::new(None, "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string())
+        Self::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timstamp".to_string(),
+        )
     }
 }
 
 impl ToTimestampFunc {
     #[must_use]
-    pub fn new(timezone: Option<Arc<str>>, format: String) -> Self {
+    pub fn new(timezone: Option<Arc<str>>, format: String, name: String) -> Self {
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
-            aliases: vec!["to_timestamp_ntz".to_string()],
             timezone,
             format,
+            name,
         }
     }
 }
@@ -170,16 +174,13 @@ impl ScalarUDFImpl for ToTimestampFunc {
     }
 
     fn name(&self) -> &str {
-        "to_timestamp"
+        &self.name
     }
 
     fn signature(&self) -> &Signature {
         &self.signature
     }
 
-    fn aliases(&self) -> &[String] {
-        &self.aliases
-    }
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
         internal_err!("return_type_from_args should be called")
     }
@@ -454,7 +455,11 @@ pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::semi_structured::variant::visitors::variant_element;
+    use crate::visitors::timestamp;
+    use datafusion::arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
+    use datafusion::sql::parser::Statement;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
 
@@ -464,6 +469,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -493,6 +499,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -522,6 +529,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -551,6 +559,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -580,6 +589,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -609,6 +619,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "mm/dd/yyyy hh24:mi:ss".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -637,6 +648,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -663,6 +675,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -689,6 +702,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
         )));
 
         let sql = r#"SELECT
@@ -706,6 +720,99 @@ mod tests {
             &result
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_different_names() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
+        )));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_ntz".to_string(),
+        )));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            Some(Arc::from("America/Los_Angeles")),
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_tz".to_string(),
+        )));
+
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            Some(Arc::from("America/Los_Angeles")),
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_ltz".to_string(),
+        )));
+
+        let sql = r#"SELECT
+       TO_TIMESTAMP(1000000000) as "a",
+       TO_TIMESTAMP_NTZ(1000000000) as "b",
+       TO_TIMESTAMP_TZ(1000000000) as "c",
+       TO_TIMESTAMP_LTZ(1000000000) as "d"
+       "#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+                "| a                   | b                   | c                         | d                         |",
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+                "| 2001-09-09T01:46:40 | 2001-09-09T01:46:40 | 2001-09-08T18:46:40-07:00 | 2001-09-08T18:46:40-07:00 |",
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_visitor() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
+        )));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_ntz".to_string(),
+        )));
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            Some(Arc::from("America/Los_Angeles")),
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_tz".to_string(),
+        )));
+
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            Some(Arc::from("America/Los_Angeles")),
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp_ltz".to_string(),
+        )));
+
+        let sql = r#"SELECT 1000000000::TIMESTAMP as a, 1000000000::TIMESTAMP_NTZ as b, 1000000000::TIMESTAMP_TZ as c, 1000000000::TIMESTAMP_LTZ as d"#;
+        let mut statement = ctx.state().sql_to_statement(sql, "snowflake")?;
+        if let Statement::Statement(ref mut stmt) = statement {
+            timestamp::visit(stmt);
+        }
+        let plan = ctx.state().statement_to_plan(statement).await?;
+        let result = ctx.execute_logical_plan(plan).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+                "| a                   | b                   | c                         | d                         |",
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+                "| 2001-09-09T01:46:40 | 2001-09-09T01:46:40 | 2001-09-08T18:46:40-07:00 | 2001-09-08T18:46:40-07:00 |",
+                "+---------------------+---------------------+---------------------------+---------------------------+",
+            ],
+            &result
+        );
         Ok(())
     }
 }
