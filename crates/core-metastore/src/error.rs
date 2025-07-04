@@ -10,7 +10,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Snafu, AsRefStr)]
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
-// #[strum(serialize_all = "PascalCase")]
 pub enum Error {
     #[snafu(display("Table data already exists at that location: {path}"))]
     TableDataExists {
