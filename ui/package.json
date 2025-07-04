@@ -49,7 +49,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.81.5",
     "@tanstack/react-query-devtools": "^5.81.5",
-    "@tanstack/react-router": "1.121.34",
+    "@tanstack/react-router": "1.121.41",
     "@tanstack/react-table": "^8.21.3",
     "@tidbcloud/codemirror-extension-cur-sql-gutter": "^0.0.6",
     "@tidbcloud/codemirror-extension-events": "^0.0.7",
