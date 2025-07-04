@@ -383,6 +383,7 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
 /// 3. Creation of a default schema `public` in the database `embucket`
 ///
 /// Only traces the errors, doesn't panic.
+#[allow(clippy::cognitive_complexity)]
 async fn bootstrap(metastore: Arc<dyn Metastore>, no_bootstrap: bool) {
     if no_bootstrap {
         return;

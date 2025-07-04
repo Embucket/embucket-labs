@@ -95,8 +95,18 @@ impl IntoStatusCode for Error {
 }
 
 impl IntoResponse for Error {
+    #[tracing::instrument(
+        name = "api-ui::Error::into_response",
+        level = "info",
+        fields(status_code),
+        skip(self)
+    )]
     fn into_response(self) -> axum::response::Response {
         tracing::error!("{}", self.output_msg());
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("status_code", self.status_code().as_u16());
+
         let code = self.status_code();
         match self {
             Self::Auth { source, .. } => source.into_response(),

@@ -33,5 +33,10 @@ COPY --from=builder /app/rest-catalog-open-api.yaml ./rest-catalog-open-api.yaml
 EXPOSE 8080
 EXPOSE 3000
 
+ENV OBJECT_STORE_BACKEND=file
+ENV FILE_STORAGE_PATH=data/
+ENV BUCKET_HOST=0.0.0.0
+ENV JWT_SECRET=63f4945d921d599f27ae4fdf5bada3f1
+
 # Default command
 CMD ["./embucketd"]

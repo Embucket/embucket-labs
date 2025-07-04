@@ -1,6 +1,6 @@
 use crate::visitors::{
-    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, select_expr_aliases,
-    table_functions,
+    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, qualify_in_query,
+    select_expr_aliases, table_functions,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -259,5 +259,48 @@ fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
         }
     }
 
+    Ok(())
+}
+
+#[test]
+fn test_qualify_in_query() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![
+        (
+            "SELECT product_id FROM sales QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1",
+            "SELECT * FROM (SELECT product_id, ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) AS qualify_alias FROM sales) WHERE qualify_alias = 1",
+        ),
+        (
+            "create table test_table as (WITH max_task_instance AS (
+                SELECT MAX(task_instance) AS max_column_value
+                FROM base WHERE RIGHT( task_instance, 8) = (SELECT MAX(RIGHT( task_instance, 8)) FROM base )
+            ), filtered AS (
+                SELECT * FROM base
+                WHERE _task_instance = (SELECT max_column_value  FROM max_task_instance)
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) = 1
+            ) SELECT * FROM filtered);",
+            "CREATE TABLE test_table AS (WITH max_task_instance AS (SELECT MAX(task_instance) \
+            AS max_column_value FROM base WHERE RIGHT(task_instance, 8) = (SELECT MAX(RIGHT(task_instance, 8)) FROM base)), \
+            filtered AS (SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) AS qualify_alias \
+            FROM (SELECT * FROM base WHERE _task_instance = (SELECT max_column_value FROM max_task_instance))) WHERE qualify_alias = 1) \
+            SELECT * FROM filtered)"
+        ),
+        (
+            "SELECT * FROM test
+            WHERE task = (SELECT max_column_value FROM max_task_instance)
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) = 1",
+            "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) \
+            AS qualify_alias FROM (SELECT * FROM test WHERE task = (SELECT max_column_value FROM max_task_instance))) \
+            WHERE qualify_alias = 1",
+        ),
+    ];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            qualify_in_query::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
     Ok(())
 }

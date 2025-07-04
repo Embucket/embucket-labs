@@ -1,11 +1,13 @@
 use crate::array_to_boolean;
+use datafusion::arrow::compute::cast;
+use datafusion::arrow::compute::kernels::zip::zip;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
-use datafusion_common::{ScalarValue, exec_err};
+use datafusion_common::utils::take_function_args;
+use datafusion_common::{DataFusionError, exec_err};
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 
-// Iff SQL function
 // This function returns one of two values based on whether a given Boolean condition is true or false.
 // It works like a basic if-then-else statement and is simpler than a CASE expression, since it only checks one condition.
 // You can use it to apply conditional logic within SQL queries.
@@ -50,54 +52,40 @@ impl ScalarUDFImpl for IffFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let arg1_dt = args.args[1].data_type();
-        let arg2_dt = args.args[2].data_type();
-        if arg1_dt != arg2_dt && arg1_dt != DataType::Null && arg2_dt != DataType::Null {
-            return exec_err!(
-                "Iff function requires the second and third arguments to be of the same type or NULL"
-            );
-        }
-
-        let input = match &args.args[0] {
+        let [input, lhs, rhs] = take_function_args(self.name(), args.args)?;
+        let input = match &input {
             ColumnarValue::Scalar(v) => &v.to_array()?,
             ColumnarValue::Array(arr) => arr,
         };
-
         let input = array_to_boolean(input)?;
-
-        let lhs = match &args.args[1] {
-            ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(_) => {
-                return exec_err!("Iff function requires the second argument to be a scalar");
-            }
-        };
-
-        let rhs = match &args.args[2] {
-            ColumnarValue::Scalar(val) => val.to_owned(),
-            ColumnarValue::Array(_) => {
-                return exec_err!("Iff function requires the third argument to be a scalar");
-            }
-        };
-
-        let lhs = lhs.cast_to(&return_type(&arg1_dt, &arg2_dt))?;
-        let rhs = rhs.cast_to(&return_type(&arg1_dt, &arg2_dt))?;
-
-        let mut res = Vec::with_capacity(input.len());
-        for v in &input {
-            if let Some(v) = v {
-                if v {
-                    res.push(lhs.clone());
-                } else {
-                    res.push(rhs.clone());
-                }
-            } else {
-                res.push(rhs.clone());
-            }
+        let input_len = input.len();
+        let lhs_dt = lhs.data_type();
+        let rhs_dt = rhs.data_type();
+        if lhs_dt != rhs_dt && lhs_dt != DataType::Null && rhs_dt != DataType::Null {
+            return exec_err!(
+                "IFF function requires the second and third arguments to be of the same type or NULL"
+            );
         }
+        let target_type = return_type(&lhs_dt, &rhs_dt);
 
-        let arr = ScalarValue::iter_to_array(res)?;
+        let lhs_array = match lhs {
+            ColumnarValue::Scalar(scalar) => {
+                scalar.cast_to(&target_type)?.to_array_of_size(input_len)?
+            }
+            ColumnarValue::Array(array) => cast(&array, &target_type)?,
+        };
 
-        Ok(ColumnarValue::Array(arr))
+        let rhs_array = match rhs {
+            ColumnarValue::Scalar(scalar) => {
+                scalar.cast_to(&target_type)?.to_array_of_size(input_len)?
+            }
+            ColumnarValue::Array(array) => cast(&array, &target_type)?,
+        };
+
+        let result = zip(&input, &lhs_array, &rhs_array)
+            .map_err(|e| DataFusionError::Execution(e.to_string()))?;
+
+        Ok(ColumnarValue::Array(result))
     }
 }
 

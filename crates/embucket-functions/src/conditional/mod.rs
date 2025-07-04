@@ -4,6 +4,7 @@ pub mod boolxor;
 pub mod equal_null;
 pub mod iff;
 pub mod nullifzero;
+pub mod zeroifnull;
 
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
@@ -24,6 +25,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         equal_null::get_udf(),
         iff::get_udf(),
         nullifzero::get_udf(),
+        zeroifnull::get_udf(),
     ];
 
     for func in functions {

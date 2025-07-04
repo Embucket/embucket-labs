@@ -99,6 +99,12 @@ pub enum Error {
 }
 
 impl IntoResponse for Error {
+    #[tracing::instrument(
+        name = "api-snowflake-rest::Error::into_response",
+        level = "info",
+        fields(status_code),
+        skip(self)
+    )]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         tracing::error!("{}", self.output_msg());
         let (status_code, message) = if let Self::Execution { source } = &self {
@@ -123,6 +129,8 @@ impl IntoResponse for Error {
             };
             (status_code, self.to_string())
         };
+        // Record the result as part of the current span.
+        tracing::Span::current().record("status_code", status_code.as_u16());
 
         let body = Json(JsonResponse {
             success: false,
@@ -139,39 +147,6 @@ impl IntoResponse for Error {
 #[allow(clippy::too_many_lines)]
 fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCode, String) {
     let status_code = match error {
-        core_executor::Error::RegisterUDF { .. }
-        | core_executor::Error::RegisterUDAF { .. }
-        | core_executor::Error::InvalidTableIdentifier { .. }
-        | core_executor::Error::InvalidSchemaIdentifier { .. }
-        | core_executor::Error::InvalidFilePath { .. }
-        | core_executor::Error::InvalidBucketIdentifier { .. }
-        | core_executor::Error::TableProviderNotFound { .. }
-        | core_executor::Error::MissingDataFusionSession { .. }
-        | core_executor::Error::Utf8 { .. }
-        | core_executor::Error::VolumeNotFound { .. }
-        | core_executor::Error::ObjectStore { .. }
-        | core_executor::Error::ObjectAlreadyExists { .. }
-        | core_executor::Error::UnsupportedFileFormat { .. }
-        | core_executor::Error::RefreshCatalogList { .. }
-        | core_executor::Error::UrlParse { .. }
-        | core_executor::Error::JobError { .. }
-        | core_executor::Error::OnyUseWithVariables { .. }
-        | core_executor::Error::OnlyPrimitiveStatements { .. }
-        | core_executor::Error::OnlyTableSchemaCreateStatements { .. }
-        | core_executor::Error::OnlyDropStatements { .. }
-        | core_executor::Error::OnlyDropTableViewStatements { .. }
-        | core_executor::Error::OnlyCreateTableStatements { .. }
-        | core_executor::Error::OnlyCreateStageStatements { .. }
-        | core_executor::Error::OnlyCopyIntoStatements { .. }
-        | core_executor::Error::FromObjectRequiredForCopyIntoStatements { .. }
-        | core_executor::Error::OnlyCreateSchemaStatements { .. }
-        | core_executor::Error::OnlySimpleSchemaNames { .. }
-        | core_executor::Error::OnlyMergeStatements { .. }
-        | core_executor::Error::UnsupportedShowStatement { .. }
-        | core_executor::Error::NoTableNamesForTruncateTable { .. }
-        | core_executor::Error::OnlySQLStatements { .. }
-        | core_executor::Error::MissingOrInvalidColumn { .. }
-        | core_executor::Error::UploadFailed { .. } => http::StatusCode::BAD_REQUEST,
         core_executor::Error::Arrow { .. }
         | core_executor::Error::SerdeParse { .. }
         | core_executor::Error::S3Tables { .. }
@@ -179,38 +154,12 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
         | core_executor::Error::CatalogListDowncast { .. }
         | core_executor::Error::CatalogDownCast { .. }
         | core_executor::Error::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-        core_executor::Error::DatabaseNotFound { .. }
-        | core_executor::Error::TableNotFound { .. }
-        | core_executor::Error::SchemaNotFound { .. }
-        | core_executor::Error::CatalogNotFound { .. }
-        | core_executor::Error::Metastore { .. }
-        | core_executor::Error::DataFusion { .. }
-        | core_executor::Error::DataFusionQuery { .. }
-        | core_executor::Error::UnimplementedFunction { .. }
-        | core_executor::Error::SqlParser { .. } => http::StatusCode::OK,
+        _ => http::StatusCode::OK,
     };
 
-    let message = match error {
-        core_executor::Error::DataFusion { .. }
-        | core_executor::Error::DataFusionQuery { .. }
-        | core_executor::Error::InvalidTableIdentifier { .. }
-        | core_executor::Error::InvalidSchemaIdentifier { .. }
-        | core_executor::Error::InvalidFilePath { .. }
-        | core_executor::Error::InvalidBucketIdentifier { .. }
-        | core_executor::Error::Arrow { .. }
-        | core_executor::Error::TableProviderNotFound { .. }
-        | core_executor::Error::MissingDataFusionSession { .. }
-        | core_executor::Error::Utf8 { .. }
-        | core_executor::Error::Metastore { .. }
-        | core_executor::Error::DatabaseNotFound { .. }
-        | core_executor::Error::TableNotFound { .. }
-        | core_executor::Error::SchemaNotFound { .. }
-        | core_executor::Error::VolumeNotFound { .. }
-        | core_executor::Error::ObjectStore { .. }
-        | core_executor::Error::ObjectAlreadyExists { .. }
-        | core_executor::Error::UnsupportedFileFormat { .. }
-        | core_executor::Error::RefreshCatalogList { .. } => error.to_string(),
-        _ => "Internal server error".to_string(),
+    let message = match status_code {
+        http::StatusCode::INTERNAL_SERVER_ERROR => "Internal server error".to_string(),
+        _ => error.to_string(),
     };
 
     (status_code, message)

@@ -3,6 +3,7 @@ pub mod fetch_to_limit;
 pub mod functions_rewriter;
 pub mod inline_aliases_in_query;
 pub mod json_element;
+pub mod qualify_in_query;
 pub mod select_expr_aliases;
 pub mod table_functions;
 pub mod top_limit;

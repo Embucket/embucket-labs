@@ -42,6 +42,12 @@ pub struct ErrorResponse {
 }
 
 impl IntoResponse for Error {
+    #[tracing::instrument(
+        name = "api-iceberg-rest::Error::into_response",
+        level = "info",
+        fields(status_code),
+        skip(self)
+    )]
     fn into_response(self) -> axum::response::Response {
         tracing::error!("{}", self.output_msg());
         let metastore_error = match self {
@@ -82,6 +88,9 @@ impl IntoResponse for Error {
             | core_metastore::Error::TableObjectStoreNotFound { .. }
             | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("status_code", code.as_u16());
 
         let error = ErrorResponse {
             message,
