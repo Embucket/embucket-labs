@@ -14,6 +14,7 @@ exclude-from-coverage
 statement ok
 insert into t1 values(2,'b3','c3'),(3,'b4','c4');
 
+exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
@@ -30,6 +31,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(2,'b_7','c_7');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -65,6 +67,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(4,'b_8','c_8');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -107,6 +110,7 @@ exclude-from-coverage
 statement ok
 delete from t2 where a = 1;
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -118,6 +122,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(5,'b_9','c_9');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -139,6 +144,7 @@ exclude-from-coverage
 statement ok
 insert into t1 values(2,'b_1','c_1'),(3,'b_2','c_2');
 
+exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
@@ -185,6 +191,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(5,'b_10','c_10');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -211,17 +218,19 @@ select * from t1 order by a,b,c;
 ## test star for merge into
 exclude-from-coverage
 statement ok
-truncate table t1;
+create or replace table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-truncate table t2;
+create table t2(a int,b string, c string);
 
+exclude-from-coverage
 query I
 select count(*) from t1;
 ----
 0
 
+exclude-from-coverage
 query I
 select count(*) from t2;
 ----
@@ -231,6 +240,7 @@ exclude-from-coverage
 statement ok
 insert into t1 values(1,'b1','c1'),(2,'b2','c2');
 
+exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
@@ -241,6 +251,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(1,'b3','c3'),(3,'b4','c4');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -286,12 +297,13 @@ drop table if exists target_table;
 
 exclude-from-coverage
 statement ok
-create table target_table(a int,b string,c string) cluster by(a,b);
+create table target_table(a int,b string,c string);
 
 exclude-from-coverage
 statement ok
 insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
 
+exclude-from-coverage
 query TTT
 select * from target_table order by a,b,c;
 ----
@@ -300,12 +312,13 @@ select * from target_table order by a,b,c;
 
 exclude-from-coverage
 statement ok
-create table test_stage(a int,b string,c string) cluster by(a,b);
+create table test_stage(a int,b string,c string);
 
 exclude-from-coverage
 statement ok
 insert into test_stage values(1,'a1','b1'),(2,'a2','b2'),(3,'a3','b3');
 
+exclude-from-coverage
 query TTT
 select * from test_stage order by a,b,c;
 ----
@@ -333,6 +346,7 @@ exclude-from-coverage
 statement ok
 copy into @s5_merge_into from (select a,b,c from test_stage order by a,b,c);
 
+exclude-from-coverage
 query TTT
 select $1,$2,$3 from @s5_merge_into order by $1,$2,$3;
 ----
@@ -352,8 +366,9 @@ select * from target_table order by a,b,c;
 ## test parquet
 exclude-from-coverage
 statement ok
-truncate table target_table;
+create or replace table target_table(a int,b string,c string);
 
+exclude-from-coverage
 query I
 select count(*) from target_table;
 ----
@@ -371,6 +386,7 @@ exclude-from-coverage
 statement ok
 copy into @s4_merge_into from (select a,b,c from test_stage order by a,b,c);
 
+exclude-from-coverage
 query TTT
 select a,b,c from @s4_merge_into order by a,b,c;
 ----
@@ -382,6 +398,7 @@ exclude-from-coverage
 statement ok
 insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
 
+exclude-from-coverage
 query TTT
 select * from target_table order by a,b,c;
 ----
@@ -400,17 +417,19 @@ select * from target_table order by a,b,c;
 ## NULL, it will be treated as not matched.
 exclude-from-coverage
 statement ok
-truncate table t1;
+create or replace table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-truncate table t2;
+create or replace table t2(a int,b string, c string);
 
 query I
+exclude-from-coverage
 select count(*) from t1;
 ----
 0
 
+exclude-from-coverage
 query I
 select count(*) from t2;
 ----
@@ -420,6 +439,7 @@ exclude-from-coverage
 statement ok
 insert into t1 values(NULL,'b_1','c_1');
 
+exclude-from-coverage
 query TTT
 select * from t1 order by a,b,c;
 ----
@@ -429,6 +449,7 @@ exclude-from-coverage
 statement ok
 insert into t2 values(1,'b_4','c_4'),(2,'b_2','c_2'),(NULL,'b_3','c_3');
 
+exclude-from-coverage
 query TTT
 select * from t2 order by a,b,c;
 ----
@@ -458,17 +479,19 @@ NULL b_3 c_3
 
 exclude-from-coverage
 statement ok
-truncate table t1;
+create table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-truncate table t2;
+create table t2(a int,b string, c string);
 
+exclude-from-coverage
 query I
 select count(*) from t1;
 ----
 0
 
+exclude-from-coverage
 query I
 select count(*) from t2;
 ----
@@ -497,7 +520,7 @@ drop table if exists salaries;
 
 exclude-from-coverage
 statement ok
-CREATE TABLE employees (employee_id INT, employee_name VARCHAR(255),department VARCHAR(255))  cluster by(employee_id,employee_name);
+CREATE TABLE employees (employee_id INT, employee_name VARCHAR(255),department VARCHAR(255));
 
 exclude-from-coverage
 statement ok
@@ -505,7 +528,7 @@ drop table if exists salaries;
 
 exclude-from-coverage
 statement ok
-CREATE TABLE salaries (employee_id INT,salary DECIMAL(10, 2)) cluster by(employee_id,salary);
+CREATE TABLE salaries (employee_id INT,salary DECIMAL(10, 2));
 
 exclude-from-coverage
 statement ok
@@ -541,7 +564,7 @@ drop table if exists t2_source;
 
 exclude-from-coverage
 statement ok
-create table t1_target(a int not null) cluster by(a);
+create table t1_target(a int not null);
 
 exclude-from-coverage
 statement ok
@@ -549,7 +572,7 @@ drop table if exists t2_source;
 
 exclude-from-coverage
 statement ok
-create table t2_source(a int not null) cluster by(a);
+create table t2_source(a int not null);
 
 exclude-from-coverage
 statement ok
@@ -583,7 +606,7 @@ drop table if exists cluster_source;
 
 exclude-from-coverage
 statement ok
-create table cluster_target(a int,b string,c int) cluster by(a,b);
+create table cluster_target(a int,b string,c int);
 
 exclude-from-coverage
 statement ok
@@ -625,34 +648,44 @@ select * from cluster_target;
 12 b 1
 
 ## add more tests
+exclude-from-coverage
 statement ok
 drop table if exists target_test;
 
+exclude-from-coverage
 statement ok
 drop table if exists source_test;
 
+exclude-from-coverage
 statement ok
-create table target_test(a int,b string) cluster by(a,b);
+create table target_test(a int,b string);
 
+exclude-from-coverage
 statement ok
 insert into target_test values(1,'a'),(2,'b'),(3,'c');
 
+exclude-from-coverage
 statement ok
-create table source_test(a int,b string,delete_flag bool) cluster by(a,b);
+create table source_test(a int,b string,delete_flag bool);
 
+exclude-from-coverage
 statement ok
 insert into source_test values(1,'d',true),(2,'e',true),(3,'f',false),(4,'e',true),(5,'f',false);
 
 
+exclude-from-coverage
 statement ok
 drop stage if exists source_parquet_http;
 
+exclude-from-coverage
 statement ok
 create stage source_parquet_http file_format = (type = parquet);
 
+exclude-from-coverage
 statement ok
 remove @source_parquet_http;
 
+exclude-from-coverage
 statement ok
 copy into @source_parquet_http from (select * from source_test);
 
@@ -667,15 +700,19 @@ select * from target_test order by a;
 5 f
 
 ## test not match cast and predicate index
+exclude-from-coverage
 statement ok
 drop table if exists test_order;
 
+exclude-from-coverage
 statement ok
 drop table if exists random_source;
 
+exclude-from-coverage
 statement ok
-create table test_order(id bigint, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint, s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar, d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int) CLUSTER BY(to_yyyymmdd(insert_time), id) bloom_index_columns='insert_time,id';
+create table test_order(id bigint, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint, s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar, d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int) ;
 
+exclude-from-coverage
 statement ok
 create table random_source(id bigint not null, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint,s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar,d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime not null, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int) Engine = Random;
 
@@ -683,21 +720,27 @@ statement ok
 merge into test_order as t using (select id,34 as id1,238 as id2, id3, id4, id5, id6, id7,s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,d1, d2, d3, d4, d5, d6, d7, d8, d9, d10,insert_time,insert_time1,insert_time2,insert_time3,i from random_source limit 1) as s on t.id = s.id and t.insert_time = s.insert_time when matched then update * when not matched then insert *;
 
 ## test update list #13297
+exclude-from-coverage
 statement ok
 drop table if exists t11
 
+exclude-from-coverage
 statement ok
 drop table if exists t12
 
+exclude-from-coverage
 statement ok
-create table t11(a int,b string, c string) cluster by(a,b);
+create table t11(a int,b string, c string);
 
+exclude-from-coverage
 statement ok
-create table t12(a int,b string, c string) cluster by(a,b);
+create table t12(a int,b string, c string);
 
+exclude-from-coverage
 statement ok
 insert into t11 values(1,'b1','c1'),(2,'b2','c2');
 
+exclude-from-coverage
 statement ok
 insert into t12 values(1,'b_5','c_5'),(3,'b_6','c_6');
 
@@ -712,11 +755,13 @@ merge into t11 using (select a, c from t12) as t12 on t11.a = t12.a when matched
 1065
 
 ## test issue #13287
+exclude-from-coverage
 statement ok
 drop table if exists tt1
 
+exclude-from-coverage
 statement ok
-create table tt1 (a int, b int) cluster by(a,b);
+create table tt1 (a int, b int);
 
 statement error
 merge into tt1 using(select 10, 20) as tt2 on tt1.a = 1 when not matched and tt1.b = 2 then insert values (10, 20);
@@ -732,12 +777,15 @@ select count(*) from tt1;
 0
 
 ## test issue #13367
+exclude-from-coverage
 statement ok
 drop table if exists tt2
 
+exclude-from-coverage
 statement ok
-create table tt2(a bool, b variant, c map(string, string)) cluster by(a);
+create table tt2(a bool, b variant, c map(string, string));
 
+exclude-from-coverage
 statement ok
 insert into tt2 values (true, '10', {'k1':'v1'}), (false, '20', {'k2':'v2'})
 
@@ -751,21 +799,27 @@ select a, b, c from tt2 order by b;
 1 30 {'k1':'v1'}
 
 ## add test: source is table
+exclude-from-coverage
 statement ok
 drop table if exists t1;
 
+exclude-from-coverage
 statement ok
 drop table if exists t2;
 
+exclude-from-coverage
 statement ok
-create table t1(a int) cluster by(a);
+create table t1(a int);
 
+exclude-from-coverage
 statement ok
-create table t2(a int) cluster by(a);
+create table t2(a int);
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1);
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1),(2);
 
@@ -777,21 +831,27 @@ select * from t1;
 ----
 2
 
+exclude-from-coverage
 statement ok
 drop table if exists t1;
 
+exclude-from-coverage
 statement ok
 drop table if exists t2;
 
+exclude-from-coverage
 statement ok
-create table t1(b int) cluster by(b);
+create table t1(b int);
 
+exclude-from-coverage
 statement ok
-create table t2(a int) cluster by(a);
+create table t2(a int);
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1);
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1),(2);
 
@@ -801,24 +861,31 @@ merge into t1 using t2 on t1.a = t2.a when matched then delete when not matched 
 1065
 
 ## add more multi matched statement test
+exclude-from-coverage
 statement ok
 drop table if exists t1;
 
+exclude-from-coverage
 statement ok
 drop table if exists t2;
 
+exclude-from-coverage
 statement ok
-create table t1(a int,b string,c bool) cluster by(a,b);
+create table t1(a int,b string,c bool);
 
+exclude-from-coverage
 statement ok
-create table t2(a int,b string,c bool) cluster by(a,b);
+create table t2(a int,b string,c bool);
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1,'a1',true),(2,'a2',false),(3,'a3',true);
 
+exclude-from-coverage
 statement ok
 insert into t2 values(1,'b1',true),(2,'b2',false),(3,'b3',true);
 
+exclude-from-coverage
 query TTT
 select * from t1;
 ----
@@ -826,6 +893,7 @@ select * from t1;
 2 a2 0
 3 a3 1
 
+exclude-from-coverage
 query TTT
 select * from t2;
 ----
@@ -849,6 +917,7 @@ select count(*) from t1;
 ----
 0
 
+exclude-from-coverage
 statement ok
 insert into t1 values(1,'a1',true),(2,'a2',false),(3,'a3',true);
 
@@ -862,12 +931,15 @@ select * from t1;
 3 b3 1
 
 ## issue 13454
+exclude-from-coverage
 statement ok
 drop table if exists tt1;
 
+exclude-from-coverage
 statement ok
-create table tt1(a bool, b int) cluster by(a,b);
+create table tt1(a bool, b int);
 
+exclude-from-coverage
 statement ok
 insert into tt1 values (true, 1), (false, 2);
 
@@ -880,21 +952,27 @@ select * from tt1;
 0 2
 
 ## issue #13298
+exclude-from-coverage
 statement ok
 drop table if exists t11;
 
+exclude-from-coverage
 statement ok
 drop table if exists t12;
 
+exclude-from-coverage
 statement ok
-create table t12 (a int, b int) cluster by(a,b);
+create table t12 (a int, b int);
 
+exclude-from-coverage
 statement ok
-create table t11 (a int, b int) cluster by(a,b);
+create table t11 (a int, b int);
 
+exclude-from-coverage
 statement ok
 insert into t11 values (1, 10),(2, 20),(3, 30),(4, 40);
 
+exclude-from-coverage
 statement ok
 insert into t12 values (1, 10),(2, 20),(3, 30),(4, 40);
 
@@ -907,8 +985,9 @@ select count(*) from t11;
 0
 
 ## test issue #13732
+exclude-from-coverage
 statement ok
-CREATE TABLE orders CLUSTER BY (to_yyyymmddhh(created_at), user_id) AS SELECT
+CREATE TABLE orders AS SELECT
     number % 5000 AS order_id,
     number % 10000 AS user_id,
     CASE WHEN (rand() * 10)::int % 2 = 0 THEN 'buy'
@@ -969,8 +1048,9 @@ WHEN NOT MATCHED THEN
     VALUES (source.order_id, source.user_id, source.order_type, source.asset_type, source.quantity, source.price, source.status, source.created_at, source.updated_at);
 
 ## test issue #13733
+exclude-from-coverage
 statement ok
-CREATE TABLE transactions CLUSTER BY (to_yyyymmddhh(transaction_time), user_id) AS SELECT
+CREATE TABLE transactions AS SELECT
     number % 1000000 AS transaction_id,
     number % 100000 AS user_id,
     CASE WHEN (rand() * 10)::int % 3 = 0 THEN 'deposit'
@@ -1036,9 +1116,11 @@ WHEN NOT MATCHED THEN
 1065
 
 ## issue #13810: rewrite rule test
+exclude-from-coverage
 statement ok
 DROP TABLE IF EXISTS orders;
 
+exclude-from-coverage
 statement ok
 CREATE TABLE orders (
                         order_id      INT          NOT NULL,
@@ -1086,12 +1168,15 @@ FROM orders;
 ----
 64.16764110 6.416764110000 1.97683658 19.29134884
 
+exclude-from-coverage
 statement ok
-create table tb_01 (id int,c1 varchar,c2 datetime(0),c3 json) cluster by(c1,c2);
+create table tb_01 (id int,c1 varchar,c2 datetime(0),c3 json);
 
+exclude-from-coverage
 statement ok
 create table tmp_01 like tb_01;
 
+exclude-from-coverage
 statement ok
 insert into tmp_01 values(1,'abc',to_date('2023-11-29'),parse_json('{"a":1}'));
 
@@ -1104,21 +1189,27 @@ select id,c1,to_date(c2),c3 from tb_01;
 1 abc 2023-11-29 {"a":1}
 
 ## test #issue13932
+exclude-from-coverage
 statement ok
-create table null_target(a int not null,b text) cluster by(a,b);
+create table null_target(a int not null,b text);
 
+exclude-from-coverage
 statement ok
-create table null_source(a int not null,b text) cluster by(a,b);
+create table null_source(a int not null,b text);
 
+exclude-from-coverage
 statement ok
 insert into null_target values(1,'a1');
 
+exclude-from-coverage
 statement ok
 insert into null_target values(2,'a2');
 
+exclude-from-coverage
 statement ok
 insert into null_source values(1,'a3');
 
+exclude-from-coverage
 statement ok
 insert into null_source values(3,'a4');
 
@@ -1128,6 +1219,7 @@ when not matched then insert (b) values(null_source.b);
 ----
 1006
 
+exclude-from-coverage
 statement ok
 delete from null_source where a = 3;
 
@@ -1142,9 +1234,11 @@ select * from null_target order by a,b;
 2 a2
 
 ## issue#13972
+exclude-from-coverage
 statement ok
 create table tt1_(a bool not null, b int not null, c int not null);
 
+exclude-from-coverage
 statement ok
 insert into tt1_ values(true, 10, 11),(false, 20, 21);
 
@@ -1167,39 +1261,50 @@ select * from tt1_;
 0 20 21
 
 ## issue#14474
+exclude-from-coverage
 statement ok
 create table target_tt1 (a bool not null default true, b int not null default 1);
 
+exclude-from-coverage
 statement ok
 merge into target_tt1 using(select false, 10) as tt2(a, b) on (target_tt1.b = 1) when not matched then insert (b) values (20);
 
+exclude-from-coverage
 query TT
 select * from target_tt1;
 ----
 1 20
 
 ## test multi insert clauses with specified default values
+exclude-from-coverage
 statement ok
 create table target_default_values(a int default 12,b string default 'yes');
 
+exclude-from-coverage
 statement ok
 create table source_default_values(a int default 12,b string default 'yes');
 
+exclude-from-coverage
 statement ok
 insert into target_default_values values(1,'a');
 
+exclude-from-coverage
 statement ok
 insert into target_default_values values(2,'b');
 
+exclude-from-coverage
 statement ok
 insert into source_default_values values(1,'c');
 
+exclude-from-coverage
 statement ok
 insert into source_default_values values(3,'d');
 
+exclude-from-coverage
 statement ok
 insert into source_default_values values(2,'e');
 
+exclude-from-coverage
 statement ok
 insert into source_default_values values(4,'f');
 
@@ -1217,30 +1322,39 @@ select * from target_default_values order by a,b;
 
 
 ## test update column only optimization
+exclude-from-coverage
 statement ok
 drop table if exists column_only_optimization_target;
 
+exclude-from-coverage
 statement ok
 drop table if exists column_only_optimization_source;
 
+exclude-from-coverage
 statement ok
 create table column_only_optimization_target(a int,b string);
 
+exclude-from-coverage
 statement ok
 create table column_only_optimization_source(a int,b string);
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_target values(1,'a1'),(2,'a2');
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_target values(3,'a3'),(4,'a4');
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_target values(5,'a5'),(6,'a6');
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_target values(7,'a7'),(8,'a8');
 
+exclude-from-coverage
 query TT
 select * from column_only_optimization_target order by a,b;
 ----
@@ -1253,12 +1367,15 @@ select * from column_only_optimization_target order by a,b;
 7 a7
 8 a8
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_source values(1,'b1'),(2,'b2');
 
+exclude-from-coverage
 statement ok
 insert into column_only_optimization_source values(3,'b3'),(4,'b4');
 
+exclude-from-coverage
 query TT
 select * from column_only_optimization_source order by a,b;
 ----
@@ -1284,6 +1401,7 @@ select * from column_only_optimization_target order by a,b;
 8 a8
 
 ## add more tests cases for distributed modes.
+exclude-from-coverage
 statement ok
 CREATE TABLE IF NOT EXISTS lineitem_target_origin_200_blocks1 (
     l_orderkey BIGINT not null,
@@ -1302,8 +1420,9 @@ CREATE TABLE IF NOT EXISTS lineitem_target_origin_200_blocks1 (
     l_shipinstruct STRING not null,
     l_shipmode STRING not null,
     l_comment STRING not null
-) CLUSTER BY(l_shipdate, l_orderkey);
+);
 
+exclude-from-coverage
 statement ok
 CREATE TABLE IF NOT EXISTS lineitem_target_origin_400_blocks1 (
     l_orderkey BIGINT not null,
@@ -1322,8 +1441,9 @@ CREATE TABLE IF NOT EXISTS lineitem_target_origin_400_blocks1 (
     l_shipinstruct STRING not null,
     l_shipmode STRING not null,
     l_comment STRING not null
-) CLUSTER BY(l_shipdate, l_orderkey);
+);
 
+exclude-from-coverage
 statement ok
 CREATE TABLE IF NOT EXISTS lineitem_random(
     l_orderkey BIGINT not null,
@@ -1345,46 +1465,59 @@ CREATE TABLE IF NOT EXISTS lineitem_random(
 ) engine = random;
 
 ## add 4w rows
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 query T
 select count(*) from lineitem_target_origin_400_blocks1;
 ----
 40000
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_200_blocks1 select * from lineitem_target_origin_400_blocks1;
 
+exclude-from-coverage
 query T
 select count(*) from lineitem_target_origin_200_blocks1;
 ----
 40000
 
+exclude-from-coverage
 statement ok
 insert into lineitem_target_origin_400_blocks1 select * from lineitem_random limit 5000;
 
+exclude-from-coverage
 query T
 select count(*) from lineitem_target_origin_400_blocks1;
 ----
