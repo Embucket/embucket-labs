@@ -181,13 +181,15 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                     })?
                 };
 
-                // Commit transaction on Iceberg table
-                table
-                    .new_transaction(branch.as_deref())
-                    .overwrite(datafiles, matching_files)
-                    .commit()
-                    .await
-                    .map_err(DataFusionIcebergError::from)?;
+                if !datafiles.is_empty() && !matching_files.is_empty() {
+                    // Commit transaction on Iceberg table
+                    table
+                        .new_transaction(branch.as_deref())
+                        .overwrite(datafiles, matching_files)
+                        .commit()
+                        .await
+                        .map_err(DataFusionIcebergError::from)?;
+                }
 
                 Ok(RecordBatch::new_empty(schema))
             }
