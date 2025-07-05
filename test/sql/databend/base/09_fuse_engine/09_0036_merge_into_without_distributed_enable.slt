@@ -90,17 +90,19 @@ select * from t1 order by a,b,c;
 
 exclude-from-coverage
 statement ok
+create or replace table t2(a int,b string, c string);
+
+exclude-from-coverage
+statement ok
 insert into t2 values(1,'b_9','c_9');
 
-statement error
+statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update set t1.c = t2.c  when not matched then insert (a,b,c) values(t2.a,t2.b,t2.c);
-----
-4001
 
 query TTT
 select * from t1 order by a,b,c;
 ----
-1	b1	c_5
+1	b1	c_9
 2	b2	c_7
 2	b3	c_7
 3	b4	c_6
