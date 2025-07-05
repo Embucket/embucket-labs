@@ -793,6 +793,24 @@ class SQLLogicContext:
     def get_connection(self, name: Optional[str] = None) -> SnowflakeConnection:
         return self.pool.get_connection(name)
 
+    def get_embucket_diagnostic_error(self, query_id):
+        diagnostic_error = ''
+        if self.runner.is_embucket():
+            query_result = self.runner.get_embucket_query_result(query_id)
+            if query_result:
+                diagnostic_error = query_result.json()['diagnosticError']
+        return diagnostic_error
+
+    def save_error_stats(self, conn, query_id, sql_query, error_message):
+        if query_id is None:
+            query_id = self.runner.get_last_query_id(conn)
+        diagnostic_error = self.get_embucket_diagnostic_error(query_id)
+        self.runner.errors_stats.add_stats_row(
+            self.runner.test.path,
+            sql_query,
+            error_message,
+            diagnostic_error,
+        )
 
     def execute_query(self, query: Query):
         assert isinstance(query, Query)
@@ -803,6 +821,7 @@ class SQLLogicContext:
         expected_result = query.expected_result
         assert expected_result.type == ExpectedResult.Type.SUCCESS
 
+        query_id = None
         try:
             def get_query_result(rel, results) -> QueryResult:
                 """Convert result value to str and use this instead of original result, return QueryResult """
@@ -821,14 +840,22 @@ class SQLLogicContext:
 
             logger.debug(f"query_result {query_result.error} : {query_result.types}, {query_result._result}")
 
+            if query_result.error:
+                query_id = self.runner.get_last_query_id(conn)
+                self.save_error_stats(conn, query_id, sql_query, str(query_result.error))
+
             if expected_result.lines == None:
                 return
         except TestException as te:
+            query_id = self.runner.get_last_query_id(conn)
+            self.save_error_stats(conn, query_id, sql_query, str(te))
             logger.debug(te.message)
             if not query_result:
                 query_result = QueryResult([], [], te)
             raise te
         except Exception as e:
+            query_id = self.runner.get_last_query_id(conn)
+            self.save_error_stats(conn, query_id, sql_query, str(e))
             logger.debug(e)
             query_result = QueryResult([], [], e)
 
@@ -913,13 +940,15 @@ class SQLLogicContext:
         expected_result = statement.expected_result
         test_logger = SQLLogicTestLogger(self, statement, self.runner.test.path)
 
+        query_id = None
         try:
             conn.execute(sql_query, _no_retry=True)
 
             # TODO refactor: encapsulate logic, check if embucket_enabled: False
             # storing executed statements
             if self.runner.benchmark_mode:
-                self.runner.capture_query_id(conn)
+                # append query_id to executed_query_ids
+                query_id = self.runner.capture_query_id(conn)
 
             if expected_result.type != ExpectedResult.Type.UNKNOWN:
                 if statement.header.parameters[0] == 'ok' and \
@@ -927,6 +956,8 @@ class SQLLogicContext:
                         self.fail("'statement ok' doesn't expect results section: '----'")
                 assert expected_result.lines == None
         except Exception as e:
+            self.save_error_stats(conn, query_id, sql_query, str(e))
+
             if expected_result.type == ExpectedResult.Type.SUCCESS:
                 error_msg = test_logger.unexpected_failure(e)
                 self.fail(error_msg)
