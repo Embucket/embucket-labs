@@ -7,6 +7,9 @@ license-file.workspace = true
 [dependencies]
 api-sessions = { path = "../api-sessions" }
 core-executor = { path = "../core-executor" }
+core-metastore = { path = "../core-metastore" }
+core-history = { path = "../core-history" }
+core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
@@ -18,10 +21,15 @@ datafusion = { workspace = true }
 snafu = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+time = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 strum = { workspace = true }
-tokio = "1.45.1"
+tokio = { workspace = true }
+tower-sessions = { workspace = true }
+
+[dev-dependencies]
+reqwest = "0.12.14"
 
 [lints]
 workspace = true
