@@ -27,18 +27,15 @@ pub async fn require_auth(
         return api_snowflake_rest_error::MissingAuthTokenSnafu.fail();
     };
 
-    {
-        // Step 1: Get the RwLock from the Execution Service
-        let sessions = state.execution_svc.get_sessions().await; // `get_sessions` returns an RwLock
+    let sessions = state.execution_svc.get_sessions().await; // `get_sessions` returns an RwLock
 
-        // Step 2: Acquire the read lock on the session data
-        let sessions = sessions.read().await;
+    let sessions = sessions.read().await;
 
-        // Step 3: Check if the token is in the session data
-        if !sessions.contains_key(&token) {
-            return api_snowflake_rest_error::InvalidAuthTokenSnafu.fail();
-        }
+    if !sessions.contains_key(&token) {
+        return api_snowflake_rest_error::InvalidAuthTokenSnafu.fail();
     }
+    //Dropping the lock guard before going to the next request
+    drop(sessions);
 
     Ok(next.run(req).await)
 }
