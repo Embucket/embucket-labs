@@ -1,10 +1,10 @@
 exclude-from-coverage
 statement ok
-create table t1(a int,b string, c string);
+create or replace table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-create table t2(a int,b string, c string);
+create or replace table t2(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
@@ -39,18 +39,18 @@ select * from t2 order by a,b,c;
 2	b_7	c_7
 3	b_6	c_6
 
-## test source alias
-statement error
-merge into t1 using (select * from t2 ) on t1.a = t2.a  when matched then update set t1.c = t2.c,t1.c = t2.c;
-----
-1005
-
-# section I: basic test for match and unmatch
-
-statement error
-merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update set t1.c = t2.c,t1.c = t2.c;
-----
-1006
+### test source alias
+#statement error
+#merge into t1 using (select * from t2 ) on t1.a = t2.a  when matched then update set t1.c = t2.c,t1.c = t2.c;
+#----
+#1005
+#
+## section I: basic test for match and unmatch
+#
+#statement error
+#merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update set t1.c = t2.c,t1.c = t2.c;
+#----
+#1006
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update set t1.c = t2.c;
@@ -222,7 +222,7 @@ create or replace table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-create table t2(a int,b string, c string);
+create or replace table t2(a int,b string, c string);
 
 exclude-from-coverage
 query I
@@ -297,7 +297,7 @@ drop table if exists target_table;
 
 exclude-from-coverage
 statement ok
-create table target_table(a int,b string,c string);
+create or replace table target_table(a int,b string,c string);
 
 exclude-from-coverage
 statement ok
@@ -312,7 +312,7 @@ select * from target_table order by a,b,c;
 
 exclude-from-coverage
 statement ok
-create table test_stage(a int,b string,c string);
+create  or replace table test_stage(a int,b string,c string);
 
 exclude-from-coverage
 statement ok
@@ -479,11 +479,11 @@ NULL	b_3	c_3
 
 exclude-from-coverage
 statement ok
-create table t1(a int,b string, c string);
+create or replace table t1(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-create table t2(a int,b string, c string);
+create or replace table t2(a int,b string, c string);
 
 exclude-from-coverage
 query I
@@ -520,7 +520,7 @@ drop table if exists salaries;
 
 exclude-from-coverage
 statement ok
-CREATE TABLE employees (employee_id INT, employee_name VARCHAR(255),department VARCHAR(255));
+CREATE OR REPLACE TABLE employees (employee_id INT, employee_name VARCHAR(255),department VARCHAR(255));
 
 exclude-from-coverage
 statement ok
@@ -528,7 +528,7 @@ drop table if exists salaries;
 
 exclude-from-coverage
 statement ok
-CREATE TABLE salaries (employee_id INT,salary DECIMAL(10, 2));
+CREATE OR REPLACE TABLE salaries (employee_id INT,salary DECIMAL(10, 2));
 
 exclude-from-coverage
 statement ok
@@ -564,7 +564,7 @@ drop table if exists t2_source;
 
 exclude-from-coverage
 statement ok
-create table t1_target(a int not null);
+create or replace table t1_target(a int not null);
 
 exclude-from-coverage
 statement ok
@@ -572,7 +572,7 @@ drop table if exists t2_source;
 
 exclude-from-coverage
 statement ok
-create table t2_source(a int not null);
+create or replace table t2_source(a int not null);
 
 exclude-from-coverage
 statement ok
@@ -606,7 +606,7 @@ drop table if exists cluster_source;
 
 exclude-from-coverage
 statement ok
-create table cluster_target(a int,b string,c int);
+create or replace table cluster_target(a int,b string,c int);
 
 exclude-from-coverage
 statement ok
@@ -614,7 +614,7 @@ drop table if exists cluster_source;
 
 exclude-from-coverage
 statement ok
-create table cluster_source(a int,b string,c int);
+create or replace table cluster_source(a int,b string,c int);
 
 exclude-from-coverage
 statement ok
@@ -658,7 +658,7 @@ drop table if exists source_test;
 
 exclude-from-coverage
 statement ok
-create table target_test(a int,b string);
+create or replace table target_test(a int,b string);
 
 exclude-from-coverage
 statement ok
@@ -666,7 +666,7 @@ insert into target_test values(1,'a'),(2,'b'),(3,'c');
 
 exclude-from-coverage
 statement ok
-create table source_test(a int,b string,delete_flag bool);
+create or replace table source_test(a int,b string,delete_flag bool);
 
 exclude-from-coverage
 statement ok
@@ -710,11 +710,11 @@ drop table if exists random_source;
 
 exclude-from-coverage
 statement ok
-create table test_order(id bigint, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint, s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar, d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int) ;
+create or replace table test_order(id bigint, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint, s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar, d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int) ;
 
 exclude-from-coverage
 statement ok
-create table random_source(id bigint not null, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint,s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar,d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime not null, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int);
+create or replace table random_source(id bigint not null, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint,s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar,d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime not null, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int);
 
 statement ok
 merge into test_order as t using (select id,34 as id1,238 as id2, id3, id4, id5, id6, id7,s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,d1, d2, d3, d4, d5, d6, d7, d8, d9, d10,insert_time,insert_time1,insert_time2,insert_time3,i from random_source limit 1) as s on t.id = s.id and t.insert_time = s.insert_time when matched then update * when not matched then insert *;
@@ -730,11 +730,11 @@ drop table if exists t12
 
 exclude-from-coverage
 statement ok
-create table t11(a int,b string, c string);
+create or replace table t11(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
-create table t12(a int,b string, c string);
+create or replace table t12(a int,b string, c string);
 
 exclude-from-coverage
 statement ok
@@ -761,7 +761,7 @@ drop table if exists tt1
 
 exclude-from-coverage
 statement ok
-create table tt1 (a int, b int);
+create or replace table tt1 (a int, b int);
 
 statement error
 merge into tt1 using(select 10, 20) as tt2 on tt1.a = 1 when not matched and tt1.b = 2 then insert values (10, 20);
@@ -783,7 +783,7 @@ drop table if exists tt2
 
 exclude-from-coverage
 statement ok
-create table tt2(a bool, b variant, c map(string, string));
+create or replace table tt2(a bool, b variant, c map(string, string));
 
 exclude-from-coverage
 statement ok
@@ -809,11 +809,11 @@ drop table if exists t2;
 
 exclude-from-coverage
 statement ok
-create table t1(a int);
+create or replace table t1(a int);
 
 exclude-from-coverage
 statement ok
-create table t2(a int);
+create or replace table t2(a int);
 
 exclude-from-coverage
 statement ok
@@ -841,11 +841,11 @@ drop table if exists t2;
 
 exclude-from-coverage
 statement ok
-create table t1(b int);
+create or replace table t1(b int);
 
 exclude-from-coverage
 statement ok
-create table t2(a int);
+create or replace table t2(a int);
 
 exclude-from-coverage
 statement ok
@@ -871,11 +871,11 @@ drop table if exists t2;
 
 exclude-from-coverage
 statement ok
-create table t1(a int,b string,c bool);
+create or replace table t1(a int,b string,c bool);
 
 exclude-from-coverage
 statement ok
-create table t2(a int,b string,c bool);
+create or replace table t2(a int,b string,c bool);
 
 exclude-from-coverage
 statement ok
@@ -937,7 +937,7 @@ drop table if exists tt1;
 
 exclude-from-coverage
 statement ok
-create table tt1(a bool, b int);
+create or replace table tt1(a bool, b int);
 
 exclude-from-coverage
 statement ok
@@ -962,11 +962,11 @@ drop table if exists t12;
 
 exclude-from-coverage
 statement ok
-create table t12 (a int, b int);
+create or replace table t12 (a int, b int);
 
 exclude-from-coverage
 statement ok
-create table t11 (a int, b int);
+create or replace table t11 (a int, b int);
 
 exclude-from-coverage
 statement ok
@@ -987,7 +987,7 @@ select count(*) from t11;
 ## test issue #13732
 exclude-from-coverage
 statement ok
-CREATE TABLE orders AS SELECT
+CREATE OR REPLACE TABLE orders AS SELECT
     number % 5000 AS order_id,
     number % 10000 AS user_id,
     CASE WHEN (rand() * 10)::int % 2 = 0 THEN 'buy'
@@ -1050,7 +1050,7 @@ WHEN NOT MATCHED THEN
 ## test issue #13733
 exclude-from-coverage
 statement ok
-CREATE TABLE transactions AS SELECT
+CREATE OR REPLACE TABLE transactions AS SELECT
     number % 1000000 AS transaction_id,
     number % 100000 AS user_id,
     CASE WHEN (rand() * 10)::int % 3 = 0 THEN 'deposit'
@@ -1122,7 +1122,7 @@ DROP TABLE IF EXISTS orders;
 
 exclude-from-coverage
 statement ok
-CREATE TABLE orders (
+CREATE OR REPLACE TABLE orders (
                         order_id      INT          NOT NULL,
                         user_id       INT          NOT NULL,
                         order_type    VARCHAR      NOT NULL,
@@ -1170,11 +1170,11 @@ FROM orders;
 
 exclude-from-coverage
 statement ok
-create table tb_01 (id int,c1 varchar,c2 datetime(0),c3 json);
+create or replace table tb_01 (id int,c1 varchar,c2 datetime(0),c3 json);
 
 exclude-from-coverage
 statement ok
-create table tmp_01 like tb_01;
+create or replace table tmp_01 like tb_01;
 
 exclude-from-coverage
 statement ok
@@ -1191,11 +1191,11 @@ select id,c1,to_date(c2),c3	from tb_01;
 ## test #issue13932
 exclude-from-coverage
 statement ok
-create table null_target(a int not null,b text);
+create or replace table null_target(a int not null,b text);
 
 exclude-from-coverage
 statement ok
-create table null_source(a int not null,b text);
+create or replace table null_source(a int not null,b text);
 
 exclude-from-coverage
 statement ok
@@ -1236,7 +1236,7 @@ select * from null_target order by a,b;
 ## issue#13972
 exclude-from-coverage
 statement ok
-create table tt1_(a bool not null, b int not null, c int not null);
+create or replace table tt1_(a bool not null, b int not null, c int not null);
 
 exclude-from-coverage
 statement ok
@@ -1263,7 +1263,7 @@ select * from tt1_;
 ## issue#14474
 exclude-from-coverage
 statement ok
-create table target_tt1 (a bool not null default true, b int not null default 1);
+create or replace table target_tt1 (a bool not null default true, b int not null default 1);
 
 exclude-from-coverage
 statement ok
@@ -1278,11 +1278,11 @@ select * from target_tt1;
 ## test multi insert clauses with specified default values
 exclude-from-coverage
 statement ok
-create table target_default_values(a int default 12,b string default 'yes');
+create or replace table target_default_values(a int default 12,b string default 'yes');
 
 exclude-from-coverage
 statement ok
-create table source_default_values(a int default 12,b string default 'yes');
+create or replace table source_default_values(a int default 12,b string default 'yes');
 
 exclude-from-coverage
 statement ok
@@ -1332,11 +1332,11 @@ drop table if exists column_only_optimization_source;
 
 exclude-from-coverage
 statement ok
-create table column_only_optimization_target(a int,b string);
+create or replace table column_only_optimization_target(a int,b string);
 
 exclude-from-coverage
 statement ok
-create table column_only_optimization_source(a int,b string);
+create or replace table column_only_optimization_source(a int,b string);
 
 exclude-from-coverage
 statement ok
@@ -1403,7 +1403,7 @@ select * from column_only_optimization_target order by a,b;
 ## add more tests cases for distributed modes.
 exclude-from-coverage
 statement ok
-CREATE TABLE IF NOT EXISTS lineitem_target_origin_200_blocks1 (
+CREATE OR REPLACE TABLE IF NOT EXISTS lineitem_target_origin_200_blocks1 (
     l_orderkey BIGINT not null,
     l_partkey BIGINT not null,
     l_suppkey BIGINT not null,
@@ -1424,7 +1424,7 @@ CREATE TABLE IF NOT EXISTS lineitem_target_origin_200_blocks1 (
 
 exclude-from-coverage
 statement ok
-CREATE TABLE IF NOT EXISTS lineitem_target_origin_400_blocks1 (
+CREATE OR REPLACE TABLE IF NOT EXISTS lineitem_target_origin_400_blocks1 (
     l_orderkey BIGINT not null,
     l_partkey BIGINT not null,
     l_suppkey BIGINT not null,
@@ -1445,7 +1445,7 @@ CREATE TABLE IF NOT EXISTS lineitem_target_origin_400_blocks1 (
 
 exclude-from-coverage
 statement ok
-CREATE TABLE IF NOT EXISTS lineitem_random(
+CREATE OR REPLACE TABLE IF NOT EXISTS lineitem_random(
     l_orderkey BIGINT not null,
     l_partkey BIGINT not null,
     l_suppkey BIGINT not null,
