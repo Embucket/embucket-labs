@@ -4,7 +4,7 @@ use datafusion::{
         compute::{
             filter, filter_record_batch,
             kernels::cmp::{distinct, eq},
-            or,
+            or, or_kleene,
         },
         datatypes::Schema,
     },
@@ -416,7 +416,7 @@ impl Stream for MergeCOWFilterStream {
                 if matching_data_and_manifest_files.is_empty() {
                     Poll::Pending
                 } else {
-                    let predicate = matching_data_files
+                    let file_predicate = matching_data_files
                         .iter()
                         .try_fold(None::<BooleanArray>, |acc, x| {
                             let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
@@ -432,6 +432,11 @@ impl Stream for MergeCOWFilterStream {
                                 error::MissingFilterPredicatesSnafu {}.build().to_string(),
                             )
                         })?;
+
+                    let predicate = or_kleene(
+                        &file_predicate,
+                        &downcast_array::<BooleanArray>(&source_exists),
+                    )?;
 
                     project
                         .matching_files
