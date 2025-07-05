@@ -1,5 +1,5 @@
 use datafusion::logical_expr::sqlparser::ast::{DataType, ObjectNamePart};
-use datafusion::sql::sqlparser::ast::Expr;
+use datafusion::sql::sqlparser::ast::{Expr, TimezoneInfo};
 use datafusion_expr::sqlparser::ast::JsonPathElem;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
@@ -15,47 +15,22 @@ impl VisitorMut for TimestampVisitor {
     type Break = ();
 
     fn post_visit_expr(&mut self, expr: &mut ASTExpr) -> ControlFlow<Self::Break> {
+        dbg!(&expr);
         *expr = match expr.clone() {
             ASTExpr::Cast {
                 expr: cast_expr,
                 data_type,
                 ..
             } => match data_type {
-                DataType::Timestamp(_, _) => ASTExpr::Function(Function {
-                    name: ObjectName::from(vec![Ident::new("to_timestamp")]),
-                    uses_odbc_syntax: false,
-                    parameters: FunctionArguments::None,
-                    args: FunctionArguments::List(FunctionArgumentList {
-                        duplicate_treatment: None,
-                        args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(*cast_expr))],
-                        clauses: vec![],
-                    }),
-                    filter: None,
-                    null_treatment: None,
-                    over: None,
-                    within_group: vec![],
-                }),
+                DataType::Timestamp(_, TimezoneInfo::None) => {
+                    func("to_timestamp".to_string(), *cast_expr)
+                }
                 DataType::Custom(ObjectName(v), ..) => match &v[0] {
                     ObjectNamePart::Identifier(ident) => {
                         let name = ident.value.to_ascii_lowercase();
                         match name.as_str() {
                             "timestamp_tz" | "timestamp_ntz" | "timestamp_ltz" => {
-                                ASTExpr::Function(Function {
-                                    name: ObjectName::from(vec![Ident::new(format!("to_{name}"))]),
-                                    uses_odbc_syntax: false,
-                                    parameters: FunctionArguments::None,
-                                    args: FunctionArguments::List(FunctionArgumentList {
-                                        duplicate_treatment: None,
-                                        args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(
-                                            *cast_expr,
-                                        ))],
-                                        clauses: vec![],
-                                    }),
-                                    filter: None,
-                                    null_treatment: None,
-                                    over: None,
-                                    within_group: vec![],
-                                })
+                                func(format!("to_{name}"), *cast_expr)
                             }
                             _ => expr.clone(),
                         }
@@ -68,6 +43,23 @@ impl VisitorMut for TimestampVisitor {
 
         ControlFlow::Continue(())
     }
+}
+
+fn func(name: String, arg: ASTExpr) -> ASTExpr {
+    ASTExpr::Function(Function {
+        name: ObjectName::from(vec![Ident::new(name)]),
+        uses_odbc_syntax: false,
+        parameters: FunctionArguments::None,
+        args: FunctionArguments::List(FunctionArgumentList {
+            duplicate_treatment: None,
+            args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(arg))],
+            clauses: vec![],
+        }),
+        filter: None,
+        null_treatment: None,
+        over: None,
+        within_group: vec![],
+    })
 }
 
 pub fn visit(stmt: &mut Statement) {

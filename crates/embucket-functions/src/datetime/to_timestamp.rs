@@ -5,6 +5,7 @@ use datafusion::arrow::array::{
     TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Array, UInt64Array,
 };
 use datafusion::arrow::compute::kernels;
+use datafusion::arrow::compute::kernels::cast_utils::string_to_timestamp_nanos;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
@@ -15,6 +16,7 @@ use datafusion_common::arrow::array::{
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::types::logical_string;
 use datafusion_common::{ScalarValue, exec_err, internal_err, plan_err};
+
 use datafusion_expr::{
     ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
@@ -126,8 +128,11 @@ macro_rules! build_from_int_string {
                             b.append_value(i);
                         }
                     } else {
-                        let v = NaiveDateTime::parse_from_str(s, &format).unwrap();
-                        let t = v.and_utc().timestamp_nanos_opt().unwrap();
+                        let t = match NaiveDateTime::parse_from_str(s, &format) {
+                            Ok(v) => v.and_utc().timestamp_nanos_opt().unwrap(),
+                            Err(_) => string_to_timestamp_nanos(s)?,
+                        };
+
                         b.append_value(t);
                     }
                 }
@@ -225,7 +230,34 @@ impl ScalarUDFImpl for ToTimestampFunc {
                         return plan_err!("invalid scale");
                     };
                 }
-            }
+            } else if let Some(ScalarValue::TimestampSecond(_, Some(tz))) = args.scalar_arguments[0]
+            {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    TimeUnit::Second,
+                    Some(tz.to_owned()),
+                )));
+            } else if let Some(ScalarValue::TimestampMillisecond(_, Some(tz))) =
+                args.scalar_arguments[0]
+            {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    TimeUnit::Millisecond,
+                    Some(tz.to_owned()),
+                )));
+            } else if let Some(ScalarValue::TimestampMicrosecond(_, Some(tz))) =
+                args.scalar_arguments[0]
+            {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    TimeUnit::Microsecond,
+                    Some(tz.to_owned()),
+                )));
+            } else if let Some(ScalarValue::TimestampNanosecond(_, Some(tz))) =
+                args.scalar_arguments[0]
+            {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    TimeUnit::Nanosecond,
+                    Some(tz.to_owned()),
+                )));
+            };
         }
 
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
@@ -379,7 +411,26 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     ColumnarValue::Array(Arc::new(arr))
                 }
             }
-            DataType::Date32 | DataType::Date64 | DataType::Timestamp(_, _) => {
+            DataType::Timestamp(_, tz) => {
+                let tz = if let Some(tz) = tz {
+                    Some(tz.clone())
+                } else {
+                    self.timezone.clone()
+                };
+
+                let arr = kernels::cast::cast_with_options(
+                    &arr,
+                    &DataType::Timestamp(TimeUnit::Nanosecond, tz),
+                    &DEFAULT_CAST_OPTIONS,
+                )?;
+
+                if arr.len() == 1 {
+                    ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+                } else {
+                    ColumnarValue::Array(Arc::new(arr))
+                }
+            }
+            DataType::Date32 | DataType::Date64 => {
                 let arr = kernels::cast::cast_with_options(
                     &arr,
                     &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
@@ -442,10 +493,10 @@ pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
 
     chrono_format = chrono_format.replace("ss", "%S");
 
-    chrono_format = chrono_format.replace("ff9", "%.9f");
-    chrono_format = chrono_format.replace("ff6", "%.6f");
-    chrono_format = chrono_format.replace("ff3", "%.3f");
-    chrono_format = chrono_format.replace("ff", "%.f");
+    chrono_format = chrono_format.replace(".ff9", "%.9f");
+    chrono_format = chrono_format.replace(".ff6", "%.6f");
+    chrono_format = chrono_format.replace(".ff3", "%.3f");
+    chrono_format = chrono_format.replace(".ff", "%.f");
 
     chrono_format = chrono_format.replace("tzh:tzm", "%z");
     chrono_format = chrono_format.replace("tzhtzm", "%Z");
@@ -614,6 +665,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_different_formats() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
+        )));
+
+        let sql = "SELECT to_timestamp('2021-03-02 15:55:18.539000') as a, to_timestamp('2020-09-08T13:42:29.190855+00:00') as b";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-------------------------+----------------------------+",
+                "| a                       | b                          |",
+                "+-------------------------+----------------------------+",
+                "| 2021-03-02T15:55:18.539 | 2020-09-08T13:42:29.190855 |",
+                "+-------------------------+----------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+    #[tokio::test]
     async fn test_str_format() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
@@ -724,6 +799,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_parse_timezone() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "to_timestamp".to_string(),
+        )));
+
+        let sql = r#"SELECT
+       TO_TIMESTAMP_TZ('2025-07-04T21:16:30+02:00')"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------------+",
+                "| a                         |",
+                "+---------------------------+",
+                "| 2001-09-08T18:46:40-07:00 |",
+                "+---------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_different_names() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
@@ -795,7 +897,12 @@ mod tests {
             "to_timestamp_ltz".to_string(),
         )));
 
-        let sql = r#"SELECT 1000000000::TIMESTAMP as a, 1000000000::TIMESTAMP_NTZ as b, 1000000000::TIMESTAMP_TZ as c, 1000000000::TIMESTAMP_LTZ as d"#;
+        let sql = "SELECT
+        1000000000::TIMESTAMP as a,
+        1000000000::TIMESTAMP_NTZ as b,
+        1000000000::TIMESTAMP_TZ as c,
+        1000000000::TIMESTAMP_LTZ as d,
+         '2025-07-04 19:16:30+02:00'::TIMESTAMP_TZ as e";
         let mut statement = ctx.state().sql_to_statement(sql, "snowflake")?;
         if let Statement::Statement(ref mut stmt) = statement {
             timestamp::visit(stmt);
