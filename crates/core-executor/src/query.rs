@@ -1113,7 +1113,7 @@ impl UserQuery {
             .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
 
         let merge_clause_projection =
-            merge_clause_projection(&sql_planner, &target_schema, &source_schema, clauses)?;
+            merge_clause_projection(&sql_planner, &schema, &target_schema, clauses)?;
 
         let join_plan = LogicalPlanBuilder::new(target_plan)
             .join_on(source_plan, JoinType::Full, [on_expr; 1])
@@ -2088,8 +2088,8 @@ fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
 /// Vector of expressions for each column in the target schema
 pub fn merge_clause_projection<S: ContextProvider>(
     sql_planner: &ExtendedSqlToRel<'_, S>,
+    schema: &DFSchema,
     target_schema: &DFSchema,
-    source_schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
 ) -> Result<Vec<logical_expr::Expr>> {
     let mut updates: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
@@ -2111,6 +2111,15 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
             }
         }?;
+        let op = if let Some(predicate) = merge_clause.predicate {
+            let predicate = sql_planner
+                .as_ref()
+                .sql_to_expr(predicate, schema, &mut planner_context)
+                .context(ex_error::DataFusionSnafu)?;
+            and(op, predicate)
+        } else {
+            op
+        };
         match merge_clause.action {
             MergeAction::Update { assignments } => {
                 for assignment in assignments {
@@ -2128,7 +2137,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                                 .to_string();
                             let expr = sql_planner
                                 .as_ref()
-                                .sql_to_expr(assignment.value, source_schema, &mut planner_context)
+                                .sql_to_expr(assignment.value, schema, &mut planner_context)
                                 .context(ex_error::DataFusionSnafu)?;
                             updates.insert(column_name, (op.clone(), expr));
                         }
@@ -2154,7 +2163,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                     let column_name = column.value.clone();
                     let expr = sql_planner
                         .as_ref()
-                        .sql_to_expr(value, source_schema, &mut planner_context)
+                        .sql_to_expr(value, schema, &mut planner_context)
                         .context(ex_error::DataFusionSnafu)?;
                     inserts.insert(column_name, (op.clone(), expr));
                 }

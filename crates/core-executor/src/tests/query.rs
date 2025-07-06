@@ -712,6 +712,18 @@ test_query!(
     ]
 );
 
+test_query!(
+    merge_into_with_predicate,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED AND merge_target.id = 1 THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
+    ]
+);
+
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(
