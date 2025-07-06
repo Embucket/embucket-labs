@@ -46,6 +46,7 @@ use datafusion_common::{
     DFSchema, DataFusionError, ResolvedTableReference, SchemaReference, TableReference,
     plan_datafusion_err,
 };
+use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
@@ -2092,8 +2093,10 @@ pub fn merge_clause_projection<S: ContextProvider>(
     target_schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
 ) -> Result<Vec<logical_expr::Expr>> {
-    let mut updates: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
-    let mut inserts: HashMap<String, (logical_expr::Expr, logical_expr::Expr)> = HashMap::new();
+    let mut updates: HashMap<String, Vec<(logical_expr::Expr, logical_expr::Expr)>> =
+        HashMap::new();
+    let mut inserts: HashMap<String, Vec<(logical_expr::Expr, logical_expr::Expr)>> =
+        HashMap::new();
 
     let mut planner_context = datafusion::sql::planner::PlannerContext::new();
 
@@ -2127,7 +2130,10 @@ pub fn merge_clause_projection<S: ContextProvider>(
                                 .as_ref()
                                 .sql_to_expr(assignment.value, schema, &mut planner_context)
                                 .context(ex_error::DataFusionSnafu)?;
-                            updates.insert(column_name, (op.clone(), expr));
+                            updates
+                                .entry(column_name)
+                                .and_modify(|x| x.push((op.clone(), expr.clone())))
+                                .or_insert_with(|| vec![(op.clone(), expr)]);
                         }
                         AssignmentTarget::Tuple(_) => todo!(),
                     }
@@ -2153,12 +2159,37 @@ pub fn merge_clause_projection<S: ContextProvider>(
                         .as_ref()
                         .sql_to_expr(value, schema, &mut planner_context)
                         .context(ex_error::DataFusionSnafu)?;
-                    inserts.insert(column_name, (op.clone(), expr));
+                    inserts
+                        .entry(column_name)
+                        .and_modify(|x| x.push((op.clone(), expr.clone())))
+                        .or_insert_with(|| vec![(op.clone(), expr)]);
                 }
             }
             MergeAction::Delete => (),
         }
     }
+    let exprs = collect_merge_clause_expressions(target_schema, updates, inserts)?;
+    Ok(exprs)
+}
+
+/// Builds projection expressions for MERGE statement by combining UPDATE and INSERT operations.
+///
+/// This function creates a CASE expression for each column in the target schema that handles
+/// both UPDATE and INSERT operations from MERGE clauses. For each column, it builds a conditional
+/// expression that applies the appropriate transformation based on the merge operation type.
+///
+/// # Arguments
+/// * `target_schema` - Schema of the target table
+/// * `updates` - Map of column names to their UPDATE expressions with conditions
+/// * `inserts` - Map of column names to their INSERT expressions with conditions
+///
+/// # Returns
+/// Vector of expressions for each column, plus the SOURCE_EXISTS_COLUMN for tracking
+fn collect_merge_clause_expressions(
+    target_schema: &DFSchema,
+    mut updates: HashMap<String, Vec<(DFExpr, DFExpr)>>,
+    mut inserts: HashMap<String, Vec<(DFExpr, DFExpr)>>,
+) -> Result<Vec<DFExpr>> {
     let mut exprs: Vec<datafusion_expr::Expr> = target_schema
         .iter()
         .map(|(table_reference, field)| {
@@ -2166,21 +2197,46 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 .map(|x| x.to_string() + ".")
                 .unwrap_or_default()
                 + field.name();
-            let update = updates.remove(field.name());
+            let updates = updates.remove(field.name());
             let insert = inserts.remove(field.name());
 
             // If there is no update or insert, do nothing
-            if update.is_none() && insert.is_none() {
+            if updates.is_none() && insert.is_none() {
                 return Ok(col(name));
             }
 
-            let case_expr = match (update, insert) {
-                (Some((update_when, update_then)), Some((insert_when, insert_then))) => {
-                    when(update_when, update_then)
-                        .when(insert_when, insert_then)
-                        .otherwise(col(name))?
+            let case_expr = match (updates, insert) {
+                (Some(updates), Some(inserts)) => {
+                    let builder_opt = updates.into_iter().chain(inserts.into_iter()).fold(
+                        None::<CaseBuilder>,
+                        |acc, (w, t)| {
+                            if let Some(mut acc) = acc {
+                                Some(acc.when(w, t))
+                            } else {
+                                Some(when(w, t))
+                            }
+                        },
+                    );
+                    if let Some(mut builder) = builder_opt {
+                        builder.otherwise(col(name))?
+                    } else {
+                        col(name)
+                    }
                 }
-                (Some((w, t)), None) | (None, Some((w, t))) => when(w, t).otherwise(col(name))?,
+                (Some(x), None) | (None, Some(x)) => {
+                    let builder_opt = x.into_iter().fold(None::<CaseBuilder>, |acc, (w, t)| {
+                        if let Some(mut acc) = acc {
+                            Some(acc.when(w, t))
+                        } else {
+                            Some(when(w, t))
+                        }
+                    });
+                    if let Some(mut builder) = builder_opt {
+                        builder.otherwise(col(name))?
+                    } else {
+                        col(name)
+                    }
+                }
                 (None, None) => col(name),
             }
             .alias(field.name().clone());
