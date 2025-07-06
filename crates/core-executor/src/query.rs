@@ -2146,6 +2146,10 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 if values.rows.len() != 1 {
                     return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
                 }
+                let mut all_columns: HashSet<String> = target_schema
+                    .iter()
+                    .map(|x| x.1.name().to_string())
+                    .collect();
                 for (column, value) in insert.columns.iter().zip(
                     values
                         .rows
@@ -2159,10 +2163,14 @@ pub fn merge_clause_projection<S: ContextProvider>(
                         .as_ref()
                         .sql_to_expr(value, schema, &mut planner_context)
                         .context(ex_error::DataFusionSnafu)?;
+                    all_columns.remove(&column_name);
                     inserts
                         .entry(column_name)
                         .and_modify(|x| x.push((op.clone(), expr.clone())))
                         .or_insert_with(|| vec![(op.clone(), expr)]);
+                }
+                for column in all_columns {
+                    inserts.insert(column, vec![(op.clone(), lit(ScalarValue::Null))]);
                 }
             }
             MergeAction::Delete => (),
@@ -2184,7 +2192,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
 /// * `inserts` - Map of column names to their INSERT expressions with conditions
 ///
 /// # Returns
-/// Vector of expressions for each column, plus the SOURCE_EXISTS_COLUMN for tracking
+/// Vector of expressions for each column, plus the `SOURCE_EXISTS_COLUMN` for tracking
 fn collect_merge_clause_expressions(
     target_schema: &DFSchema,
     mut updates: HashMap<String, Vec<(DFExpr, DFExpr)>>,
