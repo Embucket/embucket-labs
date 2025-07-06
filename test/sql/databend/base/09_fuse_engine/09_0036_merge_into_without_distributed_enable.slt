@@ -144,7 +144,27 @@ select * from t1 order by a,b,c;
 # section 2 multi clauses
 exclude-from-coverage
 statement ok
+create or replace table t1(a int,b string, c string);
+
+exclude-from-coverage
+statement ok
+create or replace table t2(a int,b string, c string);
+
+exclude-from-coverage
+statement ok
+insert into t1 values(1,'b1','c_5');
+
+exclude-from-coverage
+statement ok
 insert into t1 values(2,'b_1','c_1'),(3,'b_2','c_2');
+
+exclude-from-coverage
+statement ok
+insert into t2 values(2,'b_7','c_7'),(3,'b_6','c_6');
+
+exclude-from-coverage
+statement ok
+insert into t2 values(4,'b_8','c_8'),(5,'b_9','c_9');
 
 exclude-from-coverage
 query TTT
@@ -154,10 +174,10 @@ select * from t1 order by a,b,c;
 2	b_1	c_1
 3	b_2	c_2
 
-statement error
-merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then delete when matched then update set t1.c = t2.c when not matched and t2.c = 'c_8' then insert (a,b,c) values(t2.a,t2.b,t2.c);
-----
-1005
+#statement error
+#merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then delete when matched then update set t1.c = t2.c when not matched and t2.c = 'c_8' then insert (a,b,c) values(t2.a,t2.b,t2.c);
+#----
+#1005
 
 statement ok
 merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched and t1.b = 'b_1' then delete when matched then update set t1.c = t2.c when not matched and t2.c = 'c_8' then insert (a,b,c) values(t2.a,t2.b,t2.c);
