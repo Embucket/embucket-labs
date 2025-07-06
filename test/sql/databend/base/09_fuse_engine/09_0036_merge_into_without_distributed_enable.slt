@@ -456,7 +456,7 @@ select * from t2 order by a,b,c;
 NULL	b_3	c_3
 
 statement ok
-merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then delete when not matched then insert *;
+merge into t1 using (select * from t2) as t2 on t1.a = t2.a when matched then delete when not matched then insert (a,b,c) values(t2.a,t2.b,t2.c);
 
 query TTT
 select * from t1 order by a,b,c;
@@ -569,7 +569,7 @@ statement ok
 insert into t2_source values(1),(2);
 
 statement ok
-merge into t1_target using (select * from t2_source) as t2_source on t1_target.a = t2_source.a when matched then update * when not matched then insert *;
+merge into t1_target using (select * from t2_source) as t2_source on t1_target.a = t2_source.a when matched then update set a = t2_source.a when not matched then insert (a) values(t2_source.a);
 
 query T
 select * from t1_target order by a;
@@ -618,7 +618,7 @@ merge into cluster_target as t1 using (select * from cluster_source) as t2 on t1
 1006
 
 statement ok
-merge into cluster_target as t1 using (select * from cluster_source) as t2 on t1.a = t2.a when not matched then insert *;
+merge into cluster_target as t1 using (select * from cluster_source) as t2 on t1.a = t2.a when not matched then insert (a,b,c) values(t2.a,t2.b,t2.c);
 
 # By default setting, all rows merged from  `cluster_source` will be resident in a single block of `cluster_target`,
 # as table `cluster_target` is clustered by `(a,b)`,  the rows inside the one block are assumed to be sorted
@@ -677,7 +677,7 @@ copy into @source_parquet_http from (select * from source_test);
 
 statement ok
 merge into `target_test` as tt using (select `a`,`b`,`delete_flag` from @source_parquet_http (pattern => '.*[.]parquet')) as ss on (ss.`a` = tt.`a`)
-when matched and ss.`delete_flag` = true then delete when matched then update * when not matched and ss.`delete_flag` = false then insert *;
+when matched and ss.`delete_flag` = true then delete when matched then update set a = ss.a, b = ss.b when not matched and ss.`delete_flag` = false then insert (a,b) values(ss.a,ss.b);
 
 query TT
 select * from target_test order by a;
@@ -703,7 +703,7 @@ statement ok
 create or replace table random_source(id bigint not null, id1 bigint, id2 bigint, id3 bigint, id4 bigint, id5 bigint, id6 bigint, id7 bigint,s1 varchar, s2 varchar, s3 varchar, s4 varchar, s5 varchar, s6 varchar, s7 varchar, s8 varchar, s9 varchar, s10 varchar, s11 varchar, s12 varchar, s13 varchar,d1 DECIMAL(20, 8), d2 DECIMAL(20, 8), d3 DECIMAL(20, 8), d4 DECIMAL(20, 8), d5 DECIMAL(20, 8), d6 DECIMAL(30, 8), d7 DECIMAL(30, 8), d8 DECIMAL(30, 8), d9 DECIMAL(30, 8), d10 DECIMAL(30, 8),insert_time datetime not null, insert_time1 datetime, insert_time2 datetime, insert_time3 datetime,i int);
 
 statement ok
-merge into test_order as t using (select id,34 as id1,238 as id2, id3, id4, id5, id6, id7,s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,d1, d2, d3, d4, d5, d6, d7, d8, d9, d10,insert_time,insert_time1,insert_time2,insert_time3,i from random_source limit 1) as s on t.id = s.id and t.insert_time = s.insert_time when matched then update * when not matched then insert *;
+merge into test_order as t using (select id,34 as id1,238 as id2, id3, id4, id5, id6, id7,s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,d1, d2, d3, d4, d5, d6, d7, d8, d9, d10,insert_time,insert_time1,insert_time2,insert_time3,i from random_source limit 1) as s on t.id = s.id and t.insert_time = s.insert_time when matched then update set id = s.id, id1 = s.id1, id2 = s.id2, id3 = s.id3, id4 = s.id4, id5 = s.id5, id6 = s.id6, id7 = s.id7, s1 = s.s1, s2 = s.s2, s3 = s.s3, s4 = s.s4, s5 = s.s5, s6 = s.s6, s7 = s.s7, s8 = s.s8, s9 = s.s9, s10 = s.s10, s11 = s.s11, s12 = s.s12, s13 = s.s13, d1 = s.d1, d2 = s.d2, d3 = s.d3, d4 = s.d4, d5 = s.d5, d6 = s.d6, d7 = s.d7, d8 = s.d8, d9 = s.d9, d10 = s.d10, insert_time = s.insert_time, insert_time1 = s.insert_time1, insert_time2 = s.insert_time2, insert_time3 = s.insert_time3, i = s.i when not matched then insert (id, id1, id2, id3, id4, id5, id6, id7, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, insert_time, insert_time1, insert_time2, insert_time3, i) values(s.id, s.id1, s.id2, s.id3, s.id4, s.id5, s.id6, s.id7, s.s1, s.s2, s.s3, s.s4, s.s5, s.s6, s.s7, s.s8, s.s9, s.s10, s.s11, s.s12, s.s13, s.d1, s.d2, s.d3, s.d4, s.d5, s.d6, s.d7, s.d8, s.d9, s.d10, s.insert_time, s.insert_time1, s.insert_time2, s.insert_time3, s.i);
 
 ## test update list #13297
 exclude-from-coverage
@@ -810,7 +810,7 @@ statement ok
 insert into t2 values(1),(2);
 
 statement ok
-merge into t1 using t2 on t1.a = t2.a when matched then delete when not matched then insert *;
+merge into t1 using t2 on t1.a = t2.a when matched then delete when not matched then insert (a) values(t2.a);
 
 query T
 select * from t1;
@@ -842,7 +842,7 @@ statement ok
 insert into t2 values(1),(2);
 
 statement error
-merge into t1 using t2 on t1.a = t2.a when matched then delete when not matched then insert *;
+merge into t1 using t2 on t1.a = t2.a when matched then delete when not matched then insert (a) values(t2.a);
 ----
 1065
 
@@ -1167,7 +1167,7 @@ statement ok
 insert into tmp_01 values(1,'abc',to_date('2023-11-29'),parse_json('{"a":1}'));
 
 statement ok
-merge into  tb_01 as T using ( select * from tmp_01) as S on t.id = s.id when matched then update * when not matched then insert *;
+merge into  tb_01 as T using ( select * from tmp_01) as S on t.id = s.id when matched then update set id = s.id, c1 = s.c1, c2 = s.c2, c3 = s.c3 when not matched then insert (id, c1, c2, c3) values(s.id, s.c1, s.c2, s.c3);
 
 query TTT
 select id,c1,to_date(c2),c3	from tb_01;
