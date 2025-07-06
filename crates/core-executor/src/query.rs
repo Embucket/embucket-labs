@@ -2098,19 +2098,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
     let mut planner_context = datafusion::sql::planner::PlannerContext::new();
 
     for merge_clause in merge_clause {
-        let op = match merge_clause.clause_kind {
-            MergeClauseKind::Matched => {
-                Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN)))
-            }
-            MergeClauseKind::NotMatched => Ok(or(
-                is_null(col(TARGET_EXISTS_COLUMN)),
-                is_null(col(TARGET_EXISTS_COLUMN)),
-            )),
-            MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
-            MergeClauseKind::NotMatchedBySource => {
-                return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
-            }
-        }?;
+        let op = merge_clause_expression(&merge_clause)?;
         let op = if let Some(predicate) = merge_clause.predicate {
             let predicate = sql_planner
                 .as_ref()
@@ -2203,6 +2191,31 @@ pub fn merge_clause_projection<S: ContextProvider>(
         .context(ex_error::DataFusionSnafu)?;
     exprs.push(col(SOURCE_EXISTS_COLUMN));
     Ok(exprs)
+}
+
+/// Builds a `DataFusion` expression for filtering rows based on MERGE clause conditions.
+///
+/// This function translates MERGE clause semantics into boolean expressions that determine
+/// which rows should be processed by each clause type:
+///
+/// - `Matched`: Rows that exist in both source and target tables
+/// - `NotMatched`: Rows that don't exist in either source or target
+///
+/// The expressions use special columns (`TARGET_EXISTS_COLUMN` and `SOURCE_EXISTS_COLUMN`)
+/// that indicate row presence in respective tables during the merge operation.
+fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
+    let expr = match merge_clause.clause_kind {
+        MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatched => Ok(or(
+            is_null(col(TARGET_EXISTS_COLUMN)),
+            is_null(col(TARGET_EXISTS_COLUMN)),
+        )),
+        MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatchedBySource => {
+            return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
+        }
+    }?;
+    Ok(expr)
 }
 
 fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
