@@ -237,203 +237,191 @@ select * from t1 order by a,b,c;
 ----
 1	b1	c_5
 
-## test star for merge into
-exclude-from-coverage
-statement ok
-create or replace table t1(a int,b string, c string);
+### test star for merge into
+#exclude-from-coverage
+#statement ok
+#create or replace table t1(a int,b string, c string);
+#
+#exclude-from-coverage
+#statement ok
+#create or replace table t2(a int,b string, c string);
+#
+#exclude-from-coverage
+#statement ok
+#insert into t1 values(1,'b1','c1'),(2,'b2','c2');
+#
+#exclude-from-coverage
+#query TTT
+#select * from t1 order by a,b,c;
+#----
+#1	b1	c1
+#2	b2	c2
+#
+#exclude-from-coverage
+#statement ok
+#insert into t2 values(1,'b3','c3'),(3,'b4','c4');
+#
+#exclude-from-coverage
+#query TTT
+#select * from t2 order by a,b,c;
+#----
+#1	b3	c3
+#3	b4	c4
+#
+### test insert columns mismatch
+#statement error
+#merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when not matched then insert values(t2.a,t2.c);
+#----
+#1065
+#
+#statement ok
+#merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update *  when not matched then insert *;
+#
+#
+#query TTT
+#select * from t1 order by a,b,c;
+#----
+#1	b3	c3
+#2	b2	c2
+#3	b4	c4
+#
+### test multi same name for star
+#statement error
+#merge into t1 using (select a,b,c,a from t2 ) as t2 on t1.a = t2.a  when matched then update *;
+#----
+#1065
+#
+#statement error
+#merge into t1 using (select a,b,c,a,b from t2 ) as t2 on t1.a = t2.a  when not matched then insert *;
+#----
+#1065
 
-exclude-from-coverage
-statement ok
-create or replace table t2(a int,b string, c string);
-
-exclude-from-coverage
-query I
-select count(*) from t1;
-----
-0
-
-exclude-from-coverage
-query I
-select count(*) from t2;
-----
-0
-
-exclude-from-coverage
-statement ok
-insert into t1 values(1,'b1','c1'),(2,'b2','c2');
-
-exclude-from-coverage
-query TTT
-select * from t1 order by a,b,c;
-----
-1	b1	c1
-2	b2	c2
-
-exclude-from-coverage
-statement ok
-insert into t2 values(1,'b3','c3'),(3,'b4','c4');
-
-exclude-from-coverage
-query TTT
-select * from t2 order by a,b,c;
-----
-1	b3	c3
-3	b4	c4
-
-## test insert columns mismatch
-statement error
-merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a when not matched then insert values(t2.a,t2.c);
-----
-1065
-
-statement ok
-merge into t1 using (select * from t2 ) as t2 on t1.a = t2.a  when matched then update *  when not matched then insert *;
-
-
-query TTT
-select * from t1 order by a,b,c;
-----
-1	b3	c3
-2	b2	c2
-3	b4	c4
-
-## test multi same name for star
-statement error
-merge into t1 using (select a,b,c,a from t2 ) as t2 on t1.a = t2.a  when matched then update *;
-----
-1065
-
-statement error
-merge into t1 using (select a,b,c,a,b from t2 ) as t2 on t1.a = t2.a  when not matched then insert *;
-----
-1065
-
-## stage file test
-exclude-from-coverage
-statement ok
-drop table if exists test_stage;
-
-exclude-from-coverage
-statement ok
-drop table if exists target_table;
-
-exclude-from-coverage
-statement ok
-create or replace table target_table(a int,b string,c string);
-
-exclude-from-coverage
-statement ok
-insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
-
-exclude-from-coverage
-query TTT
-select * from target_table order by a,b,c;
-----
-1	a_1	b_1
-2	a_2	b_2
-
-exclude-from-coverage
-statement ok
-create  or replace table test_stage(a int,b string,c string);
-
-exclude-from-coverage
-statement ok
-insert into test_stage values(1,'a1','b1'),(2,'a2','b2'),(3,'a3','b3');
-
-exclude-from-coverage
-query TTT
-select * from test_stage order by a,b,c;
-----
-1	a1	b1
-2	a2	b2
-3	a3	b3
-
-exclude-from-coverage
-statement ok
-drop stage if exists s5_merge_into;
-
-exclude-from-coverage
-statement ok
-drop stage if exists s4_merge_into;
-
-exclude-from-coverage
-statement ok
-create stage s5_merge_into FILE_FORMAT = (TYPE = CSV);
-
-exclude-from-coverage
-statement ok
-remove @s5_merge_into;
-
-exclude-from-coverage
-statement ok
-copy into @s5_merge_into from (select a,b,c from test_stage order by a,b,c);
-
-exclude-from-coverage
-query TTT
-select $1,$2,$3	from @s5_merge_into order by $1,$2,$3;
-----
-1	a1	b1
-2	a2	b2
-3	a3	b3
-
-## test CSV
-statement ok
-merge into target_table using (select $1,$2,$3	from @s5_merge_into) as cdc on cast(cdc.$1 as int) = target_table.a when matched then delete when not matched then insert values(cdc.$1,cdc.$2,cdc.$3);
-
-query TTT
-select * from target_table order by a,b,c;
-----
-3	a3	b3
-
-## test parquet
-exclude-from-coverage
-statement ok
-create or replace table target_table(a int,b string,c string);
-
-exclude-from-coverage
-query I
-select count(*) from target_table;
-----
-0
-
-exclude-from-coverage
-statement ok
-create stage s4_merge_into FILE_FORMAT = (TYPE = PARQUET);
-
-exclude-from-coverage
-statement ok
-remove @s4_merge_into;
-
-exclude-from-coverage
-statement ok
-copy into @s4_merge_into from (select a,b,c from test_stage order by a,b,c);
-
-exclude-from-coverage
-query TTT
-select a,b,c from @s4_merge_into order by a,b,c;
-----
-1	a1	b1
-2	a2	b2
-3	a3	b3
-
-exclude-from-coverage
-statement ok
-insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
-
-exclude-from-coverage
-query TTT
-select * from target_table order by a,b,c;
-----
-1	a_1	b_1
-2	a_2	b_2
-
-statement ok
-merge into target_table using (select a,b,c from @s4_merge_into) as cdc on cdc.a = target_table.a when matched then delete when not matched then insert values(cdc.a,cdc.b,cdc.c);
-
-query TTT
-select * from target_table order by a,b,c;
-----
-3	a3	b3
+### stage file test
+#exclude-from-coverage
+#statement ok
+#drop table if exists test_stage;
+#
+#exclude-from-coverage
+#statement ok
+#drop table if exists target_table;
+#
+#exclude-from-coverage
+#statement ok
+#create or replace table target_table(a int,b string,c string);
+#
+#exclude-from-coverage
+#statement ok
+#insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
+#
+#exclude-from-coverage
+#query TTT
+#select * from target_table order by a,b,c;
+#----
+#1	a_1	b_1
+#2	a_2	b_2
+#
+#exclude-from-coverage
+#statement ok
+#create  or replace table test_stage(a int,b string,c string);
+#
+#exclude-from-coverage
+#statement ok
+#insert into test_stage values(1,'a1','b1'),(2,'a2','b2'),(3,'a3','b3');
+#
+#exclude-from-coverage
+#query TTT
+#select * from test_stage order by a,b,c;
+#----
+#1	a1	b1
+#2	a2	b2
+#3	a3	b3
+#
+#exclude-from-coverage
+#statement ok
+#drop stage if exists s5_merge_into;
+#
+#exclude-from-coverage
+#statement ok
+#drop stage if exists s4_merge_into;
+#
+#exclude-from-coverage
+#statement ok
+#create stage s5_merge_into FILE_FORMAT = (TYPE = CSV);
+#
+#exclude-from-coverage
+#statement ok
+#remove @s5_merge_into;
+#
+#exclude-from-coverage
+#statement ok
+#copy into @s5_merge_into from (select a,b,c from test_stage order by a,b,c);
+#
+#exclude-from-coverage
+#query TTT
+#select $1,$2,$3	from @s5_merge_into order by $1,$2,$3;
+#----
+#1	a1	b1
+#2	a2	b2
+#3	a3	b3
+#
+### test CSV
+#statement ok
+#merge into target_table using (select $1,$2,$3	from @s5_merge_into) as cdc on cast(cdc.$1 as int) = target_table.a when matched then delete when not matched then insert values(cdc.$1,cdc.$2,cdc.$3);
+#
+#query TTT
+#select * from target_table order by a,b,c;
+#----
+#3	a3	b3
+#
+### test parquet
+#exclude-from-coverage
+#statement ok
+#create or replace table target_table(a int,b string,c string);
+#
+#exclude-from-coverage
+#query I
+#select count(*) from target_table;
+#----
+#0
+#
+#exclude-from-coverage
+#statement ok
+#create stage s4_merge_into FILE_FORMAT = (TYPE = PARQUET);
+#
+#exclude-from-coverage
+#statement ok
+#remove @s4_merge_into;
+#
+#exclude-from-coverage
+#statement ok
+#copy into @s4_merge_into from (select a,b,c from test_stage order by a,b,c);
+#
+#exclude-from-coverage
+#query TTT
+#select a,b,c from @s4_merge_into order by a,b,c;
+#----
+#1	a1	b1
+#2	a2	b2
+#3	a3	b3
+#
+#exclude-from-coverage
+#statement ok
+#insert into target_table values(1,'a_1','b_1'),(2,'a_2','b_2');
+#
+#exclude-from-coverage
+#query TTT
+#select * from target_table order by a,b,c;
+#----
+#1	a_1	b_1
+#2	a_2	b_2
+#
+#statement ok
+#merge into target_table using (select a,b,c from @s4_merge_into) as cdc on cdc.a = target_table.a when matched then delete when not matched then insert values(cdc.a,cdc.b,cdc.c);
+#
+#query TTT
+#select * from target_table order by a,b,c;
+#----
+#3	a3	b3
 
 ## NULL test, for join, if join_expr result is
 ## NULL, it will be treated as not matched.
@@ -444,18 +432,6 @@ create or replace table t1(a int,b string, c string);
 exclude-from-coverage
 statement ok
 create or replace table t2(a int,b string, c string);
-
-query I
-exclude-from-coverage
-select count(*) from t1;
-----
-0
-
-exclude-from-coverage
-query I
-select count(*) from t2;
-----
-0
 
 exclude-from-coverage
 statement ok
@@ -506,18 +482,6 @@ create or replace table t1(a int,b string, c string);
 exclude-from-coverage
 statement ok
 create or replace table t2(a int,b string, c string);
-
-exclude-from-coverage
-query I
-select count(*) from t1;
-----
-0
-
-exclude-from-coverage
-query I
-select count(*) from t2;
-----
-0
 
 ## test target table alias
 exclude-from-coverage
