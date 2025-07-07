@@ -53,7 +53,7 @@ export function CreateVolumeDialog({ opened, onSetOpened }: CreateVolumeDialogPr
         )}
         <CreateVolumeDialogForm
           onSubmit={(formData) => {
-            mutate({ data: formData as VolumeCreatePayload });
+            mutate({ data: formData });
           }}
         />
         <DialogFooter>
