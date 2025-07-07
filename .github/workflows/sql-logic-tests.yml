@@ -89,6 +89,9 @@ jobs:
           mkdir -p test-assets
           python generate_test_assets.py --stats-file test_statistics.csv --output-dir test-assets
           
+          # copy report {embucket|snowflake} generated during slt tests run
+          cp slt_errors_stats_*.csv test-assets/
+
           # Get coverage percentage for commit message
           COVERAGE=$(grep -o '[0-9.]\+%' test-assets/badge.txt | tr -d '%')
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV

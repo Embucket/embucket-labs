@@ -35,6 +35,8 @@ from slt_runner.display_test_statistics import display_page_results, display_cat
 
 from slt_runner.display_test_statistics import display_top_errors
 
+from slt_runner.slt_errors_stats import SltErrorsStatsCsv
+
 # ANSI color codes
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -105,6 +107,7 @@ def reset_database(config, con: SnowflakeConnection):
 class SQLLogicTestExecutor(SQLLogicRunner):
     def __init__(self,
                  config: Dict[str, str],
+                 errors_stats: SltErrorsStatsCsv,
                  default_test_dir: Optional[str] = None,
                  benchmark_mode: bool = False,
                  run_mode: str = None  # Add run_mode parameter
@@ -112,25 +115,49 @@ class SQLLogicTestExecutor(SQLLogicRunner):
         super().__init__(config, default_test_dir)
         self.SKIPPED_TESTS = set([])
         self.skip_log = []
+        self.errors_stats = errors_stats
         self.embucket = None
         self.benchmark_mode = benchmark_mode
         self.run_mode = run_mode  # Store the run mode
         self.connection_pool = None  # Store connection pool for hot runs
         self.executed_query_ids = []
 
-    # capturing query ID after execution
+    def is_embucket(self):
+        return 'embucket' in self.config
+
     def capture_query_id(self, connection):
         """Capture the ID of the most recently executed query"""
+        query_id = self.get_last_query_id(connection)
+        if query_id:
+            self.executed_query_ids.append(query_id)
+            return query_id
+        return None
+
+    # capturing query ID after execution
+    def get_last_query_id(self, connection):
+        """Get ID of the most recently executed query"""
         try:
             # Connection parameter is already a cursor, use it directly
             connection.execute("SELECT LAST_QUERY_ID()")
             query_id = connection.fetchone()[0]
             if query_id:
-                self.executed_query_ids.append(query_id)
                 return query_id
         except Exception as e:
             logger.error(f"Error capturing query ID: {e}")
         return None
+
+    def get_embucket_query_result(self, query_id):
+        if self.is_embucket():
+            headers={'Content-Type': 'application/json'}
+            server_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+            url = f'{server_url}/v1/metastore/queries/{query_id}'
+            resp = requests.request(
+                'GET', url,
+                headers=headers
+            )
+            return resp
+        else:
+            return None
 
 
     def analyze_query_performance(self, run_mode):
@@ -241,6 +268,12 @@ class SQLLogicTestExecutor(SQLLogicRunner):
             # Clear the query IDs after analysis
             self.executed_query_ids = []
 
+    def create_slt_stats_table(self):
+        # create sql query for creating table with following columns: test_name, error, advanced_error
+        # insert into table values (test_name, error, advanced_error)
+        # return table
+        pass
+
     def suspend_warehouse(self, delay_seconds: int = 10):
         """Suspend the warehouse and introduce a delay without affecting performance results.
         Suspending the warehouse clears the warehouse cache. However, immediately resuming
@@ -273,6 +306,8 @@ class SQLLogicTestExecutor(SQLLogicRunner):
         return self.default_test_dir
 
     def setup(self, is_embucket):
+        self.errors_stats.prepare()
+
         if is_embucket:
             self.embucket = EmbucketHelper(self.config)
             # Call setup_database_environment with connection settings
@@ -503,11 +538,11 @@ class SQLLogicPythonRunner:
     def __init__(self, default_test_directory : Optional[str] = None):
         self.default_test_directory = default_test_directory
 
-    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode):
+    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode, errors_stats: SltErrorsStatsCsv):
         """Execute tests for a single file using a pre-created worker schema"""
         print(f"Processing file: {file_path}")
 
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+        executor = SQLLogicTestExecutor(config, errors_stats, test_directory, benchmark_mode, run_mode)
 
         results = []
         execution_times = []
@@ -603,12 +638,12 @@ class SQLLogicPythonRunner:
         return result_summary
 
     def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, is_embucket,
-                           max_workers=None):
+                           errors_stats: SltErrorsStatsCsv, max_workers=None):
         """Execute test files in parallel with pre-created worker schemas"""
         import concurrent.futures
         print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
 
-        executor = SQLLogicTestExecutor(config, test_directory, benchmark_mode, run_mode)
+        executor = SQLLogicTestExecutor(config, errors_stats, test_directory, benchmark_mode, run_mode)
         executor.setup(is_embucket)
 
         worker_schemas = []
@@ -708,7 +743,8 @@ class SQLLogicPythonRunner:
                     file_path,
                     test_directory,
                     benchmark_mode,
-                    run_mode
+                    run_mode,
+                    errors_stats
                 )] = file_path
 
             for future in concurrent.futures.as_completed(future_to_file):
@@ -945,6 +981,11 @@ class SQLLogicPythonRunner:
             print('No tests located')
             exit(1)
 
+        # collect all the queries errors
+        errors_stats = SltErrorsStatsCsv(
+            f'./slt_errors_stats_{"embucket" if is_embucket else "snowflake"}.csv'
+        )
+
         # If benchmark mode is enabled, run both hot and cold tests
         if benchmark_mode:
             self.compare_benchmark_results()
@@ -953,7 +994,7 @@ class SQLLogicPythonRunner:
             default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
             self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time, is_embucket,
-                                    workers)
+                                    errors_stats, workers)
 
     def compare_benchmark_results(self):
         """Compare benchmark results between hot and cold runs"""

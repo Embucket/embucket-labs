@@ -9,6 +9,7 @@ core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
+core-history = { path = "../core-history" }
 
 axum = { workspace = true }
 http = { workspace = true }

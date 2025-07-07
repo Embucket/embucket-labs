@@ -4,7 +4,7 @@ use axum::routing::{delete, get, post, put};
 
 use crate::handlers::{
     create_database, create_volume, delete_volume, get_database, get_volume, list_databases,
-    list_volumes, update_volume,
+    list_volumes, query_by_id, update_volume,
 };
 
 pub fn create_router() -> Router<State> {
@@ -17,4 +17,5 @@ pub fn create_router() -> Router<State> {
         .route("/databases", get(list_databases))
         .route("/databases", post(create_database))
         .route("/databases/{databaseName}", get(get_database))
+        .route("/queries/{queryId}", get(query_by_id))
 }

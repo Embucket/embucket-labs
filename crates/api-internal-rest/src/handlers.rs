@@ -6,13 +6,14 @@ use axum::{
 };
 use snafu::ResultExt;
 
+use core_history::entities::{QueryRecord, QueryRecordId};
 #[allow(clippy::wildcard_imports)]
 use core_metastore::{
     error::{self as metastore_error},
     *,
 };
 
-use crate::state::State as AppState;
+use crate::{error::GetQuerySnafu, state::State as AppState};
 use core_utils::scan_iterator::ScanIterator;
 use validator::Validate;
 
@@ -171,4 +172,18 @@ pub async fn create_database(
         .await
         .context(error::CreateDatabaseSnafu)
         .map(Json)
+}
+
+#[tracing::instrument(level = "debug", fields(query_id), skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn query_by_id(
+    State(state): State<AppState>,
+    Path(query_id): Path<QueryRecordId>,
+) -> Result<Json<RwObject<QueryRecord>>> {
+    let query_record = state
+        .history_store
+        .get_query(query_id)
+        .await
+        .context(GetQuerySnafu)?;
+
+    Ok(Json(RwObject::new(query_record)))
 }
