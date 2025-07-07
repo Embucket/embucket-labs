@@ -952,23 +952,11 @@ pub const ENCRYPTION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/decrypt")
     ),
-    ("DECRYPT_RAW", FunctionInfo::new(
-        "DECRYPT_RAW",
-        "Decrypts a BINARY value using a BINARY key."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/decrypt_raw")
-    ),
     ("ENCRYPT", FunctionInfo::new(
         "ENCRYPT",
         "Encrypts a VARCHAR or BINARY value using a VARCHAR passphrase."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/encrypt")
-    ),
-    ("ENCRYPT_RAW", FunctionInfo::new(
-        "ENCRYPT_RAW",
-        "Encrypts a BINARY value using a BINARY key."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/encrypt_raw")
     ),
     ("TRY_DECRYPT", FunctionInfo::new(
         "TRY_DECRYPT",

@@ -170,6 +170,15 @@ impl ScalarUDFImpl for ToBinaryFunc {
     }
 }
 
+/// Strip surrounding quotes if they are properly matched
+fn strip_surrounding_quotes(s: &str) -> &str {
+    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
 fn convert_string_to_binary<'a, I>(
     strings: I,
     format: Option<&str>,
@@ -188,6 +197,8 @@ where
             match format_upper.to_lowercase().as_str() {
                 "hex" => {
                     // Convert hex string to binary
+                    // Strip surrounding quotes if present (for JSON compatibility)
+                    let s = strip_surrounding_quotes(s);
                     let s = s.replace(' ', ""); // Remove spaces
                     match hex::decode(s) {
                         Ok(bytes) => builder.append_value(&bytes),
@@ -205,6 +216,8 @@ where
                 }
                 "base64" => {
                     // Convert base64 string to binary
+                    // Strip surrounding quotes if present (for JSON compatibility)
+                    let s = strip_surrounding_quotes(s);
                     match base64::engine::general_purpose::STANDARD.decode(s) {
                         Ok(bytes) => builder.append_value(&bytes),
                         Err(e) => {
