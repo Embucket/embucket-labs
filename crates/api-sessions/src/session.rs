@@ -29,10 +29,7 @@ pub struct RequestSessionStore {
 #[allow(clippy::missing_const_for_fn)]
 impl RequestSessionStore {
     pub fn new(execution_svc: Arc<dyn ExecutionService>) -> Self {
-        Self {
-            //store,
-            execution_svc,
-        }
+        Self { execution_svc }
     }
 
     pub async fn continuously_delete_expired(

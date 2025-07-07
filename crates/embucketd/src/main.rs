@@ -9,7 +9,7 @@ use api_internal_rest::state::State as InternalAppState;
 use api_sessions::RequestSessionStore;
 use api_sessions::session::SESSION_EXPIRATION_SECONDS;
 use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
-use api_snowflake_rest::auth::require_auth as snowflake_require_auth;
+use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::schemas::Config;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;

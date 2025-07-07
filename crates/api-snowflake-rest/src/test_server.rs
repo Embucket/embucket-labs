@@ -1,5 +1,5 @@
 use crate::auth::create_router as create_auth_router;
-use crate::auth::require_auth;
+use crate::layer::require_auth;
 use crate::router::create_router;
 use crate::schemas::Config;
 use crate::state;
