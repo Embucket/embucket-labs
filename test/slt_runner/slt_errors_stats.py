@@ -8,7 +8,7 @@ class SltErrorsStatsCsv:
         # Create a basic CSV with test file information
         with open(self.output_file, 'w', newline='') as csvfile:  
             writer = csv.writer(csvfile)
-            writer.writerow(['filename', 'statement', 'error', 'advanced_error'])
+            writer.writerow(['filename', 'statement', 'error', 'error_stack_trace'])
     
     def add_stats_row(self, filename: str, statement: str, error: str, advanced_error: str):
         with open(self.output_file, 'a', newline='') as csvfile:
