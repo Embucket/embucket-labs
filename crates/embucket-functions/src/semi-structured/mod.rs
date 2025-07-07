@@ -1,9 +1,11 @@
 pub mod array;
+pub mod errors;
 pub mod get;
 pub mod get_path;
 pub mod json;
 pub mod object;
 pub mod variant;
+pub use errors::Error;
 
 pub mod typeof_func;
 

@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::numeric::errors;
 use arrow_schema::DECIMAL128_MAX_PRECISION;
 use datafusion::arrow::array::{Array, ArrowNativeTypeOp, Decimal128Array, Float64Array};
 use datafusion::arrow::datatypes::DataType;

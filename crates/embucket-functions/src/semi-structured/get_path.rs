@@ -1,6 +1,6 @@
-use crate::errors;
 use crate::json;
 use crate::macros::make_udf_function;
+use crate::semi_structured::errors;
 use datafusion::arrow::array::{Array, StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;

@@ -1,6 +1,6 @@
-use crate::errors;
 use crate::json::{encode_array, encode_scalar};
 use crate::macros::make_udf_function;
+use crate::semi_structured::errors;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{Result as DFResult, ScalarValue};

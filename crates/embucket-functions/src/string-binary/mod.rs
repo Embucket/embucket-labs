@@ -2,6 +2,7 @@ use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
+pub mod errors;
 pub mod insert;
 pub mod jarowinkler_similarity;
 pub mod length;
@@ -9,6 +10,8 @@ pub mod lower;
 pub mod rtrimmed_length;
 pub mod split;
 pub mod strtok;
+
+pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

@@ -1,5 +1,5 @@
+use super::errors as conv_errors;
 use crate::array_to_boolean;
-use crate::errors;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::arrow::array::cast::as_string_array;
@@ -96,7 +96,7 @@ impl ScalarUDFImpl for ToBooleanFunc {
                         } else if self.try_ {
                             res.append_null();
                         } else {
-                            return errors::InvalidBooleanStringSnafu { v }.fail()?;
+                            return conv_errors::InvalidBooleanStringSnafu { v }.fail()?;
                         }
                     }
                 }

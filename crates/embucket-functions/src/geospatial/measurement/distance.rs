@@ -1,4 +1,5 @@
 use crate::errors;
+use super::errors as geo_errors;
 use crate::geospatial::data_types::parse_to_native_array;
 use datafusion::arrow::array::builder::Float64Builder;
 use datafusion::arrow::array::{Array, Float64Array};
@@ -72,7 +73,7 @@ macro_rules! match_point_distance_data_type {
                 EuclideanDistance::euclidean_distance($left.$left_method(), $rhs.as_point())
             }
             _ => {
-                return errors::STDistanceDoesNotSupportThisRightGeometryTypeSnafu.fail()?;
+                return geo_errors::STDistanceDoesNotSupportThisRightGeometryTypeSnafu.fail()?;
             }
         }
     };
@@ -142,7 +143,7 @@ fn distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
             match_point_distance_data_type!(left, as_multi_polygon, right)
         }
         _ => {
-            return errors::STDistanceDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
+            return geo_errors::STDistanceDoesNotSupportThisLeftGeometryTypeSnafu.fail()?;
         }
     };
     // Convert to meters

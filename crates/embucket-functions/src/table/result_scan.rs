@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::table::errors;
 use crate::utils::block_in_new_runtime;
 use core_history::result_set::ResultSet;
 use core_history::{GetQueriesParams, HistoryStore, QueryRecord};

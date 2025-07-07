@@ -1,5 +1,5 @@
+use super::errors;
 use crate::aggregate::macros::make_udaf_function;
-use crate::errors;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
 use datafusion::arrow::datatypes::{DataType, Field};
@@ -170,8 +170,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                             Ok(Value::Null)
                         }
                     } else {
-                        // since error is not returned right away we do explicit into conversion
-                        Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
+                        errors::StateValuesShouldBeStringTypeSnafu.fail()?
                     }
                 })
                 .collect::<DFResult<Vec<_>>>()?,
@@ -190,8 +189,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            // since error is not returned right away we do explicit into conversion
-                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,
@@ -254,8 +252,7 @@ impl Accumulator for ArrayUniqueAggAccumulator {
                                 Ok(Value::Null)
                             }
                         } else {
-                            // since error is not returned right away we do explicit into conversion
-                            Err(errors::StateValuesShouldBeStringTypeSnafu.build().into())
+                            errors::StateValuesShouldBeStringTypeSnafu.fail()?
                         }
                     })
                     .collect::<DFResult<Vec<_>>>()?,

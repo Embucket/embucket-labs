@@ -1,4 +1,4 @@
-use crate::errors;
+use super::errors as agg_errors;
 use crate::macros::make_udaf_function;
 use serde_json::Value as JsonValue;
 use snafu::ResultExt;
@@ -157,14 +157,14 @@ impl Accumulator for ObjectAggAccumulator {
 
             let key_arr = array
                 .column_by_name("key")
-                .ok_or_else(|| errors::MissingKeyColumnSnafu.build())?
+                .ok_or_else(|| agg_errors::MissingKeyColumnSnafu.build())?
                 .as_any()
                 .downcast_ref::<StringArray>()
-                .ok_or_else(|| errors::KeyColumnShouldBeStringTypeSnafu.build())?;
+                .ok_or_else(|| agg_errors::KeyColumnShouldBeStringTypeSnafu.build())?;
 
             let val_arr = array
                 .column_by_name("value")
-                .ok_or_else(|| errors::MissingValueColumnSnafu.build())?;
+                .ok_or_else(|| agg_errors::MissingValueColumnSnafu.build())?;
 
             for i in 0..array.len() {
                 if array.is_null(i) {
@@ -219,7 +219,7 @@ impl Accumulator for ObjectAggAccumulator {
 
             let value: JsonValue = match v_sv {
                 ScalarValue::Utf8(Some(s)) => {
-                    serde_json::from_str(s).context(errors::FailedToSerializeValueSnafu)?
+                    serde_json::from_str(s).context(agg_errors::FailedToSerializeValueSnafu)?
                 }
                 _ => continue,
             };
@@ -402,8 +402,9 @@ mod tests {
 
         acc1 = merge(acc1, acc2)?;
         let ScalarValue::Utf8(Some(json)) = acc1.evaluate()? else {
-            return internal_err!("expected JSON");
+            return internal_err!("expected an Utf8 JSON string");
         };
+
         let map: JsonMap<String, JsonValue> = serde_json::from_str(&json).unwrap();
 
         assert_eq!(map.len(), 2);

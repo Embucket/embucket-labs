@@ -3028,6 +3028,8 @@ dependencies = [
  "serde_json",
  "snafu",
  "strsim",
+ "strum",
+ "strum_macros",
  "tokio",
  "tracing",
 ]
