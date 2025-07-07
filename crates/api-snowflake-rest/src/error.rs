@@ -44,6 +44,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid auth token"))]
+    InvalidAuthToken {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid warehouse_id format"))]
     InvalidWarehouseIdFormat {
         #[snafu(source)]
@@ -123,7 +129,8 @@ impl IntoResponse for Error {
                 | Self::NotImplemented { .. } => http::StatusCode::OK,
                 Self::MissingAuthToken { .. }
                 | Self::MissingDbtSession { .. }
-                | Self::InvalidAuthData { .. } => {
+                | Self::InvalidAuthData { .. }
+                | Self::InvalidAuthToken { .. } => {
                     http::StatusCode::UNAUTHORIZED
                 }
             };

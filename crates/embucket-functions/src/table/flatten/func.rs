@@ -1,14 +1,10 @@
 use crate::json::{PathToken, tokenize_path};
 use crate::table::flatten::provider::{FlattenArgs, FlattenMode, FlattenTableProvider, Out};
-use arrow_schema::SchemaRef;
-use datafusion::arrow::array::{ArrayRef, RecordBatch, StringArray, UInt64Array};
-use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion::catalog::{TableFunctionImpl, TableProvider};
-use datafusion_common::{DFSchema, Result as DFResult, ScalarValue, TableReference, exec_err};
+use datafusion_common::{Result as DFResult, ScalarValue, exec_err};
 use datafusion_expr::Expr;
 use serde_json::Value;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -81,38 +77,6 @@ impl FlattenTableFunc {
         Self {
             row_id: Arc::new(AtomicU64::new(0)),
         }
-    }
-
-    #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    #[must_use]
-    pub fn empty_record_batch(
-        &self,
-        schema: SchemaRef,
-        path: &[PathToken],
-        last_outer: Option<Value>,
-        null: bool,
-    ) -> RecordBatch {
-        let arrays: Vec<ArrayRef> = if null {
-            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
-            vec![
-                Arc::new(UInt64Array::from(vec![self.row_id.load(Ordering::Acquire)])) as ArrayRef,
-                Arc::new(StringArray::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
-                Arc::new(UInt64Array::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
-            ]
-        } else {
-            vec![
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-            ]
-        };
-        RecordBatch::try_new(schema, arrays).unwrap()
     }
 
     #[allow(
@@ -205,32 +169,13 @@ impl TableFunctionImpl for FlattenTableFunc {
                     .as_ref(),
             )?
         };
-
-        let schema_fields = vec![
-            Field::new("SEQ", DataType::UInt64, false),
-            Field::new("KEY", DataType::Utf8, true),
-            Field::new("PATH", DataType::Utf8, true),
-            Field::new("INDEX", DataType::UInt64, true),
-            Field::new("VALUE", DataType::Utf8, true),
-            Field::new("THIS", DataType::Utf8, true),
-        ];
-        let qualified_fields = schema_fields
-            .into_iter()
-            .map(|f| (None, Arc::new(f)))
-            .collect::<Vec<(Option<TableReference>, Arc<Field>)>>();
-        let schema = Arc::new(DFSchema::new_with_metadata(
-            qualified_fields,
-            HashMap::default(),
-        )?);
-        Ok(Arc::new(FlattenTableProvider {
-            args: flatten_args,
-            schema,
-        }))
+        Ok(Arc::new(FlattenTableProvider::new(flatten_args)?))
     }
 }
 
 #[allow(clippy::format_push_string)]
-fn path_to_string(path: &[PathToken]) -> String {
+#[must_use]
+pub fn path_to_string(path: &[PathToken]) -> String {
     let mut out = String::new();
 
     for (idx, token) in path.iter().enumerate() {

@@ -6,11 +6,14 @@ use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
-use api_sessions::{RequestSessionMemory, RequestSessionStore};
+use api_sessions::RequestSessionStore;
+use api_sessions::session::SESSION_EXPIRATION_SECONDS;
+use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
+use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
 use api_snowflake_rest::schemas::Config;
 use api_snowflake_rest::state::AppState as SnowflakeAppState;
-use api_ui::auth::layer::require_auth;
+use api_ui::auth::layer::require_auth as ui_require_auth;
 use api_ui::auth::router::create_router as create_ui_auth_router;
 use api_ui::config::AuthConfig as UIAuthConfig;
 use api_ui::config::WebConfig as UIWebConfig;
@@ -28,6 +31,7 @@ use axum::{
 use clap::Parser;
 use core_executor::catalog::catalog_list::DEFAULT_CATALOG;
 use core_executor::service::CoreExecutionService;
+use core_executor::session::SESSION_INACTIVITY_EXPIRATION_SECONDS;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::error::Error as MetastoreError;
@@ -95,10 +99,14 @@ async fn main() {
         .data_format
         .clone()
         .unwrap_or_else(|| "json".to_string());
-    let snowflake_rest_cfg = Config::new(&data_format).expect("Failed to create snowflake config");
+    let snowflake_rest_cfg = Config::new(&data_format)
+        .expect("Failed to create snowflake config")
+        .with_demo_credentials(
+            opts.auth_demo_user.clone().unwrap(),
+            opts.auth_demo_password.clone().unwrap(),
+        );
     let execution_cfg = ExecutionConfig::new().expect("Failed to create execution config");
-    let mut auth_config = UIAuthConfig::new(opts.jwt_secret());
-    auth_config.with_demo_credentials(
+    let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),
     );
@@ -142,18 +150,21 @@ async fn main() {
         Arc::new(execution_cfg),
     ));
 
-    let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+    let session_store = RequestSessionStore::new(execution_svc.clone());
 
     tokio::task::spawn(
         session_store
             .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
+            .continuously_delete_expired(tokio::time::Duration::from_secs(
+                SESSION_EXPIRATION_SECONDS,
+            )),
     );
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(
+            SESSION_INACTIVITY_EXPIRATION_SECONDS,
+        )));
 
     let internal_router =
         create_internal_router().with_state(InternalAppState::new(metastore.clone()));
@@ -167,13 +178,21 @@ async fn main() {
     let ui_router = create_ui_router().with_state(ui_state.clone());
     let ui_router = ui_router.layer(middleware::from_fn_with_state(
         ui_state.clone(),
-        require_auth,
+        ui_require_auth,
     ));
     let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
-    let snowflake_router = create_snowflake_router().with_state(SnowflakeAppState {
+    let snowflake_state = SnowflakeAppState {
         execution_svc,
         config: snowflake_rest_cfg,
-    });
+    };
+    let snowflake_router = create_snowflake_router()
+        .with_state(snowflake_state.clone())
+        .layer(middleware::from_fn_with_state(
+            snowflake_state.clone(),
+            snowflake_require_auth,
+        ));
+    let snowflake_auth_router = create_snowflake_auth_router().with_state(snowflake_state.clone());
+    let snowflake_router = snowflake_router.merge(snowflake_auth_router);
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
         metastore,
         config: Arc::new(iceberg_config),

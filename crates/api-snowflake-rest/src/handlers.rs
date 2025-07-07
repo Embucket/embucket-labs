@@ -8,7 +8,6 @@ use api_sessions::DFSessionId;
 use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{ConnectInfo, Query, State};
-use axum::http::HeaderMap;
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
@@ -20,12 +19,10 @@ use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use flate2::read::GzDecoder;
-use regex::Regex;
 use snafu::ResultExt;
 use std::io::Read;
 use std::net::SocketAddr;
 use tracing::debug;
-use uuid::Uuid;
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory
@@ -35,9 +32,10 @@ use uuid::Uuid;
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
-#[tracing::instrument(level = "debug", skip(_state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
-    State(_state): State<AppState>,
+    DFSessionId(session_id): DFSessionId,
+    State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
 ) -> Result<Json<LoginResponse>> {
@@ -49,13 +47,17 @@ pub async fn login(
         .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
 
     // Deserialize the JSON body
-    let _body_json: LoginRequestBody =
+    let body_json: LoginRequestBody =
         serde_json::from_str(&s).context(api_snowflake_rest_error::LoginRequestParseSnafu)?;
 
-    let token = Uuid::new_v4().to_string();
+    if body_json.data.login_name != *state.config.auth.demo_user
+        || body_json.data.password != *state.config.auth.demo_password
+    {
+        return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
+    }
 
     Ok(Json(LoginResponse {
-        data: Option::from(LoginData { token }),
+        data: Option::from(LoginData { token: session_id }),
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))
@@ -104,7 +106,6 @@ pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
-    headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<JsonResponse>> {
     // Decompress the gzip-encoded body
@@ -116,10 +117,6 @@ pub async fn query(
     // Deserialize the JSON body
     let body_json: QueryRequestBody =
         serde_json::from_str(&s).context(api_snowflake_rest_error::QueryBodyParseSnafu)?;
-
-    let Some(_token) = extract_token(&headers) else {
-        return api_snowflake_rest_error::MissingAuthTokenSnafu.fail();
-    };
 
     let serialization_format = state.config.dbt_serialization_format;
     let query_result = state
@@ -176,14 +173,145 @@ pub async fn abort() -> Result<Json<serde_json::value::Value>> {
     api_snowflake_rest_error::NotImplementedSnafu.fail()
 }
 
-#[must_use]
-pub fn extract_token(headers: &HeaderMap) -> Option<String> {
-    headers.get("authorization").and_then(|value| {
-        value.to_str().ok().and_then(|auth| {
-            #[allow(clippy::unwrap_used)]
-            let re = Regex::new(r#"Snowflake Token="([a-f0-9\-]+)""#).unwrap();
-            re.captures(auth)
-                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
-        })
-    })
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_lines)]
+mod tests {
+    use crate::schemas::{
+        ClientData, ClientEnvironment, JsonResponse, LoginRequestBody, LoginResponse,
+        QueryRequestBody,
+    };
+    use crate::test_server::run_test_server_with_demo_auth;
+    use axum::body::Bytes;
+    use axum::http;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
+    use reqwest::Method;
+    use reqwest::header::AUTHORIZATION;
+    use serde::Serialize;
+    use std::collections::HashMap;
+    use std::io::Write;
+
+    #[tokio::test]
+    async fn test_login() {
+        let addr =
+            run_test_server_with_demo_auth("embucket".to_string(), "embucket".to_string()).await;
+        let client = reqwest::Client::new();
+        let login_url = format!("http://{addr}/session/v1/login-request");
+        let query_url = format!("http://{addr}/queries/v1/query-request");
+
+        let query_request = QueryRequestBody {
+            sql_text: "SELECT 1;".to_string(),
+        };
+
+        let query_compressed_bytes = make_bytes_body(&query_request);
+
+        assert!(
+            !query_compressed_bytes.is_empty(),
+            "Compressed data should not be empty"
+        );
+
+        //Check before login without an auth header
+        let res = client
+            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .header("Content-Type", "application/json")
+            .header("Content-Encoding", "gzip")
+            .body(query_compressed_bytes.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(http::StatusCode::UNAUTHORIZED, res.status());
+
+        let login_request = LoginRequestBody {
+            data: ClientData {
+                client_app_id: String::new(),
+                client_app_version: String::new(),
+                svn_revision: None,
+                account_name: String::new(),
+                login_name: "embucket".to_string(),
+                client_environment: ClientEnvironment {
+                    application: String::new(),
+                    os: String::new(),
+                    os_version: String::new(),
+                    python_version: String::new(),
+                    python_runtime: String::new(),
+                    python_compiler: String::new(),
+                    ocsp_mode: String::new(),
+                    tracing: 0,
+                    login_timeout: None,
+                    network_timeout: None,
+                    socket_timeout: None,
+                },
+                password: "embucket".to_string(),
+                session_parameters: HashMap::default(),
+            },
+        };
+
+        let login_compressed_bytes = make_bytes_body(&login_request);
+
+        assert!(
+            !login_compressed_bytes.is_empty(),
+            "Compressed data should not be empty"
+        );
+
+        //Login
+        let res = client
+            .request(
+                Method::POST,
+                format!(
+                    "{login_url}?request_id=123&databaseName=embucket&schemaName=public&warehouse=embucket"
+                ),
+            )
+            .header("Content-Type", "application/json")
+            .header("Content-Encoding", "gzip")
+            .body(login_compressed_bytes)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(http::StatusCode::OK, res.status());
+        let login_response: LoginResponse = res.json().await.unwrap();
+        assert!(login_response.data.is_some());
+        assert!(login_response.success);
+        assert!(login_response.message.is_some());
+
+        //Check after login without an auth header
+        let res = client
+            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .header("Content-Type", "application/json")
+            .header("Content-Encoding", "gzip")
+            .body(query_compressed_bytes.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(http::StatusCode::UNAUTHORIZED, res.status());
+
+        //Check after login with an auth header
+        let res = client
+            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .header(
+                AUTHORIZATION,
+                format!("Snowflake Token=\"{}\"", login_response.data.unwrap().token),
+            )
+            .header("Content-Type", "application/json")
+            .header("Content-Encoding", "gzip")
+            .body(query_compressed_bytes.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(http::StatusCode::OK, res.status());
+        let query_response: JsonResponse = res.json().await.unwrap();
+        assert!(query_response.data.is_some());
+        assert!(query_response.success);
+        assert!(query_response.message.is_some());
+        assert!(query_response.code.is_some());
+    }
+    fn make_bytes_body<T: ?Sized + Serialize>(request: &T) -> Bytes {
+        let json = serde_json::to_string(request).expect("Failed to serialize JSON");
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder
+            .write_all(json.as_bytes())
+            .expect("Failed to write to encoder");
+        let compressed_data = encoder.finish().expect("Failed to finish compression");
+
+        Bytes::from(compressed_data)
+    }
 }

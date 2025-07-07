@@ -25,6 +25,7 @@ use uuid::Uuid;
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>>;
     async fn delete_session(&self, session_id: String) -> Result<()>;
+    async fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
     async fn query(
         &self,
         session_id: &str,
@@ -106,6 +107,9 @@ impl ExecutionService for CoreExecutionService {
         let mut session_list = self.df_sessions.write().await;
         session_list.remove(&session_id);
         Ok(())
+    }
+    async fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>> {
+        self.df_sessions.clone()
     }
 
     #[tracing::instrument(name = "ExecutionService::query", level = "debug", skip(self), err)]
