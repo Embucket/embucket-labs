@@ -56,8 +56,7 @@ fn test_error_not_supported() {
         .message
         .starts_with("SQL compilation error: unsupported feature")
     {
-        println!("Actual error: {}", err.message);
-        assert!(false);
+        panic!("Actual error: {err}");
     }
 }
 
@@ -80,7 +79,6 @@ fn test_error_diagnostic_location() {
         .message
         .starts_with("SQL compilation error: error line 1 at position 2\n")
     {
-        println!("Actual error: {err}");
-        assert!(false);
+        panic!("Actual error: {err}");
     }
 }

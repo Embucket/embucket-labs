@@ -1,4 +1,5 @@
 #![allow(clippy::redundant_else)]
+#![allow(clippy::match_same_arms)]
 use crate::error::Error;
 use core_metastore::error::Error as MetastoreError;
 use datafusion_common::Diagnostic;
@@ -29,6 +30,7 @@ pub struct SnowflakeError {
 
 // Self { message: format!("SQL execution error: {}", message) }
 impl From<Error> for SnowflakeError {
+    #[allow(clippy::too_many_lines)]
     fn from(value: Error) -> Self {
         let message = value.to_string();
         match value {
@@ -196,14 +198,10 @@ impl From<Error> for SnowflakeError {
 }
 
 fn diagnostic_location_error(diagnostic: &Diagnostic) -> Option<String> {
-    if let Some(span) = diagnostic.span {
-        Some(format!(
-            "error line {} at position {}\n",
-            span.start.line, span.start.column
-        ))
-    } else {
-        None
-    }
+    diagnostic.span.map(|span| format!(
+        "error line {} at position {}\n",
+        span.start.line, span.start.column
+    ))
 }
 
 fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
