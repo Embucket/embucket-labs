@@ -28,11 +28,6 @@ impl ToDecimalFunc {
                     TypeSignature::Coercible(vec![
                         Self::expr_arg_type(),
                     ]),
-                    //TO_DECIMAL( <expr> [, '<format>' ] )
-                    TypeSignature::Coercible(vec![
-                        Self::expr_arg_type(),
-                        Self::format_arg_type(),
-                    ]),
                     //TO_DECIMAL( <expr> [, <precision> ] )
                     TypeSignature::Coercible(vec![
                         Self::expr_arg_type(),
@@ -43,6 +38,11 @@ impl ToDecimalFunc {
                         Self::expr_arg_type(),
                         Self::precision_arg_type(),
                         Self::scale_arg_type(),
+                    ]),
+                    //TO_DECIMAL( <expr> [, '<format>' ] )
+                    TypeSignature::Coercible(vec![
+                        Self::expr_arg_type(),
+                        Self::format_arg_type(),
                     ]),
                     //TO_DECIMAL( <expr> [, '<format>' ] [, <precision> ] )
                     TypeSignature::Coercible(vec![
