@@ -133,12 +133,29 @@ jobs:
           name: slt-selection
           path: ./artifacts
 
-      - name: Build Docker Image
-        run: docker build -t embucket:latest .
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
 
       - name: Start Embucket Server
         run: |
-          docker run -d --name embucket-server -p 3000:3000 -p 8080:8080 embucket:latest
+          target/debug/embucketd &
           echo "Starting Embucket server..."
           sleep 20
 
