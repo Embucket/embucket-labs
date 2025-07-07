@@ -1,9 +1,12 @@
 use crate::errors;
 use crate::json::{PathToken, get_json_value};
-use crate::table::flatten::func::FlattenTableFunc;
+use crate::table::flatten::func::{FlattenTableFunc, path_to_string};
 use arrow_schema::{Field, Schema, SchemaRef};
 use async_trait::async_trait;
-use datafusion::arrow::array::{Array, ArrayRef, StringArray, StringBuilder, UInt64Builder};
+use datafusion::arrow::array::{
+    Array, ArrayRef, StringArray, StringBuilder, UInt64Array, UInt64Builder,
+};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion::datasource::provider_as_source;
@@ -11,7 +14,9 @@ use datafusion::execution::{SendableRecordBatchStream, SessionState, TaskContext
 use datafusion::logical_expr::{ColumnarValue, Expr};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, create_physical_expr};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
-use datafusion_common::{Column, DFSchema, Result, ScalarValue, TableReference};
+use datafusion_common::{
+    Column, DFSchema, Result as DFResult, Result, ScalarValue, TableReference,
+};
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::{LogicalPlanBuilder, TableType};
 use datafusion_physical_plan::common::collect;
@@ -22,6 +27,7 @@ use serde_json::Value;
 use snafu::ResultExt;
 use std::any::Any;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
@@ -70,6 +76,28 @@ pub struct FlattenTableProvider {
     pub schema: Arc<DFSchema>,
 }
 
+impl FlattenTableProvider {
+    pub fn new(args: FlattenArgs) -> DFResult<Self> {
+        let schema_fields = vec![
+            Field::new("SEQ", DataType::UInt64, false),
+            Field::new("KEY", DataType::Utf8, true),
+            Field::new("PATH", DataType::Utf8, true),
+            Field::new("INDEX", DataType::UInt64, true),
+            Field::new("VALUE", DataType::Utf8, true),
+            Field::new("THIS", DataType::Utf8, true),
+        ];
+        let qualified_fields = schema_fields
+            .into_iter()
+            .map(|f| (None, Arc::new(f)))
+            .collect::<Vec<(Option<TableReference>, Arc<Field>)>>();
+        let schema = Arc::new(DFSchema::new_with_metadata(
+            qualified_fields,
+            HashMap::default(),
+        )?);
+        Ok(Self { args, schema })
+    }
+}
+
 #[async_trait]
 impl TableProvider for FlattenTableProvider {
     fn as_any(&self) -> &dyn Any {
@@ -95,15 +123,20 @@ impl TableProvider for FlattenTableProvider {
             .as_any()
             .downcast_ref::<SessionState>()
             .ok_or_else(|| errors::ExpectedSessionStateInFlattenSnafu.build())?;
+        let schema = match projection {
+            // Use normalized schema for projections to avoid logical/physical schemas missmatch
+            Some(projection) => Arc::new(self.schema().project(projection)?),
+            None => self.schema.inner().clone(),
+        };
         let properties = PlanProperties::new(
-            EquivalenceProperties::new(self.schema.inner().clone()),
+            EquivalenceProperties::new(schema),
             Partitioning::UnknownPartitioning(1),
             EmissionType::Incremental,
             Boundedness::Bounded,
         );
         Ok(Arc::new(FlattenExec {
             args: self.args.clone(),
-            schema: self.schema.clone(),
+            schema: self.schema.inner().clone(),
             session_state: Arc::new(session_state.clone()),
             projection: projection.cloned(),
             filters: filters.to_vec(),
@@ -115,7 +148,7 @@ impl TableProvider for FlattenTableProvider {
 
 pub struct FlattenExec {
     args: FlattenArgs,
-    schema: Arc<DFSchema>,
+    schema: Arc<Schema>,
     session_state: Arc<SessionState>,
     properties: PlanProperties,
     projection: Option<Vec<usize>>,
@@ -142,10 +175,6 @@ impl ExecutionPlan for FlattenExec {
 
     fn as_any(&self) -> &dyn Any {
         self
-    }
-
-    fn schema(&self) -> SchemaRef {
-        self.schema.inner().clone()
     }
 
     fn properties(&self) -> &PlanProperties {
@@ -230,7 +259,7 @@ impl ExecutionPlan for FlattenExec {
             ];
 
             last_outer.clone_from(&out.last_outer);
-            let batch = RecordBatch::try_new(self.schema(), cols)?;
+            let batch = RecordBatch::try_new(self.schema.clone(), cols)?;
             if batch.num_rows() > 0 {
                 all_batches.push(batch);
             }
@@ -238,18 +267,20 @@ impl ExecutionPlan for FlattenExec {
 
         if all_batches.is_empty() {
             return Ok(Box::pin(MemoryStream::try_new(
-                vec![flatten_func.empty_record_batch(
-                    self.schema(),
+                vec![Self::empty_record_batch(
+                    self.schema.clone(),
                     &self.args.path,
                     last_outer,
                     self.args.is_outer,
+                    flatten_func.row_id.load(Ordering::Acquire),
                 )],
-                self.schema(),
+                self.schema.clone(),
                 self.projection.clone(),
             )?));
         }
+
         Ok(Box::pin(
-            MemoryStream::try_new(all_batches, self.schema(), self.projection.clone())?
+            MemoryStream::try_new(all_batches, self.schema.clone(), self.projection.clone())?
                 .with_fetch(self.limit),
         ))
     }
@@ -275,6 +306,38 @@ impl FlattenExec {
         futures::executor::block_on(async move {
             evaluate_expr_or_plan(&expr, session_state.as_ref()).await
         })
+    }
+
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
+    #[must_use]
+    pub fn empty_record_batch(
+        schema: SchemaRef,
+        path: &[PathToken],
+        last_outer: Option<Value>,
+        null: bool,
+        row_id: u64,
+    ) -> RecordBatch {
+        let arrays: Vec<ArrayRef> = if null {
+            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
+            vec![
+                Arc::new(UInt64Array::from(vec![row_id])) as ArrayRef,
+                Arc::new(StringArray::new_null(1)) as ArrayRef,
+                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
+                Arc::new(UInt64Array::new_null(1)) as ArrayRef,
+                Arc::new(StringArray::new_null(1)) as ArrayRef,
+                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
+            ]
+        } else {
+            vec![
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+                Arc::new(StringArray::new_null(0)) as ArrayRef,
+            ]
+        };
+        RecordBatch::try_new(schema, arrays).unwrap()
     }
 }
 
