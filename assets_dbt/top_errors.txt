@@ -1,7 +1,7 @@
 # DBT Run Summary
-PASS: 1000
+PASS: 999
 WARN: 0
-ERROR: 377
+ERROR: 378
 SKIP: 211
 TOTAL: 1588
 
@@ -13,7 +13,7 @@ TOTAL: 1588
       5 DataFusion error: This feature is not implemented: Function 'try_to_date' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_date
       5 DataFusion error: External error: Feature Arrow datatype Null is not supported. is not supported.
       4 DataFusion error: type_coercion
-      3 DataFusion error: This feature is not implemented: Unsupported CAST from Union([(0, Field { name: "null", data_type: Null, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), (1, Field { name: "bool", data_type: Boolean, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (2, Field { name: "int", data_type: Int64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (3, Field { name: "float", data_type: Float64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (4, Field { name: "str", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (5, Field { name: "array", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (6, Field { name: "object", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} })], Sparse) to Timestamp(Nanosecond, None)
+      4 DataFusion error: This feature is not implemented: Unsupported CAST from Union([(0, Field { name: "null", data_type: Null, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), (1, Field { name: "bool", data_type: Boolean, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (2, Field { name: "int", data_type: Int64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (3, Field { name: "float", data_type: Float64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (4, Field { name: "str", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (5, Field { name: "array", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (6, Field { name: "object", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} })], Sparse) to Timestamp(Nanosecond, None)
       3 DataFusion error: This feature is not implemented: Unsupported CAST from Union([(0, Field { name: "null", data_type: Null, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), (1, Field { name: "bool", data_type: Boolean, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (2, Field { name: "int", data_type: Int64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (3, Field { name: "float", data_type: Float64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (4, Field { name: "str", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (5, Field { name: "array", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (6, Field { name: "object", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} })], Sparse) to Date32
       3 DataFusion error: This feature is not implemented: Function 'try_to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal
 
