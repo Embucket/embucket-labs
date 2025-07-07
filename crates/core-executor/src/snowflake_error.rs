@@ -198,10 +198,12 @@ impl From<Error> for SnowflakeError {
 }
 
 fn diagnostic_location_error(diagnostic: &Diagnostic) -> Option<String> {
-    diagnostic.span.map(|span| format!(
-        "error line {} at position {}\n",
-        span.start.line, span.start.column
-    ))
+    diagnostic.span.map(|span| {
+        format!(
+            "error line {} at position {}\n",
+            span.start.line, span.start.column
+        )
+    })
 }
 
 fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
