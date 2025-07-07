@@ -3,6 +3,7 @@ use axum::{Json, http, response::IntoResponse};
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorExt;
 use error_stack_trace;
+use core_executor::SnowflakeError;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;
@@ -107,7 +108,7 @@ impl IntoResponse for Error {
     )]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         tracing::error!(" {}", self.output_msg());
-        let (status_code, message) = if let Self::Execution { source } = &self {
+        let (status_code, message) = if let Self::Execution { source } = self {
             convert_into_status_code_and_error(source)
         } else {
             let status_code = match &self {
@@ -127,7 +128,7 @@ impl IntoResponse for Error {
                     http::StatusCode::UNAUTHORIZED
                 }
             };
-            (status_code, self.to_string())
+            (status_code, self.snowflake_error_message())
         };
         // Record the result as part of the current span.
         tracing::Span::current().record("status_code", status_code.as_u16());
@@ -145,7 +146,7 @@ impl IntoResponse for Error {
 }
 
 #[allow(clippy::too_many_lines)]
-fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCode, String) {
+fn convert_into_status_code_and_error(error: core_executor::Error) -> (StatusCode, String) {
     let status_code = match error {
         core_executor::Error::Arrow { .. }
         | core_executor::Error::SerdeParse { .. }
@@ -159,8 +160,19 @@ fn convert_into_status_code_and_error(error: &core_executor::Error) -> (StatusCo
 
     let message = match status_code {
         http::StatusCode::INTERNAL_SERVER_ERROR => "Internal server error".to_string(),
-        _ => error.to_string(),
+        _ => SnowflakeError::from(error).to_string(),
     };
 
     (status_code, message)
+}
+
+impl Error {
+    pub fn snowflake_error_message(self) -> String {
+        // acquire error str as later it will be moved
+        let error_str = self.to_string();
+        match self {
+            Self::Execution { source, .. } => SnowflakeError::from(source).to_string(),
+            _ => error_str,
+        }
+    }
 }

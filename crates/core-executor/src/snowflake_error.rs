@@ -4,14 +4,18 @@ use core_metastore::error::Error as MetastoreError;
 use datafusion_common::error::DataFusionError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
+use sqlparser::parser::ParserError;
+use datafusion_common::Diagnostic;
 use snafu::Snafu;
-
 #[derive(Snafu, Debug)]
 #[snafu(display("{message}"))]
 pub struct SnowflakeError {
     pub message: String,
 }
 
+// Cover custom format messages with tests in `tests/snowflake_errors.rs`
+
+// Self { message: format!("SQL execution error: {}", message) }
 impl From<Error> for SnowflakeError {
     fn from(value: Error) -> Self {
         let message = value.to_string();
@@ -20,45 +24,11 @@ impl From<Error> for SnowflakeError {
             | Error::RegisterUDAF { error, .. }
             | Error::DataFusionQuery { error, .. }
             | Error::DataFusion { error, .. } => match *error {
-                DataFusionError::ArrowError { .. } => Self {
-                    message: error.to_string(),
-                },
                 DataFusionError::External(err) => {
                     if err.is::<DataFusionError>() {
                         if let Ok(e) = err.downcast::<DataFusionError>() {
                             let err = *e;
-                            let message = err.to_string();
-                            match err {
-                                DataFusionError::ArrowError(_arrow_error, Some(_backtrace)) => {
-                                    Self { message }
-                                }
-                                DataFusionError::Collection(_df_errors) => Self { message },
-                                DataFusionError::Context(_context, _inner) => Self { message },
-                                DataFusionError::Diagnostic(_diagnostic, _inner) => {
-                                    Self { message }
-                                }
-                                DataFusionError::Execution(_execution_error) => Self { message },
-                                DataFusionError::IoError(_io_error) => Self { message },
-                                DataFusionError::NotImplemented(_not_implemented_error) => {
-                                    Self { message }
-                                }
-                                DataFusionError::ObjectStore(_object_store_error) => {
-                                    Self { message }
-                                }
-                                DataFusionError::ParquetError(_parquet_error) => Self { message },
-                                DataFusionError::SchemaError(_schema_error, _boxed_backtrace) => {
-                                    Self { message }
-                                }
-                                DataFusionError::Shared(_shared_error) => Self { message },
-                                DataFusionError::SQL(_sql_error, Some(_backtrace)) => {
-                                    Self { message }
-                                }
-                                DataFusionError::SQL(_sql_error, None) => Self { message },
-                                DataFusionError::Substrait(_substrait_error) => Self { message },
-                                DataFusionError::External(_external_error) => Self { message },
-                                DataFusionError::Internal(_internal_error) => Self { message },
-                                _ => Self { message },
-                            }
+                            datafusion_error(err)
                         } else {
                             unreachable!()
                         }
@@ -67,47 +37,46 @@ impl From<Error> for SnowflakeError {
                             let e = *e;
                             let message = e.to_string();
                             match e {
-                                EmubucketFunctionsExternalDFError::Aggregate { source } => {
+                                EmubucketFunctionsExternalDFError::Aggregate { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::Conversion { source } => {
+                                EmubucketFunctionsExternalDFError::Conversion { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::DateTime { source } => {
+                                EmubucketFunctionsExternalDFError::DateTime { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::Numeric { source } => {
+                                EmubucketFunctionsExternalDFError::Numeric { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::SemiStructured { source } => {
+                                EmubucketFunctionsExternalDFError::SemiStructured { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::StringBinary { source } => {
+                                EmubucketFunctionsExternalDFError::StringBinary { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::Table { source } => {
+                                EmubucketFunctionsExternalDFError::Table { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                EmubucketFunctionsExternalDFError::Crate { source } => {
+                                EmubucketFunctionsExternalDFError::Crate { .. } => {
                                     return Self {
-                                        message: source.to_string(),
+                                        message,
                                     };
                                 }
-                                _ => return Self { message },
                             }
                         } else {
                             unreachable!()
@@ -117,29 +86,24 @@ impl From<Error> for SnowflakeError {
                             let e = *e;
                             let message = e.to_string();
                             match e {
-                                DFCatalogExternalDFError::OrdinalPositionParamOverflow {
-                                    error,
-                                    ..
-                                } => {
+                                DFCatalogExternalDFError::OrdinalPositionParamOverflow { .. } => {
                                     return Self {
-                                        message: error.to_string(),
+                                        message,
                                     };
                                 }
-                                DFCatalogExternalDFError::RidParamDoesntFitInU8 {
-                                    error, ..
-                                } => {
+                                DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
                                     return Self {
-                                        message: error.to_string(),
+                                        message,
                                     };
                                 }
-                                DFCatalogExternalDFError::CoreHistory { error, .. } => {
+                                DFCatalogExternalDFError::CoreHistory { .. } => {
                                     return Self {
-                                        message: error.to_string(),
+                                        message,
                                     };
                                 }
-                                DFCatalogExternalDFError::CoreUtils { error, .. } => {
+                                DFCatalogExternalDFError::CoreUtils { .. } => {
                                     return Self {
-                                        message: error.to_string(),
+                                        message,
                                     };
                                 }
                                 DFCatalogExternalDFError::CatalogNotFound { .. } => {
@@ -148,7 +112,6 @@ impl From<Error> for SnowflakeError {
                                 DFCatalogExternalDFError::ObjectStoreNotFound { .. } => {
                                     return Self { message };
                                 }
-                                _ => return Self { message },
                             }
                         } else {
                             unreachable!()
@@ -159,9 +122,8 @@ impl From<Error> for SnowflakeError {
                         }
                     }
                 }
-                _ => Self {
-                    message: error.to_string(),
-                },
+                // Rest of datafusion errors except External, which is handled above
+                _ => datafusion_error(*error),
             },
             Error::Metastore { source, .. } => {
                 let source = *source;
@@ -193,7 +155,6 @@ impl From<Error> for SnowflakeError {
                     MetastoreError::Serde { .. } => Self { message },
                     MetastoreError::Validation { .. } => Self { message },
                     MetastoreError::UrlParse { .. } => Self { message },
-                    _ => Self { message },
                 }
             }
             Error::InvalidTableIdentifier { .. } => Self { message },
@@ -240,7 +201,70 @@ impl From<Error> for SnowflakeError {
             Error::MissingOrInvalidColumn { .. } => Self { message },
             Error::UnimplementedFunction { .. } => Self { message },
             Error::SqlParser { .. } => Self { message },
-            _ => Self { message }, // unhandled errors
         }
     }
 }
+
+fn diagnostic_location_error(diagnostic: &Diagnostic) -> Option<String> {
+    if let Some(span) = diagnostic.span {
+        Some(format!("error line {} at position {}\n", span.start.line, span.start.column))
+    } else {
+        None
+    }
+}
+
+fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
+    let message = datafusion_error.to_string();
+    match datafusion_error {
+        DataFusionError::ArrowError(_arrow_error, Some(_backtrace)) => {
+            SnowflakeError { message }
+        }
+        DataFusionError::Plan(_err) => SnowflakeError { message },
+        DataFusionError::Collection(_df_errors) => SnowflakeError { message },
+        DataFusionError::Context(_context, _inner) => SnowflakeError { message },
+        DataFusionError::Diagnostic(diagnostic, _inner) => {
+            // TODO: Should we use Plan error somehow?
+            // two errors provided: what if it contains some additional data and not just message copy?
+            let diagnostic = *diagnostic;
+            let location_error = diagnostic_location_error(&diagnostic).unwrap_or_default();
+            SnowflakeError {
+                // SQL compilation error: Object 'DATABASE.PUBLIC.ARRAY_DATA' does not exist or not authorized.
+                // TODO: add line and column from diagnostic.span.
+                message: format!("SQL compilation error: {location_error}{}", diagnostic.message),
+            }
+        }
+        DataFusionError::Execution(err) => SnowflakeError {
+            message: format!("SQL compilation error: {err}"),
+        },
+        DataFusionError::IoError(_io_error) => SnowflakeError { message },
+        DataFusionError::NotImplemented(err) => {
+            SnowflakeError {
+                // Not implemented is just a string, no structured error data.
+                // no feature name, no parser data: line, column
+                message: format!("SQL compilation error: unsupported feature '{err}'"),
+            }
+        }
+        DataFusionError::ObjectStore(_object_store_error) => {
+            SnowflakeError { message }
+        }
+        DataFusionError::ParquetError(_parquet_error) => SnowflakeError { message },
+        DataFusionError::SchemaError(_schema_error, _boxed_backtrace) => {
+            SnowflakeError { message }
+        }
+        DataFusionError::Shared(_shared_error) => SnowflakeError { message },
+        DataFusionError::SQL(sql_error, Some(_backtrace)) => match sql_error {
+            ParserError::TokenizerError(err) 
+            | ParserError::ParserError(err) => SnowflakeError {
+                // Can produce message like this: "syntax error line 1 at position 27 unexpected 'XXXX'"
+                // since parse error is just a text and not a structure
+                message: format!("SQL compilation error: {err}"),
+            },
+            ParserError::RecursionLimitExceeded => SnowflakeError { message }
+        }
+        DataFusionError::Substrait(_substrait_error) => SnowflakeError { message },
+        DataFusionError::External(_external_error) => SnowflakeError { message },
+        DataFusionError::Internal(_internal_error) => SnowflakeError { message },
+        _ => SnowflakeError { message },
+    }
+}
+
