@@ -5,21 +5,21 @@ description: Use Embucket as an Iceberg Catalog.
 
 Embucket provides an Iceberg Catalog REST API that allows other clients (like Apache Spark and Trino) to query and write to your data.
 
-This guide will show you how to connect to Embucket using `pyiceberg`, a python library for working with Iceberg tables. 
+This guide will show you how to connect to Embucket using `pyiceberg`, a python library for working with Iceberg tables.
 
 ## Step 1: Install pyiceberg
 
 ```bash
-pip install 'pyiceberg[all]' 
+pip install 'pyiceberg[all]'
 ```
 
 ## Step 2: Ensure Embucket is running
 
 Embucket must be running for this guide to work. If you haven't already, follow the [quick start](/docs/getting-started/quick-start) to get started.
 
-## Step 3: Create a volume 
+## Step 3: Create a volume
 
-> Note: If you are running Embucket in docker, you will need to use a volume that is accessible from the client machine. Memory volumes store data in embucket memory and Iceberg clients won't be able to read from them. Filesystem volume store data on the disk and Iceberg clients will be able to read from them given embucket and iceberg clients are running on the same machine (i.e. running embucket in docker also won't work). Only S3 volumes are guaranteed to work with all different deployments.  
+> Note: If you are running Embucket in docker, you will need to use a volume that is accessible from the client machine. Memory volumes store data in embucket memory and Iceberg clients won't be able to read from them. Filesystem volume store data on the disk and Iceberg clients will be able to read from them given embucket and iceberg clients are running on the same machine (i.e. running embucket in docker also won't work). Only S3 volumes are guaranteed to work with all different deployments.
 
 As explained in the [Volume](/docs/getting-started/volumes) guide, volumes are used to specify where data is persisted between runs of Embucket. This is where we will store our Iceberg tables. Volume can be create in the UI or using internal API. We will be creating filesystem based volume here, path needs to be absolute.
 
@@ -45,7 +45,6 @@ response = requests.post(
         "volume": "demo",
     })
 ```
-
 
 ## Step 4: Connect to Embucket
 
@@ -137,7 +136,3 @@ $ snow sql -c local
 ```
 
 **I was running embucket in docker and thus path was not accessible from host machine.**
-
-
-
-

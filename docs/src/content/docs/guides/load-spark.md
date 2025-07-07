@@ -3,13 +3,13 @@ title: Loading NYC Taxi dataset with Apache Spark
 description: Loading NYC Taxi dataset with Apache Spark
 ---
 
-In this guide we will learn how to upload any data (not just NYC Taxi dataset) to Embucket using Apache Spark. 
+In this guide we will learn how to upload any data (not just NYC Taxi dataset) to Embucket using Apache Spark.
 It is possible due to Embucket uses Apache Iceberg format for data storage and provides an Iceberg Catalog REST API to read and write data for external tools.
 
 ## Prerequisites
 
-You will need `docker` installed on your machine to run this guide. You will also need to have `docker-compose` installed. 
-First, create this docker compose file: 
+You will need `docker` installed on your machine to run this guide. You will also need to have `docker-compose` installed.
+First, create this docker compose file:
 
 ```yaml
 services:
@@ -96,7 +96,7 @@ services:
     ports:
       - 9001:9001
       - 9000:9000
-    command: ["server", "/warehouse", "--console-address", ":9001"]
+    command: ['server', '/warehouse', '--console-address', ':9001']
   mc:
     depends_on:
       - minio
@@ -117,7 +117,7 @@ services:
       tail -f /dev/null
       "
     healthcheck:
-      test: [ "CMD", "/usr/bin/mc", "ls", "minio/mybucket" ]
+      test: ['CMD', '/usr/bin/mc', 'ls', 'minio/mybucket']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -129,12 +129,12 @@ networks:
 
 Now, run `docker-compose up -d` to start the containers.
 This spins 3 different containers:
- - `minio` - this is S3 compatible MinIO server that we will use to store data
- - `embucket` - this is Embucket server that we will use to store data
- - `spark-iceberg` - this is running Apache Spark server with Iceberg support that we will use to load data
+
+- `minio` - this is S3 compatible MinIO server that we will use to store data
+- `embucket` - this is Embucket server that we will use to store data
+- `spark-iceberg` - this is running Apache Spark server with Iceberg support that we will use to load data
 
 After the containers are started, you can access the Embucket UI at `http://localhost:8080` and Jupyter notebook at `http://localhost:8888`. Embucket is configured to store its metadata in a S3 bucket `mybucket`.
-
 
 ## Step 2: Create S3 based volume
 
@@ -176,11 +176,3 @@ Let's now load the data into Embucket:
 df = spark.read.parquet("/home/iceberg/data/yellow_tripdata_2021-04.parquet")
 df.write.saveAsTable("nyc.taxis")
 ```
-
-
-
-
-
- 
- 
-

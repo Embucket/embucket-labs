@@ -40,7 +40,7 @@ user = "embucket"
 Now you can use `snow` to connect to Embucket. Make sure Embucket is running:
 
 ```bash
-docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket 
+docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
 ```
 
 And then connect to it:

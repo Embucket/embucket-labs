@@ -10,12 +10,13 @@ Get Embucket running and execute your first query in under 5 minutes. This guide
 Launch the Embucket server:
 
 ```bash
-docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket 
+docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
 ```
 
 **That's it!** No external dependencies, no databases to install, no complex configuration. Embucket's zero-disk architecture means everything runs in-memory for this quick start.
 
 You should see output similar to:
+
 ```
 {"timestamp":"2025-07-01T15:35:05.687708Z","level":"INFO","fields":{"message":"Listening on http://0.0.0.0:8080"},"target":"embucketd"}
 {"timestamp":"2025-07-01T15:35:05.687807Z","level":"INFO","fields":{"message":"Listening on http://0.0.0.0:3000"},"target":"embucketd"}
@@ -24,8 +25,9 @@ You should see output similar to:
 Default configuration for the provided docker image uses **file storage** for metadata and data. This is not recommended for production use. For more configuration options, see the [configuration](/docs/getting-started/configuration) guide.
 
 Embucket is now running! The server provides:
+
 - Snowflake-compatible REST API at `http://127.0.0.1:3000`
-- Iceberg catalog REST API at `http://127.0.0.1:3000/catalog`  
+- Iceberg catalog REST API at `http://127.0.0.1:3000/catalog`
 - Web UI Dashboard at `http://127.0.0.1:8080`
 
 ## Step 2: Execute your first query
@@ -47,4 +49,4 @@ INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000.00), (2, 
 SELECT department, AVG(salary) as avg_salary FROM employees GROUP BY department ORDER BY avg_salary DESC
 ```
 
-Behind the hood, Embucket uses Apache Iceberg to store your data and SlateDB to store your metadata. 
+Behind the hood, Embucket uses Apache Iceberg to store your data and SlateDB to store your metadata.

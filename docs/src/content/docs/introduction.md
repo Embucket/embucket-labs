@@ -24,15 +24,19 @@ In short: Embucket gives you the interface you already know from Snowflake while
 ## Key Features
 
 ### Stateless compute
+
 Servers keep no local state; durability and metadata are handled by object storage and the Iceberg catalog. This means upgrades, scaling, and failover are trivial.
 
 ### Query-per-node architecture
+
 Each node is both coordinator and executor, eliminating a single point of failure. Add or remove nodes elastically to handle load spikes.
 
 ### Snowflake-first compatibility
+
 Instead of inventing a new dialect, Embucket implements Snowflake’s SQL grammar and REST semantics so you can reuse drivers, SDKs, and workflows with minimal changes.
 
 ### Apache 2.0 license
+
 Open, forkable, and community-driven.
 
 ## Architecture

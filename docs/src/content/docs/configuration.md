@@ -120,13 +120,12 @@ When using object storage, `OBJECT_STORE_BACKEND` environment variable should be
 
 ## UI configuration
 
-Embucket uses `HOST` and `ASSETS_PORT` environment variables to serve the UI and API. Once launched, you can access the UI at `http://HOST:ASSETS_PORT`. 
+Embucket uses `HOST` and `ASSETS_PORT` environment variables to serve the UI and API. Once launched, you can access the UI at `http://HOST:ASSETS_PORT`.
 `AUTH_DEMO_USER` and `AUTH_DEMO_PASSWORD` environment variables are used to authenticate the demo user (credentials to login in the UI).
 
 User is required to set `JWT_SECRET` environment variable to enable authentication (this should be set to some random string).
 
 `CORS_ENABLED` and `CORS_ALLOW_ORIGIN` environment variables are used to configure CORS. `CORS_ENABLED` should be set to `true` to enable CORS. `CORS_ALLOW_ORIGIN` should be set to the origin of the UI (e.g. `http://localhost:8080` or `https://acme.com`).
-
 
 ## Iceberg catalog configuration
 

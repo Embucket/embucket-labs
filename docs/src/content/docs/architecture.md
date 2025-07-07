@@ -3,7 +3,7 @@ title: Architecture
 description: High-level overview of Embucket's lakehouse architecture and core components
 ---
 
-Embucket is the “Snowflake bring-your-own-cloud” option built on the principle of **radical simplicity**: a statically-linked Rust executable that speaks Snowflake’s SQL & REST while storing every byte—data *and* metadata—directly in your object store.
+Embucket is the “Snowflake bring-your-own-cloud” option built on the principle of **radical simplicity**: a statically-linked Rust executable that speaks Snowflake’s SQL & REST while storing every byte—data _and_ metadata—directly in your object store.
 
 This page provides a high-level overview of Embucket's architecture, designed for users who want to understand how the system works without diving into source code.
 
@@ -19,9 +19,9 @@ Embucket is a thoughtful integration of best-in-class open-source projects, whic
 
 ### Radical Simplicity
 
- - Single executable—embucket bundles API, planner, query engine, catalog and UI.
- - Zero-disk architecture—no local volumes; durability and sharing come from the object store.
- - Stateless nodes—all persistent state lives in S3, so any node can be replaced instantly.
+- Single executable—embucket bundles API, planner, query engine, catalog and UI.
+- Zero-disk architecture—no local volumes; durability and sharing come from the object store.
+- Stateless nodes—all persistent state lives in S3, so any node can be replaced instantly.
 
 ### Open-Source Foundation
 
@@ -33,19 +33,19 @@ Embucket embraces and contributes to three battle-tested projects:
 
 ### Snowflake Compatibility
 
-Embucket parses Snowflake-flavoured SQL (ALTER SESSION, semi-structured types, etc.) and implements the v1 Snowflake REST API allowing tools like `dbt`, `snowflake-cli`, and Apache Superset to treat it as a Snowflake endpoint out of the box. 
+Embucket parses Snowflake-flavoured SQL (ALTER SESSION, semi-structured types, etc.) and implements the v1 Snowflake REST API allowing tools like `dbt`, `snowflake-cli`, and Apache Superset to treat it as a Snowflake endpoint out of the box.
 
 ## The Lakehouse Architecture
 
-Embucket’s lakehouse philosophy is to treat the object store as the database: all persistent state—both your data (in Parquet files) and the Iceberg metadata that defines it—resides in your object store. 
+Embucket’s lakehouse philosophy is to treat the object store as the database: all persistent state—both your data (in Parquet files) and the Iceberg metadata that defines it—resides in your object store.
 
- - Tables are Iceberg directories inside your bucket (s3://data/warehouse/db/table/).
- - Metadata—catalog changes, role grants, query history—is persisted by SlateDB as immutable SSTs in the same bucket.
- - Queries are compiled and executed in-memory by DataFusion, reading Iceberg data lazily and writing new snapshots atomically.
+- Tables are Iceberg directories inside your bucket (s3://data/warehouse/db/table/).
+- Metadata—catalog changes, role grants, query history—is persisted by SlateDB as immutable SSTs in the same bucket.
+- Queries are compiled and executed in-memory by DataFusion, reading Iceberg data lazily and writing new snapshots atomically.
 
 ### Iceberg integration
 
-Embucket uses Iceberg format internally for its data storage and provides an Iceberg Catalog REST API. This allows other clients (like Apache Spark and Trino) to query your data using the same Iceberg metadata. 
+Embucket uses Iceberg format internally for its data storage and provides an Iceberg Catalog REST API. This allows other clients (like Apache Spark and Trino) to query your data using the same Iceberg metadata.
 
 ### Metadata persistence
 
