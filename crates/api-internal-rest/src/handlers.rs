@@ -6,12 +6,12 @@ use axum::{
 };
 use snafu::ResultExt;
 
+use core_history::entities::{QueryRecord, QueryRecordId};
 #[allow(clippy::wildcard_imports)]
 use core_metastore::{
     error::{self as metastore_error},
     *,
 };
-use core_history::entities::{QueryRecordId, QueryRecord};
 
 use crate::{error::GetQuerySnafu, state::State as AppState};
 use core_utils::scan_iterator::ScanIterator;

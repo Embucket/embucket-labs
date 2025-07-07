@@ -1,7 +1,7 @@
 use crate::SnowflakeError;
 use crate::error as errors;
 use datafusion::error::DataFusionError;
-use datafusion_common::{Diagnostic, Span, Location};
+use datafusion_common::{Diagnostic, Location, Span};
 use embucket_functions::df_error::DFExternalError;
 use snafu::location;
 
@@ -24,22 +24,24 @@ fn test_datafusion_errors() {
     assert_eq!(err.to_string(), "Error during planning: 1");
 
     // External error
-    let err = DataFusionError::External(Box::new(
-            DataFusionError::NotImplemented("1".into()),
-        ));
-    assert_eq!(err.to_string(), "External error: This feature is not implemented: 1");
+    let err = DataFusionError::External(Box::new(DataFusionError::NotImplemented("1".into())));
+    assert_eq!(
+        err.to_string(),
+        "External error: This feature is not implemented: 1"
+    );
 
     // Extrernal error with downcast
-    let err = DataFusionError::External(Box::new(
-            DFExternalError::Numeric {
-                source: embucket_functions::numeric::Error::CastToType {
-                    target_type: "int".to_string(),
-                    error: arrow_schema::ArrowError::DivideByZero,
-                    location: location!(),
-                }
-            },
-        ));
-    assert_eq!(err.to_string(), "External error: Failed to cast to int: Divide by zero error");
+    let err = DataFusionError::External(Box::new(DFExternalError::Numeric {
+        source: embucket_functions::numeric::Error::CastToType {
+            target_type: "int".to_string(),
+            error: arrow_schema::ArrowError::DivideByZero,
+            location: location!(),
+        },
+    }));
+    assert_eq!(
+        err.to_string(),
+        "External error: Failed to cast to int: Divide by zero error"
+    );
 
     // assert!(false);
 }
@@ -50,7 +52,10 @@ fn test_error_not_supported() {
         error: Box::new(DataFusionError::NotImplemented("1".into())),
         location: location!(),
     });
-    if !err.message.starts_with("SQL compilation error: unsupported feature") {
+    if !err
+        .message
+        .starts_with("SQL compilation error: unsupported feature")
+    {
         println!("Actual error: {}", err.message);
         assert!(false);
     }
@@ -62,13 +67,19 @@ fn test_error_diagnostic_location() {
         error: Box::new(DataFusionError::Diagnostic(
             Box::new(Diagnostic::new_error(
                 "err",
-                Some(Span::new(Location { line: 1, column: 2 }, Location { line: 1, column: 3 })),
+                Some(Span::new(
+                    Location { line: 1, column: 2 },
+                    Location { line: 1, column: 3 },
+                )),
             )),
             Box::new(DataFusionError::Plan("plan".into())),
         )),
         location: location!(),
     });
-    if !err.message.starts_with("SQL compilation error: error line 1 at position 2\n") {
+    if !err
+        .message
+        .starts_with("SQL compilation error: error line 1 at position 2\n")
+    {
         println!("Actual error: {err}");
         assert!(false);
     }

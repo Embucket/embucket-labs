@@ -1,9 +1,9 @@
 use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
+use core_executor::SnowflakeError;
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorExt;
 use error_stack_trace;
-use core_executor::SnowflakeError;
 use http::StatusCode;
 use snafu::Location;
 use snafu::prelude::*;

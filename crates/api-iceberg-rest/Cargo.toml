@@ -22,6 +22,5 @@ snafu = { workspace = true }
 tracing = { workspace = true }
 validator = { workspace = true }
 
-
 [lints]
 workspace = true

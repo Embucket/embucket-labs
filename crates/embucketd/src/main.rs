@@ -155,8 +155,10 @@ async fn main() {
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
-    let internal_router =
-        create_internal_router().with_state(InternalAppState::new(metastore.clone(), history_store.clone()));
+    let internal_router = create_internal_router().with_state(InternalAppState::new(
+        metastore.clone(),
+        history_store.clone(),
+    ));
     let ui_state = UIAppState::new(
         metastore.clone(),
         history_store,

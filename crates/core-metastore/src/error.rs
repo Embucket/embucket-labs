@@ -3,10 +3,11 @@ use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
 use snafu::Location;
 use snafu::prelude::*;
+use strum_macros::AsRefStr;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Snafu)]
+#[derive(Snafu, AsRefStr)]
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {

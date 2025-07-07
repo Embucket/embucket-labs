@@ -92,7 +92,7 @@ impl IntoResponse for Error {
     )]
     fn into_response(self) -> axum::response::Response {
         tracing::error!("{}", self.output_msg());
-        let message = self.to_string();        
+        let message = self.to_string();
         let code = match self {
             Self::GetQuery { .. } => http::StatusCode::NOT_FOUND,
             Self::ListVolumes { error, .. }
@@ -102,8 +102,7 @@ impl IntoResponse for Error {
             | Self::DeleteVolume { error, .. }
             | Self::ListDatabases { error, .. }
             | Self::GetDatabase { error, .. }
-            | Self::CreateDatabase { error, .. } => match error 
-            {
+            | Self::CreateDatabase { error, .. } => match error {
                 core_metastore::Error::TableDataExists { .. }
                 | core_metastore::Error::ObjectAlreadyExists { .. }
                 | core_metastore::Error::VolumeAlreadyExists { .. }
@@ -135,7 +134,7 @@ impl IntoResponse for Error {
                 | core_metastore::Error::TableMetadataBuilder { .. }
                 | core_metastore::Error::TableObjectStoreNotFound { .. }
                 | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
-            }
+            },
         };
 
         // Record the result as part of the current span.

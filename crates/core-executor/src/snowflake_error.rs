@@ -1,12 +1,12 @@
 #![allow(clippy::redundant_else)]
 use crate::error::Error;
 use core_metastore::error::Error as MetastoreError;
+use datafusion_common::Diagnostic;
 use datafusion_common::error::DataFusionError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
-use sqlparser::parser::ParserError;
-use datafusion_common::Diagnostic;
 use snafu::Snafu;
+use sqlparser::parser::ParserError;
 
 // How SLT tests are used in Snowflake error conversion?
 // Database engine has a variety of errors, and you need to have error's structure to be able to match it
@@ -20,7 +20,6 @@ use snafu::Snafu;
 // as couldn't have perserred location information, errorred entities names, etc.
 // Use DataFusionError::Collection to return multiple errors providing additional context.
 // 3. Cover custom format messages with tests in `tests/snowflake_errors.rs`
-
 
 #[derive(Snafu, Debug)]
 #[snafu(display("{message}"))]
@@ -51,44 +50,28 @@ impl From<Error> for SnowflakeError {
                             let message = e.to_string();
                             match e {
                                 EmubucketFunctionsExternalDFError::Aggregate { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::Conversion { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::DateTime { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::Numeric { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::SemiStructured { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::StringBinary { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::Table { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 EmubucketFunctionsExternalDFError::Crate { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                             }
                         } else {
@@ -99,25 +82,19 @@ impl From<Error> for SnowflakeError {
                             let e = *e;
                             let message = e.to_string();
                             match e {
-                                DFCatalogExternalDFError::OrdinalPositionParamOverflow { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                DFCatalogExternalDFError::OrdinalPositionParamOverflow {
+                                    ..
+                                } => {
+                                    return Self { message };
                                 }
                                 DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 DFCatalogExternalDFError::CoreHistory { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 DFCatalogExternalDFError::CoreUtils { .. } => {
-                                    return Self {
-                                        message,
-                                    };
+                                    return Self { message };
                                 }
                                 DFCatalogExternalDFError::CatalogNotFound { .. } => {
                                     return Self { message };
@@ -220,7 +197,10 @@ impl From<Error> for SnowflakeError {
 
 fn diagnostic_location_error(diagnostic: &Diagnostic) -> Option<String> {
     if let Some(span) = diagnostic.span {
-        Some(format!("error line {} at position {}\n", span.start.line, span.start.column))
+        Some(format!(
+            "error line {} at position {}\n",
+            span.start.line, span.start.column
+        ))
     } else {
         None
     }
@@ -229,18 +209,14 @@ fn diagnostic_location_error(diagnostic: &Diagnostic) -> Option<String> {
 fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
     let message = datafusion_error.to_string();
     match datafusion_error {
-        DataFusionError::ArrowError(_arrow_error, Some(_backtrace)) => {
-            SnowflakeError { message }
-        }
+        DataFusionError::ArrowError(_arrow_error, Some(_backtrace)) => SnowflakeError { message },
         DataFusionError::Plan(_err) => SnowflakeError { message },
         DataFusionError::Collection(_df_errors) => {
             // In cases where we can return Collection of errors, we can have the most extended error context.
             // For instance it could include some DataFusionError provided as is, and External error encoding
             // any information we want.
-            SnowflakeError {
-                message
-            }
-        },
+            SnowflakeError { message }
+        }
         DataFusionError::Context(_context, _inner) => SnowflakeError { message },
         DataFusionError::Diagnostic(diagnostic, _inner) => {
             // TODO: Should we use Plan error somehow?
@@ -250,7 +226,10 @@ fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
             SnowflakeError {
                 // SQL compilation error: Object 'DATABASE.PUBLIC.ARRAY_DATA' does not exist or not authorized.
                 // TODO: add line and column from diagnostic.span.
-                message: format!("SQL compilation error: {location_error}{}", diagnostic.message),
+                message: format!(
+                    "SQL compilation error: {location_error}{}",
+                    diagnostic.message
+                ),
             }
         }
         DataFusionError::Execution(err) => SnowflakeError {
@@ -264,27 +243,21 @@ fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
                 message: format!("SQL compilation error: unsupported feature '{err}'"),
             }
         }
-        DataFusionError::ObjectStore(_object_store_error) => {
-            SnowflakeError { message }
-        }
+        DataFusionError::ObjectStore(_object_store_error) => SnowflakeError { message },
         DataFusionError::ParquetError(_parquet_error) => SnowflakeError { message },
-        DataFusionError::SchemaError(_schema_error, _boxed_backtrace) => {
-            SnowflakeError { message }
-        }
+        DataFusionError::SchemaError(_schema_error, _boxed_backtrace) => SnowflakeError { message },
         DataFusionError::Shared(_shared_error) => SnowflakeError { message },
         DataFusionError::SQL(sql_error, Some(_backtrace)) => match sql_error {
-            ParserError::TokenizerError(err) 
-            | ParserError::ParserError(err) => SnowflakeError {
+            ParserError::TokenizerError(err) | ParserError::ParserError(err) => SnowflakeError {
                 // Can produce message like this: "syntax error line 1 at position 27 unexpected 'XXXX'"
                 // since parse error is just a text and not a structure
                 message: format!("SQL compilation error: {err}"),
             },
-            ParserError::RecursionLimitExceeded => SnowflakeError { message }
-        }
+            ParserError::RecursionLimitExceeded => SnowflakeError { message },
+        },
         DataFusionError::Substrait(_substrait_error) => SnowflakeError { message },
         DataFusionError::External(_external_error) => SnowflakeError { message },
         DataFusionError::Internal(_internal_error) => SnowflakeError { message },
         _ => SnowflakeError { message },
     }
 }
-

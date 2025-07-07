@@ -1,8 +1,8 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use chrono::DateTime;
-use core_history::result_set::{Column, ResultSet, Row};
 use core_history::QueryResultError;
+use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::{
@@ -556,11 +556,12 @@ pub fn query_result_to_history(
     result: &Result<QueryResult>,
 ) -> std::result::Result<ResultSet, QueryResultError> {
     match result {
-        Ok(query_result) => query_result_to_result_set(query_result)
-            .map_err(|err| QueryResultError {
+        Ok(query_result) => {
+            query_result_to_result_set(query_result).map_err(|err| QueryResultError {
                 message: err.to_string(),
                 diagnostic_message: format!("{err:?}"),
-            }),
+            })
+        }
         Err(err) => Err(QueryResultError {
             message: err.to_string(),
             diagnostic_message: format!("{err:?}"),

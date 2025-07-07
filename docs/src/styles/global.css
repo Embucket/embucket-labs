@@ -1,0 +1,42 @@
+@import '@fontsource/inter';
+
+@layer base, starlight, theme, components, utilities;
+
+@import '@astrojs/starlight-tailwind';
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  --font-sans: 'Inter', 'sans-serif';
+}
+
+:root {
+  /* Sidebar item background */
+  --sl-color-accent-high: #0064d2;
+  /* Sidebar item selected text color */
+  --sl-color-accent-low: #ffffff;
+  /* Titles color (Sidebar group title, page title, etc.) */
+  --sl-color-white: #ffffff;
+  /* Selected Border color */
+  --sl-color-accent: hsl(214.3 31.8% 91.4%);
+
+  /* --sl-color-gray-1: #b5bfe2 */
+  /* Text color (content) */
+  --sl-color-gray-2: #cecbcb;
+  /* --sl-color-gray-3: #949cbb; */
+  /* --sl-color-gray-4: #51576d; */
+  /* Border color */
+  --sl-color-gray-5: hsl(240 2% 19%);
+  /* Sidebar/footer background */
+  --sl-color-gray-6: #171717;
+  /* --sl-color-gray-7: #1f1f1f; */
+  /* Main (content) background */
+  --sl-color-black: #1f1f1f;
+
+  color-scheme: dark;
+}
+
+/* Remove border after social icons */
+.social-icons::after {
+  content: none;
+}

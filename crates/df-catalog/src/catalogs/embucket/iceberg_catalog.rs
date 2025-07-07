@@ -253,24 +253,21 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         _parent: Option<&str>,
     ) -> Result<Vec<IcebergNamespace>, IcebergError> {
         let mut namespaces = Vec::new();
-        let databases = self
+        let database = self
             .metastore
-            .iter_databases()
+            .get_database(&self.name().to_string())
+            .await
+            .map_err(|e| IcebergError::External(Box::new(e)))?
+            .ok_or_else(|| IcebergError::NotFound(format!("database {}", self.name())))?;
+        let schemas = self
+            .metastore
+            .iter_schemas(&database.ident)
             .collect()
             .await
             .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        for database in databases {
-            let schemas = self
-                .metastore
-                .iter_schemas(&database.ident)
-                .collect()
-                .await
-                .context(metastore_error::UtilSlateDBSnafu)
-                .map_err(|e| IcebergError::External(Box::new(e)))?;
-            for schema in schemas {
-                namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
-            }
+        for schema in schemas {
+            namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
         }
         Ok(namespaces)
     }
