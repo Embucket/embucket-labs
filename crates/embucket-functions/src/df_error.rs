@@ -24,9 +24,9 @@ pub enum DFExternalError {
     },
     #[snafu(transparent)]
     Table { source: crate::table::Error },
-    #[cfg(feature = "geospatial")]
-    #[snafu(transparent)]
-    Geospatial { source: crate::geospatial::Error },
+    // #[cfg(feature = "geospatial")]
+    // #[snafu(transparent)]
+    // Geospatial { source: crate::geospatial::Error },
     #[snafu(transparent)]
     Crate { source: CrateError },
 }
