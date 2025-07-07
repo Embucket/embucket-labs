@@ -7,13 +7,26 @@ use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalD
 use sqlparser::parser::ParserError;
 use datafusion_common::Diagnostic;
 use snafu::Snafu;
+
+// How SLT tests are used in Snowflake error conversion?
+// Database engine has a variety of errors, and you need to have error's structure to be able to match it
+// and then properly return appropriate Snowflake error. Currently error_stack_trace available in logs and
+// provides extended error context. It is helpful for cathing occasional errors. But with SLT tests
+// you can get all the errors sources returned by Embucket, since slt runner produces slt_errors_stats_embucket.csv
+// file having all the errors occured during a test run, including error_stack_trace column.
+
+// 1. Use error_stack_trace to match error here inside `From<Error> for SnowflakeError`
+// 2. When it comes to DataFusionError mostly it's not enough having a single error
+// as couldn't have perserred location information, errorred entities names, etc.
+// Use DataFusionError::Collection to return multiple errors providing additional context.
+// 3. Cover custom format messages with tests in `tests/snowflake_errors.rs`
+
+
 #[derive(Snafu, Debug)]
 #[snafu(display("{message}"))]
 pub struct SnowflakeError {
     pub message: String,
 }
-
-// Cover custom format messages with tests in `tests/snowflake_errors.rs`
 
 // Self { message: format!("SQL execution error: {}", message) }
 impl From<Error> for SnowflakeError {
@@ -220,7 +233,14 @@ fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
             SnowflakeError { message }
         }
         DataFusionError::Plan(_err) => SnowflakeError { message },
-        DataFusionError::Collection(_df_errors) => SnowflakeError { message },
+        DataFusionError::Collection(_df_errors) => {
+            // In cases where we can return Collection of errors, we can have the most extended error context.
+            // For instance it could include some DataFusionError provided as is, and External error encoding
+            // any information we want.
+            SnowflakeError {
+                message
+            }
+        },
         DataFusionError::Context(_context, _inner) => SnowflakeError { message },
         DataFusionError::Diagnostic(diagnostic, _inner) => {
             // TODO: Should we use Plan error somehow?
