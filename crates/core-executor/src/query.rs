@@ -946,16 +946,6 @@ impl UserQuery {
         else {
             return ex_error::OnlyMergeStatementsSnafu.fail();
         };
-        // Currently only tables are supported
-        let TableFactor::Table {
-            name: target_ident,
-            alias: target_alias,
-            ..
-        } = target
-        else {
-            return ex_error::MergeTargetMustBeTableSnafu.fail();
-        };
-
         let df_session_state = self.session.ctx.state();
 
         let mut session_context_provider = SessionContextProvider {
@@ -963,52 +953,6 @@ impl UserQuery {
             tables: HashMap::new(),
         };
         let mut planner_context = datafusion::sql::planner::PlannerContext::new();
-
-        let target_ident = self.resolve_table_object_name(target_ident.0)?;
-
-        // Create a LogicalPlan for the target table
-
-        let target_table = self
-            .get_iceberg_table_provider(
-                &target_ident,
-                Some(
-                    //TODO Return proper Error
-                    #[allow(clippy::unwrap_used)]
-                    DataFusionTableConfigBuilder::default()
-                        .enable_data_file_path_column(true)
-                        .enable_manifest_file_path_column(true)
-                        .build()
-                        .unwrap(),
-                ),
-            )
-            .await?;
-
-        let target_table_source: Arc<dyn TableSource> =
-            Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
-
-        session_context_provider.tables.insert(
-            self.resolve_table_ref(&target_ident),
-            target_table_source.clone(),
-        );
-
-        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
-            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?;
-        let plan = if let Some(target_alias) = target_alias {
-            plan.alias(target_alias.name.to_string())
-                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
-        } else {
-            plan
-        };
-        let target_plan = DataFrame::new(
-            df_session_state.clone(),
-            plan.build()
-                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?,
-        )
-        .with_column(TARGET_EXISTS_COLUMN, lit(true))
-        .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
-        .into_unoptimized_plan();
-
-        let target_schema = target_plan.schema().clone();
 
         // Create a LogicalPlan for the source table
 
@@ -1099,6 +1043,61 @@ impl UserQuery {
         }?;
 
         let source_schema = source_plan.schema().clone();
+
+        // Create a LogicalPlan for the target table
+
+        let TableFactor::Table {
+            name: target_ident,
+            alias: target_alias,
+            ..
+        } = target
+        else {
+            return ex_error::MergeTargetMustBeTableSnafu.fail();
+        };
+
+        let target_ident = self.resolve_table_object_name(target_ident.0)?;
+
+        let target_table = self
+            .get_iceberg_table_provider(
+                &target_ident,
+                Some(
+                    //TODO Return proper Error
+                    #[allow(clippy::unwrap_used)]
+                    DataFusionTableConfigBuilder::default()
+                        .enable_data_file_path_column(true)
+                        .enable_manifest_file_path_column(true)
+                        .build()
+                        .unwrap(),
+                ),
+            )
+            .await?;
+
+        let target_table_source: Arc<dyn TableSource> =
+            Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
+
+        session_context_provider.tables.insert(
+            self.resolve_table_ref(&target_ident),
+            target_table_source.clone(),
+        );
+
+        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
+            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?;
+        let plan = if let Some(target_alias) = target_alias {
+            plan.alias(target_alias.name.to_string())
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        } else {
+            plan
+        };
+        let target_plan = DataFrame::new(
+            df_session_state.clone(),
+            plan.build()
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?,
+        )
+        .with_column(TARGET_EXISTS_COLUMN, lit(true))
+        .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        .into_unoptimized_plan();
+
+        let target_schema = target_plan.schema().clone();
 
         // Create the LogicalPlan for the join
 
