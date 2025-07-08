@@ -42,8 +42,6 @@ fn test_datafusion_errors() {
         err.to_string(),
         "External error: Failed to cast to int: Divide by zero error"
     );
-
-    // assert!(false);
 }
 
 #[test]
