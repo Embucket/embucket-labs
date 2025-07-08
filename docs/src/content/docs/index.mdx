@@ -10,11 +10,21 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## Example of Tailwind component
 
-<div class="m-10 bg-blue-500 p-10">
+<div class="bg-blue-500">
   <p>Tailwind component</p>
 </div>
 
-## Example of Astro mdx component
+## Example of Mermaid
+
+```mermaid
+sequenceDiagram
+    participant Alice
+    participant Bob
+    Alice->>Bob: Hello Bob, how are you?
+    Bob-->>Alice: I am good thanks!
+```
+
+## Example of Starlight mdx component
 
 <CardGrid stagger>
   <Card title="Update content" icon="pencil">

@@ -18,6 +18,8 @@
     "@fontsource/inter": "^5.2.6",
     "@tailwindcss/vite": "^4.1.11",
     "astro": "^5.11.0",
+    "astro-mermaid": "^1.0.4",
+    "mermaid": "^11.8.1",
     "sharp": "^0.34.2",
     "tailwindcss": "^4.1.11"
   },
