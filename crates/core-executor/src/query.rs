@@ -50,8 +50,9 @@ use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
-    CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType, LogicalPlanBuilder,
-    Projection, SubqueryAlias, TryCast, and, build_join_schema, is_null, lit, or, when,
+    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType,
+    LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and, build_join_schema,
+    is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -75,9 +76,12 @@ use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
+use iceberg_rust::spec::snapshot::Snapshot;
+use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
+use object_store::ObjectStore;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::{
@@ -960,7 +964,7 @@ impl UserQuery {
 
         // Create a LogicalPlan for the source table
 
-        let source_plan = match source {
+        let (source_plan, target_filter) = match source {
             TableFactor::Table {
                 name: source_ident,
                 alias: source_alias,
@@ -969,6 +973,8 @@ impl UserQuery {
                 let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
                 let source_provider = self.get_iceberg_table_provider(&source_ident, None).await?;
+
+                let target_filter = target_filter_expression(&source_provider).await?;
 
                 let source_table_source: Arc<dyn TableSource> =
                     Arc::new(DefaultTableSource::new(Arc::new(source_provider)));
@@ -994,7 +1000,7 @@ impl UserQuery {
                 .with_column(SOURCE_EXISTS_COLUMN, lit(true))
                 .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                 .into_unoptimized_plan();
-                Ok(source_plan)
+                Ok((source_plan, target_filter))
             }
             TableFactor::Derived {
                 lateral: _,
@@ -1036,7 +1042,7 @@ impl UserQuery {
                     .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
                     .into_unoptimized_plan();
 
-                Ok(source_plan)
+                Ok((source_plan, None))
             }
             _ => ex_error::MergeSourceNotSupportedSnafu.fail(),
         }?;
@@ -1079,8 +1085,18 @@ impl UserQuery {
             target_table_source.clone(),
         );
 
-        let plan = LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
-            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?;
+        let plan = if let Some(target_filter) = target_filter {
+            LogicalPlanBuilder::scan_with_filters(
+                &target_ident,
+                target_table_source,
+                None,
+                vec![target_filter],
+            )
+            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        } else {
+            LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        };
         let plan = if let Some(target_alias) = target_alias {
             plan.alias(target_alias.name.to_string())
                 .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
@@ -2286,9 +2302,32 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
     Ok(expr)
 }
 
-async fn partition_column_bounds(
+/// Constructs a filter expression for the target table based on the partition column bounds
+/// of the source table.
+///
+/// This function analyzes the partition structure of the source table and creates
+/// a `DataFusion` expression that filters data based on the minimum and maximum
+/// values of the partition columns. This is used for query optimization to prune
+/// partitions that don't contain relevant data.
+///
+/// # Arguments
+///
+/// * `table` - The `DataFusion` table wrapper for the Iceberg table
+///
+/// # Returns
+///
+/// * `Ok(Some(expr))` - A filter expression combining bounds for all partition columns
+/// * `Ok(None)` - If no snapshot exists, no partition bounds available, or no partition fields
+/// * `Err` - If there's an error accessing table metadata or building the expression
+///
+/// # Behavior
+///
+/// The function creates range conditions (column >= min AND column <= max) for each
+/// partition column and combines them with AND operators. Only works with Iceberg tables;
+/// returns an error for other table types.
+async fn target_filter_expression(
     table: &DataFusionTable,
-) -> Result<Option<Vec<[datafusion_expr::Expr; 2]>>> {
+) -> Result<Option<datafusion_expr::Expr>> {
     let lock = table.tabular.read().await;
     let table = match &*lock {
         Tabular::Table(table) => Ok(table),
@@ -2303,6 +2342,64 @@ async fn partition_column_bounds(
     else {
         return Ok(None);
     };
+    let Some(partition_column_bounds) =
+        partition_column_bounds(current_snapshot, table_metadata, object_store).await?
+    else {
+        return Ok(None);
+    };
+    let partition_fields = table
+        .metadata()
+        .partition_fields(*current_snapshot.snapshot_id())
+        .map_err(IcebergError::from)
+        .context(ex_error::IcebergSnafu)?;
+    let expr = partition_fields
+        .iter()
+        .zip(partition_column_bounds.into_iter())
+        .fold(None, |acc, (column, [min, max])| {
+            let column_expr = col(column.source_name());
+            let expr = and(
+                datafusion_expr::Expr::BinaryExpr(BinaryExpr::new(
+                    Box::new(column_expr.clone()),
+                    Operator::GtEq,
+                    Box::new(min),
+                )),
+                datafusion_expr::Expr::BinaryExpr(BinaryExpr::new(
+                    Box::new(column_expr),
+                    Operator::LtEq,
+                    Box::new(max),
+                )),
+            );
+            if let Some(acc) = acc {
+                Some(and(acc, expr))
+            } else {
+                Some(expr)
+            }
+        });
+    Ok(expr)
+}
+
+/// Retrieves partition column bounds from an Iceberg table snapshot.
+///
+/// This function extracts the minimum and maximum bounds for partition columns
+/// from the given snapshot and converts them into `DataFusion` expressions for
+/// query optimization.
+///
+/// # Arguments
+///
+/// * `current_snapshot` - The Iceberg table snapshot to extract bounds from
+/// * `table_metadata` - Metadata about the table structure and partitioning
+/// * `object_store` - Object store for accessing partition metadata
+///
+/// # Returns
+///
+/// * `Ok(Some(bounds))` - Vector of min/max expression pairs for each partition column
+/// * `Ok(None)` - If no partition bounds are available or bounds are empty
+/// * `Err` - If there's an error accessing snapshot or converting values
+async fn partition_column_bounds(
+    current_snapshot: &Snapshot,
+    table_metadata: &TableMetadata,
+    object_store: Arc<dyn ObjectStore>,
+) -> Result<Option<Vec<[datafusion_expr::Expr; 2]>>> {
     let Some(bounds) = snapshot_partition_bounds(current_snapshot, table_metadata, object_store)
         .await
         .context(ex_error::IcebergSnafu)?
