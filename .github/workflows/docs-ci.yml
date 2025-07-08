@@ -48,3 +48,6 @@ jobs:
       - name: Check formatting
         working-directory: ./docs
         run: pnpm prettier --check . 
+      - name: Build dry run
+        working-directory: ./docs
+        run: pnpm build

@@ -1,4 +1,7 @@
-# Tracing and profiling
+---
+title: Tracing and Profiling
+description: Learn how to use tracing and profiling features in Embucket for debugging and performance analysis.
+---
 
 ## Tracing
 
