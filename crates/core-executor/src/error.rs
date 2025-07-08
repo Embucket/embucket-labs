@@ -427,4 +427,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Unsupported IcebergValue type for literal conversion: {value_type}"))]
+    UnsupportedIcebergValueType {
+        value_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

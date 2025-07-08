@@ -13,7 +13,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::InvalidColumnIdentifierSnafu;
+use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -70,10 +70,14 @@ use embucket_functions::visitors::{
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
+use iceberg_rust::catalog::tabular::Tabular;
+use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
 use iceberg_rust::spec::types::StructType;
+use iceberg_rust::spec::values::Value as IcebergValue;
+use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::{
@@ -964,15 +968,10 @@ impl UserQuery {
             } => {
                 let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
-                let source_provider = self
-                    .session
-                    .ctx
-                    .table_provider(&source_ident)
-                    .await
-                    .context(ex_error::DataFusionSnafu)?;
+                let source_provider = self.get_iceberg_table_provider(&source_ident, None).await?;
 
                 let source_table_source: Arc<dyn TableSource> =
-                    Arc::new(DefaultTableSource::new(source_provider));
+                    Arc::new(DefaultTableSource::new(Arc::new(source_provider)));
 
                 session_context_provider.tables.insert(
                     self.resolve_table_ref(&source_ident),
@@ -2279,6 +2278,76 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
         }
     }?;
     Ok(expr)
+}
+
+async fn partition_column_bounds(
+    table: &DataFusionTable,
+) -> Result<Option<Vec<[datafusion_expr::Expr; 2]>>> {
+    let lock = table.tabular.read().await;
+    let table = match &*lock {
+        Tabular::Table(table) => Ok(table),
+        _ => MergeSourceNotSupportedSnafu.fail(),
+    }?;
+    let object_store = table.object_store();
+    let table_metadata = table.metadata();
+    let Some(current_snapshot) = table_metadata
+        .current_snapshot(None)
+        .map_err(IcebergError::from)
+        .context(ex_error::IcebergSnafu)?
+    else {
+        return Ok(None);
+    };
+    let Some(bounds) = snapshot_partition_bounds(current_snapshot, table_metadata, object_store)
+        .await
+        .context(ex_error::IcebergSnafu)?
+    else {
+        return Ok(None);
+    };
+    let bounds = bounds
+        .min
+        .iter()
+        .zip(bounds.max.iter())
+        .map(|(min, max)| Ok([value_to_literal(min)?, value_to_literal(max)?]))
+        .collect::<Result<Vec<_>>>()?;
+    if bounds.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(bounds))
+    }
+}
+
+/// Converts an `IcebergValue` to `DataFusion`on literal expression.
+///
+/// # Arguments
+/// * `value` - The `IcebergValue` to convert
+///
+/// # Returns
+/// A `DataFusion` expression representing the literal value, or an error if the value type is not supported.
+///
+/// # Supported Types
+/// * All primitive types: Boolean, Int, `LongInt`, Float, Double, Date, Time, Timestamp, `TimestampTZ`, String, UUID, Fixed, Binary, Decimal
+/// * Complex types (Struct, List, Map) are not currently supported
+fn value_to_literal(value: &IcebergValue) -> Result<datafusion_expr::Expr> {
+    match value {
+        IcebergValue::Boolean(b) => Ok(lit(*b)),
+        IcebergValue::Int(i) => Ok(lit(*i)),
+        IcebergValue::LongInt(l) => Ok(lit(*l)),
+        IcebergValue::Float(f) => Ok(lit(f.0)),
+        IcebergValue::Double(d) => Ok(lit(d.0)),
+        IcebergValue::Date(d) => Ok(lit(*d)),
+        IcebergValue::Time(t) => Ok(lit(*t)),
+        IcebergValue::Timestamp(ts) | IcebergValue::TimestampTZ(ts) => Ok(lit(*ts)),
+        IcebergValue::String(s) => Ok(lit(s.as_str())),
+        IcebergValue::UUID(u) => Ok(lit(u.to_string())),
+        IcebergValue::Fixed(_, data) | IcebergValue::Binary(data) => Ok(lit(data.clone())),
+        IcebergValue::Decimal(d) => Ok(lit(d.to_string())),
+        IcebergValue::Struct(_) | IcebergValue::List(_) | IcebergValue::Map(_) => {
+            ex_error::UnsupportedIcebergValueTypeSnafu {
+                value_type: format!("{value:?}"),
+            }
+            .fail()
+        }
+    }
 }
 
 fn build_starts_with_filter(starts_with: Option<Value>, column_name: &str) -> Option<String> {
