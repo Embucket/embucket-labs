@@ -98,14 +98,15 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api-ui::Error::into_response",
         level = "info",
-        fields(status_code),
+        fields(error, error_stack_trace, status_code),
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
-        tracing::error!("{}", self.output_msg());
-
         // Record the result as part of the current span.
-        tracing::Span::current().record("status_code", self.status_code().as_u16());
+        tracing::Span::current()
+            .record("error", self.snowflake_error_message())
+            .record("error_stack_trace", self.output_msg())
+            .record("status_code", self.status_code().as_u16());
 
         let code = self.status_code();
         match self {

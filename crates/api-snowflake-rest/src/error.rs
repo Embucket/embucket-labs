@@ -103,11 +103,12 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api-snowflake-rest::Error::into_response",
         level = "info",
-        fields(status_code),
+        fields(error, error_stack_trace, status_code),
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        tracing::error!(" {}", self.output_msg());
+        // Record the result as part of the current span.
+        tracing::Span::current().record("error_stack_trace", self.output_msg());
         let (status_code, message) = if let Self::Execution { source } = self {
             convert_into_status_code_and_error(source)
         } else {
@@ -130,8 +131,11 @@ impl IntoResponse for Error {
             };
             (status_code, self.snowflake_error_message())
         };
+
         // Record the result as part of the current span.
-        tracing::Span::current().record("status_code", status_code.as_u16());
+        tracing::Span::current()
+            .record("error", message)
+            .record("status_code", status_code.as_u16());
 
         let body = Json(JsonResponse {
             success: false,
