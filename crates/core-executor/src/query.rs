@@ -336,6 +336,7 @@ impl UserQuery {
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
+                | Statement::Rollback { .. }
                 | Statement::Insert { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;

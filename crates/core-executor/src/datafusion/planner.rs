@@ -43,6 +43,7 @@ where
             Statement::AlterTable { .. }
             | Statement::StartTransaction { .. }
             | Statement::Commit { .. }
+            | Statement::Rollback { .. }
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::CreateTable(CreateTableStatement {
                 query,
