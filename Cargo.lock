@@ -207,8 +207,8 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
- "strum 0.26.3",
- "strum_macros 0.26.4",
+ "strum",
+ "strum_macros",
  "thiserror 1.0.69",
  "typed-builder 0.19.1",
  "uuid",
@@ -292,7 +292,7 @@ dependencies = [
  "serde",
  "serde_json",
  "snafu",
- "strum 0.27.1",
+ "strum",
  "time",
  "tokio",
  "tower-sessions",
@@ -1952,7 +1952,7 @@ dependencies = [
  "serde_json",
  "snafu",
  "sqlparser 0.55.0 (git+https://github.com/Embucket/datafusion-sqlparser-rs.git?rev=97c03c04230fdf789c49c64eaaa5c0e77ffc8c78)",
- "strum 0.27.1",
+ "strum",
  "time",
  "tokio",
  "tokio-stream",
@@ -2028,8 +2028,8 @@ dependencies = [
  "serde_json",
  "slatedb",
  "snafu",
- "strum 0.27.1",
- "strum_macros 0.27.1",
+ "strum",
+ "strum_macros",
  "tokio",
  "tracing",
  "url",
@@ -2826,7 +2826,7 @@ dependencies = [
 [[package]]
 name = "datafusion_iceberg"
 version = "0.7.0"
-source = "git+https://github.com/Embucket/iceberg-rust.git?rev=bdcc055bd58f5a429670c7407a3abf59af615df4#bdcc055bd58f5a429670c7407a3abf59af615df4"
+source = "git+https://github.com/Embucket/iceberg-rust.git?rev=adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8#adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3096,8 +3096,8 @@ dependencies = [
  "serde_json",
  "snafu",
  "strsim",
- "strum 0.27.1",
- "strum_macros 0.27.1",
+ "strum",
+ "strum_macros",
  "tokio",
  "tracing",
 ]
@@ -4260,7 +4260,7 @@ dependencies = [
 [[package]]
 name = "iceberg-rest-catalog"
 version = "0.7.0"
-source = "git+https://github.com/Embucket/iceberg-rust.git?rev=bdcc055bd58f5a429670c7407a3abf59af615df4#bdcc055bd58f5a429670c7407a3abf59af615df4"
+source = "git+https://github.com/Embucket/iceberg-rust.git?rev=adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8#adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8"
 dependencies = [
  "async-trait",
  "aws-sigv4 0.3.1",
@@ -4285,7 +4285,7 @@ dependencies = [
 [[package]]
 name = "iceberg-rust"
 version = "0.7.0"
-source = "git+https://github.com/Embucket/iceberg-rust.git?rev=bdcc055bd58f5a429670c7407a3abf59af615df4#bdcc055bd58f5a429670c7407a3abf59af615df4"
+source = "git+https://github.com/Embucket/iceberg-rust.git?rev=adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8#adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8"
 dependencies = [
  "apache-avro",
  "arrow",
@@ -4317,7 +4317,7 @@ dependencies = [
 [[package]]
 name = "iceberg-rust-spec"
 version = "0.7.0"
-source = "git+https://github.com/Embucket/iceberg-rust.git?rev=bdcc055bd58f5a429670c7407a3abf59af615df4#bdcc055bd58f5a429670c7407a3abf59af615df4"
+source = "git+https://github.com/Embucket/iceberg-rust.git?rev=adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8#adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8"
 dependencies = [
  "apache-avro",
  "arrow-schema 55.2.0",
@@ -4342,7 +4342,7 @@ dependencies = [
 [[package]]
 name = "iceberg-s3tables-catalog"
 version = "0.7.0"
-source = "git+https://github.com/Embucket/iceberg-rust.git?rev=bdcc055bd58f5a429670c7407a3abf59af615df4#bdcc055bd58f5a429670c7407a3abf59af615df4"
+source = "git+https://github.com/Embucket/iceberg-rust.git?rev=adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8#adf4416c6b46cef51eb7dc0cb40a703ba8d1f3f8"
 dependencies = [
  "async-trait",
  "aws-config",
@@ -7399,14 +7399,8 @@ name = "strum"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
-
-[[package]]
-name = "strum"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f64def088c51c9510a8579e3c5d67c65349dcf755e5479ad3d010aa6454e2c32"
 dependencies = [
- "strum_macros 0.27.1",
+ "strum_macros",
 ]
 
 [[package]]
@@ -7414,19 +7408,6 @@ name = "strum_macros"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.104",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c77a8c5abcaf0f9ce05d62342b7d298c346515365c36b673df4ebe3ced01fde8"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
