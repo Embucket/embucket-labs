@@ -430,21 +430,32 @@ def load_config_from_env():
     """Load configuration from environment file."""
     load_dotenv()
 
-    # Extract Snowflake configuration from environment variables
+    # Check if Embucket is enabled - store this once in the config
+    embucket_enabled = os.getenv('EMBUCKET_ENABLED', '').lower() == 'true'
+
+    # Select user/password based on mode
+    if embucket_enabled:
+        user = os.getenv('EMBUCKET_USER')
+        password = os.getenv('EMBUCKET_PASSWORD')
+    else:
+        user = os.getenv('SNOWFLAKE_USER')
+        password = os.getenv('SNOWFLAKE_PASSWORD')
+
+    # Base configuration
     config = {
         'account': os.getenv('SNOWFLAKE_ACCOUNT'),
-        'user': os.getenv('SNOWFLAKE_USER'),
-        'password': os.getenv('SNOWFLAKE_PASSWORD'),
+        'user': user,
+        'password': password,
         'warehouse': os.getenv('WAREHOUSE'),
         'database': os.getenv('DATABASE'),
         'schema': os.getenv('SCHEMA'),
         'reset_db': os.getenv('RESET_DB', 'false').lower() == 'true',
+        'embucket': embucket_enabled,
     }
 
-    # Add embucket configuration if enabled via env
-    if os.getenv('EMBUCKET_ENABLED', '').lower() == 'true':
+    # Add embucket-specific configuration if enabled
+    if embucket_enabled:
         config.update({
-            'embucket': True,
             'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
             'host': os.getenv('EMBUCKET_HOST'),
             'port': os.getenv('EMBUCKET_PORT'),
