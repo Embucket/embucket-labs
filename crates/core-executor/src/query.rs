@@ -2051,9 +2051,15 @@ impl UserQuery {
             .downcast_ref::<DataFusionTable>()
             .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
 
+        //TODO check if enabl options are set
+        let schema = if config.is_some() {
+            Arc::new(build_target_schema(target_ref.schema.as_ref()))
+        } else {
+            target_ref.schema.clone()
+        };
         Ok(DataFusionTable {
             config,
-            schema: Arc::new(build_target_schema(target_ref.schema.as_ref())),
+            schema,
             ..target_ref.clone()
         })
     }
