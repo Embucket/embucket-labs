@@ -106,7 +106,7 @@ impl BasicAuthClient {
     /// Updates the session ID from response headers if present.
     fn set_session_id_from_response_headers(&mut self, headers: &HeaderMap) {
         let from_set_cookies = get_set_cookie_name_value_map(headers);
-        if let Some(session_id) = from_set_cookies.get("id") {
+        if let Some(session_id) = from_set_cookies.get("session_id") {
             self.session_id = Some(session_id.clone());
         }
     }
@@ -147,7 +147,7 @@ impl BasicAuthClient {
             cookies.push(format!("refresh_token={refresh_token}"));
         }
         if let Some(session_id) = &self.session_id {
-            cookies.push(format!("id={session_id}"));
+            cookies.push(format!("session_id={session_id}"));
         }
         if !cookies.is_empty() {
             headers.insert(
