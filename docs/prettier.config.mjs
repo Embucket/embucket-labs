@@ -8,7 +8,12 @@ const config = {
   arrowParens: 'always', // braces even for single param in arrow functions (a) => { }
   trailingComma: 'all', // add trailing commas in objects, arrays, etc...
   jsxSingleQuote: false, // "" for react props (like in html)
-  plugins: ['prettier-plugin-astro', 'prettier-plugin-packagejson', 'prettier-plugin-tailwindcss'],
+  plugins: [
+    'prettier-plugin-astro',
+    'prettier-plugin-packagejson',
+    // needs to be last
+    'prettier-plugin-tailwindcss',
+  ],
 };
 
 export default config;

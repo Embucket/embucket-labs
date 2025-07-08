@@ -15,20 +15,16 @@ SELECT '2019-02-28T01:23:45.678'::TIMESTAMP_NTZ AS "TIMESTAMP 1",
 
 exclude-from-coverage
 statement ok
-CREATE OR REPLACE TABLE accounts (ID INT, billing_date DATE, balance_due NUMBER(11, 2));
-
-exclude-from-coverage
-statement ok
-INSERT INTO accounts (ID, billing_date, balance_due) VALUES
-    (1, '2018-07-31', 100.00),
-    (2, '2018-08-01', 200.00),
-    (3, '2018-08-25', 400.00);
-
-exclude-from-coverage
-statement ok
 ALTER SESSION SET WEEK_START = 3;
 
-statement ok
+query TTTT
+WITH accounts AS (
+  SELECT * FROM VALUES
+    (1, '2018-07-31'::DATE, 100.00),
+    (2, '2018-08-01'::DATE, 200.00),
+    (3, '2018-08-25'::DATE, 400.00)
+  AS accounts(ID, billing_date, balance_due)
+)
 SELECT
        TIME_SLICE(billing_date, 2, 'WEEK', 'START') AS "START OF SLICE",
        TIME_SLICE(billing_date, 2, 'WEEK', 'END')   AS "END OF SLICE",
@@ -36,5 +32,7 @@ SELECT
        SUM(balance_due) AS "SUM OF MONEY OWED"
     FROM accounts
     WHERE balance_due > 0
-    GROUP BY "START OF SLICE", "END OF SLICE";
-
+    GROUP BY "START OF SLICE", "END OF SLICE"
+----
+'2018-08-22'	'2018-09-05'	1	400
+'2018-07-25'	'2018-08-08'	2	300

@@ -1,45 +1,33 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE trades (
-    exchange STRING,
-    symbol STRING,
-    price NUMBER
-);
-
-exclude-from-coverage
-statement ok
-INSERT INTO trades (exchange, symbol, price) VALUES
-    -- Exchange C (3 rows)
-    ('C', 'SPY', 100),
-    ('C', 'AAPL', 200),
-    ('C', 'AAPL', 300),
-    -- Exchange N (6 rows)
-    ('N', 'YHOO', 100),
-    ('N', 'QQQ', 120),
-    ('N', 'QQQ', 140),
-    ('N', 'SPY', 160),
-    ('N', 'SPY', 160),  -- duplicate price
-    ('N', 'AAPL', 200),
-    -- Exchange Q (6 rows)
-    ('Q', 'YHOO', 100),
-    ('Q', 'YHOO', 120),
-    ('Q', 'MSFT', 140),
-    ('Q', 'MSFT', 160),
-    ('Q', 'QQQ', 180),
-    ('Q', 'QQQ', 200),
-    -- Exchange P (5 rows)
-    ('P', 'YHOO', 100),
-    ('P', 'MSFT', 120),
-    ('P', 'MSFT', 140),
-    ('P', 'SPY', 160),
-    ('P', 'AAPL', 180);
-
 query TTT
+WITH trades AS (
+    SELECT * FROM VALUES
+        ('C', 'SPY', 100),
+        ('C', 'AAPL', 200),
+        ('C', 'AAPL', 300),
+        ('N', 'YHOO', 100),
+        ('N', 'QQQ', 120),
+        ('N', 'QQQ', 140),
+        ('N', 'SPY', 160),
+        ('N', 'SPY', 160),
+        ('N', 'AAPL', 200),
+        ('Q', 'YHOO', 100),
+        ('Q', 'YHOO', 120),
+        ('Q', 'MSFT', 140),
+        ('Q', 'MSFT', 160),
+        ('Q', 'QQQ', 180),
+        ('Q', 'QQQ', 200),
+        ('P', 'YHOO', 100),
+        ('P', 'MSFT', 120),
+        ('P', 'MSFT', 140),
+        ('P', 'SPY', 160),
+        ('P', 'AAPL', 180)
+    AS trades(exchange, symbol, price)
+)
 SELECT
     exchange,
     symbol,
     PERCENT_RANK() OVER (PARTITION BY exchange ORDER BY price) AS percent_rank
-  FROM trades
+FROM trades
 ----
 P	YHOO	0.0
 P	MSFT	0.25
@@ -61,4 +49,3 @@ Q	MSFT	0.4
 Q	MSFT	0.6
 Q	QQQ	0.8
 Q	QQQ	1.0
-

@@ -1,24 +1,16 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE ed (
-  s VARCHAR,
-  t VARCHAR
-);
-
-exclude-from-coverage
-statement ok
-INSERT INTO ed (s, t) VALUES
-  ('', ''),
-  ('Gute nacht', 'Ich weis nicht'),
-  ('Ich weiß nicht', 'Ich wei? nicht'),
-  ('Ich weiß nicht', 'Ich weiss nicht'),
-  ('Ich weiß nicht', NULL),
-  ('Snowflake', 'Oracle'),
-  ('święta', 'swieta'),
-  (NULL, ''),
-  (NULL, NULL);
-
 query TTTT
+WITH ed(s, t) AS ( SELECT * FROM
+  VALUES
+    ('', ''),
+    ('Gute nacht', 'Ich weis nicht'),
+    ('Ich weiß nicht', 'Ich wei? nicht'),
+    ('Ich weiß nicht', 'Ich weiss nicht'),
+    ('Ich weiß nicht', NULL),
+    ('Snowflake', 'Oracle'),
+    ('święta', 'swieta'),
+    (NULL, ''),
+    (NULL, NULL)
+)
 SELECT s, t,
        JAROWINKLER_SIMILARITY(s, t),
        JAROWINKLER_SIMILARITY(t, s)

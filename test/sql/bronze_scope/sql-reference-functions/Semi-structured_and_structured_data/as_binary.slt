@@ -1,15 +1,8 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE as_binary_example (binary1 VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO as_binary_example (binary1)
-  SELECT TO_VARIANT(TO_BINARY('F0A5'));
-
 query T
+WITH as_binary_example AS (
+  SELECT TO_VARIANT(TO_BINARY('F0A5')) AS binary1
+)
 SELECT AS_BINARY(binary1) AS binary_value
   FROM as_binary_example
 ----
 x'f0a5'
-

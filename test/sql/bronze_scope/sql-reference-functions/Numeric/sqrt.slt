@@ -1,20 +1,14 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE tab (x NUMBER);
-
-exclude-from-coverage
-statement ok
-INSERT INTO tab (x) VALUES
-    (0),
-    (2),
-    (10),
-    (NULL);
-
 query TT
+WITH tab(x) AS (SELECT * FROM
+    VALUES
+        (0),
+        (2),
+        (10),
+        (NULL)
+)
 SELECT x, sqrt(x) FROM tab
 ----
 0	0.0
 2	1.4142135623730951
 10	3.1622776601683795
 NULL	NULL
-

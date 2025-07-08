@@ -1,30 +1,53 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE sample_json_table (ID INTEGER, varchar1 VARCHAR, variant1 VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO sample_json_table (ID, varchar1, variant1)
-SELECT ID, varchar1, varchar1::VARIANT
-FROM (
-    SELECT 1 AS ID, '{"ValidKey1": "ValidValue1"}' AS varchar1
-    UNION ALL
-    SELECT 2 AS ID, '{"Malformed -- Missing value": null}' AS varchar1
-    UNION ALL
-    SELECT 3 AS ID, NULL AS varchar1
-) AS source_data;
-
 query TTT
-SELECT ID, CHECK_JSON(varchar1), varchar1 FROM sample_json_table ORDER BY ID
+WITH raw_data(ID, varchar1) AS (
+    SELECT * FROM VALUES
+        (1, '{"ValidKey1": "ValidValue1"}'),
+        (2, '{"Malformed -- Missing value": null}'),
+        (3, NULL)
+),
+sample_json_table AS (
+    SELECT
+        ID,
+        varchar1,
+        PARSE_JSON(varchar1) AS variant1
+    FROM raw_data
+)
+SELECT
+    ID,
+    CHECK_JSON(varchar1) AS json_check_result,
+    varchar1
+FROM
+    sample_json_table
+ORDER BY
+    ID;
 ----
 1	NULL	'{"ValidKey1":"ValidValue1"}'
 2	NULL	'{"Malformed -- Missing value":null}'
 3	NULL	NULL
 
 query TTT
-SELECT ID, CHECK_JSON(variant1), variant1 FROM sample_json_table ORDER BY ID
+WITH raw_data(ID, varchar1) AS (
+    SELECT * FROM VALUES
+        (1, '{"ValidKey1": "ValidValue1"}'),
+        (2, '{"Malformed -- Missing value": null}'),
+        (3, NULL)
+),
+sample_json_table AS (
+    SELECT
+        ID,
+        varchar1,
+        PARSE_JSON(varchar1) AS variant1
+    FROM raw_data
+)
+SELECT
+    ID,
+    CHECK_JSON(varchar1) AS json_check_result,
+    variant1
+FROM
+    sample_json_table
+ORDER BY
+    ID;
 ----
-1	NULL	"{\"ValidKey1\": \"ValidValue1\"}"
-2	NULL	"{\"Malformed -- Missing value\": null}"
+1	NULL	'{"ValidKey1":"ValidValue1"}'
+2	NULL	'{"Malformed -- Missing value":null}'
 3	NULL	NULL
-

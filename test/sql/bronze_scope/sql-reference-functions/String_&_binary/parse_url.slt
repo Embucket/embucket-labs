@@ -1,42 +1,75 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE parse_url_test (id INT, sample_url VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO parse_url_test VALUES
-  (1, 'mailto:abc@xyz.com'),
-  (2, 'https://www.snowflake.com/'),
-  (3, 'http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1'),
-  (4, NULL);
-
-query T
-SELECT PARSE_URL(sample_url) FROM parse_url_test
+query TT
+WITH parse_url_test AS (
+  SELECT * FROM VALUES
+    (1, 'mailto:abc@xyz.com'),
+    (2, 'https://www.snowflake.com/'),
+    (3, 'http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1'),
+    (4, NULL)
+  AS t(id, sample_url)
+)
+SELECT
+  id,
+  PARSE_URL(sample_url) AS parsed_url
+FROM
+  parse_url_test
+ORDER BY
+  id;
 ----
-'{"fragment":null,"host":null,"parameters":null,"path":"abc@xyz.com","port":null,"query":null,"scheme":"mailto"}'
-'{"fragment":null,"host":"www.snowflake.com","parameters":null,"path":"","port":null,"query":null,"scheme":"https"}'
-'{"fragment":null,"host":"USER:PASS@EXAMPLE.INT","parameters":{"USER":"1"},"path":"HELLO.PHP","port":"4345","query":"USER=1","scheme":"http"}'
-NULL
+1	'{"fragment":null,"host":null,"parameters":null,"path":"abc@xyz.com","port":null,"query":null,"scheme":"mailto"}'
+2	'{"fragment":null,"host":"www.snowflake.com","parameters":null,"path":"","port":null,"query":null,"scheme":"https"}'
+3	'{"fragment":null,"host":"USER:PASS@EXAMPLE.INT","parameters":{"USER":"1"},"path":"HELLO.PHP","port":"4345","query":"USER=1","scheme":"http"}'
+4	NULL
 
-query T
-SELECT PARSE_URL(sample_url):host FROM parse_url_test
+query TTT
+WITH parse_url_test AS (
+  SELECT * FROM VALUES
+    (1, 'mailto:abc@xyz.com'),
+    (2, 'https://www.snowflake.com/'),
+    (3, 'http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1'),
+    (4, NULL)
+  AS t(id, sample_url)
+)
+SELECT
+  id,
+  sample_url,
+  PARSE_URL(sample_url):host AS host
+FROM
+  parse_url_test
+ORDER BY
+  id;
 ----
-null
-"www.snowflake.com"
-"USER:PASS@EXAMPLE.INT"
-NULL
+1	mailto:abc@xyz.com	null
+2	https://www.snowflake.com/	"www.snowflake.com"
+3	http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1	"USER:PASS@EXAMPLE.INT"
+4	NULL	NULL
 
 query TT
+WITH parse_url_test AS (
+  SELECT * FROM VALUES
+    (1, 'mailto:abc@xyz.com'),
+    (2, 'https://www.snowflake.com/'),
+    (3, 'http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1'),
+    (4, NULL)
+  AS t(id, sample_url)
+)
 SELECT *
   FROM parse_url_test
-  WHERE PARSE_URL(sample_url):port = '4345'
+  WHERE PARSE_URL(sample_url):port = '4345';
 ----
 3	http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1
 
 query TT
+WITH parse_url_test AS (
+  SELECT * FROM VALUES
+    (1, 'mailto:abc@xyz.com'),
+    (2, 'https://www.snowflake.com/'),
+    (3, 'http://USER:PASS@EXAMPLE.INT:4345/HELLO.PHP?USER=1'),
+    (4, NULL)
+  AS t(id, sample_url)
+)
 SELECT *
   FROM parse_url_test
-  WHERE PARSE_URL(sample_url):host = 'www.snowflake.com'
+  WHERE PARSE_URL(sample_url):host = 'www.snowflake.com';
 ----
 2	https://www.snowflake.com/
 
@@ -49,4 +82,3 @@ query T
 SELECT PARSE_URL('example.int/hello.php?user=12#nofragment', 1)
 ----
 '{"error":"scheme not specified"}'
-

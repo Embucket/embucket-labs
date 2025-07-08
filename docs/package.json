@@ -5,6 +5,7 @@
   "scripts": {
     "astro": "astro",
     "build": "astro build",
+    "build:dry-run": "astro build --dry-run",
     "dev": "astro dev",
     "format": "prettier --write .",
     "ncu": "ncu -u",

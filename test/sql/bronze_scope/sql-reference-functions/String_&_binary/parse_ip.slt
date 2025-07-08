@@ -24,37 +24,35 @@ AND entries.IPv4:ipv4 BETWEEN lookup.obj:ipv4_range_start AND lookup.obj:ipv4_ra
 ----
 San Francisco	"192.168.242.188"	'{"family":4,"host":"192.168.242.188","ip_fields":[3232297660,0,0,0],"ip_type":"inet","ipv4":3232297660,"ipv4_range_end":3232297727,"ipv4_range_start":3232297472,"netmask_prefix_length":24,"snowflake$type":"ip_address"}'
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE ipv6_lookup (tag String, obj VARIANT);
-
-statement ok
-INSERT INTO ipv6_lookup
-    SELECT column1 AS tag, parse_ip(column2, 'INET') AS obj
-    FROM VALUES('west', 'fe80:12:20c:29ff::/64'), ('east', 'fe80:12:1:29ff::/64');
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE ipv6_entries (obj VARIANT);
-
-statement ok
-INSERT INTO ipv6_entries
-    SELECT parse_ip(column1, 'INET') as obj
-    FROM VALUES
-        ('fe80:12:20c:29ff:fe2c:430:370:2/64'),
-        ('fe80:12:20c:29ff:fe2c:430:370:00F0/64'),
-        ('fe80:12:20c:29ff:fe2c:430:370:0F00/64'),
-        ('fe80:12:20c:29ff:fe2c:430:370:F000/64'),
-        ('fe80:12:20c:29ff:fe2c:430:370:FFFF/64'),
-        ('fe80:12:1:29ff:fe2c:430:370:FFFF/64'),
-        ('fe80:12:1:29ff:fe2c:430:370:F000/64'),
-        ('fe80:12:1:29ff:fe2c:430:370:0F00/64'),
-        ('fe80:12:1:29ff:fe2c:430:370:00F0/64'),
-        ('fe80:12:1:29ff:fe2c:430:370:2/64');
-
-statement ok
+query TT
+WITH
+ipv6_lookup AS (
+  SELECT column1 AS tag, parse_ip(column2, 'INET') AS obj
+  FROM VALUES
+    ('west', 'fe80:12:20c:29ff::/64'),
+    ('east', 'fe80:12:1:29ff::/64')
+),
+ipv6_entries AS (
+  SELECT parse_ip(column1, 'INET') as obj
+  FROM VALUES
+    ('fe80:12:20c:29ff:fe2c:430:370:2/64'),
+    ('fe80:12:20c:29ff:fe2c:430:370:00F0/64'),
+    ('fe80:12:20c:29ff:fe2c:430:370:0F00/64'),
+    ('fe80:12:20c:29ff:fe2c:430:370:F000/64'),
+    ('fe80:12:20c:29ff:fe2c:430:370:FFFF/64'),
+    ('fe80:12:1:29ff:fe2c:430:370:FFFF/64'),
+    ('fe80:12:1:29ff:fe2c:430:370:F000/64'),
+    ('fe80:12:1:29ff:fe2c:430:370:0F00/64'),
+    ('fe80:12:1:29ff:fe2c:430:370:00F0/64'),
+    ('fe80:12:1:29ff:fe2c:430:370:2/64')
+)
 SELECT lookup.tag, entries.obj:host
-    FROM ipv6_lookup AS lookup, ipv6_entries AS entries
-    WHERE lookup.tag = 'east'
-    AND entries.obj:hex_ipv6 BETWEEN lookup.obj:hex_ipv6_range_start AND lookup.obj:hex_ipv6_range_end;
-
+FROM ipv6_lookup AS lookup, ipv6_entries AS entries
+WHERE lookup.tag = 'east'
+AND entries.obj:hex_ipv6 BETWEEN lookup.obj:hex_ipv6_range_start AND lookup.obj:hex_ipv6_range_end
+----
+east	"fe80:12:1:29ff:fe2c:430:370:FFFF"
+east	"fe80:12:1:29ff:fe2c:430:370:F000"
+east	"fe80:12:1:29ff:fe2c:430:370:0F00"
+east	"fe80:12:1:29ff:fe2c:430:370:00F0"
+east	"fe80:12:1:29ff:fe2c:430:370:2"

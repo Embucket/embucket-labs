@@ -21,19 +21,13 @@ SELECT REGEXP_REPLACE('firstname middlename lastname',
 ----
 \3, \1 \2
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE wildcards (w VARCHAR, w2 VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO wildcards (w, w2) VALUES ('\\', '?');
-
-exclude-from-coverage
-statement ok
-INSERT INTO wildcards (w, w2) VALUES (NULL, 'When I am cold, I am bold.');
-
 query TT
+WITH wildcards AS (
+  SELECT * FROM VALUES
+    ('\\', '?'),
+    (NULL, 'When I am cold, I am bold.')
+  AS t(w, w2)
+)
 SELECT w2, REGEXP_REPLACE(w2, '(.old)', 'very \\1')
   FROM wildcards
   ORDER BY w2

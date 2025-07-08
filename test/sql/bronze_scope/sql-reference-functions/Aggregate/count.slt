@@ -1,25 +1,26 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE basic_example (i_col INTEGER, j_col INTEGER);
-
-exclude-from-coverage
-statement ok
-INSERT INTO basic_example VALUES
-    (11,101), (11,102), (11,NULL), (12,101), (NULL,101), (NULL,102);
-
 query TTTTTTT
+WITH basic_example AS (
+    SELECT * FROM VALUES
+    (11,101), (11,102), (11,NULL), (12,101), (NULL,101), (NULL,102)
+    AS basic_example(i_col, j_col)
+)
 SELECT COUNT(*) AS "All",
        COUNT(i_col ILIKE 'i_c%') AS "ILIKE",
        COUNT(i_col) AS "EXCLUDE",
-       COUNT(i_col) AS "i_col", 
-       COUNT(DISTINCT i_col) AS "DISTINCT i_col", 
-       COUNT(j_col) AS "j_col", 
+       COUNT(i_col) AS "i_col",
+       COUNT(DISTINCT i_col) AS "DISTINCT i_col",
+       COUNT(j_col) AS "j_col",
        COUNT(DISTINCT j_col) AS "DISTINCT j_col"
   FROM basic_example
 ----
 6	4	4	4	2	5	2
 
 query TTT
+WITH basic_example AS (
+    SELECT * FROM VALUES
+    (11,101), (11,102), (11,NULL), (12,101), (NULL,101), (NULL,102)
+    AS basic_example(i_col, j_col)
+)
 SELECT i_col, COUNT(*), COUNT(j_col)
     FROM basic_example
     GROUP BY i_col
@@ -30,48 +31,32 @@ SELECT i_col, COUNT(*), COUNT(j_col)
 NULL	2	2
 
 query T
+WITH basic_example AS (
+    SELECT * FROM VALUES
+    (11,101), (11,102), (11,NULL), (12,101), (NULL,101), (NULL,102)
+    AS basic_example(i_col, j_col)
+)
 SELECT COUNT(n.*) FROM basic_example AS n
 ----
 3
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE count_example_with_variant_column (
-  i_col INTEGER, 
-  j_col INTEGER, 
-  v VARIANT);
-
-exclude-from-coverage
-statement ok
-BEGIN WORK;
-
-exclude-from-coverage
-statement ok
-INSERT INTO count_example_with_variant_column (i_col, j_col, v) 
-  VALUES (NULL, 10, NULL);
-
-exclude-from-coverage
-statement ok
-INSERT INTO count_example_with_variant_column (i_col, j_col, v) 
-  SELECT 1, 11, PARSE_JSON('{"Title": null}');
-
-exclude-from-coverage
-statement ok
-INSERT INTO count_example_with_variant_column (i_col, j_col, v) 
-  SELECT 2, 12, PARSE_JSON('{"Title": "O"}');
-
-exclude-from-coverage
-statement ok
-INSERT INTO count_example_with_variant_column (i_col, j_col, v) 
-  SELECT 3, 12, PARSE_JSON('{"Title": "I"}');
-
-exclude-from-coverage
-statement ok
-COMMIT WORK;
-
 query T
+WITH base_data AS (
+    SELECT * FROM VALUES
+    (NULL, 10, NULL),
+    (1, 11, '{"Title": null}'),
+    (2, 12, '{"Title": "O"}'),
+    (3, 12, '{"Title": "I"}')
+    AS t(i_col, j_col, json_text)
+),
+count_example_with_variant_column AS (
+    SELECT i_col, j_col,
+           CASE WHEN json_text IS NULL THEN NULL
+                ELSE PARSE_JSON(json_text)
+           END AS v
+    FROM base_data
+)
 SELECT COUNT(v:Title)
-    FROM count_example_with_variant_column
+FROM count_example_with_variant_column;
 ----
 2
-

@@ -279,17 +279,22 @@ dependencies = [
  "axum 0.8.4",
  "base64 0.22.1",
  "core-executor",
+ "core-history",
+ "core-metastore",
+ "core-utils",
  "datafusion",
  "error-stack",
  "error-stack-trace",
  "flate2",
  "indexmap 2.10.0",
- "regex",
+ "reqwest",
  "serde",
  "serde_json",
  "snafu",
  "strum",
+ "time",
  "tokio",
+ "tower-sessions",
  "tracing",
  "uuid",
 ]
@@ -1937,14 +1942,17 @@ dependencies = [
  "iceberg-s3tables-catalog",
  "indexmap 2.10.0",
  "insta",
+ "lru",
  "object_store",
  "paste",
+ "pin-project-lite",
  "regex",
  "serde",
  "serde_json",
  "snafu",
  "sqlparser 0.55.0 (git+https://github.com/Embucket/datafusion-sqlparser-rs.git?rev=97c03c04230fdf789c49c64eaaa5c0e77ffc8c78)",
  "strum",
+ "time",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -4918,6 +4926,15 @@ dependencies = [
  "scoped-tls",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lru"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0281c2e25e62316a5c9d98f2d2e9e95a37841afdaf4383c177dbb5c1dfab0568"
+dependencies = [
+ "hashbrown 0.15.4",
 ]
 
 [[package]]

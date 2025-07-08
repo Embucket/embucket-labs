@@ -676,6 +676,54 @@ test_query!(
     snapshot_path = "session"
 );
 
+test_query!(
+    merge_into_only_update,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (1, 'updated row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET merge_target.description = merge_source.description",
+    ]
+);
+
+test_query!(
+    merge_into_insert_and_update,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
+    ]
+);
+
+test_query!(
+    merge_into_insert_and_update_alias,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')",
+        "MERGE INTO merge_target t USING merge_source s ON t.id = s.id WHEN MATCHED THEN UPDATE SET description = s.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (s.id, s.description)",
+    ]
+);
+
+test_query!(
+    merge_into_with_predicate,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
+        "INSERT INTO embucket.public.merge_source VALUES (2, 'updated row'), (3, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED AND merge_target.id = 1 THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
+    ]
+);
+
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(
@@ -687,3 +735,50 @@ test_query!(
     "TRUNCATE TABLE 'EMBUCKET'.'PUBLIC'.'EMPLOYEE_TABLE'"
 );
 test_query!(truncate_missing, "TRUNCATE TABLE missing_table");
+
+test_query!(
+    merge_into_column_only_optimization,
+    "SELECT * FROM column_only_optimization_target ORDER BY a,b",
+    setup_queries = [
+        "CREATE TABLE column_only_optimization_target(a int,b string)",
+        "CREATE TABLE column_only_optimization_source(a int,b string)",
+        "INSERT INTO column_only_optimization_target VALUES(1,'a1'),(2,'a2')",
+        "INSERT INTO column_only_optimization_target VALUES(3,'a3'),(4,'a4')",
+        "INSERT INTO column_only_optimization_target VALUES(5,'a5'),(6,'a6')",
+        "INSERT INTO column_only_optimization_target VALUES(7,'a7'),(8,'a8')",
+        "INSERT INTO column_only_optimization_source VALUES(1,'b1'),(2,'b2')",
+        "INSERT INTO column_only_optimization_source VALUES(3,'b3'),(4,'b4')",
+        "MERGE INTO column_only_optimization_target AS t1 USING column_only_optimization_source AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.b = t2.b WHEN NOT MATCHED THEN INSERT (a,b) VALUES (t2.a, t2.b)",
+    ]
+);
+
+test_query!(
+    merge_into_without_distributed_enable,
+    "SELECT * FROM t1 ORDER BY a,b,c",
+    setup_queries = [
+        "CREATE OR REPLACE TABLE t1(a int,b string, c string)",
+        "CREATE OR REPLACE TABLE t2(a int,b string, c string)",
+        "INSERT INTO t1 VALUES(1,'b1','c1'),(2,'b2','c2')",
+        "INSERT INTO t1 VALUES(2,'b3','c3'),(3,'b4','c4')",
+        "INSERT INTO t2 VALUES(1,'b_5','c_5'),(3,'b_6','c_6')",
+        "INSERT INTO t2 VALUES(2,'b_7','c_7')",
+        "MERGE INTO t1 USING (SELECT * FROM t2) AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.c = t2.c",
+        "INSERT INTO t2 VALUES(4,'b_8','c_8')",
+        "MERGE INTO t1 USING (SELECT * FROM t2) AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.c = t2.c WHEN NOT MATCHED THEN INSERT (a,b,c) VALUES(t2.a,t2.b,t2.c)",
+    ]
+);
+
+test_query!(
+    merge_into_with_partial_insert,
+    "SELECT * FROM t1 ORDER BY a,b,c",
+    setup_queries = [
+        "CREATE OR REPLACE TABLE t1(a int,b string, c string)",
+        "CREATE OR REPLACE TABLE t2(a int,b string, c string)",
+        "INSERT INTO t1 VALUES(1,'b1','c1'),(2,'b2','c2')",
+        "INSERT INTO t1 VALUES(2,'b3','c3'),(3,'b4','c4')",
+        "INSERT INTO t2 VALUES(1,'b_5','c_5'),(3,'b_6','c_6')",
+        "INSERT INTO t2 VALUES(2,'b_7','c_7')",
+        "INSERT INTO t2 VALUES(4,'b_8','c_8')",
+        "MERGE INTO t1 USING (SELECT * FROM t2) AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.c = t2.c WHEN NOT MATCHED THEN INSERT (a,c) VALUES(t2.a,t2.c)",
+    ]
+);

@@ -1518,8 +1518,8 @@
                     "worksheetId": null,
                     "query": "CREATE TABLE test(a INT);",
                     "context": {
-                      "database": "my_database",
-                      "schema": "public"
+                      "schema": "public",
+                      "database": "my_database"
                     }
                   }
                 },
@@ -1576,6 +1576,73 @@
           },
           "422": {
             "description": "Unprocessable entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ui/queries/{queryRecordId}": {
+      "get": {
+        "tags": ["queries"],
+        "operationId": "getQuery",
+        "parameters": [
+          {
+            "name": "queryRecordId",
+            "in": "path",
+            "description": "Query Record Id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/i64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns result of the query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryGetResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad query record id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer authentication scheme with error details"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2597,6 +2664,9 @@
         }
       },
       "QueryCreateResponse": {
+        "$ref": "#/components/schemas/QueryRecord"
+      },
+      "QueryGetResponse": {
         "$ref": "#/components/schemas/QueryRecord"
       },
       "QueryRecord": {

@@ -1,15 +1,8 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE as_object_example (object1 VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO as_object_example (object1)
-  SELECT TO_VARIANT(TO_OBJECT(PARSE_JSON('{"Tree": "Pine"}')));
-
 query T
+WITH as_object_example AS (
+  SELECT TO_VARIANT(TO_OBJECT(PARSE_JSON('{"Tree": "Pine"}'))) AS object1
+)
 SELECT AS_OBJECT(object1) AS object_value
-  FROM as_object_example
+FROM as_object_example
 ----
 '{"Tree":"Pine"}'
-

@@ -1,15 +1,11 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE vartab (ID INTEGER, v VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO vartab (id, v) VALUES
-  (1, '[-1, 12, 289, 2188, FALSE,]'),
-  (2, '{ "x" : "abc", "y" : FALSE, "z": 10} '),
-  (3, '{ "bad" : "json", "missing" : TRUE, "close_brace": 10 ');
-
 query TT
+WITH vartab AS (
+  SELECT * FROM VALUES
+    (1, '[-1, 12, 289, 2188, FALSE,]'),
+    (2, '{ "x" : "abc", "y" : FALSE, "z": 10} '),
+    (3, '{ "bad" : "json", "missing" : TRUE, "close_brace": 10 ')
+  AS vtab(ID, v)
+)
 SELECT ID, TRY_PARSE_JSON(v)
   FROM vartab
   ORDER BY ID
@@ -17,4 +13,3 @@ SELECT ID, TRY_PARSE_JSON(v)
 1	'[-1,12,289,2188,false,null]'
 2	'{"x":"abc","y":false,"z":10}'
 3	NULL
-

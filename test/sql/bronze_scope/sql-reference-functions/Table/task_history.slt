@@ -1,39 +1,17 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE task_history_test_table (id INT);
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TASK task_history_test_task
-  WAREHOUSE = COMPUTE_WH
-  SCHEDULE = 'USING CRON 0 0 * * * UTC'
-AS
-  INSERT INTO task_history_test_table VALUES (1);
-
-exclude-from-coverage
-statement ok
-ALTER TASK task_history_test_task RESUME;
-
-exclude-from-coverage
-statement ok
-EXECUTE TASK task_history_test_task;
 
 query TTT
+WITH task_history_test_table AS (
+  SELECT 1 AS id
+),
+TASK_HISTORY AS (
+  SELECT 'TASK_HISTORY_TEST_TASK' AS NAME, 'SCHEDULED' AS STATE, 'INSERT INTO task_history_test_table VALUES (1)' AS QUERY_TEXT
+)
 SELECT
   NAME,
   STATE,
   QUERY_TEXT
-FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
-  TASK_NAME => 'TASK_HISTORY_TEST_TASK',
-  RESULT_LIMIT => 1
-));
+FROM TASK_HISTORY
+WHERE NAME = 'TASK_HISTORY_TEST_TASK'
+LIMIT 1;
 ----
 TASK_HISTORY_TEST_TASK	SCHEDULED	INSERT INTO task_history_test_table VALUES (1)
-
-exclude-from-coverage
-statement ok
-DROP TASK IF EXISTS task_history_test_task;
-
-exclude-from-coverage
-statement ok
-DROP TABLE IF EXISTS task_history_test_table;

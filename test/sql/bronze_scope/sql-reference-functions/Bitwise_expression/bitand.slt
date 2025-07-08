@@ -1,26 +1,19 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE bits (ID INTEGER, bit1 INTEGER, bit2 INTEGER);
-
-exclude-from-coverage
-statement ok
-INSERT INTO bits (ID, bit1, bit2) VALUES 
-  (   11,    1,     1),    -- Bits are all the same.
-  (   24,    2,     4),    -- Bits are all different.
-  (   42,    4,     2),    -- Bits are all different.
-  ( 1624,   16,    24),    -- Bits overlap.
-  (65504,    0, 65504),    -- Lots of bits (all but the low 6 bits).
-  (    0, NULL,  NULL)     -- No bits.
-  ;
-
 query TTTTT
-SELECT bit1, 
-       bit2, 
-       BITAND(bit1, bit2), 
-       BITOR(bit1, bit2), 
+WITH bits AS (
+  SELECT * FROM VALUES
+    (11, 1, 1),
+    (24, 2, 4),
+    (42, 4, 2),
+    (1624, 16, 24),
+    (65504, 0, 65504),
+    (0, NULL, NULL) AS t(ID, bit1, bit2))
+SELECT bit1,
+       bit2,
+       BITAND(bit1, bit2),
+       BITOR(bit1, bit2),
        BITXOR(bit1, BIT2)
   FROM bits
-  ORDER BY bit1
+  ORDER BY bit1;
 ----
 0	65504	0	65504	65504
 1	1	1	1	0
@@ -29,19 +22,13 @@ SELECT bit1,
 16	24	16	24	8
 NULL	NULL	NULL	NULL	NULL
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE bits (ID INTEGER, bit1 BINARY(2), bit2 BINARY(2), bit3 BINARY(4));
-
-exclude-from-coverage
-statement ok
-INSERT INTO bits VALUES
-  (1, x'1010', x'0101', x'11001010'),
-  (2, x'1100', x'0011', x'01011010'),
-  (3, x'BCBC', x'EEFF', x'ABCDABCD'),
-  (4, NULL, NULL, NULL);
-
 query TTTTT
+WITH bits AS (
+  SELECT * FROM VALUES
+    (1, x'1010', x'0101', x'11001010'),
+    (2, x'1100', x'0011', x'01011010'),
+    (3, x'BCBC', x'EEFF', x'ABCDABCD'),
+    (4, NULL, NULL, NULL) AS t(ID, bit1, bit2, bit3))
 SELECT bit1,
        bit2,
        BITAND(bit1, bit2),
@@ -89,4 +76,3 @@ x'1010'	x'11001010'	x'10000000'	x'11101010'	x'01101010'
 x'1100'	x'01011010'	x'01000000'	x'11011010'	x'10011010'
 x'bcbc'	x'abcdabcd'	x'a88c0000'	x'bffdabcd'	x'1771abcd'
 NULL	NULL	NULL	NULL	NULL
-

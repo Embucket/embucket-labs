@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import type { FileVolume, S3Volume, VolumeCreatePayload } from '@/orval/models';
 import {
   VolumeTypeOneOfAllOfType,
   VolumeTypeOneOfFourAllOfType,
@@ -34,6 +35,10 @@ const schema = z
       VolumeTypeOneOfFourAllOfType.s3Tables,
     ]),
     path: z.string().optional(),
+    bucket: z.string().optional(),
+    endpoint: z.string().optional(),
+    awsAccessKeyId: z.string().optional(),
+    awsSecretAccessKey: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === 'file' && (!data.path || data.path.trim() === '')) {
@@ -42,6 +47,36 @@ const schema = z
         message: 'Path is required for File Volume',
         path: ['path'],
       });
+    }
+    if (data.type === 's3') {
+      if (!data.bucket || data.bucket.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Bucket is required for S3 Volume',
+          path: ['bucket'],
+        });
+      }
+      if (!data.endpoint || data.endpoint.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Endpoint is required for S3 Volume',
+          path: ['endpoint'],
+        });
+      }
+      if (!data.awsAccessKeyId || data.awsAccessKeyId.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'AWS Access Key ID is required for S3 Volume',
+          path: ['awsAccessKeyId'],
+        });
+      }
+      if (!data.awsSecretAccessKey || data.awsSecretAccessKey.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'AWS Secret Access Key is required for S3 Volume',
+          path: ['awsSecretAccessKey'],
+        });
+      }
     }
   });
 
@@ -90,7 +125,7 @@ const TypeOption: React.FC<TypeOptionProps> = ({
 };
 
 interface CreateVolumeDialogForm {
-  onSubmit: (data: z.infer<typeof schema>) => void;
+  onSubmit: (data: VolumeCreatePayload) => void;
 }
 
 export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => {
@@ -100,6 +135,10 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
       name: '',
       type: 'file',
       path: '',
+      bucket: '',
+      endpoint: '',
+      awsAccessKeyId: '',
+      awsSecretAccessKey: '',
     },
   });
 
@@ -108,6 +147,9 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
   useEffect(() => {
     if (type !== 'file') {
       form.clearErrors('path');
+    }
+    if (type !== 's3') {
+      form.clearErrors(['bucket', 'endpoint', 'awsAccessKeyId', 'awsSecretAccessKey']);
     }
   }, [type, form]);
 
@@ -129,15 +171,62 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
       value: 's3',
       title: 'S3 Volume',
       description: 'Cloud-based storage with AWS S3.',
-      disabled: true,
     },
   ];
+
+  const onFormSubmit = (data: z.infer<typeof schema>) => {
+    switch (data.type) {
+      case 's3': {
+        const s3VolumeData: S3Volume = {
+          bucket: data.bucket,
+          endpoint: data.endpoint,
+          credentials: {
+            accessKey: {
+              awsAccessKeyId: data.awsAccessKeyId ?? '',
+              awsSecretAccessKey: data.awsSecretAccessKey ?? '',
+            },
+          },
+        };
+        const volumeData: VolumeCreatePayload = {
+          name: data.name,
+          type: data.type,
+          ...s3VolumeData,
+        };
+        onSubmit(volumeData);
+        break;
+      }
+      case 'file': {
+        const fileVolumeData: FileVolume = {
+          path: data.path ?? '',
+        };
+        const volumeData: VolumeCreatePayload = {
+          name: data.name,
+          type: data.type,
+          ...fileVolumeData,
+        };
+        onSubmit(volumeData);
+        break;
+      }
+      case 'memory': {
+        // TODO: Implement memory volume
+        const memoryVolumeData: VolumeCreatePayload = {
+          name: data.name,
+          type: data.type,
+        };
+        onSubmit(memoryVolumeData);
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported volume type: ${data.type}`);
+      }
+    }
+  };
 
   return (
     <FormProvider {...form}>
       <form
         id="createVolumeDialogForm"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onFormSubmit)}
         className="flex flex-col gap-4"
       >
         <FormField
@@ -173,14 +262,9 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
                       title={option.title}
                       description={option.description}
                       selectedValue={field.value}
-                      disabled={option.disabled}
                       radioControl={
                         <FormControl>
-                          <RadioGroupItem
-                            value={option.value}
-                            id={option.id}
-                            disabled={option.disabled}
-                          />
+                          <RadioGroupItem value={option.value} id={option.id} />
                         </FormControl>
                       }
                     />
@@ -205,6 +289,62 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
               </FormItem>
             )}
           />
+        )}
+        {type === 's3' && (
+          <>
+            <FormField
+              control={form.control}
+              name="bucket"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bucket</FormLabel>
+                  <FormControl>
+                    <Input {...field} required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="endpoint"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endpoint</FormLabel>
+                  <FormControl>
+                    <Input {...field} required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="awsAccessKeyId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>AWS Access Key ID</FormLabel>
+                  <FormControl>
+                    <Input {...field} required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="awsSecretAccessKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>AWS Secret Access Key</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="password" required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         )}
       </form>
     </FormProvider>

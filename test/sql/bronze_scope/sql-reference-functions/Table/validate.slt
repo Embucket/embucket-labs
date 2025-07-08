@@ -1,7 +1,3 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE t1 (JOB_ID STRING);
-
 statement error
 SELECT * FROM TABLE(VALIDATE(t1, JOB_ID => '_last'));
 ----

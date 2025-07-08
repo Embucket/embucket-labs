@@ -5,19 +5,13 @@ SELECT REGEXP_COUNT('It was the best of times, it was the worst of times',
 ----
 2
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE overlap (id NUMBER, a STRING);
-
-exclude-from-coverage
-statement ok
-INSERT INTO overlap VALUES (1,',abc,def,ghi,jkl,');
-
-exclude-from-coverage
-statement ok
-INSERT INTO overlap VALUES (2,',abc,,def,,ghi,,jkl,');
-
 query TT
+WITH overlap AS (
+  SELECT * FROM VALUES
+    (1, ',abc,def,ghi,jkl,'),
+    (2, ',abc,,def,,ghi,,jkl,')
+  AS t(id, a)
+)
 SELECT id,
        REGEXP_COUNT(a,
                     '[[:punct:]][[:alnum:]]+[[:punct:]]',
@@ -27,4 +21,3 @@ SELECT id,
 ----
 1	2
 2	4
-

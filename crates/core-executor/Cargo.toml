@@ -49,6 +49,8 @@ url = { workspace = true }
 uuid = { workspace = true }
 indexmap = { workspace = true }
 time = { workspace = true }
+pin-project-lite = "0.2.16"
+lru = "0.15.0"
 
 [dev-dependencies]
 bytes = { workspace = true }

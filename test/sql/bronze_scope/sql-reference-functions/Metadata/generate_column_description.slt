@@ -1,30 +1,22 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE STAGE mystage
-  FILE_FORMAT = (TYPE = PARQUET); -- Even though we won’t use real files, the stage must exist.
-
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE simulated_infer_schema AS
-SELECT
-    'country' AS COLUMN_NAME,
-    'VARIANT' AS TYPE,
-    TRUE AS NULLABLE
-UNION ALL
-SELECT
-    'continent',
-    'TEXT',
-    TRUE; -- create a table that mimics the metadata INFER_SCHEMA would return.
-
 query T
+WITH simulated_infer_schema AS (
+    SELECT 'country' AS COLUMN_NAME, 'VARIANT' AS TYPE, TRUE AS NULLABLE
+    UNION ALL
+    SELECT 'continent', 'TEXT', TRUE
+)
 SELECT GENERATE_COLUMN_DESCRIPTION(
     ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME', COLUMN_NAME, 'TYPE', TYPE, 'NULLABLE', NULLABLE)), 'table'
 ) AS COLUMNS
-FROM simulated_infer_schema; -- Instead of calling INFER_SCHEMA, use this simulated table.
+FROM simulated_infer_schema;
 ----
 "country" VARIANT,\n"continent" TEXT
 
 query T
+WITH simulated_infer_schema AS (
+    SELECT 'country' AS COLUMN_NAME, 'VARIANT' AS TYPE, TRUE AS NULLABLE
+    UNION ALL
+    SELECT 'continent', 'TEXT', TRUE
+)
 SELECT GENERATE_COLUMN_DESCRIPTION(
     ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME', COLUMN_NAME, 'TYPE', TYPE, 'NULLABLE', NULLABLE)), 'external_table'
 ) AS COLUMNS
@@ -33,6 +25,11 @@ FROM simulated_infer_schema;
 "country" VARIANT AS (null),\n"continent" TEXT AS (null)
 
 query T
+WITH simulated_infer_schema AS (
+    SELECT 'country' AS COLUMN_NAME, 'VARIANT' AS TYPE, TRUE AS NULLABLE
+    UNION ALL
+    SELECT 'continent', 'TEXT', TRUE
+)
 SELECT TRIM(GENERATE_COLUMN_DESCRIPTION(
     ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME', COLUMN_NAME, 'TYPE', TYPE, 'NULLABLE', NULLABLE)), 'view'
 )) AS COLUMNS

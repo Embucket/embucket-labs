@@ -1,21 +1,19 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE collation1 (v VARCHAR COLLATE 'es');
-
-exclude-from-coverage
-statement ok
-INSERT INTO collation1 (v) VALUES ('ñ');
-
 query TTTT
+WITH collation1 AS (
+    SELECT 'ñ'::VARCHAR AS v
+)
 SELECT v,
        COLLATION(v),
        COLLATE(v, 'es-ci'),
        COLLATION(COLLATE(v, 'es-ci'))
   FROM collation1
 ----
-ñ	es	ñ	es-ci
+ñ	NULL	ñ	es-ci
 
 query TTTTT
+WITH collation1 AS (
+    SELECT 'ñ'::VARCHAR AS v
+)
 SELECT v,
        v = 'ñ' AS "COMPARISON TO LOWER CASE",
        v = 'Ñ' AS "COMPARISON TO UPPER CASE",
@@ -24,4 +22,3 @@ SELECT v,
   FROM collation1
 ----
 ñ	TRUE	FALSE	ñ	TRUE
-
