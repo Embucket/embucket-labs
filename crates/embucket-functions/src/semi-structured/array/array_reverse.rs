@@ -1,5 +1,5 @@
-use crate::errors;
 use crate::macros::make_udf_function;
+use crate::semi_structured::errors;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::datatypes::DataType;

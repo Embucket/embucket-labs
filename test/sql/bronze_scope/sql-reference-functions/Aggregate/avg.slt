@@ -1,52 +1,74 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE avg_example(int_col int, d decimal(10,5), s1 varchar(10), s2 varchar(10));
-
-exclude-from-coverage
-statement ok
-INSERT INTO avg_example VALUES
-    (1, 1.1, '1.1','one'), 
-    (1, 10, '10','ten'),
-    (2, 2.4, '2.4','two'), 
-    (2, NULL, NULL, 'NULL'),
-    (3, NULL, NULL, 'NULL'),
-    (NULL, 9.9, '9.9','nine');
-
 query TTTT
-SELECT * 
-    FROM avg_example 
-    ORDER BY int_col, d
+WITH avg_example(int_col, d, s1, s2) AS (
+    SELECT $1, $2, $3, $4 FROM VALUES
+        (1, 1.1, '1.1', 'one'),
+        (1, 10, '10', 'ten'),
+        (2, 2.4, '2.4', 'two'),
+        (2, NULL, NULL, 'NULL'),
+        (3, NULL, NULL, 'NULL'),
+        (NULL, 9.9, '9.9', 'nine')
+)
+SELECT *
+    FROM avg_example
+    ORDER BY int_col, d;
 ----
-1	1.10000	1.1	one
-1	10.00000	10	ten
-2	2.40000	2.4	two
+1	1.1	1.1	one
+1	10.0	10	ten
+2	2.4	2.4	two
 2	NULL	NULL	NULL
 3	NULL	NULL	NULL
-NULL	9.90000	9.9	nine
+NULL	9.9	9.9	nine
 
 query TT
+WITH avg_example(int_col, d, s1, s2) AS (
+    SELECT $1, $2, $3, $4 FROM VALUES
+        (1, 1.1, '1.1', 'one'),
+        (1, 10, '10', 'ten'),
+        (2, 2.4, '2.4', 'two'),
+        (2, NULL, NULL, 'NULL'),
+        (3, NULL, NULL, 'NULL'),
+        (NULL, 9.9, '9.9', 'nine')
+)
 SELECT AVG(int_col), AVG(d)
-    FROM avg_example
+    FROM avg_example;
 ----
-1.800000	5.85000000000
+1.800000	5.8500000
 
 query TT
+WITH avg_example(int_col, d, s1, s2) AS (
+    SELECT $1, $2, $3, $4 FROM VALUES
+        (1, 1.1, '1.1', 'one'),
+        (1, 10, '10', 'ten'),
+        (2, 2.4, '2.4', 'two'),
+        (2, NULL, NULL, 'NULL'),
+        (3, NULL, NULL, 'NULL'),
+        (NULL, 9.9, '9.9', 'nine')
+)
 SELECT int_col, AVG(d)
-    FROM avg_example 
+    FROM avg_example
     GROUP BY int_col
-    ORDER BY int_col
+    ORDER BY int_col;
 ----
-1	5.55000000000
-2	2.40000000000
+1	5.5500000
+2	2.4000000
 3	NULL
-NULL	9.90000000000
+NULL	9.9000000
 
 query TT
-SELECT 
+WITH avg_example(int_col, d, s1, s2) AS (
+    SELECT $1, $2, $3, $4 FROM VALUES
+        (1, 1.1, '1.1', 'one'),
+        (1, 10, '10', 'ten'),
+        (2, 2.4, '2.4', 'two'),
+        (2, NULL, NULL, 'NULL'),
+        (3, NULL, NULL, 'NULL'),
+        (NULL, 9.9, '9.9', 'nine')
+)
+SELECT
        int_col,
-       AVG(int_col) OVER(PARTITION BY int_col) 
+       AVG(int_col) OVER(PARTITION BY int_col)
     FROM avg_example
-    ORDER BY int_col
+    ORDER BY int_col;
 ----
 1	1.000
 1	1.000
@@ -54,4 +76,3 @@ SELECT
 2	2.000
 3	3.000
 NULL	NULL
-

@@ -1,18 +1,25 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE rlike_ex(city VARCHAR(20));
-
-exclude-from-coverage
-statement ok
-INSERT INTO rlike_ex VALUES ('Sacramento'), ('San Francisco'), ('San Jose'), (null);
 
 query T
+WITH rlike_ex AS (
+    SELECT column1 AS city FROM VALUES
+    ('Sacramento'),
+    ('San Francisco'),
+    ('San Jose'),
+    (null)
+)
 SELECT * FROM rlike_ex WHERE RLIKE(city, 'san.*', 'i')
 ----
 San Francisco
 San Jose
 
 query T
+WITH rlike_ex AS (
+    SELECT column1 AS city FROM VALUES
+    ('Sacramento'),
+    ('San Francisco'),
+    ('San Jose'),
+    (null)
+)
 SELECT * FROM rlike_ex WHERE NOT RLIKE(city, 'san.*', 'i')
 ----
 Sacramento
@@ -54,7 +61,13 @@ SELECT RLIKE('jsmith@email.com',
 TRUE
 
 query T
+WITH rlike_ex AS (
+    SELECT column1 AS city FROM VALUES
+    ('Sacramento'),
+    ('San Francisco'),
+    ('San Jose'),
+    (null)
+)
 SELECT * FROM rlike_ex WHERE city RLIKE 'San.* [fF].*'
 ----
 San Francisco
-

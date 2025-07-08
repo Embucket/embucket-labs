@@ -10,15 +10,14 @@ SELECT CONCAT('>', CONCAT('ABC\n', '<')) AS original,
 ----
 >ABC\n<	>ABC<
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE test_trim_function(column1 VARCHAR);
-
-exclude-from-coverage
-statement ok
-INSERT INTO test_trim_function VALUES ('  Leading Spaces'), ('Trailing Spaces  '), (NULL);
-
 query TT
+WITH test_trim_function AS (
+  SELECT '  Leading Spaces' AS column1
+  UNION ALL
+  SELECT 'Trailing Spaces  '
+  UNION ALL
+  SELECT NULL
+)
 SELECT CONCAT('>', CONCAT(column1, '<')) AS original_values,
        CONCAT('>', CONCAT(TRIM(column1), '<')) AS trimmed_values
   FROM test_trim_function
@@ -26,4 +25,3 @@ SELECT CONCAT('>', CONCAT(column1, '<')) AS original_values,
 >  Leading Spaces<	>Leading Spaces<
 >Trailing Spaces  <	>Trailing Spaces<
 NULL	NULL
-

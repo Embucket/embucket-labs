@@ -2,12 +2,11 @@ use error::Result;
 use snafu::ResultExt;
 use tokio::runtime::Builder;
 
-use crate::error::PanicWrapper;
-
 #[allow(clippy::module_inception)]
 pub mod catalog;
 pub mod catalog_list;
 pub mod catalogs;
+pub mod df_error;
 pub mod error;
 pub mod information_schema;
 pub mod schema;
@@ -31,8 +30,7 @@ where
             .map(|rt| rt.block_on(future))
     })
     .join()
-    .map_err(PanicWrapper)
-    .context(error::ThreadPanickedSnafu)?
+    .unwrap_or_else(|_| error::ThreadPanickedWhileExecutingFutureSnafu.fail()?)
 }
 
 pub mod test_utils {

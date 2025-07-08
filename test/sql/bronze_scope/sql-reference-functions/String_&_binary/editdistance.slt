@@ -1,24 +1,16 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE ed (
-    s STRING,
-    t STRING
-);
-
-exclude-from-coverage
-statement ok
-INSERT INTO ed (s, t) VALUES
-    ('', ''),
-    ('Gute nacht', 'Ich weis nicht'),
-    ('Ich weiß nicht', 'Ich wei? nicht'),
-    ('Ich weiß nicht', 'Ich weiss nicht'),
-    ('Ich weiß nicht', NULL),
-    ('Snowflake', 'Oracle'),
-    ('święta', 'swieta'),
-    (NULL, ''),
-    (NULL, NULL);
-
 query TTTTTT
+WITH ed(s, t) AS (SELECT * FROM
+    VALUES
+        ('', ''),
+        ('Gute nacht', 'Ich weis nicht'),
+        ('Ich weiß nicht', 'Ich wei? nicht'),
+        ('Ich weiß nicht', 'Ich weiss nicht'),
+        ('Ich weiß nicht', NULL),
+        ('Snowflake', 'Oracle'),
+        ('święta', 'swieta'),
+        (NULL, ''),
+        (NULL, NULL)
+)
 SELECT s,
        t,
        EDITDISTANCE(s, t),

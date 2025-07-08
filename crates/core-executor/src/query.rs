@@ -8,8 +8,14 @@ use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
+use crate::datafusion::physical_plan::merge::{
+    DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
+};
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
+use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
 use core_metastore::{
     Metastore, SchemaIdent as MetastoreSchemaIdent,
@@ -20,14 +26,16 @@ use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
+use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::SessionContextProvider;
 use datafusion::execution::session_state::SessionState;
-use datafusion::logical_expr::col;
+use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
-use datafusion::prelude::CsvReadOptions;
+use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
+use datafusion::sql::planner::ParserOptions;
 use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
     CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
@@ -35,15 +43,25 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DataFusionError, ResolvedTableReference, SchemaReference, TableReference, plan_datafusion_err,
+    DFSchema, DataFusionError, ResolvedTableReference, SchemaReference, TableReference,
+    plan_datafusion_err,
 };
+use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
-use datafusion_expr::{CreateMemoryTable, DdlStatement, Expr as DFExpr, Projection, TryCast};
+use datafusion_expr::planner::ContextProvider;
+use datafusion_expr::{
+    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType,
+    LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and, build_join_schema,
+    is_null, lit, or, when,
+};
+use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
+use df_catalog::table::CachingTable;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
@@ -53,21 +71,29 @@ use embucket_functions::visitors::{
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
+use iceberg_rust::catalog::tabular::Tabular;
+use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
 use iceberg_rust::spec::schema::Schema;
+use iceberg_rust::spec::snapshot::Snapshot;
+use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
+use iceberg_rust::spec::values::Value as IcebergValue;
+use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
+use object_store::ObjectStore;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::{
-    MergeAction, MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource,
-    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
-    visit_relations_mut,
+    AssignmentTarget, MergeAction, MergeClause, MergeClauseKind, MergeInsertKind, ObjectNamePart,
+    ObjectType, PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
+    TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::ops::ControlFlow;
+use std::result::Result as StdResult;
 use std::sync::Arc;
 use tracing_attributes::instrument;
 use url::Url;
@@ -336,6 +362,7 @@ impl UserQuery {
                 Statement::AlterTable { .. }
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
+                | Statement::Rollback { .. }
                 | Statement::Insert { .. }
                 | Statement::Update { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
@@ -914,11 +941,12 @@ impl UserQuery {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     #[instrument(name = "UserQuery::merge_query", level = "trace", skip(self), err)]
     pub async fn merge_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Merge {
-            table,
-            mut source,
+            table: target,
+            source,
             on,
             clauses,
             ..
@@ -926,74 +954,197 @@ impl UserQuery {
         else {
             return ex_error::OnlyMergeStatementsSnafu.fail();
         };
+        let df_session_state = self.session.ctx.state();
 
-        let (target_table, target_alias) = Self::get_table_with_alias(table);
-        let (_source_table, source_alias) = Self::get_table_with_alias(source.clone());
-
-        let target_table = self.resolve_table_object_name(target_table.0)?;
-
-        let source_query = if let TableFactor::Derived {
-            subquery,
-            lateral,
-            alias,
-        } = source
-        {
-            source = TableFactor::Derived {
-                lateral,
-                subquery,
-                alias: None,
-            };
-            alias.map_or_else(|| source.to_string(), |alias| format!("{source} {alias}"))
-        } else {
-            source.to_string()
+        let mut session_context_provider = SessionContextProvider {
+            state: &df_session_state,
+            tables: HashMap::new(),
         };
+        let mut planner_context = datafusion::sql::planner::PlannerContext::new();
 
-        // Prepare WHERE clause to filter unmatched records
-        let where_clause = self
-            .get_expr_where_clause(*on.clone(), target_alias.as_str())
-            .iter()
-            .map(|v| format!("{v} IS NULL"))
-            .collect::<Vec<_>>();
-        let where_clause_str = if where_clause.is_empty() {
-            String::new()
-        } else {
-            format!(" WHERE {}", where_clause.join(" AND "))
-        };
+        // Create a LogicalPlan for the source table
 
-        // Check NOT MATCHED for records to INSERT
-        // Extract columns and values from clauses
-        let mut columns = String::new();
-        let mut values = String::new();
-        for clause in clauses {
-            if clause.clause_kind == MergeClauseKind::NotMatched {
-                if let MergeAction::Insert(insert) = clause.action {
-                    columns = insert
-                        .columns
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    if let MergeInsertKind::Values(values_insert) = insert.kind {
-                        values = values_insert
-                            .rows
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<_>>()
-                            .iter()
-                            .map(|v| format!("{source_alias}.{v}"))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                    }
-                }
+        let (source_plan, target_filter) = match source {
+            TableFactor::Table {
+                name: source_ident,
+                alias: source_alias,
+                ..
+            } => {
+                let source_ident = self.resolve_table_object_name(source_ident.0)?;
+
+                let source_provider = self.get_iceberg_table_provider(&source_ident, None).await?;
+
+                let target_filter = target_filter_expression(&source_provider).await?;
+
+                let source_table_source: Arc<dyn TableSource> =
+                    Arc::new(DefaultTableSource::new(Arc::new(source_provider)));
+
+                session_context_provider.tables.insert(
+                    self.resolve_table_ref(&source_ident),
+                    source_table_source.clone(),
+                );
+
+                let plan = LogicalPlanBuilder::scan(&source_ident, source_table_source, None)
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?;
+                let plan = if let Some(source_alias) = source_alias {
+                    plan.alias(source_alias.name.to_string())
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
+                } else {
+                    plan
+                };
+                let source_plan = DataFrame::new(
+                    df_session_state.clone(),
+                    plan.build()
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?,
+                )
+                .with_column(SOURCE_EXISTS_COLUMN, lit(true))
+                .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
+                .into_unoptimized_plan();
+                Ok((source_plan, target_filter))
             }
-        }
-        let select_query = format!(
-            "SELECT {values} FROM {source_query} LEFT JOIN {target_table} {target_alias} ON {on}{where_clause_str}"
+            TableFactor::Derived {
+                lateral: _,
+                subquery,
+                alias,
+            } => {
+                let query = Statement::Query(subquery.clone());
+
+                let tables = self
+                    .table_references_for_statement(
+                        &DFStatement::Statement(Box::new(query.clone())),
+                        &df_session_state,
+                    )
+                    .await?;
+
+                session_context_provider.tables.extend(tables);
+
+                let sql_planner =
+                    ExtendedSqlToRel::new(&session_context_provider, ParserOptions::default());
+
+                let source_plan = sql_planner
+                    .sql_statement_to_plan(query)
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?;
+
+                let source_plan = if let Some(alias) = alias {
+                    LogicalPlan::SubqueryAlias(
+                        SubqueryAlias::try_new(
+                            Arc::new(source_plan),
+                            TableReference::parse_str(&alias.to_string()),
+                        )
+                        .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?,
+                    )
+                } else {
+                    source_plan
+                };
+
+                let source_plan = DataFrame::new(df_session_state.clone(), source_plan)
+                    .with_column(SOURCE_EXISTS_COLUMN, lit(true))
+                    .context(ex_error::DataFusionLogicalPlanMergeSourceSnafu)?
+                    .into_unoptimized_plan();
+
+                Ok((source_plan, None))
+            }
+            _ => ex_error::MergeSourceNotSupportedSnafu.fail(),
+        }?;
+
+        let source_schema = source_plan.schema().clone();
+
+        // Create a LogicalPlan for the target table
+
+        let TableFactor::Table {
+            name: target_ident,
+            alias: target_alias,
+            ..
+        } = target
+        else {
+            return ex_error::MergeTargetMustBeTableSnafu.fail();
+        };
+
+        let target_ident = self.resolve_table_object_name(target_ident.0)?;
+
+        let target_table = self
+            .get_iceberg_table_provider(
+                &target_ident,
+                Some(
+                    //TODO Return proper Error
+                    #[allow(clippy::unwrap_used)]
+                    DataFusionTableConfigBuilder::default()
+                        .enable_data_file_path_column(true)
+                        .enable_manifest_file_path_column(true)
+                        .build()
+                        .unwrap(),
+                ),
+            )
+            .await?;
+
+        let target_table_source: Arc<dyn TableSource> =
+            Arc::new(DefaultTableSource::new(Arc::new(target_table.clone())));
+
+        session_context_provider.tables.insert(
+            self.resolve_table_ref(&target_ident),
+            target_table_source.clone(),
         );
 
-        // Construct the INSERT statement
-        let insert_query = format!("INSERT INTO {target_table} ({columns}) {select_query}");
-        self.execute_with_custom_plan(&insert_query).await
+        let plan = if let Some(target_filter) = target_filter {
+            LogicalPlanBuilder::scan_with_filters(
+                &target_ident,
+                target_table_source,
+                None,
+                vec![target_filter],
+            )
+            .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        } else {
+            LogicalPlanBuilder::scan(&target_ident, target_table_source, None)
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        };
+        let plan = if let Some(target_alias) = target_alias {
+            plan.alias(target_alias.name.to_string())
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        } else {
+            plan
+        };
+        let target_plan = DataFrame::new(
+            df_session_state.clone(),
+            plan.build()
+                .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?,
+        )
+        .with_column(TARGET_EXISTS_COLUMN, lit(true))
+        .context(ex_error::DataFusionLogicalPlanMergeTargetSnafu)?
+        .into_unoptimized_plan();
+
+        let target_schema = target_plan.schema().clone();
+
+        // Create the LogicalPlan for the join
+
+        let sql_planner =
+            ExtendedSqlToRel::new(&session_context_provider, ParserOptions::default());
+
+        let schema = build_join_schema(&target_schema, &source_schema, &JoinType::Full)
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
+
+        let on_expr = sql_planner
+            .as_ref()
+            .sql_to_expr((*on).clone(), &schema, &mut planner_context)
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
+
+        let merge_clause_projection =
+            merge_clause_projection(&sql_planner, &schema, &target_schema, clauses)?;
+
+        let join_plan = LogicalPlanBuilder::new(target_plan)
+            .join_on(source_plan, JoinType::Full, [on_expr; 1])
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?
+            .project(merge_clause_projection)
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?
+            .build()
+            .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
+
+        let merge_into_plan = MergeIntoCOWSink::new(Arc::new(join_plan), target_table)
+            .context(ex_error::DataFusionSnafu)?;
+
+        self.execute_logical_plan(LogicalPlan::Extension(Extension {
+            node: Arc::new(merge_into_plan),
+        }))
+        .await
     }
 
     #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
@@ -1694,30 +1845,6 @@ impl UserQuery {
         })
     }
 
-    #[allow(clippy::only_used_in_recursion)]
-    fn get_expr_where_clause(&self, expr: Expr, target_alias: &str) -> Vec<String> {
-        match expr {
-            Expr::CompoundIdentifier(ident) => {
-                if ident.len() > 1 && ident[0].value == target_alias {
-                    let ident_str = ident
-                        .iter()
-                        .map(|v| v.value.clone())
-                        .collect::<Vec<String>>()
-                        .join(".");
-                    return vec![ident_str];
-                }
-                vec![]
-            }
-            Expr::BinaryOp { left, right, .. } => {
-                let mut left_expr = self.get_expr_where_clause(*left, target_alias);
-                let right_expr = self.get_expr_where_clause(*right, target_alias);
-                left_expr.extend(right_expr);
-                left_expr
-            }
-            _ => vec![],
-        }
-    }
-
     #[must_use]
     pub fn get_table_path(&self, statement: &DFStatement) -> Option<TableReference> {
         let empty = String::new;
@@ -1857,22 +1984,6 @@ impl UserQuery {
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
-    fn get_table_with_alias(factor: TableFactor) -> (ObjectName, String) {
-        match factor {
-            TableFactor::Table { name, alias, .. } => {
-                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
-                (name, target_alias)
-            }
-            // Return only alias for derived tables
-            TableFactor::Derived { alias, .. } => {
-                let target_alias = alias.map_or_else(String::new, |alias| alias.to_string());
-                (ObjectName(vec![]), target_alias)
-            }
-            _ => (ObjectName(vec![]), String::new()),
-        }
-    }
-
     pub fn created_entity_response(&self) -> Result<QueryResult> {
         let schema = Arc::new(ArrowSchema::new(vec![Field::new(
             "count",
@@ -1900,6 +2011,445 @@ impl UserQuery {
             schema,
             self.query_context.query_id,
         ))
+    }
+
+    /// Retrieves and configures an Iceberg table provider with enhanced schema.
+    ///
+    /// This function resolves a table identifier to a `DataFusionTable` with an enhanced schema
+    /// that includes metadata columns for tracking data and manifest file paths. It performs
+    /// the necessary downcasting from the cached table provider to ensure the table is an
+    /// Iceberg table.
+    ///
+    /// # Arguments
+    ///
+    /// * `target_ident` - The normalized table identifier to resolve
+    /// * `config` - Optional `DataFusion` table configuration. If provided, overrides the table's
+    ///   default configuration. Commonly used to enable metadata columns.
+    ///
+    /// # Returns
+    ///
+    /// Returns a configured `DataFusionTable` with an enhanced schema that includes data file
+    /// path and manifest file path columns.
+    ///
+    /// # Errors
+    ///
+    /// * `DataFusionSnafu` - If the table provider cannot be retrieved from the session context
+    /// * `CatalogDownCastSnafu` - If the cached table cannot be downcast to `CachingTable`
+    /// * `MergeTargetMustBeIcebergTableSnafu` - If the table provider is not an Iceberg table
+    async fn get_iceberg_table_provider(
+        &self,
+        target_ident: &NormalizedIdent,
+        config: Option<datafusion_iceberg::table::DataFusionTableConfig>,
+    ) -> Result<DataFusionTable> {
+        let target_provider = {
+            let target_cache = self
+                .session
+                .ctx
+                .table_provider(target_ident)
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+
+            target_cache
+                .as_any()
+                .downcast_ref::<CachingTable>()
+                .ok_or_else(|| {
+                    ex_error::CatalogDownCastSnafu {
+                        catalog: "DataFusionTable".to_string(),
+                    }
+                    .build()
+                })?
+                .table
+                .clone()
+        };
+
+        let target_ref = target_provider
+            .as_any()
+            .downcast_ref::<DataFusionTable>()
+            .ok_or_else(|| ex_error::MergeTargetMustBeIcebergTableSnafu.build())?;
+
+        //TODO check if enabl options are set
+        let schema = if config.is_some() {
+            Arc::new(build_target_schema(target_ref.schema.as_ref()))
+        } else {
+            target_ref.schema.clone()
+        };
+        Ok(DataFusionTable {
+            config,
+            schema,
+            ..target_ref.clone()
+        })
+    }
+}
+
+/// Builds a target schema with metadata columns added.
+///
+/// This function takes a base schema and adds data file path and manifest file path columns
+/// to create a schema suitable for merge operations that require metadata tracking.
+fn build_target_schema(base_schema: &ArrowSchema) -> ArrowSchema {
+    let mut builder = SchemaBuilder::from(base_schema);
+    builder.push(Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.push(Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true));
+    builder.finish()
+}
+
+/// Converts merge clauses into projection expressions for copy-on-write operations.
+///
+/// This function processes MERGE statement clauses (UPDATE/INSERT) and generates `DataFusion`
+/// projection expressions that compute the new table state. Each column gets an expression
+/// that determines its new value based on the merge operation type:
+/// - Operation code 3: Matched rows (UPDATE)
+/// - Operation code 2: Not matched rows (INSERT)
+///
+/// # Arguments
+/// * `sql_planner` - SQL to logical expression planner
+/// * `schema` - Target table schema
+/// * `merge_clause` - Vector of merge clauses to process
+///
+/// # Returns
+/// Vector of expressions for each column in the target schema
+pub fn merge_clause_projection<S: ContextProvider>(
+    sql_planner: &ExtendedSqlToRel<'_, S>,
+    schema: &DFSchema,
+    target_schema: &DFSchema,
+    merge_clause: Vec<MergeClause>,
+) -> Result<Vec<logical_expr::Expr>> {
+    let mut updates: HashMap<String, Vec<(logical_expr::Expr, logical_expr::Expr)>> =
+        HashMap::new();
+    let mut inserts: HashMap<String, Vec<(logical_expr::Expr, logical_expr::Expr)>> =
+        HashMap::new();
+
+    let mut planner_context = datafusion::sql::planner::PlannerContext::new();
+
+    for merge_clause in merge_clause {
+        let op = merge_clause_expression(&merge_clause)?;
+        let op = if let Some(predicate) = merge_clause.predicate {
+            let predicate = sql_planner
+                .as_ref()
+                .sql_to_expr(predicate, schema, &mut planner_context)
+                .context(ex_error::DataFusionSnafu)?;
+            and(op, predicate)
+        } else {
+            op
+        };
+        match merge_clause.action {
+            MergeAction::Update { assignments } => {
+                for assignment in assignments {
+                    match assignment.target {
+                        AssignmentTarget::ColumnName(mut column) => {
+                            let column_name = column
+                                .0
+                                .pop()
+                                .ok_or_else(|| {
+                                    InvalidColumnIdentifierSnafu {
+                                        ident: column.to_string(),
+                                    }
+                                    .build()
+                                })?
+                                .to_string();
+                            let expr = sql_planner
+                                .as_ref()
+                                .sql_to_expr(assignment.value, schema, &mut planner_context)
+                                .context(ex_error::DataFusionSnafu)?;
+                            updates
+                                .entry(column_name)
+                                .and_modify(|x| x.push((op.clone(), expr.clone())))
+                                .or_insert_with(|| vec![(op.clone(), expr)]);
+                        }
+                        AssignmentTarget::Tuple(_) => todo!(),
+                    }
+                }
+            }
+            MergeAction::Insert(insert) => {
+                let MergeInsertKind::Values(values) = insert.kind else {
+                    return Err(ex_error::OnlyMergeStatementsSnafu.build());
+                };
+                if values.rows.len() != 1 {
+                    return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
+                }
+                let mut all_columns: HashSet<String> = target_schema
+                    .iter()
+                    .map(|x| x.1.name().to_string())
+                    .collect();
+                for (column, value) in insert.columns.iter().zip(
+                    values
+                        .rows
+                        .into_iter()
+                        .next()
+                        .ok_or_else(|| ex_error::MergeInsertOnlyOneRowSnafu.build())?
+                        .into_iter(),
+                ) {
+                    let column_name = column.value.clone();
+                    let expr = sql_planner
+                        .as_ref()
+                        .sql_to_expr(value, schema, &mut planner_context)
+                        .context(ex_error::DataFusionSnafu)?;
+                    all_columns.remove(&column_name);
+                    inserts
+                        .entry(column_name)
+                        .and_modify(|x| x.push((op.clone(), expr.clone())))
+                        .or_insert_with(|| vec![(op.clone(), expr)]);
+                }
+                for column in all_columns {
+                    inserts.insert(column, vec![(op.clone(), lit(ScalarValue::Null))]);
+                }
+            }
+            MergeAction::Delete => (),
+        }
+    }
+    let exprs = collect_merge_clause_expressions(target_schema, updates, inserts)?;
+    Ok(exprs)
+}
+
+/// Builds projection expressions for MERGE statement by combining UPDATE and INSERT operations.
+///
+/// This function creates a CASE expression for each column in the target schema that handles
+/// both UPDATE and INSERT operations from MERGE clauses. For each column, it builds a conditional
+/// expression that applies the appropriate transformation based on the merge operation type.
+///
+/// # Arguments
+/// * `target_schema` - Schema of the target table
+/// * `updates` - Map of column names to their UPDATE expressions with conditions
+/// * `inserts` - Map of column names to their INSERT expressions with conditions
+///
+/// # Returns
+/// Vector of expressions for each column, plus the `SOURCE_EXISTS_COLUMN` for tracking
+fn collect_merge_clause_expressions(
+    target_schema: &DFSchema,
+    mut updates: HashMap<String, Vec<(DFExpr, DFExpr)>>,
+    mut inserts: HashMap<String, Vec<(DFExpr, DFExpr)>>,
+) -> Result<Vec<DFExpr>> {
+    let mut exprs: Vec<datafusion_expr::Expr> = target_schema
+        .iter()
+        .map(|(table_reference, field)| {
+            let name = table_reference
+                .map(|x| x.to_string() + ".")
+                .unwrap_or_default()
+                + field.name();
+            let updates = updates.remove(field.name());
+            let insert = inserts.remove(field.name());
+
+            // If there is no update or insert, do nothing
+            if updates.is_none() && insert.is_none() {
+                return Ok(col(name));
+            }
+
+            let case_expr = match (updates, insert) {
+                (Some(updates), Some(inserts)) => {
+                    let builder_opt = updates.into_iter().chain(inserts.into_iter()).fold(
+                        None::<CaseBuilder>,
+                        |acc, (w, t)| {
+                            if let Some(mut acc) = acc {
+                                Some(acc.when(w, t))
+                            } else {
+                                Some(when(w, t))
+                            }
+                        },
+                    );
+                    if let Some(mut builder) = builder_opt {
+                        builder.otherwise(col(name))?
+                    } else {
+                        col(name)
+                    }
+                }
+                (Some(x), None) | (None, Some(x)) => {
+                    let builder_opt = x.into_iter().fold(None::<CaseBuilder>, |acc, (w, t)| {
+                        if let Some(mut acc) = acc {
+                            Some(acc.when(w, t))
+                        } else {
+                            Some(when(w, t))
+                        }
+                    });
+                    if let Some(mut builder) = builder_opt {
+                        builder.otherwise(col(name))?
+                    } else {
+                        col(name)
+                    }
+                }
+                (None, None) => col(name),
+            }
+            .alias(field.name().clone());
+
+            Ok::<_, DataFusionError>(case_expr)
+        })
+        .collect::<StdResult<_, DataFusionError>>()
+        .context(ex_error::DataFusionSnafu)?;
+    exprs.push(col(SOURCE_EXISTS_COLUMN));
+    Ok(exprs)
+}
+
+/// Builds a `DataFusion` expression for filtering rows based on MERGE clause conditions.
+///
+/// This function translates MERGE clause semantics into boolean expressions that determine
+/// which rows should be processed by each clause type:
+///
+/// - `Matched`: Rows that exist in both source and target tables
+/// - `NotMatched`: Rows that don't exist in either source or target
+///
+/// The expressions use special columns (`TARGET_EXISTS_COLUMN` and `SOURCE_EXISTS_COLUMN`)
+/// that indicate row presence in respective tables during the merge operation.
+fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
+    let expr = match merge_clause.clause_kind {
+        MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatched => Ok(or(
+            is_null(col(TARGET_EXISTS_COLUMN)),
+            is_null(col(TARGET_EXISTS_COLUMN)),
+        )),
+        MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatchedBySource => {
+            return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
+        }
+    }?;
+    Ok(expr)
+}
+
+/// Constructs a filter expression for the target table based on the partition column bounds
+/// of the source table.
+///
+/// This function analyzes the partition structure of the source table and creates
+/// a `DataFusion` expression that filters data based on the minimum and maximum
+/// values of the partition columns. This is used for query optimization to prune
+/// partitions that don't contain relevant data.
+///
+/// # Arguments
+///
+/// * `table` - The `DataFusion` table wrapper for the Iceberg table
+///
+/// # Returns
+///
+/// * `Ok(Some(expr))` - A filter expression combining bounds for all partition columns
+/// * `Ok(None)` - If no snapshot exists, no partition bounds available, or no partition fields
+/// * `Err` - If there's an error accessing table metadata or building the expression
+///
+/// # Behavior
+///
+/// The function creates range conditions (column >= min AND column <= max) for each
+/// partition column and combines them with AND operators. Only works with Iceberg tables;
+/// returns an error for other table types.
+async fn target_filter_expression(
+    table: &DataFusionTable,
+) -> Result<Option<datafusion_expr::Expr>> {
+    let lock = table.tabular.read().await;
+    let table = match &*lock {
+        Tabular::Table(table) => Ok(table),
+        _ => MergeSourceNotSupportedSnafu.fail(),
+    }?;
+    let object_store = table.object_store();
+    let table_metadata = table.metadata();
+    let Some(current_snapshot) = table_metadata
+        .current_snapshot(None)
+        .map_err(IcebergError::from)
+        .context(ex_error::IcebergSnafu)?
+    else {
+        return Ok(None);
+    };
+    let Some(partition_column_bounds) =
+        partition_column_bounds(current_snapshot, table_metadata, object_store).await?
+    else {
+        return Ok(None);
+    };
+    let partition_fields = table
+        .metadata()
+        .partition_fields(*current_snapshot.snapshot_id())
+        .map_err(IcebergError::from)
+        .context(ex_error::IcebergSnafu)?;
+    let expr = partition_fields
+        .iter()
+        .zip(partition_column_bounds.into_iter())
+        .fold(None, |acc, (column, [min, max])| {
+            let column_expr = col(column.source_name());
+            let expr = and(
+                datafusion_expr::Expr::BinaryExpr(BinaryExpr::new(
+                    Box::new(column_expr.clone()),
+                    Operator::GtEq,
+                    Box::new(min),
+                )),
+                datafusion_expr::Expr::BinaryExpr(BinaryExpr::new(
+                    Box::new(column_expr),
+                    Operator::LtEq,
+                    Box::new(max),
+                )),
+            );
+            if let Some(acc) = acc {
+                Some(and(acc, expr))
+            } else {
+                Some(expr)
+            }
+        });
+    Ok(expr)
+}
+
+/// Retrieves partition column bounds from an Iceberg table snapshot.
+///
+/// This function extracts the minimum and maximum bounds for partition columns
+/// from the given snapshot and converts them into `DataFusion` expressions for
+/// query optimization.
+///
+/// # Arguments
+///
+/// * `current_snapshot` - The Iceberg table snapshot to extract bounds from
+/// * `table_metadata` - Metadata about the table structure and partitioning
+/// * `object_store` - Object store for accessing partition metadata
+///
+/// # Returns
+///
+/// * `Ok(Some(bounds))` - Vector of min/max expression pairs for each partition column
+/// * `Ok(None)` - If no partition bounds are available or bounds are empty
+/// * `Err` - If there's an error accessing snapshot or converting values
+async fn partition_column_bounds(
+    current_snapshot: &Snapshot,
+    table_metadata: &TableMetadata,
+    object_store: Arc<dyn ObjectStore>,
+) -> Result<Option<Vec<[datafusion_expr::Expr; 2]>>> {
+    let Some(bounds) = snapshot_partition_bounds(current_snapshot, table_metadata, object_store)
+        .await
+        .context(ex_error::IcebergSnafu)?
+    else {
+        return Ok(None);
+    };
+    let bounds = bounds
+        .min
+        .iter()
+        .zip(bounds.max.iter())
+        .map(|(min, max)| Ok([value_to_literal(min)?, value_to_literal(max)?]))
+        .collect::<Result<Vec<_>>>()?;
+    if bounds.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(bounds))
+    }
+}
+
+/// Converts an `IcebergValue` to `DataFusion`on literal expression.
+///
+/// # Arguments
+/// * `value` - The `IcebergValue` to convert
+///
+/// # Returns
+/// A `DataFusion` expression representing the literal value, or an error if the value type is not supported.
+///
+/// # Supported Types
+/// * All primitive types: Boolean, Int, `LongInt`, Float, Double, Date, Time, Timestamp, `TimestampTZ`, String, UUID, Fixed, Binary, Decimal
+/// * Complex types (Struct, List, Map) are not currently supported
+fn value_to_literal(value: &IcebergValue) -> Result<datafusion_expr::Expr> {
+    match value {
+        IcebergValue::Boolean(b) => Ok(lit(*b)),
+        IcebergValue::Int(i) => Ok(lit(*i)),
+        IcebergValue::LongInt(l) => Ok(lit(*l)),
+        IcebergValue::Float(f) => Ok(lit(f.0)),
+        IcebergValue::Double(d) => Ok(lit(d.0)),
+        IcebergValue::Date(d) => Ok(lit(*d)),
+        IcebergValue::Time(t) => Ok(lit(*t)),
+        IcebergValue::Timestamp(ts) | IcebergValue::TimestampTZ(ts) => Ok(lit(*ts)),
+        IcebergValue::String(s) => Ok(lit(s.as_str())),
+        IcebergValue::UUID(u) => Ok(lit(u.to_string())),
+        IcebergValue::Fixed(_, data) | IcebergValue::Binary(data) => Ok(lit(data.clone())),
+        IcebergValue::Decimal(d) => Ok(lit(d.to_string())),
+        IcebergValue::Struct(_) | IcebergValue::List(_) | IcebergValue::Map(_) => {
+            ex_error::UnsupportedIcebergValueTypeSnafu {
+                value_type: format!("{value:?}"),
+            }
+            .fail()
+        }
     }
 }
 

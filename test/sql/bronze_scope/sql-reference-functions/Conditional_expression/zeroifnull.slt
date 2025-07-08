@@ -1,10 +1,8 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE TEMP_TABLE AS 
-SELECT column1 
-FROM VALUES (1), (null), (5), (0), (3.14159);
-
 query TT
+WITH TEMP_TABLE AS (
+  SELECT column1 
+  FROM VALUES (1), (null), (5), (0), (3.14159)
+)
 SELECT column1, ZEROIFNULL(column1) 
 FROM TEMP_TABLE;
 ----
@@ -13,4 +11,3 @@ NULL	0.00000
 5.00000	5.00000
 0.00000	0.00000
 3.14159	3.14159
-

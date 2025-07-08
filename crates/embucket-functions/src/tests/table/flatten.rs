@@ -27,6 +27,11 @@ test_query!(
     snapshot_path = "flatten"
 );
 test_query!(
+    flatten_projection_alias,
+    r#"SELECT d.value as row from flatten('{"a":1, "b":[77,88], "c": {"d":"X"}}','',false,true,'both') d;"#,
+    snapshot_path = "flatten"
+);
+test_query!(
     flatten_empty,
     "SELECT * FROM FLATTEN(INPUT => PARSE_JSON('[]')) f;",
     snapshot_path = "flatten"

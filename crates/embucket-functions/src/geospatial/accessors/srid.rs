@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, OnceLock};
 
-use crate::errors;
+use crate::geospatial::error as geo_error;
 use crate::geospatial::data_types::{any_single_geometry_type_input, parse_to_native_array};
 use datafusion::arrow::array::builder::Int32Builder;
 use datafusion::arrow::datatypes::DataType;
@@ -83,7 +83,7 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     let array = ColumnarValue::values_to_arrays(args)?
         .into_iter()
         .next()
-        .ok_or_else(|| errors::ExpectedOnlyOneArgumentInSTSRIDSnafu.build())?;
+        .ok_or_else(|| geo_error::ExpectedOnlyOneArgumentInSTSRIDSnafu.build())?;
 
     let native_array = parse_to_native_array(&array)?;
     let native_array_ref = native_array.as_ref();
@@ -103,7 +103,7 @@ fn dim_impl(args: &[ColumnarValue]) -> Result<ColumnarValue> {
         NativeType::GeometryCollection(_, _) => {
             build_output_array!(native_array_ref.as_geometry_collection())
         }
-        NativeType::Rect(_) => errors::UnsupportedGeometryTypeSnafu.fail()?,
+        NativeType::Rect(_) => geo_error::UnsupportedGeometryTypeSnafu.fail()?,
     }
 }
 

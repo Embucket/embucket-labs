@@ -38,6 +38,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid column identifier: {ident}"))]
+    InvalidColumnIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid table identifier: {ident}"))]
     InvalidTableIdentifier {
         ident: String,
@@ -93,6 +100,30 @@ pub enum Error {
         #[snafu(source(from(DataFusionError, Box::new)))]
         error: Box<DataFusionError>,
         query: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion error when building logical plan for merge target: {error}"))]
+    DataFusionLogicalPlanMergeTarget {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion error when building logical plan for merge source: {error}"))]
+    DataFusionLogicalPlanMergeSource {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DataFusion erro when building logical plan for join of merge target and source: {error}"))]
+    DataFusionLogicalPlanMergeJoin {
+        #[snafu(source(from(DataFusionError, Box::new)))]
+        error: Box<DataFusionError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -341,6 +372,65 @@ pub enum Error {
     SqlParser {
         #[snafu(source)]
         error: datafusion::sql::sqlparser::parser::ParserError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("NotMatchedByTarget is not supported in merge statements"))]
+    NotMatchedBySourceNotSupported {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Merge inserts only support one row"))]
+    MergeInsertOnlyOneRow {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("MERGE statement target must be a table"))]
+    MergeTargetMustBeTable {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("MERGE statement currently supports only tables and subqueries as sources"))]
+    MergeSourceNotSupported {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("MERGE statement target must be an Iceberg table"))]
+    MergeTargetMustBeIcebergTable {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("LogicalPlan Extension {name} requires exactly {expected} child(ren)"))]
+    LogicalExtensionChildCount {
+        name: String,
+        expected: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Data for not-matching file {file} is not available"))]
+    MergeFilterStreamNotMatching {
+        file: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Matching files have already been consumed"))]
+    MatchingFilesAlreadyConsumed {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("When there are matching data files, there must be filter predicates"))]
+    MissingFilterPredicates {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unsupported IcebergValue type for literal conversion: {value_type}"))]
+    UnsupportedIcebergValueType {
+        value_type: String,
         #[snafu(implicit)]
         location: Location,
     },

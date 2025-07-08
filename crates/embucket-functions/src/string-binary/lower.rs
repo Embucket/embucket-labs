@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::string_binary::errors;
 use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;

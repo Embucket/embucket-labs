@@ -2,7 +2,7 @@ use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::CachingCatalog;
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
-use crate::error as errors;
+use crate::df_error;
 use crate::error::{self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, Result};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
@@ -443,7 +443,7 @@ impl ObjectStoreRegistry for EmbucketCatalogList {
         if let Some(object_store) = self.table_object_store.get(&url) {
             Ok(object_store.clone())
         } else {
-            errors::ObjectStoreNotFoundSnafu { url }.fail()?
+            df_error::ObjectStoreNotFoundSnafu { url }.fail()?
         }
     }
 }

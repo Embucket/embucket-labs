@@ -1,10 +1,11 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE sequence_demo (i INTEGER);
-
 query TTTT
+WITH sequence_demo AS (
+  SELECT COLUMN1 AS i FROM VALUES
+  (NULL),
+  (NULL),
+  (NULL)
+)
 SELECT COUNT(i), COUNT(DISTINCT i), APPROX_COUNT_DISTINCT(i), HLL(i)
 FROM sequence_demo
 ----
 0	0	0	0
-

@@ -6,6 +6,8 @@ use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::error::Result;
 use crate::state::AppState;
 
+use api_sessions::DFSessionId;
+use api_sessions::session::SESSION_ID_COOKIE_NAME;
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -23,6 +25,7 @@ use utoipa::OpenApi;
 
 pub const REFRESH_TOKEN_EXPIRATION_HOURS: u32 = 24 * 7;
 pub const ACCESS_TOKEN_EXPIRATION_SECONDS: u32 = 15 * 60;
+pub const REFRESH_COOKIE_NAME: &str = "refresh_token";
 
 #[allow(clippy::explicit_iter_loop)]
 pub fn cookies_from_header(headers: &HeaderMap) -> HashMap<&str, &str> {
@@ -111,11 +114,11 @@ fn ensure_jwt_secret_is_valid(jwt_secret: &str) -> Result<()> {
     Ok(())
 }
 
-fn set_cookies(headers: &mut HeaderMap, refresh_token: &str) -> Result<()> {
+fn set_cookies(headers: &mut HeaderMap, name: &str, token: &str) -> Result<()> {
     headers
         .try_append(
             SET_COOKIE,
-            Cookie::build(("refresh_token", refresh_token))
+            Cookie::build((name, token))
                 .http_only(true)
                 .secure(true)
                 .same_site(SameSite::Strict)
@@ -171,7 +174,7 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(name = "api_ui::login", level = "info", skip_all, err)]
 pub async fn login(
-    //TODO: add DFSessionId (to start the session on login)
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
 ) -> Result<impl IntoResponse> {
@@ -194,7 +197,8 @@ pub async fn login(
     let refresh_token = create_jwt(&refresh_token_claims, jwt_secret).context(CreateJwtSnafu)?;
 
     let mut headers = HeaderMap::new();
-    set_cookies(&mut headers, &refresh_token)?;
+    set_cookies(&mut headers, REFRESH_COOKIE_NAME, &refresh_token)?;
+    set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, &session_id)?;
 
     Ok((
         headers,
@@ -223,6 +227,7 @@ pub async fn login(
 )]
 #[tracing::instrument(name = "api_ui::refresh_access_token", level = "info", skip_all, err)]
 pub async fn refresh_access_token(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse> {
@@ -230,7 +235,7 @@ pub async fn refresh_access_token(
     ensure_jwt_secret_is_valid(jwt_secret)?;
 
     let cookies_map = cookies_from_header(&headers);
-    match cookies_map.get("refresh_token") {
+    match cookies_map.get(REFRESH_COOKIE_NAME) {
         None => auth_error::NoRefreshTokenCookieSnafu.fail()?,
         Some(refresh_token) => {
             let refresh_claims =
@@ -242,7 +247,8 @@ pub async fn refresh_access_token(
             let access_token = create_jwt(&access_claims, jwt_secret).context(CreateJwtSnafu)?;
 
             let mut headers = HeaderMap::new();
-            set_cookies(&mut headers, refresh_token)?;
+            set_cookies(&mut headers, REFRESH_COOKIE_NAME, refresh_token)?;
+            set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, &session_id)?;
 
             Ok((
                 headers,
@@ -281,7 +287,7 @@ pub async fn logout(
 
     let cookies_map = cookies_from_header(&headers);
 
-    if let Some(refresh_token) = cookies_map.get("refresh_token") {
+    if let Some(refresh_token) = cookies_map.get(REFRESH_COOKIE_NAME) {
         let audience = state.config.host.clone();
 
         let _ = get_claims_validate_jwt_token(refresh_token, &audience, jwt_secret)
@@ -292,7 +298,8 @@ pub async fn logout(
     // unset refresh_token, access_token cookies
 
     let mut headers = HeaderMap::new();
-    set_cookies(&mut headers, "")?;
+    set_cookies(&mut headers, REFRESH_COOKIE_NAME, "")?;
+    set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, "")?;
 
     Ok((headers, ()))
 }

@@ -1,17 +1,13 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE ilike_example(name VARCHAR(20));
-
-exclude-from-coverage
-statement ok
-INSERT INTO ilike_example VALUES
-    ('jane doe'),
-    ('Jane Doe'),
-    ('JANE DOE'),
-    ('John Doe'),
-    ('John Smith');
 
 query T
+WITH ilike_example AS (
+    SELECT column1 AS name FROM VALUES
+        ('jane doe'),
+        ('Jane Doe'),
+        ('JANE DOE'),
+        ('John Doe'),
+        ('John Smith')
+)
 SELECT * 
   FROM ilike_example 
   WHERE name ILIKE ANY ('jane%', '%SMITH')

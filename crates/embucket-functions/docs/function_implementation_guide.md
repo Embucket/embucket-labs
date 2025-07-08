@@ -115,7 +115,7 @@ After implementing the function, it **MUST** be registered properly:
 Add the function to the appropriate function registry module. The easiest way is to register it through lib.rs with updating `register_udfs` function.
 
 ### 2. Add to Tracking (REQUIRED)
-Run `cargo update-implemented-functions` to regenerate a list of registred functions.
+Run `cargo update-functions` to regenerate a list of registred functions.
 
 ### 3. Regenerate Unimplemented Functions with Documentation (RECOMMENDED)
 ```bash

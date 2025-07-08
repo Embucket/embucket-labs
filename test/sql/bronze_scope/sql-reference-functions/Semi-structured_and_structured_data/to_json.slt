@@ -1,12 +1,7 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE jdemo1 (v VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO jdemo1 SELECT PARSE_JSON('{"food":"bard"}');
-
 query TTT
+WITH jdemo1 AS (
+  SELECT PARSE_JSON('{"food":"bard"}') AS v
+)
 SELECT v, v:food, TO_JSON(v) FROM jdemo1
 ----
 '{"food":"bard"}'	"bard"	'{"food":"bard"}'
@@ -17,23 +12,15 @@ SELECT TO_JSON(NULL), TO_JSON('null'::VARIANT),
 ----
 NULL	"null"	NULL	null
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE jdemo2 (
-  varchar1 VARCHAR, 
-  variant1 VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO jdemo2 (varchar1, variant1)
-SELECT '{"PI":3.14}' AS varchar1, PARSE_JSON('{"PI":3.14}') AS variant1;
-
 query TTTTTT
-SELECT varchar1, 
-       PARSE_JSON(varchar1), 
-       variant1, 
+WITH jdemo2 AS (
+  SELECT '{"PI":3.14}' AS varchar1, PARSE_JSON('{"PI":3.14}') AS variant1
+)
+SELECT varchar1,
+       PARSE_JSON(varchar1),
+       variant1,
        TO_JSON(variant1),
-       PARSE_JSON(varchar1) = variant1, 
+       PARSE_JSON(varchar1) = variant1,
        TO_JSON(variant1) = varchar1
   FROM jdemo2
 ----
@@ -45,4 +32,3 @@ SELECT TO_JSON(PARSE_JSON('{"b":1,"a":2}')),
        TO_JSON(PARSE_JSON('{"b":1,"a":2}')) = '{"a":2,"b":1}'
 ----
 '{"a":2,"b":1}'	FALSE	TRUE
-

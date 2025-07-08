@@ -8,12 +8,14 @@ pub mod date_add;
 pub mod date_diff;
 pub mod date_from_parts;
 pub mod dayname;
+pub mod errors;
 pub mod last_day;
 pub mod monthname;
 pub mod next_day;
 pub mod previous_day;
 pub mod time_from_parts;
 pub mod timestamp_from_parts;
+pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![

@@ -13,21 +13,14 @@ SELECT REPLACE('abcd', 'bc')
 ----
 ad
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE replace_example(
-  subject VARCHAR(10),
-  pattern VARCHAR(10),
-  replacement VARCHAR(10));
-
-exclude-from-coverage
-statement ok
-INSERT INTO replace_example VALUES
-  ('old car', 'old car', 'new car'),
-  ('sad face', 'sad', 'happy'),
-  ('snowman', 'snow', 'fire');
-
 query TTTT
+WITH replace_example AS (
+  SELECT * FROM VALUES
+    ('old car', 'old car', 'new car'),
+    ('sad face', 'sad', 'happy'),
+    ('snowman', 'snow', 'fire')
+  AS t(subject, pattern, replacement)
+)
 SELECT subject,
        pattern,
        replacement,
@@ -38,4 +31,3 @@ SELECT subject,
 old car	old car	new car	new car
 sad face	sad	happy	happy face
 snowman	snow	fire	fireman
-

@@ -1,12 +1,14 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE temp_table (column1 STRING);
-
-exclude-from-coverage
-statement ok
-INSERT INTO temp_table VALUES ('!'), ('A'), ('a'), ('bcd'), (''), (null);
-
 query TT
+WITH temp_table AS (
+  SELECT column1 FROM VALUES
+    ('!'),
+    ('A'),
+    ('a'),
+    ('bcd'),
+    (''),
+    (NULL)
+  AS temp_table(column1)
+)
 SELECT column1, ASCII(column1)
   FROM temp_table
 ----
@@ -16,4 +18,3 @@ a	97
 bcd	98
 ''	0
 NULL	NULL
-

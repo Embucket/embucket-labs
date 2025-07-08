@@ -1,20 +1,12 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE suppliers (
-  supplier_id INT PRIMARY KEY,
-  supplier_name VARCHAR(30),
-  phone_region_1 VARCHAR(15),
-  phone_region_2 VARCHAR(15));
-
-exclude-from-coverage
-statement ok
-INSERT INTO suppliers(supplier_id, supplier_name, phone_region_1, phone_region_2)
-  VALUES(1, 'Company_ABC', NULL, '555-01111'),
-        (2, 'Company_DEF', '555-01222', NULL),
-        (3, 'Company_HIJ', '555-01333', '555-01444'),
-        (4, 'Company_KLM', NULL, NULL);
-
 query TTTTTT
+WITH suppliers AS (
+  SELECT * FROM VALUES
+    (1, 'Company_ABC', NULL, '555-01111'),
+    (2, 'Company_DEF', '555-01222', NULL),
+    (3, 'Company_HIJ', '555-01333', '555-01444'),
+    (4, 'Company_KLM', NULL, NULL)
+  AS suppliers(supplier_id, supplier_name, phone_region_1, phone_region_2)
+)
 SELECT supplier_id,
        supplier_name,
        phone_region_1,
@@ -28,4 +20,3 @@ SELECT supplier_id,
 2	Company_DEF	555-01222	NULL	555-01222	555-01222
 3	Company_HIJ	555-01333	555-01444	555-01333	555-01444
 4	Company_KLM	NULL	NULL	NULL	NULL
-

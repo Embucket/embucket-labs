@@ -43,6 +43,7 @@ where
             Statement::AlterTable { .. }
             | Statement::StartTransaction { .. }
             | Statement::Commit { .. }
+            | Statement::Rollback { .. }
             | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::CreateTable(CreateTableStatement {
                 query,
@@ -139,5 +140,14 @@ where
             }
             _ => {}
         }
+    }
+}
+
+impl<'a, S> AsRef<SqlToRel<'a, S>> for ExtendedSqlToRel<'a, S>
+where
+    S: ContextProvider,
+{
+    fn as_ref(&self) -> &SqlToRel<'a, S> {
+        &self.inner
     }
 }

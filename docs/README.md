@@ -65,7 +65,7 @@ Static assets, like favicons, can be placed in the `public/` directory.
 | `pnpm preview`   | Preview your build locally, before deploying     |
 | `pnpm astro ...` | Run CLI commands like `astro add`, `astro check` |
 | `pnpm format`    | Format with Prettier + fix errors                |
-| `ncu`            | Update repo dependencies                         |
+| `pnpm ncu`       | Update repo dependencies                         |
 
 ### Tech stack
 

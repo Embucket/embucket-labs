@@ -3,17 +3,13 @@ SELECT OBJECT_CONSTRUCT('a', 1, 'b', 'BBBB', 'c', NULL)
 ----
 '{"a":1,"b":"BBBB"}'
 
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE demo_table_1 (province VARCHAR, created_date DATE);
-
-exclude-from-coverage
-statement ok
-INSERT INTO demo_table_1 (province, created_date) VALUES
-  ('Manitoba', '2024-01-18'::DATE),
-  ('Alberta', '2024-01-19'::DATE);
-
 query T
+WITH demo_table_1 AS (
+  SELECT * FROM VALUES
+    ('Manitoba', '2024-01-18'::DATE),
+    ('Alberta', '2024-01-19'::DATE)
+  AS t(province, created_date)
+)
 SELECT OBJECT_CONSTRUCT(*) AS oc
   FROM demo_table_1
   ORDER BY oc['PROVINCE']
@@ -22,14 +18,25 @@ SELECT OBJECT_CONSTRUCT(*) AS oc
 '{"CREATED_DATE":"2024-01-18","PROVINCE":"Manitoba"}'
 
 query T
+WITH demo_table_1 AS (
+  SELECT * FROM VALUES
+    ('Manitoba', '2024-01-18'::DATE),
+    ('Alberta', '2024-01-19'::DATE)
+  AS t(province, created_date)
+)
 SELECT OBJECT_CONSTRUCT(*) AS oc
   FROM demo_table_1
   WHERE province ILIKE 'prov%'
   ORDER BY oc['PROVINCE']
 ----
 
-
 query T
+WITH demo_table_1 AS (
+  SELECT * FROM VALUES
+    ('Manitoba', '2024-01-18'::DATE),
+    ('Alberta', '2024-01-19'::DATE)
+  AS t(province, created_date)
+)
 SELECT OBJECT_CONSTRUCT(* EXCLUDE province) AS oc
   FROM demo_table_1
   ORDER BY oc['PROVINCE']
@@ -38,6 +45,12 @@ SELECT OBJECT_CONSTRUCT(* EXCLUDE province) AS oc
 '{"CREATED_DATE":"2024-01-19"}'
 
 query T
+WITH demo_table_1 AS (
+  SELECT * FROM VALUES
+    ('Manitoba', '2024-01-18'::DATE),
+    ('Alberta', '2024-01-19'::DATE)
+  AS t(province, created_date)
+)
 SELECT OBJECT_CONSTRUCT(* EXCLUDE province) AS oc
   FROM demo_table_1
   ORDER BY oc['PROVINCE']
@@ -60,6 +73,12 @@ SELECT OBJECT_CONSTRUCT(
 '{"Key_One":null,"Key_Three":"null"}'
 
 query T
+WITH demo_table_1 AS (
+  SELECT * FROM VALUES
+    ('Manitoba', '2024-01-18'::DATE),
+    ('Alberta', '2024-01-19'::DATE)
+  AS t(province, created_date)
+)
 SELECT OBJECT_CONSTRUCT(
     'foo', 1234567,
     'dataset_size', (SELECT COUNT(*) FROM demo_table_1),
@@ -70,4 +89,3 @@ SELECT OBJECT_CONSTRUCT(
 ----
 '{"created_date_seconds":1705536000,"dataset_size":2,"distinct_province":2,"foo":1234567}'
 '{"created_date_seconds":1705622400,"dataset_size":2,"distinct_province":2,"foo":1234567}'
-

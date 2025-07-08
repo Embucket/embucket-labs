@@ -1,4 +1,4 @@
-use crate::errors;
+use super::errors as conv_errors;
 use base64::Engine;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray, BinaryBuilder};
 use datafusion::arrow::datatypes::DataType;
@@ -100,7 +100,7 @@ impl ScalarUDFImpl for ToBinaryFunc {
                         let format_arr = as_string_array(arr)?;
                         Some(format_arr.value(0).to_string())
                     } else {
-                        return errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
+                        return conv_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
                     }
                 }
             }
@@ -159,7 +159,7 @@ impl ScalarUDFImpl for ToBinaryFunc {
                 Arc::new(builder.finish())
             }
             _ => {
-                return errors::UnsupportedInputTypeSnafu {
+                return conv_errors::UnsupportedInputTypeSnafu {
                     data_type: input_array.data_type().clone(),
                 }
                 .fail()?;
@@ -167,6 +167,15 @@ impl ScalarUDFImpl for ToBinaryFunc {
         };
 
         Ok(ColumnarValue::Array(result))
+    }
+}
+
+/// Strip surrounding quotes if they are properly matched
+fn strip_surrounding_quotes(s: &str) -> &str {
+    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+        &s[1..s.len() - 1]
+    } else {
+        s
     }
 }
 
@@ -188,6 +197,8 @@ where
             match format_upper.to_lowercase().as_str() {
                 "hex" => {
                     // Convert hex string to binary
+                    // Strip surrounding quotes if present (for JSON compatibility)
+                    let s = strip_surrounding_quotes(s);
                     let s = s.replace(' ', ""); // Remove spaces
                     match hex::decode(s) {
                         Ok(bytes) => builder.append_value(&bytes),
@@ -195,7 +206,7 @@ where
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return errors::FailedToDecodeHexStringSnafu {
+                                return conv_errors::FailedToDecodeHexStringSnafu {
                                     error: e.to_string(),
                                 }
                                 .fail()?;
@@ -205,13 +216,15 @@ where
                 }
                 "base64" => {
                     // Convert base64 string to binary
+                    // Strip surrounding quotes if present (for JSON compatibility)
+                    let s = strip_surrounding_quotes(s);
                     match base64::engine::general_purpose::STANDARD.decode(s) {
                         Ok(bytes) => builder.append_value(&bytes),
                         Err(e) => {
                             if try_mode {
                                 builder.append_null();
                             } else {
-                                return errors::FailedToDecodeBase64StringSnafu {
+                                return conv_errors::FailedToDecodeBase64StringSnafu {
                                     error: e.to_string(),
                                 }
                                 .fail()?;
@@ -227,7 +240,7 @@ where
                     if try_mode {
                         builder.append_null();
                     } else {
-                        return errors::UnsupportedFormatSnafu { format }.fail()?;
+                        return conv_errors::UnsupportedFormatSnafu { format }.fail()?;
                     }
                 }
             }

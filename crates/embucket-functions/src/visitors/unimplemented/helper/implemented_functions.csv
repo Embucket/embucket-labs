@@ -135,6 +135,7 @@ datepart
 datetrunc
 dayname
 decode
+decrypt_raw
 degrees
 dense_rank
 digest
@@ -143,6 +144,7 @@ div0null
 element_at
 empty
 encode
+encrypt_raw
 ends_with
 equal_null
 exp
@@ -327,8 +329,8 @@ sha512
 signum
 sin
 sinh
-split_part
 split
+split_part
 sqrt
 starts_with
 stddev
@@ -367,8 +369,8 @@ timestampltzfromparts
 timestampntzfromparts
 timestamptzfromparts
 to_array
-to_boolean
 to_binary
+to_boolean
 to_char
 to_date
 to_hex
@@ -386,9 +388,9 @@ translate
 trim
 trunc
 try_parse_json
+try_to_binary
 try_to_boolean
 try_to_time
-try_to_binary
 typeof
 union_extract
 upper

@@ -4,7 +4,7 @@ use crate::layers::make_cors_middleware;
 use crate::router;
 use crate::state;
 use crate::{config::AuthConfig, config::WebConfig};
-use api_sessions::{RequestSessionMemory, RequestSessionStore};
+use api_sessions::RequestSessionStore;
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
@@ -29,8 +29,7 @@ pub async fn run_test_server_with_demo_auth(
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history = Arc::new(SlateDBHistoryStore::new(db));
-    let mut auth_config = AuthConfig::new(jwt_secret);
-    auth_config.with_demo_credentials(demo_user, demo_password);
+    let auth_config = AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
     let app = make_app(
         metastore,
@@ -69,8 +68,7 @@ pub fn make_app(
         history_store.clone(),
         Arc::new(Config::default()),
     ));
-    let session_memory = RequestSessionMemory::default();
-    let session_store = RequestSessionStore::new(session_memory, execution_svc.clone());
+    let session_store = RequestSessionStore::new(execution_svc.clone());
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));

@@ -1,18 +1,18 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE TEMP_VALUES (column1 FLOAT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO TEMP_VALUES (column1) VALUES (0), (1), (-2), (3.15), (null);
-
 query TT
+WITH TEMP_VALUES AS (
+    SELECT column1 FROM VALUES
+    (0.0),
+    (1.0),
+    (-2.0),
+    (3.15),
+    (NULL)
+    AS TEMP_VALUES(column1)
+)
 SELECT column1, square(column1)
 FROM TEMP_VALUES;
 ----
-0.0	0.0
-1.0	1.0
--2.0	4.0
+0.00	0.0
+1.00	1.0
+-2.00	4.0
 3.15	9.9225
 NULL	NULL
-

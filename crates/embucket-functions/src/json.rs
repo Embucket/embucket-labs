@@ -1,5 +1,5 @@
 #![allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
-use crate::errors;
+use crate::arrow_error;
 use crate::json::PathToken::{Index, Key};
 use base64::engine::Engine;
 use datafusion::arrow::array::AsArray;
@@ -343,7 +343,7 @@ pub fn encode_time32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
                 }
             }
             _ => {
-                errors::ArraysSupportSecondAndMillisecondUnitsSnafu {
+                arrow_error::ArraysSupportSecondAndMillisecondUnitsSnafu {
                     data_type: "Time32",
                     unit: *unit,
                 }
@@ -351,7 +351,7 @@ pub fn encode_time32_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             }
         },
         _ => {
-            errors::ExpectedArrayOfTypeSnafu {
+            arrow_error::ExpectedArrayOfTypeSnafu {
                 data_type: "Time32",
                 actual_type: array.data_type().clone(),
             }
@@ -388,7 +388,7 @@ pub fn encode_time64_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
                 }
             }
             _ => {
-                errors::ArraysSupportSecondAndMillisecondUnitsSnafu {
+                arrow_error::ArraysSupportSecondAndMillisecondUnitsSnafu {
                     data_type: "Time64",
                     unit: *unit,
                 }
@@ -396,7 +396,7 @@ pub fn encode_time64_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             }
         },
         _ => {
-            errors::ExpectedArrayOfTypeSnafu {
+            arrow_error::ExpectedArrayOfTypeSnafu {
                 data_type: "Time64",
                 actual_type: array.data_type().clone(),
             }
@@ -454,7 +454,7 @@ pub fn encode_duration_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             }
         },
         _ => {
-            errors::ExpectedArrayOfTypeSnafu {
+            arrow_error::ExpectedArrayOfTypeSnafu {
                 data_type: "Duration",
                 actual_type: array.data_type().clone(),
             }
@@ -484,7 +484,7 @@ pub fn encode_primitive_array(array: ArrayRef) -> Result<JsonValue, ArrowError> 
         DataType::Time32(_) => encode_time32_array(array),
         DataType::Time64(_) => encode_time64_array(array),
         DataType::Duration(_) => encode_duration_array(array),
-        _ => errors::UnsupportedPrimitiveTypeSnafu {
+        _ => arrow_error::UnsupportedPrimitiveTypeSnafu {
             data_type: array.data_type().clone(),
         }
         .fail()?,
@@ -577,7 +577,7 @@ pub fn encode_interval_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             }
         },
         _ => {
-            errors::ExpectedArrayOfTypeSnafu {
+            arrow_error::ExpectedArrayOfTypeSnafu {
                 data_type: "Interval",
                 actual_type: array.data_type().clone(),
             }

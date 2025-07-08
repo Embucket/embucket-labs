@@ -107,7 +107,7 @@ EOF
 export $(grep -v '^#' .env | xargs)
 
 # Start Embucket
-./target/debug/bucketd
+./target/debug/embucketd
 ```
 
 Once embucket is running, open:  

@@ -35,6 +35,10 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
+use tokio::sync::Mutex;
+
+pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
@@ -43,6 +47,7 @@ pub struct UserSession {
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
     pub config: Arc<Config>,
+    pub expiry: Arc<Mutex<OffsetDateTime>>,
 }
 
 impl UserSession {
@@ -111,6 +116,10 @@ impl UserSession {
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
             config,
+            expiry: Arc::from(Mutex::from(
+                OffsetDateTime::now_utc()
+                    + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
+            )),
         };
         session.register_external_catalogs().await?;
         Ok(session)

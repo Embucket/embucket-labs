@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::errors;
 use crate::geospatial::error::{self as geo_error, GeoDataFusionResult};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
@@ -81,7 +80,7 @@ pub fn parse_to_native_array(array: &ArrayRef) -> GeoDataFusionResult<Arc<dyn Na
                 .context(geo_error::GeoArrowSnafu)?,
         ))
     } else {
-        errors::UnexpectedInputDataTypeSnafu {
+        geo_error::UnexpectedInputDataTypeSnafu {
             data_type: data_type.clone(),
         }
         .fail()

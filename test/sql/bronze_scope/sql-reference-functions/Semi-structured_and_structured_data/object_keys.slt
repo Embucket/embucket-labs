@@ -1,20 +1,14 @@
-exclude-from-coverage
-statement ok
-CREATE OR REPLACE TABLE objects_1 (id INTEGER, object1 OBJECT, variant1 VARIANT);
-
-exclude-from-coverage
-statement ok
-INSERT INTO objects_1 (id, object1, variant1) 
-  SELECT
-    1,
-    OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3),
-    TO_VARIANT(OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3))
-    ;
 
 query TT
+WITH objects_1 AS (
+  SELECT
+    1 AS id,
+    OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3) AS object1,
+    TO_VARIANT(OBJECT_CONSTRUCT('a', 1, 'b', 2, 'c', 3)) AS variant1
+)
 SELECT OBJECT_KEYS(object1), OBJECT_KEYS(variant1) 
-    FROM objects_1
-    ORDER BY id
+FROM objects_1
+ORDER BY id
 ----
 '["a","b","c"]'	'["a","b","c"]'
 
@@ -32,4 +26,3 @@ SELECT OBJECT_KEYS (
     ORDER BY 1
 ----
 '["level_1_A","level_1_B"]'
-
