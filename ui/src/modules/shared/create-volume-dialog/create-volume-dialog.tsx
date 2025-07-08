@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import type { VolumeCreatePayload } from '@/orval/models';
 import { getGetVolumesQueryKey, useCreateVolume } from '@/orval/volumes';
 
 import { CreateVolumeDialogForm } from './create-volume-dialog-form';

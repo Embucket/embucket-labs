@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
-import type { VolumeCreatePayload } from '@/orval/models';
+import type { FileVolume, S3Volume, VolumeCreatePayload } from '@/orval/models';
 import {
   VolumeTypeOneOfAllOfType,
   VolumeTypeOneOfFourAllOfType,
@@ -177,35 +177,42 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
   const onFormSubmit = (data: z.infer<typeof schema>) => {
     switch (data.type) {
       case 's3': {
-        const s3VolumeData: VolumeCreatePayload = {
-          name: data.name,
-          type: data.type,
-          bucket: data.bucket!,
-          endpoint: data.endpoint!,
+        const s3VolumeData: S3Volume = {
+          bucket: data.bucket,
+          endpoint: data.endpoint,
           credentials: {
             accessKey: {
-              awsAccessKeyId: data.awsAccessKeyId!,
-              awsSecretAccessKey: data.awsSecretAccessKey!,
+              awsAccessKeyId: data.awsAccessKeyId ?? '',
+              awsSecretAccessKey: data.awsSecretAccessKey ?? '',
             },
           },
-        } as VolumeCreatePayload;
-        onSubmit(s3VolumeData);
+        };
+        const volumeData: VolumeCreatePayload = {
+          name: data.name,
+          type: data.type,
+          ...s3VolumeData,
+        };
+        onSubmit(volumeData);
         break;
       }
       case 'file': {
-        const fileVolumeData: VolumeCreatePayload = {
+        const fileVolumeData: FileVolume = {
+          path: data.path ?? '',
+        };
+        const volumeData: VolumeCreatePayload = {
           name: data.name,
           type: data.type,
-          path: data.path!,
-        } as VolumeCreatePayload;
-        onSubmit(fileVolumeData);
+          ...fileVolumeData,
+        };
+        onSubmit(volumeData);
         break;
       }
       case 'memory': {
+        // TODO: Implement memory volume
         const memoryVolumeData: VolumeCreatePayload = {
           name: data.name,
           type: data.type,
-        } as VolumeCreatePayload;
+        };
         onSubmit(memoryVolumeData);
         break;
       }
@@ -292,7 +299,7 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
                 <FormItem>
                   <FormLabel>Bucket</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="mybucket" required />
+                    <Input {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,7 +312,7 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
                 <FormItem>
                   <FormLabel>Endpoint</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="http://warehouse.minio:9000" required />
+                    <Input {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -318,7 +325,7 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
                 <FormItem>
                   <FormLabel>AWS Access Key ID</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="minioadmin" required />
+                    <Input {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -331,7 +338,7 @@ export const CreateVolumeDialogForm = ({ onSubmit }: CreateVolumeDialogForm) => 
                 <FormItem>
                   <FormLabel>AWS Secret Access Key</FormLabel>
                   <FormControl>
-                    <Input {...field} type="password" placeholder="minioadmin" required />
+                    <Input {...field} type="password" required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
