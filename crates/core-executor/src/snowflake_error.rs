@@ -37,6 +37,9 @@ impl From<Error> for SnowflakeError {
             Error::RegisterUDF { error, .. }
             | Error::RegisterUDAF { error, .. }
             | Error::DataFusionQuery { error, .. }
+            | Error::DataFusionLogicalPlanMergeTarget { error, .. }
+            | Error::DataFusionLogicalPlanMergeSource { error, .. }
+            | Error::DataFusionLogicalPlanMergeJoin { error, .. }
             | Error::DataFusion { error, .. } => match *error {
                 DataFusionError::External(err) => {
                     if err.is::<DataFusionError>() {
@@ -193,6 +196,17 @@ impl From<Error> for SnowflakeError {
             Error::MissingOrInvalidColumn { .. } => Self { message },
             Error::UnimplementedFunction { .. } => Self { message },
             Error::SqlParser { .. } => Self { message },
+            Error::InvalidColumnIdentifier { .. } => Self { message },
+            Error::NotMatchedBySourceNotSupported { .. } => Self { message },
+            Error::MergeInsertOnlyOneRow { .. } => Self { message },
+            Error::MergeTargetMustBeTable { .. } => Self { message },
+            Error::MergeSourceNotSupported { .. } => Self { message },
+            Error::MergeTargetMustBeIcebergTable { .. } => Self { message },
+            Error::LogicalExtensionChildCount { .. } => Self { message },
+            Error::MergeFilterStreamNotMatching { .. } => Self { message },
+            Error::MatchingFilesAlreadyConsumed { .. } => Self { message },
+            Error::MissingFilterPredicates { .. } => Self { message },
+            Error::UnsupportedIcebergValueType { .. } => Self { message },
         }
     }
 }
