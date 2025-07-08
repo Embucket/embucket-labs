@@ -141,7 +141,7 @@ impl IntoResponse for Error {
 
         // Record the result as part of the current span.
         tracing::Span::current()
-            .record("error", message)
+            .record("error", message.clone())
             .record("status_code", status_code.as_u16());
 
         let body = Json(JsonResponse {

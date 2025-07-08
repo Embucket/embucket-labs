@@ -104,21 +104,25 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         // Record the result as part of the current span.
         tracing::Span::current()
-            .record("error", self.snowflake_error_message())
             .record("error_stack_trace", self.output_msg())
             .record("status_code", self.status_code().as_u16());
 
         let code = self.status_code();
-        match self {
-            Self::Auth { source, .. } => source.into_response(),
-            _ => (
+        if let Self::Auth { source, .. } = self {
+            // no error added into span here and it's Ok
+            source.into_response()
+        } else {
+            let message = self.snowflake_error_message();
+            // Record the result as part of the current span.
+            tracing::Span::current().record("error", message.clone());
+            (
                 code,
                 Json(ErrorResponse {
-                    message: self.snowflake_error_message(),
+                    message,
                     status_code: code.as_u16(),
                 }),
             )
-                .into_response(),
+                .into_response()
         }
     }
 }
