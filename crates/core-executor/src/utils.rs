@@ -492,7 +492,21 @@ fn convert_time(
             };
             Arc::new(StringArray::from(time)) as ArrayRef
         }
-        DataSerializationFormat::Arrow => column.clone(),
+        DataSerializationFormat::Arrow => {
+            let timestamps: Vec<_> = match unit {
+                TimeUnit::Second => downcast_and_iter!(column, Time32SecondArray)
+                    .map(|ts| ts.map(i64::from))
+                    .collect(),
+                TimeUnit::Millisecond => downcast_and_iter!(column, Time32MillisecondArray)
+                    .map(|ts| ts.map(i64::from))
+                    .collect(),
+                TimeUnit::Microsecond => {
+                    downcast_and_iter!(column, Time64MicrosecondArray).collect()
+                }
+                TimeUnit::Nanosecond => downcast_and_iter!(column, Time64NanosecondArray).collect(),
+            };
+            Arc::new(Int64Array::from(timestamps)) as ArrayRef
+        }
     }
 }
 
@@ -658,24 +672,32 @@ mod tests {
     #[test]
     fn test_convert_timestamp_to_struct() {
         let cases = [
-            (TimeUnit::Second, Some(1_627_846_261), "1627846261"),
+            (
+                TimeUnit::Second,
+                Some(1_627_846_261),
+                "1627846261",
+                1_627_846_261,
+            ),
             (
                 TimeUnit::Millisecond,
                 Some(1_627_846_261_233),
                 "1627846261.233",
+                1_627_846_261_233,
             ),
             (
                 TimeUnit::Microsecond,
                 Some(1_627_846_261_233_222),
                 "1627846261.233222",
+                1_627_846_261_233_222,
             ),
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
                 "1627846261.233222111",
+                1_627_846_261_233_222_111,
             ),
         ];
-        for (unit, timestamp, expected) in &cases {
+        for (unit, timestamp, expected_json, expected_arrow) in &cases {
             let values = vec![*timestamp, None];
             let timestamp_array = match unit {
                 TimeUnit::Second => Arc::new(TimestampSecondArray::from(values)) as ArrayRef,
@@ -693,7 +715,16 @@ mod tests {
                 convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
-            assert_eq!(string_array.value(0), *expected);
+            assert_eq!(string_array.value(0), *expected_json);
+            assert!(string_array.is_null(1));
+            let result = convert_timestamp_to_struct(
+                &timestamp_array,
+                *unit,
+                DataSerializationFormat::Arrow,
+            );
+            let string_array = result.as_any().downcast_ref::<Int64Array>().unwrap();
+            assert_eq!(string_array.len(), 2);
+            assert_eq!(string_array.value(0), *expected_arrow);
             assert!(string_array.is_null(1));
         }
     }
@@ -705,39 +736,46 @@ mod tests {
                 TimeUnit::Second,
                 make_time(12, 54, 33, None) / 1_000_000_000,
                 "46473.000",
+                46_473i64,
             ),
             (
                 TimeUnit::Millisecond,
                 make_time(12, 54, 33, Some(333_000_000)) / 1_000_000,
                 "46473.333",
+                46_473_333i64,
             ),
             (
                 TimeUnit::Millisecond,
                 make_time(12, 54, 33, None) / 1_000_000,
                 "46473.000",
+                46_473_000i64,
             ),
             (
                 TimeUnit::Microsecond,
                 make_time(12, 54, 33, Some(333_000)) / 1_000,
                 "46473.000333",
+                46_473_000_333i64,
             ),
             (
                 TimeUnit::Microsecond,
                 make_time(12, 54, 33, None) / 1_000,
                 "46473.000000",
+                46_473_000_000i64,
             ),
             (
                 TimeUnit::Nanosecond,
                 make_time(12, 54, 33, Some(333)),
                 "46473.000000333",
+                46_473_000_000_333i64,
             ),
             (
                 TimeUnit::Nanosecond,
                 make_time(12, 54, 33, None),
                 "46473.000000000",
+                46_473_000_000_000i64,
             ),
         ];
-        for (unit, timestamp, expected) in &cases {
+        for (unit, timestamp, expected_json, expected_arrow) in &cases {
             let time_array = match unit {
                 TimeUnit::Second => {
                     let values = vec![i32::try_from(*timestamp).ok(), None];
@@ -759,7 +797,12 @@ mod tests {
             let result = convert_time(&time_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
-            assert_eq!(string_array.value(0), *expected);
+            assert_eq!(string_array.value(0), *expected_json);
+            assert!(string_array.is_null(1));
+            let result = convert_time(&time_array, *unit, DataSerializationFormat::Arrow);
+            let string_array = result.as_any().downcast_ref::<Int64Array>().unwrap();
+            assert_eq!(string_array.len(), 2);
+            assert_eq!(string_array.value(0), *expected_arrow);
             assert!(string_array.is_null(1));
         }
     }
