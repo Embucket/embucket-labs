@@ -13,8 +13,8 @@ We have a set of `.slt` files that represent our SQL Logic Tests. You can run th
 # SLT Runner
 1. Copy `.env_example` inside `slt_runner` folder file and rename it to `.env` file.
 2. Set up a connection
-   1. Snowflake - replace Snowflake credentials in `.env` file from `test` to your credentials.
-   2. Embucket - launch Embucket locally, set `ICEBUCKET_ENABLED=true` in `.env` file, make sure connection parameters match Embucket launch parameters (if you have default settings, you don't need to change anything).
+   1. **Embucket** (default) - launch Embucket locally. The runner will automatically use `EMBUCKET_USER` and `EMBUCKET_PASSWORD` credentials (both set to `embucket` by default). Make sure connection parameters match Embucket launch parameters (if you have default settings, you don't need to change anything).
+   2. **Snowflake** - replace Snowflake credentials (`SNOWFLAKE_USER` and `SNOWFLAKE_PASSWORD`) in `.env` file with your actual credentials and set `EMBUCKET_ENABLED=false`.
 3. Install requirements
 ``` bash
 pip install -r slt_runner/requirements.txt

@@ -25,12 +25,18 @@ jobs:
     name: SQL Logic Tests
     env:
       SNOWFLAKE_ACCOUNT: test
-      SNOWFLAKE_USER: embucket
-      SNOWFLAKE_PASSWORD: embucket
+
+      SNOWFLAKE_USER: test
+      SNOWFLAKE_PASSWORD: test
+
+      EMBUCKET_USER: embucket
+      EMBUCKET_PASSWORD: embucket
+
       WAREHOUSE: COMPUTE_WH
       DATABASE: embucket
       SCHEMA: public
       RESET_DB: false
+
       EMBUCKET_ENABLED: true
       EMBUCKET_PROTOCOL: http
       EMBUCKET_HOST: localhost
