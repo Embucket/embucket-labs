@@ -1,22 +1,21 @@
 use crate::default_limit;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreesResponse {
     pub items: Vec<NavigationTreeDatabase>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeDatabase {
     pub name: String,
     pub schemas: Vec<NavigationTreeSchema>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeSchema {
     pub name: String,
@@ -24,7 +23,7 @@ pub struct NavigationTreeSchema {
     pub views: Vec<NavigationTreeTable>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NavigationTreeTable {
     pub name: String,
