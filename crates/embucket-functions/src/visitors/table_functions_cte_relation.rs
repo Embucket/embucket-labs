@@ -8,6 +8,45 @@ use datafusion_expr::sqlparser::ast::{Statement, VisitorMut};
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 
+/// A SQL AST visitor that rewrites `FLATTEN(INPUT => ...)` calls in table functions
+/// by inlining column references from same-level CTEs as subqueries.
+///
+/// # Purpose
+/// When using `FLATTEN(INPUT => parse_json(column))`, and `column` is not defined
+/// in the current SELECT scope (e.g., not projected directly), this visitor attempts
+/// to find that column in a sibling CTE (defined in the same `WITH` clause).
+///
+/// If found, it rewrites the `column` reference as a scalar subquery that selects
+/// this column from the corresponding CTE.
+///
+/// # Example
+/// Input:
+/// ```sql
+/// WITH source AS (SELECT '{"a": 1}' AS jsontext),
+///      intermediate AS (SELECT value FROM source, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d)
+/// SELECT * FROM intermediate;
+/// ```
+///
+/// Will be rewritten as:
+/// ```sql
+/// LATERAL FLATTEN(INPUT => parse_json((SELECT jsontext FROM source))) d
+/// ```
+///
+/// # Logic
+/// - CTEs are collected in `self.ctes` during `pre_visit_query`.
+/// - If `query.body` is a `SELECT`, it records the `FROM` tables in `self.current_from_tables`.
+/// - When encountering a `FLATTEN` table function, rewrites its `INPUT` argument.
+/// - If the `INPUT` expression is a reference to a column from a CTE on the same level,
+///   it is replaced with a scalar subquery.
+///
+/// # Notes
+/// - If multiple sibling CTEs are present, it picks the first one containing the column on the same level.
+/// - If no CTEs match but any exist on the same level, the first is used as a fallback.
+/// - Deeply nested expressions (e.g. nested `parse_json(...)`) are recursively processed.
+///
+/// # Limitations
+/// - Only handles identifier-based column access (`Expr::Identifier`).
+/// - Only processes `FunctionArgExpr::Expr` arguments in `FLATTEN`.
 #[derive(Debug, Default)]
 pub struct TableFuncInlineCte {
     ctes: HashMap<String, Query>,
