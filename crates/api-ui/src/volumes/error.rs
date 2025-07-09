@@ -7,7 +7,7 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("Create volumes error: {source}"))]
+    #[snafu(display("Create volume error: {source}"))]
     Create {
         source: core_metastore::Error,
         #[snafu(implicit)]
@@ -46,7 +46,7 @@ impl IntoStatusCode for Error {
             Self::Create { source, .. } => match &source {
                 core_metastore::Error::VolumeAlreadyExists { .. }
                 | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+                core_metastore::Error::Validation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Get { source, .. } | Self::Delete { source, .. } => match &source {
@@ -57,7 +57,7 @@ impl IntoStatusCode for Error {
             Self::Update { source, .. } => match &source {
                 core_metastore::Error::ObjectNotFound { .. }
                 | core_metastore::Error::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
-                core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+                core_metastore::Error::Validation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
