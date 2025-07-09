@@ -1,21 +1,3 @@
-# DBT Run Summary
-PASS: 999
-WARN: 0
-ERROR: 378
-SKIP: 211
-TOTAL: 1588
-
 # Total top 10 errors
-     38 DataFusion error: This feature is not implemented: Function 'encrypt_raw' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/encrypt_raw
-     36 DataFusion error: Internal error: Input field name SEQ does not match with the projection expression value.
-     13 DataFusion error: This feature is not implemented: Arrays with unspecified type is not supported
-      7 DataFusion error: This feature is not implemented: Function 'to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/to_decimal
-      5 DataFusion error: This feature is not implemented: Function 'try_to_date' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_date
-      5 DataFusion error: External error: Feature Arrow datatype Null is not supported. is not supported.
-      4 DataFusion error: type_coercion
-      4 DataFusion error: This feature is not implemented: Unsupported CAST from Union([(0, Field { name: "null", data_type: Null, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), (1, Field { name: "bool", data_type: Boolean, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (2, Field { name: "int", data_type: Int64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (3, Field { name: "float", data_type: Float64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (4, Field { name: "str", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (5, Field { name: "array", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (6, Field { name: "object", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} })], Sparse) to Timestamp(Nanosecond, None)
-      3 DataFusion error: This feature is not implemented: Unsupported CAST from Union([(0, Field { name: "null", data_type: Null, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), (1, Field { name: "bool", data_type: Boolean, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (2, Field { name: "int", data_type: Int64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (3, Field { name: "float", data_type: Float64, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (4, Field { name: "str", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (5, Field { name: "array", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} }), (6, Field { name: "object", data_type: Utf8, nullable: false, dict_id: 0, dict_is_ordered: false, metadata: {} })], Sparse) to Date32
-      3 DataFusion error: This feature is not implemented: Function 'try_to_number' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal
 
 # Top function errors
-      1 DataFusion error: Error during planning: Invalid function 'to_timestamp_ntz'.
