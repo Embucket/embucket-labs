@@ -5,6 +5,7 @@ use snafu::ResultExt;
 use std::fmt::Display;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
+use regex::Regex;
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -16,13 +17,25 @@ pub enum CloudProvider {
     MEMORY,
 }
 
+fn aws_access_key_id_regex_func() -> Regex {
+    Regex::new(r"^[a-zA-Z0-9]{20}$").unwrap()
+}
+
+fn aws_secret_access_key_regex_func() -> Regex {
+    Regex::new(r"^[A-Za-z0-9/+=]{40}$").unwrap()
+}
+
+fn s3_endpoint_regex_func() -> Regex {
+    Regex::new(r"^https?://").unwrap()
+}
+
 // AWS Access Key Credentials
 #[derive(Validate, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredentials {
-    #[validate(length(min = 1))]
+    #[validate(regex(path = aws_access_key_id_regex_func(), message="AWS Access key ID is expected to be 20 chars alphanumeric string.\n"))]
     pub aws_access_key_id: String,
-    #[validate(length(min = 1))]
+    #[validate(regex(path = aws_secret_access_key_regex_func(), message = "AWS Secret access key is expected to be 40 chars Base64-like string with uppercase, lowercase, digits, and +/= .\n"))]
     pub aws_secret_access_key: String,
 }
 
@@ -58,7 +71,7 @@ pub struct S3Volume {
     pub region: Option<String>,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
     pub bucket: Option<String>,
-    #[validate(length(min = 1))]
+    #[validate(regex(path = s3_endpoint_regex_func(), message="Endpoint must start with https:// or http:// .\n"))]
     pub endpoint: Option<String>,
     pub skip_signature: Option<bool>,
     #[validate(length(min = 1))]
@@ -74,8 +87,8 @@ pub struct S3TablesVolume {
     pub region: String,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
     pub bucket: Option<String>,
-    #[validate(length(min = 1))]
-    pub endpoint: String,
+    #[validate(regex(path = s3_endpoint_regex_func(), message="Endpoint must start with https:// or http:// .\n"))]
+    pub endpoint: Option<String>,
     #[validate(nested)]
     pub credentials: AwsCredentials,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
@@ -90,7 +103,7 @@ impl S3TablesVolume {
         let s3_volume = S3Volume {
             region: Some(self.region.clone()),
             bucket: Some(self.name.clone()),
-            endpoint: Some(self.endpoint.clone()),
+            endpoint: self.endpoint.clone(),
             skip_signature: None,
             metadata_endpoint: None,
             credentials: Some(self.credentials.clone()),
