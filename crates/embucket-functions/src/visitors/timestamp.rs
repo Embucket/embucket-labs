@@ -1,10 +1,8 @@
-use datafusion::logical_expr::sqlparser::ast::{DataType, ObjectNamePart};
-use datafusion::sql::sqlparser::ast::{Expr, TimezoneInfo};
-use datafusion_expr::sqlparser::ast::JsonPathElem;
+use datafusion::logical_expr::sqlparser::ast::{DataType, ObjectNamePart, TimezoneInfo};
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
     Expr as ASTExpr, Function, FunctionArg, FunctionArgExpr, FunctionArgumentList,
-    FunctionArguments, Ident, ObjectName, Statement, Value as ASTValue, VisitorMut,
+    FunctionArguments, Ident, ObjectName, Statement, VisitorMut,
 };
 use std::ops::ControlFlow;
 

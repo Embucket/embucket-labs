@@ -57,9 +57,6 @@ use datafusion_expr::{
     is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
-use datafusion_expr::{
-    CreateMemoryTable, DdlStatement, Expr as DFExpr, Projection, ScalarUDF, TryCast,
-};
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
@@ -67,13 +64,14 @@ use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::information_schema::session_params::SessionProperty;
-use embucket_functions::datetime::to_timestamp::ToTimestampFunc;
 use df_catalog::table::CachingTable;
+use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
     json_element, qualify_in_query, select_expr_aliases, table_functions,
     table_functions_cte_relation, top_limit,
+    json_element, qualify_in_query, select_expr_aliases, table_functions, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;

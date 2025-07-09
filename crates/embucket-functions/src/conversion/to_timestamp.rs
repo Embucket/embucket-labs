@@ -14,19 +14,25 @@ use datafusion_common::arrow::array::{
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, exec_err, internal_err};
 
+use crate::conversion_errors::{
+    ArgumentTwoNeedsToBeIntegerSnafu, CantAddLocalTimezoneSnafu, CantCastToSnafu,
+    CantCreateDateTimeFromTimestampSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu,
+    CantParseTimezoneSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
+};
 use chrono_tz::Tz;
 use datafusion_expr::{
     ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::any::Any;
-use std::sync::Arc;
-lazy_static! {
-    static ref RE_TIMEZONE: Regex = Regex::new(
+use std::sync::{Arc, LazyLock};
+
+#[allow(clippy::unwrap_used)]
+static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         r"(?i)(Z|[+-]\d{2}:?\d{2}|\b(?:CEST|CET|EEST|EET|EST|EDT|PST|PDT|MST|MDT|CST|CDT|GMT|UTC|MSD|JST)\b)$"
-    ).unwrap();
-}
+    ).unwrap()
+});
 
 macro_rules! build_from_int_scale {
     ($tz:expr,$args:expr,$arr:expr, $type:ty) => {{
@@ -35,17 +41,20 @@ macro_rules! build_from_int_scale {
         } else {
             if let ColumnarValue::Scalar(v) = &$args[1] {
                 let scale = v.cast_to(&DataType::Int64)?;
-                let ScalarValue::Int64(Some(v)) = &scale else {
+                if let ScalarValue::Int64(Some(v)) = &scale {
+                    *v
+                } else {
                     return exec_err!("Second argument must integer");
-                };
-
-                *v
+                }
             } else {
                 0
             }
         };
 
-        let arr = $arr.as_any().downcast_ref::<$type>().unwrap();
+        let arr = $arr
+            .as_any()
+            .downcast_ref::<$type>()
+            .ok_or_else(|| CantCastToSnafu { v: "integer" }.build())?;
         let arr: ArrayRef = match scale {
             0 => {
                 let mut b = TimestampSecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
@@ -90,7 +99,7 @@ macro_rules! build_from_int_scale {
                 }
                 Arc::new(b.finish())
             }
-            _ => return exec_err!("Invalid scale"),
+            _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
         };
 
         if arr.len() == 1 {
@@ -109,7 +118,7 @@ macro_rules! build_from_int_string {
             if let ColumnarValue::Scalar(v) = &$args[1] {
                 let format = v.cast_to(&DataType::Utf8)?;
                 let ScalarValue::Utf8(Some(v)) = &format else {
-                    return exec_err!("Second argument must integer");
+                    return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
                 };
 
                 convert_snowflake_format_to_chrono(v)
@@ -118,14 +127,20 @@ macro_rules! build_from_int_string {
             }
         };
 
-        let arr = $arr.as_any().downcast_ref::<$type>().unwrap();
+        let arr = $arr
+            .as_any()
+            .downcast_ref::<$type>()
+            .ok_or_else(|| CantCastToSnafu { v: "string" }.build())?;
+
         let mut b = TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
         for v in arr {
             match v {
                 None => b.append_null(),
                 Some(s) => {
                     if contains_only_digits(s) {
-                        let i = s.parse::<i64>().unwrap(); // todo handle err
+                        let i = s
+                            .parse::<i64>()
+                            .map_err(|_| CantParseTimestampSnafu.build())?;
                         let scale = determine_timestamp_scale(i);
                         if scale == 0 {
                             b.append_value(i * 1000_000_000);
@@ -139,15 +154,25 @@ macro_rules! build_from_int_string {
                     } else {
                         let s = remove_timezone(s);
                         let t = match NaiveDateTime::parse_from_str(s.as_str(), &format) {
-                            Ok(v) => v.and_utc().timestamp_nanos_opt().unwrap(),
+                            Ok(v) => v
+                                .and_utc()
+                                .timestamp_nanos_opt()
+                                .ok_or_else(|| CantGetTimestampSnafu.build())?,
                             Err(_) => string_to_timestamp_nanos(s.as_str())?,
                         };
 
                         let t = if let Some(tz) = $tz {
-                            let tz: Tz = tz.parse().unwrap();
-                            let t = NaiveDateTime::from_timestamp_nanos(t).unwrap();
-                            let t = t.and_local_timezone(tz).unwrap();
-                            let t = t.naive_utc().timestamp_nanos_opt().unwrap();
+                            let tz: Tz = tz.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
+                            let t = NaiveDateTime::from_timestamp_nanos(t)
+                                .ok_or_else(|| CantCreateDateTimeFromTimestampSnafu.build())?;
+                            let t = t
+                                .and_local_timezone(tz)
+                                .single()
+                                .ok_or_else(|| CantAddLocalTimezoneSnafu.build())?;
+                            let t = t
+                                .naive_utc()
+                                .timestamp_nanos_opt()
+                                .ok_or_else(|| CantGetTimestampSnafu.build())?;
 
                             t
                         } else {
@@ -215,6 +240,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
         internal_err!("return_type_from_args should be called")
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
         if args.scalar_arguments.len() == 1 {
             if args.arg_types[0].is_numeric() {
@@ -228,7 +254,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 if let Some(v) = args.scalar_arguments[1] {
                     let scale = v.cast_to(&DataType::Int64)?;
                     let ScalarValue::Int64(Some(s)) = &scale else {
-                        return exec_err!("Second argument must integer");
+                        return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
                     };
                     let s = *s;
                     return match s {
@@ -248,7 +274,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                             TimeUnit::Nanosecond,
                             self.timezone.clone(),
                         ))),
-                        _ => return exec_err!("Invalid scale"),
+                        _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
                     };
                 }
             } else if let Some(ScalarValue::TimestampSecond(_, Some(tz))) = args.scalar_arguments[0]
@@ -278,7 +304,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     TimeUnit::Nanosecond,
                     Some(tz.to_owned()),
                 )));
-            };
+            }
         }
 
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
@@ -286,6 +312,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
             self.timezone.clone(),
         )))
     }
+    #[allow(
+        deprecated,
+        clippy::cognitive_complexity,
+        clippy::too_many_lines,
+        clippy::cast_possible_wrap,
+        clippy::as_conversions,
+        clippy::cast_lossless,
+        clippy::cast_possible_truncation
+    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
@@ -304,23 +339,24 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 build_from_int_scale!(self.timezone.clone(), args, arr, UInt32Array)
             }
             DataType::Decimal128(_, s) => {
-                let s = (*s as i128).pow(10);
+                let s = i128::from(*s).pow(10);
                 let scale = if args.len() == 1 {
                     0
-                } else {
-                    if let ColumnarValue::Scalar(v) = &args[1] {
-                        let scale = v.cast_to(&DataType::Int64)?;
-                        let ScalarValue::Int64(Some(v)) = &scale else {
-                            return exec_err!("Second argument must integer");
-                        };
+                } else if let ColumnarValue::Scalar(v) = &args[1] {
+                    let scale = v.cast_to(&DataType::Int64)?;
+                    let ScalarValue::Int64(Some(v)) = &scale else {
+                        return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
+                    };
 
-                        *v
-                    } else {
-                        0
-                    }
+                    *v
+                } else {
+                    0
                 };
 
-                let arr = arr.as_any().downcast_ref::<Decimal128Array>().unwrap();
+                let arr = arr
+                    .as_any()
+                    .downcast_ref::<Decimal128Array>()
+                    .ok_or_else(|| CantCastToSnafu { v: "decimal128" }.build())?;
                 let arr: ArrayRef = match scale {
                     0 => {
                         let mut b = TimestampSecondBuilder::with_capacity(arr.len())
@@ -366,7 +402,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                         }
                         Arc::new(b.finish())
                     }
-                    _ => return exec_err!("Invalid scale"),
+                    _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
                 };
                 if arr.len() == 1 {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
@@ -437,7 +473,8 @@ fn contains_only_digits(s: &str) -> bool {
     s.chars().all(|c| c.is_ascii_digit())
 }
 
-pub fn determine_timestamp_scale(value: i64) -> u8 {
+#[must_use]
+pub const fn determine_timestamp_scale(value: i64) -> u8 {
     const MILLIS_PER_YEAR: i64 = 31_536_000_000;
     const MICROS_PER_YEAR: i64 = 31_536_000_000_000;
     const NANOS_PER_YEAR: i64 = 31_536_000_000_000_000;
@@ -455,6 +492,7 @@ pub fn determine_timestamp_scale(value: i64) -> u8 {
     }
 }
 
+#[must_use]
 pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
     let mut chrono_format = snowflake_format.to_string().to_lowercase();
 
@@ -491,9 +529,7 @@ pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::semi_structured::variant::visitors::variant_element;
     use crate::visitors::timestamp;
-    use datafusion::arrow::util::pretty::print_batches;
     use datafusion::prelude::SessionContext;
     use datafusion::sql::parser::Statement;
     use datafusion_common::assert_batches_eq;

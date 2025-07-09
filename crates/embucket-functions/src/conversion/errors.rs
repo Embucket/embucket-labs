@@ -115,6 +115,47 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Argument 2 needs to be integer"))]
+    ArgumentTwoNeedsToBeInteger {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Invalid value for function at position 2"))]
+    InvalidValueForFunctionAtPositionTwo {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't cast to {v}"))]
+    CantCastTo {
+        v: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't parse timestamp"))]
+    CantParseTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't get timestamp"))]
+    CantGetTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't parse timezone"))]
+    CantParseTimezone {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't create DateTime from timestamp"))]
+    CantCreateDateTimeFromTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't add local timezone"))]
+    CantAddLocalTimezone {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
