@@ -151,8 +151,7 @@ fn ui_op_endpoint(addr: SocketAddr, t: &Entity, op: &Op) -> String {
     }
 }
 
-// op list expects empty entity - stub
-// op update require two entities: t_from ,t
+// Do not use it anymore. Use instead http_req or http_req_with_headers. 
 pub async fn ui_test_op(
     addr: SocketAddr,
     op: Op,
