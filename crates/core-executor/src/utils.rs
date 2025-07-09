@@ -178,40 +178,19 @@ pub fn convert_record_batches(
                     }
                 }
                 DataType::Timestamp(unit, _) => {
-                    let converted_column = convert_timestamp_to_struct(column, *unit, data_format);
-                    fields.push(
-                        Field::new(
-                            field.name(),
-                            converted_column.data_type().clone(),
-                            field.is_nullable(),
-                        )
-                        .with_metadata(metadata),
-                    );
-                    Arc::clone(&converted_column)
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        Ok(convert_timestamp_to_struct(col, *unit, data_format))
+                    })?
                 }
                 DataType::Date32 | DataType::Date64 => {
-                    let converted_column = convert_date(column, data_format);
-                    fields.push(
-                        Field::new(
-                            field.name(),
-                            converted_column.data_type().clone(),
-                            field.is_nullable(),
-                        )
-                        .with_metadata(metadata),
-                    );
-                    Arc::clone(&converted_column)
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        Ok(convert_date(col, data_format))
+                    })?
                 }
                 DataType::Time32(unit) | DataType::Time64(unit) => {
-                    let converted_column = convert_time(column, *unit, data_format);
-                    fields.push(
-                        Field::new(
-                            field.name(),
-                            converted_column.data_type().clone(),
-                            field.is_nullable(),
-                        )
-                        .with_metadata(metadata),
-                    );
-                    Arc::clone(&converted_column)
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        Ok(convert_time(col, *unit, data_format))
+                    })?
                 }
                 DataType::UInt64 | DataType::UInt32 | DataType::UInt16 | DataType::UInt8 => {
                     let column_info = &column_infos[i];
@@ -227,34 +206,19 @@ pub fn convert_record_batches(
                         ),
                     )
                 }
-                DataType::BinaryView => {
-                    let converted_column =
-                        cast(&column, &DataType::Utf8View).context(ArrowSnafu)?;
-                    fields.push(
-                        Field::new(
-                            field.name(),
-                            converted_column.data_type().clone(),
-                            field.is_nullable(),
-                        )
-                        .with_metadata(metadata),
-                    );
-                    Arc::clone(&converted_column)
+                DataType::BinaryView | DataType::Utf8View => {
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        cast(col, &DataType::Utf8).context(ArrowSnafu)
+                    })?
                 }
                 DataType::Decimal128(_, _) => {
-                    let converted_column = if data_format == DataSerializationFormat::Json {
-                        cast(&column, &DataType::Utf8).context(ArrowSnafu)?
-                    } else {
-                        Arc::clone(column)
-                    };
-                    fields.push(
-                        Field::new(
-                            field.name(),
-                            converted_column.data_type().clone(),
-                            field.is_nullable(),
-                        )
-                        .with_metadata(metadata),
-                    );
-                    Arc::clone(&converted_column)
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        if data_format == DataSerializationFormat::Json {
+                            Ok(cast(&col, &DataType::Utf8).context(ArrowSnafu)?)
+                        } else {
+                            Ok(Arc::clone(column))
+                        }
+                    })?
                 }
                 _ => {
                     fields.push(field.clone().with_metadata(metadata));
@@ -268,6 +232,25 @@ pub fn convert_record_batches(
         converted_batches.push(converted_batch);
     }
     Ok(converted_batches)
+}
+
+fn convert_and_push(
+    column: &ArrayRef,
+    field: &Field,
+    metadata: HashMap<String, String>,
+    fields: &mut Vec<Field>,
+    convert_fn: impl Fn(&ArrayRef) -> Result<ArrayRef>,
+) -> Result<ArrayRef> {
+    let converted = convert_fn(column)?;
+    fields.push(
+        Field::new(
+            field.name(),
+            converted.data_type().clone(),
+            field.is_nullable(),
+        )
+        .with_metadata(metadata),
+    );
+    Ok(Arc::clone(&converted))
 }
 
 macro_rules! downcast_and_iter {
@@ -826,6 +809,7 @@ mod tests {
                 true,
             ),
             Field::new("binary_view", DataType::BinaryView, true),
+            Field::new("binary_view", DataType::Utf8View, true),
         ]));
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
         let timestamp_array = Arc::new(TimestampSecondArray::from(vec![
@@ -838,9 +822,17 @@ mod tests {
             b"world",
             b"lulu",
         ]));
+        let utf8_view_array = Arc::new(StringViewArray::from_iter_values(vec![
+            "hello", "world", "lulu",
+        ]));
         let batch = RecordBatch::try_new(
             schema.clone(),
-            vec![int_array, timestamp_array, binary_view_array],
+            vec![
+                int_array,
+                timestamp_array,
+                binary_view_array,
+                utf8_view_array,
+            ],
         )
         .unwrap();
         let result = QueryResult::new(vec![batch], schema, 0);
@@ -850,26 +842,35 @@ mod tests {
 
         let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
-        assert_eq!(converted_batch.num_columns(), 3);
+        assert_eq!(converted_batch.num_columns(), 4);
         assert_eq!(converted_batch.num_rows(), 3);
 
-        let converted_timestamp_array = converted_batch
+        let converted_array = converted_batch
             .column(1)
             .as_any()
             .downcast_ref::<StringArray>()
             .unwrap();
-        assert_eq!(converted_timestamp_array.value(0), "1627846261");
-        assert!(converted_timestamp_array.is_null(1));
-        assert_eq!(converted_timestamp_array.value(2), "1627846262");
+        assert_eq!(converted_array.value(0), "1627846261");
+        assert!(converted_array.is_null(1));
+        assert_eq!(converted_array.value(2), "1627846262");
 
-        let converted_timestamp_array = converted_batch
+        let converted_array = converted_batch
             .column(2)
             .as_any()
-            .downcast_ref::<StringViewArray>()
+            .downcast_ref::<StringArray>()
             .unwrap();
-        assert_eq!(converted_timestamp_array.value(0), "hello");
-        assert_eq!(converted_timestamp_array.value(1), "world");
-        assert_eq!(converted_timestamp_array.value(2), "lulu");
+        assert_eq!(converted_array.value(0), "hello");
+        assert_eq!(converted_array.value(1), "world");
+        assert_eq!(converted_array.value(2), "lulu");
+
+        let converted_array = converted_batch
+            .column(3)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(converted_array.value(0), "hello");
+        assert_eq!(converted_array.value(1), "world");
+        assert_eq!(converted_array.value(2), "lulu");
 
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
@@ -881,14 +882,14 @@ mod tests {
         let converted_batches =
             convert_record_batches(result, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
-        let converted_timestamp_array = converted_batch
+        let converted_array = converted_batch
             .column(1)
             .as_any()
             .downcast_ref::<Int64Array>()
             .unwrap();
-        assert_eq!(converted_timestamp_array.value(0), 1_627_846_261);
-        assert!(converted_timestamp_array.is_null(1));
-        assert_eq!(converted_timestamp_array.value(2), 1_627_846_262);
+        assert_eq!(converted_array.value(0), 1_627_846_261);
+        assert!(converted_array.is_null(1));
+        assert_eq!(converted_array.value(2), 1_627_846_262);
     }
 
     #[allow(
