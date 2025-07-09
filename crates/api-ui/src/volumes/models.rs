@@ -50,7 +50,7 @@ pub struct S3Volume {
 pub struct S3TablesVolume {
     pub region: String,
     pub bucket: Option<String>,
-    pub endpoint: String,
+    pub endpoint: Option<String>,
     pub credentials: AwsCredentials,
     pub name: String,
     pub arn: String,

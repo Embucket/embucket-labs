@@ -112,7 +112,7 @@ impl IntoResponse for Error {
             // no error added into span here and it's Ok
             source.into_response()
         } else {
-            let message = self.snowflake_error_message();
+            let message = self.error_message();
             // Record the result as part of the current span.
             tracing::Span::current().record("error", message.clone());
             (
@@ -128,7 +128,7 @@ impl IntoResponse for Error {
 }
 
 impl Error {
-    pub fn snowflake_error_message(self) -> String {
+    pub fn error_message(self) -> String {
         // acquire error str as later it will be moved
         let error_str = self.to_string();
         match self {
@@ -139,7 +139,7 @@ impl Error {
                 } => SnowflakeError::from(source).to_string(),
                 _ => error_str,
             },
-            _ => self.to_string(),
+            _ => error_str,
         }
     }
 }
