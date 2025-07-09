@@ -928,6 +928,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_create_s3table_volume() {
+        let ms = get_metastore().await;
+
+        let s3table_volume = VolumeType::S3Tables(S3TablesVolume {
+            region: "us-west-1".to_string(),
+            arn: "arn:aws:s3:::embucket".to_string(),
+            name: "test".to_string(),
+            bucket: Some("embucket".to_string()),
+            endpoint: Some("https://my-bucket-name.s3.us-east-1.amazonaws.com/".to_string()),
+            credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),
+                aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL".to_string(),
+            }),
+        });
+        let volume = Volume::new("s3tables".to_string(), s3table_volume);
+        ms.create_volume(&volume.ident.clone(), volume.clone())
+            .await
+            .expect("create s3table volume failed");
+
+        let created_volume = ms.get_volume(&volume.ident)
+            .await
+            .expect("get s3table volume failed");
+        let created_volume = created_volume.unwrap().data;
+
+        insta::with_settings!({
+            filters => insta_filters(),
+        }, {
+            insta::assert_debug_snapshot!((volume, created_volume));
+        });
+    }
+
+    #[tokio::test]
     async fn test_duplicate_volume() {
         let ms = get_metastore().await;
 
