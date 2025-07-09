@@ -47,7 +47,8 @@ use df_catalog::information_schema::session_params::SessionProperty;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, qualify_in_query, select_expr_aliases, table_functions, top_limit,
+    json_element, qualify_in_query, select_expr_aliases, table_functions,
+    table_functions_cte_relation, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -222,6 +223,7 @@ impl UserQuery {
             fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
             qualify_in_query::visit(value);
+            table_functions_cte_relation::visit(value);
             visit_all(value);
         }
         Ok(())
