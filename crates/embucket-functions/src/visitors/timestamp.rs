@@ -15,7 +15,6 @@ impl VisitorMut for TimestampVisitor {
     type Break = ();
 
     fn post_visit_expr(&mut self, expr: &mut ASTExpr) -> ControlFlow<Self::Break> {
-        dbg!(&expr);
         *expr = match expr.clone() {
             ASTExpr::Cast {
                 expr: cast_expr,
