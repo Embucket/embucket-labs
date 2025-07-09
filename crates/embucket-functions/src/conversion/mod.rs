@@ -3,16 +3,16 @@ pub mod to_time;
 
 pub mod to_array;
 pub mod to_binary;
-pub mod to_variant;
 pub mod to_decimal;
+pub mod to_variant;
 
+use crate::conversion::to_decimal::ToDecimalFunc;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 pub use to_binary::ToBinaryFunc;
 pub use to_boolean::ToBooleanFunc;
 pub use to_time::ToTimeFunc;
-use crate::conversion::to_decimal::ToDecimalFunc;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
