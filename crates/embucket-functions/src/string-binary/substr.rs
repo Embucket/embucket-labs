@@ -267,7 +267,8 @@ fn substr_snowflake(
         DataType::Utf8 => {
             let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::StringArray>() {
+                .downcast_ref::<datafusion::arrow::array::StringArray>()
+            {
                 Some(arr) => arr,
                 None => return datafusion_common::exec_err!("Expected StringArray"),
             };
@@ -320,7 +321,8 @@ fn substr_snowflake(
         DataType::LargeUtf8 => {
             let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::LargeStringArray>() {
+                .downcast_ref::<datafusion::arrow::array::LargeStringArray>()
+            {
                 Some(arr) => arr,
                 None => return datafusion_common::exec_err!("Expected LargeStringArray"),
             };
@@ -373,7 +375,8 @@ fn substr_snowflake(
         DataType::Utf8View => {
             let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::StringViewArray>() {
+                .downcast_ref::<datafusion::arrow::array::StringViewArray>()
+            {
                 Some(arr) => arr,
                 None => return datafusion_common::exec_err!("Expected StringViewArray"),
             };
