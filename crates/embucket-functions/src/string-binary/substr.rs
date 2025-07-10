@@ -1,4 +1,3 @@
-use crate::string_binary::errors;
 use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
@@ -6,7 +5,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use datafusion_common::cast::as_int64_array;
-use datafusion_common::{exec_err, plan_err, ScalarValue};
+use datafusion_common::{ScalarValue, exec_err, plan_err};
 use datafusion_expr::Expr;
 use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
 use std::any::Any;
@@ -78,11 +77,13 @@ impl ScalarUDFImpl for SubstrFunc {
                 if key_type.is_integer() {
                     match value_type.as_ref() {
                         DataType::Null => Ok(DataType::Utf8),
-                        DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => Ok(*value_type.clone()),
+                        DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => {
+                            Ok(*value_type.clone())
+                        }
                         _ => plan_err!(
-                                "The first argument of the {} function can only be a string, but got {:?}.",
-                                self.name(),
-                                arg_types[0]
+                            "The first argument of the {} function can only be a string, but got {:?}.",
+                            self.name(),
+                            arg_types[0]
                         ),
                     }
                 } else {
@@ -97,7 +98,7 @@ impl ScalarUDFImpl for SubstrFunc {
                 "The first argument of the {} function can only be a string, but got {:?}.",
                 self.name(),
                 arg_types[0]
-            )
+            ),
         }?;
 
         if ![DataType::Int64, DataType::Int32, DataType::Null].contains(&arg_types[1]) {
@@ -142,7 +143,11 @@ impl ScalarUDFImpl for SubstrFunc {
 
         let string_arg = &args[0];
         let start_arg = &args[1];
-        let length_arg = if args.len() == 3 { Some(&args[2]) } else { None };
+        let length_arg = if args.len() == 3 {
+            Some(&args[2])
+        } else {
+            None
+        };
 
         let string_array = match string_arg {
             ColumnarValue::Array(array) => Arc::clone(array),
@@ -163,13 +168,15 @@ impl ScalarUDFImpl for SubstrFunc {
             None
         };
 
-        let result = substr_snowflake(&string_array, &start_array, length_array.as_ref())?;
+        let result = substr_snowflake(&string_array, &start_array, length_array.as_deref())?;
         Ok(ColumnarValue::Array(result))
     }
 
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
         if args.len() >= 2 && args.len() <= 3 {
-            if let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) = (&args[0], &args[1]) {
+            if let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) =
+                (&args[0], &args[1])
+            {
                 if string_scalar.is_null() || start_scalar.is_null() {
                     return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                         ScalarValue::Null,
@@ -195,7 +202,11 @@ impl ScalarUDFImpl for SubstrFunc {
                         None
                     };
 
-                    if let Some(result) = compute_snowflake_substr(&string_val, start_val, length_val.map(|l| l as u64)) {
+                    if let Some(result) = compute_snowflake_substr(
+                        &string_val,
+                        start_val,
+                        length_val.map(|l| l as u64),
+                    ) {
                         return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                             ScalarValue::Utf8View(Some(result)),
                         )));
@@ -214,7 +225,7 @@ fn compute_snowflake_substr(input: &str, start: i64, length: Option<u64>) -> Opt
     }
 
     let char_count = input.chars().count() as i64;
-    
+
     let actual_start = if start < 0 {
         char_count + start + 1
     } else if start == 0 {
@@ -228,9 +239,9 @@ fn compute_snowflake_substr(input: &str, start: i64, length: Option<u64>) -> Opt
     }
 
     let start_idx = (actual_start - 1) as usize;
-    
+
     let chars: Vec<char> = input.chars().collect();
-    
+
     let end_idx = if let Some(len) = length {
         if len == 0 {
             return Some(String::new());
@@ -254,11 +265,13 @@ fn substr_snowflake(
 ) -> DFResult<Arc<dyn Array>> {
     match string_array.data_type() {
         DataType::Utf8 => {
-            let string_array = string_array
+            let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::StringArray>()
-                .ok_or_else(|| exec_err!("Expected StringArray"))?;
-            
+                .downcast_ref::<datafusion::arrow::array::StringArray>() {
+                Some(arr) => arr,
+                None => return datafusion_common::exec_err!("Expected StringArray"),
+            };
+
             let start_array = as_int64_array(start_array)?;
             let length_array = if let Some(arr) = length_array {
                 Some(as_int64_array(arr)?)
@@ -267,7 +280,7 @@ fn substr_snowflake(
             };
 
             let mut result_builder = StringBuilder::new();
-            
+
             for i in 0..string_array.len() {
                 if string_array.is_null(i) || start_array.is_null(i) {
                     result_builder.append_null();
@@ -294,7 +307,7 @@ fn substr_snowflake(
                 }
 
                 let length_u64 = length_val.map(|l| l as u64);
-                
+
                 if let Some(result) = compute_snowflake_substr(string_val, start_val, length_u64) {
                     result_builder.append_value(result);
                 } else {
@@ -305,11 +318,13 @@ fn substr_snowflake(
             Ok(Arc::new(result_builder.finish()))
         }
         DataType::LargeUtf8 => {
-            let string_array = string_array
+            let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::LargeStringArray>()
-                .ok_or_else(|| exec_err!("Expected LargeStringArray"))?;
-            
+                .downcast_ref::<datafusion::arrow::array::LargeStringArray>() {
+                Some(arr) => arr,
+                None => return datafusion_common::exec_err!("Expected LargeStringArray"),
+            };
+
             let start_array = as_int64_array(start_array)?;
             let length_array = if let Some(arr) = length_array {
                 Some(as_int64_array(arr)?)
@@ -318,7 +333,7 @@ fn substr_snowflake(
             };
 
             let mut result_builder = StringBuilder::new();
-            
+
             for i in 0..string_array.len() {
                 if string_array.is_null(i) || start_array.is_null(i) {
                     result_builder.append_null();
@@ -345,7 +360,7 @@ fn substr_snowflake(
                 }
 
                 let length_u64 = length_val.map(|l| l as u64);
-                
+
                 if let Some(result) = compute_snowflake_substr(string_val, start_val, length_u64) {
                     result_builder.append_value(result);
                 } else {
@@ -356,11 +371,13 @@ fn substr_snowflake(
             Ok(Arc::new(result_builder.finish()))
         }
         DataType::Utf8View => {
-            let string_array = string_array
+            let string_array = match string_array
                 .as_any()
-                .downcast_ref::<datafusion::arrow::array::StringViewArray>()
-                .ok_or_else(|| exec_err!("Expected StringViewArray"))?;
-            
+                .downcast_ref::<datafusion::arrow::array::StringViewArray>() {
+                Some(arr) => arr,
+                None => return datafusion_common::exec_err!("Expected StringViewArray"),
+            };
+
             let start_array = as_int64_array(start_array)?;
             let length_array = if let Some(arr) = length_array {
                 Some(as_int64_array(arr)?)
@@ -369,7 +386,7 @@ fn substr_snowflake(
             };
 
             let mut result_builder = StringBuilder::new();
-            
+
             for i in 0..string_array.len() {
                 if string_array.is_null(i) || start_array.is_null(i) {
                     result_builder.append_null();
@@ -396,7 +413,7 @@ fn substr_snowflake(
                 }
 
                 let length_u64 = length_val.map(|l| l as u64);
-                
+
                 if let Some(result) = compute_snowflake_substr(string_val, start_val, length_u64) {
                     result_builder.append_value(result);
                 } else {
@@ -417,8 +434,8 @@ crate::macros::make_udf_function!(SubstrFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion_common::assert_batches_eq;
     use datafusion::prelude::SessionContext;
+    use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
 
     #[tokio::test]
@@ -429,7 +446,13 @@ mod tests {
         let q = "SELECT substr('mystring', 3, 2) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
-            &["+--------+", "| result |", "+--------+", "| st     |", "+--------+"],
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| st     |",
+                "+--------+"
+            ],
             &result
         );
 
@@ -444,14 +467,26 @@ mod tests {
         let q = "SELECT substr('mystring', -1, 3) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
-            &["+--------+", "| result |", "+--------+", "| g      |", "+--------+"],
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| g      |",
+                "+--------+"
+            ],
             &result
         );
 
         let q = "SELECT substr('mystring', -3, 2) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
-            &["+--------+", "| result |", "+--------+", "| in     |", "+--------+"],
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| in     |",
+                "+--------+"
+            ],
             &result
         );
 
@@ -466,14 +501,26 @@ mod tests {
         let q = "SELECT substr(NULL, 1, 2) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
-            &["+--------+", "| result |", "+--------+", "|        |", "+--------+"],
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "|        |",
+                "+--------+"
+            ],
             &result
         );
 
         let q = "SELECT substr('abc', 0, 2) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
-            &["+--------+", "| result |", "+--------+", "| ab     |", "+--------+"],
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| ab     |",
+                "+--------+"
+            ],
             &result
         );
 

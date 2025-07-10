@@ -2024,6 +2024,7 @@ dependencies = [
  "iceberg-rust-spec",
  "insta",
  "object_store",
+ "regex",
  "serde",
  "serde_json",
  "slatedb",
