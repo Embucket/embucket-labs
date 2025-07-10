@@ -1,5 +1,5 @@
 use crate::string_binary::errors;
-use datafusion::arrow::array::{Array, StringBuilder, StringViewBuilder};
+use datafusion::arrow::array::{Array, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
 use datafusion::logical_expr::{
@@ -55,7 +55,7 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Utf8View)
+        Ok(DataType::Utf8)
     }
 
     fn aliases(&self) -> &[String] {
@@ -368,7 +368,7 @@ fn substr_snowflake(
                 None
             };
 
-            let mut result_builder = StringViewBuilder::new();
+            let mut result_builder = StringBuilder::new();
             
             for i in 0..string_array.len() {
                 if string_array.is_null(i) || start_array.is_null(i) {
@@ -407,7 +407,7 @@ fn substr_snowflake(
             Ok(Arc::new(result_builder.finish()))
         }
         other => exec_err!(
-            "Unsupported data type {other:?} for function substr, expected Utf8View, Utf8 or LargeUtf8."
+            "Unsupported data type {other:?} for function substr, expected Utf8 or LargeUtf8."
         ),
     }
 }
