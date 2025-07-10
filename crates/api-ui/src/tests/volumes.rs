@@ -1,15 +1,16 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::tests::common::{req, ui_test_op, Entity, Op};
+use crate::tests::common::http_req;
+use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{
-    AwsAccessKeyCredentials, AwsCredentials, FileVolume, S3Volume, S3TablesVolume,
-    VolumeCreatePayload, VolumeCreateResponse, VolumeType, VolumesResponse, Volume,
+    AwsAccessKeyCredentials, AwsCredentials, FileVolume, S3TablesVolume, S3Volume, Volume,
+    VolumeCreatePayload, VolumeCreateResponse, VolumeType, VolumesResponse,
 };
+use core_metastore::models::VolumeType as MetastoreVolumeType;
 use http::Method;
 use serde_json;
 use serde_json::json;
-use crate::tests::common::http_req;
 
 fn create_s3_volume_ok_payload() -> VolumeCreatePayload {
     VolumeCreatePayload {
@@ -28,24 +29,28 @@ fn create_s3_volume_ok_payload() -> VolumeCreatePayload {
     }
 }
 
-fn create_s3_table_volume_ok_payload() -> VolumeCreatePayload {
-    VolumeCreatePayload {
+fn create_s3_tables_volume_ok_payload() -> VolumeCreatePayload {
+    let res = VolumeCreatePayload {
         name: "embucket3".to_string(),
         volume: VolumeType::S3Tables(S3TablesVolume {
-            region: "us-west-1".to_string(),
-            arn: "arn:aws:s3:::embucket".to_string(),
-            name: "test".to_string(),
-            bucket: Some("embucket".to_string()),
+            arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-embucket".to_string(),
+            db_name: "test".to_string(),
             endpoint: Some("https://localhost:9000".to_string()),
             credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                 aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),
                 aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL".to_string(),
             }),
         }),
+    };
+
+    // check bucket can be fetched from arn
+    let metastore_volume: MetastoreVolumeType = res.volume.clone().into();
+    if let MetastoreVolumeType::S3Tables(ref s3_tables_volume) = metastore_volume {
+        assert_eq!("my-embucket", s3_tables_volume.bucket().unwrap());
     }
+
+    res
 }
-
-
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -289,6 +294,13 @@ async fn test_s3_volumes_validation() {
     .expect("Should create s3 volume");
 }
 
+#[test]
+fn test_serde_roundtrip() {
+    // https://github.com/Embucket/embucket/issues/1306
+    let payload: VolumeCreatePayload = create_s3_tables_volume_ok_payload();
+    let json = serde_json::to_string(&payload).expect("Failed to serialize");
+    serde_json::from_str::<VolumeCreatePayload>(&json).expect("Failed to parse");
+}
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
@@ -296,32 +308,52 @@ async fn test_s3_tables_volumes_validation() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    let mut create_s3_table_volume_bad_endpoint_payload = create_s3_table_volume_ok_payload();
-    if let VolumeType::S3Tables(ref mut s3_table_volume) = create_s3_table_volume_bad_endpoint_payload.volume {
+    let mut create_s3_tables_volume_bad_endpoint_payload = create_s3_tables_volume_ok_payload();
+    if let VolumeType::S3Tables(ref mut s3_tables_volume) =
+        create_s3_tables_volume_bad_endpoint_payload.volume
+    {
         // set bad endpoint: not http:// or https:// is set
-        s3_table_volume.endpoint = Some("localhost:9000".to_string());
+        s3_tables_volume.endpoint = Some("localhost:9000".to_string());
     }
     let res = http_req::<VolumeCreateResponse>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/volumes"),
-        json!(create_s3_table_volume_bad_endpoint_payload).to_string(),
+        json!(create_s3_tables_volume_bad_endpoint_payload).to_string(),
     )
     .await
     .expect_err("Create s3 table volume should fail as of bad endpoint");
     assert_eq!(422, res.status);
 
+    let mut create_s3_tables_volume_bad_arn_payload = create_s3_tables_volume_ok_payload();
+    if let VolumeType::S3Tables(ref mut s3_tables_volume) =
+        create_s3_tables_volume_bad_arn_payload.volume
+    {
+        s3_tables_volume.arn = "bad".to_string();
+    }
+    let res = http_req::<VolumeCreateResponse>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/volumes"),
+        json!(create_s3_tables_volume_bad_arn_payload).to_string(),
+    )
+    .await
+    .expect_err("Create s3 table volume should fail as of bad arn");
+    assert_eq!(422, res.status);
+
     // Following is valid, as endpoint is optional
-    let mut create_s3_table_volume_no_endpoint_payload = create_s3_table_volume_ok_payload();
-    if let VolumeType::S3Tables(ref mut s3_table_volume) = create_s3_table_volume_no_endpoint_payload.volume {
-        s3_table_volume.endpoint = None
+    let mut create_s3_tables_volume_no_endpoint_payload = create_s3_tables_volume_ok_payload();
+    if let VolumeType::S3Tables(ref mut s3_tables_volume) =
+        create_s3_tables_volume_no_endpoint_payload.volume
+    {
+        s3_tables_volume.endpoint = None;
     }
     http_req::<VolumeCreateResponse>(
         &client,
         Method::POST,
         &format!("http://{addr}/ui/volumes"),
-        json!(create_s3_table_volume_no_endpoint_payload).to_string(),
+        json!(create_s3_tables_volume_no_endpoint_payload).to_string(),
     )
     .await
-    .expect("Failed to create s3 table volume");    
+    .expect("Failed to create s3 table volume");
 }

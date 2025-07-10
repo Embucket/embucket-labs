@@ -1,0 +1,42 @@
+---
+source: crates/core-metastore/src/metastore.rs
+expression: "(volume, created_volume)"
+---
+(
+    Volume {
+        ident: "s3tables",
+        volume: S3Tables(
+            S3TablesVolume {
+                endpoint: Some(
+                    "https://my-bucket-name.s3.us-east-1.amazonaws.com/",
+                ),
+                credentials: AccessKey(
+                    AwsAccessKeyCredentials {
+                        aws_access_key_id: "kPYGGu34jF685erC7gst",
+                        aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL",
+                    },
+                ),
+                db_name: "test",
+                arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket",
+            },
+        ),
+    },
+    Volume {
+        ident: "s3tables",
+        volume: S3Tables(
+            S3TablesVolume {
+                endpoint: Some(
+                    "https://my-bucket-name.s3.us-east-1.amazonaws.com/",
+                ),
+                credentials: AccessKey(
+                    AwsAccessKeyCredentials {
+                        aws_access_key_id: "kPYGGu34jF685erC7gst",
+                        aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL",
+                    },
+                ),
+                db_name: "test",
+                arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket",
+            },
+        ),
+    },
+)

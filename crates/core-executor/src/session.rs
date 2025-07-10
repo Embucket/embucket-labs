@@ -161,7 +161,7 @@ impl UserSession {
             let config = SdkConfig::builder()
                 .behavior_version(BehaviorVersion::latest())
                 .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region.clone()))
+                .region(Region::new(volume.region()))
                 .build();
             let catalog = S3TablesCatalog::new(
                 &config,
@@ -175,7 +175,7 @@ impl UserSession {
                 .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
-            self.ctx.register_catalog(volume.name, catalog_provider);
+            self.ctx.register_catalog(volume.db_name, catalog_provider);
         }
         Ok(())
     }

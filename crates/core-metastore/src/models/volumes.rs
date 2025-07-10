@@ -1,11 +1,11 @@
 use crate::error::{self as metastore_error, Result};
 use object_store::{ObjectStore, aws::AmazonS3Builder, path::Path};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::fmt::Display;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
-use regex::Regex;
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -17,16 +17,25 @@ pub enum CloudProvider {
     MEMORY,
 }
 
+#[allow(clippy::expect_used)]
 fn aws_access_key_id_regex_func() -> Regex {
-    Regex::new(r"^[a-zA-Z0-9]{20}$").unwrap()
+    Regex::new(r"^[a-zA-Z0-9]{20}$").expect("Failed to create aws_access_key_id_regex")
 }
 
+#[allow(clippy::expect_used)]
 fn aws_secret_access_key_regex_func() -> Regex {
-    Regex::new(r"^[A-Za-z0-9/+=]{40}$").unwrap()
+    Regex::new(r"^[A-Za-z0-9/+=]{40}$").expect("Failed to create aws_secret_access_key_regex")
 }
 
+#[allow(clippy::expect_used)]
 fn s3_endpoint_regex_func() -> Regex {
-    Regex::new(r"^https?://").unwrap()
+    Regex::new(r"^https?://").expect("Failed to create s3_endpoint_regex")
+}
+
+#[allow(clippy::expect_used)]
+fn s3tables_arn_regex_func() -> Regex {
+    Regex::new(r"^arn:aws:s3tables:[a-z0-9-]+:\d+:bucket/[a-zA-Z0-9.\-_]+$")
+        .expect("Failed to create s3tables_arn_regex")
 }
 
 // AWS Access Key Credentials
@@ -83,17 +92,13 @@ pub struct S3Volume {
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct S3TablesVolume {
-    #[validate(length(min = 1))]
-    pub region: String,
-    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
-    pub bucket: Option<String>,
     #[validate(regex(path = s3_endpoint_regex_func(), message="Endpoint must start with https:// or http:// .\n"))]
     pub endpoint: Option<String>,
     #[validate(nested)]
     pub credentials: AwsCredentials,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
-    pub name: String,
-    #[validate(length(min = 1))]
+    pub db_name: String,
+    #[validate(length(min = 1), regex(path = s3tables_arn_regex_func(), message="ARN must start with arn:aws:s3tables: .\n"))]
     pub arn: String,
 }
 
@@ -101,14 +106,28 @@ impl S3TablesVolume {
     #[must_use]
     pub fn s3_builder(&self) -> AmazonS3Builder {
         let s3_volume = S3Volume {
-            region: Some(self.region.clone()),
-            bucket: Some(self.name.clone()),
+            region: None,
+            bucket: self.bucket(),
+            // do not map `db_name` to the AmazonS3Builder
             endpoint: self.endpoint.clone(),
             skip_signature: None,
             metadata_endpoint: None,
             credentials: Some(self.credentials.clone()),
         };
         Volume::get_s3_builder(&s3_volume)
+    }
+
+    pub fn bucket(&self) -> Option<String> {
+        // Get bucket name from S3Tables ARN
+        // arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket
+        self.arn.split(":bucket/").last().map(Into::into)
+    }
+
+    pub fn region(&self) -> String {
+        self.arn
+            .split(':')
+            .nth(3)
+            .map_or_else(|| "us-east-1".to_string(), Into::into)
     }
 }
 
@@ -258,8 +277,7 @@ impl Volume {
                 .as_ref()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
             VolumeType::S3Tables(volume) => volume
-                .bucket
-                .as_ref()
+                .bucket()
                 .map_or_else(|| "s3://".to_string(), |bucket| format!("s3://{bucket}")),
             VolumeType::File(volume) => format!("file://{}", volume.path),
             VolumeType::Memory => "memory://".to_string(),

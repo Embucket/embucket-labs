@@ -171,7 +171,7 @@ impl EmbucketCatalogList {
             let config = SdkConfig::builder()
                 .behavior_version(BehaviorVersion::latest())
                 .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region.clone()))
+                .region(Region::new(volume.region()))
                 .build();
             let catalog = S3TablesCatalog::new(
                 &config,
@@ -183,7 +183,10 @@ impl EmbucketCatalogList {
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
                 .context(df_catalog_error::DataFusionSnafu)?;
-            catalogs.push(CachingCatalog::new(Arc::new(catalog), volume.name.clone()));
+            catalogs.push(CachingCatalog::new(
+                Arc::new(catalog),
+                volume.db_name.clone(),
+            ));
         }
         Ok(catalogs)
     }
