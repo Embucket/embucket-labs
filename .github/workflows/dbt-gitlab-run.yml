@@ -18,8 +18,8 @@ jobs:
     name: DBT Gitlab run
     env:
       SNOWFLAKE_ACCOUNT: test
-      SNOWFLAKE_USER: test
-      SNOWFLAKE_PASSWORD: test
+      SNOWFLAKE_USER: embucket
+      SNOWFLAKE_PASSWORD: embucket
       WAREHOUSE: COMPUTE_WH
       DATABASE: embucket
       SCHEMA: public
@@ -28,6 +28,8 @@ jobs:
       EMBUCKET_PROTOCOL: http
       EMBUCKET_HOST: localhost
       EMBUCKET_PORT: 3000
+      EMBUCKET_USER: embucket
+      EMBUCKET_PASSWORD: embucket
     steps:
       - uses: actions/checkout@v4
         with:
