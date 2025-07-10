@@ -1,9 +1,12 @@
+use datafusion::arrow::array::{Decimal128Builder, Int64Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
-use datafusion_common::{ScalarValue, internal_err};
+use datafusion_common::arrow::array::Array;
+use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ToDecimalFunc {
@@ -12,15 +15,9 @@ pub struct ToDecimalFunc {
     r#try: bool,
 }
 
-impl Default for ToDecimalFunc {
-    fn default() -> Self {
-        Self::new(true)
-    }
-}
-
 impl ToDecimalFunc {
     #[must_use]
-    pub fn new(r#try: bool) -> Self {
+    pub fn new(r#try: bool, aliases: Vec<String>) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -37,12 +34,7 @@ impl ToDecimalFunc {
                 ],
                 Volatility::Immutable,
             ),
-            aliases: vec![
-                "to_number".to_string(),
-                "try_to_number".to_string(),
-                "to_numeric".to_string(),
-                "try_to_numeric".to_string(),
-            ],
+            aliases,
             r#try,
         }
     }
@@ -168,14 +160,57 @@ impl ScalarUDFImpl for ToDecimalFunc {
             }
         }
     }
-
+    //TODO: fix clippy
+    #[allow(
+        clippy::unwrap_used,
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap,
+        clippy::cast_precision_loss
+    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        Ok(ColumnarValue::Scalar(ScalarValue::Null))
+        let DataType::Decimal128(precission, scale) = args.return_type else {
+            return exec_err!("unexpected return type");
+        };
+
+        let expr = &args.args[0];
+
+        //let format = yadah yadah blah blah blah
+
+        let array = match expr {
+            ColumnarValue::Array(array) => array,
+            ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
+        };
+
+        let mut result = Decimal128Builder::with_capacity(array.len());
+
+        match array.data_type() {
+            DataType::Utf8 => {}
+            DataType::Int64 => {
+                let array = array.as_any().downcast_ref::<Int64Array>().unwrap();
+                for i in 0..array.len() {
+                    let value = array.value(i);
+                    let len = (value as f64).log10().floor() as i8 + 1;
+                    if *precission as i8 - *scale > len {
+                        result.append_value(i128::from(value * 10i64.pow(*scale as u32)));
+                    } else if self.r#try {
+                        result.append_null();
+                    } else {
+                        return exec_err!("value out of range");
+                    }
+                }
+            }
+            other => return exec_err!("unexpected data type: {:?}", other),
+        }
+
+        let result = result
+            .with_precision_and_scale(*precission, *scale)?
+            .finish();
+        Ok(ColumnarValue::Array(Arc::new(result)))
     }
 
     fn aliases(&self) -> &[String] {
         &self.aliases
     }
 }
-
-crate::macros::make_udf_function!(ToDecimalFunc);
