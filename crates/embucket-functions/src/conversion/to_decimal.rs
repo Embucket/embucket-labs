@@ -5,6 +5,7 @@ use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatili
 use datafusion_common::arrow::array::Array;
 use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use rust_decimal::prelude::Zero;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -191,7 +192,11 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 let array = array.as_any().downcast_ref::<Int64Array>().unwrap();
                 for i in 0..array.len() {
                     let value = array.value(i);
-                    let len = (value as f64).log10().floor() as i8 + 1;
+                    let len = if value.is_zero() {
+                        1
+                    } else {
+                        (value as f64).log10().floor() as i8 + 1
+                    };
                     if *precission as i8 - *scale > len {
                         result.append_value(i128::from(value * 10i64.pow(*scale as u32)));
                     } else if self.r#try {
@@ -200,6 +205,24 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         return exec_err!("value out of range");
                     }
                 }
+            }
+            DataType::Float64 => {
+                // let array = array.as_any().downcast_ref::<Float64Array>().unwrap();
+                // for i in 0..array.len() {
+                //     let value = array.value(i);
+                //     let len = if value.trunc().is_zero() {
+                //         1
+                //     } else {
+                //         (value as f64).log10().floor() as i8 + 1
+                //     };
+                //     if *precission as i8 - *scale > len {
+                //         result.append_value(i128::from(value * 10i64.pow(*scale as u32) as f64));
+                //     } else if self.r#try {
+                //         result.append_null();
+                //     } else {
+                //         return exec_err!("value out of range");
+                //     }
+                // }
             }
             other => return exec_err!("unexpected data type: {:?}", other),
         }
