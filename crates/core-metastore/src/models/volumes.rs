@@ -103,7 +103,7 @@ impl S3TablesVolume {
     #[must_use]
     pub fn s3_builder(&self) -> AmazonS3Builder {
         let s3_volume = S3Volume {
-            region: None,
+            region: Some(self.region()),
             bucket: self.bucket(),
             // do not map `db_name` to the AmazonS3Builder
             endpoint: self.endpoint.clone(),
