@@ -82,9 +82,6 @@ pub struct S3Volume {
     pub bucket: Option<String>,
     #[validate(regex(path = s3_endpoint_regex_func(), message="Endpoint must start with https:// or http:// .\n"))]
     pub endpoint: Option<String>,
-    pub skip_signature: Option<bool>,
-    #[validate(length(min = 1))]
-    pub metadata_endpoint: Option<String>,
     #[validate(required, nested)]
     pub credentials: Option<AwsCredentials>,
 }
@@ -97,8 +94,8 @@ pub struct S3TablesVolume {
     #[validate(nested)]
     pub credentials: AwsCredentials,
     #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
-    pub db_name: String,
-    #[validate(length(min = 1), regex(path = s3tables_arn_regex_func(), message="ARN must start with arn:aws:s3tables: .\n"))]
+    pub database: String,
+    #[validate(regex(path = s3tables_arn_regex_func(), message="ARN must start with arn:aws:s3tables: .\n"))]
     pub arn: String,
 }
 
@@ -110,8 +107,6 @@ impl S3TablesVolume {
             bucket: self.bucket(),
             // do not map `db_name` to the AmazonS3Builder
             endpoint: self.endpoint.clone(),
-            skip_signature: None,
-            metadata_endpoint: None,
             credentials: Some(self.credentials.clone()),
         };
         Volume::get_s3_builder(&s3_volume)
@@ -247,12 +242,6 @@ impl Volume {
         if let Some(endpoint) = &volume.endpoint {
             s3_builder = s3_builder.with_endpoint(endpoint);
             s3_builder = s3_builder.with_allow_http(endpoint.starts_with("http:"));
-        }
-        if let Some(metadata_endpoint) = &volume.metadata_endpoint {
-            s3_builder = s3_builder.with_metadata_endpoint(metadata_endpoint);
-        }
-        if let Some(skip_signature) = volume.skip_signature {
-            s3_builder = s3_builder.with_skip_signature(skip_signature);
         }
         if let Some(credentials) = &volume.credentials {
             match credentials {

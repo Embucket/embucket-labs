@@ -175,7 +175,7 @@ impl UserSession {
                 .context(ex_error::DataFusionSnafu)?;
             let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
 
-            self.ctx.register_catalog(volume.db_name, catalog_provider);
+            self.ctx.register_catalog(volume.database, catalog_provider);
         }
         Ok(())
     }

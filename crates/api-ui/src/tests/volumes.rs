@@ -19,8 +19,6 @@ fn create_s3_volume_ok_payload() -> VolumeCreatePayload {
             region: Some("us-west-1".to_string()),
             bucket: Some("embucket".to_string()),
             endpoint: Some("https://localhost:9000".to_string()),
-            skip_signature: None,
-            metadata_endpoint: None,
             credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                 aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),
                 aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL".to_string(),
@@ -34,7 +32,7 @@ fn create_s3_tables_volume_ok_payload() -> VolumeCreatePayload {
         name: "embucket3".to_string(),
         volume: VolumeType::S3Tables(S3TablesVolume {
             arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-embucket".to_string(),
-            db_name: "test".to_string(),
+            database: "test".to_string(),
             endpoint: Some("https://localhost:9000".to_string()),
             credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                 aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),

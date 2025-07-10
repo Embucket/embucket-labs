@@ -185,7 +185,7 @@ impl EmbucketCatalogList {
                 .context(df_catalog_error::DataFusionSnafu)?;
             catalogs.push(CachingCatalog::new(
                 Arc::new(catalog),
-                volume.db_name.clone(),
+                volume.database.clone(),
             ));
         }
         Ok(catalogs)
