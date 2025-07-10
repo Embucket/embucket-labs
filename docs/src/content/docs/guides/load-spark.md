@@ -1,5 +1,5 @@
 ---
-title: Loading NYC Taxi dataset with Apache Spark
+title: Working with Apache Spark
 description: Loading NYC Taxi dataset with Apache Spark
 ---
 
