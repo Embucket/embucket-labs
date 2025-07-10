@@ -1,6 +1,6 @@
 use crate::visitors::{
     fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, qualify_in_query,
-    select_expr_aliases, table_functions,
+    select_expr_aliases, table_functions, table_functions_cte_relation,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
@@ -299,6 +299,31 @@ fn test_qualify_in_query() -> DFResult<()> {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
         if let DFStatement::Statement(ref mut stmt) = statement {
             qualify_in_query::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn test_table_function_cte() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![(
+        r#"WITH base AS (SELECT '{"a": 1}' AS jsontext),
+            intermediate AS (
+              SELECT value
+              FROM base, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d
+            )
+            SELECT * FROM intermediate;"#,
+        "WITH base AS (SELECT '{\"a\": 1}' AS jsontext), intermediate AS \
+           (SELECT value FROM base, LATERAL FLATTEN(INPUT => parse_json((SELECT jsontext FROM \
+           (SELECT '{\"a\": 1}' AS jsontext) AS base))) AS d) SELECT * FROM intermediate",
+    )];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            table_functions_cte_relation::visit(stmt);
         }
         assert_eq!(statement.to_string(), expected);
     }

@@ -19,7 +19,8 @@ use datafusion_common::{
     Column, DFSchema, Result as DFResult, Result, ScalarValue, TableReference,
 };
 use datafusion_expr::execution_props::ExecutionProps;
-use datafusion_expr::{LogicalPlanBuilder, TableType};
+use datafusion_expr::expr::ScalarFunction;
+use datafusion_expr::{BinaryExpr, LogicalPlanBuilder, Subquery, TableType};
 use datafusion_physical_plan::common::collect;
 use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion_physical_plan::memory::MemoryStream;
@@ -31,6 +32,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -363,8 +365,9 @@ async fn evaluate_expr_or_plan(
     match extract_table_ref(expr) {
         // Evaluates the expression directly without column references
         None => {
+            let parsed_expr = inline_scalar_subqueries_in_expr(expr.clone(), session_state).await?;
             let exec_props = ExecutionProps::new();
-            let phys_expr = create_physical_expr(expr, &DFSchema::empty(), &exec_props)?;
+            let phys_expr = create_physical_expr(&parsed_expr, &DFSchema::empty(), &exec_props)?;
             let batch = RecordBatch::new_empty(Arc::new(Schema::empty()));
             let result = phys_expr.evaluate(&batch)?;
 
@@ -398,6 +401,67 @@ async fn evaluate_expr_or_plan(
             collect(input_stream).await
         }
     }
+}
+
+pub fn inline_scalar_subqueries_in_expr<'a>(
+    expr: Expr,
+    session_state: &'a SessionState,
+) -> Pin<Box<dyn Future<Output = Result<Expr>> + Send + 'a>> {
+    Box::pin(async move {
+        match expr {
+            Expr::ScalarFunction(ScalarFunction { func, args }) => {
+                let mut inlined_args = Vec::with_capacity(args.len());
+                for arg in args {
+                    let inlined_arg = inline_scalar_subqueries_in_expr(arg, session_state).await?;
+                    inlined_args.push(inlined_arg);
+                }
+                Ok(Expr::ScalarFunction(ScalarFunction {
+                    func,
+                    args: inlined_args,
+                }))
+            }
+            Expr::ScalarSubquery(subquery) => {
+                let batches = evaluate_subquery(subquery, session_state).await?;
+                let value = if let Some(batch) = batches.first() {
+                    if batch.num_rows() > 0 && batch.num_columns() > 0 {
+                        let array = batch.column(0);
+                        let scalar = ScalarValue::try_from_array(array.as_ref(), 0)?;
+                        Expr::Literal(scalar)
+                    } else {
+                        Expr::Literal(ScalarValue::Null)
+                    }
+                } else {
+                    Expr::Literal(ScalarValue::Null)
+                };
+
+                Ok(value)
+            }
+            Expr::BinaryExpr(BinaryExpr { left, op, right }) => {
+                let (left, right) = tokio::try_join!(
+                    inline_scalar_subqueries_in_expr(*left, session_state),
+                    inline_scalar_subqueries_in_expr(*right, session_state),
+                )?;
+                Ok(Expr::BinaryExpr(BinaryExpr {
+                    left: Box::new(left),
+                    op,
+                    right: Box::new(right),
+                }))
+            }
+            other => Ok(other),
+        }
+    })
+}
+
+pub async fn evaluate_subquery(
+    subquery: Subquery,
+    session_state: &SessionState,
+) -> Result<Vec<RecordBatch>> {
+    let physical_plan = session_state
+        .create_physical_plan(&subquery.subquery)
+        .await?;
+
+    let stream = physical_plan.execute(0, session_state.task_ctx())?;
+    collect(stream).await
 }
 
 pub fn normalize_schema(schema: &DFSchema) -> SchemaRef {

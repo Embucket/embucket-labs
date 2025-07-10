@@ -1,8 +1,5 @@
-use datafusion::logical_expr::sqlparser;
-use datafusion::logical_expr::sqlparser::ast::helpers::attached_token::AttachedToken;
-use datafusion::logical_expr::sqlparser::ast::{
-    GroupByExpr, Ident, Select, SelectItem, TableFactor, TableWithJoins,
-};
+use crate::visitors::{query_with_body, select_with_body};
+use datafusion::logical_expr::sqlparser::ast::{Ident, Select, SelectItem, TableFactor};
 use datafusion::sql::sqlparser::ast::{Expr, Query, SetExpr};
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{Statement, VisitorMut};
@@ -109,50 +106,12 @@ pub fn wrap_select_in_subquery(select: &Select, selection: Option<Expr>) -> Sele
     let mut inner_select = select.clone();
     inner_select.qualify = None;
 
-    let subquery = Query {
-        with: None,
-        body: Box::new(SetExpr::Select(Box::new(inner_select))),
-        order_by: None,
-        limit: None,
-        limit_by: vec![],
-        offset: None,
-        fetch: None,
-        locks: vec![],
-        for_clause: None,
-        settings: None,
-        format_clause: None,
+    let subquery = query_with_body(inner_select);
+    let projection = vec![SelectItem::UnnamedExpr(Expr::Identifier(Ident::new("*")))];
+    let relation = TableFactor::Derived {
+        lateral: false,
+        subquery: Box::new(subquery),
+        alias: None,
     };
-
-    Select {
-        select_token: AttachedToken::empty(),
-        distinct: None,
-        top: None,
-        top_before_distinct: false,
-        projection: vec![SelectItem::UnnamedExpr(sqlparser::ast::Expr::Identifier(
-            Ident::new("*"),
-        ))],
-        into: None,
-        from: vec![TableWithJoins {
-            relation: TableFactor::Derived {
-                lateral: false,
-                subquery: Box::new(subquery),
-                alias: None,
-            },
-            joins: vec![],
-        }],
-        lateral_views: vec![],
-        prewhere: None,
-        selection,
-        group_by: GroupByExpr::Expressions(vec![], vec![]),
-        cluster_by: vec![],
-        distribute_by: vec![],
-        sort_by: vec![],
-        having: None,
-        named_window: vec![],
-        qualify: None,
-        window_before_qualify: false,
-        value_table_mode: None,
-        connect_by: None,
-        flavor: sqlparser::ast::SelectFlavor::Standard,
-    }
+    select_with_body(projection, relation, selection)
 }

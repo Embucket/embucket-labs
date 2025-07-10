@@ -23,8 +23,16 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Essentials',
+          autogenerate: { directory: 'essentials' },
+        },
+        {
           label: 'Guides',
           autogenerate: { directory: 'guides' },
+        },
+        {
+          label: 'Development',
+          autogenerate: { directory: 'development' },
         },
       ],
       customCss: ['./src/styles/global.css'],
