@@ -27,7 +27,9 @@ use datafusion_functions_json::register_all as register_json_udfs;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
+use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
+use embucket_functions::string_binary;
 use embucket_functions::table::register_udtfs;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
@@ -90,6 +92,7 @@ impl UserSession {
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())
+            .with_expr_planners(vec![Arc::new(CustomExprPlanner::default())])
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
