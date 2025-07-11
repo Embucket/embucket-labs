@@ -113,7 +113,7 @@ impl ScalarUDFImpl for SubstrFunc {
                 }
 
                 let string_val = string_scalar.to_string();
-                if let Some(start_val) = start_scalar.to_string().parse::<i64>().ok() {
+                if let Ok(start_val) = start_scalar.to_string().parse::<i64>() {
                     let length_val = if args.len() == 3 {
                         if let Expr::Literal(length_scalar) = &args[2] {
                             if length_scalar.is_null() {
@@ -164,9 +164,9 @@ impl ScalarUDFImpl for SubstrFunc {
         }
 
         let first_data_type = match &arg_types[0] {
-            DataType::Null => DataType::Utf8,
             DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => arg_types[0].clone(),
-            DataType::Int8
+            DataType::Null
+            | DataType::Int8
             | DataType::Int16
             | DataType::Int32
             | DataType::Int64
@@ -179,11 +179,11 @@ impl ScalarUDFImpl for SubstrFunc {
             DataType::Dictionary(key_type, value_type) => {
                 if key_type.is_integer() {
                     match value_type.as_ref() {
-                        DataType::Null => DataType::Utf8,
                         DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => {
                             *value_type.clone()
                         }
-                        DataType::Int8
+                        DataType::Null
+                        | DataType::Int8
                         | DataType::Int16
                         | DataType::Int32
                         | DataType::Int64
@@ -538,7 +538,7 @@ fn substr_snowflake(
         | DataType::Float64 => process_arrays(string_array, start_array, length_array),
         other => UnsupportedDataTypeSnafu {
             function_name: "substr".to_string(),
-            data_type: format!("{:?}", other),
+            data_type: format!("{other:?}"),
             expected_types: "string coercible types".to_string(),
         }
         .fail()?,
