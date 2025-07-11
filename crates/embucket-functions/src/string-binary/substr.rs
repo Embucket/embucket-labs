@@ -145,6 +145,62 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
+        // Helper functions to reduce repetitive code
+        const fn position_name(idx: usize) -> &'static str {
+            match idx {
+                0 => "first",
+                1 => "second",
+                2 => "third",
+                _ => "unknown",
+            }
+        }
+
+        const fn is_string_coercible(data_type: &DataType) -> bool {
+            matches!(
+                data_type,
+                DataType::Null
+                    | DataType::LargeUtf8
+                    | DataType::Utf8View
+                    | DataType::Utf8
+                    | DataType::Int8
+                    | DataType::Int16
+                    | DataType::Int32
+                    | DataType::Int64
+                    | DataType::UInt8
+                    | DataType::UInt16
+                    | DataType::UInt32
+                    | DataType::UInt64
+                    | DataType::Float32
+                    | DataType::Float64
+            )
+        }
+
+        const fn is_integer_type(data_type: &DataType) -> bool {
+            matches!(
+                data_type,
+                DataType::Int64 | DataType::Int32 | DataType::Null
+            )
+        }
+
+        fn coerce_string_type(data_type: &DataType) -> DataType {
+            match data_type {
+                DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => data_type.clone(),
+                _ => DataType::Utf8,
+            }
+        }
+
+        macro_rules! invalid_arg_error {
+            ($position:expr, $expected:expr, $actual:expr) => {
+                InvalidArgumentTypeSnafu {
+                    function_name: self.name().to_string(),
+                    position: position_name($position).to_string(),
+                    expected_type: $expected.to_string(),
+                    actual_type: format!("{actual:?}", actual = $actual),
+                }
+                .fail()?
+            };
+        }
+
         if arg_types.len() < 2 {
             return NotEnoughArgumentsSnafu {
                 function_call: self.name().to_string(),
@@ -164,86 +220,23 @@ impl ScalarUDFImpl for SubstrFunc {
         }
 
         let first_data_type = match &arg_types[0] {
-            DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => arg_types[0].clone(),
-            DataType::Null
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64
-            | DataType::UInt8
-            | DataType::UInt16
-            | DataType::UInt32
-            | DataType::UInt64
-            | DataType::Float32
-            | DataType::Float64 => DataType::Utf8,
             DataType::Dictionary(key_type, value_type) => {
-                if key_type.is_integer() {
-                    match value_type.as_ref() {
-                        DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => {
-                            *value_type.clone()
-                        }
-                        DataType::Null
-                        | DataType::Int8
-                        | DataType::Int16
-                        | DataType::Int32
-                        | DataType::Int64
-                        | DataType::UInt8
-                        | DataType::UInt16
-                        | DataType::UInt32
-                        | DataType::UInt64
-                        | DataType::Float32
-                        | DataType::Float64 => DataType::Utf8,
-                        _ => {
-                            return InvalidArgumentTypeSnafu {
-                                function_name: self.name().to_string(),
-                                position: "first".to_string(),
-                                expected_type: "a string coercible type".to_string(),
-                                actual_type: format!("{:?}", arg_types[0]),
-                            }
-                            .fail()?;
-                        }
-                    }
+                if key_type.is_integer() && is_string_coercible(value_type) {
+                    coerce_string_type(value_type)
                 } else {
-                    return InvalidArgumentTypeSnafu {
-                        function_name: self.name().to_string(),
-                        position: "first".to_string(),
-                        expected_type: "a string coercible type".to_string(),
-                        actual_type: format!("{:?}", arg_types[0]),
-                    }
-                    .fail()?;
+                    return invalid_arg_error!(0, "a string coercible type", &arg_types[0]);
                 }
             }
-            _ => {
-                return InvalidArgumentTypeSnafu {
-                    function_name: self.name().to_string(),
-                    position: "first".to_string(),
-                    expected_type: "a string coercible type".to_string(),
-                    actual_type: format!("{:?}", arg_types[0]),
-                }
-                .fail()?;
-            }
+            data_type if is_string_coercible(data_type) => coerce_string_type(data_type),
+            _ => return invalid_arg_error!(0, "a string coercible type", &arg_types[0]),
         };
 
-        if ![DataType::Int64, DataType::Int32, DataType::Null].contains(&arg_types[1]) {
-            return InvalidArgumentTypeSnafu {
-                function_name: self.name().to_string(),
-                position: "second".to_string(),
-                expected_type: "an integer".to_string(),
-                actual_type: format!("{:?}", arg_types[1]),
-            }
-            .fail()?;
+        if !is_integer_type(&arg_types[1]) {
+            return invalid_arg_error!(1, "an integer", &arg_types[1]);
         }
 
-        if arg_types.len() == 3
-            && ![DataType::Int64, DataType::Int32, DataType::Null].contains(&arg_types[2])
-        {
-            return InvalidArgumentTypeSnafu {
-                function_name: self.name().to_string(),
-                position: "third".to_string(),
-                expected_type: "an integer".to_string(),
-                actual_type: format!("{:?}", arg_types[2]),
-            }
-            .fail()?;
+        if arg_types.len() == 3 && !is_integer_type(&arg_types[2]) {
+            return invalid_arg_error!(2, "an integer", &arg_types[2]);
         }
 
         if arg_types.len() == 2 {
@@ -294,6 +287,19 @@ fn compute_snowflake_substr(input: &str, start: i64, length: Option<u64>) -> Str
     chars[start_idx..end_idx].iter().collect()
 }
 
+macro_rules! handle_array_type {
+    ($string_array:expr, $i:expr, $data_type:ident, $array_type:ty, $array_name:literal) => {
+        if let Some(arr) = $string_array.as_any().downcast_ref::<$array_type>() {
+            arr.value($i).to_string()
+        } else {
+            return FailedToDowncastSnafu {
+                array_type: $array_name.to_string(),
+            }
+            .fail()?;
+        }
+    };
+}
+
 fn process_arrays(
     string_array: &dyn Array,
     start_array: &datafusion::arrow::array::Int64Array,
@@ -316,173 +322,121 @@ fn process_arrays(
 
         let string_val: String = match string_array.data_type() {
             DataType::Utf8 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::StringArray>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "StringArray".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Utf8,
+                    datafusion::arrow::array::StringArray,
+                    "StringArray"
+                )
             }
             DataType::LargeUtf8 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::LargeStringArray>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "LargeStringArray".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    LargeUtf8,
+                    datafusion::arrow::array::LargeStringArray,
+                    "LargeStringArray"
+                )
             }
             DataType::Utf8View => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::StringViewArray>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "StringViewArray".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Utf8View,
+                    datafusion::arrow::array::StringViewArray,
+                    "StringViewArray"
+                )
             }
             DataType::Int8 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Int8Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Int8Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Int8,
+                    datafusion::arrow::array::Int8Array,
+                    "Int8Array"
+                )
             }
             DataType::Int16 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Int16Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Int16Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Int16,
+                    datafusion::arrow::array::Int16Array,
+                    "Int16Array"
+                )
             }
             DataType::Int32 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Int32Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Int32Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Int32,
+                    datafusion::arrow::array::Int32Array,
+                    "Int32Array"
+                )
             }
             DataType::Int64 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Int64Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Int64Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Int64,
+                    datafusion::arrow::array::Int64Array,
+                    "Int64Array"
+                )
             }
             DataType::UInt8 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::UInt8Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "UInt8Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    UInt8,
+                    datafusion::arrow::array::UInt8Array,
+                    "UInt8Array"
+                )
             }
             DataType::UInt16 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::UInt16Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "UInt16Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    UInt16,
+                    datafusion::arrow::array::UInt16Array,
+                    "UInt16Array"
+                )
             }
             DataType::UInt32 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::UInt32Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "UInt32Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    UInt32,
+                    datafusion::arrow::array::UInt32Array,
+                    "UInt32Array"
+                )
             }
             DataType::UInt64 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::UInt64Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "UInt64Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    UInt64,
+                    datafusion::arrow::array::UInt64Array,
+                    "UInt64Array"
+                )
             }
             DataType::Float32 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Float32Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Float32Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Float32,
+                    datafusion::arrow::array::Float32Array,
+                    "Float32Array"
+                )
             }
             DataType::Float64 => {
-                if let Some(arr) = string_array
-                    .as_any()
-                    .downcast_ref::<datafusion::arrow::array::Float64Array>()
-                {
-                    arr.value(i).to_string()
-                } else {
-                    return FailedToDowncastSnafu {
-                        array_type: "Float64Array".to_string(),
-                    }
-                    .fail()?;
-                }
+                handle_array_type!(
+                    string_array,
+                    i,
+                    Float64,
+                    datafusion::arrow::array::Float64Array,
+                    "Float64Array"
+                )
             }
             _ => unreachable!(),
         };
