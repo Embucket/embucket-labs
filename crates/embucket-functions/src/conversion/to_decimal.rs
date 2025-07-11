@@ -1,4 +1,4 @@
-use datafusion::arrow::array::{Decimal128Builder, Int64Array};
+use datafusion::arrow::array::{Decimal128Builder, Int8Array, Int16Array, Int32Array, Int64Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
@@ -38,6 +38,38 @@ impl ToDecimalFunc {
             aliases,
             r#try,
         }
+    }
+    #[allow(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap,
+        clippy::cast_precision_loss
+    )]
+    fn interger_part_from<T: Copy + Into<i64>>(
+        &self,
+        array: &[T],
+        precission: u8,
+        scale: i8,
+    ) -> DFResult<(Vec<i128>, Vec<bool>)> {
+        let mut integers = vec![0i128; array.len()];
+        let mut valids = vec![true; array.len()];
+        for i in 0..array.len() {
+            let value = array[i].into();
+            let len = if value.is_zero() {
+                1
+            } else {
+                (value as f64).log10().floor() as i8 + 1
+            };
+            if precission as i8 - scale >= len {
+                integers[i] = i128::from(value * 10i64.pow(scale as u32));
+            } else if self.r#try {
+                valids[i] = false;
+            } else {
+                return exec_err!("value out of range");
+            }
+        }
+        Ok((integers, valids))
     }
 }
 
@@ -188,23 +220,49 @@ impl ScalarUDFImpl for ToDecimalFunc {
 
         match array.data_type() {
             DataType::Utf8 => {}
+            DataType::Int8 => {
+                let array = array
+                    .as_any()
+                    .downcast_ref::<Int8Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .as_slice();
+                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                result.append_values(&integers, &valids);
+            }
+            DataType::Int16 => {
+                let array = array
+                    .as_any()
+                    .downcast_ref::<Int16Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .as_slice();
+                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                result.append_values(&integers, &valids);
+            }
+            DataType::Int32 => {
+                let array = array
+                    .as_any()
+                    .downcast_ref::<Int32Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .as_slice();
+                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                result.append_values(&integers, &valids);
+            }
             DataType::Int64 => {
-                let array = array.as_any().downcast_ref::<Int64Array>().unwrap();
-                for i in 0..array.len() {
-                    let value = array.value(i);
-                    let len = if value.is_zero() {
-                        1
-                    } else {
-                        (value as f64).log10().floor() as i8 + 1
-                    };
-                    if *precission as i8 - *scale > len {
-                        result.append_value(i128::from(value * 10i64.pow(*scale as u32)));
-                    } else if self.r#try {
-                        result.append_null();
-                    } else {
-                        return exec_err!("value out of range");
-                    }
-                }
+                let array = array
+                    .as_any()
+                    .downcast_ref::<Int64Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .as_slice();
+                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                result.append_values(&integers, &valids);
             }
             DataType::Float64 => {
                 // let array = array.as_any().downcast_ref::<Float64Array>().unwrap();
