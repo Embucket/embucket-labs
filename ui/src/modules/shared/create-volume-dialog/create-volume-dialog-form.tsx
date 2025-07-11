@@ -40,44 +40,25 @@ const schema = z
     awsAccessKeyId: z.string().optional(),
     awsSecretAccessKey: z.string().optional(),
   })
-  .superRefine((data, ctx) => {
-    if (data.type === 'file' && (!data.path || data.path.trim() === '')) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Path is required for File Volume',
-        path: ['path'],
-      });
-    }
-    if (data.type === 's3') {
-      if (!data.bucket || data.bucket.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Bucket is required for S3 Volume',
-          path: ['bucket'],
-        });
-      }
-      if (!data.endpoint || data.endpoint.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Endpoint is required for S3 Volume',
-          path: ['endpoint'],
-        });
-      }
-      if (!data.awsAccessKeyId || data.awsAccessKeyId.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'AWS Access Key ID is required for S3 Volume',
-          path: ['awsAccessKeyId'],
-        });
-      }
-      if (!data.awsSecretAccessKey || data.awsSecretAccessKey.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'AWS Secret Access Key is required for S3 Volume',
-          path: ['awsSecretAccessKey'],
-        });
-      }
-    }
+  .refine((data) => (data.type === 'file' ? !!data.path?.trim() : true), {
+    message: 'Path is required for File Volume',
+    path: ['path'],
+  })
+  .refine((data) => (data.type === 's3' ? !!data.bucket?.trim() : true), {
+    message: 'Bucket is required for S3 Volume',
+    path: ['bucket'],
+  })
+  .refine((data) => (data.type === 's3' ? !!data.endpoint?.trim() : true), {
+    message: 'Endpoint is required for S3 Volume',
+    path: ['endpoint'],
+  })
+  .refine((data) => (data.type === 's3' ? !!data.awsAccessKeyId?.trim() : true), {
+    message: 'AWS Access Key ID is required for S3 Volume',
+    path: ['awsAccessKeyId'],
+  })
+  .refine((data) => (data.type === 's3' ? !!data.awsSecretAccessKey?.trim() : true), {
+    message: 'AWS Secret Access Key is required for S3 Volume',
+    path: ['awsSecretAccessKey'],
   });
 
 interface TypeOptionProps {
