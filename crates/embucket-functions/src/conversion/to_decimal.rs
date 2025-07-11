@@ -46,7 +46,7 @@ impl ToDecimalFunc {
         clippy::cast_possible_wrap,
         clippy::cast_precision_loss
     )]
-    fn interger_part_from<T: Copy + Into<i64>>(
+    fn integer_part_from<T: Copy + Into<i64>>(
         &self,
         array: &[T],
         precission: u8,
@@ -228,7 +228,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     .values()
                     .iter()
                     .as_slice();
-                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
                 result.append_values(&integers, &valids);
             }
             DataType::Int16 => {
@@ -239,7 +239,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     .values()
                     .iter()
                     .as_slice();
-                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
                 result.append_values(&integers, &valids);
             }
             DataType::Int32 => {
@@ -250,7 +250,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     .values()
                     .iter()
                     .as_slice();
-                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
                 result.append_values(&integers, &valids);
             }
             DataType::Int64 => {
@@ -261,7 +261,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     .values()
                     .iter()
                     .as_slice();
-                let (integers, valids) = self.interger_part_from(array, *precission, *scale)?;
+                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
                 result.append_values(&integers, &valids);
             }
             DataType::Float64 => {
