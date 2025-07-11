@@ -19,8 +19,8 @@ use core_metastore::error::{self as metastore_error};
 use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::CatalogProvider;
-use datafusion::execution::SessionStateBuilder;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
+use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
@@ -29,7 +29,6 @@ use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
-use embucket_functions::string_binary;
 use embucket_functions::table::register_udtfs;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
@@ -71,6 +70,10 @@ impl UserSession {
             .build()
             .context(ex_error::DataFusionSnafu)?;
 
+        let mut expr_planners = SessionStateDefaults::default_expr_planners();
+        // That's a hack to use our custom expr planner first and default ones later. We probably need to get rid of default planners at some point.
+        expr_planners.insert(0, Arc::new(CustomExprPlanner));
+
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
@@ -92,7 +95,7 @@ impl UserSession {
             .with_type_planner(Arc::new(CustomTypePlanner {}))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())
-            .with_expr_planners(vec![Arc::new(CustomExprPlanner::default())])
+            .with_expr_planners(expr_planners)
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;

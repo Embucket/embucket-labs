@@ -4,12 +4,17 @@ use datafusion::common::Result as DFResult;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
+use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_int64_array;
-use datafusion_common::{ScalarValue, exec_err, plan_err};
 use datafusion_expr::Expr;
 use datafusion_expr::simplify::{ExprSimplifyResult, SimplifyInfo};
 use std::any::Any;
 use std::sync::Arc;
+
+use super::errors::{
+    FailedToDowncastSnafu, InvalidArgumentCountSnafu, InvalidArgumentTypeSnafu,
+    NegativeSubstringLengthSnafu, UnsupportedDataTypeSnafu,
+};
 
 ///
 ///
@@ -61,11 +66,12 @@ impl ScalarUDFImpl for SubstrFunc {
         let ScalarFunctionArgs { args, .. } = args;
 
         if args.len() < 2 || args.len() > 3 {
-            return exec_err!(
-                "The {} function requires 2 or 3 arguments, but got {}.",
-                self.name(),
-                args.len()
-            );
+            return InvalidArgumentCountSnafu {
+                function_name: self.name().to_string(),
+                expected: "2 or 3".to_string(),
+                actual: args.len(),
+            }
+            .fail()?;
         }
 
         let arrays = datafusion_expr::ColumnarValue::values_to_arrays(&args)?;
@@ -133,60 +139,75 @@ impl ScalarUDFImpl for SubstrFunc {
 
     fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
         if arg_types.len() < 2 || arg_types.len() > 3 {
-            return plan_err!(
-                "The {} function requires 2 or 3 arguments, but got {}.",
-                self.name(),
-                arg_types.len()
-            );
+            return InvalidArgumentCountSnafu {
+                function_name: self.name().to_string(),
+                expected: "2 or 3".to_string(),
+                actual: arg_types.len(),
+            }
+            .fail()?;
         }
 
         let first_data_type = match &arg_types[0] {
-            DataType::Null => Ok(DataType::Utf8),
-            DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => Ok(arg_types[0].clone()),
+            DataType::Null => DataType::Utf8,
+            DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => arg_types[0].clone(),
             DataType::Dictionary(key_type, value_type) => {
                 if key_type.is_integer() {
                     match value_type.as_ref() {
-                        DataType::Null => Ok(DataType::Utf8),
+                        DataType::Null => DataType::Utf8,
                         DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => {
-                            Ok(*value_type.clone())
+                            *value_type.clone()
                         }
-                        _ => plan_err!(
-                            "The first argument of the {} function can only be a string, but got {:?}.",
-                            self.name(),
-                            arg_types[0]
-                        ),
+                        _ => {
+                            return InvalidArgumentTypeSnafu {
+                                function_name: self.name().to_string(),
+                                position: "first".to_string(),
+                                expected_type: "a string".to_string(),
+                                actual_type: format!("{:?}", arg_types[0]),
+                            }
+                            .fail()?;
+                        }
                     }
                 } else {
-                    plan_err!(
-                        "The first argument of the {} function can only be a string, but got {:?}.",
-                        self.name(),
-                        arg_types[0]
-                    )
+                    return InvalidArgumentTypeSnafu {
+                        function_name: self.name().to_string(),
+                        position: "first".to_string(),
+                        expected_type: "a string".to_string(),
+                        actual_type: format!("{:?}", arg_types[0]),
+                    }
+                    .fail()?;
                 }
             }
-            _ => plan_err!(
-                "The first argument of the {} function can only be a string, but got {:?}.",
-                self.name(),
-                arg_types[0]
-            ),
-        }?;
+            _ => {
+                return InvalidArgumentTypeSnafu {
+                    function_name: self.name().to_string(),
+                    position: "first".to_string(),
+                    expected_type: "a string".to_string(),
+                    actual_type: format!("{:?}", arg_types[0]),
+                }
+                .fail()?;
+            }
+        };
 
         if ![DataType::Int64, DataType::Int32, DataType::Null].contains(&arg_types[1]) {
-            return plan_err!(
-                "The second argument of the {} function can only be an integer, but got {:?}.",
-                self.name(),
-                arg_types[1]
-            );
+            return InvalidArgumentTypeSnafu {
+                function_name: self.name().to_string(),
+                position: "second".to_string(),
+                expected_type: "an integer".to_string(),
+                actual_type: format!("{:?}", arg_types[1]),
+            }
+            .fail()?;
         }
 
         if arg_types.len() == 3
             && ![DataType::Int64, DataType::Int32, DataType::Null].contains(&arg_types[2])
         {
-            return plan_err!(
-                "The third argument of the {} function can only be an integer, but got {:?}.",
-                self.name(),
-                arg_types[2]
-            );
+            return InvalidArgumentTypeSnafu {
+                function_name: self.name().to_string(),
+                position: "third".to_string(),
+                expected_type: "an integer".to_string(),
+                actual_type: format!("{:?}", arg_types[2]),
+            }
+            .fail()?;
         }
 
         if arg_types.len() == 2 {
@@ -265,7 +286,10 @@ fn process_arrays(
                 {
                     arr.value(i)
                 } else {
-                    return exec_err!("Failed to downcast to StringArray");
+                    return FailedToDowncastSnafu {
+                        array_type: "StringArray".to_string(),
+                    }
+                    .fail()?;
                 }
             }
             DataType::LargeUtf8 => {
@@ -275,7 +299,10 @@ fn process_arrays(
                 {
                     arr.value(i)
                 } else {
-                    return exec_err!("Failed to downcast to LargeStringArray");
+                    return FailedToDowncastSnafu {
+                        array_type: "LargeStringArray".to_string(),
+                    }
+                    .fail()?;
                 }
             }
             DataType::Utf8View => {
@@ -285,7 +312,10 @@ fn process_arrays(
                 {
                     arr.value(i)
                 } else {
-                    return exec_err!("Failed to downcast to StringViewArray");
+                    return FailedToDowncastSnafu {
+                        array_type: "StringViewArray".to_string(),
+                    }
+                    .fail()?;
                 }
             }
             _ => unreachable!(),
@@ -296,9 +326,12 @@ fn process_arrays(
 
         if let Some(length_val) = length_val {
             if length_val < 0 {
-                return exec_err!(
-                    "negative substring length not allowed: substr(<str>, {start_val}, {length_val})"
-                );
+                return NegativeSubstringLengthSnafu {
+                    function_name: "substr".to_string(),
+                    start: start_val,
+                    length: length_val,
+                }
+                .fail()?;
             }
         }
 
@@ -327,9 +360,12 @@ fn substr_snowflake(
         DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
             process_arrays(string_array, start_array, length_array)
         }
-        other => exec_err!(
-            "Unsupported data type {other:?} for function substr, expected Utf8, LargeUtf8, or Utf8View."
-        ),
+        other => UnsupportedDataTypeSnafu {
+            function_name: "substr".to_string(),
+            data_type: format!("{:?}", other),
+            expected_types: "Utf8, LargeUtf8, or Utf8View".to_string(),
+        }
+        .fail()?,
     }
 }
 
