@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface EmptyContainerProps {
-  description?: string;
+  description?: React.ReactNode;
   title: string;
   onCtaClick?: () => void;
   ctaText?: string;
@@ -29,7 +29,11 @@ export function EmptyContainer({
     >
       <Icon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12 font-thin" />
       <h3 className="mb-2 text-sm font-medium tracking-tight">{title}</h3>
-      {description && <p className="text-muted-foreground text-sm">{description}</p>}
+      {typeof description === 'string' ? (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      ) : (
+        description
+      )}
       {onCtaClick && ctaText && (
         <Button onClick={onCtaClick} size="sm" className="mt-4">
           <Plus className="mr-2 size-4" />

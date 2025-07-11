@@ -1,4 +1,4 @@
-import { ArrowDownToLine, Search, TextSearch } from 'lucide-react';
+import { AlertTriangle, ArrowDownToLine, Search, TextSearch } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,19 @@ export function SqlEditorCenterBottomPanel({
   isLoading,
   queryRecord,
 }: SqlEditorCenterPanelQueryColumnsProps) {
+  if (queryRecord?.error) {
+    // TODO: EmptyContainer designed to be used for empty states strictly
+    return (
+      <EmptyContainer
+        Icon={AlertTriangle}
+        title="Query failed"
+        description={
+          <span className="text-sm whitespace-pre-wrap text-red-500">{queryRecord.error}</span>
+        }
+      />
+    );
+  }
+
   const columns = queryRecord?.result.columns ?? [];
   const rows = queryRecord?.result.rows ?? [];
   const noFields = !columns.length && !isLoading;
