@@ -1,7 +1,6 @@
 # TODO
 
 - [ ] Handle empty states due to search state (isEmptyDueToSearch)
-- [ ] Sql editor query error state
 - [ ] Add loading states for QueryDetails and Home Pages
 - [ ] Typography component
 - [ ] Hardcoded pixels
