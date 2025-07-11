@@ -16,13 +16,17 @@ use super::errors::{
     NotEnoughArgumentsSnafu, TooManyArgumentsSnafu, UnsupportedDataTypeSnafu,
 };
 
+/// Returns the portion of the string starting at a specified position.
 ///
-///
+/// Compatible with Snowflake's SUBSTR function behavior, including support for negative indices.
 ///
 /// Arguments:
-///
+/// * `base_expr` - The input string or string-coercible value
+/// * `start_expr` - Starting position (1-based). Negative values count from the end
+/// * `length_expr` - Optional. Maximum number of characters to return
 ///
 /// Returns:
+/// A string containing the specified substring
 #[derive(Debug)]
 pub struct SubstrFunc {
     signature: Signature,
@@ -145,7 +149,6 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
-        // Helper functions to reduce repetitive code
         const fn position_name(idx: usize) -> &'static str {
             match idx {
                 0 => "first",
