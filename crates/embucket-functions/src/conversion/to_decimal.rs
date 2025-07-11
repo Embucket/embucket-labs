@@ -1,11 +1,13 @@
-use datafusion::arrow::array::{Decimal128Builder, Int8Array, Int16Array, Int32Array, Int64Array};
+use datafusion::arrow::array::Decimal128Builder;
+use datafusion::arrow::compute::cast_with_options;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
-use datafusion_common::arrow::array::Array;
+use datafusion_common::arrow::array::{Array, Decimal128Array};
+use datafusion_common::arrow::compute::CastOptions;
+use datafusion_common::arrow::util::display::FormatOptions;
 use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
-use rust_decimal::prelude::Zero;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -39,38 +41,6 @@ impl ToDecimalFunc {
             r#try,
         }
     }
-    #[allow(
-        clippy::as_conversions,
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_possible_wrap,
-        clippy::cast_precision_loss
-    )]
-    fn integer_part_from<T: Copy + Into<i64>>(
-        &self,
-        array: &[T],
-        precission: u8,
-        scale: i8,
-    ) -> DFResult<(Vec<i128>, Vec<bool>)> {
-        let mut integers = vec![0i128; array.len()];
-        let mut valids = vec![true; array.len()];
-        for i in 0..array.len() {
-            let value = array[i].into();
-            let len = if value.is_zero() {
-                1
-            } else {
-                (value as f64).log10().floor() as i8 + 1
-            };
-            if precission as i8 - scale >= len {
-                integers[i] = i128::from(value * 10i64.pow(scale as u32));
-            } else if self.r#try {
-                valids[i] = false;
-            } else {
-                return exec_err!("value out of range");
-            }
-        }
-        Ok((integers, valids))
-    }
 }
 
 impl ScalarUDFImpl for ToDecimalFunc {
@@ -94,7 +64,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
         //TODO: Correct error type
         internal_err!("return_type_from_args should be called")
     }
-
+    //TODO: fix errors + logic
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
         match args.arg_types.len() {
             1 => {
@@ -193,15 +163,8 @@ impl ScalarUDFImpl for ToDecimalFunc {
             }
         }
     }
-    //TODO: fix clippy
-    #[allow(
-        clippy::unwrap_used,
-        clippy::as_conversions,
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_possible_wrap,
-        clippy::cast_precision_loss
-    )]
+    //TODO: formatting <format> second arg
+    #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let DataType::Decimal128(precission, scale) = args.return_type else {
             return exec_err!("unexpected return type");
@@ -216,78 +179,48 @@ impl ScalarUDFImpl for ToDecimalFunc {
             ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
         };
 
-        let mut result = Decimal128Builder::with_capacity(array.len());
+        let mut result = Decimal128Builder::with_capacity(array.len())
+            .with_precision_and_scale(*precission, *scale)?;
 
         match array.data_type() {
-            DataType::Utf8 => {}
-            DataType::Int8 => {
-                let array = array
-                    .as_any()
-                    .downcast_ref::<Int8Array>()
-                    .unwrap()
-                    .values()
-                    .iter()
-                    .as_slice();
-                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
-                result.append_values(&integers, &valids);
+            DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8 => {
+                //TODO: needs logic for binary and varint types
+                let array = cast_with_options(
+                    array,
+                    &DataType::Decimal128(*precission, *scale),
+                    &CastOptions {
+                        safe: self.r#try,
+                        format_options: FormatOptions::default(),
+                    },
+                )?;
+                let array = array.as_any().downcast_ref::<Decimal128Array>().unwrap();
+                result.append_array(array);
             }
-            DataType::Int16 => {
-                let array = array
-                    .as_any()
-                    .downcast_ref::<Int16Array>()
-                    .unwrap()
-                    .values()
-                    .iter()
-                    .as_slice();
-                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
-                result.append_values(&integers, &valids);
-            }
-            DataType::Int32 => {
-                let array = array
-                    .as_any()
-                    .downcast_ref::<Int32Array>()
-                    .unwrap()
-                    .values()
-                    .iter()
-                    .as_slice();
-                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
-                result.append_values(&integers, &valids);
-            }
-            DataType::Int64 => {
-                let array = array
-                    .as_any()
-                    .downcast_ref::<Int64Array>()
-                    .unwrap()
-                    .values()
-                    .iter()
-                    .as_slice();
-                let (integers, valids) = self.integer_part_from(array, *precission, *scale)?;
-                result.append_values(&integers, &valids);
-            }
-            DataType::Float64 => {
-                // let array = array.as_any().downcast_ref::<Float64Array>().unwrap();
-                // for i in 0..array.len() {
-                //     let value = array.value(i);
-                //     let len = if value.trunc().is_zero() {
-                //         1
-                //     } else {
-                //         (value as f64).log10().floor() as i8 + 1
-                //     };
-                //     if *precission as i8 - *scale > len {
-                //         result.append_value(i128::from(value * 10i64.pow(*scale as u32) as f64));
-                //     } else if self.r#try {
-                //         result.append_null();
-                //     } else {
-                //         return exec_err!("value out of range");
-                //     }
-                // }
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64 => {
+                let array = cast_with_options(
+                    array,
+                    &DataType::Decimal128(*precission, *scale),
+                    &CastOptions {
+                        safe: self.r#try,
+                        format_options: FormatOptions::default(),
+                    },
+                )?;
+                let array = array.as_any().downcast_ref::<Decimal128Array>().unwrap();
+                result.append_array(array);
             }
             other => return exec_err!("unexpected data type: {:?}", other),
         }
 
-        let result = result
-            .with_precision_and_scale(*precission, *scale)?
-            .finish();
+        let result = result.finish();
         Ok(ColumnarValue::Array(Arc::new(result)))
     }
 
