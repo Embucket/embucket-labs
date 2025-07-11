@@ -12,8 +12,8 @@ use std::any::Any;
 use std::sync::Arc;
 
 use super::errors::{
-    FailedToDowncastSnafu, InvalidArgumentCountSnafu, InvalidArgumentTypeSnafu,
-    NegativeSubstringLengthSnafu, UnsupportedDataTypeSnafu,
+    FailedToDowncastSnafu, InvalidArgumentTypeSnafu, NegativeSubstringLengthSnafu,
+    NotEnoughArgumentsSnafu, TooManyArgumentsSnafu, UnsupportedDataTypeSnafu,
 };
 
 ///
@@ -65,10 +65,19 @@ impl ScalarUDFImpl for SubstrFunc {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
 
-        if args.len() < 2 || args.len() > 3 {
-            return InvalidArgumentCountSnafu {
-                function_name: self.name().to_string(),
-                expected: "2 or 3".to_string(),
+        if args.len() < 2 {
+            return NotEnoughArgumentsSnafu {
+                function_call: self.name().to_string(),
+                expected: 2usize,
+                actual: args.len(),
+            }
+            .fail()?;
+        }
+
+        if args.len() > 3 {
+            return TooManyArgumentsSnafu {
+                function_call: self.name().to_string(),
+                expected: 3usize,
                 actual: args.len(),
             }
             .fail()?;
@@ -103,10 +112,8 @@ impl ScalarUDFImpl for SubstrFunc {
                     )));
                 }
 
-                if let (Some(string_val), Some(start_val)) = (
-                    string_scalar.to_string().parse::<String>().ok(),
-                    start_scalar.to_string().parse::<i64>().ok(),
-                ) {
+                let string_val = string_scalar.to_string();
+                if let Some(start_val) = start_scalar.to_string().parse::<i64>().ok() {
                     let length_val = if args.len() == 3 {
                         if let Expr::Literal(length_scalar) = &args[2] {
                             if length_scalar.is_null() {
@@ -138,10 +145,19 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
-        if arg_types.len() < 2 || arg_types.len() > 3 {
-            return InvalidArgumentCountSnafu {
-                function_name: self.name().to_string(),
-                expected: "2 or 3".to_string(),
+        if arg_types.len() < 2 {
+            return NotEnoughArgumentsSnafu {
+                function_call: self.name().to_string(),
+                expected: 2usize,
+                actual: arg_types.len(),
+            }
+            .fail()?;
+        }
+
+        if arg_types.len() > 3 {
+            return TooManyArgumentsSnafu {
+                function_call: self.name().to_string(),
+                expected: 3usize,
                 actual: arg_types.len(),
             }
             .fail()?;
@@ -150,6 +166,16 @@ impl ScalarUDFImpl for SubstrFunc {
         let first_data_type = match &arg_types[0] {
             DataType::Null => DataType::Utf8,
             DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => arg_types[0].clone(),
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64 => DataType::Utf8,
             DataType::Dictionary(key_type, value_type) => {
                 if key_type.is_integer() {
                     match value_type.as_ref() {
@@ -157,11 +183,21 @@ impl ScalarUDFImpl for SubstrFunc {
                         DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => {
                             *value_type.clone()
                         }
+                        DataType::Int8
+                        | DataType::Int16
+                        | DataType::Int32
+                        | DataType::Int64
+                        | DataType::UInt8
+                        | DataType::UInt16
+                        | DataType::UInt32
+                        | DataType::UInt64
+                        | DataType::Float32
+                        | DataType::Float64 => DataType::Utf8,
                         _ => {
                             return InvalidArgumentTypeSnafu {
                                 function_name: self.name().to_string(),
                                 position: "first".to_string(),
-                                expected_type: "a string".to_string(),
+                                expected_type: "a string coercible type".to_string(),
                                 actual_type: format!("{:?}", arg_types[0]),
                             }
                             .fail()?;
@@ -171,7 +207,7 @@ impl ScalarUDFImpl for SubstrFunc {
                     return InvalidArgumentTypeSnafu {
                         function_name: self.name().to_string(),
                         position: "first".to_string(),
-                        expected_type: "a string".to_string(),
+                        expected_type: "a string coercible type".to_string(),
                         actual_type: format!("{:?}", arg_types[0]),
                     }
                     .fail()?;
@@ -181,7 +217,7 @@ impl ScalarUDFImpl for SubstrFunc {
                 return InvalidArgumentTypeSnafu {
                     function_name: self.name().to_string(),
                     position: "first".to_string(),
-                    expected_type: "a string".to_string(),
+                    expected_type: "a string coercible type".to_string(),
                     actual_type: format!("{:?}", arg_types[0]),
                 }
                 .fail()?;
@@ -278,13 +314,13 @@ fn process_arrays(
             }
         }
 
-        let string_val = match string_array.data_type() {
+        let string_val: String = match string_array.data_type() {
             DataType::Utf8 => {
                 if let Some(arr) = string_array
                     .as_any()
                     .downcast_ref::<datafusion::arrow::array::StringArray>()
                 {
-                    arr.value(i)
+                    arr.value(i).to_string()
                 } else {
                     return FailedToDowncastSnafu {
                         array_type: "StringArray".to_string(),
@@ -297,7 +333,7 @@ fn process_arrays(
                     .as_any()
                     .downcast_ref::<datafusion::arrow::array::LargeStringArray>()
                 {
-                    arr.value(i)
+                    arr.value(i).to_string()
                 } else {
                     return FailedToDowncastSnafu {
                         array_type: "LargeStringArray".to_string(),
@@ -310,10 +346,140 @@ fn process_arrays(
                     .as_any()
                     .downcast_ref::<datafusion::arrow::array::StringViewArray>()
                 {
-                    arr.value(i)
+                    arr.value(i).to_string()
                 } else {
                     return FailedToDowncastSnafu {
                         array_type: "StringViewArray".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Int8 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Int8Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Int8Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Int16 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Int16Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Int16Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Int32 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Int32Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Int32Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Int64 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Int64Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Int64Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::UInt8 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::UInt8Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "UInt8Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::UInt16 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::UInt16Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "UInt16Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::UInt32 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::UInt32Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "UInt32Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::UInt64 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::UInt64Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "UInt64Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Float32 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Float32Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Float32Array".to_string(),
+                    }
+                    .fail()?;
+                }
+            }
+            DataType::Float64 => {
+                if let Some(arr) = string_array
+                    .as_any()
+                    .downcast_ref::<datafusion::arrow::array::Float64Array>()
+                {
+                    arr.value(i).to_string()
+                } else {
+                    return FailedToDowncastSnafu {
+                        array_type: "Float64Array".to_string(),
                     }
                     .fail()?;
                 }
@@ -337,7 +503,7 @@ fn process_arrays(
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
 
-        let result = compute_snowflake_substr(string_val, start_val, length_u64);
+        let result = compute_snowflake_substr(&string_val, start_val, length_u64);
         result_builder.append_value(result);
     }
 
@@ -357,13 +523,23 @@ fn substr_snowflake(
     };
 
     match string_array.data_type() {
-        DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-            process_arrays(string_array, start_array, length_array)
-        }
+        DataType::Utf8
+        | DataType::LargeUtf8
+        | DataType::Utf8View
+        | DataType::Int8
+        | DataType::Int16
+        | DataType::Int32
+        | DataType::Int64
+        | DataType::UInt8
+        | DataType::UInt16
+        | DataType::UInt32
+        | DataType::UInt64
+        | DataType::Float32
+        | DataType::Float64 => process_arrays(string_array, start_array, length_array),
         other => UnsupportedDataTypeSnafu {
             function_name: "substr".to_string(),
             data_type: format!("{:?}", other),
-            expected_types: "Utf8, LargeUtf8, or Utf8View".to_string(),
+            expected_types: "string coercible types".to_string(),
         }
         .fail()?,
     }
@@ -430,7 +606,6 @@ mod tests {
             &result
         );
 
-        // Test the specific case mentioned by the user
         let q = "SELECT substr('mystring', -2, 2) as result;";
         let result = ctx.sql(q).await?.collect().await?;
         assert_batches_eq!(
@@ -481,13 +656,71 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn test_snowflake_substr_numeric_types() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
+
+        let q = "SELECT substr(1.23, -2, 2) as result;";
+        let result = ctx.sql(q).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| 23     |",
+                "+--------+"
+            ],
+            &result
+        );
+
+        let q = "SELECT substr(12345, 2, 3) as result;";
+        let result = ctx.sql(q).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| 234    |",
+                "+--------+"
+            ],
+            &result
+        );
+
+        let q = "SELECT substr(-567, -2, 2) as result;";
+        let result = ctx.sql(q).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| 67     |",
+                "+--------+"
+            ],
+            &result
+        );
+
+        let q = "SELECT substr(123.456, 3, 4) as result;";
+        let result = ctx.sql(q).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+--------+",
+                "| result |",
+                "+--------+",
+                "| 3.45   |",
+                "+--------+"
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
     #[test]
     fn test_compute_snowflake_substr_direct() {
-        // Test the specific case mentioned by the user
         let result = compute_snowflake_substr("mystring", -2, Some(2));
         assert_eq!(result, "ng", "substr('mystring', -2, 2) should return 'ng'");
 
-        // Test a few more cases to verify logic
         let result = compute_snowflake_substr("mystring", -1, Some(1));
         assert_eq!(result, "g", "substr('mystring', -1, 1) should return 'g'");
 
@@ -500,21 +733,19 @@ mod tests {
             "substr('mystring', -8, 3) should return 'mys'"
         );
 
-        // Additional test cases for edge scenarios
         let result = compute_snowflake_substr("mystring", -2, Some(3));
         assert_eq!(
             result, "ng",
             "substr('mystring', -2, 3) should return 'ng' (limited by string end)"
         );
 
-        // Test with a different string to make sure logic is general
         let result = compute_snowflake_substr("hello", -2, Some(2));
         assert_eq!(result, "lo", "substr('hello', -2, 2) should return 'lo'");
 
-        // Debug print for user's case
-        println!(
-            "DEBUG: substr('mystring', -2, 2) = '{}'",
-            compute_snowflake_substr("mystring", -2, Some(2))
-        );
+        let result = compute_snowflake_substr("1.23", -2, Some(2));
+        assert_eq!(result, "23", "substr('1.23', -2, 2) should return '23'");
+
+        let result = compute_snowflake_substr("12345", 2, Some(3));
+        assert_eq!(result, "234", "substr('12345', 2, 3) should return '234'");
     }
 }

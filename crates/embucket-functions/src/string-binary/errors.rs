@@ -83,6 +83,28 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display(
+        "not enough arguments for function [{function_call}], expected {expected}, got {actual}"
+    ))]
+    NotEnoughArguments {
+        function_call: String,
+        expected: usize,
+        actual: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "too many arguments for function [{function_call}] expected {expected}, got {actual}"
+    ))]
+    TooManyArguments {
+        function_call: String,
+        expected: usize,
+        actual: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError

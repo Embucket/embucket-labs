@@ -143,3 +143,27 @@ test_query!(
     "SELECT substr('mystring', -100, 5) as result",
     snapshot_path = "substr"
 );
+
+test_query!(
+    substr_integer_positive,
+    "SELECT substr(12345, 2, 3) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_integer_negative,
+    "SELECT substr(-567, -2, 2) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_decimal_positive,
+    "SELECT substr(123.456, 3, 4) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_decimal_negative_index,
+    "SELECT substr(1.23, -2, 2) as result",
+    snapshot_path = "substr"
+);
