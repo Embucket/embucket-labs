@@ -51,6 +51,53 @@ impl SubstrFunc {
     }
 }
 
+const fn is_string_coercible(data_type: &DataType) -> bool {
+    matches!(
+        data_type,
+        DataType::Null
+            | DataType::LargeUtf8
+            | DataType::Utf8View
+            | DataType::Utf8
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64
+    )
+}
+
+const fn is_binary_type(data_type: &DataType) -> bool {
+    matches!(data_type, DataType::Binary | DataType::LargeBinary)
+}
+
+fn coerce_string_type(data_type: &DataType) -> DataType {
+    match data_type {
+        DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => data_type.clone(),
+        _ => DataType::Utf8,
+    }
+}
+
+fn coerce_binary_type(data_type: &DataType) -> DataType {
+    match data_type {
+        DataType::Binary | DataType::LargeBinary => data_type.clone(),
+        _ => DataType::Binary,
+    }
+}
+
+const fn position_name(idx: usize) -> &'static str {
+    match idx {
+        0 => "first",
+        1 => "second",
+        2 => "third",
+        _ => "unknown",
+    }
+}
+
 impl ScalarUDFImpl for SubstrFunc {
     fn as_any(&self) -> &dyn Any {
         self
@@ -155,72 +202,6 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
-        const fn position_name(idx: usize) -> &'static str {
-            match idx {
-                0 => "first",
-                1 => "second",
-                2 => "third",
-                _ => "unknown",
-            }
-        }
-
-        const fn is_string_coercible(data_type: &DataType) -> bool {
-            matches!(
-                data_type,
-                DataType::Null
-                    | DataType::LargeUtf8
-                    | DataType::Utf8View
-                    | DataType::Utf8
-                    | DataType::Int8
-                    | DataType::Int16
-                    | DataType::Int32
-                    | DataType::Int64
-                    | DataType::UInt8
-                    | DataType::UInt16
-                    | DataType::UInt32
-                    | DataType::UInt64
-                    | DataType::Float32
-                    | DataType::Float64
-            )
-        }
-
-        const fn is_binary_type(data_type: &DataType) -> bool {
-            matches!(data_type, DataType::Binary | DataType::LargeBinary)
-        }
-
-        const fn is_integer_type(data_type: &DataType) -> bool {
-            matches!(
-                data_type,
-                DataType::Int64 | DataType::Int32 | DataType::Null
-            )
-        }
-
-        fn coerce_string_type(data_type: &DataType) -> DataType {
-            match data_type {
-                DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => data_type.clone(),
-                _ => DataType::Utf8,
-            }
-        }
-
-        fn coerce_binary_type(data_type: &DataType) -> DataType {
-            match data_type {
-                DataType::Binary | DataType::LargeBinary => data_type.clone(),
-                _ => DataType::Binary,
-            }
-        }
-
-        macro_rules! invalid_arg_error {
-            ($position:expr, $expected:expr, $actual:expr) => {
-                InvalidArgumentTypeSnafu {
-                    function_name: self.name().to_string(),
-                    position: position_name($position).to_string(),
-                    expected_type: $expected.to_string(),
-                    actual_type: format!("{actual:?}", actual = $actual),
-                }
-                .fail()?
-            };
-        }
-
         if arg_types.len() < 2 {
             return NotEnoughArgumentsSnafu {
                 function_call: self.name().to_string(),
@@ -244,31 +225,55 @@ impl ScalarUDFImpl for SubstrFunc {
                 if key_type.is_integer() && is_string_coercible(value_type) {
                     coerce_string_type(value_type)
                 } else {
-                    return invalid_arg_error!(
-                        0,
-                        "a string or binary coercible type",
-                        &arg_types[0]
-                    );
+                    return InvalidArgumentTypeSnafu {
+                        function_name: self.name().to_string(),
+                        position: position_name(0).to_string(),
+                        expected_type: "a string or binary coercible type".to_string(),
+                        actual_type: format!("{:?}", &arg_types[0]),
+                    }
+                    .fail()?;
                 }
             }
             data_type if is_string_coercible(data_type) => coerce_string_type(data_type),
             data_type if is_binary_type(data_type) => coerce_binary_type(data_type),
-            _ => return invalid_arg_error!(0, "a string or binary coercible type", &arg_types[0]),
+            _ => {
+                return InvalidArgumentTypeSnafu {
+                    function_name: self.name().to_string(),
+                    position: position_name(0).to_string(),
+                    expected_type: "a string or binary coercible type".to_string(),
+                    actual_type: format!("{:?}", &arg_types[0]),
+                }
+                .fail()?;
+            }
         };
 
-        if !is_integer_type(&arg_types[1]) {
-            return invalid_arg_error!(1, "an integer", &arg_types[1]);
+        if !arg_types[1].is_integer() && !arg_types[1].is_null() {
+            return InvalidArgumentTypeSnafu {
+                function_name: self.name().to_string(),
+                position: position_name(1).to_string(),
+                expected_type: "an integer".to_string(),
+                actual_type: format!("{:?}", &arg_types[1]),
+            }
+            .fail()?;
         }
 
-        if arg_types.len() == 3 && !is_integer_type(&arg_types[2]) {
-            return invalid_arg_error!(2, "an integer", &arg_types[2]);
+        if arg_types.len() == 3 && !arg_types[2].is_integer() && !arg_types[2].is_null() {
+            return InvalidArgumentTypeSnafu {
+                function_name: self.name().to_string(),
+                position: position_name(2).to_string(),
+                expected_type: "an integer".to_string(),
+                actual_type: format!("{:?}", &arg_types[2]),
+            }
+            .fail()?;
         }
 
-        if arg_types.len() == 2 {
-            Ok(vec![first_data_type, DataType::Int64])
+        let coerced_types = if arg_types.len() == 2 {
+            vec![first_data_type, DataType::Int64]
         } else {
-            Ok(vec![first_data_type, DataType::Int64, DataType::Int64])
-        }
+            vec![first_data_type, DataType::Int64, DataType::Int64]
+        };
+
+        Ok(coerced_types)
     }
 }
 
@@ -376,6 +381,156 @@ macro_rules! handle_binary_array_type {
     };
 }
 
+fn extract_string_value(base_array: &dyn Array, i: usize) -> DFResult<String> {
+    let string_val: String = match base_array.data_type() {
+        DataType::Utf8 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Utf8,
+                datafusion::arrow::array::StringArray,
+                "StringArray"
+            )
+        }
+        DataType::LargeUtf8 => {
+            handle_array_type!(
+                base_array,
+                i,
+                LargeUtf8,
+                datafusion::arrow::array::LargeStringArray,
+                "LargeStringArray"
+            )
+        }
+        DataType::Utf8View => {
+            handle_array_type!(
+                base_array,
+                i,
+                Utf8View,
+                datafusion::arrow::array::StringViewArray,
+                "StringViewArray"
+            )
+        }
+        _ => unreachable!(),
+    };
+    Ok(string_val)
+}
+
+fn extract_numeric_string_value(base_array: &dyn Array, i: usize) -> DFResult<String> {
+    let string_val: String = match base_array.data_type() {
+        DataType::Int8 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Int8,
+                datafusion::arrow::array::Int8Array,
+                "Int8Array"
+            )
+        }
+        DataType::Int16 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Int16,
+                datafusion::arrow::array::Int16Array,
+                "Int16Array"
+            )
+        }
+        DataType::Int32 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Int32,
+                datafusion::arrow::array::Int32Array,
+                "Int32Array"
+            )
+        }
+        DataType::Int64 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Int64,
+                datafusion::arrow::array::Int64Array,
+                "Int64Array"
+            )
+        }
+        DataType::UInt8 => {
+            handle_array_type!(
+                base_array,
+                i,
+                UInt8,
+                datafusion::arrow::array::UInt8Array,
+                "UInt8Array"
+            )
+        }
+        DataType::UInt16 => {
+            handle_array_type!(
+                base_array,
+                i,
+                UInt16,
+                datafusion::arrow::array::UInt16Array,
+                "UInt16Array"
+            )
+        }
+        DataType::UInt32 => {
+            handle_array_type!(
+                base_array,
+                i,
+                UInt32,
+                datafusion::arrow::array::UInt32Array,
+                "UInt32Array"
+            )
+        }
+        DataType::UInt64 => {
+            handle_array_type!(
+                base_array,
+                i,
+                UInt64,
+                datafusion::arrow::array::UInt64Array,
+                "UInt64Array"
+            )
+        }
+        DataType::Float32 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Float32,
+                datafusion::arrow::array::Float32Array,
+                "Float32Array"
+            )
+        }
+        DataType::Float64 => {
+            handle_array_type!(
+                base_array,
+                i,
+                Float64,
+                datafusion::arrow::array::Float64Array,
+                "Float64Array"
+            )
+        }
+        _ => unreachable!(),
+    };
+    Ok(string_val)
+}
+
+fn extract_value(base_array: &dyn Array, i: usize) -> DFResult<String> {
+    match base_array.data_type() {
+        DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+            extract_string_value(base_array, i)
+        }
+        DataType::Int8
+        | DataType::Int16
+        | DataType::Int32
+        | DataType::Int64
+        | DataType::UInt8
+        | DataType::UInt16
+        | DataType::UInt32
+        | DataType::UInt64
+        | DataType::Float32
+        | DataType::Float64 => extract_numeric_string_value(base_array, i),
+        _ => unreachable!(),
+    }
+}
+
 fn process_string_arrays(
     base_array: &dyn Array,
     start_array: &datafusion::arrow::array::Int64Array,
@@ -396,127 +551,7 @@ fn process_string_arrays(
             }
         }
 
-        let string_val: String = match base_array.data_type() {
-            DataType::Utf8 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Utf8,
-                    datafusion::arrow::array::StringArray,
-                    "StringArray"
-                )
-            }
-            DataType::LargeUtf8 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    LargeUtf8,
-                    datafusion::arrow::array::LargeStringArray,
-                    "LargeStringArray"
-                )
-            }
-            DataType::Utf8View => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Utf8View,
-                    datafusion::arrow::array::StringViewArray,
-                    "StringViewArray"
-                )
-            }
-            DataType::Int8 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Int8,
-                    datafusion::arrow::array::Int8Array,
-                    "Int8Array"
-                )
-            }
-            DataType::Int16 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Int16,
-                    datafusion::arrow::array::Int16Array,
-                    "Int16Array"
-                )
-            }
-            DataType::Int32 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Int32,
-                    datafusion::arrow::array::Int32Array,
-                    "Int32Array"
-                )
-            }
-            DataType::Int64 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Int64,
-                    datafusion::arrow::array::Int64Array,
-                    "Int64Array"
-                )
-            }
-            DataType::UInt8 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    UInt8,
-                    datafusion::arrow::array::UInt8Array,
-                    "UInt8Array"
-                )
-            }
-            DataType::UInt16 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    UInt16,
-                    datafusion::arrow::array::UInt16Array,
-                    "UInt16Array"
-                )
-            }
-            DataType::UInt32 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    UInt32,
-                    datafusion::arrow::array::UInt32Array,
-                    "UInt32Array"
-                )
-            }
-            DataType::UInt64 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    UInt64,
-                    datafusion::arrow::array::UInt64Array,
-                    "UInt64Array"
-                )
-            }
-            DataType::Float32 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Float32,
-                    datafusion::arrow::array::Float32Array,
-                    "Float32Array"
-                )
-            }
-            DataType::Float64 => {
-                handle_array_type!(
-                    base_array,
-                    i,
-                    Float64,
-                    datafusion::arrow::array::Float64Array,
-                    "Float64Array"
-                )
-            }
-            _ => unreachable!(),
-        };
-
+        let string_val = extract_value(base_array, i)?;
         let start_val = start_array.value(i);
         let length_val = length_array.as_ref().map(|arr| arr.value(i));
 
@@ -532,7 +567,6 @@ fn process_string_arrays(
         }
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
-
         let result = compute_substr_string(&string_val, start_val, length_u64);
         result_builder.append_value(result);
     }
