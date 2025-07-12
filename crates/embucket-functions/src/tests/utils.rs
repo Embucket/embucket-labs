@@ -20,7 +20,7 @@ pub fn create_session() -> Arc<SessionContext> {
                 ),
         )
         .with_default_features()
-        .with_expr_planners(vec![Arc::new(CustomExprPlanner::default())])
+        .with_expr_planners(vec![Arc::new(CustomExprPlanner)])
         .build();
     let mut ctx = SessionContext::new_with_state(state);
     register_session_context_udfs(&mut ctx).unwrap();
