@@ -167,3 +167,39 @@ test_query!(
     "SELECT substr(1.23, -2, 2) as result",
     snapshot_path = "substr"
 );
+
+test_query!(
+    substr_binary_to_binary_basic,
+    "SELECT substr(to_binary('hello world'), 2, 5) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_binary_to_binary_negative,
+    "SELECT substr(to_binary('hello world'), -5, 4) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_binary_to_binary_emoji,
+    "SELECT substr(to_binary('test🚀data'), 5, 4) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_binary_to_binary_emoji_negative,
+    "SELECT substr(to_binary('test🚀data'), -8, 4) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_binary_to_binary_mixed,
+    "SELECT substr(to_binary('café☕test'), 4, 5) as result",
+    snapshot_path = "substr"
+);
+
+test_query!(
+    substr_binary_to_binary_empty,
+    "SELECT substr(to_binary(''), 1, 3) as result",
+    snapshot_path = "substr"
+);

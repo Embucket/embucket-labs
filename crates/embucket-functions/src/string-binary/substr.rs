@@ -16,17 +16,19 @@ use super::errors::{
     NotEnoughArgumentsSnafu, TooManyArgumentsSnafu, UnsupportedDataTypeSnafu,
 };
 
-/// Returns the portion of the string starting at a specified position.
+/// Returns the portion of the string or binary data starting at a specified position.
 ///
 /// Compatible with Snowflake's SUBSTR function behavior, including support for negative indices.
+/// For string data, operates on UTF-8 characters. For binary data, operates on bytes.
 ///
 /// Arguments:
-/// * `base_expr` - The input string or string-coercible value
-/// * `start_expr` - Starting position (1-based). Negative values count from the end
-/// * `length_expr` - Optional. Maximum number of characters to return
+/// * `base_expr` - The input string, binary, or coercible value
+/// * `start_expr` - Starting position (1-based). Negative values count from the end.
+///   For strings: character position. For binary: byte position.
+/// * `length_expr` - Optional. Maximum number of characters (for strings) or bytes (for binary) to return
 ///
 /// Returns:
-/// A string containing the specified substring
+/// A string or binary value containing the specified substring
 #[derive(Debug)]
 pub struct SubstrFunc {
     signature: Signature,
@@ -62,8 +64,12 @@ impl ScalarUDFImpl for SubstrFunc {
         &self.signature
     }
 
-    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Utf8)
+    fn return_type(&self, arg_types: &[DataType]) -> DFResult<DataType> {
+        match &arg_types[0] {
+            DataType::Binary => Ok(DataType::Binary),
+            DataType::LargeBinary => Ok(DataType::LargeBinary),
+            _ => Ok(DataType::Utf8),
+        }
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -89,7 +95,7 @@ impl ScalarUDFImpl for SubstrFunc {
 
         let arrays = datafusion_expr::ColumnarValue::values_to_arrays(&args)?;
 
-        let string_array = &arrays[0];
+        let base_array = &arrays[0];
         let start_array = &arrays[1];
         let length_array = if arrays.len() == 3 {
             Some(arrays[2].as_ref())
@@ -97,7 +103,7 @@ impl ScalarUDFImpl for SubstrFunc {
             None
         };
 
-        let result = substr_snowflake(string_array, start_array, length_array)?;
+        let result = substr_snowflake(base_array, start_array, length_array)?;
         Ok(ColumnarValue::Array(result))
     }
 
@@ -133,7 +139,7 @@ impl ScalarUDFImpl for SubstrFunc {
                         None
                     };
 
-                    let result = compute_snowflake_substr(
+                    let result = compute_substr_string(
                         &string_val,
                         start_val,
                         length_val.and_then(|l| u64::try_from(l).ok()),
@@ -178,6 +184,10 @@ impl ScalarUDFImpl for SubstrFunc {
             )
         }
 
+        const fn is_binary_type(data_type: &DataType) -> bool {
+            matches!(data_type, DataType::Binary | DataType::LargeBinary)
+        }
+
         const fn is_integer_type(data_type: &DataType) -> bool {
             matches!(
                 data_type,
@@ -189,6 +199,13 @@ impl ScalarUDFImpl for SubstrFunc {
             match data_type {
                 DataType::LargeUtf8 | DataType::Utf8View | DataType::Utf8 => data_type.clone(),
                 _ => DataType::Utf8,
+            }
+        }
+
+        fn coerce_binary_type(data_type: &DataType) -> DataType {
+            match data_type {
+                DataType::Binary | DataType::LargeBinary => data_type.clone(),
+                _ => DataType::Binary,
             }
         }
 
@@ -227,11 +244,16 @@ impl ScalarUDFImpl for SubstrFunc {
                 if key_type.is_integer() && is_string_coercible(value_type) {
                     coerce_string_type(value_type)
                 } else {
-                    return invalid_arg_error!(0, "a string coercible type", &arg_types[0]);
+                    return invalid_arg_error!(
+                        0,
+                        "a string or binary coercible type",
+                        &arg_types[0]
+                    );
                 }
             }
             data_type if is_string_coercible(data_type) => coerce_string_type(data_type),
-            _ => return invalid_arg_error!(0, "a string coercible type", &arg_types[0]),
+            data_type if is_binary_type(data_type) => coerce_binary_type(data_type),
+            _ => return invalid_arg_error!(0, "a string or binary coercible type", &arg_types[0]),
         };
 
         if !is_integer_type(&arg_types[1]) {
@@ -250,7 +272,7 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 }
 
-fn compute_snowflake_substr(input: &str, start: i64, length: Option<u64>) -> String {
+fn compute_substr_string(input: &str, start: i64, length: Option<u64>) -> String {
     if input.is_empty() {
         return String::new();
     }
@@ -290,9 +312,47 @@ fn compute_snowflake_substr(input: &str, start: i64, length: Option<u64>) -> Str
     chars[start_idx..end_idx].iter().collect()
 }
 
+fn compute_substr_binary(input: &[u8], start: i64, length: Option<u64>) -> Vec<u8> {
+    if input.is_empty() {
+        return Vec::new();
+    }
+
+    let byte_count = i64::try_from(input.len()).unwrap_or(i64::MAX);
+
+    let actual_start = match start.cmp(&0) {
+        std::cmp::Ordering::Less => byte_count + start + 1,
+        std::cmp::Ordering::Equal => 1,
+        std::cmp::Ordering::Greater => start,
+    };
+
+    if actual_start <= 0 || actual_start > byte_count {
+        return Vec::new();
+    }
+
+    let Ok(start_idx) = usize::try_from(actual_start - 1) else {
+        return Vec::new();
+    };
+
+    let end_idx = if let Some(len) = length {
+        if len == 0 {
+            return Vec::new();
+        }
+        let len_usize = usize::try_from(len).unwrap_or(usize::MAX);
+        std::cmp::min(start_idx.saturating_add(len_usize), input.len())
+    } else {
+        input.len()
+    };
+
+    if start_idx >= input.len() {
+        return Vec::new();
+    }
+
+    input[start_idx..end_idx].to_vec()
+}
+
 macro_rules! handle_array_type {
-    ($string_array:expr, $i:expr, $data_type:ident, $array_type:ty, $array_name:literal) => {
-        if let Some(arr) = $string_array.as_any().downcast_ref::<$array_type>() {
+    ($base_array:expr, $i:expr, $data_type:ident, $array_type:ty, $array_name:literal) => {
+        if let Some(arr) = $base_array.as_any().downcast_ref::<$array_type>() {
             arr.value($i).to_string()
         } else {
             return FailedToDowncastSnafu {
@@ -303,15 +363,28 @@ macro_rules! handle_array_type {
     };
 }
 
-fn process_arrays(
-    string_array: &dyn Array,
+macro_rules! handle_binary_array_type {
+    ($base_array:expr, $i:expr, $array_type:ty, $array_name:literal) => {
+        if let Some(arr) = $base_array.as_any().downcast_ref::<$array_type>() {
+            arr.value($i).to_vec()
+        } else {
+            return FailedToDowncastSnafu {
+                array_type: $array_name.to_string(),
+            }
+            .fail()?;
+        }
+    };
+}
+
+fn process_string_arrays(
+    base_array: &dyn Array,
     start_array: &datafusion::arrow::array::Int64Array,
     length_array: Option<&datafusion::arrow::array::Int64Array>,
 ) -> DFResult<Arc<dyn Array>> {
     let mut result_builder = StringBuilder::new();
 
-    for i in 0..string_array.len() {
-        if string_array.is_null(i) || start_array.is_null(i) {
+    for i in 0..base_array.len() {
+        if base_array.is_null(i) || start_array.is_null(i) {
             result_builder.append_null();
             continue;
         }
@@ -323,10 +396,10 @@ fn process_arrays(
             }
         }
 
-        let string_val: String = match string_array.data_type() {
+        let string_val: String = match base_array.data_type() {
             DataType::Utf8 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Utf8,
                     datafusion::arrow::array::StringArray,
@@ -335,7 +408,7 @@ fn process_arrays(
             }
             DataType::LargeUtf8 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     LargeUtf8,
                     datafusion::arrow::array::LargeStringArray,
@@ -344,7 +417,7 @@ fn process_arrays(
             }
             DataType::Utf8View => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Utf8View,
                     datafusion::arrow::array::StringViewArray,
@@ -353,7 +426,7 @@ fn process_arrays(
             }
             DataType::Int8 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Int8,
                     datafusion::arrow::array::Int8Array,
@@ -362,7 +435,7 @@ fn process_arrays(
             }
             DataType::Int16 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Int16,
                     datafusion::arrow::array::Int16Array,
@@ -371,7 +444,7 @@ fn process_arrays(
             }
             DataType::Int32 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Int32,
                     datafusion::arrow::array::Int32Array,
@@ -380,7 +453,7 @@ fn process_arrays(
             }
             DataType::Int64 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Int64,
                     datafusion::arrow::array::Int64Array,
@@ -389,7 +462,7 @@ fn process_arrays(
             }
             DataType::UInt8 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     UInt8,
                     datafusion::arrow::array::UInt8Array,
@@ -398,7 +471,7 @@ fn process_arrays(
             }
             DataType::UInt16 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     UInt16,
                     datafusion::arrow::array::UInt16Array,
@@ -407,7 +480,7 @@ fn process_arrays(
             }
             DataType::UInt32 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     UInt32,
                     datafusion::arrow::array::UInt32Array,
@@ -416,7 +489,7 @@ fn process_arrays(
             }
             DataType::UInt64 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     UInt64,
                     datafusion::arrow::array::UInt64Array,
@@ -425,7 +498,7 @@ fn process_arrays(
             }
             DataType::Float32 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Float32,
                     datafusion::arrow::array::Float32Array,
@@ -434,7 +507,7 @@ fn process_arrays(
             }
             DataType::Float64 => {
                 handle_array_type!(
-                    string_array,
+                    base_array,
                     i,
                     Float64,
                     datafusion::arrow::array::Float64Array,
@@ -460,15 +533,137 @@ fn process_arrays(
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
 
-        let result = compute_snowflake_substr(&string_val, start_val, length_u64);
+        let result = compute_substr_string(&string_val, start_val, length_u64);
         result_builder.append_value(result);
     }
 
     Ok(Arc::new(result_builder.finish()))
 }
 
+fn process_binary_arrays(
+    base_array: &dyn Array,
+    start_array: &datafusion::arrow::array::Int64Array,
+    length_array: Option<&datafusion::arrow::array::Int64Array>,
+) -> DFResult<Arc<dyn Array>> {
+    use datafusion::arrow::array::BinaryBuilder;
+
+    let mut result_builder = BinaryBuilder::new();
+
+    for i in 0..base_array.len() {
+        if base_array.is_null(i) || start_array.is_null(i) {
+            result_builder.append_null();
+            continue;
+        }
+
+        if let Some(length_arr) = &length_array {
+            if length_arr.is_null(i) {
+                result_builder.append_null();
+                continue;
+            }
+        }
+
+        let binary_val: Vec<u8> = match base_array.data_type() {
+            DataType::Binary => {
+                handle_binary_array_type!(
+                    base_array,
+                    i,
+                    datafusion::arrow::array::BinaryArray,
+                    "BinaryArray"
+                )
+            }
+            DataType::LargeBinary => {
+                handle_binary_array_type!(
+                    base_array,
+                    i,
+                    datafusion::arrow::array::LargeBinaryArray,
+                    "LargeBinaryArray"
+                )
+            }
+            _ => unreachable!(),
+        };
+
+        let start_val = start_array.value(i);
+        let length_val = length_array.as_ref().map(|arr| arr.value(i));
+
+        if let Some(length_val) = length_val {
+            if length_val < 0 {
+                return NegativeSubstringLengthSnafu {
+                    function_name: "substr".to_string(),
+                    start: start_val,
+                    length: length_val,
+                }
+                .fail()?;
+            }
+        }
+
+        let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
+
+        let result = compute_substr_binary(&binary_val, start_val, length_u64);
+        result_builder.append_value(&result);
+    }
+
+    Ok(Arc::new(result_builder.finish()))
+}
+
+fn process_large_binary_arrays(
+    base_array: &dyn Array,
+    start_array: &datafusion::arrow::array::Int64Array,
+    length_array: Option<&datafusion::arrow::array::Int64Array>,
+) -> DFResult<Arc<dyn Array>> {
+    use datafusion::arrow::array::LargeBinaryBuilder;
+
+    let mut result_builder = LargeBinaryBuilder::new();
+
+    for i in 0..base_array.len() {
+        if base_array.is_null(i) || start_array.is_null(i) {
+            result_builder.append_null();
+            continue;
+        }
+
+        if let Some(length_arr) = &length_array {
+            if length_arr.is_null(i) {
+                result_builder.append_null();
+                continue;
+            }
+        }
+
+        let binary_val: Vec<u8> = match base_array.data_type() {
+            DataType::LargeBinary => {
+                handle_binary_array_type!(
+                    base_array,
+                    i,
+                    datafusion::arrow::array::LargeBinaryArray,
+                    "LargeBinaryArray"
+                )
+            }
+            _ => unreachable!(),
+        };
+
+        let start_val = start_array.value(i);
+        let length_val = length_array.as_ref().map(|arr| arr.value(i));
+
+        if let Some(length_val) = length_val {
+            if length_val < 0 {
+                return NegativeSubstringLengthSnafu {
+                    function_name: "substr".to_string(),
+                    start: start_val,
+                    length: length_val,
+                }
+                .fail()?;
+            }
+        }
+
+        let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
+
+        let result = compute_substr_binary(&binary_val, start_val, length_u64);
+        result_builder.append_value(&result);
+    }
+
+    Ok(Arc::new(result_builder.finish()))
+}
+
 fn substr_snowflake(
-    string_array: &dyn Array,
+    base_array: &dyn Array,
     start_array: &dyn Array,
     length_array: Option<&dyn Array>,
 ) -> DFResult<Arc<dyn Array>> {
@@ -479,7 +674,7 @@ fn substr_snowflake(
         None
     };
 
-    match string_array.data_type() {
+    match base_array.data_type() {
         DataType::Utf8
         | DataType::LargeUtf8
         | DataType::Utf8View
@@ -492,11 +687,13 @@ fn substr_snowflake(
         | DataType::UInt32
         | DataType::UInt64
         | DataType::Float32
-        | DataType::Float64 => process_arrays(string_array, start_array, length_array),
+        | DataType::Float64 => process_string_arrays(base_array, start_array, length_array),
+        DataType::Binary => process_binary_arrays(base_array, start_array, length_array),
+        DataType::LargeBinary => process_large_binary_arrays(base_array, start_array, length_array),
         other => UnsupportedDataTypeSnafu {
             function_name: "substr".to_string(),
             data_type: format!("{other:?}"),
-            expected_types: "string coercible types".to_string(),
+            expected_types: "string or binary coercible types".to_string(),
         }
         .fail()?,
     }
@@ -512,7 +709,7 @@ mod tests {
     use datafusion_expr::ScalarUDF;
 
     #[tokio::test]
-    async fn test_snowflake_substr_basic() -> DFResult<()> {
+    async fn test_substr_basic() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
 
@@ -533,7 +730,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_snowflake_substr_negative_index() -> DFResult<()> {
+    async fn test_substr_negative_index() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
 
@@ -580,7 +777,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_snowflake_substr_edge_cases() -> DFResult<()> {
+    async fn test_substr_edge_cases() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
 
@@ -614,7 +811,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_snowflake_substr_numeric_types() -> DFResult<()> {
+    async fn test_substr_numeric_types() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
 
@@ -674,35 +871,35 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_snowflake_substr_direct() {
-        let result = compute_snowflake_substr("mystring", -2, Some(2));
+    fn test_compute_substr_string_direct() {
+        let result = compute_substr_string("mystring", -2, Some(2));
         assert_eq!(result, "ng", "substr('mystring', -2, 2) should return 'ng'");
 
-        let result = compute_snowflake_substr("mystring", -1, Some(1));
+        let result = compute_substr_string("mystring", -1, Some(1));
         assert_eq!(result, "g", "substr('mystring', -1, 1) should return 'g'");
 
-        let result = compute_snowflake_substr("mystring", -3, Some(2));
+        let result = compute_substr_string("mystring", -3, Some(2));
         assert_eq!(result, "in", "substr('mystring', -3, 2) should return 'in'");
 
-        let result = compute_snowflake_substr("mystring", -8, Some(3));
+        let result = compute_substr_string("mystring", -8, Some(3));
         assert_eq!(
             result, "mys",
             "substr('mystring', -8, 3) should return 'mys'"
         );
 
-        let result = compute_snowflake_substr("mystring", -2, Some(3));
+        let result = compute_substr_string("mystring", -2, Some(3));
         assert_eq!(
             result, "ng",
             "substr('mystring', -2, 3) should return 'ng' (limited by string end)"
         );
 
-        let result = compute_snowflake_substr("hello", -2, Some(2));
+        let result = compute_substr_string("hello", -2, Some(2));
         assert_eq!(result, "lo", "substr('hello', -2, 2) should return 'lo'");
 
-        let result = compute_snowflake_substr("1.23", -2, Some(2));
+        let result = compute_substr_string("1.23", -2, Some(2));
         assert_eq!(result, "23", "substr('1.23', -2, 2) should return '23'");
 
-        let result = compute_snowflake_substr("12345", 2, Some(3));
+        let result = compute_substr_string("12345", 2, Some(3));
         assert_eq!(result, "234", "substr('12345', 2, 3) should return '234'");
     }
 }
