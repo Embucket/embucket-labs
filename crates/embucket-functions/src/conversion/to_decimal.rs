@@ -202,6 +202,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
 
         //TODO: should we have type info as before, good datapoint to think about on other types, functions, etc
         let format_options = FormatOptions::default()
+            //TODO: override NULL formatting is not working, expected? Visitor somewhere?
             .with_null("NULL")
             .with_types_info(false);
 
