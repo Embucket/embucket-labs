@@ -1,7 +1,7 @@
 
 query T
-WITH rlike_ex AS (
-    SELECT column1 AS city FROM VALUES
+WITH rlike_ex(city) AS (
+    SELECT * FROM VALUES
     ('Sacramento'),
     ('San Francisco'),
     ('San Jose'),
@@ -13,8 +13,8 @@ San Francisco
 San Jose
 
 query T
-WITH rlike_ex AS (
-    SELECT column1 AS city FROM VALUES
+WITH rlike_ex(city) AS (
+    SELECT * FROM VALUES
     ('Sacramento'),
     ('San Francisco'),
     ('San Jose'),
@@ -61,8 +61,8 @@ SELECT RLIKE('jsmith@email.com',
 TRUE
 
 query T
-WITH rlike_ex AS (
-    SELECT column1 AS city FROM VALUES
+WITH rlike_ex(city) AS (
+    SELECT * FROM VALUES
     ('Sacramento'),
     ('San Francisco'),
     ('San Jose'),
