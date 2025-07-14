@@ -27,6 +27,9 @@ export function VolumesPage() {
     search: debouncedSearch,
   });
 
+  const isVolumesEmpty = !volumes?.length;
+  const isVolumesEmptyDueToSearch = isVolumesEmpty && search.length > 0;
+
   return (
     <>
       <PageHeader
@@ -45,12 +48,16 @@ export function VolumesPage() {
         isFetchingVolumes={isFetchingVolumes}
         onRefetchVolumes={refetchVolumes}
       />
-      {!volumes?.length && !isLoadingVolumes ? (
+      {isVolumesEmpty && !isLoadingVolumes ? (
         <PageEmptyContainer
           Icon={Box}
           variant="toolbar"
           title="No Volumes Found"
-          description="No volumes have been created yet. Create a volume to get started."
+          description={
+            isVolumesEmptyDueToSearch
+              ? 'No volumes match your search.'
+              : 'No volumes have been created yet. Create a volume to get started.'
+          }
         />
       ) : (
         <PageScrollArea>

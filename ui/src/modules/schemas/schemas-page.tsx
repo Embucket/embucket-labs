@@ -31,6 +31,9 @@ export function SchemasPage() {
     search: debouncedSearch,
   });
 
+  const isSchemasEmpty = !schemas?.length;
+  const isSchemasEmptyDueToSearch = isSchemasEmpty && search.length > 0;
+
   return (
     <>
       <PageHeader
@@ -50,12 +53,16 @@ export function SchemasPage() {
         isFetchingSchemas={isFetchingSchemas}
         onRefetchSchemas={refetchSchemas}
       />
-      {!schemas?.length && !isLoadingSchemas ? (
+      {isSchemasEmpty && !isLoadingSchemas ? (
         <PageEmptyContainer
           Icon={FolderTree}
           variant="toolbar"
           title="No Schemas Found"
-          description="No schemas have been found for this database."
+          description={
+            isSchemasEmptyDueToSearch
+              ? 'No schemas match your search.'
+              : 'No schemas have been found for this database.'
+          }
         />
       ) : (
         <PageScrollArea>

@@ -38,6 +38,9 @@ export function TablesPage() {
     search: debouncedSearch,
   });
 
+  const isTablesEmpty = !tables?.length;
+  const isTablesEmptyDueToSearch = isTablesEmpty && search.length > 0;
+
   const addTab = useSqlEditorSettingsStore((state) => state.addTab);
   const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
   const queryClient = useQueryClient();
@@ -92,12 +95,16 @@ export function TablesPage() {
         isFetchingTables={isFetchingTables}
         onRefetchTables={refetchTables}
       />
-      {!tables?.length && !isLoadingTables ? (
+      {isTablesEmpty && !isLoadingTables ? (
         <PageEmptyContainer
           Icon={Table}
           variant="toolbar"
           title="No Tables Found"
-          description="No tables have been created yet. Create a table to get started."
+          description={
+            isTablesEmptyDueToSearch
+              ? 'No tables match your search.'
+              : 'No tables have been created yet. Create a table to get started.'
+          }
         />
       ) : (
         <PageScrollArea>

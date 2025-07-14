@@ -31,6 +31,9 @@ export function DatabasesPage() {
     search: debouncedSearch,
   });
 
+  const isDatabasesEmpty = !databases?.length;
+  const isDatabasesEmptyDueToSearch = isDatabasesEmpty && search.length > 0;
+
   return (
     <>
       <PageHeader
@@ -53,12 +56,16 @@ export function DatabasesPage() {
         databases={databases ?? []}
         isFetchingDatabases={isFetchingDatabases}
       />
-      {!databases?.length && !isLoadingDatabases ? (
+      {isDatabasesEmpty && !isLoadingDatabases ? (
         <PageEmptyContainer
           Icon={Database}
           variant="toolbar"
           title="No Databases Found"
-          description="No databases have been created yet. Create a database to get started."
+          description={
+            isDatabasesEmptyDueToSearch
+              ? 'No databases match your search.'
+              : 'No databases have been created yet. Create a database to get started.'
+          }
         />
       ) : (
         <PageScrollArea>
