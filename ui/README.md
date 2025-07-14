@@ -126,6 +126,7 @@ src
 | `build`         | Run the build outputting to `dist` folder |
 | `build:analyze` | Run vite-bundle-analyzer                  |
 | `ncu`           | Update repo dependencies                  |
+| `knip`          | Run knip                                  |
 
 ### Tech stack
 

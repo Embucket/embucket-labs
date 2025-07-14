@@ -11,7 +11,7 @@ import type { AuthContextType } from '@/modules/auth/AuthProvider';
 
 import { Layout } from '../layout/layout';
 import { AppSidebar } from '../layout/sidebar/app-sidebar';
-// import { TanStackRouterDevtoolsProvider } from '../providers/tanstack-router-devtools-provider';
+import { TanStackRouterDevtoolsProvider } from '../providers/tanstack-router-devtools-provider';
 import type { FileRoutesByTo } from '../routeTree.gen';
 
 const PUBLIC_PATHS: (keyof FileRoutesByTo)[] = ['/'];
@@ -56,7 +56,7 @@ function Root() {
   return (
     <AuthenticatedLayout>
       <Outlet />
-      {/* <TanStackRouterDevtoolsProvider /> */}
+      <TanStackRouterDevtoolsProvider />
     </AuthenticatedLayout>
   );
 }
