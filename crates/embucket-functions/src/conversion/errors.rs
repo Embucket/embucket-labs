@@ -1,3 +1,5 @@
+use arrow_schema::DataType;
+use datafusion_common::ScalarValue;
 use snafu::{Location, Snafu};
 
 #[derive(Snafu)]
@@ -12,7 +14,15 @@ pub enum Error {
 
     #[snafu(display("Unsupported input type: {data_type:?}"))]
     UnsupportedInputType {
-        data_type: arrow_schema::DataType,
+        data_type: DataType,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unsupported input type: {data_type:?} on position {position}"))]
+    UnsupportedInputTypeWithPosition {
+        data_type: DataType,
+        position: usize,
         #[snafu(implicit)]
         location: Location,
     },
@@ -44,6 +54,58 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("return_type_from_args should be called"))]
+    ReturnTypeFromArgsShouldBeCalled {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid type on {positions:?}"))]
+    NoInputArgumentOnPositions {
+        positions: Vec<u8>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid precision only allowed from 0 to 38 got: {precision:?}"))]
+    InvalidPrecision {
+        precision: ScalarValue,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid scale only allowed from 1 to {precision_minus_one} got: {scale:?}"))]
+    InvalidScale {
+        precision_minus_one: u8,
+        scale: ScalarValue,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Too little arguments, got: {got}, expected at least: {at_least}"))]
+    TooLittleArguments {
+        got: usize,
+        at_least: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Too many arguments, got: {got}, expected at maximum: {at_maximum}"))]
+    TooManyArguments {
+        got: usize,
+        at_maximum: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unexpected return type, got: {got:?}, expected similar to: {expected:?}"))]
+    UnexpectedReturnType {
+        got: DataType,
+        expected: DataType,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
@@ -63,7 +125,7 @@ impl From<Error> for datafusion_common::DataFusionError {
 impl Default for Error {
     fn default() -> Self {
         UnsupportedInputTypeSnafu {
-            data_type: arrow_schema::DataType::Boolean,
+            data_type: DataType::Boolean,
         }
         .build()
     }

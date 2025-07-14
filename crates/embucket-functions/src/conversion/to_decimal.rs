@@ -1,11 +1,12 @@
+use super::errors as conv_errors;
 use datafusion::arrow::compute::cast_with_options;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
+use datafusion_common::ScalarValue;
 use datafusion_common::arrow::array::{Array, StringArray};
 use datafusion_common::arrow::compute::CastOptions;
 use datafusion_common::arrow::util::display::FormatOptions;
-use datafusion_common::{ScalarValue, exec_err, internal_err};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::fmt::Debug;
@@ -41,8 +42,8 @@ impl ToDecimalFunc {
             r#try,
         }
     }
-    fn get_precision_checked(precision: &ScalarValue) -> DFResult<u8> {
-        let precision = match precision {
+    fn get_precision_checked(precision_scalar: &ScalarValue) -> DFResult<u8> {
+        let result = match precision_scalar {
             ScalarValue::Int64(Some(precision)) => u8::try_from(*precision),
             ScalarValue::Int32(Some(precision)) => u8::try_from(*precision),
             ScalarValue::Int16(Some(precision)) => u8::try_from(*precision),
@@ -52,23 +53,29 @@ impl ToDecimalFunc {
             ScalarValue::UInt16(Some(precision)) => u8::try_from(*precision),
             ScalarValue::UInt8(Some(precision)) => Ok(*precision),
             _ => {
-                return internal_err!(
-                    "invalid precision number (only allowed from 0 to 38): {}",
-                    precision
-                );
+                return conv_errors::UnsupportedInputTypeSnafu {
+                    data_type: precision_scalar.data_type(),
+                }
+                .fail()?;
             }
         };
-        let Ok(precision) = precision else {
-            return internal_err!("invalid precision number (only allowed from 0 to 38)");
+        let Ok(precision) = result else {
+            return conv_errors::InvalidPrecisionSnafu {
+                precision: precision_scalar.clone(),
+            }
+            .fail()?;
         };
-        if (1..=38).contains(&precision) {
-            //TODO: error
+        if !(1..=38).contains(&precision) {
+            return conv_errors::InvalidPrecisionSnafu {
+                precision: precision_scalar.clone(),
+            }
+            .fail()?;
         }
         Ok(precision)
     }
     #[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
-    fn get_scale_checked(scale: &ScalarValue, precision: u8) -> DFResult<i8> {
-        let scale = match scale {
+    fn get_scale_checked(scale_scalar: &ScalarValue, precision: u8) -> DFResult<i8> {
+        let result = match scale_scalar {
             ScalarValue::Int64(Some(scale)) => i8::try_from(*scale),
             ScalarValue::Int32(Some(scale)) => i8::try_from(*scale),
             ScalarValue::Int16(Some(scale)) => i8::try_from(*scale),
@@ -78,20 +85,25 @@ impl ToDecimalFunc {
             ScalarValue::UInt16(Some(scale)) => i8::try_from(*scale),
             ScalarValue::UInt8(Some(scale)) => i8::try_from(*scale),
             _ => {
-                return internal_err!(
-                    "invalid precision number (only allowed from 0 to 38): {}",
-                    precision
-                );
+                return conv_errors::UnsupportedInputTypeSnafu {
+                    data_type: scale_scalar.data_type(),
+                }
+                .fail()?;
             }
         };
-        let Ok(scale) = scale else {
-            return internal_err!(
-                "invalid precision number (only allowed from 0 to 38): {}",
-                precision
-            );
+        let Ok(scale) = result else {
+            return conv_errors::InvalidScaleSnafu {
+                precision_minus_one: precision - 1,
+                scale: scale_scalar.clone(),
+            }
+            .fail()?;
         };
-        if 0 <= scale && (precision - 1) as i8 >= scale {
-            //TODO: error
+        if !(0..=((precision - 1) as i8)).contains(&scale) {
+            return conv_errors::InvalidScaleSnafu {
+                precision_minus_one: precision - 1,
+                scale: scale_scalar.clone(),
+            }
+            .fail()?;
         }
         Ok(scale)
     }
@@ -115,12 +127,16 @@ impl ScalarUDFImpl for ToDecimalFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        //TODO: Correct error type
-        internal_err!("return_type_from_args should be called")
+        conv_errors::ReturnTypeFromArgsShouldBeCalledSnafu.fail()?
     }
-    //TODO: fix errors + logic
+
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
         match args.arg_types.len() {
+            0 => conv_errors::TooLittleArgumentsSnafu {
+                got: 0usize,
+                at_least: 1usize,
+            }
+            .fail()?,
             1 => {
                 //Variant json null -> null, not only for try_to_decimal
                 Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true))
@@ -133,8 +149,8 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     let precision = Self::get_precision_checked(precision)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(precision, 0), true))
                 }
-                other => {
-                    internal_err!("unexpected data type: {:?}", other)
+                None => {
+                    conv_errors::NoInputArgumentOnPositionsSnafu { positions: vec![2] }.fail()?
                 }
             },
             3 => match &args.scalar_arguments[1..=2] {
@@ -157,10 +173,10 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         true,
                     ))
                 }
-                [other1, other2] => {
-                    internal_err!("unexpected data type: {:?}, {:?}", other1, other2)
+                [..] => conv_errors::NoInputArgumentOnPositionsSnafu {
+                    positions: vec![1, 2],
                 }
-                [..] => unreachable!(),
+                .fail()?,
             },
             4 => match &args.scalar_arguments[2..=3] {
                 [Some(precision), Some(scale)] => {
@@ -171,21 +187,27 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         true,
                     ))
                 }
-                [other1, other2] => {
-                    internal_err!("unexpected data type: {:?}, {:?}", other1, other2)
+                [..] => conv_errors::NoInputArgumentOnPositionsSnafu {
+                    positions: vec![3, 4],
                 }
-                [..] => unreachable!(),
+                .fail()?,
             },
-            other => {
-                internal_err!("too many or too little args number: {other}")
+            other => conv_errors::TooManyArgumentsSnafu {
+                got: other,
+                at_maximum: 4usize,
             }
+            .fail()?,
         }
     }
-    //TODO: formatting <format> second arg
-    #[allow(clippy::unwrap_used)]
+    //TODO: formatting <format> second argument
+    #[allow(clippy::unwrap_used, clippy::too_many_lines)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let DataType::Decimal128(precision, scale) = args.return_type else {
-            return exec_err!("unexpected return type");
+            return conv_errors::UnexpectedReturnTypeSnafu {
+                got: args.return_type.clone(),
+                expected: DataType::Decimal128(38, 0),
+            }
+            .fail()?;
         };
 
         let expr = &args.args[0];
@@ -213,8 +235,16 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 | ScalarValue::Float64(Some(_))
                 | ScalarValue::Float32(Some(_)),
             ) => None,
-            ColumnarValue::Array(_) | ColumnarValue::Scalar(_) => {
-                return exec_err!("unexpected second argument format");
+            other => {
+                let other_array = match other {
+                    ColumnarValue::Array(array) => array,
+                    ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
+                };
+                return conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other_array.data_type().clone(),
+                    position: 2usize,
+                }
+                .fail()?;
             }
         };
 
@@ -252,7 +282,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         } else {
                             values
                                 .iter()
-                                .map(|opt| opt.map(std::string::ToString::to_string))
+                                .map(|opt| opt.map(ToString::to_string))
                                 .collect()
                         };
 
@@ -287,7 +317,13 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     format_options,
                 },
             )?,
-            other => return exec_err!("unexpected data type: {:?}", other),
+            other => {
+                return conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.clone(),
+                    position: 1usize,
+                }
+                .fail()?;
+            }
         };
         Ok(ColumnarValue::Array(Arc::new(result_array)))
     }
