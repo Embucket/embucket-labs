@@ -116,15 +116,16 @@ src
 
 ## Common scripts
 
-| Script      | Description                               |
-| ----------- | ----------------------------------------- |
-| `dev`       | Run the development server                |
-| `codegen`   | Run codegen                               |
-| `lint`      | Lint with ESLint + fix errors             |
-| `format`    | Format with Prettier + fix errors         |
-| `typecheck` | Run tcs                                   |
-| `build`     | Run the build outputting to `dist` folder |
-| `ncu`       | Update repo dependencies                  |
+| Script          | Description                               |
+| --------------- | ----------------------------------------- |
+| `dev`           | Run the development server                |
+| `codegen`       | Run codegen                               |
+| `lint`          | Lint with ESLint + fix errors             |
+| `format`        | Format with Prettier + fix errors         |
+| `typecheck`     | Run tcs                                   |
+| `build`         | Run the build outputting to `dist` folder |
+| `build:analyze` | Run vite-bundle-analyzer                  |
+| `ncu`           | Update repo dependencies                  |
 
 ### Tech stack
 
