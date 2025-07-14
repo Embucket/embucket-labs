@@ -4,8 +4,10 @@ pub mod to_time;
 
 pub mod to_array;
 pub mod to_binary;
+pub mod to_decimal;
 pub mod to_variant;
 
+use crate::conversion::to_decimal::ToDecimalFunc;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 pub use errors::Error;
@@ -24,6 +26,14 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToDecimalFunc::new(
+            false,
+            vec!["to_number".to_string(), "to_numeric".to_string()],
+        ))),
+        Arc::new(ScalarUDF::from(ToDecimalFunc::new(
+            true,
+            vec!["try_to_number".to_string(), "try_to_numeric".to_string()],
+        ))),
     ];
     for func in functions {
         registry.register_udf(func)?;
