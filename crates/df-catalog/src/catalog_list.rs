@@ -183,10 +183,9 @@ impl EmbucketCatalogList {
             let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
                 .await
                 .context(df_catalog_error::DataFusionSnafu)?;
-            catalogs.push(CachingCatalog::new(
-                Arc::new(catalog),
-                volume.database.clone(),
-            ));
+            catalogs.push(
+                CachingCatalog::new(Arc::new(catalog), volume.database.clone()).with_refresh(true),
+            );
         }
         Ok(catalogs)
     }

@@ -56,6 +56,8 @@ use datafusion_expr::{
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
+use datafusion_iceberg::catalog::mirror::Mirror;
+use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
@@ -350,13 +352,11 @@ impl UserQuery {
                     .await;*/
                 }
                 Statement::CreateSchema { .. } => {
-                    let result = Box::pin(self.create_schema(*s)).await;
-                    return result;
+                    return Box::pin(self.create_schema(*s)).await;
                 }
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
-                    let result = Box::pin(self.create_stage_query(*s)).await;
-                    return result;
+                    return Box::pin(self.create_stage_query(*s)).await;
                 }
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
@@ -381,16 +381,14 @@ impl UserQuery {
                     return Box::pin(self.show_query(*s)).await;
                 }
                 Statement::Truncate { table_names, .. } => {
-                    let result = Box::pin(self.truncate_table(table_names)).await;
-                    return result;
+                    return Box::pin(self.truncate_table(table_names)).await;
                 }
                 Statement::Query(mut subquery) => {
                     self.traverse_and_update_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
                 Statement::Drop { .. } => {
-                    let result = Box::pin(self.drop_query(*s)).await;
-                    return result;
+                    return Box::pin(self.drop_query(*s)).await;
                 }
                 Statement::Merge { .. } => {
                     return Box::pin(self.merge_query(*s)).await;
@@ -416,6 +414,16 @@ impl UserQuery {
                 }
                 .build()
             })
+    }
+
+    #[instrument(name = "UserQuery::get_iceberg_mirror", level = "trace")]
+    fn get_iceberg_mirror(catalog: &Arc<dyn CatalogProvider>) -> Option<Arc<Mirror>> {
+        let caching_catalog = catalog.as_any().downcast_ref::<CachingCatalog>()?;
+        let iceberg_catalog = caching_catalog
+            .catalog
+            .as_any()
+            .downcast_ref::<IcebergCatalog>()?;
+        Some(iceberg_catalog.mirror())
     }
 
     /// The code below relies on [`Catalog`] trait for different iceberg catalog
@@ -472,7 +480,12 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
     pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
-        let Statement::Drop { object_type, .. } = statement.clone() else {
+        let Statement::Drop {
+            object_type,
+            cascade,
+            ..
+        } = statement.clone()
+        else {
             return ex_error::OnlyDropStatementsSnafu.fail();
         };
 
@@ -493,7 +506,7 @@ impl UserQuery {
 
         let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, catalog_name.to_string(), plan)
+            .resolve_iceberg_catalog_or_execute(catalog.clone(), catalog_name.to_string(), plan)
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -530,6 +543,11 @@ impl UserQuery {
                         .drop_namespace(namespace)
                         .await
                         .context(ex_error::IcebergSnafu)?;
+                    if Self::get_iceberg_mirror(&catalog).is_some() {
+                        catalog
+                            .deregister_schema(&schema_name.clone(), cascade)
+                            .context(ex_error::DataFusionSnafu)?;
+                    }
                     self.refresh_catalog_partially(CachedEntity::Schema(MetastoreSchemaIdent {
                         database: catalog_name.to_string(),
                         schema: schema_name,
@@ -1168,7 +1186,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&ident.database)?;
 
         let downcast_result = self
-            .resolve_iceberg_catalog_or_execute(catalog, ident.database.clone(), plan)
+            .resolve_iceberg_catalog_or_execute(catalog.clone(), ident.database.clone(), plan)
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -1201,6 +1219,14 @@ impl UserQuery {
             .create_namespace(&namespace, None)
             .await
             .context(ex_error::IcebergSnafu)?;
+        if let Some(mirror) = Self::get_iceberg_mirror(&catalog) {
+            catalog
+                .register_schema(
+                    &namespace.to_string(),
+                    Arc::new(IcebergSchema::new(namespace.clone(), mirror)),
+                )
+                .context(ex_error::DataFusionSnafu)?;
+        }
 
         self.refresh_catalog_partially(CachedEntity::Schema(ident))
             .await?;
