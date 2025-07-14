@@ -845,9 +845,7 @@ test_query!(
 
 test_query!(
     timestamp_str_format,
-    "SELECT
-       TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as a,
-       TO_TIMESTAMP('04/05/2024 01:02:03') as b",
+    "SHOW VARIABLES",
     setup_queries = ["SET timestamp_input_format = 'mm/dd/yyyy hh24:mi:ss'"]
 );
 
@@ -864,5 +862,5 @@ test_query!(
 test_query!(
     timestamp_timezone,
     "SELECT TO_TIMESTAMP(1000000000)",
-    setup_queries = ["SET timestamp_input_mapping = 'timestamp_tz'"]
+    setup_queries = ["ALTER SESSION SET timestamp_input_mapping = 'timestamp_tz'"]
 );

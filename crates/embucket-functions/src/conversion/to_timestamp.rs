@@ -12,7 +12,7 @@ use datafusion_common::arrow::array::{
     ArrayRef, TimestampMicrosecondBuilder, TimestampSecondBuilder,
 };
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
-use datafusion_common::{ScalarValue, exec_err, internal_err};
+use datafusion_common::{ScalarValue, internal_err};
 
 use crate::conversion_errors::{
     ArgumentTwoNeedsToBeIntegerSnafu, CantAddLocalTimezoneSnafu, CantCastToSnafu,
@@ -44,7 +44,7 @@ macro_rules! build_from_int_scale {
                 if let ScalarValue::Int64(Some(v)) = &scale {
                     *v
                 } else {
-                    return exec_err!("Second argument must integer");
+                    return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
                 }
             } else {
                 0
@@ -158,7 +158,8 @@ macro_rules! build_from_int_string {
                                 .and_utc()
                                 .timestamp_nanos_opt()
                                 .ok_or_else(|| CantGetTimestampSnafu.build())?,
-                            Err(_) => string_to_timestamp_nanos(s.as_str())?,
+                            Err(_) => {
+                                string_to_timestamp_nanos(s.as_str())?},
                         };
 
                         let t = if let Some(tz) = $tz {

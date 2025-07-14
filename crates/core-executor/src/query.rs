@@ -53,8 +53,8 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType,
-    LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and, build_join_schema,
-    is_null, lit, or, when,
+    LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
+    build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -69,6 +69,7 @@ use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
+    json_element, qualify_in_query, select_expr_aliases, table_functions, timestamp, top_limit,
     json_element, qualify_in_query, select_expr_aliases, table_functions,
     table_functions_cte_relation, top_limit,
     json_element, qualify_in_query, select_expr_aliases, table_functions, top_limit,
@@ -228,11 +229,11 @@ impl UserQuery {
 
     fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
         {
-            // https://docs.snowflake.com/en/sql-reference/parameters
             let format = self
                 .session
                 .get_session_variable("timestamp_input_format")
                 .unwrap_or("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
+            panic!("{:?}", &format);
             let tz = self
                 .session
                 .get_session_variable("timezone")
@@ -243,48 +244,35 @@ impl UserQuery {
                 .get_session_variable("timestamp_input_mapping")
                 .unwrap_or("timestamp_ntz".to_string());
 
-            if mapping != "timestamp_ntz" {
+            self.session
+                .ctx
+                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
+                    if mapping != "timestamp_ntz" {
+                        Some(Arc::from(tz.clone()))
+                    } else {
+                        None
+                    },
+                    format.clone(),
+                    "to_timestamp".to_string(),
+                )));
+
+            let funcs = [
+                (None, "to_timestamp_ntz".to_string()),
+                (Some(Arc::from(tz.clone())), "to_timestamp_tz".to_string()),
+                (Some(Arc::from(tz.clone())), "to_timestamp_ltz".to_string()),
+            ];
+
+            for func in funcs {
                 self.session
                     .ctx
                     .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                        Some(Arc::from(tz.clone())),
+                        func.0,
                         format.clone(),
-                        "to_timestamp".to_string(),
-                    )));
-            } else {
-                self.session
-                    .ctx
-                    .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                        None,
-                        format.clone(),
-                        "to_timestamp".to_string(),
+                        func.1,
                     )));
             }
-
-            self.session
-                .ctx
-                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    None,
-                    format.clone(),
-                    "to_timestamp_ntz".to_string(),
-                )));
-            self.session
-                .ctx
-                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    Some(Arc::from(tz.clone())),
-                    format.clone(),
-                    "to_timestamp_tz".to_string(),
-                )));
-            self.session
-                .ctx
-                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    Some(Arc::from(tz.clone())),
-                    format.clone(),
-                    "to_timestamp_ltz".to_string(),
-                )));
         }
 
-        // self.session.ctx.register_udf()
         let current_database = self.current_database();
         let schemas: Vec<String> = self
             .session
