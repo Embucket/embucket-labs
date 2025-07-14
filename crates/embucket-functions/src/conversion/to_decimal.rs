@@ -41,6 +41,60 @@ impl ToDecimalFunc {
             r#try,
         }
     }
+    fn get_precision_checked(precision: &ScalarValue) -> DFResult<u8> {
+        let precision = match precision {
+            ScalarValue::Int64(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::Int32(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::Int16(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::Int8(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::UInt64(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::UInt32(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::UInt16(Some(precision)) => u8::try_from(*precision),
+            ScalarValue::UInt8(Some(precision)) => Ok(*precision),
+            _ => {
+                return internal_err!(
+                    "invalid precision number (only allowed from 0 to 38): {}",
+                    precision
+                );
+            }
+        };
+        let Ok(precision) = precision else {
+            return internal_err!("invalid precision number (only allowed from 0 to 38)");
+        };
+        if (1..=38).contains(&precision) {
+            //TODO: error
+        }
+        Ok(precision)
+    }
+    #[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
+    fn get_scale_checked(scale: &ScalarValue, precision: u8) -> DFResult<i8> {
+        let scale = match scale {
+            ScalarValue::Int64(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::Int32(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::Int16(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::Int8(Some(scale)) => Ok(*scale),
+            ScalarValue::UInt64(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::UInt32(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::UInt16(Some(scale)) => i8::try_from(*scale),
+            ScalarValue::UInt8(Some(scale)) => i8::try_from(*scale),
+            _ => {
+                return internal_err!(
+                    "invalid precision number (only allowed from 0 to 38): {}",
+                    precision
+                );
+            }
+        };
+        let Ok(scale) = scale else {
+            return internal_err!(
+                "invalid precision number (only allowed from 0 to 38): {}",
+                precision
+            );
+        };
+        if 0 <= scale && (precision - 1) as i8 >= scale {
+            //TODO: error
+        }
+        Ok(scale)
+    }
 }
 
 impl ScalarUDFImpl for ToDecimalFunc {
@@ -75,13 +129,8 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 Some(
                     ScalarValue::Utf8(..) | ScalarValue::Utf8View(..) | ScalarValue::LargeUtf8(..),
                 ) => Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true)),
-                Some(ScalarValue::Int64(Some(precision))) => {
-                    let Ok(precision) = u8::try_from(*precision) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to 38): {}",
-                            precision
-                        );
-                    };
+                Some(precision) => {
+                    let precision = Self::get_precision_checked(precision)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(precision, 0), true))
                 }
                 other => {
@@ -95,32 +144,14 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         | ScalarValue::Utf8View(..)
                         | ScalarValue::LargeUtf8(..),
                     ),
-                    Some(ScalarValue::Int64(Some(precision))),
+                    Some(precision),
                 ] => {
-                    let Ok(precision) = u8::try_from(*precision) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to 38): {}",
-                            precision
-                        );
-                    };
+                    let precision = Self::get_precision_checked(precision)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(precision, 0), true))
                 }
-                [
-                    Some(ScalarValue::Int64(Some(precision))),
-                    Some(ScalarValue::Int64(Some(scale))),
-                ] => {
-                    let Ok(precision) = u8::try_from(*precision) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to 38): {}",
-                            precision
-                        );
-                    };
-                    let Ok(scale) = i8::try_from(*scale) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to <precision> - 1): {}",
-                            scale
-                        );
-                    };
+                [Some(precision), Some(scale)] => {
+                    let precision = Self::get_precision_checked(precision)?;
+                    let scale = Self::get_scale_checked(scale, precision)?;
                     Ok(ReturnInfo::new(
                         DataType::Decimal128(precision, scale),
                         true,
@@ -132,22 +163,9 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 [..] => unreachable!(),
             },
             4 => match &args.scalar_arguments[2..=3] {
-                [
-                    Some(ScalarValue::Int64(Some(precision))),
-                    Some(ScalarValue::Int64(Some(scale))),
-                ] => {
-                    let Ok(precision) = u8::try_from(*precision) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to 38): {}",
-                            precision
-                        );
-                    };
-                    let Ok(scale) = i8::try_from(*scale) else {
-                        return internal_err!(
-                            "invalid precision number (only allowed from 0 to <precision> - 1): {}",
-                            scale
-                        );
-                    };
+                [Some(precision), Some(scale)] => {
+                    let precision = Self::get_precision_checked(precision)?;
+                    let scale = Self::get_scale_checked(scale, precision)?;
                     Ok(ReturnInfo::new(
                         DataType::Decimal128(precision, scale),
                         true,
