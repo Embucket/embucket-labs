@@ -69,10 +69,9 @@ use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, qualify_in_query, select_expr_aliases, table_functions, timestamp, top_limit,
-    json_element, qualify_in_query, select_expr_aliases, table_functions,
+    timestamp,
     table_functions_cte_relation, top_limit,
-    json_element, qualify_in_query, select_expr_aliases, table_functions, top_limit,
+    json_element, qualify_in_query, select_expr_aliases, table_functions,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -233,7 +232,7 @@ impl UserQuery {
                 .session
                 .get_session_variable("timestamp_input_format")
                 .unwrap_or("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
-            panic!("{:?}", &format);
+            println!("{:?}", &format);
             let tz = self
                 .session
                 .get_session_variable("timezone")
@@ -247,15 +246,11 @@ impl UserQuery {
             self.session
                 .ctx
                 .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    if mapping != "timestamp_ntz" {
-                        Some(Arc::from(tz.clone()))
-                    } else {
-                        None
-                    },
+                    None,
                     format.clone(),
-                    "to_timestamp".to_string(),
+                    "to_timestampd".to_string(),
                 )));
-
+/*
             let funcs = [
                 (None, "to_timestamp_ntz".to_string()),
                 (Some(Arc::from(tz.clone())), "to_timestamp_tz".to_string()),
@@ -270,7 +265,7 @@ impl UserQuery {
                         format.clone(),
                         func.1,
                     )));
-            }
+            }*/
         }
 
         let current_database = self.current_database();

@@ -845,7 +845,9 @@ test_query!(
 
 test_query!(
     timestamp_str_format,
-    "SHOW VARIABLES",
+     "SELECT
+       TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as a,
+       TO_TIMESTAMP('04/05/2024 01:02:03') as b",
     setup_queries = ["SET timestamp_input_format = 'mm/dd/yyyy hh24:mi:ss'"]
 );
 

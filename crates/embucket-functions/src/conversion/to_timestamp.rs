@@ -215,6 +215,7 @@ impl Default for ToTimestampFunc {
 impl ToTimestampFunc {
     #[must_use]
     pub fn new(timezone: Option<Arc<str>>, format: String, name: String) -> Self {
+        dbg!("!!",&format);
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
             timezone,
@@ -323,6 +324,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
         clippy::cast_possible_truncation
     )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        dbg!(&self.format);
         let ScalarFunctionArgs { args, .. } = args;
 
         let arr = match args[0].clone() {
