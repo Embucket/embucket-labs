@@ -1,6 +1,6 @@
 import React from 'react';
 
-// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import ReactDOM from 'react-dom/client';
 import { Toaster } from 'sonner';
 
@@ -22,7 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </AuthProvider>
         <Toaster richColors />
       </ThemeProvider>
-      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+      <ReactQueryDevtools initialIsOpen={false} />
     </ReactQueryProvider>
   </React.StrictMode>,
 );

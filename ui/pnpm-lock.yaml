@@ -101,9 +101,6 @@ importers:
       '@tidbcloud/codemirror-extension-events':
         specifier: ^0.0.7
         version: 0.0.7(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
-      '@tidbcloud/codemirror-extension-linters':
-        specifier: ^0.0.6
-        version: 0.0.6(@codemirror/lang-sql@6.9.0)(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
       '@tidbcloud/codemirror-extension-save-helper':
         specifier: ^0.0.6
         version: 0.0.6(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
@@ -1868,14 +1865,6 @@ packages:
   '@tidbcloud/codemirror-extension-events@0.0.7':
     resolution: {integrity: sha512-uHZtFkH6Sn0RoXqq3K0Lhd4u5q4+/jRPNJamqtvYN7ReUCuY9NecXv0l42wKYayAjYaLTB+sKY90fsZt9vvzow==}
     peerDependencies:
-      '@codemirror/state': ^6.4.1
-      '@codemirror/view': ^6.26.3
-
-  '@tidbcloud/codemirror-extension-linters@0.0.6':
-    resolution: {integrity: sha512-kXf5Vg0gxjeAOCPuGzQl78q7qjNpfrOB39dtPmiu+p8B4vFlSJZAzAGXS/6wBuAeH6MP75zUVgjXxalQbL1trQ==}
-    peerDependencies:
-      '@codemirror/lang-sql': ^6.6.4
-      '@codemirror/lint': ^6.8.0
       '@codemirror/state': ^6.4.1
       '@codemirror/view': ^6.26.3
 
@@ -6120,16 +6109,6 @@ snapshots:
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.0
-
-  '@tidbcloud/codemirror-extension-linters@0.0.6(@codemirror/lang-sql@6.9.0)(@codemirror/language@6.11.2)(@codemirror/lint@6.8.5)(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)':
-    dependencies:
-      '@codemirror/lang-sql': 6.9.0
-      '@codemirror/lint': 6.8.5
-      '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.38.0
-      '@tidbcloud/codemirror-extension-sql-parser': 0.0.6(@codemirror/lang-sql@6.9.0)(@codemirror/language@6.11.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
-    transitivePeerDependencies:
-      - '@codemirror/language'
 
   '@tidbcloud/codemirror-extension-save-helper@0.0.6(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)':
     dependencies:

@@ -100,32 +100,7 @@ const chalky = '#e5c07b',
   malibu = '#61afef',
   sage = '#98c379',
   whiskey = '#d19a66',
-  violet = '#c678dd',
-  darkBackground = '#21252b',
-  highlightBackground = '#2c313a',
-  background = '#282c34',
-  tooltipBackground = '#353a42',
-  selection = '#3E4451',
-  cursor = '#528bff';
-
-export const color = {
-  chalky,
-  coral,
-  cyan,
-  invalid,
-  ivory,
-  stone,
-  malibu,
-  sage,
-  whiskey,
-  violet,
-  darkBackground,
-  highlightBackground,
-  background,
-  tooltipBackground,
-  selection,
-  cursor,
-};
+  violet = '#c678dd';
 
 const oneDarkHighlightStyle = HighlightStyle.define([
   { tag: t.keyword, color: violet },

@@ -7,7 +7,7 @@ import type { SelectedTree } from '../shared/trees/trees-items';
 
 export type LeftPanelTab = 'databases' | 'worksheets';
 
-export interface SqlEditorContext {
+interface SqlEditorContext {
   database: string;
   schema: string;
 }
