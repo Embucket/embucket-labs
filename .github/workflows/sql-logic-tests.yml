@@ -133,3 +133,12 @@ jobs:
         
           # Push to the existing assets branch
           git push origin assets
+
+      # Combine historical SLT results and upload to Embucket
+      - name: Combine Historical SLT Results and Upload to Embucket
+        run: |
+          git checkout main
+
+          python test/combine_historical_slt_results_and_upload_to_embucket.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
