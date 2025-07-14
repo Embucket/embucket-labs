@@ -583,12 +583,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/st_geometryfromwkt")
     .with_subcategory("geospatial")
     ),
-    ("TO_DECIMAL", FunctionInfo::new(
-        "TO_DECIMAL",
-        "Converts an input expression to a fixed-point number."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_decimal")
-    ),
     ("TO_DOUBLE", FunctionInfo::new(
         "TO_DOUBLE",
         "Converts an expression to a double-precision floating-point number."
@@ -615,18 +609,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_json")
     .with_subcategory("semi-structured")
-    ),
-    ("TO_NUMBER", FunctionInfo::new(
-        "TO_NUMBER",
-        "Converts an input expression to a fixed-point number."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_decimal")
-    ),
-    ("TO_NUMERIC", FunctionInfo::new(
-        "TO_NUMERIC",
-        "Converts an input expression to a fixed-point number."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_decimal")
     ),
     ("TO_OBJECT", FunctionInfo::new(
         "TO_OBJECT",
@@ -661,12 +643,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_date")
     .with_subcategory("datetime")
     ),
-    ("TRY_TO_DECIMAL", FunctionInfo::new(
-        "TRY_TO_DECIMAL",
-        "A special version of TO_DECIMAL , TO_NUMBER , TO_NUMERIC that performs the same operation (i.e. converts an input expression to a fixed-point number), but with error-handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal")
-    ),
     ("TRY_TO_DOUBLE", FunctionInfo::new(
         "TRY_TO_DOUBLE",
         "A special version of TO_DOUBLE that performs the same operation (that is, converts an input expression to a double-precision floating-point number), but with error-handling support (that is, if the conversion can’t be performed, it returns a NULL value instead of raising an error)."
@@ -686,18 +662,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_geometry")
     .with_subcategory("geospatial")
-    ),
-    ("TRY_TO_NUMBER", FunctionInfo::new(
-        "TRY_TO_NUMBER",
-        "A special version of TO_DECIMAL , TO_NUMBER , TO_NUMERIC that performs the same operation (i.e. converts an input expression to a fixed-point number), but with error-handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal")
-    ),
-    ("TRY_TO_NUMERIC", FunctionInfo::new(
-        "TRY_TO_NUMERIC",
-        "A special version of TO_DECIMAL , TO_NUMBER , TO_NUMERIC that performs the same operation (i.e. converts an input expression to a fixed-point number), but with error-handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_decimal")
     ),
     ("TRY_TO_TIMESTAMP", FunctionInfo::new(
         "TRY_TO_TIMESTAMP",

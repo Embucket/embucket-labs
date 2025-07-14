@@ -373,8 +373,11 @@ to_binary
 to_boolean
 to_char
 to_date
+to_decimal
 to_hex
 to_local_time
+to_number
+to_numeric
 to_time
 to_timestamp
 to_timestamp_micros
@@ -390,6 +393,9 @@ trunc
 try_parse_json
 try_to_binary
 try_to_boolean
+try_to_decimal
+try_to_number
+try_to_numeric
 try_to_time
 typeof
 union_extract
