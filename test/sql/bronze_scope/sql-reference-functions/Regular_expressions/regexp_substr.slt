@@ -1,6 +1,6 @@
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')
@@ -16,7 +16,7 @@ SELECT id,
 
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')
@@ -32,7 +32,7 @@ SELECT id,
 
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')

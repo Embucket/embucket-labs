@@ -1,6 +1,6 @@
 query TTTT
 WITH avg_example(int_col, d, s1, s2) AS (
-    SELECT $1, $2, $3, $4 FROM VALUES
+    SELECT * FROM VALUES
         (1, 1.1, '1.1', 'one'),
         (1, 10, '10', 'ten'),
         (2, 2.4, '2.4', 'two'),
@@ -21,7 +21,7 @@ NULL	9.9	9.9	nine
 
 query TT
 WITH avg_example(int_col, d, s1, s2) AS (
-    SELECT $1, $2, $3, $4 FROM VALUES
+    SELECT * FROM VALUES
         (1, 1.1, '1.1', 'one'),
         (1, 10, '10', 'ten'),
         (2, 2.4, '2.4', 'two'),
@@ -36,7 +36,7 @@ SELECT AVG(int_col), AVG(d)
 
 query TT
 WITH avg_example(int_col, d, s1, s2) AS (
-    SELECT $1, $2, $3, $4 FROM VALUES
+    SELECT * FROM VALUES
         (1, 1.1, '1.1', 'one'),
         (1, 10, '10', 'ten'),
         (2, 2.4, '2.4', 'two'),
@@ -56,7 +56,7 @@ NULL	9.9000000
 
 query TT
 WITH avg_example(int_col, d, s1, s2) AS (
-    SELECT $1, $2, $3, $4 FROM VALUES
+    SELECT * FROM VALUES
         (1, 1.1, '1.1', 'one'),
         (1, 10, '10', 'ten'),
         (2, 2.4, '2.4', 'two'),

@@ -1,6 +1,6 @@
 query T
 WITH employees(employee_id, department_id, salary) AS (
-  SELECT $1, $2, $3 FROM VALUES
+  SELECT * FROM VALUES
     (1001, 10, 10000),
     (1020, 10, 9000),
     (1030, 10, 8000),
@@ -15,7 +15,7 @@ SELECT MAX_BY(employee_id, salary) FROM employees;
 
 query T
 WITH employees(employee_id, department_id, salary) AS (
-  SELECT $1, $2, $3 FROM VALUES
+  SELECT * FROM VALUES
     (1001, 10, 10000),
     (1020, 10, 9000),
     (1030, 10, 8000),
