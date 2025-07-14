@@ -161,8 +161,6 @@ fn convert_into_status_code_and_error(error: core_executor::Error) -> (StatusCod
     let status_code = match error {
         core_executor::Error::Arrow { .. }
         | core_executor::Error::SerdeParse { .. }
-        | core_executor::Error::S3Tables { .. }
-        | core_executor::Error::Iceberg { .. }
         | core_executor::Error::CatalogListDowncast { .. }
         | core_executor::Error::CatalogDownCast { .. }
         | core_executor::Error::DataFusionLogicalPlanMergeTarget { .. }
