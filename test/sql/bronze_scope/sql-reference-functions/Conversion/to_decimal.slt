@@ -1,11 +1,10 @@
-exclude-from-coverage
 statement error
 WITH number_conv AS (
   SELECT column1 as expr FROM VALUES ('12.3456'), ('98.76546')
 )
 SELECT expr, TO_NUMBER(expr, 10, 9) FROM number_conv
 ----
-100039 (22003): Numeric value '12.3456' is out of range
+Error occurred: 000200: 200: Arrow error: Invalid argument error: 12345600000 is too large to store in a Decimal128 of precision 10. Max is 9999999999
 
 query TTTT
 WITH input_values AS (
@@ -36,13 +35,13 @@ SELECT column1,
 ----
 $3,741.72	3741.72
 
-query T
+statement error
 SELECT TO_DECIMAL('ae5', 'XXX')
 ----
-2789
+Error occurred: 000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
 
 statement error
 SELECT TO_DECIMAL('ae5', 'XX')
 ----
-100140 (22007): Can't parse 'ae5' as number with format 'XX'
+Error occurred: 000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
 

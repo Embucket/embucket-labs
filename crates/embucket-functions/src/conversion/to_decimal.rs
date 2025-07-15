@@ -216,43 +216,46 @@ impl ScalarUDFImpl for ToDecimalFunc {
             ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
         };
 
-        let format = &args.args[1];
-        let format = match format {
-            ColumnarValue::Scalar(
-                ScalarValue::Utf8(Some(str))
-                | ScalarValue::Utf8View(Some(str))
-                | ScalarValue::LargeUtf8(Some(str)),
-            ) => Some(str.as_str()),
-            ColumnarValue::Scalar(
-                ScalarValue::Int64(Some(_))
-                | ScalarValue::Int32(Some(_))
-                | ScalarValue::Int16(Some(_))
-                | ScalarValue::Int8(Some(_))
-                | ScalarValue::UInt64(Some(_))
-                | ScalarValue::UInt32(Some(_))
-                | ScalarValue::UInt16(Some(_))
-                | ScalarValue::UInt8(Some(_))
-                | ScalarValue::Float64(Some(_))
-                | ScalarValue::Float32(Some(_)),
-            ) => None,
-            other => {
-                let other_array = match other {
-                    ColumnarValue::Array(array) => array,
-                    ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
-                };
-                return conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                    data_type: other_array.data_type().clone(),
-                    position: 2usize,
+        let format = if args.args.len() > 1 {
+            match &args.args[1] {
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(str))
+                    | ScalarValue::Utf8View(Some(str))
+                    | ScalarValue::LargeUtf8(Some(str)),
+                ) => Some(str.as_str()),
+                ColumnarValue::Scalar(
+                    ScalarValue::Int64(Some(_))
+                    | ScalarValue::Int32(Some(_))
+                    | ScalarValue::Int16(Some(_))
+                    | ScalarValue::Int8(Some(_))
+                    | ScalarValue::UInt64(Some(_))
+                    | ScalarValue::UInt32(Some(_))
+                    | ScalarValue::UInt16(Some(_))
+                    | ScalarValue::UInt8(Some(_))
+                    | ScalarValue::Float64(Some(_))
+                    | ScalarValue::Float32(Some(_)),
+                ) => None,
+                other => {
+                    let other_array = match other {
+                        ColumnarValue::Array(array) => array,
+                        ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
+                    };
+                    return conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                        data_type: other_array.data_type().clone(),
+                        position: 2usize,
+                    }
+                    .fail()?;
                 }
-                .fail()?;
             }
+        } else {
+            None
         };
 
         //TODO: should we have type info as before, good datapoint to think about on other types, functions, etc
-        let format_options = FormatOptions::default()
-            //TODO: override NULL formatting is not working, expected? Visitor somewhere?
-            .with_null("NULL")
-            .with_types_info(false);
+        let format_options = FormatOptions::default();
+        //TODO: override NULL formatting is not working, expected? Visitor somewhere?
+        // .with_null("NULL")
+        // .with_types_info(false);
 
         let result_array = match array.data_type() {
             DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8 => {
@@ -260,30 +263,35 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     Some(format) => {
                         //TODO: needs logic for binary string with binary formatting and variant types
                         let array: &StringArray = array.as_any().downcast_ref().unwrap();
-                        let values: Vec<_> = array.iter().collect();
+
+                        let values: Vec<Option<String>> = array
+                            .into_iter()
+                            .map(|opt| opt.map(|str| str.replace(' ', "")))
+                            .collect();
+
                         let values = if format.starts_with('$') {
                             values
-                                .iter()
+                                .into_iter()
                                 .map(|opt| {
                                     opt.map(|str| {
-                                        str.strip_prefix('$')
-                                            .map_or_else(|| str, |stripped| stripped)
+                                        str.strip_prefix('$').map_or_else(
+                                            || str.to_string(),
+                                            std::string::ToString::to_string,
+                                        )
                                     })
                                 })
                                 .collect()
                         } else {
                             values
                         };
+
                         let values: Vec<_> = if format.contains(',') {
                             values
-                                .iter()
+                                .into_iter()
                                 .map(|opt| opt.as_ref().map(|str| str.replace(',', "")))
                                 .collect()
                         } else {
                             values
-                                .iter()
-                                .map(|opt| opt.map(ToString::to_string))
-                                .collect()
                         };
 
                         Arc::new(StringArray::from(values))
