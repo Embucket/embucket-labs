@@ -163,6 +163,7 @@ get_ignore_case
 get_path
 greatest
 grouping
+hex_encode
 iff
 ifnull
 initcap
