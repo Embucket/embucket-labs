@@ -4,7 +4,7 @@ WITH number_conv AS (
 )
 SELECT expr, TO_NUMBER(expr, 10, 9) FROM number_conv
 ----
-Error occurred: 000200: 200: Arrow error: Invalid argument error: 12345600000 is too large to store in a Decimal128 of precision 10. Max is 9999999999
+000200: 200: Arrow error: Invalid argument error: 12345600000 is too large to store in a Decimal128 of precision 10. Max is 9999999999
 
 query TTTT
 WITH input_values AS (
@@ -38,10 +38,10 @@ $3,741.72	3741.72
 statement error
 SELECT TO_DECIMAL('ae5', 'XXX')
 ----
-Error occurred: 000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
+000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
 
 statement error
 SELECT TO_DECIMAL('ae5', 'XX')
 ----
-Error occurred: 000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
+000200: 200: Arrow error: Cast error: Cannot cast string 'ae5' to value of Decimal128(38, 10) type
 
