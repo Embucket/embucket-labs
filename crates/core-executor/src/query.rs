@@ -199,7 +199,7 @@ impl UserQuery {
             catalog_list_impl
                 .drop_catalog(catalog, cascade)
                 .await
-                .context(ex_error::DropCatalogSnafu)?;
+                .context(ex_error::DropDatabaseSnafu)?;
         }
         Ok(())
     }
@@ -217,7 +217,7 @@ impl UserQuery {
             catalog_list_impl
                 .create_catalog(catalog, volume)
                 .await
-                .context(ex_error::DropCatalogSnafu)?;
+                .context(ex_error::CreateDatabaseSnafu)?;
         }
         Ok(())
     }
@@ -1196,10 +1196,11 @@ impl UserQuery {
         if_not_exists: bool,
         external_volume: Option<String>,
     ) -> Result<QueryResult> {
-        if external_volume.is_none() {
-            return ex_error::ExternalVolumeRequiredForCreateDatabaseSnafu.fail();
-        }
         let catalog_name = object_name_to_string(&db_name);
+        if external_volume.is_none() {
+            return ex_error::ExternalVolumeRequiredForCreateDatabaseSnafu { name: catalog_name }
+                .fail();
+        }
         let catalog_exist = self.get_catalog(&catalog_name).is_ok();
         if catalog_exist {
             if if_not_exists {

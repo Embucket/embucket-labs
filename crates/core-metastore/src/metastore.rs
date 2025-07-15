@@ -414,6 +414,7 @@ impl Metastore for SlateDBMetastore {
             futures::future::try_join_all(futures).await?;
         } else if !schemas.is_empty() {
             return Err(metastore_error::DatabaseInUseSnafu {
+                database: name,
                 schema: schemas
                     .iter()
                     .map(|s| s.ident.schema.clone())

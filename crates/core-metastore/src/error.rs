@@ -182,8 +182,9 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Database in use by schema(s): {schema}"))]
+    #[snafu(display("Database {database} in use by schema(s): {schema}"))]
     DatabaseInUse {
+        database: String,
         schema: String,
         #[snafu(implicit)]
         location: Location,

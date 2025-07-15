@@ -151,7 +151,7 @@ impl EmbucketCatalogList {
             VolumeType::S3Tables(_) => {
                 return NotImplementedSnafu {
                     feature: UnsupportedFeature::CreateS3TablesDatabase,
-                    details: "Create S3 tables catalogs is not supported",
+                    details: "Creating an S3 table catalog is not supported",
                 }
                 .fail();
             }

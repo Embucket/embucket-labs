@@ -277,14 +277,23 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Failed to create database without external volume"))]
+    #[snafu(display("Failed to create database '{name}' without external volume"))]
     ExternalVolumeRequiredForCreateDatabase {
+        name: String,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Failed to drop catalog: {source}"))]
-    DropCatalog {
+    #[snafu(display("Failed to drop database: {source}"))]
+    DropDatabase {
+        #[snafu(source(from(CatalogError, Box::new)))]
+        source: Box<CatalogError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to create database: {source}"))]
+    CreateDatabase {
         #[snafu(source(from(CatalogError, Box::new)))]
         source: Box<CatalogError>,
         #[snafu(implicit)]
