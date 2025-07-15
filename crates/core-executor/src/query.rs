@@ -5,7 +5,9 @@ use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
 };
 use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
+use super::error::{
+    self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
+};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
@@ -727,7 +729,7 @@ impl UserQuery {
                     .context(ex_error::IcebergSnafu)?;
             } else {
                 return ex_error::ObjectAlreadyExistsSnafu {
-                    type_name: "table".to_string(),
+                    r#type: ExistingObjectType::Table,
                     name: ident.to_string(),
                 }
                 .fail();
@@ -1207,7 +1209,7 @@ impl UserQuery {
                 return self.created_entity_response();
             }
             return ex_error::ObjectAlreadyExistsSnafu {
-                type_name: "database".to_string(),
+                r#type: ExistingObjectType::Database,
                 name: catalog_name,
             }
             .fail();
@@ -1257,7 +1259,7 @@ impl UserQuery {
                 return self.created_entity_response();
             }
             return ex_error::ObjectAlreadyExistsSnafu {
-                type_name: "schema".to_string(),
+                r#type: ExistingObjectType::Schema,
                 name: ident.schema,
             }
             .fail();
