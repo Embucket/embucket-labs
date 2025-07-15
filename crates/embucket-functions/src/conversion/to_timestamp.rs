@@ -365,6 +365,10 @@ impl ScalarUDFImpl for ToTimestampFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
+        if self.name=="to_timestamp_tz"{
+            dbg!(&self.timezone);
+        }
+
         Ok(match arr.data_type() {
             DataType::Int64 => {
                 build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array)
@@ -451,6 +455,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Utf8 => {
+                let a = build_from_int_string!(
+                    &self.format,
+                    self.timezone.clone(),
+                    args,
+                    arr,
+                    StringArray,
+                    self.r#try
+                );
+                dbg!(a);
                 build_from_int_string!(
                     &self.format,
                     self.timezone.clone(),
@@ -461,6 +474,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 )
             }
             DataType::Utf8View => {
+                let a = build_from_int_string!(
+                    &self.format,
+                    self.timezone.clone(),
+                    args,
+                    arr,
+                    StringViewArray,
+                    self.r#try
+                );
+                dbg!(a);
                 build_from_int_string!(
                     &self.format,
                     self.timezone.clone(),

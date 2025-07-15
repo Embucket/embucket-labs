@@ -226,8 +226,6 @@ impl UserQuery {
     }
 
     fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
-        self.register_udfs();
-
         let current_database = self.current_database();
         let schemas: Vec<String> = self
             .session
@@ -252,7 +250,7 @@ impl UserQuery {
         }
     }
 
-    fn register_udfs(&self) {
+    fn register_session_udfs(&self) {
         // TO_TIMESTAMP
         let format = self
             .session
@@ -321,6 +319,7 @@ impl UserQuery {
                     name,
                 )));
         }
+
     }
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
@@ -354,6 +353,7 @@ impl UserQuery {
     pub async fn execute(&mut self) -> Result<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
+        self.register_session_udfs();
 
         // Record the result as part of the current span.
         tracing::Span::current().record("statement", format!("{statement:#?}"));
@@ -1761,6 +1761,7 @@ impl UserQuery {
             })
             .await
             .context(ex_error::JobSnafu)??;
+        dbg!(&stream);
         Ok(stream)
     }
 
