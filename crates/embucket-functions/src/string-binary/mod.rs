@@ -10,6 +10,7 @@ pub mod lower;
 pub mod rtrimmed_length;
 pub mod split;
 pub mod strtok;
+pub mod substr;
 
 pub use errors::Error;
 
@@ -22,6 +23,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         rtrimmed_length::get_udf(),
         split::get_udf(),
         strtok::get_udf(),
+        substr::get_udf(),
     ];
 
     for func in functions {

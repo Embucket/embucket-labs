@@ -59,6 +59,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid database identifier: {ident}"))]
+    InvalidDatabaseIdentifier {
+        ident: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid file path: {path}"))]
     InvalidFilePath {
         path: String,
@@ -265,6 +272,14 @@ pub enum Error {
 
     #[snafu(display("Failed to register catalog: {source}"))]
     RegisterCatalog {
+        #[snafu(source(from(CatalogError, Box::new)))]
+        source: Box<CatalogError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to drop catalog: {source}"))]
+    DropCatalog {
         #[snafu(source(from(CatalogError, Box::new)))]
         source: Box<CatalogError>,
         #[snafu(implicit)]

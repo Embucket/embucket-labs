@@ -31,6 +31,80 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display(
+        "The {function_name} function requires {expected} arguments, but got {actual}"
+    ))]
+    InvalidArgumentCount {
+        function_name: String,
+        expected: String,
+        actual: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "The {position} argument of the {function_name} function can only be {expected_type}, but got {actual_type:?}"
+    ))]
+    InvalidArgumentType {
+        function_name: String,
+        position: String,
+        expected_type: String,
+        actual_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to downcast to {array_type}"))]
+    FailedToDowncast {
+        array_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "Unsupported data type {data_type:?} for function {function_name}, expected {expected_types}"
+    ))]
+    UnsupportedDataType {
+        function_name: String,
+        data_type: String,
+        expected_types: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "negative substring length not allowed: {function_name}(<str>, {start}, {length})"
+    ))]
+    NegativeSubstringLength {
+        function_name: String,
+        start: i64,
+        length: i64,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "not enough arguments for function [{function_call}], expected {expected}, got {actual}"
+    ))]
+    NotEnoughArguments {
+        function_call: String,
+        expected: usize,
+        actual: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "too many arguments for function [{function_call}] expected {expected}, got {actual}"
+    ))]
+    TooManyArguments {
+        function_call: String,
+        expected: usize,
+        actual: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
@@ -41,9 +115,7 @@ pub enum Error {
 
 impl From<Error> for datafusion_common::DataFusionError {
     fn from(value: Error) -> Self {
-        Self::External(Box::new(crate::df_error::DFExternalError::StringBinary {
-            source: value,
-        }))
+        Self::External(Box::new(value))
     }
 }
 

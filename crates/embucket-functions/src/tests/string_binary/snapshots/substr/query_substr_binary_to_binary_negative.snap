@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/substr.rs
+description: "\"SELECT substr(to_binary('hello world'), -5, 4) as result\""
+---
+Ok(
+    [
+        "+----------+",
+        "| result   |",
+        "+----------+",
+        "| 776f726c |",
+        "+----------+",
+    ],
+)

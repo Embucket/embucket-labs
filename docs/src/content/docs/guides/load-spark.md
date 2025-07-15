@@ -26,8 +26,8 @@ services:
       - ./warehouse:/home/iceberg/warehouse
       - ./notebooks:/home/iceberg/notebooks/notebooks
     environment:
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - AWS_REGION=us-east-2
       - SPARK_DRIVER_MEMORY=16g
       - SPARK_EXECUTOR_MEMORY=16g
@@ -47,8 +47,8 @@ services:
         spark.sql.catalog.demo.io-impl         org.apache.iceberg.aws.s3.S3FileIO \\n
         spark.sql.catalog.demo.warehouse       demo \\n
         spark.sql.catalog.demo.cache-enabled   false \\n
-        spark.sql.catalog.demo.rest.access-key-id  minioadmin \\n
-        spark.sql.catalog.demo.rest.secret-access-key minioadmin \\n
+        spark.sql.catalog.demo.rest.access-key-id  AKIAIOSFODNN7EXAMPLE \\n
+        spark.sql.catalog.demo.rest.secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \\n
         spark.sql.catalog.demo.rest.signing-region us-east-2 \\n
         spark.sql.catalog.demo.rest.sigv4-enabled  true \\n
         spark.sql.catalog.demo.s3.endpoint     http://warehouse.minio:9000 \\n
@@ -72,8 +72,8 @@ services:
     environment:
       - OBJECT_STORE_BACKEND=s3
       - SLATEDB_PREFIX=data/
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - AWS_REGION=us-east-2
       - S3_BUCKET=mybucket
       - S3_ENDPOINT=http://warehouse.minio:9000
@@ -85,8 +85,8 @@ services:
     image: minio/minio
     container_name: minio
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
+      - MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     volumes:
       - ./warehouse:/warehouse
     networks:
@@ -105,12 +105,12 @@ services:
     networks:
       iceberg_net:
     environment:
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - AWS_REGION=us-east-2
     entrypoint: >
       /bin/sh -c "
-      until (/usr/bin/mc alias set minio http://warehouse.minio:9000 minioadmin minioadmin) do echo '...waiting...' && sleep 1; done;
+      until (/usr/bin/mc alias set minio http://warehouse.minio:9000 AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) do echo '...waiting...' && sleep 1; done;
       /usr/bin/mc rm -r --force minio/mybucket;
       /usr/bin/mc mb minio/mybucket;
       /usr/bin/mc anonymous set public minio/mybucket;
@@ -143,7 +143,7 @@ In this guide we will first create a S3 based volume that we will use to store d
 An example with `httpie` utility:
 
 ```bash
-$ http http://localhost:3000/v1/metastore/volumes ident=demo type=s3 credentials:='{"credential_type":"access_key","aws-access-key-id":"minioadmin","aws-secret-access-key":"minioadmin"}' bucket=mybucket endpoint='http://warehouse.minio:9000'
+$ http http://localhost:3000/v1/metastore/volumes ident=demo type=s3 credentials:='{"credential_type":"access_key","aws-access-key-id":"AKIAIOSFODNN7EXAMPLE","aws-secret-access-key":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}' bucket=mybucket endpoint='http://warehouse.minio:9000'
 ```
 
 Next, we will create a database. This can be done either in the UI or using the internal API.

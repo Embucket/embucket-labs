@@ -29,6 +29,7 @@ pub mod df_error;
 // #[cfg(feature = "geospatial")]
 // pub mod geospatial;
 pub mod encryption;
+pub mod expr_planner;
 mod json;
 pub mod numeric;
 #[path = "semi-structured/mod.rs"]

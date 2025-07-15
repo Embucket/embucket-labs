@@ -1,3 +1,4 @@
+use crate::expr_planner::CustomExprPlanner;
 use crate::session::register_session_context_udfs;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
@@ -19,6 +20,7 @@ pub fn create_session() -> Arc<SessionContext> {
                 ),
         )
         .with_default_features()
+        .with_expr_planners(vec![Arc::new(CustomExprPlanner)])
         .build();
     let mut ctx = SessionContext::new_with_state(state);
     register_session_context_udfs(&mut ctx).unwrap();

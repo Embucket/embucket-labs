@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/substr.rs
+description: "\"SELECT substr(to_binary('café☕test'), 4, 5) as result\""
+---
+Ok(
+    [
+        "+------------+",
+        "| result     |",
+        "+------------+",
+        "| c3a9e29895 |",
+        "+------------+",
+    ],
+)

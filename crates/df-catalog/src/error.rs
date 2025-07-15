@@ -79,4 +79,10 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Feature not implemented: '{details:?}'"))]
+    NotImplemented {
+        details: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
