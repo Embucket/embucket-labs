@@ -3,5 +3,5 @@ source: crates/core-executor/src/tests/query.rs
 description: "\"DROP DATABASE embucket\""
 ---
 Err(
-    "Error: Failed to drop catalog: Metastore error: Database in use by schema(s): public",
+    "Error: Failed to drop database: Metastore error: Database embucket in use by schema(s): public",
 )
