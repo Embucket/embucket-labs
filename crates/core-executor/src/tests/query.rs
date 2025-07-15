@@ -214,6 +214,8 @@ macro_rules! test_query {
     };
 }
 
+test_query!(drop_database, "DROP DATABASE embucket");
+
 // CREATE SCHEMA
 test_query!(
     create_schema,

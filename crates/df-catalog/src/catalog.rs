@@ -6,10 +6,18 @@ use std::{any::Any, sync::Arc};
 #[derive(Clone)]
 pub struct CachingCatalog {
     pub catalog: Arc<dyn CatalogProvider>,
+    pub catalog_type: CatalogType,
     pub schemas_cache: DashMap<String, Arc<CachingSchema>>,
     pub should_refresh: bool,
     pub name: String,
     pub enable_information_schema: bool,
+}
+
+#[derive(Clone, Debug)]
+pub enum CatalogType {
+    Internal,
+    Memory,
+    S3tables,
 }
 
 impl CachingCatalog {
@@ -20,6 +28,7 @@ impl CachingCatalog {
             should_refresh: false,
             enable_information_schema: true,
             name,
+            catalog_type: CatalogType::Internal,
         }
     }
     #[must_use]
@@ -30,6 +39,12 @@ impl CachingCatalog {
     #[must_use]
     pub const fn with_information_schema(mut self, enable_information_schema: bool) -> Self {
         self.enable_information_schema = enable_information_schema;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_catalog_type(mut self, catalog_type: CatalogType) -> Self {
+        self.catalog_type = catalog_type;
         self
     }
 }

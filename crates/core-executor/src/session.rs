@@ -11,27 +11,18 @@ use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::utils::Config;
-use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::Credentials;
-use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::history_store::HistoryStore;
-use core_metastore::error::{self as metastore_error};
-use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
-use core_utils::scan_iterator::ScanIterator;
-use datafusion::catalog::CatalogProvider;
+use core_metastore::Metastore;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
-use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
 use embucket_functions::table::register_udtfs;
-use iceberg_rust::object_store::ObjectStoreBuilder;
-use iceberg_s3tables_catalog::S3TablesCatalog;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::env;
@@ -127,63 +118,7 @@ impl UserSession {
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
         };
-        session.register_external_catalogs().await?;
         Ok(session)
-    }
-
-    #[allow(clippy::as_conversions)]
-    pub async fn register_external_catalogs(&self) -> Result<()> {
-        let volumes = self
-            .metastore
-            .iter_volumes()
-            .collect()
-            .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .context(ex_error::MetastoreSnafu)?
-            .into_iter()
-            .filter_map(|volume| {
-                if let MetastoreVolumeType::S3Tables(s3_volume) = volume.volume.clone() {
-                    Some(s3_volume)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if volumes.is_empty() {
-            return Ok(());
-        }
-        for volume in volumes {
-            let (ak, sk, token) = match volume.credentials {
-                AwsCredentials::AccessKey(ref creds) => (
-                    Some(creds.aws_access_key_id.clone()),
-                    Some(creds.aws_secret_access_key.clone()),
-                    None,
-                ),
-                AwsCredentials::Token(ref token) => (None, None, Some(token.clone())),
-            };
-            let creds =
-                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
-            let config = SdkConfig::builder()
-                .behavior_version(BehaviorVersion::latest())
-                .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region()))
-                .build();
-            let catalog = S3TablesCatalog::new(
-                &config,
-                volume.arn.as_str(),
-                ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
-            )
-            .context(ex_error::S3TablesSnafu)?;
-
-            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-            let catalog_provider = Arc::new(catalog) as Arc<dyn CatalogProvider>;
-
-            self.ctx.register_catalog(volume.database, catalog_provider);
-        }
-        Ok(())
     }
 
     pub fn query<S>(self: &Arc<Self>, query: S, query_context: QueryContext) -> UserQuery

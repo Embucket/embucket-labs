@@ -171,8 +171,10 @@ impl From<Error> for SnowflakeError {
                     MetastoreError::UrlParse { .. } => Self::Custom { message },
                 }
             }
+            Error::InvalidDatabaseIdentifier { .. } => Self::Custom { message },
             Error::InvalidTableIdentifier { .. } => Self::Custom { message },
             Error::InvalidSchemaIdentifier { .. } => Self::Custom { message },
+            Error::DropCatalog { .. } => Self::Custom { message },
             Error::InvalidFilePath { .. } => Self::Custom { message },
             Error::InvalidBucketIdentifier { .. } => Self::Custom { message },
             Error::Arrow { .. } => Self::Custom { message },

@@ -213,6 +213,23 @@ impl UserQuery {
         Ok(())
     }
 
+    async fn drop_catalog(&self, catalog: &str, cascade: bool) -> Result<()> {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<EmbucketCatalogList>()
+        {
+            catalog_list_impl
+                .drop_catalog(catalog, cascade)
+                .await
+                .context(ex_error::DropCatalogSnafu)?;
+        }
+        Ok(())
+    }
+
     fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
         let current_database = self.current_database();
         let schemas: Vec<String> = self
@@ -482,12 +499,31 @@ impl UserQuery {
     pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Drop {
             object_type,
+            names,
             cascade,
             ..
         } = statement.clone()
         else {
             return ex_error::OnlyDropStatementsSnafu.fail();
         };
+
+        // DROP DATABASE is a special case, since it is not a part of iceberg catalog
+        if object_type == ObjectType::Database {
+            if let Some(database) = names.first() {
+                self.drop_catalog(&object_name_to_string(database), cascade)
+                    .await?;
+                return self.status_response();
+            }
+            let database_name = names
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            return ex_error::InvalidDatabaseIdentifierSnafu {
+                ident: database_name,
+            }
+            .fail();
+        }
 
         let plan = self.sql_statement_to_plan(statement).await?;
         let table_ref = match plan {

@@ -1,0 +1,12 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"DROP DATABASE embucket\""
+---
+Ok(
+    [
+        "+--------+",
+        "| status |",
+        "+--------+",
+        "+--------+",
+    ],
+)

@@ -1,9 +1,11 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
-use crate::catalog::CachingCatalog;
+use crate::catalog::{CachingCatalog, CatalogType};
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::df_error;
-use crate::error::{self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, Result};
+use crate::error::{
+    self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, NotImplementedSnafu, Result,
+};
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
@@ -54,6 +56,37 @@ impl EmbucketCatalogList {
             history_store,
             table_object_store: Arc::new(table_object_store),
             catalogs: DashMap::default(),
+        }
+    }
+
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::drop_catalog",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    pub async fn drop_catalog(&self, name: &str, cascade: bool) -> Result<()> {
+        let Some((_, catalog)) = self.catalogs.remove(name) else {
+            return InvalidCacheSnafu {
+                entity: "catalog",
+                name,
+            }
+            .fail();
+        };
+        match catalog.catalog_type {
+            CatalogType::Internal => {
+                // Set cascade to true to delete all tables in the database
+                self.metastore
+                    .delete_database(&name.to_string(), true)
+                    .await
+                    .context(MetastoreSnafu)?;
+                Ok(())
+            }
+            CatalogType::Memory => Ok(()),
+            CatalogType::S3tables => NotImplementedSnafu {
+                details: "Dropping S3 tables catalogs is not supported",
+            }
+            .fail(),
         }
     }
 
@@ -130,6 +163,7 @@ impl EmbucketCatalogList {
             self.history_store.clone(),
         ));
         CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
+            .with_catalog_type(CatalogType::Memory)
     }
 
     #[tracing::instrument(
@@ -184,7 +218,9 @@ impl EmbucketCatalogList {
                 .await
                 .context(df_catalog_error::DataFusionSnafu)?;
             catalogs.push(
-                CachingCatalog::new(Arc::new(catalog), volume.database.clone()).with_refresh(true),
+                CachingCatalog::new(Arc::new(catalog), volume.database.clone())
+                    .with_refresh(true)
+                    .with_catalog_type(CatalogType::S3tables),
             );
         }
         Ok(catalogs)
