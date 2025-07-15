@@ -70,7 +70,8 @@ impl IntoResponse for Error {
             | core_metastore::Error::DatabaseAlreadyExists { .. }
             | core_metastore::Error::SchemaAlreadyExists { .. }
             | core_metastore::Error::TableAlreadyExists { .. }
-            | core_metastore::Error::VolumeInUse { .. } => http::StatusCode::CONFLICT,
+            | core_metastore::Error::VolumeInUse { .. }
+            | core_metastore::Error::DatabaseInUse { .. } => http::StatusCode::CONFLICT,
             core_metastore::Error::TableRequirementFailed { .. } => {
                 http::StatusCode::UNPROCESSABLE_ENTITY
             }

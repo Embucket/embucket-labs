@@ -41,6 +41,15 @@ impl TableIdent {
         let namespace = vec![self.schema.clone()];
         Identifier::new(&namespace, &self.table)
     }
+
+    #[must_use]
+    pub fn normalized(&self) -> Self {
+        Self {
+            table: self.table.to_ascii_lowercase(),
+            schema: self.schema.to_ascii_lowercase(),
+            database: self.database.to_ascii_lowercase(),
+        }
+    }
 }
 
 impl From<TableIdent> for SchemaIdent {

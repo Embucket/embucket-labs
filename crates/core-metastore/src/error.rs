@@ -182,6 +182,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Database in use by schema(s): {schema}"))]
+    DatabaseInUse {
+        schema: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
         #[snafu(source(from(IcebergError, Box::new)))]

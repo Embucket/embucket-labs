@@ -277,6 +277,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Failed to create database without external volume"))]
+    ExternalVolumeRequiredForCreateDatabase {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Failed to drop catalog: {source}"))]
     DropCatalog {
@@ -301,11 +306,6 @@ pub enum Error {
     },
     #[snafu(display("Only primitive statements are supported"))]
     OnlyPrimitiveStatements {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Only CREATE TABLE/CREATE SCHEMA statements are supported"))]
-    OnlyTableSchemaCreateStatements {
         #[snafu(implicit)]
         location: Location,
     },
