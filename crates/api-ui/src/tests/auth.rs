@@ -186,6 +186,11 @@ async fn test_bad_login() {
         www_auth.to_str().expect("Bad header encoding"),
         "Bearer realm=\"login\", error=\"Login error\""
     );
+
+    let login_error_headers = &login_error.headers;
+    let set_cookies = get_set_cookie_from_response_headers(login_error_headers);
+    // shouldn't have access_token on bad login
+    assert!(set_cookies.get("access_token").is_none());
 }
 
 #[tokio::test]
@@ -222,9 +227,18 @@ async fn test_query_request_ok() {
     let client = reqwest::Client::new();
 
     // login
-    let (_, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
+    let (resp_headers, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
         .await
         .expect("Failed to login");
+
+    let set_cookies = get_set_cookie_from_response_headers(&resp_headers);
+    let _ = set_cookies
+        .get("refresh_token")
+        .expect("No Set-Cookie found with refresh_token");
+
+    let _ = set_cookies
+        .get("session_id")
+        .expect("No Set-Cookie found with session_id");
 
     // Successfuly run query
     let (_, query_response) =
