@@ -395,6 +395,7 @@ to_timestamp_millis
 to_timestamp_nanos
 to_timestamp_seconds
 to_unixtime
+to_varchar
 to_variant
 today
 translate
@@ -409,6 +410,7 @@ try_to_decimal
 try_to_number
 try_to_numeric
 try_to_time
+try_to_varchar
 typeof
 union_extract
 upper

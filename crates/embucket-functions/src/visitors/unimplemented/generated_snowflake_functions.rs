@@ -617,12 +617,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_object")
     .with_subcategory("semi-structured")
     ),
-    ("TO_VARCHAR", FunctionInfo::new(
-        "TO_VARCHAR",
-        "Converts the input expression to a string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_char")
-    ),
     ("TO_XML", FunctionInfo::new(
         "TO_XML",
         "Converts a VARIANT to a VARCHAR that contains an XML representation of the value."

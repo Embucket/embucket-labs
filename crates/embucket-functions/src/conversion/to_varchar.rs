@@ -4,9 +4,10 @@ use datafusion::arrow::array::{Array, ArrayRef, StringBuilder};
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
-    ColumnarValue, Signature, TypeSignature, Volatility,
+    Coercion, ColumnarValue, Signature, TypeSignature, TypeSignatureClass, Volatility,
 };
 use datafusion_common::cast::*;
+use datafusion_common::types::{logical_binary, logical_string};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
@@ -14,15 +15,21 @@ use std::sync::Arc;
 ///
 /// Converts the input expression to a string value with optional formatting.
 ///
+/// Syntax:
+/// - `TO_VARCHAR(<expr>)` - converts any expression to string
+/// - `TO_VARCHAR(<numeric_expr>, '<format>')` - converts numeric with format
+/// - `TO_VARCHAR(<date_or_time_expr>, '<format>')` - converts date/time with format  
+/// - `TO_VARCHAR(<binary_expr>, '<format>')` - converts binary with format
 ///
 /// Arguments:
-/// - `<expr>`: The expression to convert to string
+/// - `<expr>`: The expression to convert to string (any data type)
 /// - `<format>`: Optional format specifier for numeric, date, or time formatting
 ///
 #[derive(Debug)]
 pub struct ToVarcharFunc {
     signature: Signature,
     try_mode: bool,
+    aliases: Vec<String>,
 }
 
 impl Default for ToVarcharFunc {
@@ -34,15 +41,46 @@ impl Default for ToVarcharFunc {
 impl ToVarcharFunc {
     #[must_use]
     pub fn new(try_mode: bool) -> Self {
+        let aliases = if try_mode {
+            vec![String::from("try_to_char")]
+        } else {
+            vec![String::from("to_char")]
+        };
+
         Self {
             signature: Signature::one_of(
                 vec![
+                    // TO_VARCHAR(<expr>) - single argument of any type
                     TypeSignature::Any(1),
-                    TypeSignature::String(2),
+                    // TO_VARCHAR(<numeric_expr>, <format>) - numeric + string format
+                    TypeSignature::Exact(vec![DataType::Int64, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Int32, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Int16, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Int8, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::UInt64, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::UInt32, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::UInt16, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::UInt8, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Float64, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Float32, DataType::Utf8]),
+                    // TO_VARCHAR(<date_or_time_expr>, <format>) - timestamp + string format
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                    ]),
+                    // TO_VARCHAR(<date>, <format>) - date + string format
+                    TypeSignature::Exact(vec![DataType::Date32, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Date64, DataType::Utf8]),
+                    // TO_VARCHAR(<binary_expr>, <format>) - binary + string format
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_binary())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                    ]),
                 ],
                 Volatility::Immutable,
             ),
             try_mode,
+            aliases,
         }
     }
 }
@@ -61,11 +99,7 @@ impl ScalarUDFImpl for ToVarcharFunc {
     }
 
     fn aliases(&self) -> &[String] {
-        if self.try_mode {
-            &[]
-        } else {
-            &[]
-        }
+        &self.aliases
     }
 
     fn signature(&self) -> &Signature {
@@ -122,7 +156,8 @@ fn extract_string_from_array(arr: &ArrayRef, index: usize) -> DFResult<String> {
         }
         _ => conv_errors::UnsupportedInputTypeSnafu {
             data_type: arr.data_type().clone(),
-        }.fail()?,
+        }
+        .fail()?,
     }
 }
 
@@ -140,10 +175,18 @@ fn convert_to_varchar(
         }
 
         let result = match input_array.data_type() {
-            DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 |
-            DataType::UInt8 | DataType::UInt16 | DataType::UInt32 | DataType::UInt64 |
-            DataType::Float32 | DataType::Float64 | 
-            DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => {
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Decimal128(_, _)
+            | DataType::Decimal256(_, _) => {
                 convert_numeric_to_string(input_array, i, format, try_mode)?
             }
             DataType::Date32 | DataType::Date64 => {
@@ -152,9 +195,7 @@ fn convert_to_varchar(
             DataType::Timestamp(_, _) => {
                 convert_timestamp_to_string(input_array, i, format, try_mode)?
             }
-            DataType::Time64(_) => {
-                convert_time_to_string(input_array, i, format, try_mode)?
-            }
+            DataType::Time64(_) => convert_time_to_string(input_array, i, format, try_mode)?,
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 convert_string_to_string(input_array, i, format, try_mode)?
             }
@@ -167,7 +208,8 @@ fn convert_to_varchar(
                 } else {
                     return conv_errors::UnsupportedInputTypeSnafu {
                         data_type: input_array.data_type().clone(),
-                    }.fail()?;
+                    }
+                    .fail()?;
                 }
             }
         };
@@ -203,7 +245,7 @@ fn convert_numeric_to_string(
             } else {
                 val.to_string()
             }
-        },
+        }
         DataType::Float64 => {
             let val = as_float64_array(array)?.value(index);
             if val.fract() == 0.0 {
@@ -211,14 +253,15 @@ fn convert_numeric_to_string(
             } else {
                 val.to_string()
             }
-        },
+        }
         _ => {
             if try_mode {
                 return Ok(None);
             } else {
                 return conv_errors::UnsupportedInputTypeSnafu {
                     data_type: array.data_type().clone(),
-                }.fail()?;
+                }
+                .fail()?;
             }
         }
     };
@@ -236,7 +279,7 @@ fn apply_numeric_format(value: &str, format: &str, _try_mode: bool) -> DFResult<
     })?;
 
     let clean_format = format.trim_matches('"');
-    
+
     if clean_format.contains("$99.0") {
         let formatted = if num_val < 0.0 {
             format!("-${:.1}", num_val.abs())
@@ -267,7 +310,9 @@ fn apply_numeric_format(value: &str, format: &str, _try_mode: bool) -> DFResult<
         let formatted = if num_val == 0.0 {
             "0E0".to_string()
         } else {
-            format!("{:.4E}", num_val).replace("E+0", "E").replace("E-0", "E-")
+            format!("{:.4E}", num_val)
+                .replace("E+0", "E")
+                .replace("E-0", "E-")
         };
         if clean_format.starts_with('>') && clean_format.ends_with('<') {
             Ok(format!(">{}<", formatted))
@@ -316,9 +361,11 @@ fn convert_date_to_string(
         DataType::Date64 => {
             let millis = as_date64_array(array)?.value(index);
             let secs = millis / 1000;
-            let naive_dt = DateTime::from_timestamp(secs, 0).ok_or_else(|| {
-                datafusion_common::DataFusionError::Execution("Invalid timestamp".to_string())
-            })?.naive_utc();
+            let naive_dt = DateTime::from_timestamp(secs, 0)
+                .ok_or_else(|| {
+                    datafusion_common::DataFusionError::Execution("Invalid timestamp".to_string())
+                })?
+                .naive_utc();
             Some(naive_dt.date())
         }
         _ => None,
@@ -341,12 +388,12 @@ fn convert_date_to_string(
 
 fn apply_date_format(date: &NaiveDate, format: &str) -> DFResult<String> {
     let mut chrono_format = format.to_string();
-    
+
     chrono_format = chrono_format.replace("yyyy", "%Y");
     chrono_format = chrono_format.replace("mm", "%m");
     chrono_format = chrono_format.replace("dd", "%d");
     chrono_format = chrono_format.replace("mon", "%b");
-    
+
     Ok(date.format(&chrono_format).to_string())
 }
 
@@ -399,14 +446,14 @@ fn convert_timestamp_to_string(
 
 fn apply_timestamp_format(timestamp: &NaiveDateTime, format: &str) -> DFResult<String> {
     let mut chrono_format = format.to_string();
-    
+
     chrono_format = chrono_format.replace("yyyy", "%Y");
     chrono_format = chrono_format.replace("mm", "%m");
     chrono_format = chrono_format.replace("dd", "%d");
     chrono_format = chrono_format.replace("hh24", "%H");
     chrono_format = chrono_format.replace("mi", "%M");
     chrono_format = chrono_format.replace("mon", "%b");
-    
+
     Ok(timestamp.format(&chrono_format).to_string())
 }
 
