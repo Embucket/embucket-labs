@@ -237,15 +237,17 @@ async fn test_query_request_ok() {
         .get("refresh_token")
         .expect("No Set-Cookie found with refresh_token");
 
+    // Successfuly run query
+    let (query_resp_headers, query_response) =
+        query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
+            .await
+            .expect("Failed to run query");
+
+    let set_cookies = get_set_cookie_from_response_headers(&query_resp_headers);
     let _ = set_cookies
         .get("session_id")
         .expect("No Set-Cookie found with session_id");
 
-    // Successfuly run query
-    let (_, query_response) =
-        query::<QueryCreateResponse>(&client, &addr, &login_response.access_token, "SELECT 1")
-            .await
-            .expect("Failed to run query");
     assert_eq!(query_response.0.query, "SELECT 1");
 }
 
