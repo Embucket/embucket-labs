@@ -1,4 +1,6 @@
-use crate::string_binary::errors::{InvalidArgumentCountSnafu, UnsupportedDataTypeSnafu};
+use crate::string_binary::errors::{
+    InvalidArgumentCountSnafu, NonValidASCIIStringSnafu, UnsupportedDataTypeSnafu,
+};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray, Int64Array, StringBuilder};
 use datafusion::arrow::compute;
 use datafusion::arrow::datatypes::DataType;
@@ -8,7 +10,7 @@ use datafusion_common::cast::{
     as_binary_array, as_int64_array, as_large_binary_array, as_large_string_array, as_string_array,
     as_string_view_array,
 };
-use datafusion_common::{ScalarValue, exec_err};
+use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
@@ -167,7 +169,7 @@ where
             if hex_string.is_ascii() {
                 builder.append_value(hex_string);
             } else {
-                return exec_err!("Generated hex string is not valid ASCII: {}", hex_string);
+                return NonValidASCIIStringSnafu.fail()?;
             }
         } else {
             builder.append_null();
@@ -195,7 +197,7 @@ where
             if hex_string.is_ascii() {
                 builder.append_value(hex_string);
             } else {
-                return exec_err!("Generated hex string is not valid ASCII: {}", hex_string);
+                return NonValidASCIIStringSnafu.fail()?;
             }
         } else {
             builder.append_null();

@@ -105,6 +105,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Generated hex string is not valid ASCII"))]
+    NonValidASCIIString {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
