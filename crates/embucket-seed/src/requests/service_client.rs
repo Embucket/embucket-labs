@@ -100,6 +100,8 @@ impl BasicAuthClient {
         if let Some(refresh_token) = from_set_cookies.get("refresh_token") {
             self.refresh_token.clone_from(refresh_token);
         }
+        // as of recent changes to sessions, we expect session_id in response set-cookie
+        self.set_session_id_from_response_headers(&headers);
         self.access_token.clone_from(&auth_response.access_token);
     }
 
@@ -189,6 +191,8 @@ impl ServiceClient for BasicAuthClient {
     async fn login(&mut self, user: &str, password: &str) -> HttpRequestResult<AuthResponse> {
         let Self { client, addr, .. } = self;
 
+        tracing::trace!("login request");
+
         let login_result = http_req_with_headers::<AuthResponse>(
             client,
             Method::POST,
@@ -207,6 +211,7 @@ impl ServiceClient for BasicAuthClient {
 
         match login_result {
             Ok((headers, auth_response)) => {
+                tracing::trace!("login response headers: {:#?}", headers);
                 self.set_tokens_from_auth_response(&headers, &auth_response);
                 Ok(auth_response)
             }
@@ -221,21 +226,24 @@ impl ServiceClient for BasicAuthClient {
             refresh_token,
             ..
         } = self;
+        let headers = HeaderMap::from_iter(vec![
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            ),
+            (
+                header::COOKIE,
+                HeaderValue::from_str(format!("refresh_token={refresh_token}").as_str())
+                    .expect("Can't convert to HeaderValue"),
+            ),
+        ]);
+
+        tracing::trace!("refresh request headers: {:#?}", headers);
 
         let refresh_result = http_req_with_headers::<AuthResponse>(
             client,
             Method::POST,
-            HeaderMap::from_iter(vec![
-                (
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_static("application/json"),
-                ),
-                (
-                    header::COOKIE,
-                    HeaderValue::from_str(format!("refresh_token={refresh_token}").as_str())
-                        .expect("Can't convert to HeaderValue"),
-                ),
-            ]),
+            headers,
             &format!("http://{addr}/ui/auth/refresh"),
             String::new(),
         )
@@ -243,6 +251,7 @@ impl ServiceClient for BasicAuthClient {
 
         match refresh_result {
             Ok((headers, auth_response)) => {
+                tracing::trace!("refresh response headers: {:#?}", headers);
                 self.set_tokens_from_auth_response(&headers, &auth_response);
                 Ok(auth_response)
             }

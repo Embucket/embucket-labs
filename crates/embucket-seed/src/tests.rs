@@ -24,7 +24,7 @@ async fn test_seed_client() {
 
     seed_database(
         addr,
-        SeedVariant::Minimal,
+        SeedVariant::Typical,
         "user1".to_string(),
         "pass1".to_string(),
     )
