@@ -69,9 +69,8 @@ use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    timestamp,
-    table_functions_cte_relation, top_limit,
     json_element, qualify_in_query, select_expr_aliases, table_functions,
+    table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -227,46 +226,7 @@ impl UserQuery {
     }
 
     fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
-        {
-            let format = self
-                .session
-                .get_session_variable("timestamp_input_format")
-                .unwrap_or("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
-            println!("{:?}", &format);
-            let tz = self
-                .session
-                .get_session_variable("timezone")
-                .unwrap_or("America/Los_Angeles".to_string());
-
-            let mapping = self
-                .session
-                .get_session_variable("timestamp_input_mapping")
-                .unwrap_or("timestamp_ntz".to_string());
-
-            self.session
-                .ctx
-                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    None,
-                    format.clone(),
-                    "to_timestampd".to_string(),
-                )));
-/*
-            let funcs = [
-                (None, "to_timestamp_ntz".to_string()),
-                (Some(Arc::from(tz.clone())), "to_timestamp_tz".to_string()),
-                (Some(Arc::from(tz.clone())), "to_timestamp_ltz".to_string()),
-            ];
-
-            for func in funcs {
-                self.session
-                    .ctx
-                    .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                        func.0,
-                        format.clone(),
-                        func.1,
-                    )));
-            }*/
-        }
+        self.register_udfs();
 
         let current_database = self.current_database();
         let schemas: Vec<String> = self
@@ -289,6 +249,77 @@ impl UserQuery {
             version: self.session.config.embucket_version.clone(),
             query_context: self.query_context.clone(),
             history_store: self.history_store.clone(),
+        }
+    }
+
+    fn register_udfs(&self) {
+        // TO_TIMESTAMP
+        let format = self
+            .session
+            .get_session_variable("timestamp_input_format")
+            .unwrap_or("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
+        let tz = self
+            .session
+            .get_session_variable("timezone")
+            .unwrap_or("America/Los_Angeles".to_string());
+
+        let mapping = self
+            .session
+            .get_session_variable("timestamp_input_mapping")
+            .unwrap_or("timestamp_ntz".to_string());
+
+        let funcs = [
+            (
+                if mapping != "timestamp_ntz" {
+                    Some(Arc::from(tz.clone()))
+                } else {
+                    None
+                },
+                false,
+                "to_timestamp".to_string(),
+            ),
+            (
+                if mapping != "timestamp_ntz" {
+                    Some(Arc::from(tz.clone()))
+                } else {
+                    None
+                },
+                true,
+                "try_to_timestamp".to_string(),
+            ),
+            (None, false, "to_timestamp_ntz".to_string()),
+            (None, true, "try_to_timestamp_ntz".to_string()),
+            (
+                Some(Arc::from(tz.clone())),
+                false,
+                "to_timestamp_tz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz.clone())),
+                true,
+                "try_to_timestamp_tz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz.clone())),
+                false,
+                "to_timestamp_ltz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz.clone())),
+                true,
+                "try_to_timestamp_ltz".to_string(),
+            ),
+        ];
+
+        for (tz, r#try, name) in funcs {
+            self.session
+                .ctx
+                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
+                    tz,
+                    format.clone(),
+                    r#try,
+                    name,
+                )));
         }
     }
 

@@ -17,7 +17,7 @@ use datafusion_common::{ScalarValue, internal_err};
 use crate::conversion_errors::{
     ArgumentTwoNeedsToBeIntegerSnafu, CantAddLocalTimezoneSnafu, CantCastToSnafu,
     CantCreateDateTimeFromTimestampSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu,
-    CantParseTimezoneSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
+    CantParseTimezoneSnafu, InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use chrono_tz::Tz;
 use datafusion_expr::{
@@ -111,7 +111,7 @@ macro_rules! build_from_int_scale {
 }
 
 macro_rules! build_from_int_string {
-    ($format:expr,$tz:expr,$args:expr,$arr:expr, $type:ty) => {{
+    ($format:expr,$tz:expr,$args:expr,$arr:expr, $type:ty,$try:expr) => {{
         let format = if $args.len() == 1 {
             convert_snowflake_format_to_chrono($format)
         } else {
@@ -154,26 +154,58 @@ macro_rules! build_from_int_string {
                     } else {
                         let s = remove_timezone(s);
                         let t = match NaiveDateTime::parse_from_str(s.as_str(), &format) {
-                            Ok(v) => v
-                                .and_utc()
-                                .timestamp_nanos_opt()
-                                .ok_or_else(|| CantGetTimestampSnafu.build())?,
-                            Err(_) => {
-                                string_to_timestamp_nanos(s.as_str())?},
+                            Ok(v) => match v.and_utc().timestamp_nanos_opt() {
+                                Some(v) => v,
+                                None => {
+                                    if $try {
+                                        b.append_null();
+                                        continue;
+                                    }
+
+                                    return CantGetTimestampSnafu.fail()?;
+                                }
+                            },
+                            Err(_) => match string_to_timestamp_nanos(s.as_str()) {
+                                Ok(v) => v,
+                                Err(_) => {
+                                    if $try {
+                                        b.append_null();
+                                        continue;
+                                    }
+
+                                    return CantGetTimestampSnafu.fail()?;
+                                }
+                            },
                         };
 
                         let t = if let Some(tz) = $tz {
                             let tz: Tz = tz.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
-                            let t = NaiveDateTime::from_timestamp_nanos(t)
-                                .ok_or_else(|| CantCreateDateTimeFromTimestampSnafu.build())?;
-                            let t = t
-                                .and_local_timezone(tz)
-                                .single()
-                                .ok_or_else(|| CantAddLocalTimezoneSnafu.build())?;
-                            let t = t
-                                .naive_utc()
-                                .timestamp_nanos_opt()
-                                .ok_or_else(|| CantGetTimestampSnafu.build())?;
+                            let Some(t) = NaiveDateTime::from_timestamp_nanos(t) else {
+                                if $try {
+                                    b.append_null();
+                                    continue;
+                                }
+
+                                return CantCreateDateTimeFromTimestampSnafu.fail()?;
+                            };
+
+                            let Some(t) = t.and_local_timezone(tz).single() else {
+                                if $try {
+                                    b.append_null();
+                                    continue;
+                                }
+
+                                return CantAddLocalTimezoneSnafu.fail()?;
+                            };
+
+                            let Some(t) = t.naive_utc().timestamp_nanos_opt() else {
+                                if $try {
+                                    b.append_null();
+                                    continue;
+                                }
+
+                                return CantGetTimestampSnafu.fail()?;
+                            };
 
                             t
                         } else {
@@ -200,6 +232,7 @@ pub struct ToTimestampFunc {
     timezone: Option<Arc<str>>,
     format: String,
     name: String,
+    r#try: bool,
 }
 
 impl Default for ToTimestampFunc {
@@ -207,6 +240,7 @@ impl Default for ToTimestampFunc {
         Self::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timstamp".to_string(),
         )
     }
@@ -214,13 +248,13 @@ impl Default for ToTimestampFunc {
 
 impl ToTimestampFunc {
     #[must_use]
-    pub fn new(timezone: Option<Arc<str>>, format: String, name: String) -> Self {
-        dbg!("!!",&format);
+    pub fn new(timezone: Option<Arc<str>>, format: String, r#try: bool, name: String) -> Self {
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
             timezone,
             format,
             name,
+            r#try,
         }
     }
 }
@@ -324,7 +358,6 @@ impl ScalarUDFImpl for ToTimestampFunc {
         clippy::cast_possible_truncation
     )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        dbg!(&self.format);
         let ScalarFunctionArgs { args, .. } = args;
 
         let arr = match args[0].clone() {
@@ -333,11 +366,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
         };
 
         Ok(match arr.data_type() {
-            DataType::Int64 => build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array),
+            DataType::Int64 => {
+                build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array)
+            }
             DataType::UInt64 => {
                 build_from_int_scale!(self.timezone.clone(), args, arr, UInt64Array)
             }
-            DataType::Int32 => build_from_int_scale!(self.timezone.clone(), args, arr, Int32Array),
+            DataType::Int32 => {
+                build_from_int_scale!(self.timezone.clone(), args, arr, Int32Array)
+            }
             DataType::UInt32 => {
                 build_from_int_scale!(self.timezone.clone(), args, arr, UInt32Array)
             }
@@ -414,7 +451,14 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Utf8 => {
-                build_from_int_string!(&self.format, self.timezone.clone(), args, arr, StringArray)
+                build_from_int_string!(
+                    &self.format,
+                    self.timezone.clone(),
+                    args,
+                    arr,
+                    StringArray,
+                    self.r#try
+                )
             }
             DataType::Utf8View => {
                 build_from_int_string!(
@@ -422,7 +466,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     self.timezone.clone(),
                     args,
                     arr,
-                    StringViewArray
+                    StringViewArray,
+                    self.r#try
                 )
             }
             DataType::Timestamp(_, tz) => {
@@ -457,7 +502,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     ColumnarValue::Array(Arc::new(arr))
                 }
             }
-            _ => panic!(),
+            _ => InvalidDataTypeSnafu.fail()?,
         })
     }
 }
@@ -544,6 +589,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -574,6 +620,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -604,6 +651,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -634,6 +682,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -664,6 +713,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -694,6 +744,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -724,6 +775,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -749,6 +801,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -774,6 +827,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_tz".to_string(),
         )));
 
@@ -799,6 +853,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "mm/dd/yyyy hh24:mi:ss".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -828,6 +883,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -855,6 +911,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -882,6 +939,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
 
@@ -909,22 +967,26 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_ntz".to_string(),
         )));
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_tz".to_string(),
         )));
 
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_ltz".to_string(),
         )));
 
@@ -951,27 +1013,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_try() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            true,
+            "try_to_timestamp".to_string(),
+        )));
+
+        let sql = "SELECT TRY_TO_TIMESTAMP('sdfsdf')";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+----------------------------------+",
+                "| try_to_timestamp(Utf8(\"sdfsdf\")) |",
+                "+----------------------------------+",
+                "|                                  |",
+                "+----------------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_visitor() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp".to_string(),
         )));
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_ntz".to_string(),
         )));
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_tz".to_string(),
         )));
 
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
             "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
             "to_timestamp_ltz".to_string(),
         )));
 
