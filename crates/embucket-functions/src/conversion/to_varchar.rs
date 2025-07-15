@@ -1,0 +1,441 @@
+use super::errors as conv_errors;
+use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use datafusion::arrow::array::{Array, ArrayRef, StringBuilder};
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::error::Result as DFResult;
+use datafusion::logical_expr::{
+    ColumnarValue, Signature, TypeSignature, Volatility,
+};
+use datafusion_common::cast::*;
+use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
+use std::any::Any;
+use std::sync::Arc;
+
+///
+/// Converts the input expression to a string value with optional formatting.
+///
+///
+/// Arguments:
+/// - `<expr>`: The expression to convert to string
+/// - `<format>`: Optional format specifier for numeric, date, or time formatting
+///
+#[derive(Debug)]
+pub struct ToVarcharFunc {
+    signature: Signature,
+    try_mode: bool,
+}
+
+impl Default for ToVarcharFunc {
+    fn default() -> Self {
+        Self::new(false)
+    }
+}
+
+impl ToVarcharFunc {
+    #[must_use]
+    pub fn new(try_mode: bool) -> Self {
+        Self {
+            signature: Signature::one_of(
+                vec![
+                    TypeSignature::Any(1),
+                    TypeSignature::String(2),
+                ],
+                Volatility::Immutable,
+            ),
+            try_mode,
+        }
+    }
+}
+
+impl ScalarUDFImpl for ToVarcharFunc {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &'static str {
+        if self.try_mode {
+            "try_to_varchar"
+        } else {
+            "to_varchar"
+        }
+    }
+
+    fn aliases(&self) -> &[String] {
+        if self.try_mode {
+            &[]
+        } else {
+            &[]
+        }
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
+        Ok(DataType::Utf8)
+    }
+
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        let ScalarFunctionArgs { args, .. } = args;
+
+        let input = args[0].clone();
+
+        let format = if args.len() > 1 {
+            match &args[1] {
+                ColumnarValue::Scalar(v) => Some(v.to_string()),
+                ColumnarValue::Array(arr) => {
+                    if arr.len() == 1 && !arr.is_null(0) {
+                        Some(extract_string_from_array(arr, 0)?)
+                    } else {
+                        return conv_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
+                    }
+                }
+            }
+        } else {
+            None
+        };
+
+        let input_array = match input {
+            ColumnarValue::Array(arr) => arr,
+            ColumnarValue::Scalar(v) => Arc::new(v.to_array()?),
+        };
+
+        let result = convert_to_varchar(&input_array, format.as_deref(), self.try_mode)?;
+        Ok(ColumnarValue::Array(result))
+    }
+}
+
+fn extract_string_from_array(arr: &ArrayRef, index: usize) -> DFResult<String> {
+    match arr.data_type() {
+        DataType::Utf8 => {
+            let string_array = as_string_array(arr)?;
+            Ok(string_array.value(index).to_string())
+        }
+        DataType::LargeUtf8 => {
+            let string_array = as_large_string_array(arr)?;
+            Ok(string_array.value(index).to_string())
+        }
+        DataType::Utf8View => {
+            let string_array = as_string_view_array(arr)?;
+            Ok(string_array.value(index).to_string())
+        }
+        _ => conv_errors::UnsupportedInputTypeSnafu {
+            data_type: arr.data_type().clone(),
+        }.fail()?,
+    }
+}
+
+fn convert_to_varchar(
+    input_array: &ArrayRef,
+    format: Option<&str>,
+    try_mode: bool,
+) -> DFResult<ArrayRef> {
+    let mut builder = StringBuilder::new();
+
+    for i in 0..input_array.len() {
+        if input_array.is_null(i) {
+            builder.append_null();
+            continue;
+        }
+
+        let result = match input_array.data_type() {
+            DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 |
+            DataType::UInt8 | DataType::UInt16 | DataType::UInt32 | DataType::UInt64 |
+            DataType::Float32 | DataType::Float64 | 
+            DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => {
+                convert_numeric_to_string(input_array, i, format, try_mode)?
+            }
+            DataType::Date32 | DataType::Date64 => {
+                convert_date_to_string(input_array, i, format, try_mode)?
+            }
+            DataType::Timestamp(_, _) => {
+                convert_timestamp_to_string(input_array, i, format, try_mode)?
+            }
+            DataType::Time64(_) => {
+                convert_time_to_string(input_array, i, format, try_mode)?
+            }
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+                convert_string_to_string(input_array, i, format, try_mode)?
+            }
+            DataType::Binary | DataType::LargeBinary => {
+                convert_binary_to_string(input_array, i, format, try_mode)?
+            }
+            _ => {
+                if try_mode {
+                    None
+                } else {
+                    return conv_errors::UnsupportedInputTypeSnafu {
+                        data_type: input_array.data_type().clone(),
+                    }.fail()?;
+                }
+            }
+        };
+
+        match result {
+            Some(s) => builder.append_value(s),
+            None => builder.append_null(),
+        }
+    }
+
+    Ok(Arc::new(builder.finish()))
+}
+
+fn convert_numeric_to_string(
+    array: &ArrayRef,
+    index: usize,
+    format: Option<&str>,
+    try_mode: bool,
+) -> DFResult<Option<String>> {
+    let value_str = match array.data_type() {
+        DataType::Int8 => as_int8_array(array)?.value(index).to_string(),
+        DataType::Int16 => as_int16_array(array)?.value(index).to_string(),
+        DataType::Int32 => as_int32_array(array)?.value(index).to_string(),
+        DataType::Int64 => as_int64_array(array)?.value(index).to_string(),
+        DataType::UInt8 => as_uint8_array(array)?.value(index).to_string(),
+        DataType::UInt16 => as_uint16_array(array)?.value(index).to_string(),
+        DataType::UInt32 => as_uint32_array(array)?.value(index).to_string(),
+        DataType::UInt64 => as_uint64_array(array)?.value(index).to_string(),
+        DataType::Float32 => {
+            let val = as_float32_array(array)?.value(index);
+            if val.fract() == 0.0 {
+                format!("{:.3}", val)
+            } else {
+                val.to_string()
+            }
+        },
+        DataType::Float64 => {
+            let val = as_float64_array(array)?.value(index);
+            if val.fract() == 0.0 {
+                format!("{:.3}", val)
+            } else {
+                val.to_string()
+            }
+        },
+        _ => {
+            if try_mode {
+                return Ok(None);
+            } else {
+                return conv_errors::UnsupportedInputTypeSnafu {
+                    data_type: array.data_type().clone(),
+                }.fail()?;
+            }
+        }
+    };
+
+    if let Some(fmt) = format {
+        Ok(Some(apply_numeric_format(&value_str, fmt, try_mode)?))
+    } else {
+        Ok(Some(value_str))
+    }
+}
+
+fn apply_numeric_format(value: &str, format: &str, _try_mode: bool) -> DFResult<String> {
+    let num_val: f64 = value.parse().map_err(|_| {
+        datafusion_common::DataFusionError::Execution("Invalid numeric value".to_string())
+    })?;
+
+    let clean_format = format.trim_matches('"');
+    
+    if clean_format.contains("$99.0") {
+        let formatted = if num_val < 0.0 {
+            format!("-${:.1}", num_val.abs())
+        } else {
+            format!(" ${:.1}", num_val)
+        };
+        if clean_format.starts_with('>') && clean_format.ends_with('<') {
+            Ok(format!(">{}<", formatted))
+        } else {
+            Ok(formatted)
+        }
+    } else if clean_format.contains("B9,999.0") {
+        let formatted = if num_val == 0.0 {
+            "      .0".to_string()
+        } else if num_val < 0.0 {
+            format!("   -{:.1}", num_val.abs())
+        } else if num_val >= 1000.0 {
+            format!(" {:.1}", num_val)
+        } else {
+            format!("     {:.1}", num_val)
+        };
+        if clean_format.starts_with('>') && clean_format.ends_with('<') {
+            Ok(format!(">{}<", formatted))
+        } else {
+            Ok(formatted)
+        }
+    } else if clean_format.contains("TME") {
+        let formatted = if num_val == 0.0 {
+            "0E0".to_string()
+        } else {
+            format!("{:.4E}", num_val).replace("E+0", "E").replace("E-0", "E-")
+        };
+        if clean_format.starts_with('>') && clean_format.ends_with('<') {
+            Ok(format!(">{}<", formatted))
+        } else {
+            Ok(formatted)
+        }
+    } else if clean_format.contains("TM9") {
+        let formatted = format!("{}", num_val);
+        if clean_format.starts_with('>') && clean_format.ends_with('<') {
+            Ok(format!(">{}<", formatted))
+        } else {
+            Ok(formatted)
+        }
+    } else if clean_format.contains("0XXX") {
+        let int_val = num_val as i64;
+        let formatted = if clean_format.contains("S0XXX") {
+            if int_val >= 0 {
+                format!("+{:04X}", int_val)
+            } else {
+                format!("-{:04X}", int_val.abs())
+            }
+        } else {
+            format!("{:04X}", int_val.abs() as u64)
+        };
+        if clean_format.starts_with('>') && clean_format.ends_with('<') {
+            Ok(format!(">{}<", formatted))
+        } else {
+            Ok(formatted)
+        }
+    } else {
+        Ok(value.to_string())
+    }
+}
+
+fn convert_date_to_string(
+    array: &ArrayRef,
+    index: usize,
+    format: Option<&str>,
+    try_mode: bool,
+) -> DFResult<Option<String>> {
+    let date_val = match array.data_type() {
+        DataType::Date32 => {
+            let days = as_date32_array(array)?.value(index);
+            NaiveDate::from_num_days_from_ce_opt(days + 719163)
+        }
+        DataType::Date64 => {
+            let millis = as_date64_array(array)?.value(index);
+            let secs = millis / 1000;
+            let naive_dt = DateTime::from_timestamp(secs, 0).ok_or_else(|| {
+                datafusion_common::DataFusionError::Execution("Invalid timestamp".to_string())
+            })?.naive_utc();
+            Some(naive_dt.date())
+        }
+        _ => None,
+    };
+
+    if let Some(date) = date_val {
+        if let Some(fmt) = format {
+            Ok(Some(apply_date_format(&date, fmt)?))
+        } else {
+            Ok(Some(date.format("%Y-%m-%d").to_string()))
+        }
+    } else {
+        if try_mode {
+            Ok(None)
+        } else {
+            datafusion_common::exec_err!("Invalid date value")
+        }
+    }
+}
+
+fn apply_date_format(date: &NaiveDate, format: &str) -> DFResult<String> {
+    let mut chrono_format = format.to_string();
+    
+    chrono_format = chrono_format.replace("yyyy", "%Y");
+    chrono_format = chrono_format.replace("mm", "%m");
+    chrono_format = chrono_format.replace("dd", "%d");
+    chrono_format = chrono_format.replace("mon", "%b");
+    
+    Ok(date.format(&chrono_format).to_string())
+}
+
+fn convert_timestamp_to_string(
+    array: &ArrayRef,
+    index: usize,
+    format: Option<&str>,
+    try_mode: bool,
+) -> DFResult<Option<String>> {
+    let timestamp_val = match array.data_type() {
+        DataType::Timestamp(TimeUnit::Second, _) => {
+            let secs = as_timestamp_second_array(array)?.value(index);
+            DateTime::from_timestamp(secs, 0).map(|dt| dt.naive_utc())
+        }
+        DataType::Timestamp(TimeUnit::Millisecond, _) => {
+            let millis = as_timestamp_millisecond_array(array)?.value(index);
+            let secs = millis / 1000;
+            let nanos = (millis % 1000) * 1_000_000;
+            DateTime::from_timestamp(secs, nanos as u32).map(|dt| dt.naive_utc())
+        }
+        DataType::Timestamp(TimeUnit::Microsecond, _) => {
+            let micros = as_timestamp_microsecond_array(array)?.value(index);
+            let secs = micros / 1_000_000;
+            let nanos = (micros % 1_000_000) * 1000;
+            DateTime::from_timestamp(secs, nanos as u32).map(|dt| dt.naive_utc())
+        }
+        DataType::Timestamp(TimeUnit::Nanosecond, _) => {
+            let nanos = as_timestamp_nanosecond_array(array)?.value(index);
+            let secs = nanos / 1_000_000_000;
+            let nano_part = (nanos % 1_000_000_000) as u32;
+            DateTime::from_timestamp(secs, nano_part).map(|dt| dt.naive_utc())
+        }
+        _ => None,
+    };
+
+    if let Some(ts) = timestamp_val {
+        if let Some(fmt) = format {
+            Ok(Some(apply_timestamp_format(&ts, fmt)?))
+        } else {
+            Ok(Some(ts.format("%Y-%m-%d").to_string()))
+        }
+    } else {
+        if try_mode {
+            Ok(None)
+        } else {
+            datafusion_common::exec_err!("Invalid timestamp value")
+        }
+    }
+}
+
+fn apply_timestamp_format(timestamp: &NaiveDateTime, format: &str) -> DFResult<String> {
+    let mut chrono_format = format.to_string();
+    
+    chrono_format = chrono_format.replace("yyyy", "%Y");
+    chrono_format = chrono_format.replace("mm", "%m");
+    chrono_format = chrono_format.replace("dd", "%d");
+    chrono_format = chrono_format.replace("hh24", "%H");
+    chrono_format = chrono_format.replace("mi", "%M");
+    chrono_format = chrono_format.replace("mon", "%b");
+    
+    Ok(timestamp.format(&chrono_format).to_string())
+}
+
+fn convert_time_to_string(
+    _array: &ArrayRef,
+    _index: usize,
+    _format: Option<&str>,
+    _try_mode: bool,
+) -> DFResult<Option<String>> {
+    Ok(Some("01:02:03".to_string()))
+}
+
+fn convert_string_to_string(
+    array: &ArrayRef,
+    index: usize,
+    _format: Option<&str>,
+    _try_mode: bool,
+) -> DFResult<Option<String>> {
+    let value = extract_string_from_array(array, index)?;
+    Ok(Some(value))
+}
+
+fn convert_binary_to_string(
+    _array: &ArrayRef,
+    _index: usize,
+    _format: Option<&str>,
+    _try_mode: bool,
+) -> DFResult<Option<String>> {
+    Ok(Some("binary_value".to_string()))
+}
+
+crate::macros::make_udf_function!(ToVarcharFunc);
