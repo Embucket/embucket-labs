@@ -1,0 +1,116 @@
+---
+title: Snowflake compatibility
+description: Details on how Embucket implements Snowflake compatibility, current limitations and future plans.
+---
+
+Embucket is a Snowflake compatible database, meaning it fully supports the Snowflake SQL dialect and provides a Snowflake compatible API (only v1 at the moment).
+This document dives into the details of how Embucket implements Snowflake compatibility, current limitations and future plans.
+
+## Overview
+
+Embucket provides a snowflake v1 rest api, that should be compatible with any Snowflake client, that uses it. It was primarily tested with snowflake-connector-python and tools relying on it, like dbt and snowflake-cli, Apache Superset, etc.
+
+Embucket also provides a SQL engine, that is based on Datafusion and should be compatible with any SQL client, that uses it. We aim to be 100% SQL flavour compatible with Snowflake, but currently we only support a subset of SQL features. Moreover, there are some features available in Embucket, that are not available in Snowflake (i.e. some built-in functions, some data types, etc).
+
+Compatibility is verified using SQL logic tests (SLT) and dbt integration tests (integration tests). SLTs are used to verify that the SQL engine is compatible with Snowflake, while integration tests are used to verify that the rest api is compatible with Snowflake. At the moment, we use dbt gitlab project as a proxy of compatibility.
+
+Embucket [repository](https://github.com/Embucket/embucket) contains current compatiblity badges for both SLT test suite and dbt gitlab.
+
+## Structural differences
+
+Snowflake is a managed analytics database, built on top of FoundationDB and object storage (S3) and provides a managed service for users to deploy and scale their analytics workloads [whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf).
+
+Embucket aims to provide an open source Snowflake alternative focusing on same ease of use and manageability, but with the added benefits of open source and self-hosted. It's built on top of open technologies like Apache Datafusion, Apache Iceberg, Commonhouse SlateDB, Apache Arrow, Parquet, and more.
+
+This leads to some structural differences between Snowflake and Embucket:
+
+- Metadata is stored in SlateDB (on top of object storage), not in distributed database like FoundationDB
+- Data is stored in Iceberg and Parquet format, not in proprietary format
+- Datafusion SQL engine is used for query execution, which is single node and use Arrow as in memory representation
+
+Some features are not supported yet due to limitations in Embucket's dependencies and architecture.
+
+## Limitations
+
+- Single query parallelism - query is executed on single node: query processing is limited to single node memory and CPU
+- Single table writer - only one instance can write to the table
+- Limited datatypes support - VARIANT support is implemented as JSON-serialized TEXT on the storage layer, since at the moment there is no support for VARIANT in Parquet, Iceberg, or Arrow.
+
+## Variant support
+
+Variant is implemented as JSON-serialized TEXT on the storage layer, since at the moment there is no support for VARIANT in Parquet, Iceberg, or Arrow.
+
+Following queries still work:
+
+```sh
+ > create table t2 (c1 variant) as values (parse_json('{"k1":1}'));
++-------+
+| count |
+|-------|
+| 1     |
++-------+
+
+ > select * from t2;
++----------+
+| c1       |
+|----------|
+| {"k1":1} |
++----------+
+```
+
+However, underneath, the data is stored as TEXT:
+
+```sh
+  > select arrow_typeof(c1) from t2;
++-------------------------------------+
+| arrow_typeof(embucket.public.t2.c1) |
+|-------------------------------------|
+| Utf8                                |
++-------------------------------------+
+```
+
+## Numeric support
+
+Embucket relies on Datafusion for type coercion and might use different numeric types than Snowflake. This might lead to different results in some cases. For example, for most (all?) aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale, while Embucket might use float64 or decimal with fixed precision and scale.
+
+This is a known issue and we plan to address it in the future.
+At the moment this leads to some numeric functions returning different results than Snowflake:
+
+Embucket:
+
+```sh
+ > select avg(a), arrow_typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
++--------------------------------------------+
+| avg(t.a)          | arrow_typeof(avg(t.a)) |
+|-------------------+------------------------|
+| 4.333333333333333 | Float64                |
++--------------------------------------------+
+```
+
+Snowflake:
+
+```sh
+ > select avg(a), system$typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
++----------------------------------+
+| AVG(A)   | SYSTEM$TYPEOF(AVG(A)) |
+|----------+-----------------------|
+| 4.333333 | NUMBER(20,6)[SB16]    |
++----------------------------------+
+```
+
+## Timestamp support
+
+Embucket uses Arrow's timestamp type, which is a 64-bit integer representing the number of nanoseconds since the Unix epoch (1970-01-01 00:00:00 UTC). This is a fixed precision type, which means that the precision is always nanoseconds, even if the value has a different precision in Snowflake. Snowflake also stores timezone offset per timestamp value, while Embucket stores timezone offset per column. This means that Embucket might return different results for the same query, depending on the timezone set in the session.
+
+## Error format
+
+Embucket returns errors in a different format than Snowflake. Those error originate from Apache Arrow and Datafusion, and are not compatible with Snowflake's error format.
+
+## Future plans
+
+We plan to address the following issues in the future:
+
+- Numeric support
+- Variant support
+- Timestamp support
+- Error format

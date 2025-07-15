@@ -1,0 +1,312 @@
+---
+title: dbt Snowplow
+description: User guide on how to use dbt with Embucket with a project based on Snowplow Web
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+In this guide we will use dbt to create a project based on Snowplow Web and use Embucket as the target database.
+
+<Aside type="note">
+  There are dbt integration tests for Embucket [in
+  test/dbt_integration_tests/packages_integration_tests](https://github.com/Embucket/embucket/tree/main/test/dbt_integration_tests/packages_integration_tests)
+</Aside>
+
+## Prerequisites
+
+- Running Embucket instance (we will assume it's running on localhost:3000)
+- virtualenv or uv or any other python virtual environment manager
+
+## Setup
+
+Make sure you follow dbt's [official documentation](https://docs.getdbt.com/docs/overview/introduction) to set up dbt project. Assuming you have a dbt project set up, you can add `snowplow_web` package to your `packages.yml`:
+
+```yaml
+packages:
+  - package: snowplow-web
+    version: 1.0.0
+```
+
+Specify the target in your `profiles.yml`:
+
+```yaml
+my_profile: # Match the "profile" name in dbt_project.yml
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      host: localhost
+      port: 3000
+      protocol: http
+      account: 'xxx.us-east-2.aws'
+      user: 'embucket'
+      password: 'embucket'
+      role: 'ACCOUNTADMIN'
+      database: 'embucket'
+      schema: 'public'
+      warehouse: 'xxx'
+      threads: 1
+```
+
+Important settings here are host, port, protocol, user, password, role, database, schema, warehouse. Host, port and protocol should match your Embucket instance. User and password should be set to `embucket` and `embucket` respectively (those are default values, unless you changed them). Default values for database and schema are `embucket` and `public` respectively. When running Embucket with `--no-bootstrap=false` (default), `embucket` database is set to use in-memory storage. For results to be persisted, you should run Embucket with `--no-bootstrap=true`, and create volume and database beforehand.
+
+Update `dbt_project.yml` to use `my_profile` as the target:
+
+```yaml
+name: dbt_snowplow_sample_project
+version: 1.0
+profile: 'my_profile'
+
+# target-path: "target/" # deprecated, use --target-path cli flag
+clean-targets:
+  - 'target/'
+  - 'dbt_packages/'
+
+dispatch:
+  - macro_namespace: dbt
+    search_order: ['snowplow_utils', 'dbt']
+
+vars:
+  snowplow_web:
+    snowplow__atomic_schema: 'public'
+    snowplow__database: 'embucket'
+    snowplow__start_date: '2022-08-19'
+    snowplow__end_date: '2022-08-26'
+    snowplow__enable_cwv: false
+    snowplow__enable_consent: false
+    snowplow__events_table: events
+```
+
+This configuration will use profile `my_profile` that points to the local Embucket instance. Source table for events is set to `embucket.public.events`.
+
+## Running dbt
+
+First, let's create a virtual environment and install dbt:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install dbt-core dbt-snowflake snowflake-cli
+```
+
+Now, let's run dbt seed and install dependencies:
+
+```bash
+dbt deps
+dbt seed
+```
+
+We should see something like this:
+
+```bash
+20:23:48  Running with dbt=1.9.4
+/Users/ramp/vcs/compatibility-test-suite/.venv/lib/python3.12/site-packages/snowflake/connector/options.py:104: UserWarning: You have an incompatible version of 'pyarrow' installed (20.0.0), please install a version that adheres to: 'pyarrow<19.0.0; extra == "pandas"'
+  warn_incompatible_dep(
+20:23:48  Registered adapter: snowflake=1.9.4
+20:23:49  Found 18 models, 103 data tests, 3 seeds, 2 operations, 8 sources, 781 macros
+20:23:49
+20:23:49  Concurrency: 1 threads (target='dev')
+20:23:49
+20:23:51  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+20:23:51  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [OK in 0.02s]
+20:23:51
+20:23:51  1 of 3 START seed file public_snowplow_manifest.snowplow_web_dim_ga4_source_categories  [RUN]
+20:23:53  1 of 3 OK loaded seed file public_snowplow_manifest.snowplow_web_dim_ga4_source_categories  [INSERT 819 in 1.71s]
+20:23:53  2 of 3 START seed file public_snowplow_manifest.snowplow_web_dim_geo_country_mapping  [RUN]
+20:23:55  2 of 3 OK loaded seed file public_snowplow_manifest.snowplow_web_dim_geo_country_mapping  [INSERT 249 in 1.88s]
+20:23:55  3 of 3 START seed file public_snowplow_manifest.snowplow_web_dim_rfc_5646_language_mapping  [RUN]
+20:23:57  3 of 3 OK loaded seed file public_snowplow_manifest.snowplow_web_dim_rfc_5646_language_mapping  [INSERT 232 in 1.48s]
+20:23:57
+20:23:57  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+20:23:57  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [OK in 0.03s]
+20:23:57
+20:23:57  Finished running 2 project hooks, 3 seeds in 0 hours 0 minutes and 7.95 seconds (7.95s).
+20:23:57
+20:23:57  Completed successfully
+20:23:57
+20:23:57  Done. PASS=5 WARN=0 ERROR=0 SKIP=0 TOTAL=5
+```
+
+Before we proceed, we will download a sample dataset from Snowplow's demo dataset [here](https://snowplow-demo-datasets.s3.eu-central-1.amazonaws.com/Web_Analytics/Web_Analytics_sample_events.csv).
+
+```bash
+curl https://snowplow-demo-datasets.s3.eu-central-1.amazonaws.com/Web_Analytics/Web_Analytics_sample_events.csv
+```
+
+Let's create a source events table in Embucket and upload the sample dataset. We will use `snowflake-cli` tool to create the table and upload the sample dataset.
+
+<Aside type="note">
+  To create table you can use Embucket UI to run SQL queries and upload the sample dataset.
+</Aside>
+
+```bash
+$ snow sql -c local
+> CREATE OR REPLACE TABLE embucket.public.events
+(
+APP_ID TEXT,
+PLATFORM TEXT,
+ETL_TSTAMP TIMESTAMP_NTZ(9),
+COLLECTOR_TSTAMP TIMESTAMP_NTZ(9) NOT NULL,
+DVCE_CREATED_TSTAMP TIMESTAMP_NTZ(9),
+EVENT TEXT,
+EVENT_ID TEXT,
+TXN_ID NUMBER(38,0),
+NAME_TRACKER TEXT,
+V_TRACKER TEXT,
+V_COLLECTOR TEXT,
+V_ETL TEXT,
+USER_ID TEXT,
+USER_IPADDRESS TEXT,
+USER_FINGERPRINT TEXT,
+DOMAIN_USERID TEXT,
+DOMAIN_SESSIONIDX NUMBER(38,0),
+NETWORK_USERID TEXT,
+GEO_COUNTRY TEXT,
+GEO_REGION TEXT,
+GEO_CITY TEXT,
+GEO_ZIPCODE TEXT,
+GEO_LATITUDE FLOAT,
+GEO_LONGITUDE FLOAT,
+GEO_REGION_NAME TEXT,
+IP_ISP TEXT,
+IP_ORGANIZATION TEXT,
+IP_DOMAIN TEXT,
+IP_NETSPEED TEXT,
+PAGE_URL TEXT,
+PAGE_TITLE TEXT,
+PAGE_REFERRER TEXT,
+PAGE_URLSCHEME TEXT,
+PAGE_URLHOST TEXT,
+PAGE_URLPORT NUMBER(38,0),
+PAGE_URLPATH TEXT,
+PAGE_URLQUERY TEXT,
+PAGE_URLFRAGMENT TEXT,
+REFR_URLSCHEME TEXT,
+REFR_URLHOST TEXT,
+REFR_URLPORT NUMBER(38,0),
+REFR_URLPATH TEXT,
+REFR_URLQUERY TEXT,
+REFR_URLFRAGMENT TEXT,
+REFR_MEDIUM TEXT,
+REFR_SOURCE TEXT,
+REFR_TERM TEXT,
+MKT_MEDIUM TEXT,
+MKT_SOURCE TEXT,
+MKT_TERM TEXT,
+MKT_CONTENT TEXT,
+MKT_CAMPAIGN TEXT,
+SE_CATEGORY TEXT,
+SE_ACTION TEXT,
+SE_LABEL TEXT,
+SE_PROPERTY TEXT,
+SE_VALUE FLOAT,
+TR_ORDERID TEXT,
+TR_AFFILIATION TEXT,
+TR_TOTAL NUMBER(18,2),
+TR_TAX NUMBER(18,2),
+TR_SHIPPING NUMBER(18,2),
+TR_CITY TEXT,
+TR_STATE TEXT,
+TR_COUNTRY TEXT,
+TI_ORDERID TEXT,
+TI_SKU TEXT,
+TI_NAME TEXT,
+TI_CATEGORY TEXT,
+TI_PRICE NUMBER(18,2),
+TI_QUANTITY NUMBER(38,0),
+PP_XOFFSET_MIN NUMBER(38,0),
+PP_XOFFSET_MAX NUMBER(38,0),
+PP_YOFFSET_MIN NUMBER(38,0),
+PP_YOFFSET_MAX NUMBER(38,0),
+USERAGENT TEXT,
+BR_NAME TEXT,
+BR_FAMILY TEXT,
+BR_VERSION TEXT,
+BR_TYPE TEXT,
+BR_RENDERENGINE TEXT,
+BR_LANG TEXT,
+BR_FEATURES_PDF BOOLEAN,
+BR_FEATURES_FLASH BOOLEAN,
+BR_FEATURES_JAVA BOOLEAN,
+BR_FEATURES_DIRECTOR BOOLEAN,
+BR_FEATURES_QUICKTIME BOOLEAN,
+BR_FEATURES_REALPLAYER BOOLEAN,
+BR_FEATURES_WINDOWSMEDIA BOOLEAN,
+BR_FEATURES_GEARS BOOLEAN,
+BR_FEATURES_SILVERLIGHT BOOLEAN,
+BR_COOKIES BOOLEAN,
+BR_COLORDEPTH TEXT,
+BR_VIEWWIDTH NUMBER(38,0),
+BR_VIEWHEIGHT NUMBER(38,0),
+OS_NAME TEXT,
+OS_FAMILY TEXT,
+OS_MANUFACTURER TEXT,
+OS_TIMEZONE TEXT,
+DVCE_TYPE TEXT,
+DVCE_ISMOBILE BOOLEAN,
+DVCE_SCREENWIDTH NUMBER(38,0),
+DVCE_SCREENHEIGHT NUMBER(38,0),
+DOC_CHARSET TEXT,
+DOC_WIDTH NUMBER(38,0),
+DOC_HEIGHT NUMBER(38,0),
+TR_CURRENCY TEXT,
+TR_TOTAL_BASE NUMBER(18,2),
+TR_TAX_BASE NUMBER(18,2),
+TR_SHIPPING_BASE NUMBER(18,2),
+TI_CURRENCY TEXT,
+TI_PRICE_BASE NUMBER(18,2),
+BASE_CURRENCY TEXT,
+GEO_TIMEZONE TEXT,
+MKT_CLICKID TEXT,
+MKT_NETWORK TEXT,
+ETL_TAGS TEXT,
+DVCE_SENT_TSTAMP TIMESTAMP_NTZ(9),
+REFR_DOMAIN_USERID TEXT,
+REFR_DVCE_TSTAMP TIMESTAMP_NTZ(9),
+DOMAIN_SESSIONID TEXT,
+DERIVED_TSTAMP TIMESTAMP_NTZ(9),
+EVENT_VENDOR TEXT,
+EVENT_NAME TEXT,
+EVENT_FORMAT TEXT,
+EVENT_VERSION TEXT,
+EVENT_FINGERPRINT TEXT,
+TRUE_TSTAMP TIMESTAMP_NTZ(9),
+LOAD_TSTAMP TIMESTAMP_NTZ(9),
+CONTEXTS_COM_SNOWPLOWANALYTICS_SNOWPLOW_UA_PARSER_CONTEXT_1 TEXT,
+CONTEXTS_COM_SNOWPLOWANALYTICS_SNOWPLOW_WEB_PAGE_1 TEXT,
+CONTEXTS_COM_IAB_SNOWPLOW_SPIDERS_AND_ROBOTS_1 TEXT,
+CONTEXTS_NL_BASJES_YAUAA_CONTEXT_1 TEXT
+);
+```
+
+Sample dataset downloaded is malformed and embucket won't read it by default. We will use the following snippet to update it (it removes extra quotes and replaces single quotes with double quotes for proper JSON parsing):
+
+```python
+import csv
+
+filename = "Web_Analytics_sample_events.csv"
+output_filename = "Web_Analytics_sample_events_fixed.csv"
+
+with open(filename, mode="r", newline="") as infile, open(output_filename, mode="w+", newline="") as outfile:
+    reader = csv.DictReader(infile)
+    data = [
+        {k: v.replace('"', "").replace("'", '"') for k, v in row.items()}
+        for row in reader
+    ]
+    writer = csv.DictWriter(outfile, fieldnames=reader.fieldnames)
+    writer.writerows(data)
+```
+
+Now, let's upload the fixed dataset to Embucket: open Embucket UI, navigate to `embucket.public.events` table and click on `Upload data` button. Select `Web_Analytics_sample_events_fixed.csv` file and upload it.
+
+Now, let's run dbt:
+
+```bash
+dbt run
+```
+
+We should see something like this (**Paste the actual output here**):
+
+```bash
+
+```
