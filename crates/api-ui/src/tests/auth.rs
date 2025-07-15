@@ -227,9 +227,10 @@ async fn test_query_request_ok() {
     let client = reqwest::Client::new();
 
     // login
-    let (resp_headers, login_response) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
-        .await
-        .expect("Failed to login");
+    let (resp_headers, login_response) =
+        login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
+            .await
+            .expect("Failed to login");
 
     let set_cookies = get_set_cookie_from_response_headers(&resp_headers);
     let _ = set_cookies
