@@ -24,7 +24,7 @@ name: unit-tests
 jobs:
   required:
     runs-on:
-      group: large-runners 
+      group: self-hosted
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
