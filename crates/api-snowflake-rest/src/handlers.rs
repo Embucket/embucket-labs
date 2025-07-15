@@ -34,7 +34,6 @@ const ARROW_IPC_ALIGNMENT: usize = 8;
 
 #[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
-    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
     body: Bytes,
@@ -55,6 +54,13 @@ pub async fn login(
     {
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+
+    let _ = state
+        .execution_svc
+        .create_session(session_id.clone())
+        .await?;
 
     Ok(Json(LoginResponse {
         data: Option::from(LoginData { token: session_id }),

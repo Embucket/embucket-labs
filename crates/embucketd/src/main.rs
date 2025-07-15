@@ -6,8 +6,8 @@ use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
 use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
-use api_sessions::RequestSessionStore;
-use api_sessions::session::SESSION_EXPIRATION_SECONDS;
+use api_sessions::layer::propagate_session_cookie;
+use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
 use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
 use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
 use api_snowflake_rest::router::create_router as create_snowflake_router;
@@ -31,7 +31,6 @@ use axum::{
 use clap::Parser;
 use core_executor::catalog::catalog_list::DEFAULT_CATALOG;
 use core_executor::service::CoreExecutionService;
-use core_executor::session::SESSION_INACTIVITY_EXPIRATION_SECONDS;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::error::Error as MetastoreError;
@@ -51,12 +50,10 @@ use slatedb::{Db as SlateDb, config::DbOptions};
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use time::Duration;
 use tokio::signal;
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
-use tower_sessions::{Expiry, SessionManagerLayer};
 use tracing_subscriber::filter::{LevelFilter, Targets};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -150,21 +147,18 @@ async fn main() {
         Arc::new(execution_cfg),
     ));
 
-    let session_store = RequestSessionStore::new(execution_svc.clone());
+    let session_store = SessionStore::new(execution_svc.clone());
 
-    tokio::task::spawn(
-        session_store
-            .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(
-                SESSION_EXPIRATION_SECONDS,
-            )),
-    );
-
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(
-            SESSION_INACTIVITY_EXPIRATION_SECONDS,
-        )));
+    tokio::task::spawn({
+        let session_store = session_store.clone();
+        async move {
+            session_store
+                .continuously_delete_expired(tokio::time::Duration::from_secs(
+                    SESSION_EXPIRATION_SECONDS,
+                ))
+                .await;
+        }
+    });
 
     let internal_router = create_internal_router().with_state(InternalAppState::new(
         metastore.clone(),
@@ -177,7 +171,13 @@ async fn main() {
         Arc::new(web_config.clone()),
         Arc::new(auth_config),
     );
-    let ui_router = create_ui_router().with_state(ui_state.clone());
+    let ui_router =
+        create_ui_router()
+            .with_state(ui_state.clone())
+            .layer(middleware::from_fn_with_state(
+                session_store,
+                propagate_session_cookie,
+            ));
     let ui_router = ui_router.layer(middleware::from_fn_with_state(
         ui_state.clone(),
         ui_require_auth,
@@ -228,7 +228,6 @@ async fn main() {
         )
         .route("/health", get(|| async { Json("OK") }))
         .route("/telemetry/send", post(|| async { Json("OK") }))
-        .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(1200)))
         .layer(CatchPanicLayer::new())

@@ -3,7 +3,6 @@ use crate::layer::require_auth;
 use crate::router::create_router;
 use crate::schemas::Config;
 use crate::state;
-use api_sessions::RequestSessionStore;
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
@@ -13,8 +12,6 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use time::Duration;
-use tower_sessions::{Expiry, SessionManagerLayer};
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn run_test_server_with_demo_auth(
@@ -59,10 +56,6 @@ pub fn make_app(
         history_store,
         Arc::new(UtilsConfig::default()),
     ));
-    let session_store = RequestSessionStore::new(execution_svc.clone());
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(60)));
 
     // Create the application state
 
@@ -81,7 +74,7 @@ pub fn make_app(
     let snowflake_auth_router = create_auth_router().with_state(snowflake_state);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
 
-    let router = Router::new().merge(snowflake_router).layer(session_layer);
+    let router = Router::new().merge(snowflake_router);
 
     Ok(router)
 }

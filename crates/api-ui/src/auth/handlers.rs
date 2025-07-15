@@ -6,7 +6,6 @@ use crate::auth::models::{AuthResponse, Claims, LoginPayload};
 use crate::error::Result;
 use crate::state::AppState;
 
-use api_sessions::DFSessionId;
 use api_sessions::session::SESSION_ID_COOKIE_NAME;
 use axum::Json;
 use axum::extract::State;
@@ -174,7 +173,6 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(name = "api_ui::login", level = "info", skip_all, err)]
 pub async fn login(
-    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(LoginPayload { username, password }): Json<LoginPayload>,
 ) -> Result<impl IntoResponse> {
@@ -198,7 +196,6 @@ pub async fn login(
 
     let mut headers = HeaderMap::new();
     set_cookies(&mut headers, REFRESH_COOKIE_NAME, &refresh_token)?;
-    set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, &session_id)?;
 
     Ok((
         headers,
@@ -227,7 +224,6 @@ pub async fn login(
 )]
 #[tracing::instrument(name = "api_ui::refresh_access_token", level = "info", skip_all, err)]
 pub async fn refresh_access_token(
-    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse> {
@@ -248,7 +244,6 @@ pub async fn refresh_access_token(
 
             let mut headers = HeaderMap::new();
             set_cookies(&mut headers, REFRESH_COOKIE_NAME, refresh_token)?;
-            set_cookies(&mut headers, SESSION_ID_COOKIE_NAME, &session_id)?;
 
             Ok((
                 headers,
