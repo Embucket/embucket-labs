@@ -101,7 +101,7 @@ impl BasicAuthClient {
             self.refresh_token.clone_from(refresh_token);
         }
         // as of recent changes to sessions, we expect session_id in response set-cookie
-        self.set_session_id_from_response_headers(&headers);
+        self.set_session_id_from_response_headers(headers);
         self.access_token.clone_from(&auth_response.access_token);
     }
 

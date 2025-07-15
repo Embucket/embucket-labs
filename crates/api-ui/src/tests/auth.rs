@@ -190,7 +190,7 @@ async fn test_bad_login() {
     let login_error_headers = &login_error.headers;
     let set_cookies = get_set_cookie_from_response_headers(login_error_headers);
     // shouldn't have access_token on bad login
-    assert!(set_cookies.get("access_token").is_none());
+    assert!(!set_cookies.contains_key("access_token"));
 }
 
 #[tokio::test]
