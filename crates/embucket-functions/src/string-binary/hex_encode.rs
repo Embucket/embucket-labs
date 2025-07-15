@@ -6,11 +6,11 @@ use datafusion::arrow::compute;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::ScalarValue;
 use datafusion_common::cast::{
     as_binary_array, as_int64_array, as_large_binary_array, as_large_string_array, as_string_array,
     as_string_view_array,
 };
-use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
