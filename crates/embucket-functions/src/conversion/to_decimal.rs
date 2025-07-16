@@ -45,7 +45,7 @@ impl ToDecimalFunc {
         }
     }
     /// Tries to convert a scalar to the target integer type
-    fn try_convert_scalar<T>(scalar: &ScalarValue) -> Result<T, conv_errors::Error>
+    fn try_convert_scalar_to_integer<T>(scalar: &ScalarValue) -> Result<T, conv_errors::Error>
     where
         T: TryFrom<i128, Error = TryFromIntError>
             + TryFrom<i64, Error = TryFromIntError>
@@ -87,7 +87,7 @@ impl ToDecimalFunc {
         }
     }
     fn get_precision_checked(precision_scalar: &ScalarValue) -> DFResult<u8> {
-        let precision: u8 = Self::try_convert_scalar(precision_scalar)?;
+        let precision: u8 = Self::try_convert_scalar_to_integer(precision_scalar)?;
         if !(1..=38).contains(&precision) {
             return conv_errors::InvalidPrecisionSnafu {
                 precision: precision_scalar.clone(),
@@ -98,7 +98,7 @@ impl ToDecimalFunc {
     }
     #[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
     fn get_scale_checked(scale_scalar: &ScalarValue, precision: u8) -> DFResult<i8> {
-        let scale: i8 = Self::try_convert_scalar(scale_scalar)?;
+        let scale: i8 = Self::try_convert_scalar_to_integer(scale_scalar)?;
         if !(0..=((precision - 1) as i8)).contains(&scale) {
             return conv_errors::InvalidScaleSnafu {
                 precision_minus_one: precision - 1,
