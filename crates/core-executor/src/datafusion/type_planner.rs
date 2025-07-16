@@ -6,6 +6,7 @@ use datafusion::logical_expr::sqlparser::ast;
 use datafusion::sql::sqlparser::ast::DataType as SQLDataType;
 use datafusion::sql::utils::make_decimal_type;
 use datafusion_common::{DataFusionError, not_impl_err};
+use sqlparser::ast::ArrayElemTypeDef;
 
 #[derive(Debug)]
 pub struct CustomTypePlanner {}
@@ -13,6 +14,9 @@ pub struct CustomTypePlanner {}
 impl TypePlanner for CustomTypePlanner {
     fn plan_type(&self, sql_type: &ast::DataType) -> Result<Option<DataType>> {
         match sql_type {
+            SQLDataType::Array(ArrayElemTypeDef::None) => {
+                Ok(Some(DataType::new_list(DataType::Utf8, true)))
+            }
             SQLDataType::Int32 => Ok(Some(DataType::Int32)),
             SQLDataType::Int64 => Ok(Some(DataType::Int64)),
             SQLDataType::UInt32 => Ok(Some(DataType::UInt32)),

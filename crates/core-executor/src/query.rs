@@ -376,8 +376,8 @@ impl UserQuery {
                 | Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
-                | Statement::Insert { .. }
-                | Statement::Update { .. } => {
+                | Statement::Update { .. } => return self.status_response(),
+                Statement::Insert { .. } => {
                     return Box::pin(self.execute_with_custom_plan(&self.query)).await;
                 }
                 Statement::ShowDatabases { .. }
