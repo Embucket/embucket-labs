@@ -47,7 +47,10 @@ impl ToDecimalFunc {
     /// Tries to convert a scalar to the target integer type
     fn try_convert_scalar<T>(scalar: &ScalarValue) -> Result<T, conv_errors::Error>
     where
-        T: TryFrom<i64, Error = TryFromIntError> + TryFrom<u64, Error = TryFromIntError> + Copy,
+        T: TryFrom<i128, Error = TryFromIntError>
+            + TryFrom<i64, Error = TryFromIntError>
+            + TryFrom<u64, Error = TryFromIntError>
+            + Copy,
     {
         match scalar {
             ScalarValue::Int64(Some(v)) => {
@@ -73,6 +76,9 @@ impl ToDecimalFunc {
             }
             ScalarValue::UInt8(Some(v)) => {
                 T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::Decimal128(Some(v), ..) => {
+                T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
             }
             _ => conv_errors::UnsupportedInputTypeSnafu {
                 data_type: scalar.data_type(),
@@ -121,7 +127,8 @@ impl ToDecimalFunc {
                     | ScalarValue::UInt16(Some(_))
                     | ScalarValue::UInt8(Some(_))
                     | ScalarValue::Float64(Some(_))
-                    | ScalarValue::Float32(Some(_)),
+                    | ScalarValue::Float32(Some(_))
+                    | ScalarValue::Decimal128(..),
                 ) => Ok(None),
                 other => {
                     let other_array = match other {
@@ -268,7 +275,10 @@ impl ScalarUDFImpl for ToDecimalFunc {
         let format = Self::extract_format_arg(&args.args)?;
 
         //TODO: should we have type info as before, good datapoint to think about on other types, functions, etc
-        let format_options = FormatOptions::default();
+        let cast_options = CastOptions {
+            safe: self.r#try,
+            format_options: FormatOptions::default(),
+        };
         //TODO: override NULL formatting is not working, expected? Visitor somewhere?
         // .with_null("NULL")
         // .with_types_info(false);
@@ -290,10 +300,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 cast_with_options(
                     &array,
                     &DataType::Decimal128(*precision, *scale),
-                    &CastOptions {
-                        safe: self.r#try,
-                        format_options,
-                    },
+                    &cast_options,
                 )?
             }
             DataType::Int8
@@ -305,13 +312,11 @@ impl ScalarUDFImpl for ToDecimalFunc {
             | DataType::UInt32
             | DataType::UInt64
             | DataType::Float32
-            | DataType::Float64 => cast_with_options(
+            | DataType::Float64
+            | DataType::Decimal128(..) => cast_with_options(
                 array,
                 &DataType::Decimal128(*precision, *scale),
-                &CastOptions {
-                    safe: self.r#try,
-                    format_options,
-                },
+                &cast_options,
             )?,
             other => {
                 return conv_errors::UnsupportedInputTypeWithPositionSnafu {
