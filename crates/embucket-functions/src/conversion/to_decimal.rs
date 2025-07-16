@@ -8,8 +8,10 @@ use datafusion_common::arrow::array::{Array, StringArray};
 use datafusion_common::arrow::compute::CastOptions;
 use datafusion_common::arrow::util::display::FormatOptions;
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use snafu::prelude::*;
 use std::any::Any;
 use std::fmt::Debug;
+use std::num::TryFromIntError;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -42,29 +44,44 @@ impl ToDecimalFunc {
             r#try,
         }
     }
+    /// Tries to convert a scalar to the target integer type
+    fn try_convert_scalar<T>(scalar: &ScalarValue) -> Result<T, conv_errors::Error>
+    where
+        T: TryFrom<i64, Error = TryFromIntError> + TryFrom<u64, Error = TryFromIntError> + Copy,
+    {
+        match scalar {
+            ScalarValue::Int64(Some(v)) => {
+                T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::Int32(Some(v)) => {
+                T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::Int16(Some(v)) => {
+                T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::Int8(Some(v)) => {
+                T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::UInt64(Some(v)) => {
+                T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::UInt32(Some(v)) => {
+                T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::UInt16(Some(v)) => {
+                T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            ScalarValue::UInt8(Some(v)) => {
+                T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
+            }
+            _ => conv_errors::UnsupportedInputTypeSnafu {
+                data_type: scalar.data_type(),
+            }
+            .fail(),
+        }
+    }
     fn get_precision_checked(precision_scalar: &ScalarValue) -> DFResult<u8> {
-        let result = match precision_scalar {
-            ScalarValue::Int64(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::Int32(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::Int16(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::Int8(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::UInt64(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::UInt32(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::UInt16(Some(precision)) => u8::try_from(*precision),
-            ScalarValue::UInt8(Some(precision)) => Ok(*precision),
-            _ => {
-                return conv_errors::UnsupportedInputTypeSnafu {
-                    data_type: precision_scalar.data_type(),
-                }
-                .fail()?;
-            }
-        };
-        let Ok(precision) = result else {
-            return conv_errors::InvalidPrecisionSnafu {
-                precision: precision_scalar.clone(),
-            }
-            .fail()?;
-        };
+        let precision: u8 = Self::try_convert_scalar(precision_scalar)?;
         if !(1..=38).contains(&precision) {
             return conv_errors::InvalidPrecisionSnafu {
                 precision: precision_scalar.clone(),
@@ -75,29 +92,7 @@ impl ToDecimalFunc {
     }
     #[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
     fn get_scale_checked(scale_scalar: &ScalarValue, precision: u8) -> DFResult<i8> {
-        let result = match scale_scalar {
-            ScalarValue::Int64(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::Int32(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::Int16(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::Int8(Some(scale)) => Ok(*scale),
-            ScalarValue::UInt64(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::UInt32(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::UInt16(Some(scale)) => i8::try_from(*scale),
-            ScalarValue::UInt8(Some(scale)) => i8::try_from(*scale),
-            _ => {
-                return conv_errors::UnsupportedInputTypeSnafu {
-                    data_type: scale_scalar.data_type(),
-                }
-                .fail()?;
-            }
-        };
-        let Ok(scale) = result else {
-            return conv_errors::InvalidScaleSnafu {
-                precision_minus_one: precision - 1,
-                scale: scale_scalar.clone(),
-            }
-            .fail()?;
-        };
+        let scale: i8 = Self::try_convert_scalar(scale_scalar)?;
         if !(0..=((precision - 1) as i8)).contains(&scale) {
             return conv_errors::InvalidScaleSnafu {
                 precision_minus_one: precision - 1,
@@ -106,6 +101,74 @@ impl ToDecimalFunc {
             .fail()?;
         }
         Ok(scale)
+    }
+
+    fn extract_format_arg(args: &[ColumnarValue]) -> DFResult<Option<&str>> {
+        if args.len() > 1 {
+            match &args[1] {
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(str))
+                    | ScalarValue::Utf8View(Some(str))
+                    | ScalarValue::LargeUtf8(Some(str)),
+                ) => Ok(Some(str.as_str())),
+                ColumnarValue::Scalar(
+                    ScalarValue::Int64(Some(_))
+                    | ScalarValue::Int32(Some(_))
+                    | ScalarValue::Int16(Some(_))
+                    | ScalarValue::Int8(Some(_))
+                    | ScalarValue::UInt64(Some(_))
+                    | ScalarValue::UInt32(Some(_))
+                    | ScalarValue::UInt16(Some(_))
+                    | ScalarValue::UInt8(Some(_))
+                    | ScalarValue::Float64(Some(_))
+                    | ScalarValue::Float32(Some(_)),
+                ) => Ok(None),
+                other => {
+                    let other_array = match other {
+                        ColumnarValue::Array(array) => array,
+                        ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
+                    };
+                    conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                        data_type: other_array.data_type().clone(),
+                        position: 2usize,
+                    }
+                    .fail()?
+                }
+            }
+        } else {
+            Ok(None)
+        }
+    }
+    fn apply_formatting_if_needed(array: &StringArray, format: &str) -> Vec<Option<String>> {
+        let values: Vec<Option<String>> = array
+            .into_iter()
+            .map(|opt| opt.map(|str| str.replace(' ', "")))
+            .collect();
+
+        let values = if format.starts_with('$') {
+            values
+                .into_iter()
+                .map(|opt| {
+                    opt.map(|str| {
+                        str.strip_prefix('$')
+                            .map_or_else(|| str.to_string(), std::string::ToString::to_string)
+                    })
+                })
+                .collect()
+        } else {
+            values
+        };
+
+        let values: Vec<_> = if format.contains(',') {
+            values
+                .into_iter()
+                .map(|opt| opt.as_ref().map(|str| str.replace(',', "")))
+                .collect()
+        } else {
+            values
+        };
+
+        values
     }
 }
 
@@ -131,69 +194,55 @@ impl ScalarUDFImpl for ToDecimalFunc {
     }
 
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
+        use ScalarValue::{LargeUtf8, Utf8, Utf8View};
+
         match args.arg_types.len() {
             0 => conv_errors::TooLittleArgumentsSnafu {
                 got: 0usize,
                 at_least: 1usize,
             }
             .fail()?,
-            1 => {
-                //Variant json null -> null, not only for try_to_decimal
-                Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true))
-            }
+            1 => Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true)),
             2 => match &args.scalar_arguments[1] {
-                Some(
-                    ScalarValue::Utf8(..) | ScalarValue::Utf8View(..) | ScalarValue::LargeUtf8(..),
-                ) => Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true)),
+                Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)) => {
+                    Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true))
+                }
                 Some(precision) => {
-                    let precision = Self::get_precision_checked(precision)?;
-                    Ok(ReturnInfo::new(DataType::Decimal128(precision, 0), true))
+                    let p = Self::get_precision_checked(precision)?;
+                    Ok(ReturnInfo::new(DataType::Decimal128(p, 0), true))
                 }
                 None => {
                     conv_errors::NoInputArgumentOnPositionsSnafu { positions: vec![2] }.fail()?
                 }
             },
-            3 => match &args.scalar_arguments[1..=2] {
-                [
-                    Some(
-                        ScalarValue::Utf8(..)
-                        | ScalarValue::Utf8View(..)
-                        | ScalarValue::LargeUtf8(..),
-                    ),
-                    Some(precision),
-                ] => {
-                    let precision = Self::get_precision_checked(precision)?;
-                    Ok(ReturnInfo::new(DataType::Decimal128(precision, 0), true))
+            3 => match (&args.scalar_arguments[1], &args.scalar_arguments[2]) {
+                (Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)), Some(precision)) => {
+                    let p = Self::get_precision_checked(precision)?;
+                    Ok(ReturnInfo::new(DataType::Decimal128(p, 0), true))
                 }
-                [Some(precision), Some(scale)] => {
-                    let precision = Self::get_precision_checked(precision)?;
-                    let scale = Self::get_scale_checked(scale, precision)?;
-                    Ok(ReturnInfo::new(
-                        DataType::Decimal128(precision, scale),
-                        true,
-                    ))
+                (Some(precision), Some(scale)) => {
+                    let p = Self::get_precision_checked(precision)?;
+                    let s = Self::get_scale_checked(scale, p)?;
+                    Ok(ReturnInfo::new(DataType::Decimal128(p, s), true))
                 }
-                [..] => conv_errors::NoInputArgumentOnPositionsSnafu {
+                _ => conv_errors::NoInputArgumentOnPositionsSnafu {
                     positions: vec![1, 2],
                 }
                 .fail()?,
             },
-            4 => match &args.scalar_arguments[2..=3] {
-                [Some(precision), Some(scale)] => {
-                    let precision = Self::get_precision_checked(precision)?;
-                    let scale = Self::get_scale_checked(scale, precision)?;
-                    Ok(ReturnInfo::new(
-                        DataType::Decimal128(precision, scale),
-                        true,
-                    ))
+            4 => match (&args.scalar_arguments[2], &args.scalar_arguments[3]) {
+                (Some(precision), Some(scale)) => {
+                    let p = Self::get_precision_checked(precision)?;
+                    let s = Self::get_scale_checked(scale, p)?;
+                    Ok(ReturnInfo::new(DataType::Decimal128(p, s), true))
                 }
-                [..] => conv_errors::NoInputArgumentOnPositionsSnafu {
+                _ => conv_errors::NoInputArgumentOnPositionsSnafu {
                     positions: vec![3, 4],
                 }
                 .fail()?,
             },
-            other => conv_errors::TooManyArgumentsSnafu {
-                got: other,
+            n => conv_errors::TooManyArgumentsSnafu {
+                got: n,
                 at_maximum: 4usize,
             }
             .fail()?,
@@ -216,40 +265,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
             ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
         };
 
-        let format = if args.args.len() > 1 {
-            match &args.args[1] {
-                ColumnarValue::Scalar(
-                    ScalarValue::Utf8(Some(str))
-                    | ScalarValue::Utf8View(Some(str))
-                    | ScalarValue::LargeUtf8(Some(str)),
-                ) => Some(str.as_str()),
-                ColumnarValue::Scalar(
-                    ScalarValue::Int64(Some(_))
-                    | ScalarValue::Int32(Some(_))
-                    | ScalarValue::Int16(Some(_))
-                    | ScalarValue::Int8(Some(_))
-                    | ScalarValue::UInt64(Some(_))
-                    | ScalarValue::UInt32(Some(_))
-                    | ScalarValue::UInt16(Some(_))
-                    | ScalarValue::UInt8(Some(_))
-                    | ScalarValue::Float64(Some(_))
-                    | ScalarValue::Float32(Some(_)),
-                ) => None,
-                other => {
-                    let other_array = match other {
-                        ColumnarValue::Array(array) => array,
-                        ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
-                    };
-                    return conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                        data_type: other_array.data_type().clone(),
-                        position: 2usize,
-                    }
-                    .fail()?;
-                }
-            }
-        } else {
-            None
-        };
+        let format = Self::extract_format_arg(&args.args)?;
 
         //TODO: should we have type info as before, good datapoint to think about on other types, functions, etc
         let format_options = FormatOptions::default();
@@ -264,35 +280,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
                         //TODO: needs logic for binary string with binary formatting and variant types
                         let array: &StringArray = array.as_any().downcast_ref().unwrap();
 
-                        let values: Vec<Option<String>> = array
-                            .into_iter()
-                            .map(|opt| opt.map(|str| str.replace(' ', "")))
-                            .collect();
-
-                        let values = if format.starts_with('$') {
-                            values
-                                .into_iter()
-                                .map(|opt| {
-                                    opt.map(|str| {
-                                        str.strip_prefix('$').map_or_else(
-                                            || str.to_string(),
-                                            std::string::ToString::to_string,
-                                        )
-                                    })
-                                })
-                                .collect()
-                        } else {
-                            values
-                        };
-
-                        let values: Vec<_> = if format.contains(',') {
-                            values
-                                .into_iter()
-                                .map(|opt| opt.as_ref().map(|str| str.replace(',', "")))
-                                .collect()
-                        } else {
-                            values
-                        };
+                        let values = Self::apply_formatting_if_needed(array, format);
 
                         Arc::new(StringArray::from(values))
                     }

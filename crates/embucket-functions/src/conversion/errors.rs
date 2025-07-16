@@ -1,6 +1,7 @@
 use arrow_schema::DataType;
 use datafusion_common::ScalarValue;
 use snafu::{Location, Snafu};
+use std::num::TryFromIntError;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -103,6 +104,14 @@ pub enum Error {
     UnexpectedReturnType {
         got: DataType,
         expected: DataType,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid integer conversion: {error}"))]
+    InvalidIntegerConversion {
+        #[snafu(source)]
+        error: TryFromIntError,
         #[snafu(implicit)]
         location: Location,
     },
