@@ -4,7 +4,8 @@ use crate::catalog::{CachingCatalog, CatalogType};
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::df_error;
 use crate::error::{
-    self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, NotImplementedSnafu, Result,
+    self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, MissingVolumeSnafu,
+    NotImplementedSnafu, Result, UnsupportedFeature,
 };
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
@@ -12,10 +13,13 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
-use core_metastore::{AwsCredentials, Metastore, VolumeType as MetastoreVolumeType};
+use core_metastore::{
+    AwsCredentials, Database, Metastore, VolumeType as MetastoreVolumeType, VolumeType,
+};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
+use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
     execution::object_store::ObjectStoreRegistry,
@@ -38,6 +42,16 @@ pub const DEFAULT_CATALOG: &str = "embucket";
 pub enum CachedEntity {
     Schema(SchemaIdent),
     Table(TableIdent),
+}
+
+impl CachedEntity {
+    #[must_use]
+    pub fn normalized(&self) -> Self {
+        match self {
+            Self::Schema(ident) => Self::Schema(ident.normalized()),
+            Self::Table(ident) => Self::Table(ident.normalized()),
+        }
+    }
 }
 
 pub struct EmbucketCatalogList {
@@ -74,20 +88,75 @@ impl EmbucketCatalogList {
             .fail();
         };
         match catalog.catalog_type {
-            CatalogType::Internal => {
-                // Set cascade to true to delete all tables in the database
+            CatalogType::Embucket => {
                 self.metastore
-                    .delete_database(&name.to_string(), true)
+                    .delete_database(&name.to_string(), cascade)
                     .await
                     .context(MetastoreSnafu)?;
                 Ok(())
             }
             CatalogType::Memory => Ok(()),
             CatalogType::S3tables => NotImplementedSnafu {
+                feature: UnsupportedFeature::DropS3TablesDatabase,
                 details: "Dropping S3 tables catalogs is not supported",
             }
             .fail(),
         }
+    }
+
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::create_catalog",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    pub async fn create_catalog(&self, catalog_name: &str, volume_ident: &str) -> Result<()> {
+        let volume = self
+            .metastore
+            .get_volume(&volume_ident.to_string())
+            .await
+            .context(MetastoreSnafu)?;
+
+        let Some(volume) = volume else {
+            return MissingVolumeSnafu {
+                name: volume_ident.to_string(),
+            }
+            .fail();
+        };
+
+        match volume.volume {
+            VolumeType::S3(_) | VolumeType::File(_) => {
+                let database = Database {
+                    ident: catalog_name.to_owned(),
+                    volume: volume_ident.to_owned(),
+                    properties: None,
+                };
+                self.metastore
+                    .create_database(&catalog_name.to_owned(), database)
+                    .await
+                    .context(MetastoreSnafu)?;
+                self.catalogs.insert(
+                    catalog_name.to_owned(),
+                    Arc::new(self.get_embucket_catalog(catalog_name)?),
+                );
+            }
+            VolumeType::Memory => {
+                let provider = MemoryCatalogProvider::new();
+                let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
+                    .with_refresh(true)
+                    .with_catalog_type(CatalogType::Memory);
+                self.catalogs
+                    .insert(catalog_name.to_owned(), Arc::new(catalog));
+            }
+            VolumeType::S3Tables(_) => {
+                return NotImplementedSnafu {
+                    feature: UnsupportedFeature::CreateS3TablesDatabase,
+                    details: "Creating an S3 table catalog is not supported",
+                }
+                .fail();
+            }
+        }
+        Ok(())
     }
 
     /// Discovers and registers all available catalogs into the catalog registry.
@@ -137,18 +206,20 @@ impl EmbucketCatalogList {
             .await
             .context(df_catalog_error::CoreSnafu)?
             .into_iter()
-            .map(|db| {
-                let iceberg_catalog =
-                    EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
-                        .context(MetastoreSnafu)?;
-                let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
-                    db.ident.clone(),
-                    self.metastore.clone(),
-                    Arc::new(iceberg_catalog),
-                ));
-                Ok(CachingCatalog::new(catalog, db.ident.clone()).with_refresh(true))
-            })
+            .map(|db| self.get_embucket_catalog(&db.ident.clone()))
             .collect()
+    }
+
+    fn get_embucket_catalog(&self, database_name: &str) -> Result<CachingCatalog> {
+        let iceberg_catalog =
+            EmbucketIcebergCatalog::new(self.metastore.clone(), database_name.to_owned())
+                .context(MetastoreSnafu)?;
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
+            database_name.to_owned(),
+            self.metastore.clone(),
+            Arc::new(iceberg_catalog),
+        ));
+        Ok(CachingCatalog::new(catalog, database_name.to_owned()).with_refresh(true))
     }
 
     #[must_use]

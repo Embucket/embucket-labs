@@ -22,6 +22,14 @@ impl SchemaIdent {
     pub const fn new(database: DatabaseIdent, schema: String) -> Self {
         Self { schema, database }
     }
+
+    #[must_use]
+    pub fn normalized(&self) -> Self {
+        Self {
+            schema: self.schema.to_ascii_lowercase(),
+            database: self.database.to_ascii_lowercase(),
+        }
+    }
 }
 
 impl std::fmt::Display for SchemaIdent {

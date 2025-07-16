@@ -1,5 +1,3 @@
-use std::backtrace::Backtrace;
-
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -7,6 +5,8 @@ use iceberg_rust::error::Error as IcebergError;
 use iceberg_s3tables_catalog::error::Error as S3tablesError;
 use snafu::Location;
 use snafu::prelude::*;
+use std::backtrace::Backtrace;
+use std::fmt::Display;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -187,9 +187,9 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Object of type {type_name} with name {name} already exists"))]
+    #[snafu(display("Object of type {type:?} with name {name} already exists"))]
     ObjectAlreadyExists {
-        type_name: String,
+        r#type: ObjectType,
         name: String,
         #[snafu(implicit)]
         location: Location,
@@ -277,9 +277,23 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Failed to create database '{name}' without external volume"))]
+    ExternalVolumeRequiredForCreateDatabase {
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Failed to drop catalog: {source}"))]
-    DropCatalog {
+    #[snafu(display("Failed to drop database: {source}"))]
+    DropDatabase {
+        #[snafu(source(from(CatalogError, Box::new)))]
+        source: Box<CatalogError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to create database: {source}"))]
+    CreateDatabase {
         #[snafu(source(from(CatalogError, Box::new)))]
         source: Box<CatalogError>,
         #[snafu(implicit)]
@@ -301,11 +315,6 @@ pub enum Error {
     },
     #[snafu(display("Only primitive statements are supported"))]
     OnlyPrimitiveStatements {
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Only CREATE TABLE/CREATE SCHEMA statements are supported"))]
-    OnlyTableSchemaCreateStatements {
         #[snafu(implicit)]
         location: Location,
     },
@@ -449,4 +458,21 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+}
+
+#[derive(Debug)]
+pub enum ObjectType {
+    Database,
+    Schema,
+    Table,
+}
+
+impl Display for ObjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Database => write!(f, "database"),
+            Self::Schema => write!(f, "schema"),
+            Self::Table => write!(f, "table"),
+        }
+    }
 }

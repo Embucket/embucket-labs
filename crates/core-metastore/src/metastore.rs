@@ -412,6 +412,16 @@ impl Metastore for SlateDBMetastore {
                 .map(|schema| self.delete_schema(&schema.ident, cascade))
                 .collect::<Vec<_>>();
             futures::future::try_join_all(futures).await?;
+        } else if !schemas.is_empty() {
+            return Err(metastore_error::DatabaseInUseSnafu {
+                database: name,
+                schema: schemas
+                    .iter()
+                    .map(|s| s.ident.schema.clone())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            }
+            .build());
         }
         let key = format!("{KEY_DATABASE}/{name}");
         self.delete_object(&key).await

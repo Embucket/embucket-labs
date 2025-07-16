@@ -79,10 +79,23 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Feature not implemented: '{details:?}'"))]
+    #[snafu(display("Feature not implemented: {feature:?}, {details:?}"))]
     NotImplemented {
+        feature: UnsupportedFeature,
         details: String,
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Missing volume with ident: '{name:?}'"))]
+    MissingVolume {
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+#[derive(Debug)]
+pub enum UnsupportedFeature {
+    DropS3TablesDatabase,
+    CreateS3TablesDatabase,
 }

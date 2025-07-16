@@ -5,7 +5,9 @@ use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
 };
 use super::datafusion::planner::ExtendedSqlToRel;
-use super::error::{self as ex_error, Error, RefreshCatalogListSnafu, Result};
+use super::error::{
+    self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
+};
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
@@ -61,7 +63,6 @@ use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
-use df_catalog::error::Error as CatalogError;
 use df_catalog::information_schema::session_params::SessionProperty;
 use df_catalog::table::CachingTable;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
@@ -179,40 +180,15 @@ impl UserQuery {
             .as_any()
             .downcast_ref::<EmbucketCatalogList>()
         {
-            let res = catalog_list_impl
-                .invalidate_cache(entity)
-                .await
-                .context(RefreshCatalogListSnafu);
-
-            // Not sure we need this, but just in case
-            // TODO: Remove following block when refresh_catalog removed
-            if let Err(Error::RefreshCatalogList { source, .. }) = res {
-                // refresh entire catalog if cache error happen
-                if let CatalogError::InvalidCache { .. } = *source {
-                    self.refresh_catalog().await?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    async fn refresh_catalog(&self) -> Result<()> {
-        if let Some(catalog_list_impl) = self
-            .session
-            .ctx
-            .state()
-            .catalog_list()
-            .as_any()
-            .downcast_ref::<EmbucketCatalogList>()
-        {
             catalog_list_impl
-                .refresh()
+                .invalidate_cache(entity.normalized())
                 .await
                 .context(RefreshCatalogListSnafu)?;
         }
         Ok(())
     }
 
+    #[instrument(name = "UserQuery::drop_catalog", level = "debug", skip(self), err)]
     async fn drop_catalog(&self, catalog: &str, cascade: bool) -> Result<()> {
         if let Some(catalog_list_impl) = self
             .session
@@ -225,7 +201,25 @@ impl UserQuery {
             catalog_list_impl
                 .drop_catalog(catalog, cascade)
                 .await
-                .context(ex_error::DropCatalogSnafu)?;
+                .context(ex_error::DropDatabaseSnafu)?;
+        }
+        Ok(())
+    }
+
+    #[instrument(name = "UserQuery::create_catalog", level = "debug", skip(self), err)]
+    async fn create_catalog(&self, catalog: &str, volume: &str) -> Result<()> {
+        if let Some(catalog_list_impl) = self
+            .session
+            .ctx
+            .state()
+            .catalog_list()
+            .as_any()
+            .downcast_ref::<EmbucketCatalogList>()
+        {
+            catalog_list_impl
+                .create_catalog(catalog, volume)
+                .await
+                .context(ex_error::CreateDatabaseSnafu)?;
         }
         Ok(())
     }
@@ -360,17 +354,17 @@ impl UserQuery {
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
-                Statement::CreateDatabase { .. } => {
-                    // TODO: Databases are only able to be created through the
-                    // metastore API. We need to add Snowflake volume syntax to CREATE DATABASE query
-                    return ex_error::OnlyTableSchemaCreateStatementsSnafu.fail();
-                    /*return self
-                    .create_database(db_name, if_not_exists)
-                    .await;*/
+                Statement::CreateDatabase {
+                    db_name,
+                    if_not_exists,
+                    external_volume,
+                    ..
+                } => {
+                    return self
+                        .create_database(db_name, if_not_exists, external_volume)
+                        .await;
                 }
-                Statement::CreateSchema { .. } => {
-                    return Box::pin(self.create_schema(*s)).await;
-                }
+                Statement::CreateSchema { .. } => return Box::pin(self.create_schema(*s)).await,
                 Statement::CreateStage { .. } => {
                     // We support only CSV uploads for now
                     return Box::pin(self.create_stage_query(*s)).await;
@@ -394,9 +388,7 @@ impl UserQuery {
                 | Statement::ShowFunctions { .. }
                 | Statement::ShowObjects { .. }
                 | Statement::ShowVariables { .. }
-                | Statement::ShowVariable { .. } => {
-                    return Box::pin(self.show_query(*s)).await;
-                }
+                | Statement::ShowVariable { .. } => return Box::pin(self.show_query(*s)).await,
                 Statement::Truncate { table_names, .. } => {
                     return Box::pin(self.truncate_table(table_names)).await;
                 }
@@ -404,12 +396,8 @@ impl UserQuery {
                     self.traverse_and_update_query(subquery.as_mut()).await;
                     return Box::pin(self.execute_with_custom_plan(&subquery.to_string())).await;
                 }
-                Statement::Drop { .. } => {
-                    return Box::pin(self.drop_query(*s)).await;
-                }
-                Statement::Merge { .. } => {
-                    return Box::pin(self.merge_query(*s)).await;
-                }
+                Statement::Drop { .. } => return Box::pin(self.drop_query(*s)).await,
+                Statement::Merge { .. } => return Box::pin(self.merge_query(*s)).await,
                 _ => {}
             }
         } else if let DFStatement::CreateExternalTable(cetable) = statement {
@@ -741,7 +729,7 @@ impl UserQuery {
                     .context(ex_error::IcebergSnafu)?;
             } else {
                 return ex_error::ObjectAlreadyExistsSnafu {
-                    type_name: "table".to_string(),
+                    r#type: ExistingObjectType::Table,
                     name: ident.to_string(),
                 }
                 .fail();
@@ -1100,7 +1088,7 @@ impl UserQuery {
 
                 Ok((source_plan, None))
             }
-            _ => ex_error::MergeSourceNotSupportedSnafu.fail(),
+            _ => MergeSourceNotSupportedSnafu.fail(),
         }?;
 
         let source_schema = source_plan.schema().clone();
@@ -1203,6 +1191,34 @@ impl UserQuery {
         .await
     }
 
+    #[instrument(name = "UserQuery::create_database", level = "trace", skip(self), err)]
+    pub async fn create_database(
+        &self,
+        db_name: ObjectName,
+        if_not_exists: bool,
+        external_volume: Option<String>,
+    ) -> Result<QueryResult> {
+        let catalog_name = object_name_to_string(&db_name);
+        if external_volume.is_none() {
+            return ex_error::ExternalVolumeRequiredForCreateDatabaseSnafu { name: catalog_name }
+                .fail();
+        }
+        let catalog_exist = self.get_catalog(&catalog_name).is_ok();
+        if catalog_exist {
+            if if_not_exists {
+                return self.created_entity_response();
+            }
+            return ex_error::ObjectAlreadyExistsSnafu {
+                r#type: ExistingObjectType::Database,
+                name: catalog_name,
+            }
+            .fail();
+        }
+        self.create_catalog(&catalog_name, &external_volume.unwrap_or_default())
+            .await?;
+        self.created_entity_response()
+    }
+
     #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
     pub async fn create_schema(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CreateSchema {
@@ -1243,7 +1259,7 @@ impl UserQuery {
                 return self.created_entity_response();
             }
             return ex_error::ObjectAlreadyExistsSnafu {
-                type_name: "schema".to_string(),
+                r#type: ExistingObjectType::Schema,
                 name: ident.schema,
             }
             .fail();
@@ -1273,8 +1289,8 @@ impl UserQuery {
     #[allow(clippy::too_many_lines)]
     pub async fn show_query(&self, statement: Statement) -> Result<QueryResult> {
         let query = match statement {
-            Statement::ShowDatabases { .. } => {
-                format!(
+            Statement::ShowDatabases { show_options, .. } => {
+                let sql = format!(
                     "SELECT
                         NULL as created_on,
                         database_name as name,
@@ -1283,7 +1299,14 @@ impl UserQuery {
                         NULL as schema_name
                     FROM {}.information_schema.databases",
                     self.current_database()
-                )
+                );
+                let mut filters = Vec::new();
+                if let Some(filter) =
+                    build_starts_with_filter(show_options.starts_with, "database_name")
+                {
+                    filters.push(filter);
+                }
+                apply_show_filters(sql, &filters)
             }
             Statement::ShowSchemas { show_options, .. } => {
                 let reference = self.resolve_show_in_name(show_options.show_in, false);

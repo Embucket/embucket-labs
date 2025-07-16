@@ -15,7 +15,7 @@ pub struct CachingCatalog {
 
 #[derive(Clone, Debug)]
 pub enum CatalogType {
-    Internal,
+    Embucket,
     Memory,
     S3tables,
 }
@@ -28,7 +28,7 @@ impl CachingCatalog {
             should_refresh: false,
             enable_information_schema: true,
             name,
-            catalog_type: CatalogType::Internal,
+            catalog_type: CatalogType::Embucket,
         }
     }
     #[must_use]
