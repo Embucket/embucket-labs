@@ -8,20 +8,56 @@ use core_metastore::Volume as MetastoreVolume;
 use core_utils::Db;
 use std::sync::Arc;
 use futures::future::join_all;
+use std::env;
+use chrono::Utc;
+use std::fs;
+use std::path::PathBuf;
+use object_store::ObjectStore;
+use object_store::{local::LocalFileSystem};
+use object_store::path::Path;
+use slatedb::{Db as SlateDb, config::DbOptions};
 
 pub const TEST_SESSION_ID: &str = "test_session_id";
 pub const TEST_VOLUME_NAME: &str = "test_volume";
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
 
-pub struct TestEntities {
-    pub volume: Option<String>,
-    pub database: Option<String>,
-    pub schema: Option<String>,
+
+#[derive(Debug)]
+pub enum StorageType {
+    Memory,
+    File(String),
 }
 
-async fn create_executor() -> CoreExecutionService {
-    let db = Db::memory().await;
+pub fn object_store(path: &PathBuf) -> Arc<dyn ObjectStore> {
+    let path = path.as_path();
+    if !path.exists() || !path.is_dir() {
+        fs::create_dir(path).unwrap();
+    }
+    LocalFileSystem::new_with_prefix(path)
+        .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
+        .expect("Failed to create object store")
+}
+
+pub async fn create_executor(storage_type: &StorageType) -> CoreExecutionService {
+    let db = match storage_type {
+        StorageType::Memory => Db::memory().await,
+        StorageType::File(slatedb_suffix) => {
+            let temp_dir = PathBuf::from(format!("{}/object_store", env::temp_dir().display()));
+            let object_store = object_store(&temp_dir);
+            let slatedb_dir = format!("slatedb_{}",slatedb_suffix);
+            eprintln!("SlateDB path: {}/{}", temp_dir.display(), slatedb_dir);
+            Db::new(Arc::new(
+                SlateDb::open_with_opts(
+                    Path::from(slatedb_dir),
+                    DbOptions::default(),
+                    object_store,
+                )
+                .await
+                .expect("Failed to start Slate DB"),
+            ))
+        },
+    };
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
     let execution_svc = CoreExecutionService::new(
@@ -30,7 +66,9 @@ async fn create_executor() -> CoreExecutionService {
         Arc::new(Config::default()),
     );
 
-    metastore
+    // TODO: Move po prepare_statements after we can create volume with SQL
+    // Now, just ignore volume creating error, as we create multiple executors
+    let _ =metastore
         .create_volume(
             &TEST_VOLUME_NAME.to_string(),
             MetastoreVolume::new(
@@ -38,44 +76,122 @@ async fn create_executor() -> CoreExecutionService {
                 core_metastore::VolumeType::Memory,
             ),
         )
-        .await
-        .expect("Failed to create volume");
-
-    execution_svc
-}
-
-#[tokio::test]
-#[ignore]
-#[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn e2e_test_multiple_writers() {
-    let execution_svc = create_executor().await;
+        .await;
+        //.expect("Failed to create volume");
 
     execution_svc.create_session(TEST_SESSION_ID.to_string()).await
         .expect("Failed to create session");
 
     execution_svc
-        .query(TEST_SESSION_ID, &format!("CREATE DATABASE {TEST_DATABASE_NAME} EXTERNAL_VOLUME = {TEST_VOLUME_NAME}"), QueryContext::default())
-        .await
-        .expect("Failed to create database");
+}
 
-    execution_svc
-        .query(TEST_SESSION_ID, &format!("CREATE SCHEMA {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}"), QueryContext::default())
-        .await
-        .expect("Failed to create schema");
+async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_type: StorageType,
+    prepare_statements: Vec<String>, test_statements: Vec<String>) -> bool {
 
-    let query = format!("CREATE TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello(amount number)");
-    let mut futures = vec![];
-    for _ in 0..5 {
-        futures.push(execution_svc
-            .query(TEST_SESSION_ID, &query, QueryContext::default()));
+    assert!(n_writers > 1);
+
+    let mut execution_svc_writers: Vec<CoreExecutionService> = vec![];
+    for _ in 0..n_writers {
+        execution_svc_writers.push(create_executor(&storage_type).await);
     }
 
-    let results = join_all(futures).await;
+    // Use single writer for prepare statements
+    for (idx, statement) in prepare_statements.iter().enumerate() {
+        if let Err(err) = execution_svc_writers[0].query(TEST_SESSION_ID, &statement, QueryContext::default()).await {
+            panic!("Prepare sql statement #{} execution error: {}", idx, err);
+        }
+    }
 
-    eprintln!("Results: {:#?}", results);
-    let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-    let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
-    let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
-    assert_eq!(oks.len(), 1);
-    assert_eq!(errs.len(), 4);
+    let mut passed = true;
+    for (idx, statement) in test_statements.iter().enumerate() {
+        let mut futures = vec![];
+        for idx in 0..n_writers {
+            let execution_svc = &execution_svc_writers[idx];
+            futures.push(execution_svc
+                .query(TEST_SESSION_ID, &statement, QueryContext::default()));
+        }
+    
+        let results = join_all(futures).await;
+    
+        let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+        let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
+        let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
+        if oks.len() != 1 || errs.len() != n_writers-1 {
+            eprintln!("FAIL Test statement #{idx} ({statement}) Ok: {oks:#?}, Err: {errs:#?}");
+            passed = false;
+        } else {
+            eprintln!("PASSED Test statement #{idx} ({statement})");
+        }
+    }
+    passed
+}
+
+
+
+// async fn exec_statements_with_multiple_soft_writers(execution_svc: CoreExecutionService, n_writers: usize,
+//     prepare_statements: Vec<String>, test_statements: Vec<String>) {
+//     for (idx, statement) in prepare_statements.iter().enumerate() {
+//         if let Err(err) = execution_svc.query(TEST_SESSION_ID, &statement, QueryContext::default()).await {
+//             panic!("Prepare sql statement #{} execution error: {}", idx, err);
+//         }
+//     }
+
+//     for (idx, statement) in test_statements.iter().enumerate() {
+//         let mut futures = vec![];
+//         for _ in 0..n_writers {
+//             futures.push(execution_svc
+//                 .query(TEST_SESSION_ID, &statement, QueryContext::default()));
+//         }
+    
+//         let results = join_all(futures).await;
+    
+//         let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+//         let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
+//         let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
+//         if oks.len() != 1 || errs.len() != n_writers-1 {
+//             eprintln!("FAIL Test statement #{idx} ({statement}) Ok: {oks:#?}, Err: {errs:#?}");
+//         } else {
+//             eprintln!("PASSED Test statement #{idx} ({statement})");
+//         }
+//         assert_eq!(oks.len(), 1);
+//         assert_eq!(errs.len(), n_writers-1);
+//     }
+
+// }
+
+
+#[tokio::test]
+#[ignore]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn e2e_test_with_multiple_writers() {
+    let common_slatedb_prefix = Utc::now().timestamp_nanos_opt().unwrap().to_string();
+    let storages = vec![StorageType::Memory, StorageType::File(common_slatedb_prefix)];
+    let mut passed = true;
+    for storage in storages {
+        eprintln!("Testing with storage: {storage:?}");
+        passed = exec_statements_with_multiple_hard_writers(5, storage, vec![
+            format!("CREATE DATABASE {TEST_DATABASE_NAME} EXTERNAL_VOLUME = {TEST_VOLUME_NAME}"),
+            format!("CREATE SCHEMA {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}"),
+        ], vec![
+            format!("CREATE TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello(amount number)"),
+            format!("ALTER TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello add column c5 VARCHAR"),
+        ]).await && passed;
+    }
+    assert!(passed);
+
+    // let query = ;
+    // let mut futures = vec![];
+    // for _ in 0..5 {
+    //     futures.push(execution_svc
+    //         .query(TEST_SESSION_ID, &query, QueryContext::default()));
+    // }
+
+    // let results = join_all(futures).await;
+
+    // eprintln!("Results: {:#?}", results);
+    // let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+    // let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
+    // let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
+    // assert_eq!(oks.len(), 1);
+    // assert_eq!(errs.len(), 4);
 }
