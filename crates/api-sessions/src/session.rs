@@ -108,6 +108,9 @@ impl DFSessionId {
     }
 }
 
+//Snowflake token extraction lives in the api-session crate (used here also),
+// so to not create a cyclic dependency exporting it from the api-snowflake-rest crate,
+// where it's used in the `require_auth` layer as part of the session flow and was originally from
 #[must_use]
 pub fn extract_token_from_auth(headers: &HeaderMap) -> Option<String> {
     //First we check the header

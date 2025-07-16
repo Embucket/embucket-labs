@@ -95,12 +95,6 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-
-    #[snafu(display("Execution error: {error}"))]
-    Execution {
-        #[snafu(source)]
-        error: core_executor::Error,
-    },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
