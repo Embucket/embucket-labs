@@ -249,7 +249,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
         }
     }
     //TODO: formatting <format> second argument
-    #[allow(clippy::unwrap_used, clippy::too_many_lines)]
+    #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let DataType::Decimal128(precision, scale) = args.return_type else {
             return conv_errors::UnexpectedReturnTypeSnafu {
