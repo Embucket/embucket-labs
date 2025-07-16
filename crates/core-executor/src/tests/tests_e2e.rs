@@ -1,27 +1,25 @@
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
+use chrono::Utc;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::Volume as MetastoreVolume;
 use core_utils::Db;
-use std::sync::Arc;
 use futures::future::join_all;
-use std::env;
-use chrono::Utc;
-use std::fs;
-use std::path::PathBuf;
 use object_store::ObjectStore;
-use object_store::{local::LocalFileSystem};
-use object_store::path::Path;
+use object_store::local::LocalFileSystem;
 use slatedb::{Db as SlateDb, config::DbOptions};
+use std::env;
+use std::fs;
+use std::path::Path;
+use std::sync::Arc;
 
 pub const TEST_SESSION_ID: &str = "test_session_id";
 pub const TEST_VOLUME_NAME: &str = "test_volume";
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
-
 
 #[derive(Debug)]
 pub enum StorageType {
@@ -29,8 +27,9 @@ pub enum StorageType {
     File(String),
 }
 
-pub fn object_store(path: &PathBuf) -> Arc<dyn ObjectStore> {
-    let path = path.as_path();
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+#[must_use]
+pub fn object_store(path: &Path) -> Arc<dyn ObjectStore> {
     if !path.exists() || !path.is_dir() {
         fs::create_dir(path).unwrap();
     }
@@ -43,20 +42,21 @@ pub async fn create_executor(storage_type: &StorageType) -> CoreExecutionService
     let db = match storage_type {
         StorageType::Memory => Db::memory().await,
         StorageType::File(slatedb_suffix) => {
-            let temp_dir = PathBuf::from(format!("{}/object_store", env::temp_dir().display()));
-            let object_store = object_store(&temp_dir);
-            let slatedb_dir = format!("slatedb_{}",slatedb_suffix);
+            let mut temp_dir = env::temp_dir();
+            temp_dir.push("object_store");
+            let object_store = object_store(temp_dir.as_path());
+            let slatedb_dir = format!("slatedb_{slatedb_suffix}");
             eprintln!("SlateDB path: {}/{}", temp_dir.display(), slatedb_dir);
             Db::new(Arc::new(
                 SlateDb::open_with_opts(
-                    Path::from(slatedb_dir),
+                    object_store::path::Path::from(slatedb_dir),
                     DbOptions::default(),
                     object_store,
                 )
                 .await
                 .expect("Failed to start Slate DB"),
             ))
-        },
+        }
     };
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
@@ -68,7 +68,7 @@ pub async fn create_executor(storage_type: &StorageType) -> CoreExecutionService
 
     // TODO: Move po prepare_statements after we can create volume with SQL
     // Now, just ignore volume creating error, as we create multiple executors
-    let _ =metastore
+    let _ = metastore
         .create_volume(
             &TEST_VOLUME_NAME.to_string(),
             MetastoreVolume::new(
@@ -77,17 +77,22 @@ pub async fn create_executor(storage_type: &StorageType) -> CoreExecutionService
             ),
         )
         .await;
-        //.expect("Failed to create volume");
+    //.expect("Failed to create volume");
 
-    execution_svc.create_session(TEST_SESSION_ID.to_string()).await
+    execution_svc
+        .create_session(TEST_SESSION_ID.to_string())
+        .await
         .expect("Failed to create session");
 
     execution_svc
 }
 
-async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_type: StorageType,
-    prepare_statements: Vec<String>, test_statements: Vec<String>) -> bool {
-
+async fn exec_statements_with_multiple_hard_writers(
+    n_writers: usize,
+    storage_type: StorageType,
+    prepare_statements: Vec<String>,
+    test_statements: Vec<String>,
+) -> bool {
     assert!(n_writers > 1);
 
     let mut execution_svc_writers: Vec<CoreExecutionService> = vec![];
@@ -97,26 +102,27 @@ async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_ty
 
     // Use single writer for prepare statements
     for (idx, statement) in prepare_statements.iter().enumerate() {
-        if let Err(err) = execution_svc_writers[0].query(TEST_SESSION_ID, &statement, QueryContext::default()).await {
-            panic!("Prepare sql statement #{} execution error: {}", idx, err);
+        if let Err(err) = execution_svc_writers[0]
+            .query(TEST_SESSION_ID, statement, QueryContext::default())
+            .await
+        {
+            panic!("Prepare sql statement #{idx} execution error: {err}");
         }
     }
 
     let mut passed = true;
     for (idx, statement) in test_statements.iter().enumerate() {
         let mut futures = vec![];
-        for idx in 0..n_writers {
-            let execution_svc = &execution_svc_writers[idx];
-            futures.push(execution_svc
-                .query(TEST_SESSION_ID, &statement, QueryContext::default()));
+        for execution_svc in execution_svc_writers.iter().take(n_writers) {
+            futures.push(execution_svc.query(TEST_SESSION_ID, statement, QueryContext::default()));
         }
-    
+
         let results = join_all(futures).await;
-    
+
         let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-        let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
-        let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
-        if oks.len() != 1 || errs.len() != n_writers-1 {
+        let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+        let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
+        if oks.len() != 1 || errs.len() != n_writers - 1 {
             eprintln!("FAIL Test statement #{idx} ({statement}) Ok: {oks:#?}, Err: {errs:#?}");
             passed = false;
         } else {
@@ -125,8 +131,6 @@ async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_ty
     }
     passed
 }
-
-
 
 // async fn exec_statements_with_multiple_soft_writers(execution_svc: CoreExecutionService, n_writers: usize,
 //     prepare_statements: Vec<String>, test_statements: Vec<String>) {
@@ -142,9 +146,9 @@ async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_ty
 //             futures.push(execution_svc
 //                 .query(TEST_SESSION_ID, &statement, QueryContext::default()));
 //         }
-    
+
 //         let results = join_all(futures).await;
-    
+
 //         let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
 //         let oks: Vec<_> = oks.into_iter().map(|r| r.unwrap()).collect();
 //         let errs: Vec<_> = errs.into_iter().map(|r| r.unwrap_err()).collect();
@@ -159,25 +163,29 @@ async fn exec_statements_with_multiple_hard_writers(n_writers: usize, storage_ty
 
 // }
 
-
 #[tokio::test]
-#[ignore]
+#[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn e2e_test_with_multiple_writers() {
-    let common_slatedb_prefix = Utc::now().timestamp_nanos_opt().unwrap().to_string();
-    let storages = vec![StorageType::Memory, StorageType::File(common_slatedb_prefix)];
-    let mut passed = true;
-    for storage in storages {
-        eprintln!("Testing with storage: {storage:?}");
-        passed = exec_statements_with_multiple_hard_writers(5, storage, vec![
-            format!("CREATE DATABASE {TEST_DATABASE_NAME} EXTERNAL_VOLUME = {TEST_VOLUME_NAME}"),
-            format!("CREATE SCHEMA {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}"),
-        ], vec![
-            format!("CREATE TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello(amount number)"),
-            format!("ALTER TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello add column c5 VARCHAR"),
-        ]).await && passed;
+    if let Some(nano_timestamp) = Utc::now().timestamp_nanos_opt() {
+        let common_slatedb_prefix = nano_timestamp.to_string();
+        let storages = vec![
+            StorageType::Memory,
+            StorageType::File(common_slatedb_prefix),
+        ];
+        let mut passed = true;
+        for storage in storages {
+            eprintln!("Testing with storage: {storage:?}");
+            passed = exec_statements_with_multiple_hard_writers(5, storage, vec![
+                format!("CREATE DATABASE {TEST_DATABASE_NAME} EXTERNAL_VOLUME = {TEST_VOLUME_NAME}"),
+                format!("CREATE SCHEMA {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}"),
+            ], vec![
+                format!("CREATE TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello(amount number)"),
+                format!("ALTER TABLE {TEST_DATABASE_NAME}.{TEST_SCHEMA_NAME}.hello add column c5 VARCHAR"),
+            ]).await && passed;
+        }
+        assert!(passed);
     }
-    assert!(passed);
 
     // let query = ;
     // let mut futures = vec![];
