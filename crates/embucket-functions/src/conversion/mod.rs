@@ -26,14 +26,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(false))),
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
-        Arc::new(ScalarUDF::from(ToDecimalFunc::new(
-            false,
-            vec!["to_number".to_string(), "to_numeric".to_string()],
-        ))),
-        Arc::new(ScalarUDF::from(ToDecimalFunc::new(
-            true,
-            vec!["try_to_number".to_string(), "try_to_numeric".to_string()],
-        ))),
+        Arc::new(ScalarUDF::from(ToDecimalFunc::new(false))),
+        Arc::new(ScalarUDF::from(ToDecimalFunc::new(true))),
     ];
     for func in functions {
         registry.register_udf(func)?;

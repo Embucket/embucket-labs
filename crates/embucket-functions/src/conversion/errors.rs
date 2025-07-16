@@ -84,15 +84,15 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Too little arguments, got: {got}, expected at least: {at_least}"))]
-    TooLittleArguments {
+    #[snafu(display("Too little arguments, expected at least: {at_least}, got: {got}"))]
+    NotEnoughArguments {
         got: usize,
         at_least: usize,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Too many arguments, got: {got}, expected at maximum: {at_maximum}"))]
+    #[snafu(display("Too many arguments, expected at maximum: {at_maximum}, got: {got}"))]
     TooManyArguments {
         got: usize,
         at_maximum: usize,
