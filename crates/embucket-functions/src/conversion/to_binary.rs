@@ -24,9 +24,9 @@ use std::sync::Arc;
 /// Arguments:
 /// - `<expr>`: The expression to convert to binary. If the expression is NULL, it returns NULL.
 /// - `<format>`: Optional format specifier. Valid values are:
-///   - 'HEX': Interprets the input as a hexadecimal string
+///   - 'HEX': Interprets the input as a hexadecimal string (drfault if not specified)
 ///   - 'BASE64': Interprets the input as a base64-encoded string
-///   - 'UTF-8': Interprets the input as a UTF-8 string (default if not specified)
+///   - 'UTF-8': Interprets the input as a UTF-8 string
 ///
 /// Example: `TO_BINARY('SNOW', 'UTF-8')`
 #[derive(Debug)]
@@ -91,21 +91,21 @@ impl ScalarUDFImpl for ToBinaryFunc {
         // Get the input expression
         let input = args[0].clone();
 
-        // Get the format if provided, default to UTF-8
+        // Get the format if provided, default to HEX
         let format = if args.len() > 1 {
             match &args[1] {
-                ColumnarValue::Scalar(v) => Some(v.to_string()),
+                ColumnarValue::Scalar(v) => v.to_string(),
                 ColumnarValue::Array(arr) => {
                     if arr.len() == 1 && !arr.is_null(0) {
                         let format_arr = as_string_array(arr)?;
-                        Some(format_arr.value(0).to_string())
+                        format_arr.value(0).to_string()
                     } else {
                         return conv_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
                     }
                 }
             }
         } else {
-            Some("UTF-8".to_string())
+            "HEX".to_string()
         };
 
         // Convert input to array
@@ -118,15 +118,15 @@ impl ScalarUDFImpl for ToBinaryFunc {
         let result = match input_array.data_type() {
             DataType::Utf8 => {
                 let string_array = as_string_array(&input_array)?;
-                convert_string_to_binary(string_array.iter(), format.as_deref(), self.try_mode)?
+                convert_string_to_binary(string_array.iter(), format, self.try_mode)?
             }
             DataType::LargeUtf8 => {
                 let string_array = as_large_string_array(&input_array)?;
-                convert_string_to_binary(string_array.iter(), format.as_deref(), self.try_mode)?
+                convert_string_to_binary(string_array.iter(), format, self.try_mode)?
             }
             DataType::Utf8View => {
                 let string_array = as_string_view_array(&input_array)?;
-                convert_string_to_binary(string_array.iter(), format.as_deref(), self.try_mode)?
+                convert_string_to_binary(string_array.iter(), format, self.try_mode)?
             }
             DataType::Binary => {
                 // If input is already binary, return as is
@@ -179,15 +179,10 @@ fn strip_surrounding_quotes(s: &str) -> &str {
     }
 }
 
-fn convert_string_to_binary<'a, I>(
-    strings: I,
-    format: Option<&str>,
-    try_mode: bool,
-) -> DFResult<ArrayRef>
+fn convert_string_to_binary<'a, I>(strings: I, format: String, try_mode: bool) -> DFResult<ArrayRef>
 where
     I: Iterator<Item = Option<&'a str>>,
 {
-    let format = format.unwrap_or("HEX");
     let format_upper = format.to_uppercase();
 
     let mut builder = BinaryBuilder::new();
@@ -265,6 +260,27 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToBinaryFunc::new(false)));
 
         let q = "SELECT TO_BINARY('SNOW', 'UTF-8') AS binary_value";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+--------------+",
+                "| binary_value |",
+                "+--------------+",
+                "| 534e4f57     |",
+                "+--------------+",
+            ],
+            &result
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_to_binary_default() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToBinaryFunc::new(false)));
+
+        let q = "SELECT TO_BINARY('534E4F57') AS binary_value";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
