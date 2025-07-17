@@ -6,7 +6,6 @@ exclude-from-coverage
 statement ok
 INSERT INTO temp SELECT seq8() FROM table(generator(rowcount=>20)) v;
 
-exclude-from-coverage
 query T
 SELECT COUNT (*) FROM temp
 ----
