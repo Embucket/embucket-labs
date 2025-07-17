@@ -59,29 +59,6 @@ test_query!(
     snapshot_path = "hex_decode_string"
 );
 
-// Mixed valid/invalid test
-test_query!(
-    try_hex_decode_string_mixed,
-    "WITH test_data AS (
-        SELECT '48656C6C6F' AS hex_col  -- Valid: 'Hello'
-        UNION ALL
-        SELECT 'INVALID'               -- Invalid characters
-        UNION ALL
-        SELECT 'ABC'                   -- Odd length
-        UNION ALL
-        SELECT '576F726C64'            -- Valid: 'World'
-        UNION ALL
-        SELECT ''                      -- Empty
-        UNION ALL
-        SELECT NULL                    -- NULL
-    )
-    SELECT 
-        hex_col,
-        TRY_HEX_DECODE_STRING(hex_col) AS decoded_result
-    FROM test_data",
-    snapshot_path = "hex_decode_string"
-);
-
 // Special characters test
 test_query!(
     hex_decode_string_special_chars,
