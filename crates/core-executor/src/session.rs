@@ -77,7 +77,8 @@ impl UserSession {
                     .set_bool(
                         "datafusion.execution.skip_physical_aggregate_schema_check",
                         true,
-                    ),
+                    )
+                    .set_bool("datafusion.sql_parser.parse_float_as_decimal", true),
             )
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
