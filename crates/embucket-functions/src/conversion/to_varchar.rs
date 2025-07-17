@@ -71,7 +71,13 @@ impl ToVarcharFunc {
                     // TO_VARCHAR(<date>, <format>) - date + string format
                     TypeSignature::Exact(vec![DataType::Date32, DataType::Utf8]),
                     TypeSignature::Exact(vec![DataType::Date64, DataType::Utf8]),
+                    // TO_VARCHAR(<time>, <format>) - time + string format
+                    TypeSignature::Exact(vec![DataType::Time64(TimeUnit::Nanosecond), DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Time64(TimeUnit::Microsecond), DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Time64(TimeUnit::Millisecond), DataType::Utf8]),
                     // TO_VARCHAR(<binary_expr>, <format>) - binary + string format
+                    TypeSignature::Exact(vec![DataType::Binary, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::LargeBinary, DataType::Utf8]),
                     TypeSignature::Coercible(vec![
                         Coercion::new_exact(TypeSignatureClass::Native(logical_binary())),
                         Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
@@ -241,7 +247,7 @@ fn convert_numeric_to_string(
         DataType::Float32 => {
             let val = as_float32_array(array)?.value(index);
             if val.fract() == 0.0 {
-                format!("{:.3}", val)
+                format!("{:.0}", val)
             } else {
                 val.to_string()
             }
@@ -249,7 +255,7 @@ fn convert_numeric_to_string(
         DataType::Float64 => {
             let val = as_float64_array(array)?.value(index);
             if val.fract() == 0.0 {
-                format!("{:.3}", val)
+                format!("{:.0}", val)
             } else {
                 val.to_string()
             }
@@ -457,13 +463,76 @@ fn apply_timestamp_format(timestamp: &NaiveDateTime, format: &str) -> DFResult<S
     Ok(timestamp.format(&chrono_format).to_string())
 }
 
+fn apply_time_format(hours: i64, minutes: i64, seconds: i64, _sub_seconds: i64, format: &str) -> DFResult<String> {
+    let mut formatted = format.to_string();
+
+    // Replace time format tokens
+    formatted = formatted.replace("hh24", &format!("{:02}", hours));
+    formatted = formatted.replace("mi", &format!("{:02}", minutes));
+    formatted = formatted.replace("ss", &format!("{:02}", seconds));
+
+    Ok(formatted)
+}
+
 fn convert_time_to_string(
-    _array: &ArrayRef,
-    _index: usize,
-    _format: Option<&str>,
-    _try_mode: bool,
+    array: &ArrayRef,
+    index: usize,
+    format: Option<&str>,
+    try_mode: bool,
 ) -> DFResult<Option<String>> {
-    Ok(Some("01:02:03".to_string()))
+    let time_val = match array.data_type() {
+        DataType::Time64(time_unit) => {
+            // Get the time value in its native unit and convert to nanoseconds
+            let nanos = match time_unit {
+                TimeUnit::Nanosecond => {
+                    let time_array = as_time64_nanosecond_array(array)?;
+                    time_array.value(index)
+                },
+                TimeUnit::Microsecond => {
+                    let time_array = as_time64_microsecond_array(array)?;
+                    time_array.value(index) * 1_000
+                },
+                _ => {
+                    if try_mode {
+                        return Ok(None);
+                    } else {
+                        return datafusion_common::exec_err!("Unsupported time unit: {:?}", time_unit);
+                    }
+                }
+            };
+            
+            // Convert nanoseconds to hours, minutes, seconds
+            let total_seconds = nanos / 1_000_000_000;
+            let hours = total_seconds / 3600;
+            let minutes = (total_seconds % 3600) / 60;
+            let seconds = total_seconds % 60;
+            let sub_seconds = nanos % 1_000_000_000;
+            
+            Some((hours, minutes, seconds, sub_seconds))
+        }
+        _ => {
+            if try_mode {
+                return Ok(None);
+            } else {
+                return datafusion_common::exec_err!("Invalid time data type: {:?}", array.data_type());
+            }
+        }
+    };
+
+    if let Some((hours, minutes, seconds, sub_seconds)) = time_val {
+        if let Some(fmt) = format {
+            Ok(Some(apply_time_format(hours, minutes, seconds, sub_seconds, fmt)?))
+        } else {
+            // Default format: HH:MM:SS
+            Ok(Some(format!("{:02}:{:02}:{:02}", hours, minutes, seconds)))
+        }
+    } else {
+        if try_mode {
+            Ok(None)
+        } else {
+            datafusion_common::exec_err!("Invalid time value")
+        }
+    }
 }
 
 fn convert_string_to_string(
@@ -477,12 +546,72 @@ fn convert_string_to_string(
 }
 
 fn convert_binary_to_string(
-    _array: &ArrayRef,
-    _index: usize,
-    _format: Option<&str>,
-    _try_mode: bool,
+    array: &ArrayRef,
+    index: usize,
+    format: Option<&str>,
+    try_mode: bool,
 ) -> DFResult<Option<String>> {
-    Ok(Some("binary_value".to_string()))
+    let binary_data = match array.data_type() {
+        DataType::Binary => {
+            let binary_array = as_binary_array(array)?;
+            binary_array.value(index)
+        }
+        DataType::LargeBinary => {
+            let binary_array = as_large_binary_array(array)?;
+            binary_array.value(index)
+        }
+        _ => {
+            if try_mode {
+                return Ok(None);
+            } else {
+                return conv_errors::UnsupportedInputTypeSnafu {
+                    data_type: array.data_type().clone(),
+                }
+                .fail()?;
+            }
+        }
+    };
+
+    // If no format is specified, use DataFusion's natural binary display
+    if format.is_none() {
+        // Use DataFusion's default way of displaying binary data as string
+        use datafusion::arrow::util::display::array_value_to_string;
+        return Ok(Some(array_value_to_string(array, index)?));
+    }
+
+    let format_str = format.unwrap().to_uppercase();
+    
+    match format_str.as_str() {
+        "UTF-8" | "UTF8" => {
+            // Convert binary to UTF-8 string
+            match std::str::from_utf8(binary_data) {
+                Ok(s) => Ok(Some(s.to_string())),
+                Err(_) => {
+                    if try_mode {
+                        Ok(None)
+                    } else {
+                        datafusion_common::exec_err!("Invalid UTF-8 sequence in binary data")
+                    }
+                }
+            }
+        }
+        "HEX" => {
+            // Convert binary to hex string
+            Ok(Some(hex::encode(binary_data).to_uppercase()))
+        }
+        "BASE64" => {
+            // Convert binary to base64 string
+            use base64::Engine;
+            Ok(Some(base64::engine::general_purpose::STANDARD.encode(binary_data)))
+        }
+        _ => {
+            if try_mode {
+                Ok(None)
+            } else {
+                conv_errors::UnsupportedFormatSnafu { format: &format_str }.fail()?
+            }
+        }
+    }
 }
 
 crate::macros::make_udf_function!(ToVarcharFunc);
