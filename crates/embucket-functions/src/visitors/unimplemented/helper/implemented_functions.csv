@@ -163,8 +163,8 @@ get_ignore_case
 get_path
 greatest
 grouping
-hex_encode
 hex_decode_string
+hex_encode
 iff
 ifnull
 initcap
@@ -392,6 +392,7 @@ today
 translate
 trim
 trunc
+try_hex_decode_string
 try_parse_json
 try_to_binary
 try_to_boolean

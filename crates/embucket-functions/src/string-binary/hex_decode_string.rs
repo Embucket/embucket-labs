@@ -31,7 +31,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct HexDecodeStringFunc {
     signature: Signature,
-    r#try: bool,
+    try_mode: bool,
 }
 
 impl Default for HexDecodeStringFunc {
@@ -42,7 +42,7 @@ impl Default for HexDecodeStringFunc {
 
 impl HexDecodeStringFunc {
     #[must_use]
-    pub fn new(r#try: bool) -> Self {
+    pub fn new(try_mode: bool) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -53,7 +53,7 @@ impl HexDecodeStringFunc {
                 ],
                 Volatility::Immutable,
             ),
-            r#try,
+            try_mode,
         }
     }
 }
@@ -64,7 +64,7 @@ impl ScalarUDFImpl for HexDecodeStringFunc {
     }
 
     fn name(&self) -> &str {
-        if self.r#try {
+        if self.try_mode {
             "try_hex_decode_string"
         } else {
             "hex_decode_string"
@@ -95,15 +95,15 @@ impl ScalarUDFImpl for HexDecodeStringFunc {
         let result = match input_array.data_type() {
             DataType::Utf8 => {
                 let string_array = as_string_array(&input_array)?;
-                decode_hex_strings(string_array.iter(), self.r#try)?
+                decode_hex_strings(string_array.iter(), self.try_mode)?
             }
             DataType::LargeUtf8 => {
                 let string_array = as_large_string_array(&input_array)?;
-                decode_hex_strings(string_array.iter(), self.r#try)?
+                decode_hex_strings(string_array.iter(), self.try_mode)?
             }
             DataType::Utf8View => {
                 let string_array = as_string_view_array(&input_array)?;
-                decode_hex_strings(string_array.iter(), self.r#try)?
+                decode_hex_strings(string_array.iter(), self.try_mode)?
             }
             DataType::Null => ScalarValue::Utf8(None).to_array_of_size(input_array.len())?,
             other => {
