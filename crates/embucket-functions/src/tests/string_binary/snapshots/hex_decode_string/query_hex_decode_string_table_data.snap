@@ -1,5 +1,0 @@
----
-source: crates/embucket-functions/src/tests/string_binary/hex_decode_string.rs
-description: "\"WITH test_data AS (\n        SELECT '48656C6C6F' AS hex_col, 'Hello' AS expected\n        UNION ALL\n        SELECT '576F726C64', 'World'\n        UNION ALL\n        SELECT '41', 'A'\n        UNION ALL\n        SELECT '', ''\n        UNION ALL\n        SELECT NULL, NULL\n    )\n    SELECT \n        hex_col,\n        expected,\n        HEX_DECODE_STRING(hex_col) AS decoded_binary\n    FROM test_data\""
----
-"Error: Error during planning: Projections require unique expression names but the expression \"Utf8(\"\")\" at position 0 and \"Utf8(\"\")\" at position 1 have the same name. Consider aliasing (\"AS\") one of them."
