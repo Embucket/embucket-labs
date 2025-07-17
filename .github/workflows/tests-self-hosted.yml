@@ -9,9 +9,8 @@ concurrency:
 name: unit-tests
 jobs:
   required:
-    runs-on:
-      group: self-hosted
-    name: ubuntu / ${{ matrix.toolchain }}
+    runs-on: self-hosted
+    name: self-hosted / ${{ matrix.toolchain }}
     strategy:
       matrix:
         # run on stable and beta to ensure that tests won't break on the next version of the rust
