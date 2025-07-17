@@ -1,13 +1,12 @@
 use super::errors as conv_errors;
-use datafusion::arrow::array::Decimal128Array;
 use datafusion::arrow::compute::cast_with_options;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
-use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
-use datafusion_common::arrow::array::{Array, ArrayRef, StringArray};
+use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::ScalarValue;
+use datafusion_common::arrow::array::{Array, StringArray};
 use datafusion_common::arrow::compute::CastOptions;
 use datafusion_common::arrow::util::display::FormatOptions;
-use datafusion_common::{DataFusionError, ScalarValue};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
 use snafu::prelude::*;
 use std::any::Any;
@@ -34,65 +33,109 @@ impl ToDecimalFunc {
             vec![String::from("to_number"), String::from("to_numeric")]
         };
         Self {
-            signature: Signature::one_of(
-                vec![
-                    //TO_DECIMAL( <expr> )
-                    TypeSignature::Any(1),
-                    //TO_DECIMAL( <expr> [, '<format>' ] )
-                    //TO_DECIMAL( <expr> [, <precision> ] )
-                    TypeSignature::Any(2),
-                    //TO_DECIMAL( <expr> [, '<format>' ] [, <precision> ] )
-                    //TO_DECIMAL( <expr> [, <precision> [, <scale> ] ] )
-                    TypeSignature::Any(3),
-                    //TO_DECIMAL( <expr> [, '<format>' ] [, <precision> [, <scale> ] ] )
-                    TypeSignature::Any(4),
-                ],
-                Volatility::Immutable,
-            ),
+            signature: Signature::user_defined(Volatility::Immutable),
             aliases,
             try_mode,
+        }
+    }
+    fn coerce_expr_data_type(expr: &DataType) -> DFResult<DataType> {
+        match expr {
+            DataType::Utf8
+            | DataType::Utf8View
+            | DataType::LargeUtf8
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Decimal128(..) => Ok(expr.clone()),
+            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position: 1usize,
+            }
+            .fail()?,
+        }
+    }
+    fn coerce_format_data_type(format: &DataType) -> DFResult<DataType> {
+        match format {
+            DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8 => Ok(format.clone()),
+            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position: 2usize,
+            }
+            .fail()?,
+        }
+    }
+    fn coerce_precision_data_type(precision: &DataType, position: usize) -> DFResult<DataType> {
+        match precision {
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Decimal128(..) => {
+                tracing::error!("precision: {:?}", precision);
+                Ok(DataType::UInt8)
+            }
+            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position,
+            }
+            .fail()?,
+        }
+    }
+    fn coerce_scale_data_type(scale: &DataType, position: usize) -> DFResult<DataType> {
+        match scale {
+            DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64
+            | DataType::Float32
+            | DataType::Float64
+            | DataType::Decimal128(..) => {
+                tracing::error!("scale: {:?}", scale);
+                Ok(DataType::Int8)
+            }
+            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position,
+            }
+            .fail()?,
         }
     }
     /// Tries to convert a scalar to the target integer type
     fn try_convert_scalar_to_integer<T>(scalar: &ScalarValue) -> Result<T, conv_errors::Error>
     where
-        T: TryFrom<i128, Error = TryFromIntError>
-            + TryFrom<i64, Error = TryFromIntError>
-            + TryFrom<u64, Error = TryFromIntError>
-            + Copy,
+        T: TryFrom<i64, Error = TryFromIntError> + TryFrom<u64, Error = TryFromIntError> + Copy,
     {
         match scalar {
-            ScalarValue::Int64(Some(v)) => {
-                T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
-            ScalarValue::Int32(Some(v)) => {
-                T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
-            ScalarValue::Int16(Some(v)) => {
-                T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
             ScalarValue::Int8(Some(v)) => {
                 T::try_from(i64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
-            ScalarValue::UInt64(Some(v)) => {
-                T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
-            ScalarValue::UInt32(Some(v)) => {
-                T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
-            }
-            ScalarValue::UInt16(Some(v)) => {
-                T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
             }
             ScalarValue::UInt8(Some(v)) => {
                 T::try_from(u64::from(*v)).context(conv_errors::InvalidIntegerConversionSnafu)
             }
-            ScalarValue::Decimal128(Some(v), ..) => {
+            ScalarValue::Int64(Some(v)) => {
                 T::try_from(*v).context(conv_errors::InvalidIntegerConversionSnafu)
             }
-            _ => conv_errors::UnsupportedInputTypeSnafu {
-                data_type: scalar.data_type(),
+            other => conv_errors::UnsupportedInputTypeSnafu {
+                data_type: other.data_type(),
             }
-            .fail(),
+            .fail()?,
         }
     }
     fn get_precision_checked(precision_scalar: &ScalarValue) -> DFResult<u8> {
@@ -127,19 +170,9 @@ impl ToDecimalFunc {
                     | ScalarValue::LargeUtf8(Some(str)),
                 ) => Ok(Some(str.as_str())),
                 ColumnarValue::Scalar(
-                    scalar @ (ScalarValue::Int64(Some(_))
-                    | ScalarValue::Int32(Some(_))
-                    | ScalarValue::Int16(Some(_))
-                    | ScalarValue::Int8(Some(_))
-                    | ScalarValue::UInt64(Some(_))
-                    | ScalarValue::UInt32(Some(_))
-                    | ScalarValue::UInt16(Some(_))
-                    | ScalarValue::UInt8(Some(_))
-                    | ScalarValue::Float64(Some(_))
-                    | ScalarValue::Float32(Some(_))
-                    | ScalarValue::Decimal128(..)),
+                    scalar @ (ScalarValue::Int8(Some(_)) | ScalarValue::UInt8(Some(_))),
                 ) => {
-                    //Should if `SELECT TRY_TO_DECIMAL(1, 1, 1, 1);`
+                    //Should error if `SELECT TRY_TO_DECIMAL(1, 1, 1, 1);`
                     if args.len() > 3 {
                         return conv_errors::UnsupportedInputTypeWithPositionSnafu {
                             data_type: scalar.data_type(),
@@ -149,18 +182,8 @@ impl ToDecimalFunc {
                     }
                     Ok(None)
                 }
-                other => {
-                    let other_array = match other {
-                        ColumnarValue::Array(array) => array,
-                        //Can't fail (shouldn't)
-                        ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
-                    };
-                    conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                        data_type: other_array.data_type().clone(),
-                        position: 2usize,
-                    }
-                    .fail()?
-                }
+                //Already coerced the types before
+                _ => unreachable!(),
             }
         } else {
             Ok(None)
@@ -197,13 +220,6 @@ impl ToDecimalFunc {
 
         values
     }
-    fn error_or_null_array(&self, num_rows: usize, error: DataFusionError) -> DFResult<ArrayRef> {
-        if self.try_mode {
-            Ok(Arc::new(Decimal128Array::new_null(num_rows)))
-        } else {
-            Err(error)
-        }
-    }
 }
 
 impl ScalarUDFImpl for ToDecimalFunc {
@@ -227,15 +243,54 @@ impl ScalarUDFImpl for ToDecimalFunc {
         conv_errors::ReturnTypeFromArgsShouldBeCalledSnafu.fail()?
     }
 
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
-        use ScalarValue::{LargeUtf8, Utf8, Utf8View};
-
-        match args.arg_types.len() {
-            0 => conv_errors::NotEnoughArgumentsSnafu {
+    fn coerce_types(&self, arg_types: &[DataType]) -> DFResult<Vec<DataType>> {
+        match arg_types {
+            [] => conv_errors::NotEnoughArgumentsSnafu {
                 got: 0usize,
                 at_least: 1usize,
             }
             .fail()?,
+            [expr] => Ok(vec![Self::coerce_expr_data_type(expr)?]),
+            [expr, second_arg] => {
+                let second_arg = if let Ok(format) = Self::coerce_format_data_type(second_arg) {
+                    format
+                } else {
+                    Self::coerce_precision_data_type(second_arg, 2)?
+                };
+                Ok(vec![Self::coerce_expr_data_type(expr)?, second_arg])
+            }
+            [expr, second_arg, third_arg] => {
+                let (second_arg, third_arg) = match Self::coerce_format_data_type(second_arg) {
+                    Ok(format) => (format, Self::coerce_precision_data_type(third_arg, 3)?),
+                    Err(_) => (
+                        Self::coerce_precision_data_type(second_arg, 2)?,
+                        Self::coerce_scale_data_type(third_arg, 3)?,
+                    ),
+                };
+                Ok(vec![
+                    Self::coerce_expr_data_type(expr)?,
+                    second_arg,
+                    third_arg,
+                ])
+            }
+            [expr, format, precision, scale] => Ok(vec![
+                Self::coerce_expr_data_type(expr)?,
+                Self::coerce_format_data_type(format)?,
+                Self::coerce_precision_data_type(precision, 3)?,
+                Self::coerce_scale_data_type(scale, 4)?,
+            ]),
+            [..] => conv_errors::TooManyArgumentsSnafu {
+                got: arg_types.len(),
+                at_maximum: 4usize,
+            }
+            .fail()?,
+        }
+    }
+
+    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
+        use ScalarValue::{LargeUtf8, Utf8, Utf8View};
+
+        match args.arg_types.len() {
             1 => Ok(ReturnInfo::new(DataType::Decimal128(38, 0), true)),
             2 => match &args.scalar_arguments[1] {
                 Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)) => {
@@ -245,8 +300,17 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     let p = Self::get_precision_checked(precision)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(p, 0), true))
                 }
-                None => {
-                    conv_errors::NoInputArgumentOnPositionsSnafu { positions: vec![2] }.fail()?
+                other => {
+                    tracing::error!("{:?}", args.scalar_arguments);
+                    if let Some(other) = other {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: other.data_type(),
+                        }.fail()?
+                    } else {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: DataType::Null,
+                        }.fail()?
+                    }
                 }
             },
             3 => match (&args.scalar_arguments[1], &args.scalar_arguments[2]) {
@@ -259,10 +323,18 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     let s = Self::get_scale_checked(scale, p)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(p, s), true))
                 }
-                _ => conv_errors::NoInputArgumentOnPositionsSnafu {
-                    positions: vec![1, 2],
+                other => {
+                    tracing::error!("{:?}", args.scalar_arguments);
+                    if let Some(other) = other.0 {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: other.data_type(),
+                        }.fail()?
+                    } else {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: DataType::Null,
+                        }.fail()?
+                    }
                 }
-                .fail()?,
             },
             4 => match (&args.scalar_arguments[2], &args.scalar_arguments[3]) {
                 (Some(precision), Some(scale)) => {
@@ -270,32 +342,33 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     let s = Self::get_scale_checked(scale, p)?;
                     Ok(ReturnInfo::new(DataType::Decimal128(p, s), true))
                 }
-                _ => conv_errors::NoInputArgumentOnPositionsSnafu {
-                    positions: vec![3, 4],
+                other => {
+                    tracing::error!("{:?}", args.scalar_arguments);
+                    if let Some(other) = other.0 {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: other.data_type(),
+                        }.fail()?
+                    } else {
+                        conv_errors::UnsupportedInputTypeSnafu {
+                            data_type: DataType::Null,
+                        }.fail()?
+                    }
                 }
-                .fail()?,
             },
-            n => conv_errors::TooManyArgumentsSnafu {
-                got: n,
-                at_maximum: 4usize,
-            }
-            .fail()?,
+            //Already checked size when coercing types
+            _ => unreachable!(),
         }
     }
     //TODO: formatting <format> second argument
     #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let DataType::Decimal128(precision, scale) = args.return_type else {
-            return Ok(ColumnarValue::Array(
-                self.error_or_null_array(
-                    args.number_rows,
-                    conv_errors::UnexpectedReturnTypeSnafu {
-                        got: args.return_type.clone(),
-                        expected: DataType::Decimal128(38, 0),
-                    }
-                    .fail()?,
-                )?,
-            ));
+            //Can't fail (shouldn't)
+            return conv_errors::UnexpectedReturnTypeSnafu {
+                got: args.return_type.clone(),
+                expected: DataType::Decimal128(38, 0),
+            }
+            .fail()?;
         };
 
         let expr = &args.args[0];
@@ -314,6 +387,7 @@ impl ScalarUDFImpl for ToDecimalFunc {
         };
 
         let result_array = match array.data_type() {
+            //Only to apply formatting
             DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8 => {
                 let array = match format {
                     Some(format) => {
@@ -333,28 +407,11 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     &cast_options,
                 )?
             }
-            DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64
-            | DataType::UInt8
-            | DataType::UInt16
-            | DataType::UInt32
-            | DataType::UInt64
-            | DataType::Float32
-            | DataType::Float64
-            | DataType::Decimal128(..) => cast_with_options(
-                array,
+            //Any other type is already coerced (checked at an analyzer step)
+            _ => cast_with_options(
+                &array,
                 &DataType::Decimal128(*precision, *scale),
                 &cast_options,
-            )?,
-            other => self.error_or_null_array(
-                args.number_rows,
-                conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                    data_type: other.clone(),
-                    position: 1usize,
-                }
-                .fail()?,
             )?,
         };
         Ok(ColumnarValue::Array(result_array))
