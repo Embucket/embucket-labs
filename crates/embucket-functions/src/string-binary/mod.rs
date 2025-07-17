@@ -3,6 +3,7 @@ use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
 pub mod errors;
+pub mod hex_decode_string;
 pub mod hex_encode;
 pub mod insert;
 pub mod jarowinkler_similarity;
@@ -13,10 +14,13 @@ pub mod split;
 pub mod strtok;
 pub mod substr;
 
+use crate::string_binary::hex_decode_string::HexDecodeStringFunc;
 pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
+        Arc::new(ScalarUDF::from(HexDecodeStringFunc::new(false))),
+        Arc::new(ScalarUDF::from(HexDecodeStringFunc::new(true))),
         hex_encode::get_udf(),
         insert::get_udf(),
         jarowinkler_similarity::get_udf(),

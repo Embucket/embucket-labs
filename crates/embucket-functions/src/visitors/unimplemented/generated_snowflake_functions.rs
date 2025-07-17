@@ -2397,12 +2397,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hex_decode_binary")
     ),
-    ("HEX_DECODE_STRING", FunctionInfo::new(
-        "HEX_DECODE_STRING",
-        "Decodes a hex-encoded string to a string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hex_decode_string")
-    ),
     ("ILIKE ANY", FunctionInfo::new(
         "ILIKE ANY",
         "Performs a case-insensitive comparison to match a string against any of one or more specified patterns."

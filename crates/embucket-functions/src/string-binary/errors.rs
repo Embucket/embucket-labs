@@ -110,6 +110,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("The following string is not a legal hex-encoded value: {value}"))]
+    IllegalHexValue {
+        value: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError

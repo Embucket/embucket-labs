@@ -164,6 +164,7 @@ get_path
 greatest
 grouping
 hex_encode
+hex_decode_string
 iff
 ifnull
 initcap
