@@ -84,7 +84,7 @@ impl UserSession {
             .with_runtime_env(Arc::new(runtime_config))
             .with_catalog_list(catalog_list_impl.clone())
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
-            .with_type_planner(Arc::new(CustomTypePlanner {}))
+            .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
