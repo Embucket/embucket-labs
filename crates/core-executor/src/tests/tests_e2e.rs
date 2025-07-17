@@ -6,20 +6,21 @@ use core_history::store::SlateDBHistoryStore;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::Volume as MetastoreVolume;
+use core_metastore::models::volumes::AwsAccessKeyCredentials;
+use core_metastore::models::volumes::AwsCredentials;
+use core_metastore::{FileVolume, S3Volume};
 use core_utils::Db;
+use dotenv::dotenv;
 use futures::future::join_all;
 use object_store::ObjectStore;
-use object_store::{local::LocalFileSystem, aws::AmazonS3Builder, aws::S3ConditionalPut, aws::AmazonS3ConfigKey};
+use object_store::{
+    aws::AmazonS3Builder, aws::AmazonS3ConfigKey, aws::S3ConditionalPut, local::LocalFileSystem,
+};
 use slatedb::{Db as SlateDb, config::DbOptions};
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use dotenv::dotenv;
-use core_metastore::{FileVolume, S3Volume};
-use core_metastore::models::volumes::AwsCredentials;
-use core_metastore::models::volumes::AwsAccessKeyCredentials;
-
 
 // Set envs, and add to .env
 // # Object store minio
@@ -36,7 +37,6 @@ use core_metastore::models::volumes::AwsAccessKeyCredentials;
 // AWS_BUCKET=tables-data
 // AWS_ENDPOINT=http://localhost:9000
 
-
 pub const TEST_SESSION_ID: &str = "test_session_id";
 
 pub const TEST_VOLUME_MEMORY: (&str, &str) = ("test_volume_memory", "test_database_memory");
@@ -48,15 +48,20 @@ pub const TEST_SCHEMA_NAME: &str = "public";
 
 pub fn s3_volume() -> S3Volume {
     let s3_builder = AmazonS3Builder::from_env(); //.build().expect("Failed to load S3 credentials");
-    let access_key_id = s3_builder.get_config_value(&AmazonS3ConfigKey::AccessKeyId)
+    let access_key_id = s3_builder
+        .get_config_value(&AmazonS3ConfigKey::AccessKeyId)
         .expect("AWS_ACCESS_KEY_ID is not set");
-    let secret_access_key = s3_builder.get_config_value(&AmazonS3ConfigKey::SecretAccessKey)
+    let secret_access_key = s3_builder
+        .get_config_value(&AmazonS3ConfigKey::SecretAccessKey)
         .expect("AWS_SECRET_ACCESS_KEY is not set");
-    let region = s3_builder.get_config_value(&AmazonS3ConfigKey::Region)
+    let region = s3_builder
+        .get_config_value(&AmazonS3ConfigKey::Region)
         .expect("AWS_REGION is not set");
-    let bucket = s3_builder.get_config_value(&AmazonS3ConfigKey::Bucket)
+    let bucket = s3_builder
+        .get_config_value(&AmazonS3ConfigKey::Bucket)
         .expect("AWS_BUCKET is not set");
-    let endpoint = s3_builder.get_config_value(&AmazonS3ConfigKey::Endpoint)
+    let endpoint = s3_builder
+        .get_config_value(&AmazonS3ConfigKey::Endpoint)
         .expect("AWS_ENDPOINT is not set");
     S3Volume {
         region: Some(region),
@@ -71,7 +76,7 @@ pub fn s3_volume() -> S3Volume {
 
 #[derive(Debug, Clone)]
 pub struct S3ObjectStore {
-    pub s3_builder: AmazonS3Builder
+    pub s3_builder: AmazonS3Builder,
 }
 
 impl S3ObjectStore {
@@ -83,19 +88,17 @@ impl S3ObjectStore {
         let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
         let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
 
-        let region = std::env::var(format!("{}_AWS_REGION", prefix_case))
-            .expect(&no_region_var);
+        let region = std::env::var(format!("{}_AWS_REGION", prefix_case)).expect(&no_region_var);
         //.unwrap_or("us-east-1".into());
-        let access_key = std::env::var(format!("{}_AWS_ACCESS_KEY_ID", prefix_case))
-            .expect(&no_access_key_var);
+        let access_key =
+            std::env::var(format!("{}_AWS_ACCESS_KEY_ID", prefix_case)).expect(&no_access_key_var);
         let secret_key = std::env::var(format!("{}_AWS_SECRET_ACCESS_KEY", prefix_case))
             .expect(&no_secret_key_var);
-        let endpoint = std::env::var(format!("{}_AWS_ENDPOINT", prefix_case))
-            .expect(&no_endpoint_var);
-        let bucket = std::env::var(format!("{}_AWS_BUCKET", prefix))
-            .expect(&no_bucket_var);
+        let endpoint =
+            std::env::var(format!("{}_AWS_ENDPOINT", prefix_case)).expect(&no_endpoint_var);
+        let bucket = std::env::var(format!("{}_AWS_BUCKET", prefix)).expect(&no_bucket_var);
 
-        Self { 
+        Self {
             s3_builder: AmazonS3Builder::new()
                 .with_access_key_id(access_key)
                 .with_secret_access_key(secret_key)
@@ -124,11 +127,12 @@ impl ObjectStoreType {
                 temp_dir.push(format!("object_store_{suffix}"));
                 Arc::new(object_store(temp_dir.as_path()))
             }
-            Self::S3(s3_object_store) => {
-                s3_object_store.s3_builder.clone().build()
-                    .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                    .expect("Failed to create S3 client")
-            }
+            Self::S3(s3_object_store) => s3_object_store
+                .s3_builder
+                .clone()
+                .build()
+                .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
+                .expect("Failed to create S3 client"),
         }
     }
 
@@ -145,8 +149,6 @@ impl ObjectStoreType {
     }
 }
 
-
-
 #[allow(clippy::unwrap_used, clippy::as_conversions)]
 #[must_use]
 pub fn object_store(path: &Path) -> Arc<dyn ObjectStore> {
@@ -158,7 +160,10 @@ pub fn object_store(path: &Path) -> Arc<dyn ObjectStore> {
         .expect("Failed to create object store")
 }
 
-pub async fn create_executor(object_store_type: &ObjectStoreType, user_data_dir: &Path) -> CoreExecutionService {
+pub async fn create_executor(
+    object_store_type: &ObjectStoreType,
+    user_data_dir: &Path,
+) -> CoreExecutionService {
     let db = object_store_type.db().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
@@ -187,7 +192,9 @@ pub async fn create_executor(object_store_type: &ObjectStoreType, user_data_dir:
             &TEST_VOLUME_FILE.0.to_string(),
             MetastoreVolume::new(
                 TEST_VOLUME_FILE.0.to_string(),
-                core_metastore::VolumeType::File(FileVolume { path: user_data_dir.display().to_string() }),
+                core_metastore::VolumeType::File(FileVolume {
+                    path: user_data_dir.display().to_string(),
+                }),
             ),
         )
         .await;
@@ -250,8 +257,7 @@ async fn exec_statements_with_multiple_writers(
             eprintln!("FAIL Test statement #{idx}: ({statement})");
             eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
             passed = false;
-        }
-        else {
+        } else {
             let one_line_statement = statement.split('\n').nth(0).unwrap_or(statement);
             eprintln!("PASSED Test statement #{idx}: {one_line_statement}");
         }
@@ -259,7 +265,11 @@ async fn exec_statements_with_multiple_writers(
     passed
 }
 
-fn prepare_statements(raw_statements: &[&str], volume_name: &str, database_name: &str) -> Vec<String> {
+fn prepare_statements(
+    raw_statements: &[&str],
+    volume_name: &str,
+    database_name: &str,
+) -> Vec<String> {
     raw_statements
         .into_iter()
         .map(|statement| statement.replace("__VOLUME__", volume_name))
@@ -267,7 +277,6 @@ fn prepare_statements(raw_statements: &[&str], volume_name: &str, database_name:
         .map(|statement| statement.replace("__SCHEMA__", TEST_SCHEMA_NAME))
         .collect()
 }
-    
 
 #[tokio::test]
 #[ignore = "e2e test"]
@@ -289,13 +298,21 @@ async fn e2e_test_with_multiple_writers() {
         for storage in storages {
             for (volume, database) in &volumes_list {
                 let mut user_data_dir = env::temp_dir();
-                user_data_dir.push(format!("user-data-{}", Utc::now().timestamp_nanos_opt().unwrap()));
+                user_data_dir.push(format!(
+                    "user-data-{}",
+                    Utc::now().timestamp_nanos_opt().unwrap()
+                ));
                 let user_data_dir = user_data_dir.as_path();
                 eprintln!("Testing with storage: {storage:?}, volume: {volume}");
-                passed = exec_statements_with_multiple_writers(n_writers, user_data_dir,
+                passed = exec_statements_with_multiple_writers(
+                    n_writers,
+                    user_data_dir,
                     storage.clone(),
                     prepare_statements(&PREREQUISITE_STATEMENTS, volume, database),
-                    prepare_statements(&TEST_STATEMENTS, volume, database)).await && passed;   
+                    prepare_statements(&TEST_STATEMENTS, volume, database),
+                )
+                .await
+                    && passed;
             }
         }
         assert!(passed);
