@@ -24,7 +24,7 @@ use std::sync::Arc;
 /// Arguments:
 /// - `<expr>`: The expression to convert to binary. If the expression is NULL, it returns NULL.
 /// - `<format>`: Optional format specifier. Valid values are:
-///   - 'HEX': Interprets the input as a hexadecimal string (drfault if not specified)
+///   - 'HEX': Interprets the input as a hexadecimal string (default if not specified)
 ///   - 'BASE64': Interprets the input as a base64-encoded string
 ///   - 'UTF-8': Interprets the input as a UTF-8 string
 ///
