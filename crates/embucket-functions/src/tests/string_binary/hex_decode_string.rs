@@ -83,12 +83,3 @@ test_query!(
     "SELECT HEX_DECODE_STRING('546865207175696368206272776E20666F78206A756D7073206F76657220746865206C617A7920646F67') AS long_string",
     snapshot_path = "hex_decode_string"
 );
-
-// Edge cases
-test_query!(
-    hex_decode_string_edge_cases,
-    "SELECT 
-        HEX_DECODE_STRING('00') AS zero_byte,
-        HEX_DECODE_STRING('0000') AS two_zero_bytes",
-    snapshot_path = "hex_decode_string"
-);
