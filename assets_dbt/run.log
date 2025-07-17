@@ -1,24 +1,24 @@
-[0m02:46:42  Running with dbt=1.9.8
-[0m02:46:43  Registered adapter: snowflake=1.9.1
-[0m02:46:45  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+[0m02:47:16  Running with dbt=1.9.8
+[0m02:47:17  Registered adapter: snowflake=1.9.1
+[0m02:47:20  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
 There are 9 unused configuration paths:
-- models.gitlab_snowflake.common_prep.month_partition.snowplow
-- models.gitlab_snowflake.legacy.snowplow
 - models.gitlab_snowflake.sources.runner_usage
-- models.gitlab_snowflake.sources.snowplow
-- models.gitlab_snowflake.workspaces.workspace_product.snowplow
-- models.snowflake_spend
 - models.gitlab_snowflake.legacy.snowplow.month_partition
-- seeds.gitlab_snowflake.snowplow
+- models.gitlab_snowflake.common_prep.month_partition.snowplow
+- models.gitlab_snowflake.workspaces.workspace_product.snowplow
+- models.gitlab_snowflake.legacy.snowplow
+- models.gitlab_snowflake.sources.snowplow
+- models.snowflake_spend
 - seeds.gitlab_snowflake.seed_customer_success
-[0m02:46:55  Found 3024 models, 108 snapshots, 1183 seeds, 4 operations, 5167 data tests, 1162 sources, 13 exposures, 938 macros
-[0m02:46:55  
-[0m02:46:55  Concurrency: 4 threads (target='embucket')
-[0m02:46:55  
-[0m02:46:56  
-[0m02:46:56  Finished running  in 0 hours 0 minutes and 1.47 seconds (1.47s).
-[0m02:46:56  Encountered an error:
+- seeds.gitlab_snowflake.snowplow
+[0m02:47:30  Found 3024 models, 108 snapshots, 1183 seeds, 4 operations, 5167 data tests, 1162 sources, 13 exposures, 939 macros
+[0m02:47:30  
+[0m02:47:30  Concurrency: 4 threads (target='embucket')
+[0m02:47:30  
+[0m02:47:31  
+[0m02:47:31  Finished running  in 0 hours 0 minutes and 1.46 seconds (1.46s).
+[0m02:47:31  Encountered an error:
 Runtime Error
   Database error while listing schemas in database "EMBUCKET"
   Database Error
-    250003 (08001): 401 Unauthorized: post http://localhost:3000/session/v1/login-request?request_id=c26e0cd9-026b-4b2c-9dcf-5ac6daf553bc&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+    250003 (08001): 401 Unauthorized: post http://localhost:3000/session/v1/login-request?request_id=292e9185-036f-467d-8198-81c7c3fa0239&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
