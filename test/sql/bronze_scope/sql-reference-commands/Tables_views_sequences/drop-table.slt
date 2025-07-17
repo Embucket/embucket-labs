@@ -1,13 +1,12 @@
-exclude-from-coverage
 statement ok
 CREATE OR REPLACE TABLE t4 (amount NUMBER);
 
 query T
 SELECT table_name
 FROM information_schema.tables
-WHERE table_name = 'T4';
+WHERE table_name = 't4';
 ----
-T4
+t4
 
 statement ok
 DROP TABLE t4
@@ -15,7 +14,7 @@ DROP TABLE t4
 query T
 SELECT table_name
 FROM information_schema.tables
-WHERE table_name = 'T4';
+WHERE table_name = 't4';
 ----
 
 
