@@ -57,6 +57,7 @@ bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 slatedb = { workspace = true }
+dotenv = "0.15.0"
 
 [lints]
 workspace = true
