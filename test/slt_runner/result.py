@@ -17,6 +17,7 @@ from snowflake.connector import SnowflakeConnection
 from snowflake.connector.constants import (
     FIELD_ID_TO_NAME,
     FIELD_NAME_TO_ID,
+    is_number_type_name
 )
 from snowflake.connector.converter import SnowflakeConverter
 from snowflake.connector.cursor import ResultMetadata, SnowflakeCursor
@@ -284,7 +285,8 @@ class QueryResult:
                     except Exception as e:
                         logger.error(f'current_row: {current_row}, current_column:{current_column}')
                         raise e
-                    success = compare_values(self, lvalue_str, rvalue_str, current_column)
+                    success = compare_values(self, lvalue_str, rvalue_str, current_column,
+                                             context.precision)
                     if not success:
                         msg = '\n'.join([
                             f"Mismatch on row {current_row + 1}, column {current_column + 1}",
@@ -423,9 +425,8 @@ def matches_regex(input: str, actual_str: str) -> bool:
     return regex_matches == should_match
 
 
-def compare_values(result: QueryResult, actual_str, expected_str, current_column):
-    error = False
-
+def compare_values(result: QueryResult, actual_str, expected_str, current_column, precision=False):
+    # Direct string comparison first
     if actual_str == expected_str:
         return True
 
@@ -434,23 +435,39 @@ def compare_values(result: QueryResult, actual_str, expected_str, current_column
 
     col = result.metadata[current_column]
     logger.debug(f'compare_values::current_column: {current_column}')
-    sql_type = result.types[current_column]
 
-    def is_numeric(type) -> bool:
-        from snowflake.connector.constants import is_number_type_name
-        return is_number_type_name(str(type))
+    # Get the SQL type from metadata
+    sql_type = FIELD_ID_TO_NAME[col.type_code]
+    logger.debug(f'compare_values::sql_type: {sql_type}')
 
-    if is_numeric(sql_type) or sql_type == 'BOOLEAN' or sql_type == 'TIMESTAMP_TZ':
+    # Handle numeric types with special precision handling
+    if is_number_type_name(sql_type):
+        try:
+            # Convert to float to normalize values
+            expected_float = float(expected_str)
+            actual_float = float(actual_str)
+
+            # If precision is False, use isclose with relative tolerance
+            if not precision:
+                import math
+                # Use relative tolerance of 0.05 (5%) for less precise comparison
+                return math.isclose(expected_float, actual_float, rel_tol=0.05, abs_tol=0.1)
+            else:
+                # With precision=True, use exact string comparison
+                # This preserves the original string representation
+                return actual_str == expected_str
+        except (ValueError, TypeError):
+            # If conversion fails, fall back to standard comparison
+            expected = convert_value(expected_str, sql_type)
+            actual = convert_value(actual_str, sql_type)
+            return expected == actual
+    elif sql_type == 'BOOLEAN' or sql_type == 'TIMESTAMP_TZ':
         expected = convert_value(expected_str, sql_type)
         actual = convert_value(actual_str, sql_type)
         return expected == actual
-    expected = expected_str
-    actual = actual_str
-    error = actual != expected
 
-    if error:
-        return False
-    return True
+    # For non-numeric types, default to string comparison
+    return actual_str == expected_str
 
 
 def result_is_hash(result):
@@ -714,6 +731,7 @@ class SQLLogicContext:
         'is_parallel',
         'build_directory',
         'cached_config_settings',
+        'precision'
     ]
 
     def reset(self):
@@ -735,11 +753,13 @@ class SQLLogicContext:
         statements: List[BaseStatement],
         keywords: Dict[str, str],
         iteration_generator,
+        precision
     ):
         self.statements = statements
         self.runner = runner
         self.is_loop = True
         self.is_parallel = False
+        self.precision = precision
         self.error: Optional[TestException] = None
         self.generator: Generator[Any] = iteration_generator
         self.keywords = keywords

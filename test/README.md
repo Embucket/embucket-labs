@@ -32,6 +32,24 @@ python -m slt_runner --test-file sql/sql-reference-commands/Query_syntax/select.
    ```
   python -m slt_runner --test-dir sql --parallel --workers 4
    ```
+6. Precision Mode
+
+When running SQL Logic Tests, you can use precision mode to control how numeric values are compared:
+
+- **Default behavior (no flag)**: Floating-point values are compared with relaxed precision using `math.isclose()` with:
+  - Relative tolerance: 0.05 (5% of the larger value)
+  - Absolute tolerance: 0.1
+- **With `--precision` flag**: Exact string comparison for numeric values
+
+This is useful for tests where exact decimal precision is required.
+
+```bash
+# Run tests with default precision (allows small differences in floating point values)
+python -m slt_runner --test-file sql/your-test-file.slt
+
+# Run tests with exact precision comparison
+python -m slt_runner --test-file sql/your-test-file.slt --precision
+
 You will see the `errors.log` and `test_statistics.csv` files generated. They contain errors and coverage statistics.
 You can also visualize statistics using the `slt_runner/visualise_statistics.py` script.
 You can also run all the tests in the folder using:

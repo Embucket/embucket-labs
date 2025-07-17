@@ -110,17 +110,18 @@ class SQLLogicTestExecutor(SQLLogicRunner):
                  errors_stats: SltErrorsStatsCsv,
                  default_test_dir: Optional[str] = None,
                  benchmark_mode: bool = False,
-                 run_mode: str = None  # Add run_mode parameter
-                 ):
+                 run_mode: str = None,
+                 precision: bool = False):
         super().__init__(config, default_test_dir)
         self.SKIPPED_TESTS = set([])
         self.skip_log = []
         self.errors_stats = errors_stats
         self.embucket = None
         self.benchmark_mode = benchmark_mode
-        self.run_mode = run_mode  # Store the run mode
-        self.connection_pool = None  # Store connection pool for hot runs
+        self.run_mode = run_mode
+        self.connection_pool = None
         self.executed_query_ids = []
+        self.precision = precision  # Store the precision parameter
 
     def is_embucket(self):
         return 'embucket' in self.config
@@ -400,7 +401,8 @@ class SQLLogicTestExecutor(SQLLogicRunner):
             reset_database(self.config, con)
 
         # Create context and execute test
-        context = SQLLogicContext(pool, self, test.statements, keywords, update_value)
+        context = SQLLogicContext(pool, self, test.statements, keywords, update_value,
+                                  precision=self.precision)
         context.is_loop = False
         pool.initialize_connection(context)
 
@@ -549,11 +551,12 @@ class SQLLogicPythonRunner:
     def __init__(self, default_test_directory : Optional[str] = None):
         self.default_test_directory = default_test_directory
 
-    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode, errors_stats: SltErrorsStatsCsv):
+    def run_file(self, config, file_path, test_directory, benchmark_mode, run_mode, errors_stats: SltErrorsStatsCsv,
+                 precision=False):
         """Execute tests for a single file using a pre-created worker schema"""
         print(f"Processing file: {file_path}")
 
-        executor = SQLLogicTestExecutor(config, errors_stats, test_directory, benchmark_mode, run_mode)
+        executor = SQLLogicTestExecutor(config, errors_stats, test_directory, benchmark_mode, run_mode, precision)
 
         results = []
         execution_times = []
@@ -648,13 +651,15 @@ class SQLLogicPythonRunner:
 
         return result_summary
 
-    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode, start_time, is_embucket,
-                           errors_stats: SltErrorsStatsCsv, max_workers=None):
+    def run_files_parallel(self, config, file_paths, test_directory, benchmark_mode, run_mode,
+                           start_time, is_embucket, errors_stats: SltErrorsStatsCsv,
+                           precision=False, max_workers=None):
         """Execute test files in parallel with pre-created worker schemas"""
         import concurrent.futures
         print(f"\n=== Running {len(file_paths)} files in parallel with {max_workers} workers ===")
 
-        executor = SQLLogicTestExecutor(config, errors_stats, test_directory, benchmark_mode, run_mode)
+        executor = SQLLogicTestExecutor(config, errors_stats, test_directory,
+                                        benchmark_mode, run_mode, precision)
         executor.setup(is_embucket)
 
         worker_schemas = []
@@ -755,7 +760,8 @@ class SQLLogicPythonRunner:
                     test_directory,
                     benchmark_mode,
                     run_mode,
-                    errors_stats
+                    errors_stats,
+                    precision
                 )] = file_path
 
             for future in concurrent.futures.as_completed(future_to_file):
@@ -912,8 +918,12 @@ class SQLLogicPythonRunner:
                                 help='Run files in parallel')
         arg_parser.add_argument('--workers', type=int, default=None,
                                 help=f'Number of parallel workers (default: {cpu_count}, system CPU count)')
-
+        arg_parser.add_argument('--precision', action='store_true',
+                                help='Enable precise numeric comparison')
         args = arg_parser.parse_args()
+
+        # Get precision from args if specified, otherwise use the parameter value
+        precision = args.precision if hasattr(args, 'precision') else False
 
         workers = 1  # Default to 1 worker if not parallel
         if args.parallel:
@@ -1004,8 +1014,10 @@ class SQLLogicPythonRunner:
             # Just run in standard mode (no benchmarking)
             default_run_mode = 'hot'  # Default to hot mode for regular runs
             print(f"\n=== Running SLT ===")
-            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode, default_run_mode, start_time, is_embucket,
-                                    errors_stats, workers)
+            # In SQLLogicPythonRunner.run() method
+            self.run_files_parallel(config, file_paths, test_directory, benchmark_mode,
+                                    default_run_mode, start_time, is_embucket,
+                                    errors_stats, precision=precision, max_workers=workers)
 
     def compare_benchmark_results(self):
         """Compare benchmark results between hot and cold runs"""
