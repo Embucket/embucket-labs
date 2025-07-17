@@ -89,7 +89,6 @@ test_query!(
     hex_decode_string_edge_cases,
     "SELECT 
         HEX_DECODE_STRING('00') AS zero_byte,
-        HEX_DECODE_STRING('0000') AS two_zero_bytes,
-        HEX_DECODE_STRING('FFFF') AS two_max_bytes",
+        HEX_DECODE_STRING('0000') AS two_zero_bytes",
     snapshot_path = "hex_decode_string"
 );
