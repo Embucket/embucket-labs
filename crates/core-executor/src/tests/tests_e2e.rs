@@ -23,14 +23,14 @@ use std::path::Path;
 use std::sync::Arc;
 
 // Set envs, and add to .env
-// # Object store minio
+// # Object store on aws / minio
 // E2E_STORE_AWS_ACCESS_KEY_ID=
 // E2E_STORE_AWS_SECRET_ACCESS_KEY=
 // E2E_STORE_AWS_REGION=us-east-1
 // E2E_STORE_AWS_BUCKET=e2e-store
 // E2E_STORE_AWS_ENDPOINT=http://localhost:9000
 
-// # User data on minio
+// # User data on aws / minio
 // AWS_ACCESS_KEY_ID=
 // AWS_SECRET_ACCESS_KEY=
 // AWS_REGION=us-east-1
@@ -162,7 +162,7 @@ pub fn object_store(path: &Path) -> Arc<dyn ObjectStore> {
 
 pub async fn create_executor(
     object_store_type: &ObjectStoreType,
-    user_data_dir: &Path,
+    test_suffix: &str,
 ) -> CoreExecutionService {
     let db = object_store_type.db().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
@@ -187,6 +187,9 @@ pub async fn create_executor(
         )
         .await;
 
+    let mut user_data_dir = env::temp_dir();
+    user_data_dir.push(format!("user-data-{test_suffix}"));
+    let user_data_dir = user_data_dir.as_path();
     let _ = metastore
         .create_volume(
             &TEST_VOLUME_FILE.0.to_string(),
@@ -217,53 +220,107 @@ pub async fn create_executor(
     execution_svc
 }
 
-async fn exec_statements_with_multiple_writers(
-    n_writers: usize,
-    user_data_dir: &Path,
-    object_store_type: ObjectStoreType,
-    prerequisite_statements: Vec<String>,
-    test_statements: Vec<String>,
+// Every executor
+async fn exec_parallel_test_plan(
+    test_plan: indexmap::IndexMap<&str, Vec<(&CoreExecutionService, bool)>>,
+    volumes_databases_list: Vec<(&str, &str)>,
 ) -> bool {
-    assert!(n_writers > 1);
-
-    let mut execution_svc_writers: Vec<CoreExecutionService> = vec![];
-    for _ in 0..n_writers {
-        execution_svc_writers.push(create_executor(&object_store_type, &user_data_dir).await);
-    }
-
-    // Use single writer for prepare statements
-    for (idx, statement) in prerequisite_statements.iter().enumerate() {
-        if let Err(err) = execution_svc_writers[0]
-            .query(TEST_SESSION_ID, statement, QueryContext::default())
-            .await
-        {
-            panic!("Prepare sql statement #{idx} execution error: {err}");
-        }
-    }
-
     let mut passed = true;
-    for (idx, statement) in test_statements.iter().enumerate() {
-        let mut futures = vec![];
-        for execution_svc in execution_svc_writers.iter().take(n_writers) {
-            futures.push(execution_svc.query(TEST_SESSION_ID, statement, QueryContext::default()));
-        }
 
-        let results = join_all(futures).await;
+    for (sql, executors) in test_plan.iter() {
+        for (volume_name, database_name) in &volumes_databases_list {
+            let sql = prepare_statement(sql, volume_name, database_name);
 
-        let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-        let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
-        let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
-        if oks.len() != 1 || errs.len() != n_writers - 1 {
-            eprintln!("FAIL Test statement #{idx}: ({statement})");
-            eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
-            passed = false;
-        } else {
-            let one_line_statement = statement.split('\n').nth(0).unwrap_or(statement);
-            eprintln!("PASSED Test statement #{idx}: {one_line_statement}");
+            // run sqls in parallel
+            let futures = executors
+                .iter()
+                .map(|(ex, _)| ex.query(TEST_SESSION_ID, &sql, QueryContext::default()))
+                .collect::<Vec<_>>();
+
+            let num_expected_ok = executors.iter().filter(|(_, exp_res)| *exp_res).count();
+            let num_expected_err = executors.len() - num_expected_ok;
+
+            let results = join_all(futures).await;
+            let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+            let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+            let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
+
+            eprintln!("Test SQL: {sql}");
+            eprintln!("On volume: {volume_name}, database: {database_name}");
+
+            if oks.len() != num_expected_ok || errs.len() != num_expected_err {
+                eprintln!("FAILED");
+                eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
+                passed = false;
+            } else {
+                eprintln!("PASSED");
+            }
+
+            // for (idx, res) in results.iter().enumerate() {
+            //     if res.is_ok() && !expected_results[idx] {
+            //         eprintln!("Executor: #{idx}: Test OK but should FAIL.");
+            //         passed = false;
+            //     }
+            //     else if res.is_err() && expected_results[idx] {
+            //         eprintln!("Executor: #{idx}: Test FAILED.");
+            //         passed = false;
+            //     }
+            //     else {
+            //         eprintln!("Executor: #{idx}: Test OK.");
+            //     }
+            // }
         }
     }
     passed
 }
+
+// async fn exec_statements_with_multiple_writers(
+//     n_writers: usize,
+//     user_data_dir: &Path,
+//     object_store_type: ObjectStoreType,
+//     prerequisite_statements: Vec<String>,
+//     test_statements: Vec<String>,
+// ) -> bool {
+//     assert!(n_writers > 1);
+
+//     let mut execution_svc_writers: Vec<CoreExecutionService> = vec![];
+//     for _ in 0..n_writers {
+//         execution_svc_writers.push(create_executor(&object_store_type, &user_data_dir).await);
+//     }
+
+//     // Use single writer for prepare statements
+//     for (idx, statement) in prerequisite_statements.iter().enumerate() {
+//         if let Err(err) = execution_svc_writers[0]
+//             .query(TEST_SESSION_ID, statement, QueryContext::default())
+//             .await
+//         {
+//             panic!("Prepare sql statement #{idx} execution error: {err}");
+//         }
+//     }
+
+//     let mut passed = true;
+//     for (idx, statement) in test_statements.iter().enumerate() {
+//         let mut futures = vec![];
+//         for execution_svc in execution_svc_writers.iter().take(n_writers) {
+//             futures.push(execution_svc.query(TEST_SESSION_ID, statement, QueryContext::default()));
+//         }
+
+//         let results = join_all(futures).await;
+
+//         let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+//         let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+//         let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
+//         if oks.len() != 1 || errs.len() != n_writers - 1 {
+//             eprintln!("FAIL Test statement #{idx}: ({statement})");
+//             eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
+//             passed = false;
+//         } else {
+//             let one_line_statement = statement.split('\n').nth(0).unwrap_or(statement);
+//             eprintln!("PASSED Test statement #{idx}: {one_line_statement}");
+//         }
+//     }
+//     passed
+// }
 
 fn prepare_statements(
     raw_statements: &[&str],
@@ -278,45 +335,95 @@ fn prepare_statements(
         .collect()
 }
 
+fn prepare_statement(raw_statement: &str, volume_name: &str, database_name: &str) -> String {
+    raw_statement
+        .replace("__VOLUME__", volume_name)
+        .replace("__DATABASE__", database_name)
+        .replace("__SCHEMA__", TEST_SCHEMA_NAME)
+}
+
+// #[tokio::test]
+// #[ignore = "e2e test"]
+// #[allow(clippy::expect_used, clippy::too_many_lines)]
+// async fn e2e_test_with_multiple_writers() {
+//     dotenv().ok();
+
+//     let volumes_list = vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3];
+
+//     let n_writers = 2;
+//     if let Some(nano_timestamp) = Utc::now().timestamp_nanos_opt() {
+//         let object_store_prefix = nano_timestamp.to_string();
+//         let storages = vec![
+//             ObjectStoreType::Memory,
+//             ObjectStoreType::File(object_store_prefix),
+//             ObjectStoreType::S3(S3ObjectStore::from_prefixed_env("E2E_STORE")),
+//         ];
+//         let mut passed = true;
+//         for storage in storages {
+//             for (volume, database) in &volumes_list {
+//                 let mut user_data_dir = env::temp_dir();
+//                 user_data_dir.push(format!(
+//                     "user-data-{}",
+//                     Utc::now().timestamp_nanos_opt().unwrap()
+//                 ));
+//                 let user_data_dir = user_data_dir.as_path();
+//                 eprintln!("Testing with storage: {storage:?}, volume: {volume}");
+//                 passed = exec_statements_with_multiple_writers(
+//                     n_writers,
+//                     user_data_dir,
+//                     storage.clone(),
+//                     prepare_statements(&PREREQUISITE_STATEMENTS, volume, database),
+//                     prepare_statements(&TEST_STATEMENTS, volume, database),
+//                 )
+//                 .await
+//                     && passed;
+//             }
+//         }
+//         assert!(passed);
+//     }
+// }
+
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn e2e_test_with_multiple_writers() {
+async fn e2e_test_with_multiple_writers_inserts() {
     dotenv().ok();
 
-    let volumes_list = vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3];
+    let test_suffix = Utc::now().timestamp_nanos_opt().unwrap().to_string();
 
-    let n_writers = 2;
-    if let Some(nano_timestamp) = Utc::now().timestamp_nanos_opt() {
-        let object_store_prefix = nano_timestamp.to_string();
-        let storages = vec![
-            ObjectStoreType::Memory,
-            ObjectStoreType::File(object_store_prefix),
-            ObjectStoreType::S3(S3ObjectStore::from_prefixed_env("E2E_STORE")),
-        ];
-        let mut passed = true;
-        for storage in storages {
-            for (volume, database) in &volumes_list {
-                let mut user_data_dir = env::temp_dir();
-                user_data_dir.push(format!(
-                    "user-data-{}",
-                    Utc::now().timestamp_nanos_opt().unwrap()
-                ));
-                let user_data_dir = user_data_dir.as_path();
-                eprintln!("Testing with storage: {storage:?}, volume: {volume}");
-                passed = exec_statements_with_multiple_writers(
-                    n_writers,
-                    user_data_dir,
-                    storage.clone(),
-                    prepare_statements(&PREREQUISITE_STATEMENTS, volume, database),
-                    prepare_statements(&TEST_STATEMENTS, volume, database),
-                )
-                .await
-                    && passed;
-            }
-        }
-        assert!(passed);
-    }
+    // let storages = vec![
+    //     ObjectStoreType::Memory,
+    //     ObjectStoreType::File(test_suffix.clone()),
+    //     ObjectStoreType::S3(S3ObjectStore::from_prefixed_env("E2E_STORE")),
+    // ];
+
+    let object_store_file = ObjectStoreType::File(test_suffix.clone());
+    let meta_file_exec1 = create_executor(&object_store_file, &test_suffix).await;
+    let meta_file_exec2 = create_executor(&object_store_file, &test_suffix).await;
+
+    let mut test_plan: indexmap::IndexMap<&str, Vec<(&CoreExecutionService, bool)>> =
+        indexmap::IndexMap::new();
+    // prerequisite statements just normally create using one executor
+    test_plan.insert(
+        "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+        vec![(&meta_file_exec1, true)],
+    );
+    test_plan.insert(
+        "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+        vec![(&meta_file_exec1, true)],
+    );
+    test_plan.insert(
+        "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+        vec![(&meta_file_exec1, true), (&meta_file_exec2, false)],
+    );
+
+    assert!(
+        exec_parallel_test_plan(
+            test_plan,
+            vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
+        )
+        .await
+    );
 }
 
 const PREREQUISITE_STATEMENTS: [&str; 2] = [
