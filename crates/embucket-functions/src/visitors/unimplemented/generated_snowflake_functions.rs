@@ -2391,12 +2391,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/finetune-snowflake-cortex")
     ),
-    ("HEX_DECODE_BINARY", FunctionInfo::new(
-        "HEX_DECODE_BINARY",
-        "Decodes a hex-encoded string to a binary."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hex_decode_binary")
-    ),
     ("ILIKE ANY", FunctionInfo::new(
         "ILIKE ANY",
         "Performs a case-insensitive comparison to match a string against any of one or more specified patterns."
@@ -2588,12 +2582,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_complete-snowflake-cortex")
     .with_subcategory("llm")
-    ),
-    ("TRY_HEX_DECODE_BINARY", FunctionInfo::new(
-        "TRY_HEX_DECODE_BINARY",
-        "A special version of HEX_DECODE_BINARY that returns a NULL value if an error occurs during decoding."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_hex_decode_binary")
     ),
     ("UNICODE", FunctionInfo::new(
         "UNICODE",
