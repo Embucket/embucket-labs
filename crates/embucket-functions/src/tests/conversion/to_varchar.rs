@@ -145,7 +145,7 @@ test_query!(
     snapshot_path = "to_varchar"
 );
 
-// TO_CHAR with date formatting  
+// TO_CHAR with date formatting
 test_query!(
     to_char_date_formatting,
     "SELECT 
@@ -212,7 +212,7 @@ test_query!(
     snapshot_path = "to_varchar"
 );
 
-// Format edge cases  
+// Format edge cases
 test_query!(
     format_without_brackets,
     "SELECT 
