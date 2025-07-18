@@ -121,6 +121,7 @@ current_time
 current_timestamp
 current_version
 current_warehouse
+date
 date_add
 date_bin
 date_diff
@@ -406,6 +407,7 @@ try_hex_decode_string
 try_parse_json
 try_to_binary
 try_to_boolean
+try_to_date
 try_to_char
 try_to_decimal
 try_to_number

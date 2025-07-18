@@ -5,10 +5,12 @@ pub mod to_varchar;
 
 pub mod to_array;
 pub mod to_binary;
+pub mod to_date;
 pub mod to_decimal;
 pub mod to_timestamp;
 pub mod to_variant;
 
+use crate::conversion::to_date::ToDateFunc;
 use crate::conversion::to_decimal::ToDecimalFunc;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
@@ -31,6 +33,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         Arc::new(ScalarUDF::from(ToTimeFunc::new(true))),
         Arc::new(ScalarUDF::from(ToDecimalFunc::new(false))),
         Arc::new(ScalarUDF::from(ToDecimalFunc::new(true))),
+        Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
+        Arc::new(ScalarUDF::from(ToDateFunc::new(true))),
         Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
         Arc::new(ScalarUDF::from(ToVarcharFunc::new(true))),
     ];
