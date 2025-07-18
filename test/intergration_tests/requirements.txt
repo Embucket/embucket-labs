@@ -1,0 +1,6 @@
+pandas>=2.0
+pyarrow>=14.0
+pyiceberg[rest]>=0.6.0
+requests>=2.31.0
+findspark>=2.0.1
+pyspark==3.5.1
