@@ -125,12 +125,12 @@ fn parse_type_from_tokens(type_str: &str) -> Result<SQLDataType> {
     let dialect = GenericDialect;
     let tokens = Tokenizer::new(&dialect, type_str)
         .tokenize()
-        .map_err(|e| DataFusionError::Plan(format!("Tokenizer error: {e}")))?;
+        .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
     let mut parser = Parser::new(&dialect).with_tokens(tokens);
     parser
         .parse_data_type()
-        .map_err(|e| DataFusionError::Plan(format!("Type parse error: {e}")))
+        .map_err(|e| DataFusionError::External(Box::new(e)))
 }
 
 impl ContextProvider for CustomTypePlanner {
