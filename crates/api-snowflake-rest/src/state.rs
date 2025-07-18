@@ -1,4 +1,5 @@
 use crate::schemas::Config;
+use core_executor::ExecutionAppState;
 use core_executor::service::ExecutionService;
 use std::sync::Arc;
 
@@ -6,4 +7,10 @@ use std::sync::Arc;
 pub struct AppState {
     pub execution_svc: Arc<dyn ExecutionService>,
     pub config: Config,
+}
+
+impl ExecutionAppState for AppState {
+    fn get_execution_svc(&self) -> Arc<dyn ExecutionService> {
+        self.execution_svc.clone()
+    }
 }

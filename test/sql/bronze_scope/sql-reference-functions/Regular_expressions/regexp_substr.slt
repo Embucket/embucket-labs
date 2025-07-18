@@ -1,6 +1,6 @@
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')
@@ -16,7 +16,7 @@ SELECT id,
 
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')
@@ -32,7 +32,7 @@ SELECT id,
 
 query TT
 WITH demo2(id, string1) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
     (2, 'It was the best of times, it was the worst of times.'),
     (3, 'In    the   string   the   extra   spaces  are   redundant.'),
     (4, 'A thespian theater is nearby.')
@@ -48,7 +48,7 @@ SELECT id,
 
 query TTTT
 WITH test_regexp_substr(string1) AS (
-    SELECT $1 FROM VALUES ('A MAN A PLAN A CANAL')
+    SELECT * FROM VALUES ('A MAN A PLAN A CANAL')
 )
 SELECT REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 1, 'e', 1) AS result1,
        REGEXP_SUBSTR(string1, 'A\\W+(\\w+)', 1, 2, 'e', 1) AS result2,
@@ -60,7 +60,7 @@ MAN	PLAN	CANAL	NULL
 
 query TTT
 WITH test_regexp_substr(string1) AS (
-    SELECT $1 FROM VALUES ('A MAN A PLAN A CANAL')
+    SELECT * FROM VALUES ('A MAN A PLAN A CANAL')
 )
 SELECT REGEXP_SUBSTR(string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1, 'e', 1) AS result1,
        REGEXP_SUBSTR(string1, 'A\\W+(\\w)(\\w)(\\w)', 1, 1, 'e', 2) AS result2,
@@ -71,7 +71,7 @@ M	A	N
 
 query TT
 WITH message(body) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('Hellooo World'),
     ('How are you doing today?'),
     ('the quick brown fox jumps over the lazy dog'),
@@ -88,7 +88,7 @@ PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	NULL
 
 query TT
 WITH message(body) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('Hellooo World'),
     ('How are you doing today?'),
     ('the quick brown fox jumps over the lazy dog'),
@@ -105,7 +105,7 @@ PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	NULL
 
 query TT
 WITH message(body) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('Hellooo World'),
     ('How are you doing today?'),
     ('the quick brown fox jumps over the lazy dog'),
@@ -122,7 +122,7 @@ PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	NULL
 
 query TT
 WITH message(body) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('Hellooo World'),
     ('How are you doing today?'),
     ('the quick brown fox jumps over the lazy dog'),
@@ -139,7 +139,7 @@ PACK MY BOX WITH FIVE DOZEN LIQUOR JUGS	LIQUOR
 
 query TT
 WITH message(body) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('Hellooo World'),
     ('How are you doing today?'),
     ('the quick brown fox jumps over the lazy dog'),
@@ -170,7 +170,7 @@ SELECT id,
 
 query T
 WITH test_regexp_log(logs) AS (
-    SELECT $1 FROM VALUES
+    SELECT * FROM VALUES
     ('127.0.0.1 - - [10/Jan/2018:16:55:36 -0800] "GET / HTTP/1.0" 200 2216'),
     ('192.168.2.20 - - [14/Feb/2018:10:27:10 -0800] "GET /cgi-bin/try/ HTTP/1.0" 200 3395')
 )

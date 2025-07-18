@@ -1,6 +1,6 @@
 query TTT
 WITH aggr(k, v, v2) AS (
-    SELECT $1, $2, $3 FROM VALUES
+    SELECT * FROM VALUES
         (1, 10, NULL),
         (2, 10, 11),
         (2, 20, 22),

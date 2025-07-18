@@ -1,5 +1,5 @@
 ---
-title: Embucket as Iceberg Catalog
+title: Iceberg catalog
 description: Use Embucket as an Iceberg Catalog.
 ---
 

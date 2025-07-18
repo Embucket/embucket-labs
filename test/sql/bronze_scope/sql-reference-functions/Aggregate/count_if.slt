@@ -1,6 +1,6 @@
 query T
 WITH basic_example(i_col, j_col) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
         (11, 101), (11, 102), (11, NULL), (12, 101), (NULL, 101), (NULL, 102)
 )
 SELECT COUNT_IF(TRUE) FROM basic_example;
@@ -9,7 +9,7 @@ SELECT COUNT_IF(TRUE) FROM basic_example;
 
 query T
 WITH basic_example(i_col, j_col) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
         (11, 101), (11, 102), (11, NULL), (12, 101), (NULL, 101), (NULL, 102)
 )
 SELECT COUNT_IF(j_col > i_col) FROM basic_example;
@@ -18,7 +18,7 @@ SELECT COUNT_IF(j_col > i_col) FROM basic_example;
 
 query T
 WITH basic_example(i_col, j_col) AS (
-    SELECT $1, $2 FROM VALUES
+    SELECT * FROM VALUES
         (11, 101), (11, 102), (11, NULL), (12, 101), (NULL, 101), (NULL, 102)
 )
 SELECT COUNT_IF(i_col IS NOT NULL AND j_col IS NOT NULL) FROM basic_example;

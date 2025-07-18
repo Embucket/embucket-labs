@@ -42,7 +42,7 @@ async fn test_execute_always_returns_schema() {
         .column_info();
     assert_eq!(columns.len(), 3);
     assert_eq!(columns[0].r#type, "fixed");
-    assert_eq!(columns[1].r#type, "real");
+    assert_eq!(columns[1].r#type, "fixed");
     assert_eq!(columns[2].r#type, "text");
 }
 

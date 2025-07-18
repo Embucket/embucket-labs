@@ -4,7 +4,8 @@ use crate::layers::make_cors_middleware;
 use crate::router;
 use crate::state;
 use crate::{config::AuthConfig, config::WebConfig};
-use api_sessions::RequestSessionStore;
+use api_sessions::layer::propagate_session_cookie;
+use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
@@ -14,8 +15,6 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use time::Duration;
-use tower_sessions::{Expiry, SessionManagerLayer};
 
 #[allow(clippy::unwrap_used)]
 pub async fn run_test_server_with_demo_auth(
@@ -68,32 +67,40 @@ pub fn make_app(
         history_store.clone(),
         Arc::new(Config::default()),
     ));
-    let session_store = RequestSessionStore::new(execution_svc.clone());
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(5 * 60)));
 
     // Create the application state
     let app_state = state::AppState::new(
         metastore,
         history_store,
-        execution_svc,
+        execution_svc.clone(),
         Arc::new(config.clone()),
         Arc::new(auth_config),
     );
 
-    let ui_router = router::create_router().with_state(app_state.clone());
+    let session_store = SessionStore::new(execution_svc);
+
+    tokio::task::spawn({
+        let session_store = session_store.clone();
+        async move {
+            session_store
+                .continuously_delete_expired(tokio::time::Duration::from_secs(
+                    SESSION_EXPIRATION_SECONDS,
+                ))
+                .await;
+        }
+    });
+
+    let ui_router = router::create_router().with_state(app_state.clone()).layer(
+        middleware::from_fn_with_state(session_store, propagate_session_cookie),
+    );
     let ui_router = ui_router.layer(middleware::from_fn_with_state(
         app_state.clone(),
         require_auth,
     ));
-    let mut router = Router::new()
-        .nest("/ui", ui_router)
-        .nest(
-            "/ui/auth",
-            auth_router::create_router().with_state(app_state),
-        )
-        .layer(session_layer);
+    let mut router = Router::new().nest("/ui", ui_router).nest(
+        "/ui/auth",
+        auth_router::create_router().with_state(app_state),
+    );
 
     if let Some(allow_origin) = config.allow_origin.as_ref() {
         router = router.layer(make_cors_middleware(allow_origin));

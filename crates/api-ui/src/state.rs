@@ -1,12 +1,12 @@
+use crate::config::AuthConfig;
+use crate::config::WebConfig;
+use core_executor::ExecutionAppState;
+use core_executor::service::ExecutionService;
+use core_history::history_store::HistoryStore;
 use core_metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-use crate::config::AuthConfig;
-use crate::config::WebConfig;
-use core_executor::service::ExecutionService;
-use core_history::history_store::HistoryStore;
 
 // Define a State struct that contains shared services or repositories
 #[derive(Clone)]
@@ -37,5 +37,11 @@ impl AppState {
             config,
             auth_config,
         }
+    }
+}
+
+impl ExecutionAppState for AppState {
+    fn get_execution_svc(&self) -> Arc<dyn ExecutionService> {
+        self.execution_svc.clone()
     }
 }

@@ -38,13 +38,7 @@ where
     #[allow(clippy::too_many_lines)]
     pub fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let planner_context: &mut PlannerContext = &mut PlannerContext::new();
-        // TODO: Refactor what statements are handleded here vs UserQuery `sql_to_statement`
         match statement.clone() {
-            Statement::AlterTable { .. }
-            | Statement::StartTransaction { .. }
-            | Statement::Commit { .. }
-            | Statement::Rollback { .. }
-            | Statement::Update { .. } => Ok(LogicalPlan::default()),
             Statement::CreateTable(CreateTableStatement {
                 query,
                 name,

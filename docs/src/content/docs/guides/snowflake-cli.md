@@ -1,5 +1,5 @@
 ---
-title: Using snowflake-cli to connect to Embucket
+title: Using snowflake-cli
 description: Learn how to use snowflake-cli to connect to Embucket
 ---
 

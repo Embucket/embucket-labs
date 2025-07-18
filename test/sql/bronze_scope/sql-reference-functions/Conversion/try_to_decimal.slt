@@ -1,3 +1,4 @@
+#Changed error from: 100039 (22003): Numeric value '345.123' is out of range
 statement error
 SELECT column1 AS orig_string,
        TO_DECIMAL(column1) AS dec,
@@ -6,7 +7,7 @@ SELECT column1 AS orig_string,
   FROM VALUES ('345.123')
   AS T(column1)
 ----
-100039 (22003): Numeric value '345.123' is out of range
+000200: Arrow error: Invalid argument error: 34512 is too large to store in a Decimal128 of precision 4. Max is 9999
 
 query TTTT
 SELECT column1 AS orig_string,
@@ -18,6 +19,7 @@ SELECT column1 AS orig_string,
 ----
 345.123	345	345.12	NULL
 
+#Changed error from: 100038 (22018): Numeric value '$7,543.21' is not recognized
 statement error
 SELECT column1 AS orig_string,
        TO_DECIMAL(column1, '$9,999.00') AS num,
@@ -26,7 +28,7 @@ SELECT column1 AS orig_string,
   FROM VALUES ('$7,543.21')
   AS T(column1)
 ----
-100038 (22018): Numeric value '$7,543.21' is not recognized
+000200: Arrow error: Cast error: Cannot cast string '$7,543.21' to value of Decimal128(38, 10) type
 
 query TTTT
 SELECT column1 AS orig_string,

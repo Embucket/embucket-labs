@@ -1,6 +1,6 @@
 query TTTTTT
 WITH aggr2(col_x, col_y, col_z) AS (
-    SELECT $1, $2, $3 FROM VALUES
+    SELECT * FROM VALUES
         (1, 2, 1),
         (1, 2, 3),
         (2, 1, 10),

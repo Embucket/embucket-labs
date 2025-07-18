@@ -3,6 +3,7 @@ use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
 
 pub mod errors;
+pub mod hex_encode;
 pub mod insert;
 pub mod jarowinkler_similarity;
 pub mod length;
@@ -16,6 +17,7 @@ pub use errors::Error;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
+        hex_encode::get_udf(),
         insert::get_udf(),
         jarowinkler_similarity::get_udf(),
         length::get_udf(),

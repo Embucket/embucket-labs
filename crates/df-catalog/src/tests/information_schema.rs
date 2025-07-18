@@ -115,6 +115,6 @@ test_query!(
 
 test_query!(
     information_schema_parameters,
-    "SELECT specific_name FROM embucket.information_schema.parameters
+    "SELECT specific_name FROM  embucket.information_schema.parameters
      GROUP BY specific_name ORDER BY specific_name"
 );
