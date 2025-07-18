@@ -1,4 +1,5 @@
 #![allow(clippy::result_large_err)]
+#![allow(clippy::large_enum_variant)]
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
@@ -74,10 +75,14 @@ pub const TEST_VOLUME_S3: (&str, &str) = ("volume_s3", "database_in_s3");
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
 
+#[must_use]
 pub fn test_suffix() -> String {
-    Utc::now().timestamp_nanos_opt().unwrap().to_string()
+    Utc::now().timestamp_nanos_opt().unwrap_or_else(
+        ||Utc::now().timestamp_millis()
+    ).to_string()
 }
 
+#[must_use]
 pub fn s3_volume() -> S3Volume {
     let s3_builder = AmazonS3Builder::from_env(); //.build().expect("Failed to load S3 credentials");
     let access_key_id = s3_builder
@@ -123,6 +128,7 @@ pub struct S3ObjectStore {
 }
 
 impl S3ObjectStore {
+    #[must_use]
     pub fn from_prefixed_env(prefix: &str) -> Self {
         let prefix_case = prefix.to_ascii_uppercase();
         let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
@@ -131,15 +137,15 @@ impl S3ObjectStore {
         let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
         let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
 
-        let region = std::env::var(format!("{}_AWS_REGION", prefix_case)).expect(&no_region_var);
+        let region = std::env::var(format!("{prefix_case}_AWS_REGION")).expect(&no_region_var);
         //.unwrap_or("us-east-1".into());
         let access_key =
-            std::env::var(format!("{}_AWS_ACCESS_KEY_ID", prefix_case)).expect(&no_access_key_var);
-        let secret_key = std::env::var(format!("{}_AWS_SECRET_ACCESS_KEY", prefix_case))
+            std::env::var(format!("{prefix_case}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
+        let secret_key = std::env::var(format!("{prefix_case}_AWS_SECRET_ACCESS_KEY"))
             .expect(&no_secret_key_var);
         let endpoint =
-            std::env::var(format!("{}_AWS_ENDPOINT", prefix_case)).expect(&no_endpoint_var);
-        let bucket = std::env::var(format!("{}_AWS_BUCKET", prefix)).expect(&no_bucket_var);
+            std::env::var(format!("{prefix_case}_AWS_ENDPOINT")).expect(&no_endpoint_var);
+        let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
 
         Self {
             s3_builder: AmazonS3Builder::new()
@@ -185,6 +191,7 @@ impl fmt::Display for ObjectStoreType {
 }
 
 impl ObjectStoreType {
+    #[allow(clippy::as_conversions)]
     pub fn object_store(&self) -> Result<Arc<dyn ObjectStore>, Error> {
         match &self {
             Self::Memory => Ok(Arc::new(object_store::memory::InMemory::new())),
@@ -216,7 +223,6 @@ impl ObjectStoreType {
     }
 
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    #[must_use]
     pub fn object_store_at_path(path: &Path) -> Result<Arc<dyn ObjectStore>, Error> {
         if !path.exists() || !path.is_dir() {
             fs::create_dir(path).unwrap();
@@ -306,7 +312,7 @@ async fn exec_parallel_test_plan(
     let mut passed = true;
 
     for (volume_name, database_name) in &volumes_databases_list {
-        for ParallelTest(tests) in test_plan.iter() {
+        for ParallelTest(tests) in &test_plan {
             // error log context
             let object_store_types: HashSet<String> = tests
                 .iter()
@@ -348,7 +354,7 @@ async fn exec_parallel_test_plan(
                             res?;
                         }
                     }
-                };
+                }
             }
             // we do not expect mixed multiple sqls and expectations running in parallel
             // run in parallel if one sql is specified
@@ -422,7 +428,7 @@ pub fn template_single_executor_two_sessions_different_tables_inserts(
                         (400, 'Diana', 'qux'),
                         (500, 'Eve', 'quux');",
                 ],
-                executor: executor.clone(),
+                executor,
                 session_id: TEST_SESSION_ID2,
                 expected_res: true,
             },
@@ -462,7 +468,7 @@ pub fn template_two_unrelated_executors_inserts_into_different_tables(
         ParallelTest(vec![
             TestQuery {
                 sqls: vec![INSERT_INTO_ALL_SNOWFLAKE_TYPES],
-                executor: executor1.clone(),
+                executor: executor1,
                 session_id: TEST_SESSION_ID1,
                 expected_res: true,
             },
@@ -475,7 +481,7 @@ pub fn template_two_unrelated_executors_inserts_into_different_tables(
                         (400, 'Diana', 'qux'),
                         (500, 'Eve', 'quux');",
                 ],
-                executor: executor2.clone(),
+                executor: executor2,
                 session_id: TEST_SESSION_ID1,
                 expected_res: true,
             },
