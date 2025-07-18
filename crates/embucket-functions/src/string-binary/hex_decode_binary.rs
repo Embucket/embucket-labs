@@ -13,6 +13,20 @@ use std::any::Any;
 use std::str::from_utf8;
 use std::sync::Arc;
 
+/// `HEX_DECODE_BINARY` function implementation
+///
+/// Decodes a hex-encoded string to a binary.
+/// The input must be a valid hexadecimal string (containing only 0-9, A-F, a-f)
+///
+/// Syntax: `HEX_DECODE_BINARY(<hex_string>)`
+///
+/// Arguments:
+/// - `<hex_string>`: A string containing hexadecimal characters to be decoded.
+///
+/// Returns: Binary
+///
+/// Example: `HEX_DECODE_BINARY('534E4F57')` returns binary data for 'SNOW'
+/// Example: `HEX_DECODE_BINARY('48656C6C6F')` returns binary data for 'Hello'
 #[derive(Debug)]
 pub struct HexDecodeBinaryFunc {
     signature: Signature,

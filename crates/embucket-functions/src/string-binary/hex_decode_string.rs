@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 /// `HEX_DECODE_STRING` function implementation
 ///
-/// Decodes a hex-encoded string to a binary.
+/// Decodes a hex-encoded string.
 /// The input must be a valid hexadecimal string (containing only 0-9, A-F, a-f)
 ///
 /// Syntax: `HEX_DECODE_STRING(<hex_string>)`
@@ -26,8 +26,8 @@ use std::sync::Arc;
 ///
 /// Returns: String
 ///
-/// Example: `HEX_DECODE_STRING('534E4F57')` returns binary data for 'SNOW'
-/// Example: `HEX_DECODE_STRING('48656C6C6F')` returns binary data for 'Hello'
+/// Example: `HEX_DECODE_STRING('534E4F57')` returns string data for 'SNOW'
+/// Example: `HEX_DECODE_STRING('48656C6C6F')` returns string data for 'Hello'
 #[derive(Debug)]
 pub struct HexDecodeStringFunc {
     signature: Signature,
