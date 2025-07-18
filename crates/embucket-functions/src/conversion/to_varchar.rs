@@ -16,6 +16,7 @@ use datafusion_common::cast::{
 };
 use datafusion_common::types::{logical_binary, logical_string};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -301,9 +302,11 @@ fn convert_numeric_to_string(
     clippy::as_conversions
 )]
 fn apply_numeric_format(value: &str, format: &str, _try_mode: bool) -> DFResult<String> {
-    let num_val: f64 = value.parse().map_err(|_| {
-        datafusion_common::DataFusionError::Execution("Invalid numeric value".to_string())
-    })?;
+    let num_val: f64 = value
+        .parse()
+        .context(conv_errors::InvalidNumericValueSnafu {
+            value: value.to_string(),
+        })?;
 
     let clean_format = format.trim_matches('"');
 

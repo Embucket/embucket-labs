@@ -161,6 +161,15 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Invalid numeric value: {value}"))]
+    InvalidNumericValue {
+        value: String,
+        #[snafu(source)]
+        error: std::num::ParseFloatError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
