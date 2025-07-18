@@ -406,6 +406,7 @@ try_hex_decode_string
 try_parse_json
 try_to_binary
 try_to_boolean
+try_to_char
 try_to_decimal
 try_to_number
 try_to_numeric
