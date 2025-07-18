@@ -504,8 +504,10 @@ async fn e2e_test_two_unrelated_executors() -> Result<(), Error> {
     )
     .await?;
 
-    let test_plan =
-        template_two_unrelated_executors_inserts_into_different_tables(Arc::new(file_exec1), Arc::new(file_exec2));
+    let test_plan = template_two_unrelated_executors_inserts_into_different_tables(
+        Arc::new(file_exec1),
+        Arc::new(file_exec2),
+    );
 
     assert!(
         exec_parallel_test_plan(
@@ -538,7 +540,8 @@ async fn e2e_test_file_store_single_executor_two_sessions_different_tables_inser
     )
     .await?;
 
-    let test_plan = template_single_executor_two_sessions_different_tables_inserts(Arc::new(file_exec));
+    let test_plan =
+        template_single_executor_two_sessions_different_tables_inserts(Arc::new(file_exec));
 
     assert!(
         exec_parallel_test_plan(
@@ -567,7 +570,8 @@ async fn e2e_test_memory_store_single_executor_two_sessions_different_tables_ins
 
     let memory_exec = create_executor(ObjectStoreType::Memory, &test_suffix).await?;
 
-    let test_plan = template_single_executor_two_sessions_different_tables_inserts(Arc::new(memory_exec));
+    let test_plan =
+        template_single_executor_two_sessions_different_tables_inserts(Arc::new(memory_exec));
 
     assert!(
         exec_parallel_test_plan(
@@ -603,7 +607,8 @@ async fn e2e_test_s3_store_single_executor_two_sessions_different_tables_inserts
     )
     .await?;
 
-    let test_plan = template_single_executor_two_sessions_different_tables_inserts(Arc::new(s3_exec));
+    let test_plan =
+        template_single_executor_two_sessions_different_tables_inserts(Arc::new(s3_exec));
 
     assert!(
         exec_parallel_test_plan(
