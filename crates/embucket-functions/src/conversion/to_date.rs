@@ -1,13 +1,14 @@
 use super::errors as conv_errors;
 use arrow_schema::DataType;
+use chrono::{DateTime, NaiveDate};
 use datafusion::arrow::compute::{CastOptions, cast_with_options};
 use datafusion::arrow::util::display::FormatOptions;
+use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, TypeSignatureClass};
+use datafusion_common::ScalarValue;
+use datafusion_common::arrow::array::{Array, StringArray};
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl, Volatility};
 use std::any::Any;
-use std::str::FromStr;
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
-use datafusion_common::arrow::array::{Array, StringArray};
 
 #[derive(Debug)]
 pub struct ToDateFunc {
@@ -40,8 +41,44 @@ impl ToDateFunc {
         }
     }
 
-    const fn extract_format_arg(&self, args: &[ColumnarValue]) -> Option<&str> {
-        None
+    fn extract_format_arg(args: &[ColumnarValue]) -> DFResult<Option<&str>> {
+        if args.len() > 1 {
+            match &args[1] {
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(format))
+                    | ScalarValue::Utf8View(Some(format))
+                    | ScalarValue::LargeUtf8(Some(format)),
+                ) => {
+                    let format = match format.to_lowercase().as_str() {
+                        "yyyy-mm-dd" => Some("%Y-%m-%d"),
+                        "mm/dd/yyyy" => Some("%m/%d/%Y"),
+                        "yyyy.mm.dd" => Some("%Y.%m.%d"),
+                        "auto" => None,
+                        _ => return conv_errors::UnsupportedFormatSnafu { format }.fail()?,
+                    };
+                    Ok(format)
+                }
+                other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 2usize,
+                }
+                .fail()?,
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_truncated_checked(str: &str) -> Option<i64> {
+        let len = str.len();
+        let truncated_str = if 19 < len {
+            &str[0..(11 + (len - 20))]
+        } else if 10 < len {
+            &str[0..(8 + (len - 11) % 3)]
+        } else {
+            str
+        };
+        truncated_str.parse::<i64>().ok()
     }
 }
 
@@ -78,10 +115,9 @@ impl ScalarUDFImpl for ToDateFunc {
         }
     }
 
-    fn invoke_with_args(
-        &self,
-        args: ScalarFunctionArgs,
-    ) -> datafusion_common::Result<ColumnarValue> {
+    #[allow(clippy::unwrap_used)]
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        //Already checked that it's at least > 0
         let expr = &args.args[0];
         let array = match expr {
             ColumnarValue::Array(array) => array,
@@ -98,25 +134,56 @@ impl ScalarUDFImpl for ToDateFunc {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = array.as_any().downcast_ref().unwrap();
 
-                let prepared_array: Vec<_> = string_array.iter().map(|opt| {
-                    opt.map(|str| {
-                        if str.contains("/") {
-                            NaiveDate::parse_from_str(str, "%m/%d/%Y").unwrap().format("%Y-%m-%d").to_string()
-                        } else if str.contains(".") {
-                            NaiveDate::parse_from_str(str, "%Y.%m.%d").unwrap().format("%Y-%m-%d").to_string()
-                        } else if str.contains("-") {
-                            str.to_string()
-                        } else {
-                            let truncated_str = &str[0..str.len().min(10)];
-                            let timestamp = truncated_str.parse::<i64>().unwrap();
-                            DateTime::from_timestamp(timestamp, 0).unwrap_or_default().date_naive().format("%Y-%m-%d").to_string()
-                        }
-                    })
-                }).collect();
+                let prepared_values: Vec<Option<String>> =
+                    match Self::extract_format_arg(&args.args)? {
+                        None => string_array
+                            .iter()
+                            .map(|opt| {
+                                opt.map(|str| {
+                                    if str.contains('-') {
+                                        str.to_string()
+                                    } else if str.contains('.') {
+                                        NaiveDate::parse_from_str(str, "%Y.%m.%d").map_or_else(
+                                            |_| str.to_string(),
+                                            |date| date.format("%Y-%m-%d").to_string(),
+                                        )
+                                    } else if str.contains('/') {
+                                        NaiveDate::parse_from_str(str, "%m/%d/%Y").map_or_else(
+                                            |_| str.to_string(),
+                                            |date| date.format("%Y-%m-%d").to_string(),
+                                        )
+                                    } else if let Some(timestamp) =
+                                        Self::parse_truncated_checked(str)
+                                    {
+                                        DateTime::from_timestamp(timestamp, 0).map_or_else(
+                                            || str.to_string(),
+                                            |date_time| {
+                                                date_time
+                                                    .date_naive()
+                                                    .format("%Y-%m-%d")
+                                                    .to_string()
+                                            },
+                                        )
+                                    } else {
+                                        str.to_string()
+                                    }
+                                })
+                            })
+                            .collect(),
+                        Some(format) => string_array
+                            .iter()
+                            .map(|opt| {
+                                opt.map(|str| {
+                                    NaiveDate::parse_from_str(str, format).map_or_else(
+                                        |_| str.to_string(),
+                                        |date| date.format("%Y-%m-%d").to_string(),
+                                    )
+                                })
+                            })
+                            .collect(),
+                    };
 
-                let prepared_array = StringArray::from(prepared_array);
-
-                let format = self.extract_format_arg(&args.args);
+                let prepared_array = StringArray::from(prepared_values);
 
                 cast_with_options(&prepared_array, &DataType::Date32, &cast_options)?
             }
