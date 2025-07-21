@@ -5,32 +5,33 @@ description: Learn how Embucket is built with Apache Iceberg, what features are 
 
 Embucket is a Snowflake "bring-your-own-cloud" alternative, built on top of open technologies like Apache Iceberg, Apache Arrow, Apache Parquet. Apache Iceberg is an open table format that prescribes how to store and manage large datasets, while Apache Arrow is an in-memory columnar storage format that provides a fast and efficient way to access and process data. Learn more about [Apache Iceberg](https://iceberg.apache.org/).
 
-Embucket uses Iceberg for data storage, and provides an Iceberg Catalog REST API to read and write data for external tools. All Embucket tables behind the scenes are Iceberg tables, and can be queried using the Iceberg Catalog REST API. This means that any Iceberg client can read and write data to Embucket. At this moment, Embucket ensures compatibility with Apache Spark, pyiceberg and AWS S3 table buckets. 
+Embucket uses Iceberg for data storage, and provides an Iceberg Catalog REST API to read and write data for external tools. All Embucket tables behind the scenes are Iceberg tables, and can be queried using the Iceberg Catalog REST API. This means that any Iceberg client can read and write data to Embucket. At this moment, Embucket ensures compatibility with Apache Spark, pyiceberg and AWS S3 table buckets.
 
 ## Compatibility
 
-Embucket can read data produced by Apache Spark, pyiceberg and AWS S3 table buckets. 
-The data written by Embucket can be read with Apache Spark, pyiceberg and AWS S3 table buckets. 
+Embucket can read data produced by Apache Spark, pyiceberg and AWS S3 table buckets.
+The data written by Embucket can be read with Apache Spark, pyiceberg and AWS S3 table buckets.
 
 Embucket target to be compatible with Iceberg v2, but not all feature are supported yet.
 
 Notable missing features are:
- * Credentials vending
- * Server side planning
- * Views
- * Maintenance operations 
+
+- Credentials vending
+- Server side planning
+- Views
+- Maintenance operations
 
 ## Limitations
 
 Embucket currently doesn't provide full support of all Iceberg features. Some of the features are not supported yet due to limitations in Embucket's dependencies and architecture.
 
- * Embucket doesn't support table maintenance operations like compaction, snapshot expiration, etc. However, it is possible to delegate these operations to external tools, like AWS S3 table buckets and Apache Spark.
- * Embucket doesn't support `UPDATE` and `DELETE` operations. However, `MERGE INTO` statement is supported.
- * Embucket doesn't support `ALTER TABLE` operations
+- Embucket doesn't support table maintenance operations like compaction, snapshot expiration, etc. However, it is possible to delegate these operations to external tools, like AWS S3 table buckets and Apache Spark.
+- Embucket doesn't support `UPDATE` and `DELETE` operations. However, `MERGE INTO` statement is supported.
+- Embucket doesn't support `ALTER TABLE` operations
 
 ### Read path
 
-Embucket is able to read delete files, however it doesn't support position delete files yet (pending Arrow Parquet reader support). 
+Embucket is able to read delete files, however it doesn't support position delete files yet (pending Arrow Parquet reader support).
 
 ### Write path
 
@@ -40,18 +41,19 @@ Embucket is unable to write delete files, and thus there is no support for DELET
 
 Embucket provides an Iceberg Catalog REST API to read and write data for external tools. This API is partially compatible with [Apache Iceberg Catalog REST API](https://iceberg.apache.org/spec/#catalog-rest-api).
 
-However, not all endpoints are implemented yet, and some of the existing endpoints are not fully compatible with Apache Iceberg Catalog REST API. 
+However, not all endpoints are implemented yet, and some of the existing endpoints are not fully compatible with Apache Iceberg Catalog REST API.
 
 Currently, the only following endpoints are implemented:
-  - `GET /v1/config`
-  - `GET /v1/{wid}/namespaces`
-  - `POST /v1/{wid}/namespaces`
-  - `GET /v1/{wid}/namespaces/{namespace}`
-  - `DELETE /v1/{wid}/namespaces/{namespace}`
-  - `POST /v1/{wid}/namespaces/{namespace}/register`
-  - `GET /v1/{wid}/namespaces/{namespace}/tables`
-  - `POST /v1/{wid}/namespaces/{namespace}/tables`
-  - `GET /v1/{wid}/namespaces/{namespace}/tables/{table}`
-  - `DELETE /v1/{wid}/namespaces/{namespace}/tables/{table}`
-  - `POST /v1/{wid}/namespaces/{namespace}/tables/{table}`
-  - `POST /v1/{wid}/namespaces/{namespace}/tables/{table}/metrics`
+
+- `GET /v1/config`
+- `GET /v1/{wid}/namespaces`
+- `POST /v1/{wid}/namespaces`
+- `GET /v1/{wid}/namespaces/{namespace}`
+- `DELETE /v1/{wid}/namespaces/{namespace}`
+- `POST /v1/{wid}/namespaces/{namespace}/register`
+- `GET /v1/{wid}/namespaces/{namespace}/tables`
+- `POST /v1/{wid}/namespaces/{namespace}/tables`
+- `GET /v1/{wid}/namespaces/{namespace}/tables/{table}`
+- `DELETE /v1/{wid}/namespaces/{namespace}/tables/{table}`
+- `POST /v1/{wid}/namespaces/{namespace}/tables/{table}`
+- `POST /v1/{wid}/namespaces/{namespace}/tables/{table}/metrics`
