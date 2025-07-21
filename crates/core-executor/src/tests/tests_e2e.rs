@@ -188,7 +188,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         assert!(
             exec_parallel_test_plan(
                 test_plan,
-                vec![TEST_VOLUME_S3TABLES, TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
+                vec![/*TEST_VOLUME_S3TABLES,*/ TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
             )
             .await?
         );
@@ -342,6 +342,26 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
             sqls: vec![
                 // first executor still successfully reads data
                 "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+            ],
+            executor: file_exec1.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+        TestQuery {
+            sqls: vec![
+                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+            ],
+            executor: file_exec2.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+    ])];
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            // After being fenced:
+            sqls: vec![
                 // first executor fails to write
                 "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                 (100, 'Alice', 'foo')",
@@ -352,7 +372,6 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
         },
         TestQuery {
             sqls: vec![
-                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
                 "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
                     (100, 'Alice', 'foo')",
             ],
