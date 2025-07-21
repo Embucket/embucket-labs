@@ -55,7 +55,14 @@ impl ToDateFunc {
                         "dd/mm/yyyy" => Some("%d/%m/%Y"),
                         "yyyy.mm.dd" => Some("%Y.%m.%d"),
                         "auto" => None,
-                        _ => return conv_errors::UnsupportedDateFormatSnafu { format }.fail()?,
+                        _ => {
+                            return conv_errors::UnsupportedFormatSnafu {
+                                format,
+                                expected: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy & auto"
+                                    .to_string(),
+                            }
+                            .fail()?;
+                        }
                     };
                     Ok(format)
                 }

@@ -167,6 +167,7 @@ pub enum Error {
     ))]
     UnsupportedDateFormat {
         format: String,
+        expected: String,
         #[snafu(implicit)]
         location: Location,
     },

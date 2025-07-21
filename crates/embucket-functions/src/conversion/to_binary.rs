@@ -235,7 +235,11 @@ where
                     if try_mode {
                         builder.append_null();
                     } else {
-                        return conv_errors::UnsupportedBinaryFormatSnafu { format }.fail()?;
+                        return conv_errors::UnsupportedFormatSnafu {
+                            format,
+                            expected: "HEX, BASE64, and UTF-8".to_string(),
+                        }
+                        .fail()?;
                     }
                 }
             }
