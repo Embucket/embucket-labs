@@ -13,7 +13,7 @@ use std::sync::Arc;
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_file_store_two_executors_unrelated_inserts() -> Result<(), Error> {
+async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), Error> {
     dotenv().ok();
 
     let test_suffix1 = test_suffix();
@@ -21,14 +21,14 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts() -> Result<(), Err
 
     let file_exec1 = create_executor(
         ObjectStoreType::File(test_suffix1.clone(), env::temp_dir().join("store")),
-        &test_suffix1,
+        &test_suffix1, "#1",
     )
     .await?;
     let file_exec1 = Arc::new(file_exec1);
 
     let file_exec2 = create_executor(
         ObjectStoreType::File(test_suffix2.clone(), env::temp_dir().join("store")),
-        &test_suffix2,
+        &test_suffix2, "#2",
     )
     .await?;
     let file_exec2 = Arc::new(file_exec2);
@@ -91,7 +91,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
             test_suffix.clone(),
             S3ObjectStore::from_prefixed_env("E2E_STORE"),
         ),
-        &test_suffix,
+        &test_suffix, "s3_exec",
     )
     .await?;
     let s3_exec = Arc::new(s3_exec);
@@ -137,16 +137,16 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
     let executors = vec![
         create_executor(
             ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store")),
-            &test_suffix,
+            &test_suffix, "file_exec",
         )
         .await?,
-        create_executor(ObjectStoreType::Memory, &test_suffix).await?,
+        create_executor(ObjectStoreType::Memory, &test_suffix, "memory_exec").await?,
         create_executor(
             ObjectStoreType::S3(
                 test_suffix.clone(),
                 S3ObjectStore::from_prefixed_env("E2E_STORE"),
             ),
-            &test_suffix,
+            &test_suffix, "s3_exec",
         )
         .await?,
     ];
@@ -170,6 +170,9 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
             },
             TestQuery {
                 sqls: vec![
+                    // test if database and schema created in other sessions can be resolved in this session
+                    "CREATE TABLE __DATABASE__.__SCHEMA__.xxx(test number)",
+                    // test if table created in other sessions can be resolved in this session
                     "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                         (100, 'Alice', 'foo'),
                         (200, 'Bob', 'bar'),
@@ -203,7 +206,7 @@ async fn test_e2e_memory_store_single_executor_with_old_and_freshly_created_sess
 
     let test_suffix = test_suffix();
 
-    let executor = create_executor(ObjectStoreType::Memory, &test_suffix).await?;
+    let executor = create_executor(ObjectStoreType::Memory, &test_suffix, "memory_exec").await?;
     let executor = Arc::new(executor);
 
     let prerequisite_test = vec![ParallelTest(vec![
@@ -245,6 +248,9 @@ async fn test_e2e_memory_store_single_executor_with_old_and_freshly_created_sess
         },
         TestQuery {
             sqls: vec![
+                // test if database and schema created in other sessions can be resolved in this session
+                "CREATE TABLE __DATABASE__.__SCHEMA__.xxx(test number)",
+                // test if table created in other sessions can be resolved in this session
                 "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                     (100, 'Alice', 'foo'),
                     (200, 'Bob', 'bar'),
@@ -281,8 +287,8 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
     let object_store_file =
         ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
 
-    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix).await?;
-    let _ = create_executor(object_store_file, &test_suffix).await?;
+    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
+    let _ = create_executor(object_store_file, &test_suffix, "#2").await?;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec!["CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__"],
@@ -307,7 +313,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
     let object_store_file =
         ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
 
-    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix).await?;
+    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
     let file_exec1 = Arc::new(file_exec1);
 
     // create data using first executor
@@ -323,12 +329,8 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
     }])];
     assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
 
-    // create 2nd executor on the same data and
-
-    // 2.
-    // 3. second executor successfully writes data
-
-    let file_exec2 = create_executor(object_store_file, &test_suffix).await?;
+    // create 2nd executor on the same object store
+    let file_exec2 = create_executor(object_store_file, &test_suffix, "#2").await?;
     let file_exec2 = Arc::new(file_exec2);
 
     let test_plan = vec![ParallelTest(vec![

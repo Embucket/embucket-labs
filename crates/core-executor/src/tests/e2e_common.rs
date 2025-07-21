@@ -20,7 +20,6 @@ use object_store::{
 use slatedb::{Db as SlateDb, config::DbOptions};
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
-use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::fs;
@@ -162,6 +161,14 @@ impl S3ObjectStore {
 pub struct ExecutorWithObjectStore {
     pub executor: CoreExecutionService,
     pub object_store_type: ObjectStoreType,
+    pub alias: String,
+}
+
+impl ExecutorWithObjectStore {
+    pub fn with_alias(mut self, alias: String) -> Self {
+        self.alias = alias;
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -235,6 +242,7 @@ impl ObjectStoreType {
 pub async fn create_executor(
     object_store_type: ObjectStoreType,
     fs_volume_suffix: &str,
+    alias: &str,
 ) -> Result<ExecutorWithObjectStore, Error> {
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
@@ -300,6 +308,7 @@ pub async fn create_executor(
     Ok(ExecutorWithObjectStore {
         executor: execution_svc,
         object_store_type: object_store_type.clone(),
+        alias: alias.to_string(),
     })
 }
 
@@ -308,24 +317,9 @@ pub async fn exec_parallel_test_plan(
     test_plan: Vec<ParallelTest>,
     volumes_databases_list: Vec<(&str, &str)>,
 ) -> Result<bool, Error> {
+    let mut passed = true;
     for (volume_name, database_name) in &volumes_databases_list {
         for ParallelTest(tests) in &test_plan {
-            // log context
-            let object_store_types: HashSet<String> = tests
-                .iter()
-                .map(|test| test.executor.object_store_type.to_string())
-                .collect();
-            let sessions: HashSet<String> = tests
-                .iter()
-                .map(|test| test.session_id.to_string())
-                .collect();
-            eprintln!(
-                "Parallel executors use object store types: {object_store_types:#?}, sessions: {sessions:#?}"
-            );
-            eprintln!("Volume: {volume_name}, Database: {database_name}");
-
-            let mut parallel_sqls = Vec::new();
-
             // create sqls array here sql ref to String won't survive in the loop below
             let tests_sqls = tests
                 .iter()
@@ -336,7 +330,7 @@ pub async fn exec_parallel_test_plan(
                 })
                 .collect::<Vec<_>>();
 
-            let mut futures = Vec::new();
+            // run batch sqls if any
             for (idx, test) in tests.iter().enumerate() {
                 // get slice of all items except last
                 let items = &tests_sqls[idx];
@@ -351,40 +345,52 @@ pub async fn exec_parallel_test_plan(
                         .query(test.session_id, sql, QueryContext::default())
                         .await
                         .context(ExecutionSnafu { query: sql.clone() });
-                    eprintln!("Exec: {sql}, res: {res:#?}");
+                    let ExecutorWithObjectStore { alias, object_store_type, .. } = test.executor.as_ref();
+                    eprintln!("Exec synchronously with executor [{alias}], on object store: {object_store_type}, session: {}", test.session_id);
+                    eprintln!("sql: {sql}\nres: {res:#?}");
                     res?;
                 }
+            }
+
+            let mut parallel_runs = Vec::new();
+
+            // run sqls concurrently
+            let mut futures = Vec::new();
+            for (idx, test) in tests.iter().enumerate() {
+                // get slice of all items except last
+                let items = &tests_sqls[idx];
 
                 // run last item from every TestQuery in (non blocking mode)
                 if let Some(sql) = items.last() {
-                    parallel_sqls.push(sql);
                     futures.push(test.executor.executor.query(
                         test.session_id,
                         sql,
                         QueryContext::default(),
                     ));
+                    parallel_runs.push((sql, test));
                 }
             }
 
             let results = join_all(futures).await;
-            if !results.is_empty() {
-                let num_expected_ok = tests.iter().filter(|test| test.expected_res).count();
-                let num_expected_err = tests.len() - num_expected_ok;
 
-                let (oks, errs): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-                let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
-                let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
-
-                parallel_sqls.sort();
-                parallel_sqls.dedup();
-                eprintln!("Run sqls in parallel: {parallel_sqls:#?}");
-
-                if oks.len() != num_expected_ok || errs.len() != num_expected_err {
-                    eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
+            for (idx, (sql, test)) in parallel_runs.iter().enumerate() {
+                let TestQuery { expected_res, session_id, .. } = test;
+                let res = &results[idx];
+                let test_num = idx + 1;
+                let parallel_runs = parallel_runs.len();
+                let ExecutorWithObjectStore { alias, object_store_type, .. } = test.executor.as_ref();
+                eprintln!("Exec concurrently with executor [{alias}], on object store: {object_store_type}, session: {session_id}");
+                eprintln!("sql {test_num}/{parallel_runs}: {sql}\nexpected_res: {expected_res}, res: {res:#?}");
+                if expected_res != &res.is_ok() {
                     eprintln!("FAILED\n");
-                    return Ok(false);
+                    passed = false;
+                } else {
+                    eprintln!("PASSED\n");    
                 }
-                eprintln!("PASSED\n");
+            }
+
+            if !passed {
+                return Ok(false);
             }
         }
     }
