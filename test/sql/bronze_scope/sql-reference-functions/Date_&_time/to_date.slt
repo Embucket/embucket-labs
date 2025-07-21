@@ -50,7 +50,7 @@ SELECT TO_DATE('2024-05-10', 'YYYY-MM-DD') as to_date, DATE('2024-05-10', 'YYYY-
 
 #removed to_timestamp call, since
 #000200: Arrow error: Parser error: Error parsing timestamp from '31536000': timestamp must contain at least 10 characters
-query TTTT
+query TTT
 WITH demo1 AS (
   SELECT * FROM VALUES
     ('Seconds',      '31536000'),
