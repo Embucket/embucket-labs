@@ -2,9 +2,8 @@
 #![allow(clippy::large_enum_variant)]
 use crate::service::ExecutionService;
 use crate::tests::e2e_common::{
-    Error, ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1,
-    TEST_SESSION_ID2, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY, TEST_VOLUME_S3, TestQuery,
-    create_executor, exec_parallel_test_plan, test_suffix,
+    create_executor, exec_parallel_test_plan, test_suffix, Error, ObjectStoreType, ParallelTest, S3ObjectStore, TestQuery, 
+    TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY, TEST_VOLUME_S3, TEST_VOLUME_S3TABLES
 };
 use dotenv::dotenv;
 use std::env;
@@ -70,7 +69,7 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
     assert!(
         exec_parallel_test_plan(
             test_plan,
-            vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
+            vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3, /*TEST_VOLUME_S3TABLES*/]
         )
         .await?
     );
@@ -89,7 +88,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
     let s3_exec = create_executor(
         ObjectStoreType::S3(
             test_suffix.clone(),
-            S3ObjectStore::from_prefixed_env("E2E_STORE"),
+            S3ObjectStore::from_env(),
         ),
         &test_suffix, "s3_exec",
     )
@@ -144,7 +143,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         create_executor(
             ObjectStoreType::S3(
                 test_suffix.clone(),
-                S3ObjectStore::from_prefixed_env("E2E_STORE"),
+                S3ObjectStore::from_env(),
             ),
             &test_suffix, "s3_exec",
         )
@@ -189,7 +188,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         assert!(
             exec_parallel_test_plan(
                 test_plan,
-                vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
+                vec![TEST_VOLUME_S3TABLES, TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
             )
             .await?
         );
@@ -200,13 +199,17 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_memory_store_single_executor_with_old_and_freshly_created_sessions()
+async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions()
 -> Result<(), Error> {
     dotenv().ok();
 
     let test_suffix = test_suffix();
 
-    let executor = create_executor(ObjectStoreType::Memory, &test_suffix, "memory_exec").await?;
+    let executor = create_executor(
+        ObjectStoreType::S3(
+            test_suffix.clone(),
+            S3ObjectStore::from_env(),
+        ), &test_suffix, "s3_exec").await?;
     let executor = Arc::new(executor);
 
     let prerequisite_test = vec![ParallelTest(vec![

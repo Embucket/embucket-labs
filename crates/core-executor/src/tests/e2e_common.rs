@@ -10,7 +10,7 @@ use core_metastore::SlateDBMetastore;
 use core_metastore::Volume as MetastoreVolume;
 use core_metastore::models::volumes::AwsAccessKeyCredentials;
 use core_metastore::models::volumes::AwsCredentials;
-use core_metastore::{FileVolume, S3Volume};
+use core_metastore::{FileVolume, S3Volume, S3TablesVolume};
 use core_utils::Db;
 use futures::future::join_all;
 use object_store::ObjectStore;
@@ -48,19 +48,30 @@ pub enum Error {
 }
 
 // Set envs, and add to .env
-// # Object store on aws / minio
-// E2E_STORE_AWS_ACCESS_KEY_ID=
-// E2E_STORE_AWS_SECRET_ACCESS_KEY=
-// E2E_STORE_AWS_REGION=us-east-1
-// E2E_STORE_AWS_BUCKET=e2e-store
-// E2E_STORE_AWS_ENDPOINT=http://localhost:9000
 
-// # User data on aws / minio
+// # Env vars for s3 object store
 // AWS_ACCESS_KEY_ID=
 // AWS_SECRET_ACCESS_KEY=
 // AWS_REGION=us-east-1
 // AWS_BUCKET=tables-data
 // AWS_ENDPOINT=http://localhost:9000
+// AWS_ALLOW_HTTP=true
+
+// Env vars for S3Volume:
+// E2E_S3VOLUME_AWS_ACCESS_KEY_ID=
+// E2E_S3VOLUME_AWS_SECRET_ACCESS_KEY=
+// E2E_S3VOLUME_AWS_REGION=us-east-1
+// E2E_S3VOLUME_AWS_BUCKET=e2e-store
+// E2E_S3VOLUME_AWS_ENDPOINT=http://localhost:9000
+
+// Env vars for S3TablesVolume:
+// E2E_S3TABLESVOLUME_AWS_ACCESS_KEY_ID=
+// E2E_S3TABLESVOLUME_AWS_SECRET_ACCESS_KEY=
+// E2E_S3TABLESVOLUME_AWS_REGION=us-east-1
+// E2E_S3TABLESVOLUME_AWS_BUCKET=e2e-store
+// E2E_S3TABLESVOLUME_AWS_ENDPOINT=http://localhost:9000
+// E2E_S3TABLESVOLUME_AWS_ACCOUNT_ID=111122223333
+
 
 pub const TEST_SESSION_ID1: &str = "test_session_id1";
 pub const TEST_SESSION_ID2: &str = "test_session_id2";
@@ -68,6 +79,7 @@ pub const TEST_SESSION_ID2: &str = "test_session_id2";
 pub const TEST_VOLUME_MEMORY: (&str, &str) = ("volume_memory", "database_in_memory");
 pub const TEST_VOLUME_FILE: (&str, &str) = ("volume_file", "database_in_file");
 pub const TEST_VOLUME_S3: (&str, &str) = ("volume_s3", "database_in_s3");
+pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_s3tables");
 
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
@@ -82,31 +94,68 @@ pub fn test_suffix() -> String {
 
 #[must_use]
 pub fn s3_volume() -> S3Volume {
-    let s3_builder = AmazonS3Builder::from_env(); //.build().expect("Failed to load S3 credentials");
-    let access_key_id = s3_builder
-        .get_config_value(&AmazonS3ConfigKey::AccessKeyId)
-        .expect("AWS_ACCESS_KEY_ID is not set");
-    let secret_access_key = s3_builder
-        .get_config_value(&AmazonS3ConfigKey::SecretAccessKey)
-        .expect("AWS_SECRET_ACCESS_KEY is not set");
-    let region = s3_builder
-        .get_config_value(&AmazonS3ConfigKey::Region)
-        .expect("AWS_REGION is not set");
-    let bucket = s3_builder
-        .get_config_value(&AmazonS3ConfigKey::Bucket)
-        .expect("AWS_BUCKET is not set");
-    let endpoint = s3_builder
-        .get_config_value(&AmazonS3ConfigKey::Endpoint)
-        .expect("AWS_ENDPOINT is not set");
+    let prefix = "E2E_S3VOLUME".to_ascii_uppercase();
+    let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
+    let no_secret_key_var = format!("{prefix}_AWS_SECRET_ACCESS_KEY is not set");
+    let no_region_var = format!("{prefix}_AWS_REGION is not set");
+    let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
+    let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
+
+    let region = std::env::var(format!("{prefix}_AWS_REGION")).expect(&no_region_var);
+    let access_key =
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
+    let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
+        .expect(&no_secret_key_var);
+    let endpoint =
+        std::env::var(format!("{prefix}_AWS_ENDPOINT")).expect(&no_endpoint_var);
+    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
+
     S3Volume {
         region: Some(region),
         bucket: Some(bucket),
         endpoint: Some(endpoint),
         credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
-            aws_access_key_id: access_key_id,
-            aws_secret_access_key: secret_access_key,
+            aws_access_key_id: access_key,
+            aws_secret_access_key: secret_key,
         })),
     }
+}
+
+
+#[must_use]
+pub fn s3_tables_volume(database: String) -> S3TablesVolume {
+    let prefix = "E2E_S3TABLESVOLUME".to_ascii_uppercase();
+    let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
+    let no_secret_key_var = format!("{prefix}_AWS_SECRET_ACCESS_KEY is not set");
+    let no_region_var = format!("{prefix}_AWS_REGION is not set");
+    let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
+    let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
+    let no_account_id_var = format!("{prefix}_AWS_ACCOUNT_ID is not set");
+
+    let region = std::env::var(format!("{prefix}_AWS_REGION")).expect(&no_region_var);
+    let access_key =
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
+    let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
+        .expect(&no_secret_key_var);
+    let endpoint =
+        std::env::var(format!("{prefix}_AWS_ENDPOINT")).expect(&no_endpoint_var);
+    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
+    let account_id = std::env::var(format!("{prefix}_AWS_ACCOUNT_ID")).expect(&no_account_id_var);
+
+    let arn = format!("arn:aws:s3tables:{region}:{account_id}:bucket/{bucket}");
+    eprintln!("arn: {arn}");
+    let s3tables_volume = S3TablesVolume {
+        endpoint: Some(endpoint),
+        credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+            aws_access_key_id: access_key,
+            aws_secret_access_key: secret_key,
+        }),
+        database,
+        // arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket
+        arn,
+    };
+    eprintln!("s3tables volume: {:#?}", s3tables_volume);
+    s3tables_volume
 }
 
 pub type TestPlan = Vec<ParallelTest>;
@@ -120,40 +169,20 @@ pub struct TestQuery {
     pub expected_res: bool,
 }
 
+pub struct S3TableStore {
+    pub s3_builder: AmazonS3Builder,
+}
+
 #[derive(Debug, Clone)]
 pub struct S3ObjectStore {
     pub s3_builder: AmazonS3Builder,
 }
-
 impl S3ObjectStore {
     #[must_use]
-    pub fn from_prefixed_env(prefix: &str) -> Self {
-        let prefix_case = prefix.to_ascii_uppercase();
-        let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
-        let no_secret_key_var = format!("{prefix}_AWS_SECRET_ACCESS_KEY is not set");
-        let no_region_var = format!("{prefix}_AWS_REGION is not set");
-        let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
-        let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
-
-        let region = std::env::var(format!("{prefix_case}_AWS_REGION")).expect(&no_region_var);
-        //.unwrap_or("us-east-1".into());
-        let access_key =
-            std::env::var(format!("{prefix_case}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
-        let secret_key = std::env::var(format!("{prefix_case}_AWS_SECRET_ACCESS_KEY"))
-            .expect(&no_secret_key_var);
-        let endpoint =
-            std::env::var(format!("{prefix_case}_AWS_ENDPOINT")).expect(&no_endpoint_var);
-        let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
-
+    pub fn from_env() -> Self {
         Self {
-            s3_builder: AmazonS3Builder::new()
-                .with_access_key_id(access_key)
-                .with_secret_access_key(secret_key)
-                .with_region(region)
-                .with_endpoint(&endpoint)
-                .with_allow_http(true)
-                .with_bucket_name(bucket)
-                .with_conditional_put(S3ConditionalPut::ETagMatch),
+            s3_builder: AmazonS3Builder::from_env()
+                .with_conditional_put(S3ConditionalPut::ETagMatch)
         }
     }
 }
@@ -174,8 +203,8 @@ impl ExecutorWithObjectStore {
 #[derive(Debug, Clone)]
 pub enum ObjectStoreType {
     Memory,
-    File(String, PathBuf),     // + suffix
-    S3(String, S3ObjectStore), // + suffix
+    File(String, PathBuf),    // + suffix
+    S3(String, S3ObjectStore) // + suffix
 }
 
 // Display
@@ -191,7 +220,7 @@ impl fmt::Display for ObjectStoreType {
                     .s3_builder
                     .get_config_value(&AmazonS3ConfigKey::Bucket)
                     .unwrap_or_default()
-            ),
+            )
         }
     }
 }
@@ -291,6 +320,16 @@ pub async fn create_executor(
             MetastoreVolume::new(
                 TEST_VOLUME_S3.0.to_string(),
                 core_metastore::VolumeType::S3(s3_volume()),
+            ),
+        )
+        .await;
+
+    let _ = metastore
+        .create_volume(
+            &TEST_VOLUME_S3TABLES.0.to_string(),
+            MetastoreVolume::new(
+                TEST_VOLUME_S3TABLES.0.to_string(),
+                core_metastore::VolumeType::S3Tables(s3_tables_volume(TEST_VOLUME_S3TABLES.1.to_string())),
             ),
         )
         .await;
