@@ -33,7 +33,7 @@ export function HomePage() {
         }
       />
 
-      <ScrollArea className="h-[calc(100vh-65px-32px-2px)]">
+      <ScrollArea className="h-[calc(100vh-var(--content-mb)-var(--content-mt))-65px-2px">
         <div className="p-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>
           <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>

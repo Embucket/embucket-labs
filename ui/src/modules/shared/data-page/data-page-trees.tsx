@@ -51,7 +51,7 @@ export function DataPageTrees() {
 
   return (
     <>
-      <TreesLayout scrollAreaClassName="h-[calc(100vh-56px-32px-2px)]">
+      <TreesLayout scrollAreaClassName="h-[calc(100vh-var(--content-mb)-var(--content-mt)-56px-2px)]">
         <TreesDatabases
           databases={navigationTrees}
           isFetchingDatabases={isFetchingNavigationTrees}
@@ -81,7 +81,6 @@ export function DataPageTrees() {
                       onClick={handleTableClick}
                     />
                   )}
-                  {/* TODO: DRY */}
                   {!!schema.views.length && (
                     <TreesTables
                       label="Views"

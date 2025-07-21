@@ -1,6 +1,5 @@
-use crate::StringBuildLike;
 use crate::string_binary::errors::{IllegalHexValueSnafu, UnsupportedDataTypeSnafu};
-use datafusion::arrow::array::{Array, ArrayRef, StringBuilder};
+use datafusion::arrow::array::{Array, ArrayRef, BinaryBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
@@ -14,39 +13,39 @@ use std::any::Any;
 use std::str::from_utf8;
 use std::sync::Arc;
 
-/// `HEX_DECODE_STRING` function implementation
+/// `HEX_DECODE_BINARY` function implementation
 ///
-/// Decodes a hex-encoded string.
+/// Decodes a hex-encoded string to a binary.
 /// The input must be a valid hexadecimal string (containing only 0-9, A-F, a-f)
 ///
-/// Syntax: `HEX_DECODE_STRING(<hex_string>)`
+/// Syntax: `HEX_DECODE_BINARY(<hex_string>)`
 ///
 /// Arguments:
 /// - `<hex_string>`: A string containing hexadecimal characters to be decoded.
 ///
-/// Returns: String
+/// Returns: Binary
 ///
-/// Example: `HEX_DECODE_STRING('534E4F57')` returns string data for 'SNOW'
-/// Example: `HEX_DECODE_STRING('48656C6C6F')` returns string data for 'Hello'
+/// Example: `HEX_DECODE_BINARY('534E4F57')` returns binary data for 'SNOW'
+/// Example: `HEX_DECODE_BINARY('48656C6C6F')` returns binary data for 'Hello'
 #[derive(Debug)]
-pub struct HexDecodeStringFunc {
+pub struct HexDecodeBinaryFunc {
     signature: Signature,
     try_mode: bool,
 }
 
-impl Default for HexDecodeStringFunc {
+impl Default for HexDecodeBinaryFunc {
     fn default() -> Self {
         Self::new(false)
     }
 }
 
-impl HexDecodeStringFunc {
+impl HexDecodeBinaryFunc {
     #[must_use]
     pub fn new(try_mode: bool) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
-                    // HEX_DECODE_STRING(<string>)
+                    // HEX_DECODE_BINARY(<string>)
                     TypeSignature::Coercible(vec![Coercion::new_exact(
                         TypeSignatureClass::Native(logical_string()),
                     )]),
@@ -58,16 +57,16 @@ impl HexDecodeStringFunc {
     }
 }
 
-impl ScalarUDFImpl for HexDecodeStringFunc {
+impl ScalarUDFImpl for HexDecodeBinaryFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
         if self.try_mode {
-            "try_hex_decode_string"
+            "try_hex_decode_binary"
         } else {
-            "hex_decode_string"
+            "hex_decode_binary"
         }
     }
 
@@ -76,7 +75,7 @@ impl ScalarUDFImpl for HexDecodeStringFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Utf8)
+        Ok(DataType::Binary)
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -125,12 +124,12 @@ fn decode_hex_strings<'a, I>(strings: I, try_mode: bool) -> DFResult<ArrayRef>
 where
     I: Iterator<Item = Option<&'a str>>,
 {
-    let mut builder = StringBuilder::new();
+    let mut builder = BinaryBuilder::new();
 
     for opt_str in strings {
         if let Some(hex_str) = opt_str {
             if hex_str.is_empty() {
-                builder.append_value("");
+                builder.append_value([]);
                 continue;
             }
             // Attempt to decode the hex string
@@ -179,17 +178,17 @@ mod tests {
     #[tokio::test]
     async fn test_basic() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(false)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(false)));
 
-        let q = "SELECT HEX_DECODE_STRING('534E4F57')";
+        let q = "SELECT HEX_DECODE_BINARY('534E4F57')";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-------------------------------------+",
-                "| hex_decode_string(Utf8(\"534E4F57\")) |",
+                "| hex_decode_binary(Utf8(\"534E4F57\")) |",
                 "+-------------------------------------+",
-                "| SNOW                                |",
+                "| 534e4f57                            |",
                 "+-------------------------------------+",
             ],
             &result
@@ -200,17 +199,17 @@ mod tests {
     #[tokio::test]
     async fn test_lowercase() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(false)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(false)));
 
-        let q = "SELECT HEX_DECODE_STRING('534e4f57')";
+        let q = "SELECT HEX_DECODE_BINARY('534e4f57')";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-------------------------------------+",
-                "| hex_decode_string(Utf8(\"534e4f57\")) |",
+                "| hex_decode_binary(Utf8(\"534e4f57\")) |",
                 "+-------------------------------------+",
-                "| SNOW                                |",
+                "| 534e4f57                            |",
                 "+-------------------------------------+",
             ],
             &result
@@ -221,15 +220,15 @@ mod tests {
     #[tokio::test]
     async fn test_empty() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(false)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(false)));
 
-        let q = "SELECT HEX_DECODE_STRING('')";
+        let q = "SELECT HEX_DECODE_BINARY('')";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-----------------------------+",
-                "| hex_decode_string(Utf8(\"\")) |",
+                "| hex_decode_binary(Utf8(\"\")) |",
                 "+-----------------------------+",
                 "|                             |",
                 "+-----------------------------+",
@@ -242,15 +241,15 @@ mod tests {
     #[tokio::test]
     async fn test_null() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(false)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(false)));
 
-        let q = "SELECT HEX_DECODE_STRING(NULL)";
+        let q = "SELECT HEX_DECODE_BINARY(NULL)";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-------------------------+",
-                "| hex_decode_string(NULL) |",
+                "| hex_decode_binary(NULL) |",
                 "+-------------------------+",
                 "|                         |",
                 "+-------------------------+",
@@ -263,9 +262,9 @@ mod tests {
     #[tokio::test]
     async fn test_invalid() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(false)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(false)));
 
-        let q = "SELECT HEX_DECODE_STRING('invalid')";
+        let q = "SELECT HEX_DECODE_BINARY('invalid')";
         assert!(ctx.sql(q).await?.collect().await.is_err());
 
         Ok(())
@@ -274,15 +273,15 @@ mod tests {
     #[tokio::test]
     async fn test_try() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(HexDecodeStringFunc::new(true)));
+        ctx.register_udf(ScalarUDF::from(HexDecodeBinaryFunc::new(true)));
 
-        let q = "SELECT TRY_HEX_DECODE_STRING('invalid')";
+        let q = "SELECT TRY_HEX_DECODE_BINARY('invalid')";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+----------------------------------------+",
-                "| try_hex_decode_string(Utf8(\"invalid\")) |",
+                "| try_hex_decode_binary(Utf8(\"invalid\")) |",
                 "+----------------------------------------+",
                 "|                                        |",
                 "+----------------------------------------+",

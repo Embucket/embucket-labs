@@ -12,8 +12,8 @@ export function PageScrollArea({ children, tabs }: PageScrollAreaProps) {
       tableViewport
       className={cn(
         'px-4 pb-4',
-        'h-[calc(100vh-32px-65px-64px-2px)]',
-        tabs && 'h-[calc(100vh-32px-65px-53px-64px-10px)]',
+        'h-[calc(100vh-var(--content-mb)-var(--content-mt)-65px-64px-2px)]',
+        tabs && 'h-[calc(100vh-var(--content-mb)-var(--content-mt)-65px-53px-64px-10px)]',
       )}
     >
       {children}

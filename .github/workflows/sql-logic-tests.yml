@@ -143,3 +143,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EMBUCKET_HOST: 3.145.39.116
+          DATABASE: data_platform_db
+          SCHEMA: data_platform_schema

@@ -1,6 +1,5 @@
 :root {
-  --layout-content-pl: 24px;
-  --layout-content-pr: 24px;
-  --layout-content-pt: var(--header-h);
-  --layout-content-pb: 12px;
+  --content-mb: 16px;
+  --content-mt: 16px;
+  --content-mr: 16px;
 }
