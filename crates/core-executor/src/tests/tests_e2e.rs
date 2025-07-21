@@ -3,7 +3,8 @@
 use crate::service::ExecutionService;
 use crate::tests::e2e_common::{
     create_executor, exec_parallel_test_plan, test_suffix, Error, ObjectStoreType, ParallelTest, S3ObjectStore, TestQuery, 
-    TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY, TEST_VOLUME_S3, TEST_VOLUME_S3TABLES
+    TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY, TEST_VOLUME_S3,
+    // TEST_VOLUME_S3TABLES
 };
 use dotenv::dotenv;
 use std::env;
@@ -277,6 +278,67 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
     Ok(())
 }
 
+// #[tokio::test]
+// #[ignore = "e2e test"]
+// #[allow(clippy::expect_used, clippy::too_many_lines)]
+// async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions_s3tables_volume()
+// -> Result<(), Error> {
+//     dotenv().ok();
+
+//     let test_suffix = test_suffix();
+
+//     let executor = create_executor(
+//         ObjectStoreType::S3(
+//             test_suffix.clone(),
+//             S3ObjectStore::from_env(),
+//         ), &test_suffix, "s3_exec").await?;
+//     let executor = Arc::new(executor);
+
+//     let prerequisite_test = vec![ParallelTest(vec![
+//         TestQuery {
+//             sqls: vec![
+//                 "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+//             ],
+//             executor: executor.clone(),
+//             session_id: TEST_SESSION_ID1,
+//             expected_res: true,
+//         },
+//     ])];
+//     assert!(
+//         exec_parallel_test_plan(
+//             prerequisite_test,
+//             vec![TEST_VOLUME_S3TABLES]
+//         )
+//         .await?
+//     );
+
+//     // Here use freshly created sessions instead of precreated
+//     let newly_created_session = "newly_created_session";
+//     executor.executor
+//         .create_session(newly_created_session.to_string())
+//         .await
+//         .expect("Failed to create newly_created_session");
+
+//     let test_plan = vec![ParallelTest(vec![
+//         TestQuery {
+//             sqls: vec![
+//                 "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+//             ],
+//             executor: executor.clone(),
+//             session_id: newly_created_session,
+//             expected_res: true,
+//         },
+//     ])];
+
+//     assert!(
+//         exec_parallel_test_plan(
+//             test_plan,
+//             vec![TEST_VOLUME_S3TABLES]
+//         )
+//         .await?
+//     );
+//     Ok(())
+// }
 
 #[tokio::test]
 #[ignore = "e2e test"]

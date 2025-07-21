@@ -20,12 +20,48 @@ use object_store::{
 use slatedb::{Db as SlateDb, config::DbOptions};
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
-use std::env;
+use std::env::{self, VarError};
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+// Set envs, and add to .env
+
+// # Env vars for s3 object store
+// AWS_ACCESS_KEY_ID=
+// AWS_SECRET_ACCESS_KEY=
+// AWS_REGION=us-east-1
+// AWS_BUCKET=tables-data
+// AWS_ENDPOINT=http://localhost:9000
+// AWS_ALLOW_HTTP=true
+
+const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME";
+// Env vars for S3Volume:
+// E2E_S3VOLUME_AWS_ACCESS_KEY_ID=
+// E2E_S3VOLUME_AWS_SECRET_ACCESS_KEY=
+// E2E_S3VOLUME_AWS_REGION=us-east-1
+// E2E_S3VOLUME_AWS_BUCKET=e2e-store
+// E2E_S3VOLUME_AWS_ENDPOINT=http://localhost:9000
+
+const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME";
+// Env vars for S3TablesVolume:
+// E2E_S3TABLESVOLUME_AWS_ACCESS_KEY_ID=
+// E2E_S3TABLESVOLUME_AWS_SECRET_ACCESS_KEY=
+// E2E_S3TABLESVOLUME_AWS_ARN=arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket
+// E2E_S3TABLESVOLUME_AWS_ENDPOINT=http://localhost:9000
+
+pub const TEST_SESSION_ID1: &str = "test_session_id1";
+pub const TEST_SESSION_ID2: &str = "test_session_id2";
+
+pub const TEST_VOLUME_MEMORY: (&str, &str) = ("volume_memory", "database_in_memory");
+pub const TEST_VOLUME_FILE: (&str, &str) = ("volume_file", "database_in_file");
+pub const TEST_VOLUME_S3: (&str, &str) = ("volume_s3", "database_in_s3");
+pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_s3tables");
+
+pub const TEST_DATABASE_NAME: &str = "embucket";
+pub const TEST_SCHEMA_NAME: &str = "public";
 
 #[derive(Debug, Snafu)]
 pub enum Error {
@@ -45,44 +81,17 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    S3VolumeConfig {
+        source: VarError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    S3TablesVolumeConfig {
+        source: VarError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
-
-// Set envs, and add to .env
-
-// # Env vars for s3 object store
-// AWS_ACCESS_KEY_ID=
-// AWS_SECRET_ACCESS_KEY=
-// AWS_REGION=us-east-1
-// AWS_BUCKET=tables-data
-// AWS_ENDPOINT=http://localhost:9000
-// AWS_ALLOW_HTTP=true
-
-// Env vars for S3Volume:
-// E2E_S3VOLUME_AWS_ACCESS_KEY_ID=
-// E2E_S3VOLUME_AWS_SECRET_ACCESS_KEY=
-// E2E_S3VOLUME_AWS_REGION=us-east-1
-// E2E_S3VOLUME_AWS_BUCKET=e2e-store
-// E2E_S3VOLUME_AWS_ENDPOINT=http://localhost:9000
-
-// Env vars for S3TablesVolume:
-// E2E_S3TABLESVOLUME_AWS_ACCESS_KEY_ID=
-// E2E_S3TABLESVOLUME_AWS_SECRET_ACCESS_KEY=
-// E2E_S3TABLESVOLUME_AWS_REGION=us-east-1
-// E2E_S3TABLESVOLUME_AWS_BUCKET=e2e-store
-// E2E_S3TABLESVOLUME_AWS_ENDPOINT=http://localhost:9000
-// E2E_S3TABLESVOLUME_AWS_ACCOUNT_ID=111122223333
-
-
-pub const TEST_SESSION_ID1: &str = "test_session_id1";
-pub const TEST_SESSION_ID2: &str = "test_session_id2";
-
-pub const TEST_VOLUME_MEMORY: (&str, &str) = ("volume_memory", "database_in_memory");
-pub const TEST_VOLUME_FILE: (&str, &str) = ("volume_file", "database_in_file");
-pub const TEST_VOLUME_S3: (&str, &str) = ("volume_s3", "database_in_s3");
-pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_s3tables");
-
-pub const TEST_DATABASE_NAME: &str = "embucket";
-pub const TEST_SCHEMA_NAME: &str = "public";
 
 #[must_use]
 pub fn test_suffix() -> String {
@@ -93,24 +102,23 @@ pub fn test_suffix() -> String {
 }
 
 #[must_use]
-pub fn s3_volume() -> S3Volume {
-    let prefix = "E2E_S3VOLUME".to_ascii_uppercase();
-    let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
-    let no_secret_key_var = format!("{prefix}_AWS_SECRET_ACCESS_KEY is not set");
-    let no_region_var = format!("{prefix}_AWS_REGION is not set");
-    let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
-    let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
+pub fn s3_volume() -> Result<S3Volume, Error> {
+    let prefix = E2E_S3VOLUME_PREFIX.to_ascii_uppercase();
 
-    let region = std::env::var(format!("{prefix}_AWS_REGION")).expect(&no_region_var);
+    let region = std::env::var(format!("{prefix}_AWS_REGION"))
+        .context(S3VolumeConfigSnafu)?;
     let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID"))
+        .context(S3VolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
-        .expect(&no_secret_key_var);
+        .context(S3VolumeConfigSnafu)?;
     let endpoint =
-        std::env::var(format!("{prefix}_AWS_ENDPOINT")).expect(&no_endpoint_var);
-    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
+        std::env::var(format!("{prefix}_AWS_ENDPOINT"))
+        .context(S3VolumeConfigSnafu)?;
+    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET"))
+        .context(S3VolumeConfigSnafu)?;
 
-    S3Volume {
+    Ok(S3Volume {
         region: Some(region),
         bucket: Some(bucket),
         endpoint: Some(endpoint),
@@ -118,44 +126,34 @@ pub fn s3_volume() -> S3Volume {
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
         })),
-    }
+    })
 }
 
 
 #[must_use]
-pub fn s3_tables_volume(database: String) -> S3TablesVolume {
-    let prefix = "E2E_S3TABLESVOLUME".to_ascii_uppercase();
-    let no_access_key_var = format!("{prefix}_AWS_ACCESS_KEY_ID is not set");
-    let no_secret_key_var = format!("{prefix}_AWS_SECRET_ACCESS_KEY is not set");
-    let no_region_var = format!("{prefix}_AWS_REGION is not set");
-    let no_bucket_var = format!("{prefix}_AWS_BUCKET is not set");
-    let no_endpoint_var = format!("{prefix}_AWS_ENDPOINT is not set");
-    let no_account_id_var = format!("{prefix}_AWS_ACCOUNT_ID is not set");
+pub fn s3_tables_volume(database: &str) -> Result<S3TablesVolume, Error> {
+    let prefix = E2E_S3TABLESVOLUME_PREFIX.to_ascii_uppercase();
 
-    let region = std::env::var(format!("{prefix}_AWS_REGION")).expect(&no_region_var);
     let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).expect(&no_access_key_var);
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID"))
+        .context(S3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
-        .expect(&no_secret_key_var);
-    let endpoint =
-        std::env::var(format!("{prefix}_AWS_ENDPOINT")).expect(&no_endpoint_var);
-    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).expect(&no_bucket_var);
-    let account_id = std::env::var(format!("{prefix}_AWS_ACCOUNT_ID")).expect(&no_account_id_var);
+        .context(S3TablesVolumeConfigSnafu)?;
+    let arn = std::env::var(format!("{prefix}_AWS_ARN"))
+        .context(S3TablesVolumeConfigSnafu)?;
+    let endpoint: Option<String> = std::env::var(format!("{prefix}_AWS_ENDPOINT"))
+        .map(|v| Some(v))
+        .unwrap_or(None);
 
-    let arn = format!("arn:aws:s3tables:{region}:{account_id}:bucket/{bucket}");
-    eprintln!("arn: {arn}");
-    let s3tables_volume = S3TablesVolume {
-        endpoint: Some(endpoint),
+    Ok(S3TablesVolume {
+        endpoint,
         credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
         }),
-        database,
-        // arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket
+        database: database.to_string(),
         arn,
-    };
-    eprintln!("s3tables volume: {:#?}", s3tables_volume);
-    s3tables_volume
+    })
 }
 
 pub type TestPlan = Vec<ParallelTest>;
@@ -314,25 +312,29 @@ pub async fn create_executor(
         )
         .await;
 
-    let _ = metastore
+    if let Ok(s3_volume) = s3_volume() {
+        let _ = metastore
         .create_volume(
             &TEST_VOLUME_S3.0.to_string(),
             MetastoreVolume::new(
                 TEST_VOLUME_S3.0.to_string(),
-                core_metastore::VolumeType::S3(s3_volume()),
+                core_metastore::VolumeType::S3(s3_volume),
             ),
         )
-        .await;
+        .await;        
+    }
 
-    let _ = metastore
+    if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
+        let _ = metastore
         .create_volume(
             &TEST_VOLUME_S3TABLES.0.to_string(),
             MetastoreVolume::new(
                 TEST_VOLUME_S3TABLES.0.to_string(),
-                core_metastore::VolumeType::S3Tables(s3_tables_volume(TEST_VOLUME_S3TABLES.1.to_string())),
+                core_metastore::VolumeType::S3Tables(s3_tables_volume),
             ),
         )
         .await;
+    }
 
     execution_svc
         .create_session(TEST_SESSION_ID1.to_string())
