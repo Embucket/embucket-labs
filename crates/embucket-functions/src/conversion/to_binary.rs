@@ -235,7 +235,7 @@ where
                     if try_mode {
                         builder.append_null();
                     } else {
-                        return conv_errors::UnsupportedFormatSnafu { format }.fail()?;
+                        return conv_errors::UnsupportedBinaryFormatSnafu { format }.fail()?;
                     }
                 }
             }

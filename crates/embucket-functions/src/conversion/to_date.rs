@@ -52,9 +52,10 @@ impl ToDateFunc {
                     let format = match format.to_lowercase().as_str() {
                         "yyyy-mm-dd" => Some("%Y-%m-%d"),
                         "mm/dd/yyyy" => Some("%m/%d/%Y"),
+                        "dd/mm/yyyy" => Some("%d/%m/%Y"),
                         "yyyy.mm.dd" => Some("%Y.%m.%d"),
                         "auto" => None,
-                        _ => return conv_errors::UnsupportedFormatSnafu { format }.fail()?,
+                        _ => return conv_errors::UnsupportedDateFormatSnafu { format }.fail()?,
                     };
                     Ok(format)
                 }
