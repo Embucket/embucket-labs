@@ -40,7 +40,6 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Query '{query}' execution error: {}", source))]
     Execution {
         query: String,
         source: crate::Error,
@@ -161,8 +160,8 @@ impl S3ObjectStore {
 }
 
 pub struct ExecutorWithObjectStore {
-    executor: CoreExecutionService,
-    object_store_type: ObjectStoreType,
+    pub executor: CoreExecutionService,
+    pub object_store_type: ObjectStoreType,
 }
 
 #[derive(Debug, Clone)]
@@ -309,8 +308,6 @@ pub async fn exec_parallel_test_plan(
     test_plan: Vec<ParallelTest>,
     volumes_databases_list: Vec<(&str, &str)>,
 ) -> Result<bool, Error> {
-    let mut passed = true;
-
     for (volume_name, database_name) in &volumes_databases_list {
         for ParallelTest(tests) in &test_plan {
             // log context
@@ -327,6 +324,8 @@ pub async fn exec_parallel_test_plan(
             );
             eprintln!("Volume: {volume_name}, Database: {database_name}");
 
+            let mut parallel_sqls = Vec::new();
+
             // create sqls array here sql ref to String won't survive in the loop below
             let tests_sqls = tests
                 .iter()
@@ -339,32 +338,34 @@ pub async fn exec_parallel_test_plan(
 
             let mut futures = Vec::new();
             for (idx, test) in tests.iter().enumerate() {
-                match test.sqls.len() {
-                    1 => {
-                        // run in parallel (non blocking mode)
-                        let sql = &tests_sqls[idx][0];
-                        futures.push(test.executor.executor.query(
-                            test.session_id,
-                            sql,
-                            QueryContext::default(),
-                        ));
-                    }
-                    _ => {
-                        for sql in &tests_sqls[idx] {
-                            let res = test
-                                .executor
-                                .executor
-                                .query(test.session_id, sql, QueryContext::default())
-                                .await
-                                .context(ExecutionSnafu { query: sql.clone() });
-                            eprintln!("Exec: {sql}, res: {res:#?}");
-                            res?;
-                        }
-                    }
+                // get slice of all items except last
+                let items = &tests_sqls[idx];
+                let sync_items = &items[..items.len().saturating_sub(1)];
+
+                // run synchronously all the queries except of last
+                // these items are expected to pass
+                for sql in sync_items {
+                    let res = test
+                        .executor
+                        .executor
+                        .query(test.session_id, sql, QueryContext::default())
+                        .await
+                        .context(ExecutionSnafu { query: sql.clone() });
+                    eprintln!("Exec: {sql}, res: {res:#?}");
+                    res?;
+                }
+
+                // run last item from every TestQuery in (non blocking mode)
+                if let Some(sql) = items.last() {
+                    parallel_sqls.push(sql);
+                    futures.push(test.executor.executor.query(
+                        test.session_id,
+                        sql,
+                        QueryContext::default(),
+                    ));
                 }
             }
-            // we do not expect mixed multiple sqls and expectations running in parallel
-            // run in parallel if one sql is specified
+
             let results = join_all(futures).await;
             if !results.is_empty() {
                 let num_expected_ok = tests.iter().filter(|test| test.expected_res).count();
@@ -374,22 +375,20 @@ pub async fn exec_parallel_test_plan(
                 let oks: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
                 let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
 
-                let mut tests_sqls = tests_sqls.clone();
-                tests_sqls.sort();
-                tests_sqls.dedup();
-                eprintln!("Run sqls in parallel: {tests_sqls:#?}");
+                parallel_sqls.sort();
+                parallel_sqls.dedup();
+                eprintln!("Run sqls in parallel: {parallel_sqls:#?}");
 
                 if oks.len() != num_expected_ok || errs.len() != num_expected_err {
                     eprintln!("ok_results: {oks:#?}, err_results: {errs:#?}");
                     eprintln!("FAILED\n");
-                    passed = false;
-                    break;
+                    return Ok(false);
                 }
                 eprintln!("PASSED\n");
             }
         }
     }
-    Ok(passed)
+    Ok(true)
 }
 
 fn prepare_statement(raw_statement: &str, volume_name: &str, database_name: &str) -> String {
