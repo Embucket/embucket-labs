@@ -162,7 +162,9 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Unsupported format: {format}. Valid formats are yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy & auto"))]
+    #[snafu(display(
+        "Unsupported format: {format}. Valid formats are yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy & auto"
+    ))]
     UnsupportedDateFormat {
         format: String,
         #[snafu(implicit)]
