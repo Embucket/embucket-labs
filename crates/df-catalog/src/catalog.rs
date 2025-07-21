@@ -1,6 +1,8 @@
 use crate::schema::CachingSchema;
+use chrono::NaiveDateTime;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
+use std::fmt::{Display, Formatter};
 use std::{any::Any, sync::Arc};
 
 #[derive(Clone)]
@@ -11,6 +13,23 @@ pub struct CachingCatalog {
     pub should_refresh: bool,
     pub name: String,
     pub enable_information_schema: bool,
+    pub properties: Option<Properties>,
+}
+
+#[derive(Clone)]
+pub struct Properties {
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+impl Default for Properties {
+    fn default() -> Self {
+        let now = chrono::Utc::now().naive_utc();
+        Self {
+            created_at: now,
+            updated_at: now,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -18,6 +37,16 @@ pub enum CatalogType {
     Embucket,
     Memory,
     S3tables,
+}
+
+impl Display for CatalogType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Embucket => write!(f, "embucket"),
+            Self::Memory => write!(f, "memory"),
+            Self::S3tables => write!(f, "s3_tables"),
+        }
+    }
 }
 
 impl CachingCatalog {
@@ -29,6 +58,7 @@ impl CachingCatalog {
             enable_information_schema: true,
             name,
             catalog_type: CatalogType::Embucket,
+            properties: None,
         }
     }
     #[must_use]
@@ -45,6 +75,12 @@ impl CachingCatalog {
     #[must_use]
     pub const fn with_catalog_type(mut self, catalog_type: CatalogType) -> Self {
         self.catalog_type = catalog_type;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_properties(mut self, properties: Properties) -> Self {
+        self.properties = Some(properties);
         self
     }
 }

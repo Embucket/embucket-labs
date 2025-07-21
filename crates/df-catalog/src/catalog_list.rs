@@ -1,6 +1,6 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
-use crate::catalog::{CachingCatalog, CatalogType};
+use crate::catalog::{CachingCatalog, CatalogType, Properties};
 use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::df_error;
 use crate::error::{
@@ -14,7 +14,7 @@ use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
 use core_metastore::{
-    AwsCredentials, Database, Metastore, VolumeType as MetastoreVolumeType, VolumeType,
+    AwsCredentials, Database, Metastore, RwObject, VolumeType as MetastoreVolumeType, VolumeType,
 };
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
@@ -126,25 +126,27 @@ impl EmbucketCatalogList {
 
         match volume.volume {
             VolumeType::S3(_) | VolumeType::File(_) => {
-                let database = Database {
+                let ident = Database {
                     ident: catalog_name.to_owned(),
                     volume: volume_ident.to_owned(),
                     properties: None,
                 };
-                self.metastore
-                    .create_database(&catalog_name.to_owned(), database)
+                let database = self
+                    .metastore
+                    .create_database(&catalog_name.to_owned(), ident)
                     .await
                     .context(MetastoreSnafu)?;
                 self.catalogs.insert(
                     catalog_name.to_owned(),
-                    Arc::new(self.get_embucket_catalog(catalog_name)?),
+                    Arc::new(self.get_embucket_catalog(&database)?),
                 );
             }
             VolumeType::Memory => {
                 let provider = MemoryCatalogProvider::new();
                 let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
                     .with_refresh(true)
-                    .with_catalog_type(CatalogType::Memory);
+                    .with_catalog_type(CatalogType::Memory)
+                    .with_properties(Properties::default());
                 self.catalogs
                     .insert(catalog_name.to_owned(), Arc::new(catalog));
             }
@@ -206,20 +208,24 @@ impl EmbucketCatalogList {
             .await
             .context(df_catalog_error::CoreSnafu)?
             .into_iter()
-            .map(|db| self.get_embucket_catalog(&db.ident.clone()))
+            .map(|db| self.get_embucket_catalog(&db))
             .collect()
     }
 
-    fn get_embucket_catalog(&self, database_name: &str) -> Result<CachingCatalog> {
-        let iceberg_catalog =
-            EmbucketIcebergCatalog::new(self.metastore.clone(), database_name.to_owned())
-                .context(MetastoreSnafu)?;
+    fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
+        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
+            .context(MetastoreSnafu)?;
         let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
-            database_name.to_owned(),
+            db.ident.clone(),
             self.metastore.clone(),
             Arc::new(iceberg_catalog),
         ));
-        Ok(CachingCatalog::new(catalog, database_name.to_owned()).with_refresh(true))
+        Ok(CachingCatalog::new(catalog, db.ident.clone())
+            .with_refresh(true)
+            .with_properties(Properties {
+                created_at: db.created_at,
+                updated_at: db.created_at,
+            }))
     }
 
     #[must_use]
@@ -235,6 +241,7 @@ impl EmbucketCatalogList {
         ));
         CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
             .with_catalog_type(CatalogType::Memory)
+            .with_properties(Properties::default())
     }
 
     #[tracing::instrument(

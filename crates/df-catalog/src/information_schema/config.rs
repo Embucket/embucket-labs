@@ -9,6 +9,7 @@ use super::routines::InformationSchemaRoutinesBuilder;
 use super::schemata::InformationSchemataBuilder;
 use super::tables::InformationSchemaTablesBuilder;
 use super::views::InformationSchemaViewBuilder;
+use crate::catalog::CachingCatalog;
 use crate::df_error;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
 use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
@@ -225,12 +226,39 @@ impl InformationSchemaConfig {
         Ok(())
     }
 
-    pub(crate) fn make_databases(&self, builder: &mut InformationSchemaDatabasesBuilder) {
-        self.catalog_list
-            .catalog_names()
-            .iter()
-            .filter_map(|name| self.catalog_list.catalog(name).map(|_| name))
-            .for_each(|name| builder.add_database(name, "", ""));
+    pub(crate) fn make_databases(
+        &self,
+        builder: &mut InformationSchemaDatabasesBuilder,
+    ) -> datafusion_common::Result<(), DataFusionError> {
+        for catalog_name in self.catalog_list.catalog_names() {
+            let catalog = self.catalog_list.catalog(&catalog_name).ok_or_else(|| {
+                df_error::CatalogNotFoundSnafu {
+                    name: catalog_name.clone(),
+                }
+                .build()
+            })?;
+            if let Some(caching_catalog) = catalog.as_any().downcast_ref::<CachingCatalog>() {
+                let (created_at, updated_at) =
+                    if let Some(props) = caching_catalog.properties.clone() {
+                        (
+                            Some(props.created_at.and_utc().timestamp_millis()),
+                            Some(props.updated_at.and_utc().timestamp_millis()),
+                        )
+                    } else {
+                        (None, None)
+                    };
+                builder.add_database(
+                    &catalog_name,
+                    "",
+                    caching_catalog.catalog_type.to_string(),
+                    created_at,
+                    updated_at,
+                );
+            } else {
+                builder.add_database(&catalog_name, "", "", None, None);
+            }
+        }
+        Ok(())
     }
 
     /// Construct the `information_schema.df_settings` virtual table
