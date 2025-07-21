@@ -14,7 +14,6 @@ const buttonVariants = cva(
         outline:
           'border bg-background shadow-xs hover:bg-hover hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-        // TODO: Make normal variable
         ghost: 'hover:bg-hover hover:text-accent-foreground dark:hover:bg-hover',
         link: 'text-primary underline-offset-4 hover:underline',
       },

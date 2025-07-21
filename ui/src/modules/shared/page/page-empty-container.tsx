@@ -6,9 +6,9 @@ import { EmptyContainer } from '@/components/empty-container';
 const containerVariants = cva('', {
   variants: {
     variant: {
-      basic: 'h-[calc(100vh-65px-32px-2px)]',
-      toolbar: 'h-[calc(100vh-65px-32px-2px-64px)]',
-      tabs: 'h-[calc(100vh-65px-32px-2px-64px-53px)]',
+      basic: 'h-[calc(100vh-var(--content-mb)-var(--content-mt)-65px-2px)]',
+      toolbar: 'h-[calc(100vh-var(--content-mb)-var(--content-mt)-65px-2px-64px)]',
+      tabs: 'h-[calc(100vh-var(--content-mb)-var(--content-mt)-65px-2px-64px-53px)]',
     },
   },
   defaultVariants: {

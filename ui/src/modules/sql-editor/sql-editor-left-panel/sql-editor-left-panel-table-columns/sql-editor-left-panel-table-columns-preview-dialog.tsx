@@ -38,14 +38,14 @@ export function SqlEditorLeftPanelTableColumnsPreviewDialog({
   return (
     <Dialog open={opened} onOpenChange={onSetOpened}>
       {/* TODO: Hardcode */}
-      <DialogContent className="max-h-[calc(100vh-32px)]! w-fit max-w-[calc(100vw-32px)]! min-w-80">
+      <DialogContent className="max-h-[calc(100vh-var(--content-mb)-var(--content-mt))]! w-fit max-w-[calc(100vw-32px)]! min-w-80">
         <DialogHeader>
           <DialogTitle>Preview Table Data</DialogTitle>
         </DialogHeader>
         {/* TODO: Hardcode */}
         <ScrollArea
           tableViewport
-          className="size-full max-h-[calc(100vh-32px-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
+          className="size-full max-h-[calc(100vh-var(--content-mb)-var(--content-mt)-48px-18px-24px)]! max-w-[calc(100vw-32px-48px)]!"
         >
           <DataPreviewTable columns={previewData} isLoading={isPreviewDataFetching} />
           {hasNextPage && <div ref={loadMoreRef} />}
