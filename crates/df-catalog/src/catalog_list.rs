@@ -125,7 +125,7 @@ impl EmbucketCatalogList {
         };
 
         match volume.volume {
-            VolumeType::S3(_) | VolumeType::File(_) => {
+            VolumeType::S3(_) | VolumeType::File(_) | VolumeType::Memory => {
                 let database = Database {
                     ident: catalog_name.to_owned(),
                     volume: volume_ident.to_owned(),
@@ -140,14 +140,14 @@ impl EmbucketCatalogList {
                     Arc::new(self.get_embucket_catalog(catalog_name)?),
                 );
             }
-            VolumeType::Memory => {
-                let provider = MemoryCatalogProvider::new();
-                let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
-                    .with_refresh(true)
-                    .with_catalog_type(CatalogType::Memory);
-                self.catalogs
-                    .insert(catalog_name.to_owned(), Arc::new(catalog));
-            }
+            // VolumeType::Memory => {
+            //     let provider = MemoryCatalogProvider::new();
+            //     let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
+            //         .with_refresh(true)
+            //         .with_catalog_type(CatalogType::Memory);
+            //     self.catalogs
+            //         .insert(catalog_name.to_owned(), Arc::new(catalog));
+            // }
             VolumeType::S3Tables(_) => {
                 return NotImplementedSnafu {
                     feature: UnsupportedFeature::CreateS3TablesDatabase,
