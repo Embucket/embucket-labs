@@ -104,11 +104,19 @@ pub async fn create_database(
 
     let database = state
         .metastore
-        .create_database(&database.ident.clone(), database)
+        .get_database(&database.ident)
         .await
+        .map(|opt_rw_obj| {
+            opt_rw_obj.ok_or_else(|| {
+                metastore_error::DatabaseNotFoundSnafu {
+                    db: database.ident.clone(),
+                }
+                .build()
+            })
+        })
+        .context(GetSnafu)?
         .map(Database::from)
-        .context(CreateSnafu)?;
-
+        .context(GetSnafu)?;
     Ok(Json(DatabaseCreateResponse(database)))
 }
 
