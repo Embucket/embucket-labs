@@ -2,58 +2,63 @@
 #![allow(clippy::large_enum_variant)]
 use crate::service::ExecutionService;
 use crate::tests::e2e_common::{
-    create_executor, exec_parallel_test_plan, test_suffix, Error, ObjectStoreType, ParallelTest, S3ObjectStore, TestQuery, 
-    TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY, TEST_VOLUME_S3,
+    Error,
+    ObjectStoreType,
+    ParallelTest,
+    S3ObjectStore,
+    TEST_SESSION_ID1,
+    TEST_SESSION_ID2,
+    TEST_VOLUME_FILE,
+    TEST_VOLUME_MEMORY,
+    TEST_VOLUME_S3,
     // TEST_VOLUME_S3TABLES
+    TestQuery,
+    create_executor,
+    exec_parallel_test_plan,
+    test_suffix,
 };
 use dotenv::dotenv;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
-async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions (volumes: &[(&str, &str)]) -> Result<(), Error> {
+async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
+    volumes: &[(&str, &str)],
+) -> Result<(), Error> {
     let test_suffix = test_suffix();
 
     let executor = create_executor(
-        ObjectStoreType::S3(
-            test_suffix.clone(),
-            S3ObjectStore::from_env(),
-        ), &test_suffix, "s3_exec").await?;
+        ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+        &test_suffix,
+        "s3_exec",
+    )
+    .await?;
     let executor = Arc::new(executor);
 
-    let prerequisite_test = vec![ParallelTest(vec![
-        TestQuery {
-            sqls: vec![
-                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-                CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
-                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-    ])];
-    assert!(
-        exec_parallel_test_plan(
-            prerequisite_test,
-            volumes.to_vec(),
-        )
-        .await?
-    );
+    let prerequisite_test = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
+            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(prerequisite_test, volumes.to_vec(),).await?);
 
     // Here use freshly created sessions instead of precreated
     let newly_created_session = "newly_created_session";
-    executor.executor
+    executor
+        .executor
         .create_session(newly_created_session.to_string())
         .await
         .expect("Failed to create newly_created_session");
 
     let test_plan = vec![ParallelTest(vec![
         TestQuery {
-            sqls: vec![
-                INSERT_INTO_ALL_SNOWFLAKE_TYPES,
-            ],
+            sqls: vec![INSERT_INTO_ALL_SNOWFLAKE_TYPES],
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
@@ -76,13 +81,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
         },
     ])];
 
-    assert!(
-        exec_parallel_test_plan(
-            test_plan,
-            volumes.to_vec(),
-        )
-        .await?
-    );
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec(),).await?);
     Ok(())
 }
 
@@ -97,56 +96,60 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
 
     let file_exec1 = create_executor(
         ObjectStoreType::File(test_suffix1.clone(), env::temp_dir().join("store")),
-        &test_suffix1, "#1",
+        &test_suffix1,
+        "#1",
     )
     .await?;
     let file_exec1 = Arc::new(file_exec1);
 
     let file_exec2 = create_executor(
         ObjectStoreType::File(test_suffix2.clone(), env::temp_dir().join("store")),
-        &test_suffix2, "#2",
+        &test_suffix2,
+        "#2",
     )
     .await?;
     let file_exec2 = Arc::new(file_exec2);
 
-    let test_plan = vec![
-        ParallelTest(vec![
-            TestQuery {
-                sqls: vec![
-                    "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                    "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-                    CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
-                    "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-                    INSERT_INTO_ALL_SNOWFLAKE_TYPES,
-                ],
-                executor: file_exec1,
-                session_id: TEST_SESSION_ID1,
-                expected_res: true,
-            },
-            TestQuery {
-                sqls: vec![
-                    "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                    "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-                    CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
-                    "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-                    "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
+                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+                INSERT_INTO_ALL_SNOWFLAKE_TYPES,
+            ],
+            executor: file_exec1,
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+        TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
+                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                         (100, 'Alice', 'foo'),
                         (200, 'Bob', 'bar'),
                         (300, 'Charlie', 'baz'),
                         (400, 'Diana', 'qux'),
                         (500, 'Eve', 'quux');",
-                ],
-                executor: file_exec2,
-                session_id: TEST_SESSION_ID1,
-                expected_res: true,
-            },
-        ]),
-    ];
+            ],
+            executor: file_exec2,
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+    ])];
 
     assert!(
         exec_parallel_test_plan(
             test_plan,
-            vec![TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3, /*TEST_VOLUME_S3TABLES*/]
+            vec![
+                TEST_VOLUME_MEMORY,
+                TEST_VOLUME_FILE,
+                TEST_VOLUME_S3, /*TEST_VOLUME_S3TABLES*/
+            ]
         )
         .await?
     );
@@ -163,11 +166,9 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
     let test_suffix = test_suffix();
 
     let s3_exec = create_executor(
-        ObjectStoreType::S3(
-            test_suffix.clone(),
-            S3ObjectStore::from_env(),
-        ),
-        &test_suffix, "s3_exec",
+        ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+        &test_suffix,
+        "s3_exec",
     )
     .await?;
     let s3_exec = Arc::new(s3_exec);
@@ -213,16 +214,15 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
     let executors = vec![
         create_executor(
             ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store")),
-            &test_suffix, "file_exec",
+            &test_suffix,
+            "file_exec",
         )
         .await?,
         create_executor(ObjectStoreType::Memory, &test_suffix, "memory_exec").await?,
         create_executor(
-            ObjectStoreType::S3(
-                test_suffix.clone(),
-                S3ObjectStore::from_env(),
-            ),
-            &test_suffix, "s3_exec",
+            ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+            &test_suffix,
+            "s3_exec",
         )
         .await?,
     ];
@@ -265,7 +265,11 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         assert!(
             exec_parallel_test_plan(
                 test_plan,
-                vec![/*TEST_VOLUME_S3TABLES,*/ TEST_VOLUME_MEMORY, TEST_VOLUME_FILE, TEST_VOLUME_S3]
+                vec![
+                    /*TEST_VOLUME_S3TABLES,*/ TEST_VOLUME_MEMORY,
+                    TEST_VOLUME_FILE,
+                    TEST_VOLUME_S3
+                ]
             )
             .await?
         );
@@ -280,9 +284,11 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
 -> Result<(), Error> {
     dotenv().ok();
 
-    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
-        &vec![TEST_VOLUME_FILE, TEST_VOLUME_S3]
-    ).await?;
+    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(&[
+        TEST_VOLUME_FILE,
+        TEST_VOLUME_S3,
+    ])
+    .await?;
 
     Ok(())
 }
@@ -295,9 +301,10 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
     dotenv().ok();
 
     tokio::time::sleep(Duration::from_secs(20)).await; // Ensure the executor is created after the previous test
-    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
-        &vec![TEST_VOLUME_MEMORY]
-    ).await?;
+    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(&[
+        TEST_VOLUME_MEMORY,
+    ])
+    .await?;
 
     Ok(())
 }
@@ -434,9 +441,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
             expected_res: true,
         },
         TestQuery {
-            sqls: vec![
-                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
-            ],
+            sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
             executor: file_exec2.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,

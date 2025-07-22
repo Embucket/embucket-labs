@@ -19,7 +19,6 @@ use core_metastore::{
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
-use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
     execution::object_store::ObjectStoreRegistry,

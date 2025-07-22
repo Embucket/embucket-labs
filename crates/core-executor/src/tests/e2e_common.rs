@@ -10,7 +10,7 @@ use core_metastore::SlateDBMetastore;
 use core_metastore::Volume as MetastoreVolume;
 use core_metastore::models::volumes::AwsAccessKeyCredentials;
 use core_metastore::models::volumes::AwsCredentials;
-use core_metastore::{FileVolume, S3Volume, S3TablesVolume};
+use core_metastore::{FileVolume, S3TablesVolume, S3Volume};
 use core_utils::Db;
 use futures::future::join_all;
 use object_store::ObjectStore;
@@ -101,22 +101,16 @@ pub fn test_suffix() -> String {
         .to_string()
 }
 
-#[must_use]
 pub fn s3_volume() -> Result<S3Volume, Error> {
     let prefix = E2E_S3VOLUME_PREFIX.to_ascii_uppercase();
 
-    let region = std::env::var(format!("{prefix}_AWS_REGION"))
-        .context(S3VolumeConfigSnafu)?;
+    let region = std::env::var(format!("{prefix}_AWS_REGION")).context(S3VolumeConfigSnafu)?;
     let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID"))
-        .context(S3VolumeConfigSnafu)?;
-    let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
-        .context(S3VolumeConfigSnafu)?;
-    let endpoint =
-        std::env::var(format!("{prefix}_AWS_ENDPOINT"))
-        .context(S3VolumeConfigSnafu)?;
-    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET"))
-        .context(S3VolumeConfigSnafu)?;
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
+    let secret_key =
+        std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY")).context(S3VolumeConfigSnafu)?;
+    let endpoint = std::env::var(format!("{prefix}_AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
 
     Ok(S3Volume {
         region: Some(region),
@@ -129,20 +123,16 @@ pub fn s3_volume() -> Result<S3Volume, Error> {
     })
 }
 
-
-#[must_use]
 pub fn s3_tables_volume(database: &str) -> Result<S3TablesVolume, Error> {
     let prefix = E2E_S3TABLESVOLUME_PREFIX.to_ascii_uppercase();
 
     let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID"))
-        .context(S3TablesVolumeConfigSnafu)?;
+        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).context(S3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
         .context(S3TablesVolumeConfigSnafu)?;
-    let arn = std::env::var(format!("{prefix}_AWS_ARN"))
-        .context(S3TablesVolumeConfigSnafu)?;
+    let arn = std::env::var(format!("{prefix}_AWS_ARN")).context(S3TablesVolumeConfigSnafu)?;
     let endpoint: Option<String> = std::env::var(format!("{prefix}_AWS_ENDPOINT"))
-        .map(|v| Some(v))
+        .map(Some)
         .unwrap_or(None);
 
     Ok(S3TablesVolume {
@@ -180,7 +170,7 @@ impl S3ObjectStore {
     pub fn from_env() -> Self {
         Self {
             s3_builder: AmazonS3Builder::from_env()
-                .with_conditional_put(S3ConditionalPut::ETagMatch)
+                .with_conditional_put(S3ConditionalPut::ETagMatch),
         }
     }
 }
@@ -192,6 +182,7 @@ pub struct ExecutorWithObjectStore {
 }
 
 impl ExecutorWithObjectStore {
+    #[must_use]
     pub fn with_alias(mut self, alias: String) -> Self {
         self.alias = alias;
         self
@@ -201,8 +192,8 @@ impl ExecutorWithObjectStore {
 #[derive(Debug, Clone)]
 pub enum ObjectStoreType {
     Memory,
-    File(String, PathBuf),    // + suffix
-    S3(String, S3ObjectStore) // + suffix
+    File(String, PathBuf),     // + suffix
+    S3(String, S3ObjectStore), // + suffix
 }
 
 // Display
@@ -218,7 +209,7 @@ impl fmt::Display for ObjectStoreType {
                     .s3_builder
                     .get_config_value(&AmazonS3ConfigKey::Bucket)
                     .unwrap_or_default()
-            )
+            ),
         }
     }
 }
@@ -314,26 +305,26 @@ pub async fn create_executor(
 
     if let Ok(s3_volume) = s3_volume() {
         let _ = metastore
-        .create_volume(
-            &TEST_VOLUME_S3.0.to_string(),
-            MetastoreVolume::new(
-                TEST_VOLUME_S3.0.to_string(),
-                core_metastore::VolumeType::S3(s3_volume),
-            ),
-        )
-        .await;        
+            .create_volume(
+                &TEST_VOLUME_S3.0.to_string(),
+                MetastoreVolume::new(
+                    TEST_VOLUME_S3.0.to_string(),
+                    core_metastore::VolumeType::S3(s3_volume),
+                ),
+            )
+            .await;
     }
 
     if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
         let _ = metastore
-        .create_volume(
-            &TEST_VOLUME_S3TABLES.0.to_string(),
-            MetastoreVolume::new(
-                TEST_VOLUME_S3TABLES.0.to_string(),
-                core_metastore::VolumeType::S3Tables(s3_tables_volume),
-            ),
-        )
-        .await;
+            .create_volume(
+                &TEST_VOLUME_S3TABLES.0.to_string(),
+                MetastoreVolume::new(
+                    TEST_VOLUME_S3TABLES.0.to_string(),
+                    core_metastore::VolumeType::S3Tables(s3_tables_volume),
+                ),
+            )
+            .await;
     }
 
     execution_svc
@@ -386,8 +377,15 @@ pub async fn exec_parallel_test_plan(
                         .query(test.session_id, sql, QueryContext::default())
                         .await
                         .context(ExecutionSnafu { query: sql.clone() });
-                    let ExecutorWithObjectStore { alias, object_store_type, .. } = test.executor.as_ref();
-                    eprintln!("Exec synchronously with executor [{alias}], on object store: {object_store_type}, session: {}", test.session_id);
+                    let ExecutorWithObjectStore {
+                        alias,
+                        object_store_type,
+                        ..
+                    } = test.executor.as_ref();
+                    eprintln!(
+                        "Exec synchronously with executor [{alias}], on object store: {object_store_type}, session: {}",
+                        test.session_id
+                    );
                     eprintln!("sql: {sql}\nres: {res:#?}");
                     res?;
                 }
@@ -415,18 +413,30 @@ pub async fn exec_parallel_test_plan(
             let results = join_all(futures).await;
 
             for (idx, (sql, test)) in parallel_runs.iter().enumerate() {
-                let TestQuery { expected_res, session_id, .. } = test;
+                let TestQuery {
+                    expected_res,
+                    session_id,
+                    ..
+                } = test;
                 let res = &results[idx];
                 let test_num = idx + 1;
                 let parallel_runs = parallel_runs.len();
-                let ExecutorWithObjectStore { alias, object_store_type, .. } = test.executor.as_ref();
-                eprintln!("Exec concurrently with executor [{alias}], on object store: {object_store_type}, session: {session_id}");
-                eprintln!("sql {test_num}/{parallel_runs}: {sql}\nexpected_res: {expected_res}, res: {res:#?}");
-                if expected_res != &res.is_ok() {
+                let ExecutorWithObjectStore {
+                    alias,
+                    object_store_type,
+                    ..
+                } = test.executor.as_ref();
+                eprintln!(
+                    "Exec concurrently with executor [{alias}], on object store: {object_store_type}, session: {session_id}"
+                );
+                eprintln!(
+                    "sql {test_num}/{parallel_runs}: {sql}\nexpected_res: {expected_res}, res: {res:#?}"
+                );
+                if expected_res == &res.is_ok() {
+                    eprintln!("PASSED\n");
+                } else {
                     eprintln!("FAILED\n");
                     passed = false;
-                } else {
-                    eprintln!("PASSED\n");    
                 }
             }
 
