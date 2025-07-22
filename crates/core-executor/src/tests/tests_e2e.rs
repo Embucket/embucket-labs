@@ -22,6 +22,105 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
+async fn template_test_two_executors_one_fences_another(
+    volumes: &[(&str, &str)],
+    delay: Option<Duration>,
+) -> Result<(), Error> {
+    let test_suffix = test_suffix();
+
+    let object_store_file =
+        ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
+
+    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
+    let file_exec1 = Arc::new(file_exec1);
+
+    // create data using first executor
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+        ],
+        executor: file_exec1.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+
+    // create 2nd executor on the same object store
+    let file_exec2 = create_executor(object_store_file, &test_suffix, "#2").await?;
+    let file_exec2 = Arc::new(file_exec2);
+
+    // write data using 2nd executor
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: file_exec2.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+
+    // give delay for sync job to run 
+    if let Some(delay) = delay {
+        tokio::time::sleep(delay).await; // Ensure the executor is created after the previous delay
+    }
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        // After being fenced:
+        sqls: vec![
+            // first executor still successfully reads data
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: file_exec1.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            // After being fenced:
+            sqls: vec![
+                // first executor fails to write
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+                (100, 'Alice', 'foo')",
+            ],
+            executor: file_exec1.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: false,
+        },
+        TestQuery {
+            sqls: vec![
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+            ],
+            executor: file_exec2,
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+    ])];
+
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        // After being fenced:
+        sqls: vec![
+            // first executor still successfully reads data
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: file_exec1,
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+
+    Ok(())
+}
+
 async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
     volumes: &[(&str, &str)],
 ) -> Result<(), Error> {
@@ -404,75 +503,24 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
 -> Result<(), Error> {
     dotenv().ok();
 
-    let test_suffix = test_suffix();
+    template_test_two_executors_one_fences_another(&[TEST_VOLUME_S3], None).await?;
 
-    let object_store_file =
-        ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
+    Ok(())
+}
 
-    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
-    let file_exec1 = Arc::new(file_exec1);
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails_if_delayed()
+-> Result<(), Error> {
+    dotenv().ok();
 
-    // create data using first executor
-    let test_plan = vec![ParallelTest(vec![TestQuery {
-        sqls: vec![
-            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-        ],
-        executor: file_exec1.clone(),
-        session_id: TEST_SESSION_ID1,
-        expected_res: true,
-    }])];
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    template_test_two_executors_one_fences_another(
+        &[TEST_VOLUME_S3],
+        Some(Duration::from_secs(11)),
+    )
+    .await?;
 
-    // create 2nd executor on the same object store
-    let file_exec2 = create_executor(object_store_file, &test_suffix, "#2").await?;
-    let file_exec2 = Arc::new(file_exec2);
-
-    let test_plan = vec![ParallelTest(vec![
-        TestQuery {
-            // After being fenced:
-            sqls: vec![
-                // first executor still successfully reads data
-                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
-            ],
-            executor: file_exec1.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-        TestQuery {
-            sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
-            executor: file_exec2.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-    ])];
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
-
-    let test_plan = vec![ParallelTest(vec![
-        TestQuery {
-            // After being fenced:
-            sqls: vec![
-                // first executor fails to write
-                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
-                (100, 'Alice', 'foo')",
-            ],
-            executor: file_exec1,
-            session_id: TEST_SESSION_ID1,
-            expected_res: false,
-        },
-        TestQuery {
-            sqls: vec![
-                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
-                    (100, 'Alice', 'foo')",
-            ],
-            executor: file_exec2,
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-    ])];
-
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
     Ok(())
 }
 
