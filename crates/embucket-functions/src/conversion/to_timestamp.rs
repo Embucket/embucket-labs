@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime};
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int32Array, Int64Array, StringArray, StringViewArray,
     TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Array, UInt64Array,
@@ -16,8 +16,8 @@ use datafusion_common::{ScalarValue, internal_err};
 
 use crate::conversion_errors::{
     ArgumentTwoNeedsToBeIntegerSnafu, CantAddLocalTimezoneSnafu, CantCastToSnafu,
-    CantCreateDateTimeFromTimestampSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu,
-    CantParseTimezoneSnafu, InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
+    CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu, InvalidDataTypeSnafu,
+    InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use chrono_tz::Tz;
 use datafusion_expr::{
@@ -180,16 +180,8 @@ macro_rules! build_from_int_string {
 
                         let t = if let Some(tz) = $tz {
                             let tz: Tz = tz.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
-                            let Some(t) = NaiveDateTime::from_timestamp_nanos(t) else {
-                                if $try {
-                                    b.append_null();
-                                    continue;
-                                }
-
-                                return CantCreateDateTimeFromTimestampSnafu.fail()?;
-                            };
-
-                            let Some(t) = t.and_local_timezone(tz).single() else {
+                            let t = DateTime::from_timestamp_nanos(t);
+                            let Some(t) = t.naive_utc().and_local_timezone(tz).single() else {
                                 if $try {
                                     b.append_null();
                                     continue;
@@ -198,7 +190,7 @@ macro_rules! build_from_int_string {
                                 return CantAddLocalTimezoneSnafu.fail()?;
                             };
 
-                            let Some(t) = t.naive_utc().timestamp_nanos_opt() else {
+                            let Some(t) = t.naive_utc().and_utc().timestamp_nanos_opt() else {
                                 if $try {
                                     b.append_null();
                                     continue;
@@ -349,7 +341,6 @@ impl ScalarUDFImpl for ToTimestampFunc {
         )))
     }
     #[allow(
-        deprecated,
         clippy::cognitive_complexity,
         clippy::too_many_lines,
         clippy::cast_possible_wrap,
@@ -378,78 +369,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
             DataType::UInt32 => {
                 build_from_int_scale!(self.timezone.clone(), args, arr, UInt32Array)
             }
-            DataType::Decimal128(_, s) => {
-                let s = i128::from(*s).pow(10);
-                let scale = if args.len() == 1 {
-                    0
-                } else if let ColumnarValue::Scalar(v) = &args[1] {
-                    let scale = v.cast_to(&DataType::Int64)?;
-                    let ScalarValue::Int64(Some(v)) = &scale else {
-                        return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
-                    };
-
-                    *v
-                } else {
-                    0
-                };
-
-                let arr = arr
-                    .as_any()
-                    .downcast_ref::<Decimal128Array>()
-                    .ok_or_else(|| CantCastToSnafu { v: "decimal128" }.build())?;
-                let arr: ArrayRef = match scale {
-                    0 => {
-                        let mut b = TimestampSecondBuilder::with_capacity(arr.len())
-                            .with_timezone_opt(self.timezone.clone());
-                        for v in arr {
-                            match v {
-                                None => b.append_null(),
-                                Some(v) => b.append_value((v / s) as i64),
-                            }
-                        }
-                        Arc::new(b.finish())
-                    }
-                    3 => {
-                        let mut b = TimestampMillisecondBuilder::with_capacity(arr.len())
-                            .with_timezone_opt(self.timezone.clone());
-                        for v in arr {
-                            match v {
-                                None => b.append_null(),
-                                Some(v) => b.append_value((v / s) as i64),
-                            }
-                        }
-                        Arc::new(b.finish())
-                    }
-                    6 => {
-                        let mut b = TimestampMicrosecondBuilder::with_capacity(arr.len())
-                            .with_timezone_opt(self.timezone.clone());
-                        for v in arr {
-                            match v {
-                                None => b.append_null(),
-                                Some(v) => b.append_value((v / s) as i64),
-                            }
-                        }
-                        Arc::new(b.finish())
-                    }
-                    9 => {
-                        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len())
-                            .with_timezone_opt(self.timezone.clone());
-                        for v in arr {
-                            match v {
-                                None => b.append_null(),
-                                Some(v) => b.append_value((v / s) as i64),
-                            }
-                        }
-                        Arc::new(b.finish())
-                    }
-                    _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
-                };
-                if arr.len() == 1 {
-                    ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
-                } else {
-                    ColumnarValue::Array(Arc::new(arr))
-                }
-            }
+            DataType::Decimal128(_, s) => parse_decimal(&arr, &args, self.timezone.clone(), *s)?,
             DataType::Utf8 => {
                 build_from_int_string!(
                     &self.format,
@@ -507,6 +427,90 @@ impl ScalarUDFImpl for ToTimestampFunc {
     }
 }
 
+#[allow(
+    clippy::cast_possible_wrap,
+    clippy::as_conversions,
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::needless_pass_by_value
+)]
+fn parse_decimal(
+    arr: &ArrayRef,
+    args: &[ColumnarValue],
+    timezone: Option<Arc<str>>,
+    s: i8,
+) -> DFResult<ColumnarValue> {
+    let s = i128::from(s).pow(10);
+    let scale = if args.len() == 1 {
+        0
+    } else if let ColumnarValue::Scalar(v) = &args[1] {
+        let scale = v.cast_to(&DataType::Int64)?;
+        let ScalarValue::Int64(Some(v)) = &scale else {
+            return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
+        };
+
+        *v
+    } else {
+        0
+    };
+
+    let arr = arr
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .ok_or_else(|| CantCastToSnafu { v: "decimal128" }.build())?;
+    let arr: ArrayRef = match scale {
+        0 => {
+            let mut b =
+                TimestampSecondBuilder::with_capacity(arr.len()).with_timezone_opt(timezone);
+            for v in arr {
+                match v {
+                    None => b.append_null(),
+                    Some(v) => b.append_value((v / s) as i64),
+                }
+            }
+            Arc::new(b.finish())
+        }
+        3 => {
+            let mut b =
+                TimestampMillisecondBuilder::with_capacity(arr.len()).with_timezone_opt(timezone);
+            for v in arr {
+                match v {
+                    None => b.append_null(),
+                    Some(v) => b.append_value((v / s) as i64),
+                }
+            }
+            Arc::new(b.finish())
+        }
+        6 => {
+            let mut b =
+                TimestampMicrosecondBuilder::with_capacity(arr.len()).with_timezone_opt(timezone);
+            for v in arr {
+                match v {
+                    None => b.append_null(),
+                    Some(v) => b.append_value((v / s) as i64),
+                }
+            }
+            Arc::new(b.finish())
+        }
+        9 => {
+            let mut b =
+                TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt(timezone);
+            for v in arr {
+                match v {
+                    None => b.append_null(),
+                    Some(v) => b.append_value((v / s) as i64),
+                }
+            }
+            Arc::new(b.finish())
+        }
+        _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
+    };
+    if arr.len() == 1 {
+        Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?))
+    } else {
+        Ok(ColumnarValue::Array(Arc::new(arr)))
+    }
+}
 fn remove_timezone(datetime_str: &str) -> String {
     let s = datetime_str.trim();
 
