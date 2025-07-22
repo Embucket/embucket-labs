@@ -365,10 +365,6 @@ impl ScalarUDFImpl for ToTimestampFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        if self.name == "to_timestamp_tz" {
-            dbg!(&self.timezone);
-        }
-
         Ok(match arr.data_type() {
             DataType::Int64 => {
                 build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array)
@@ -455,15 +451,6 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 }
             }
             DataType::Utf8 => {
-                let a = build_from_int_string!(
-                    &self.format,
-                    self.timezone.clone(),
-                    args,
-                    arr,
-                    StringArray,
-                    self.r#try
-                );
-                dbg!(a);
                 build_from_int_string!(
                     &self.format,
                     self.timezone.clone(),
@@ -474,15 +461,6 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 )
             }
             DataType::Utf8View => {
-                let a = build_from_int_string!(
-                    &self.format,
-                    self.timezone.clone(),
-                    args,
-                    arr,
-                    StringViewArray,
-                    self.r#try
-                );
-                dbg!(a);
                 build_from_int_string!(
                     &self.format,
                     self.timezone.clone(),
@@ -620,6 +598,33 @@ mod tests {
        TO_TIMESTAMP(1000000000, 3) AS "Scale in milliseconds",
        TO_TIMESTAMP(1000000000, 6) AS "Scale in microseconds",
        TO_TIMESTAMP(1000000000, 9) AS "Scale in nanoseconds";"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+-----------------------+-----------------------+----------------------+",
+                "| Scale in seconds    | Scale in milliseconds | Scale in microseconds | Scale in nanoseconds |",
+                "+---------------------+-----------------------+-----------------------+----------------------+",
+                "| 2001-09-09T01:46:40 | 1970-01-12T13:46:40   | 1970-01-01T00:16:40   | 1970-01-01T00:00:01  |",
+                "+---------------------+-----------------------+-----------------------+----------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_float() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            false,
+            "to_timestamp".to_string(),
+        )));
+
+        let sql = "SELECT TO_TIMESTAMP(40 * 365.25 * 86400, 3)";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
@@ -853,14 +858,14 @@ mod tests {
             "to_timestamp_tz".to_string(),
         )));
 
-        let sql = "SELECT to_timestamp_tz('2020-09-08T13:42:29.190855+01:00') as a, to_timestamp_tz('1980-01-01T00:00:00') as b";
+        let sql = "SELECT to_timestamp_tz('2020-09-08T13:42:29.190855+01:00') as a, to_timestamp_tz('2024-04-05 01:02:03') as b";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
                 "+----------------------------------+---------------------------+",
                 "| a                                | b                         |",
                 "+----------------------------------+---------------------------+",
-                "| 2020-09-08T13:42:29.190855-07:00 | 1980-01-01T00:00:00-08:00 |",
+                "| 2020-09-08T13:42:29.190855-07:00 | 2024-04-05T01:02:03-07:00 |",
                 "+----------------------------------+---------------------------+",
             ],
             &result
