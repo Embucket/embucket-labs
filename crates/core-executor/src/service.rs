@@ -18,6 +18,7 @@ use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
+use df_catalog::catalog_list::EmbucketCatalogList;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -47,20 +48,45 @@ pub struct CoreExecutionService {
     history_store: Arc<dyn HistoryStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Arc<Config>,
+    catalog_list: Arc<EmbucketCatalogList>,
 }
 
 impl CoreExecutionService {
-    pub fn new(
+    pub async fn new(
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,
         config: Arc<Config>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
+        Ok(Self {
             metastore,
             history_store,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
-        }
+            catalog_list,
+        })
+    }
+
+    pub async fn catalog_list(
+        metastore: Arc<dyn Metastore>,
+        history_store: Arc<dyn HistoryStore>,
+    ) -> Result<Arc<EmbucketCatalogList>> {
+        let catalog_list = Arc::new(EmbucketCatalogList::new(
+            metastore.clone(),
+            history_store.clone(),
+        ));
+        catalog_list
+            .register_catalogs()
+            .await
+            .context(ex_error::RegisterCatalogSnafu)?;
+        catalog_list
+            .refresh()
+            .await
+            .context(ex_error::RefreshCatalogListSnafu)?;
+        catalog_list
+            .clone()
+            .start_refresh_internal_catalogs_task(10);
+        Ok(catalog_list)
     }
 }
 
@@ -79,14 +105,12 @@ impl ExecutionService for CoreExecutionService {
                 return Ok(session.clone());
             }
         }
-        let user_session = Arc::new(
-            UserSession::new(
-                self.metastore.clone(),
-                self.history_store.clone(),
-                self.config.clone(),
-            )
-            .await?,
-        );
+        let user_session: Arc<UserSession> = Arc::new(UserSession::new(
+            self.metastore.clone(),
+            self.history_store.clone(),
+            self.config.clone(),
+            self.catalog_list.clone(),
+        )?);
         {
             tracing::trace!("Acquiring write lock for df_sessions");
             let mut sessions = self.df_sessions.write().await;
@@ -272,13 +296,14 @@ impl ExecutionService for CoreExecutionService {
 }
 
 //Test environment
-pub async fn make_text_execution_svc() -> Arc<CoreExecutionService> {
+#[allow(clippy::expect_used)]
+pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
-    Arc::new(CoreExecutionService::new(
-        metastore,
-        history_store,
-        Arc::new(Config::default()),
-    ))
+    Arc::new(
+        CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
+            .await
+            .expect("Failed to create a execution service"),
+    )
 }

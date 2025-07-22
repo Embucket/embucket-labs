@@ -40,6 +40,7 @@ pub async fn run_test_server_with_demo_auth(
         },
         auth_config,
     )
+    .await
     .unwrap()
     .into_make_service_with_connect_info::<SocketAddr>();
 
@@ -55,18 +56,22 @@ pub async fn run_test_server() -> SocketAddr {
     run_test_server_with_demo_auth(String::new(), String::new(), String::new()).await
 }
 
-#[allow(clippy::needless_pass_by_value)]
-pub fn make_app(
+#[allow(clippy::needless_pass_by_value, clippy::expect_used)]
+pub async fn make_app(
     metastore: Arc<SlateDBMetastore>,
     history_store: Arc<SlateDBHistoryStore>,
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let execution_svc = Arc::new(CoreExecutionService::new(
-        metastore.clone(),
-        history_store.clone(),
-        Arc::new(Config::default()),
-    ));
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(
+            metastore.clone(),
+            history_store.clone(),
+            Arc::new(Config::default()),
+        )
+        .await
+        .expect("Failed to create execution service"),
+    );
 
     // Create the application state
     let app_state = state::AppState::new(

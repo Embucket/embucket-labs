@@ -244,7 +244,9 @@ pub async fn create_executor(
         metastore.clone(),
         history_store.clone(),
         Arc::new(Config::default()),
-    );
+    )
+    .await
+    .expect("Failed to create execution service");
 
     // Create all kind of volumes to just use them in queries
 

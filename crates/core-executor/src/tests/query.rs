@@ -2,6 +2,7 @@ use crate::session::UserSession;
 use std::collections::HashMap;
 
 use crate::models::QueryContext;
+use crate::service::CoreExecutionService;
 use crate::utils::Config;
 #[cfg(test)]
 use core_history::MockHistoryStore;
@@ -131,11 +132,17 @@ pub async fn create_df_session() -> Arc<UserSession> {
         )
         .await
         .expect("Failed to create schema");
-
+    let catalog_list = CoreExecutionService::catalog_list(metastore.clone(), history_store.clone())
+        .await
+        .expect("Failed to create catalog list");
     let user_session = Arc::new(
-        UserSession::new(metastore, history_store, Arc::new(Config::default()))
-            .await
-            .expect("Failed to create user session"),
+        UserSession::new(
+            metastore,
+            history_store,
+            Arc::new(Config::default()),
+            catalog_list,
+        )
+        .expect("Failed to create user session"),
     );
 
     for query in TABLE_SETUP.split(';') {

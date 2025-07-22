@@ -141,11 +141,15 @@ async fn main() {
 
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
 
-    let execution_svc = Arc::new(CoreExecutionService::new(
-        metastore.clone(),
-        history_store.clone(),
-        Arc::new(execution_cfg),
-    ));
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(
+            metastore.clone(),
+            history_store.clone(),
+            Arc::new(execution_cfg),
+        )
+        .await
+        .expect("Failed to create execution service"),
+    );
 
     let session_store = SessionStore::new(execution_svc.clone());
 
