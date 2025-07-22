@@ -142,6 +142,6 @@ jobs:
           python test/combine_historical_slt_results_and_upload_to_embucket.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EMBUCKET_HOST: 3.145.39.116
+          EMBUCKET_HOST: dp.embucket.com
           DATABASE: data_platform_db
           SCHEMA: data_platform_schema
