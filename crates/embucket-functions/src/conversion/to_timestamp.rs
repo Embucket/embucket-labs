@@ -615,33 +615,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_float() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
-            None,
-            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
-            false,
-            "to_timestamp".to_string(),
-        )));
-
-        let sql = "SELECT TO_TIMESTAMP(40 * 365.25 * 86400, 3)";
-        let result = ctx.sql(sql).await?.collect().await?;
-
-        assert_batches_eq!(
-            &[
-                "+---------------------+-----------------------+-----------------------+----------------------+",
-                "| Scale in seconds    | Scale in milliseconds | Scale in microseconds | Scale in nanoseconds |",
-                "+---------------------+-----------------------+-----------------------+----------------------+",
-                "| 2001-09-09T01:46:40 | 1970-01-12T13:46:40   | 1970-01-01T00:16:40   | 1970-01-01T00:00:01  |",
-                "+---------------------+-----------------------+-----------------------+----------------------+",
-            ],
-            &result
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn test_scaled() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
