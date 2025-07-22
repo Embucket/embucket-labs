@@ -9,6 +9,82 @@ use crate::tests::e2e_common::{
 use dotenv::dotenv;
 use std::env;
 use std::sync::Arc;
+use std::time::Duration;
+
+async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions (volumes: &[(&str, &str)]) -> Result<(), Error> {
+    let test_suffix = test_suffix();
+
+    let executor = create_executor(
+        ObjectStoreType::S3(
+            test_suffix.clone(),
+            S3ObjectStore::from_env(),
+        ), &test_suffix, "s3_exec").await?;
+    let executor = Arc::new(executor);
+
+    let prerequisite_test = vec![ParallelTest(vec![
+        TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
+                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+    ])];
+    assert!(
+        exec_parallel_test_plan(
+            prerequisite_test,
+            volumes.to_vec(),
+        )
+        .await?
+    );
+
+    // Here use freshly created sessions instead of precreated
+    let newly_created_session = "newly_created_session";
+    executor.executor
+        .create_session(newly_created_session.to_string())
+        .await
+        .expect("Failed to create newly_created_session");
+
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            sqls: vec![
+                INSERT_INTO_ALL_SNOWFLAKE_TYPES,
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+        TestQuery {
+            sqls: vec![
+                // test if database and schema created in other sessions can be resolved in this session
+                "CREATE TABLE __DATABASE__.__SCHEMA__.yyy(test number)",
+                // test if table created in other sessions can be resolved in this session
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+                    (100, 'Alice', 'foo'),
+                    (200, 'Bob', 'bar'),
+                    (300, 'Charlie', 'baz'),
+                    (400, 'Diana', 'qux'),
+                    (500, 'Eve', 'quux');",
+            ],
+            executor,
+            session_id: newly_created_session,
+            expected_res: true,
+        },
+    ])];
+
+    assert!(
+        exec_parallel_test_plan(
+            test_plan,
+            volumes.to_vec(),
+        )
+        .await?
+    );
+    Ok(())
+}
 
 #[tokio::test]
 #[ignore = "e2e test"]
@@ -200,81 +276,29 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions()
+async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions_file_s3_volumes()
 -> Result<(), Error> {
     dotenv().ok();
 
-    let test_suffix = test_suffix();
+    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
+        &vec![TEST_VOLUME_FILE, TEST_VOLUME_S3]
+    ).await?;
 
-    let executor = create_executor(
-        ObjectStoreType::S3(
-            test_suffix.clone(),
-            S3ObjectStore::from_env(),
-        ), &test_suffix, "s3_exec").await?;
-    let executor = Arc::new(executor);
+    Ok(())
+}
 
-    let prerequisite_test = vec![ParallelTest(vec![
-        TestQuery {
-            sqls: vec![
-                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-                CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
-                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-    ])];
-    assert!(
-        exec_parallel_test_plan(
-            prerequisite_test,
-            vec![TEST_VOLUME_MEMORY]
-        )
-        .await?
-    );
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions_memory_volume()
+-> Result<(), Error> {
+    dotenv().ok();
 
-    // Here use freshly created sessions instead of precreated
-    let newly_created_session = "newly_created_session";
-    executor.executor
-        .create_session(newly_created_session.to_string())
-        .await
-        .expect("Failed to create newly_created_session");
+    tokio::time::sleep(Duration::from_secs(20)).await; // Ensure the executor is created after the previous test
+    template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
+        &vec![TEST_VOLUME_MEMORY]
+    ).await?;
 
-    let test_plan = vec![ParallelTest(vec![
-        TestQuery {
-            sqls: vec![
-                INSERT_INTO_ALL_SNOWFLAKE_TYPES,
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: true,
-        },
-        TestQuery {
-            sqls: vec![
-                // test if database and schema created in other sessions can be resolved in this session
-                "CREATE TABLE __DATABASE__.__SCHEMA__.xxx(test number)",
-                // test if table created in other sessions can be resolved in this session
-                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
-                    (100, 'Alice', 'foo'),
-                    (200, 'Bob', 'bar'),
-                    (300, 'Charlie', 'baz'),
-                    (400, 'Diana', 'qux'),
-                    (500, 'Eve', 'quux');",
-            ],
-            executor,
-            session_id: newly_created_session,
-            expected_res: true,
-        },
-    ])];
-
-    assert!(
-        exec_parallel_test_plan(
-            test_plan,
-            vec![TEST_VOLUME_MEMORY]
-        )
-        .await?
-    );
     Ok(())
 }
 
