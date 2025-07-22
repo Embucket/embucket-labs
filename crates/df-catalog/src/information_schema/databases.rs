@@ -3,9 +3,11 @@
 //! [Information Schema Databases]: https://docs.snowflake.com/en/sql-reference/info-schema/databases
 
 use crate::information_schema::config::InformationSchemaConfig;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
+    array::TimestampMillisecondBuilder,
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -28,6 +30,16 @@ impl InformationSchemaDatabases {
             Field::new("database_name", DataType::Utf8, false),
             Field::new("database_owner", DataType::Utf8, false),
             Field::new("database_type", DataType::Utf8, false),
+            Field::new(
+                "created_at",
+                DataType::Timestamp(TimeUnit::Millisecond, None),
+                true,
+            ),
+            Field::new(
+                "updated_at",
+                DataType::Timestamp(TimeUnit::Millisecond, None),
+                true,
+            ),
         ]))
     }
     pub(crate) fn new(config: InformationSchemaConfig) -> Self {
@@ -41,6 +53,8 @@ impl InformationSchemaDatabases {
             database_names: StringBuilder::new(),
             database_owners: StringBuilder::new(),
             database_types: StringBuilder::new(),
+            created_at: TimestampMillisecondBuilder::new(),
+            updated_at: TimestampMillisecondBuilder::new(),
         }
     }
 }
@@ -52,13 +66,14 @@ impl PartitionStream for InformationSchemaDatabases {
 
     fn execute(&self, _ctx: Arc<TaskContext>) -> SendableRecordBatchStream {
         let mut builder = self.builder();
-        self.config.make_databases(&mut builder);
-        let result = builder.finish().map_err(From::from);
+        let result = self
+            .config
+            .make_databases(&mut builder)
+            .and_then(|()| Ok(builder.finish()?));
 
-        let stream = futures::stream::iter(vec![result]);
         Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&self.schema),
-            stream,
+            futures::stream::iter(vec![result]),
         ))
     }
 }
@@ -68,6 +83,8 @@ pub struct InformationSchemaDatabasesBuilder {
     database_names: StringBuilder,
     database_owners: StringBuilder,
     database_types: StringBuilder,
+    created_at: TimestampMillisecondBuilder,
+    updated_at: TimestampMillisecondBuilder,
 }
 
 impl InformationSchemaDatabasesBuilder {
@@ -76,10 +93,14 @@ impl InformationSchemaDatabasesBuilder {
         database_name: impl AsRef<str>,
         database_owner: impl AsRef<str>,
         database_type: impl AsRef<str>,
+        created_at: Option<i64>,
+        updated_at: Option<i64>,
     ) {
         self.database_names.append_value(database_name.as_ref());
         self.database_owners.append_value(database_owner.as_ref());
         self.database_types.append_value(database_type.as_ref());
+        self.created_at.append_option(created_at);
+        self.updated_at.append_option(updated_at);
     }
 
     fn finish(&mut self) -> Result<RecordBatch, ArrowError> {
@@ -89,6 +110,8 @@ impl InformationSchemaDatabasesBuilder {
                 Arc::new(self.database_names.finish()),
                 Arc::new(self.database_owners.finish()),
                 Arc::new(self.database_types.finish()),
+                Arc::new(self.created_at.finish()),
+                Arc::new(self.updated_at.finish()),
             ],
         )
     }
