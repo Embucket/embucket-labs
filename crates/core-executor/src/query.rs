@@ -319,7 +319,6 @@ impl UserQuery {
                     name,
                 )));
         }
-
     }
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]

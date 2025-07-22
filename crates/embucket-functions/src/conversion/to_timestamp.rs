@@ -365,7 +365,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        if self.name=="to_timestamp_tz"{
+        if self.name == "to_timestamp_tz" {
             dbg!(&self.timezone);
         }
 
