@@ -22,7 +22,7 @@ You should see output similar to:
 {"timestamp":"2025-07-01T15:35:05.687807Z","level":"INFO","fields":{"message":"Listening on http://0.0.0.0:3000"},"target":"embucketd"}
 ```
 
-Default configuration for the provided docker image uses **file storage** for metadata and data. This is not recommended for production use. For more configuration options, see the [configuration](/docs/getting-started/configuration) guide.
+Default configuration for the provided docker image uses **file storage** for metadata and data. This is not recommended for production use. For more configuration options, see the [configuration](/essentials/configuration) guide.
 
 Embucket is now running! The server provides:
 

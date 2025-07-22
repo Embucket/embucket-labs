@@ -16,13 +16,6 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Embucket/embucket' }],
       sidebar: [
         {
-          label: 'Start Here',
-          items: [
-            // Each item here is one entry in the navigation menu.
-            { label: 'Getting Started', link: '/' },
-          ],
-        },
-        {
           label: 'Essentials',
           autogenerate: { directory: 'essentials' },
         },
@@ -43,5 +36,8 @@ export default defineConfig({
   ],
   vite: {
     plugins: [tailwindcss()],
+  },
+  redirects: {
+    '/': '/essentials/introduction/',
   },
 });
