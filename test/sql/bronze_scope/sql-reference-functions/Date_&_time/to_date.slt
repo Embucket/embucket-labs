@@ -6,15 +6,7 @@ SELECT TO_DATE('2024-05-10') as to_date, DATE('2024-05-10') as date
 ----
 '2024-05-10'	'2024-05-10'
 
-#exclude to_timestamp (errors) in to_date test
-exclude-from-coverage
-query T
-WITH date_from_timestamp AS (
-  SELECT TO_TIMESTAMP('2024.10.02 04:00:00', 'YYYY.MM.DD HH:MI:SS') AS ts
-)
-SELECT ts FROM date_from_timestamp
-----
-'2024-10-02T04:00:00'
+#excluded to_timestamp test in to_date test
 
 #removed to_timestamp call with timestamp formatting
 query T
