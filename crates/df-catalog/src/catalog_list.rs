@@ -19,7 +19,6 @@ use core_metastore::{
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
-use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
     execution::object_store::ObjectStoreRegistry,
@@ -125,7 +124,7 @@ impl EmbucketCatalogList {
         };
 
         match volume.volume {
-            VolumeType::S3(_) | VolumeType::File(_) => {
+            VolumeType::S3(_) | VolumeType::File(_) | VolumeType::Memory => {
                 let ident = Database {
                     ident: catalog_name.to_owned(),
                     volume: volume_ident.to_owned(),
@@ -136,17 +135,11 @@ impl EmbucketCatalogList {
                     .create_database(&catalog_name.to_owned(), ident)
                     .await
                     .context(MetastoreSnafu)?;
-                self.catalogs.insert(
-                    catalog_name.to_owned(),
-                    Arc::new(self.get_embucket_catalog(&database)?),
-                );
-            }
-            VolumeType::Memory => {
-                let provider = MemoryCatalogProvider::new();
-                let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
-                    .with_refresh(true)
-                    .with_catalog_type(CatalogType::Memory)
-                    .with_properties(Properties::default());
+                let mut catalog = self.get_embucket_catalog(&database)?;
+                // Set the catalog type based on the volume type
+                if matches!(volume.volume, VolumeType::Memory) {
+                    catalog = catalog.with_catalog_type(CatalogType::Memory);
+                }
                 self.catalogs
                     .insert(catalog_name.to_owned(), Arc::new(catalog));
             }

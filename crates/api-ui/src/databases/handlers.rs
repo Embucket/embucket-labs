@@ -76,6 +76,7 @@ pub struct QueryParameters {
 )]
 #[tracing::instrument(name = "api_ui::create_database", level = "info", skip(state, database), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_database(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> Result<Json<DatabaseCreateResponse>> {
@@ -88,6 +89,19 @@ pub async fn create_database(
         .validate()
         .context(ValidationSnafu)
         .context(CreateSnafu)?;
+    state
+        .execution_svc
+        .query(
+            &session_id,
+            &format!(
+                "CREATE DATABASE {} EXTERNAL_VOLUME = '{}'",
+                database.ident, database.volume
+            ),
+            QueryContext::default(),
+        )
+        .await
+        .context(crate::schemas::error::CreateSnafu)?;
+
     let database = state
         .metastore
         .create_database(&database.ident.clone(), database)
