@@ -1761,7 +1761,6 @@ impl UserQuery {
             })
             .await
             .context(ex_error::JobSnafu)??;
-        dbg!(&stream);
         Ok(stream)
     }
 
