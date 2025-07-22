@@ -172,6 +172,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Can't format value: {value}. Valid formats are {formats}."))]
+    UnsupportedValueFormat {
+        value: String,
+        formats: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid numeric value: {value}"))]
     InvalidNumericValue {
         value: String,

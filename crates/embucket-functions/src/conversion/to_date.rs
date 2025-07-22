@@ -7,7 +7,7 @@ use datafusion::arrow::util::display::FormatOptions;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, TypeSignatureClass};
 use datafusion_common::ScalarValue;
-use datafusion_common::arrow::array::{Array, StringArray};
+use datafusion_common::arrow::array::{Array, ArrayRef, StringArray};
 use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl, Volatility};
 use std::any::Any;
@@ -103,6 +103,117 @@ impl ToDateFunc {
         };
         truncated_str.parse::<i64>().ok()
     }
+
+    fn to_date(&self, array: &dyn Array, args: &[ColumnarValue]) -> DFResult<ArrayRef> {
+        let cast_options = CastOptions {
+            safe: self.try_mode,
+            format_options: FormatOptions::default(),
+        };
+
+        match array.data_type() {
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+                let string_array: &StringArray = as_generic_string_array(array)?;
+
+                let mut date32_array_builder = Date32Array::builder(string_array.len());
+
+                match Self::extract_format_arg(args)? {
+                    None => {
+                        for opt in string_array {
+                            if let Some(str) = opt {
+                                //TODO: better naming + checked_sub (no need? since it treat negative values as zero effectivity) + error if not try_mode
+                                let str = if let Some(index) =
+                                    str.trim().find('T').or_else(|| str.find(' '))
+                                {
+                                    &str[..index]
+                                } else {
+                                    str
+                                };
+                                if let Ok(date) = NaiveDate::parse_from_str(str, YYYY_MM_DD_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Ok(date) =
+                                    NaiveDate::parse_from_str(str, D_MON_YYYY_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Ok(date) =
+                                    NaiveDate::parse_from_str(str, D_MMMM_YYYY_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Ok(date) =
+                                    NaiveDate::parse_from_str(str, YYYY_MM_DD_DOT_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Ok(date) =
+                                    NaiveDate::parse_from_str(str, MM_DD_YYYY_SLASH_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Ok(date) =
+                                    NaiveDate::parse_from_str(str, DD_MM_YYYY_SLASH_FORMAT)
+                                {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                } else if let Some(timestamp) = Self::parse_truncated_checked(str) {
+                                    date32_array_builder.append_option(
+                                        DateTime::from_timestamp(timestamp, 0).map(|date_time| {
+                                            date_time.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
+                                        }),
+                                    );
+                                //if we can't parse it
+                                } else if self.try_mode {
+                                    date32_array_builder.append_null();
+                                } else {
+                                    return conv_errors::UnsupportedValueFormatSnafu { value: str.to_string(), formats: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy".to_string() }.fail()?;
+                                }
+                            //if the value was null
+                            } else {
+                                date32_array_builder.append_null();
+                            }
+                        }
+                    }
+                    Some(format) => {
+                        for opt in string_array {
+                            if let Some(str) = opt {
+                                if let Ok(date) = NaiveDate::parse_from_str(str, format) {
+                                    date32_array_builder.append_value(
+                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
+                                    );
+                                //if we can't parse it
+                                } else if self.try_mode {
+                                    date32_array_builder.append_null();
+                                } else {
+                                    return conv_errors::UnsupportedValueFormatSnafu { value: str.to_string(), formats: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy".to_string() }.fail()?;
+                                }
+                            //if the value was null
+                            } else {
+                                date32_array_builder.append_null();
+                            }
+                        }
+                    }
+                }
+
+                Ok(Arc::new(date32_array_builder.finish()))
+            }
+            DataType::Timestamp(_, _) => {
+                Ok(cast_with_options(array, &DataType::Date32, &cast_options)?)
+            }
+            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position: 1usize,
+            }
+            .fail()?,
+        }
+    }
 }
 
 impl ScalarUDFImpl for ToDateFunc {
@@ -148,107 +259,7 @@ impl ScalarUDFImpl for ToDateFunc {
             ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
         };
 
-        let cast_options = CastOptions {
-            safe: self.try_mode,
-            format_options: FormatOptions::default(),
-        };
-
-        let array = match array.data_type() {
-            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let string_array: &StringArray = as_generic_string_array(array)?;
-
-                let mut date32_array_builder = Date32Array::builder(string_array.len());
-
-                match Self::extract_format_arg(&args.args)? {
-                    None => string_array.iter().for_each(|opt| {
-                        if let Some(str) = opt {
-                            let str = str.trim();
-                            let mut tokens = str.split_whitespace();
-                            //TODO: better naming + checked_sub + error if not try_mode
-                            let result = tokens.next().filter(|_| tokens.next().is_some());
-                            if let Some(index) = str.find('T') {
-                                date32_array_builder.append_option(
-                                    NaiveDate::parse_from_str(&str[..index], YYYY_MM_DD_FORMAT)
-                                        .ok()
-                                        .map(|date| {
-                                            date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
-                                        }),
-                                );
-                            } else if let Some(date_str) = result {
-                                date32_array_builder.append_option(
-                                    NaiveDate::parse_from_str(date_str, YYYY_MM_DD_FORMAT)
-                                        .ok()
-                                        .map(|date| {
-                                            date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
-                                        }),
-                                );
-                            } else if let Ok(date) =
-                                NaiveDate::parse_from_str(str, D_MON_YYYY_FORMAT)
-                            {
-                                date32_array_builder.append_value(
-                                    date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                );
-                            } else if let Ok(date) =
-                                NaiveDate::parse_from_str(str, D_MMMM_YYYY_FORMAT)
-                            {
-                                date32_array_builder.append_value(
-                                    date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                );
-                            } else if let Ok(date) =
-                                NaiveDate::parse_from_str(str, YYYY_MM_DD_DOT_FORMAT)
-                            {
-                                date32_array_builder.append_value(
-                                    date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                );
-                            } else if let Ok(date) =
-                                NaiveDate::parse_from_str(str, MM_DD_YYYY_SLASH_FORMAT)
-                            {
-                                date32_array_builder.append_value(
-                                    date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                );
-                            } else if let Ok(date) =
-                                NaiveDate::parse_from_str(str, DD_MM_YYYY_SLASH_FORMAT)
-                            {
-                                date32_array_builder.append_value(
-                                    date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                );
-                            } else if let Some(timestamp) = Self::parse_truncated_checked(str) {
-                                date32_array_builder.append_option(
-                                    DateTime::from_timestamp(timestamp, 0).map(|date_time| {
-                                        date_time.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
-                                    }),
-                                );
-                            } else {
-                                date32_array_builder.append_null();
-                            }
-                        } else {
-                            date32_array_builder.append_null();
-                        }
-                    }),
-                    Some(format) => string_array.iter().for_each(|opt| {
-                        if let Some(str) = opt {
-                            date32_array_builder.append_option(
-                                NaiveDate::parse_from_str(str, format)
-                                    .ok()
-                                    .map(|date| date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE),
-                            );
-                        } else {
-                            date32_array_builder.append_null();
-                        }
-                    }),
-                }
-
-                Arc::new(date32_array_builder.finish())
-            }
-            DataType::Timestamp(_, _) => {
-                cast_with_options(array, &DataType::Date32, &cast_options)?
-            }
-            other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                data_type: other.clone(),
-                position: 1usize,
-            }
-            .fail()?,
-        };
+        let array = self.to_date(array, &args.args)?;
 
         Ok(ColumnarValue::Array(array))
     }
