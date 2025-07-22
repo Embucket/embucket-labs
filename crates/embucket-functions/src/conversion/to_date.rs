@@ -54,11 +54,13 @@ impl ToDateFunc {
                         "mm/dd/yyyy" => Some("%m/%d/%Y"),
                         "dd/mm/yyyy" => Some("%d/%m/%Y"),
                         "yyyy.mm.dd" => Some("%Y.%m.%d"),
+                        "dd-mon-yyyy" => Some("%e-%b-%Y"),
+                        "dd-mmmm-yyyy" => Some("%e-%B-%Y"),
                         "auto" => None,
                         _ => {
                             return conv_errors::UnsupportedFormatSnafu {
                                 format,
-                                expected: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy & auto"
+                                expected: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy & auto"
                                     .to_string(),
                             }
                             .fail()?;
@@ -149,7 +151,17 @@ impl ScalarUDFImpl for ToDateFunc {
                             .map(|opt| {
                                 opt.map(|str| {
                                     if str.contains('-') {
-                                        str.to_string()
+                                        //TODO: better pattern matching
+                                        NaiveDate::parse_from_str(str, "%e-%b-%Y").map_or_else(
+                                            |_| {
+                                                NaiveDate::parse_from_str(str, "%e-%B-%Y")
+                                                    .map_or_else(
+                                                        |_| str.to_string(),
+                                                        |date| date.format("%Y-%m-%d").to_string(),
+                                                    )
+                                            },
+                                            |date| date.format("%Y-%m-%d").to_string(),
+                                        )
                                     } else if str.contains('.') {
                                         NaiveDate::parse_from_str(str, "%Y.%m.%d").map_or_else(
                                             |_| str.to_string(),
