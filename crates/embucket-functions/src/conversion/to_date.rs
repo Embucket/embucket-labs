@@ -150,28 +150,26 @@ impl ScalarUDFImpl for ToDateFunc {
                             .iter()
                             .map(|opt| {
                                 opt.map(|str| {
-                                    if str.contains('-') {
-                                        //TODO: better pattern matching
-                                        NaiveDate::parse_from_str(str, "%e-%b-%Y").map_or_else(
-                                            |_| {
-                                                NaiveDate::parse_from_str(str, "%e-%B-%Y")
-                                                    .map_or_else(
-                                                        |_| str.to_string(),
-                                                        |date| date.format("%Y-%m-%d").to_string(),
-                                                    )
-                                            },
-                                            |date| date.format("%Y-%m-%d").to_string(),
-                                        )
-                                    } else if str.contains('.') {
-                                        NaiveDate::parse_from_str(str, "%Y.%m.%d").map_or_else(
-                                            |_| str.to_string(),
-                                            |date| date.format("%Y-%m-%d").to_string(),
-                                        )
-                                    } else if str.contains('/') {
-                                        NaiveDate::parse_from_str(str, "%m/%d/%Y").map_or_else(
-                                            |_| str.to_string(),
-                                            |date| date.format("%Y-%m-%d").to_string(),
-                                        )
+                                    if let Some(index) = str.find('T') {
+                                        str[..index].to_string()
+                                    } else if let Some(date_str) = str.split_whitespace().next() {
+                                        date_str.to_string()
+                                    } else if let Ok(date) =
+                                        NaiveDate::parse_from_str(str, "%e-%b-%Y")
+                                    {
+                                        date.format("%Y-%m-%d").to_string()
+                                    } else if let Ok(date) =
+                                        NaiveDate::parse_from_str(str, "%e-%B-%Y")
+                                    {
+                                        date.format("%Y-%m-%d").to_string()
+                                    } else if let Ok(date) =
+                                        NaiveDate::parse_from_str(str, "%Y.%m.%d")
+                                    {
+                                        date.format("%Y-%m-%d").to_string()
+                                    } else if let Ok(date) =
+                                        NaiveDate::parse_from_str(str, "%m/%d/%Y")
+                                    {
+                                        date.format("%Y-%m-%d").to_string()
                                     } else if let Some(timestamp) =
                                         Self::parse_truncated_checked(str)
                                     {
