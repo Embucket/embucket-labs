@@ -145,12 +145,12 @@ impl ToDateFunc {
         truncated_str.parse::<i64>().ok()
     }
 
-    fn to_date(&self, array: &dyn Array, args: &[ColumnarValue]) -> DFResult<ArrayRef> {
-        let cast_options = CastOptions {
-            safe: self.try_mode,
-            format_options: FormatOptions::default(),
-        };
-
+    fn to_date(
+        &self,
+        array: &dyn Array,
+        args: &[ColumnarValue],
+        cast_options: &CastOptions,
+    ) -> DFResult<ArrayRef> {
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = as_generic_string_array(array)?;
@@ -251,7 +251,7 @@ impl ToDateFunc {
                 Ok(Arc::new(date32_array_builder.finish()))
             }
             DataType::Timestamp(_, _) => {
-                Ok(cast_with_options(array, &DataType::Date32, &cast_options)?)
+                Ok(cast_with_options(array, &DataType::Date32, cast_options)?)
             }
             other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
                 data_type: other.clone(),
@@ -305,7 +305,12 @@ impl ScalarUDFImpl for ToDateFunc {
             ColumnarValue::Scalar(scalar) => &scalar.to_array()?,
         };
 
-        let array = self.to_date(array, &args.args)?;
+        let cast_options = CastOptions {
+            safe: self.try_mode,
+            format_options: FormatOptions::default(),
+        };
+
+        let array = self.to_date(array, &args.args, &cast_options)?;
 
         Ok(ColumnarValue::Array(array))
     }

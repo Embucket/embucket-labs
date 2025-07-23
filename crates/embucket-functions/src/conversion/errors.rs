@@ -42,13 +42,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Unsupported format: {format}. Valid formats are HEX, BASE64, and UTF-8"))]
-    UnsupportedFormat {
-        format: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Invalid boolean string: {v}"))]
     InvalidBooleanString {
         v: String,
@@ -162,10 +155,8 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display(
-        "Unsupported format: {format}. Valid formats are yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy & auto"
-    ))]
-    UnsupportedDateFormat {
+    #[snafu(display("Unsupported format: {format}. Valid formats are {expected}."))]
+    UnsupportedFormat {
         format: String,
         expected: String,
         #[snafu(implicit)]
