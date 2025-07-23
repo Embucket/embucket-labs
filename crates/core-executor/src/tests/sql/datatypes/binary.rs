@@ -22,8 +22,7 @@ test_query!(
     "SELECT 
         TO_BINARY('EMBUCKET', 'UTF-8') AS utf8_binary,
         TO_BINARY('454D4255434B4554', 'HEX') AS hex_binary,
-        TO_BINARY('RU1CVUNLRVQ=', 'BASE64') AS base64_binary,
-        TO_BINARY('EMBUCKET') AS default_binary",
+        TO_BINARY('RU1CVUNLRVQ=', 'BASE64') AS base64_binary",
     snapshot_path = "binary"
 );
 

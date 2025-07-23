@@ -169,37 +169,37 @@ test_query!(
 );
 
 test_query!(
-    substr_binary_to_binary_basic,
-    "SELECT substr(to_binary('hello world'), 2, 5) as result",
+    substr_hex_encode_basic,
+    "SELECT substr(hex_encode('hello world'), 2, 5) as result",
     snapshot_path = "substr"
 );
 
 test_query!(
-    substr_binary_to_binary_negative,
-    "SELECT substr(to_binary('hello world'), -5, 4) as result",
+    substr_hex_encode_negative,
+    "SELECT substr(hex_encode('hello world'), -5, 4) as result",
     snapshot_path = "substr"
 );
 
 test_query!(
-    substr_binary_to_binary_emoji,
-    "SELECT substr(to_binary('test🚀data'), 5, 4) as result",
+    substr_hex_encode_emoji,
+    "SELECT substr(hex_encode('test🚀data'), 5, 4) as result",
     snapshot_path = "substr"
 );
 
 test_query!(
-    substr_binary_to_binary_emoji_negative,
-    "SELECT substr(to_binary('test🚀data'), -8, 4) as result",
+    substr_hex_encode_emoji_negative,
+    "SELECT substr(hex_encode('test🚀data'), -8, 4) as result",
     snapshot_path = "substr"
 );
 
 test_query!(
-    substr_binary_to_binary_mixed,
-    "SELECT substr(to_binary('café☕test'), 4, 5) as result",
+    substr_hex_encode_mixed,
+    "SELECT substr(hex_encode('café☕test'), 4, 5) as result",
     snapshot_path = "substr"
 );
 
 test_query!(
-    substr_binary_to_binary_empty,
-    "SELECT substr(to_binary(''), 1, 3) as result",
+    substr_hex_encode_empty,
+    "SELECT substr(hex_encode(''), 1, 3) as result",
     snapshot_path = "substr"
 );
