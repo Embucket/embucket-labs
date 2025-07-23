@@ -11,17 +11,36 @@ use datafusion_common::arrow::array::{Array, ArrayRef, StringArray};
 use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl, Volatility};
 use std::any::Any;
+use std::ops::Add;
 use std::sync::Arc;
 
 const UNIX_EPOCH_DAYS_FROM_CE: i32 = 719_163;
 
 const YYYY_MM_DD_FORMAT: &str = "%Y-%m-%d";
-const MM_DD_YYYY_SLASH_FORMAT: &str = "%m/%d/%Y";
 const YYYY_MM_DD_DOT_FORMAT: &str = "%Y.%m.%d";
+const MM_DD_YYYY_SLASH_FORMAT: &str = "%m/%d/%Y";
 const DD_MM_YYYY_SLASH_FORMAT: &str = "%d/%m/%Y";
 const D_MON_YYYY_FORMAT: &str = "%e-%b-%Y";
 const D_MMMM_YYYY_FORMAT: &str = "%e-%B-%Y";
 
+/// `TO_DATE`, `DATE` & `TRY_TO_DATE` function implementation
+///
+/// Converts an input expression to a date
+/// For a VARCHAR expression, the result of converting the string to a date.
+/// For a TIMESTAMP expression, the date from the timestamp.
+/// For NULL input, the output is NULL.
+///
+/// Syntax: `TO_DATE(<expr> [, <format> ])`
+///
+/// Arguments:
+/// - `<expr>`:
+///   - String from which to extract a date. For example: '2024-01-31'.
+///   - A TIMESTAMP expression. The DATE portion of the TIMESTAMP value is extracted.
+///   - An expression that evaluates to a string containing an integer. For example: '15000000'.
+///     Depending on the magnitude of the string, it can be interpreted as seconds, milliseconds, microseconds, or nanoseconds.
+/// - Optional `<format>` date format specifier for `string_expr` or AUTO, which specifies that Snowflake automatically detects the format to use.
+///
+/// Example: `TO_DATE('2024-05-10')`
 #[derive(Debug)]
 pub struct ToDateFunc {
     signature: Signature,
@@ -52,9 +71,7 @@ impl ToDateFunc {
             try_mode,
         }
     }
-
-    //TODO: rewrite to any format support
-    fn extract_format_arg(args: &[ColumnarValue]) -> DFResult<Option<&str>> {
+    fn extract_format_arg(args: &[ColumnarValue]) -> DFResult<Option<String>> {
         if args.len() > 1 {
             match &args[1] {
                 ColumnarValue::Scalar(
@@ -62,22 +79,11 @@ impl ToDateFunc {
                     | ScalarValue::Utf8View(Some(format))
                     | ScalarValue::LargeUtf8(Some(format)),
                 ) => {
-                    let format = match format.to_lowercase().as_str() {
-                        "yyyy-mm-dd" => Some("%Y-%m-%d"),
-                        "mm/dd/yyyy" => Some("%m/%d/%Y"),
-                        "dd/mm/yyyy" => Some("%d/%m/%Y"),
-                        "yyyy.mm.dd" => Some("%Y.%m.%d"),
-                        "dd-mon-yyyy" => Some("%e-%b-%Y"),
-                        "dd-mmmm-yyyy" => Some("%e-%B-%Y"),
-                        "auto" => None,
-                        _ => {
-                            return conv_errors::UnsupportedFormatSnafu {
-                                format,
-                                expected: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy & auto"
-                                    .to_string(),
-                            }
-                            .fail()?;
-                        }
+                    let format = format.trim().to_lowercase();
+                    let format = if format.as_str() == "auto" {
+                        None
+                    } else {
+                        Some(format)
                     };
                     Ok(format)
                 }
@@ -89,6 +95,41 @@ impl ToDateFunc {
             }
         } else {
             Ok(None)
+        }
+    }
+
+    fn parse_to_chrono_format(format: &str) -> String {
+        let format = format.replace("yyyy", "%Y");
+        let format = format.replace("yy", "%y");
+        let format = format.replace("mmmm", "%B");
+        let format = format.replace("mm", "%m");
+        let format = format.replace("mon", "%b");
+        let format = format.replace("dd", "%d");
+        if format.contains("%d") {
+            format
+        } else {
+            format.replace('d', "%e")
+        }
+    }
+
+    fn format_missing_chrono_format(format: &str) -> (String, &str) {
+        let format = format.to_string();
+        if !format.contains("%Y") && !format.contains("%y") {
+            (format.add("%Y"), "1970")
+        } else if !format.contains("%m") && !format.contains("%b") && !format.contains("%B") {
+            (format.add("%m"), "01")
+        } else if !format.contains("%d") && !format.contains("%e") {
+            (format.add("%d"), "01")
+        } else {
+            (format, "")
+        }
+    }
+
+    fn format_date_str(str: &str) -> &str {
+        if let Some(index) = str.trim().find('T').or_else(|| str.find(' ')) {
+            &str[..index]
+        } else {
+            str
         }
     }
 
@@ -116,18 +157,14 @@ impl ToDateFunc {
 
                 let mut date32_array_builder = Date32Array::builder(string_array.len());
 
-                match Self::extract_format_arg(args)? {
+                let real_format = Self::extract_format_arg(args)?;
+
+                match real_format {
                     None => {
                         for opt in string_array {
                             if let Some(str) = opt {
                                 //TODO: better naming + checked_sub (no need? since it treat negative values as zero effectivity) + error if not try_mode
-                                let str = if let Some(index) =
-                                    str.trim().find('T').or_else(|| str.find(' '))
-                                {
-                                    &str[..index]
-                                } else {
-                                    str
-                                };
+                                let str = Self::format_date_str(str);
                                 if let Ok(date) = NaiveDate::parse_from_str(str, YYYY_MM_DD_FORMAT)
                                 {
                                     date32_array_builder.append_value(
@@ -181,10 +218,15 @@ impl ToDateFunc {
                             }
                         }
                     }
-                    Some(format) => {
+                    Some(real_format) => {
+                        let chrono_format = Self::parse_to_chrono_format(&real_format);
+                        let (format, missing) = Self::format_missing_chrono_format(&chrono_format);
                         for opt in string_array {
                             if let Some(str) = opt {
-                                if let Ok(date) = NaiveDate::parse_from_str(str, format) {
+                                if let Ok(date) = NaiveDate::parse_from_str(
+                                    str.to_string().add(missing).as_str(),
+                                    format.as_str(),
+                                ) {
                                     date32_array_builder.append_value(
                                         date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
                                     );
@@ -192,7 +234,11 @@ impl ToDateFunc {
                                 } else if self.try_mode {
                                     date32_array_builder.append_null();
                                 } else {
-                                    return conv_errors::UnsupportedValueFormatSnafu { value: str.to_string(), formats: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy".to_string() }.fail()?;
+                                    return conv_errors::UnsupportedValueFormatSnafu {
+                                        value: str.to_string(),
+                                        formats: real_format,
+                                    }
+                                    .fail()?;
                                 }
                             //if the value was null
                             } else {
