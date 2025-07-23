@@ -288,14 +288,6 @@ async fn test_query_recording() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        history_store.clone(),
-        Arc::new(Config::default()),
-    )
-    .await
-    .expect("Failed to create execution service");
-
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -320,6 +312,14 @@ async fn test_query_recording() {
         )
         .await
         .expect("Failed to create database");
+
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        history_store.clone(),
+        Arc::new(Config::default()),
+    )
+    .await
+    .expect("Failed to create execution service");
 
     let session_id = "test_session_id";
     execution_svc
