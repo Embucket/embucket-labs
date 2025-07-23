@@ -3,7 +3,7 @@ use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
-    databases::error::{self as databases_error, CreateSnafu, DeleteSnafu, GetSnafu, UpdateSnafu},
+    databases::error::{self as databases_error, CreateSnafu, GetSnafu, UpdateSnafu},
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
@@ -182,17 +182,26 @@ pub async fn get_database(
         (status = 404, description = "Not found", body = ErrorResponse),
     )
 )]
-#[tracing::instrument(name = "api_ui::delete_database", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn delete_database(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryParameters>,
     Path(database_name): Path<String>,
 ) -> Result<()> {
+    let cascade = if query.cascade.unwrap_or_default() {
+        " CASCADE"
+    } else {
+        ""
+    };
     state
-        .metastore
-        .delete_database(&database_name, query.cascade.unwrap_or_default())
+        .execution_svc
+        .query(
+            &session_id,
+            &format!("DROP DATABASE {database_name}{cascade}"),
+            QueryContext::default(),
+        )
         .await
-        .context(DeleteSnafu)?;
+        .context(crate::schemas::error::DeleteSnafu)?;
     Ok(())
 }
 

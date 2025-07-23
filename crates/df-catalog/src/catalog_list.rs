@@ -87,14 +87,11 @@ impl EmbucketCatalogList {
             .fail();
         };
         match catalog.catalog_type {
-            CatalogType::Embucket => {
-                self.metastore
-                    .delete_database(&name.to_string(), cascade)
-                    .await
-                    .context(MetastoreSnafu)?;
-                Ok(())
-            }
-            CatalogType::Memory => Ok(()),
+            CatalogType::Embucket | CatalogType::Memory => self
+                .metastore
+                .delete_database(&name.to_string(), cascade)
+                .await
+                .context(MetastoreSnafu),
             CatalogType::S3tables => NotImplementedSnafu {
                 feature: UnsupportedFeature::DropS3TablesDatabase,
                 details: "Dropping S3 tables catalogs is not supported",
