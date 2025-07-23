@@ -155,7 +155,6 @@ impl ToDateFunc {
                     None => {
                         for opt in string_array {
                             if let Some(str) = opt {
-                                //TODO: better naming + checked_sub (no need? since it treat negative values as zero effectivity) + error if not try_mode
                                 let str = Self::format_date_str(str);
                                 if let Ok(date) = NaiveDate::parse_from_str(str, YYYY_MM_DD_FORMAT)
                                 {
