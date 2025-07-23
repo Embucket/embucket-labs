@@ -15,13 +15,9 @@ use std::ops::Add;
 use std::sync::Arc;
 
 const UNIX_EPOCH_DAYS_FROM_CE: i32 = 719_163;
-
 const YYYY_MM_DD_FORMAT: &str = "%Y-%m-%d";
-const YYYY_MM_DD_DOT_FORMAT: &str = "%Y.%m.%d";
+const DD_MON_YYYY_FORMAT: &str = "%d-%B-%Y";
 const MM_DD_YYYY_SLASH_FORMAT: &str = "%m/%d/%Y";
-const DD_MM_YYYY_SLASH_FORMAT: &str = "%d/%m/%Y";
-const D_MON_YYYY_FORMAT: &str = "%e-%b-%Y";
-const D_MMMM_YYYY_FORMAT: &str = "%e-%B-%Y";
 
 /// `TO_DATE`, `DATE` & `TRY_TO_DATE` function implementation
 ///
@@ -99,26 +95,22 @@ impl ToDateFunc {
     }
 
     fn parse_to_chrono_format(format: &str) -> String {
-        let format = format.replace("yyyy", "%Y");
-        let format = format.replace("yy", "%y");
-        let format = format.replace("mmmm", "%B");
-        let format = format.replace("mm", "%m");
-        let format = format.replace("mon", "%b");
-        let format = format.replace("dd", "%d");
-        if format.contains("%d") {
-            format
-        } else {
-            format.replace('d', "%e")
-        }
+        format
+            .replace("yyyy", "%C%y")
+            .replace("yy", "%Y")
+            .replace("mon", "%B")
+            .replace("mmmm", "%B")
+            .replace("mm", "%m")
+            .replace("dd", "%d")
     }
 
     fn format_missing_chrono_format(format: &str) -> (String, &str) {
         let format = format.to_string();
         if !format.contains("%Y") && !format.contains("%y") {
             (format.add("%Y"), "1970")
-        } else if !format.contains("%m") && !format.contains("%b") && !format.contains("%B") {
+        } else if !format.contains("%m") && !format.contains("%B") {
             (format.add("%m"), "01")
-        } else if !format.contains("%d") && !format.contains("%e") {
+        } else if !format.contains("%d") {
             (format.add("%d"), "01")
         } else {
             (format, "")
@@ -171,31 +163,13 @@ impl ToDateFunc {
                                         date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
                                     );
                                 } else if let Ok(date) =
-                                    NaiveDate::parse_from_str(str, D_MON_YYYY_FORMAT)
-                                {
-                                    date32_array_builder.append_value(
-                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                    );
-                                } else if let Ok(date) =
-                                    NaiveDate::parse_from_str(str, D_MMMM_YYYY_FORMAT)
-                                {
-                                    date32_array_builder.append_value(
-                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                    );
-                                } else if let Ok(date) =
-                                    NaiveDate::parse_from_str(str, YYYY_MM_DD_DOT_FORMAT)
+                                    NaiveDate::parse_from_str(str, DD_MON_YYYY_FORMAT)
                                 {
                                     date32_array_builder.append_value(
                                         date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
                                     );
                                 } else if let Ok(date) =
                                     NaiveDate::parse_from_str(str, MM_DD_YYYY_SLASH_FORMAT)
-                                {
-                                    date32_array_builder.append_value(
-                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                    );
-                                } else if let Ok(date) =
-                                    NaiveDate::parse_from_str(str, DD_MM_YYYY_SLASH_FORMAT)
                                 {
                                     date32_array_builder.append_value(
                                         date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
@@ -210,7 +184,7 @@ impl ToDateFunc {
                                 } else if self.try_mode {
                                     date32_array_builder.append_null();
                                 } else {
-                                    return conv_errors::UnsupportedValueFormatSnafu { value: str.to_string(), formats: "yyyy-mm-dd, yyyy.mm.dd, mm/dd/yyyy, dd/mm/yyyy, dd-mon-yyyy, dd-mmmm-yyyy".to_string() }.fail()?;
+                                    return conv_errors::UnsupportedValueFormatSnafu { value: str.to_string(), formats: format!("{YYYY_MM_DD_FORMAT}, {DD_MON_YYYY_FORMAT} & {MM_DD_YYYY_SLASH_FORMAT}") }.fail()?;
                                 }
                             //if the value was null
                             } else {
@@ -227,9 +201,26 @@ impl ToDateFunc {
                                     str.to_string().add(missing).as_str(),
                                     format.as_str(),
                                 ) {
-                                    date32_array_builder.append_value(
-                                        date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE,
-                                    );
+                                    let date = if date.year() < 70 {
+                                        date.with_year(date.year() + 2000).map(|date| {
+                                            date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
+                                        })
+                                    } else if date.year() < 100 {
+                                        date.with_year(date.year() + 1900).map(|date| {
+                                            date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE
+                                        })
+                                    } else if date.year() < 1970 && self.try_mode {
+                                        None
+                                    } else if date.year() < 1970 && !self.try_mode {
+                                        return conv_errors::UnsupportedValueFormatSnafu {
+                                            value: str.to_string(),
+                                            formats: real_format,
+                                        }
+                                        .fail()?;
+                                    } else {
+                                        Some(date.num_days_from_ce() - UNIX_EPOCH_DAYS_FROM_CE)
+                                    };
+                                    date32_array_builder.append_option(date);
                                 //if we can't parse it
                                 } else if self.try_mode {
                                     date32_array_builder.append_null();

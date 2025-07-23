@@ -47,3 +47,63 @@ test_query!(
         TRY_TO_DATE('Invalid') AS invalid_date",
     snapshot_path = "to_date"
 );
+
+test_query!(
+    to_date_special_format,
+    "SELECT TO_DATE('5Jul25', 'DDMONYY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_mon_auto_format,
+    "SELECT TO_DATE('5-December-2025')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_slash_auto_format,
+    "SELECT TO_DATE('5/12/2025')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yy_format_1,
+    "SELECT TO_DATE('5/7/69', 'MM/DD/YY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yy_format_2,
+    "SELECT TO_DATE('5/7/99', 'MM/DD/YY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yy_format_3,
+    "SELECT TRY_TO_DATE('5/7/100', 'MM/DD/YY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yy_format_4,
+    "SELECT TRY_TO_DATE('5/7/1212', 'MM/DD/YY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yy_format_5,
+    "SELECT TO_DATE('5/7/2000', 'MM/DD/YY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yyyy_format_1,
+    "SELECT TRY_TO_DATE('5/7/99', 'MM/DD/YYYY')",
+    snapshot_path = "to_date"
+);
+
+test_query!(
+    to_date_yyyy_format_2,
+    "SELECT TRY_TO_DATE('5/7/2000', 'MM/DD/YYYY')",
+    snapshot_path = "to_date"
+);
