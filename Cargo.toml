@@ -27,6 +27,11 @@ opt-level = 1
 debug = true
 codegen-units = 16
 
+[profile.ci]
+inherits = "dev"
+lto = "off"
+debug = false
+
 [workspace.dependencies]
 async-trait = { version = "0.1.84" }
 aws-config = { version = "1.5.17" }
