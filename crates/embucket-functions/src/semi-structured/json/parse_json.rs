@@ -1,11 +1,13 @@
-use datafusion::arrow::array::{
-    Array, ArrayRef, BooleanArray, Float64Array, Int64Array, StringArray, StructArray,
-};
-use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{Result, exec_err};
-use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
-use datafusion::scalar::ScalarValue;
+use crate::macros::make_udf_function;
+use crate::semi_structured::errors;
+use datafusion::arrow::array::{StringBuilder, as_string_array};
+use datafusion::arrow::datatypes::DataType;
+use datafusion::error::Result as DFResult;
+use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
+use datafusion_common::ScalarValue;
+use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -24,23 +26,13 @@ impl ParseJsonFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::variadic_any(Volatility::Immutable),
+            signature: Signature::one_of(
+                vec![TypeSignature::String(1), TypeSignature::String(2)],
+                Volatility::Immutable,
+            ),
         }
     }
 }
-
-// static DOCUMENTATION: OnceLock<Documentation> = OnceLock::new();
-//
-// fn get_doc() -> &'static Documentation {
-//     DOCUMENTATION.get_or_init(|| {
-//         Documentation::builder()
-//             .with_description("Parses a JSON string and extracts values for key1 and key2")
-//             .with_syntax_example("parse_json('{\"key1\": \"value1\", \"key2\": \"value2\"}')")
-//             .with_argument("arg1", "The JSON string to parse")
-//             .build()
-//             .unwrap()
-//     })
-// }
 
 impl ScalarUDFImpl for ParseJsonFunc {
     fn as_any(&self) -> &dyn Any {
@@ -55,185 +47,86 @@ impl ScalarUDFImpl for ParseJsonFunc {
         &self.signature
     }
 
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
         Ok(DataType::Utf8)
     }
 
-    #[tracing::instrument(level = "trace", skip(self, args))]
-    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
-        let args = &args.args;
-        if args.len() != 1 {
-            return exec_err!(
-                "parse_json function requires one argument, got {}",
-                args.len()
-            );
-        }
-        let result = args[0].clone();
-        Ok(result)
-        // parse_raw_json(&args[0])
-    }
-}
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        let ScalarFunctionArgs { args, .. } = args;
 
-#[allow(dead_code)]
-fn parse_raw_json(json_str: &ColumnarValue) -> Result<ColumnarValue> {
-    let result = match json_str {
-        ColumnarValue::Array(array) => {
-            #[allow(clippy::unwrap_used)]
-            let string_array = array.as_any().downcast_ref::<StringArray>().unwrap();
-            if string_array.len() != 1 {
-                return exec_err!("Expected a single JSON string");
-            }
-            string_array.value(0)
-        }
-        ColumnarValue::Scalar(scalar) => {
-            if let ScalarValue::Utf8(Some(value)) = scalar {
-                value
+        let arr = match args[0].clone() {
+            ColumnarValue::Array(arr) => arr,
+            ColumnarValue::Scalar(v) => v.to_array()?,
+        };
+
+        let mut b = StringBuilder::with_capacity(arr.len(), 1024);
+        let input = as_string_array(&arr);
+
+        for v in input {
+            if let Some(v) = v {
+                let v = v.replace(",,", ",null,");
+                let v = v.replace(",]", ",null]");
+                let v = v.replace("[,", "[null,");
+                let v = serde_json::from_str::<Value>(&v)
+                    .context(errors::FailedToSerializeValueSnafu)?;
+                b.append_value(v.to_string());
             } else {
-                return exec_err!("Expected a UTF-8 string scalar");
+                b.append_null();
             }
         }
-    };
-    match serde_json::from_str::<Value>(result) {
-        Ok(parsed) => {
-            let result = json_value_to_columnar_value(&parsed);
-            Ok(result)
-        }
-        Err(e) => exec_err!("Failed to parse JSON string: {}", e),
+
+        let res = b.finish();
+        Ok(if arr.len() == 1 {
+            ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?)
+        } else {
+            ColumnarValue::Array(Arc::new(res))
+        })
     }
 }
 
-fn json_value_to_array_ref(value: &Value) -> ArrayRef {
-    match value {
-        Value::Null => Arc::new(StringArray::from(vec![None::<&str>])),
-        Value::Bool(b) => Arc::new(BooleanArray::from(vec![*b])),
-        Value::Number(num) =>
-        {
-            #[allow(clippy::option_if_let_else)]
-            if let Some(i) = num.as_i64() {
-                Arc::new(Int64Array::from(vec![i]))
-            } else if let Some(f) = num.as_f64() {
-                Arc::new(Float64Array::from(vec![f]))
-            } else {
-                Arc::new(Float64Array::from(vec![None::<f64>]))
-            }
-        }
-        Value::String(s) => Arc::new(StringArray::from(vec![s.as_str()])),
-        Value::Array(arr) => {
-            let arrays: Vec<ArrayRef> = arr.iter().map(json_value_to_array_ref).collect();
-            let fields: Vec<Field> = arrays
-                .iter()
-                .enumerate()
-                .map(|(i, v)| Field::new(format!("field_{i}"), v.data_type().clone(), true))
-                .collect();
-            let struct_array = StructArray::new(Fields::from(fields), arrays, None);
-            Arc::new(struct_array)
-        }
-        Value::Object(obj) => {
-            let fields: Vec<Field> = obj
-                .iter()
-                .map(|(k, v)| Field::new(k, json_value_to_data_type(v), true))
-                .collect();
-            let arrays: Vec<ArrayRef> = obj.values().map(json_value_to_array_ref).collect();
-            let struct_array = StructArray::new(Fields::from(fields), arrays, None);
-            Arc::new(struct_array)
-        }
+make_udf_function!(ParseJsonFunc);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::prelude::SessionContext;
+    use datafusion_common::assert_batches_eq;
+    use datafusion_expr::ScalarUDF;
+
+    #[tokio::test]
+    async fn test_basic() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
+
+        let sql = "SELECT parse_json('{\"key\": \"value\"}') AS parsed_json";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-----------------+",
+                "| parsed_json     |",
+                "+-----------------+",
+                "| {\"key\":\"value\"} |",
+                "+-----------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT parse_json('{\"invalid\": \"json\"') AS parsed_json";
+        assert!(ctx.sql(sql).await?.collect().await.is_err());
+
+        let sql = r#"SELECT parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-----------------------------+",
+                "| parsed_json                 |",
+                "+-----------------------------+",
+                "| [-1,12,289,2188,false,null] |",
+                "+-----------------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
     }
 }
-
-fn json_value_to_data_type(value: &Value) -> DataType {
-    match value {
-        Value::Null | Value::String(_) => DataType::Utf8,
-        Value::Bool(_) => DataType::Boolean,
-        Value::Number(num) => {
-            if num.as_i64().is_some() {
-                DataType::Int64
-            } else {
-                DataType::Float64
-            }
-        }
-        Value::Array(arr) => {
-            let fields: Vec<Field> = arr
-                .iter()
-                .enumerate()
-                .map(|(i, v)| Field::new(format!("field_{i}"), json_value_to_data_type(v), true))
-                .collect();
-            DataType::Struct(Fields::from(fields))
-        }
-        Value::Object(obj) => {
-            let fields: Vec<Field> = obj
-                .iter()
-                .map(|(k, v)| Field::new(k, json_value_to_data_type(v), true))
-                .collect();
-            DataType::Struct(Fields::from(fields))
-        }
-    }
-}
-
-fn json_value_to_columnar_value(value: &Value) -> ColumnarValue {
-    match value {
-        Value::Null => ColumnarValue::Scalar(ScalarValue::Null),
-        Value::Bool(b) => ColumnarValue::Scalar(ScalarValue::Boolean(Some(*b))),
-        Value::Number(num) =>
-        {
-            #[allow(clippy::option_if_let_else)]
-            if let Some(i) = num.as_i64() {
-                ColumnarValue::Scalar(ScalarValue::Int64(Some(i)))
-            } else if let Some(f) = num.as_f64() {
-                ColumnarValue::Scalar(ScalarValue::Float64(Some(f)))
-            } else {
-                ColumnarValue::Scalar(ScalarValue::Float64(None))
-            }
-        }
-        Value::String(s) => ColumnarValue::Scalar(ScalarValue::Utf8(Some(s.clone()))),
-        Value::Array(arr) => {
-            let arrays: Vec<ArrayRef> = arr.iter().map(json_value_to_array_ref).collect();
-            let fields: Vec<Field> = arrays
-                .iter()
-                .enumerate()
-                .map(|(i, v)| Field::new(format!("field_{i}"), v.data_type().clone(), true))
-                .collect();
-            let struct_array = StructArray::new(Fields::from(fields), arrays, None);
-            ColumnarValue::Array(Arc::new(struct_array))
-        }
-        Value::Object(obj) => {
-            let fields: Vec<Field> = obj
-                .iter()
-                .map(|(k, v)| Field::new(k, json_value_to_data_type(v), true))
-                .collect();
-            let arrays: Vec<ArrayRef> = obj.values().map(json_value_to_array_ref).collect();
-            let struct_array = StructArray::new(Fields::from(fields), arrays, None);
-            ColumnarValue::Array(Arc::new(struct_array))
-        }
-    }
-}
-
-// TODO: Revisit this function
-#[allow(dead_code)]
-fn parse_data_type(data_type_str: &str) -> DataType {
-    if data_type_str.starts_with("array<struct<") && data_type_str.ends_with(">>") {
-        let struct_fields_str = &data_type_str["array<struct<".len()..data_type_str.len() - 2];
-        let fields: Vec<Field> = struct_fields_str
-            .split(',')
-            .map(|field_str| {
-                let parts: Vec<&str> = field_str.split(':').collect();
-                Field::new(parts[0], DataType::Utf8, true)
-            })
-            .collect();
-        let struct_field = Field::new("struct", DataType::Struct(Fields::from(fields)), true);
-        DataType::List(Arc::new(struct_field))
-    } else if data_type_str.starts_with("struct<") && data_type_str.ends_with('>') {
-        let struct_fields_str = &data_type_str["struct<".len()..data_type_str.len() - 1];
-        let fields: Vec<Field> = struct_fields_str
-            .split(',')
-            .map(|field_str| {
-                let parts: Vec<&str> = field_str.split(':').collect();
-                Field::new(parts[0], DataType::Utf8, true)
-            })
-            .collect();
-        DataType::Struct(Fields::from(fields))
-    } else {
-        DataType::Struct(Fields::empty())
-    }
-}
-
-crate::macros::make_udf_function!(ParseJsonFunc);

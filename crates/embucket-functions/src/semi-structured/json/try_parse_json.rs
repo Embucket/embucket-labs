@@ -62,7 +62,10 @@ impl ScalarUDFImpl for TryParseJsonFunc {
 
         for v in input {
             if let Some(v) = v {
-                match serde_json::from_str::<Value>(v) {
+                let v = v.replace(",,", ",null,");
+                let v = v.replace(",]", ",null]");
+                let v = v.replace("[,", "[null,");
+                match serde_json::from_str::<Value>(&v) {
                     Ok(v) => {
                         b.append_value(v.to_string());
                     }
@@ -118,6 +121,19 @@ mod tests {
                 "+-------------+",
                 "|             |",
                 "+-------------+",
+            ],
+            &result
+        );
+
+        let sql = r#"SELECT try_parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json"#;
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-----------------------------+",
+                "| parsed_json                 |",
+                "+-----------------------------+",
+                "| [-1,12,289,2188,false,null] |",
+                "+-----------------------------+",
             ],
             &result
         );
