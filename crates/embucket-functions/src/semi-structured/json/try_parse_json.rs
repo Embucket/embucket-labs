@@ -67,7 +67,11 @@ impl ScalarUDFImpl for TryParseJsonFunc {
                 let v = v.replace("[,", "[null,");
                 match serde_json::from_str::<Value>(&v) {
                     Ok(v) => {
-                        b.append_value(v.to_string());
+                        if v.is_null() {
+                            b.append_null();
+                        } else {
+                            b.append_value(v.to_string());
+                        }
                     }
                     Err(_) => b.append_null(),
                 }

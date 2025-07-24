@@ -69,7 +69,11 @@ impl ScalarUDFImpl for ParseJsonFunc {
                 let v = v.replace("[,", "[null,");
                 let v = serde_json::from_str::<Value>(&v)
                     .context(errors::FailedToSerializeValueSnafu)?;
-                b.append_value(v.to_string());
+                if v.is_null() {
+                    b.append_null();
+                } else {
+                    b.append_value(v.to_string());
+                }
             } else {
                 b.append_null();
             }
@@ -107,6 +111,19 @@ mod tests {
                 "+-----------------+",
                 "| {\"key\":\"value\"} |",
                 "+-----------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT parse_json('null') AS parsed_json";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-------------+",
+                "| parsed_json |",
+                "+-------------+",
+                "|             |",
+                "+-------------+",
             ],
             &result
         );
