@@ -635,6 +635,7 @@ fn convert_binary_to_string(
             } else {
                 conv_errors::UnsupportedFormatSnafu {
                     format: &format_str,
+                    expected: "UTF-8, UTF8, HEX or BASE64".to_string(),
                 }
                 .fail()?
             }
