@@ -662,7 +662,8 @@ mod tests {
     use super::*;
     use crate::models::ColumnInfo;
     use datafusion::arrow::array::{
-        ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UInt64Array, UnionArray,
+        ArrayRef, BooleanArray, Float64Array, Int32Array, TimestampSecondArray, UInt64Array,
+        UnionArray,
     };
     use datafusion::arrow::array::{BinaryViewArray, StringViewArray};
     use datafusion::arrow::buffer::ScalarBuffer;

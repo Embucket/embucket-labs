@@ -11,7 +11,7 @@ use http::{HeaderMap, HeaderName};
 use snafu::ResultExt;
 use tower_sessions::cookie::{Cookie, SameSite};
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::cognitive_complexity)]
 pub async fn propagate_session_cookie(
     State(state): State<SessionStore>,
     mut req: Request,
