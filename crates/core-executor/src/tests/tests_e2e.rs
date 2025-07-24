@@ -186,7 +186,8 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), Error> {
     eprintln!(
-        "This test runs two unrelated insert queries in separate embuckets/executors, both should pass."
+        "Test creates a table and then simultaneously runs insert and select queries in separate sessions. \
+        Both requests should pass."
     );
     dotenv().ok();
 
@@ -259,8 +260,8 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
 async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_inserts_other_selects()
 -> Result<(), Error> {
     eprintln!(
-        "Test creates some table, and simultaneously runs in separate sessions insert and select queries, \
-        both requests should pass."
+        "This test runs two unrelated insert queries in separate Embucket executors. \
+        Both should pass."
     );
     dotenv().ok();
 
@@ -317,8 +318,9 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
 async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_should_fail()
 -> Result<(), Error> {
     eprintln!(
-        "Test creates some table and then corrupts s3 volume and checks that insert failed. \
-    It has known issue: Output error is not that clean, as unable downcast ObjectStore error."
+        "Test creates a table and then corrupts the S3 volume credentials. \
+        It verifies that insert operations fail with the corrupted credentials. \
+        Note: The error output may not be clean due to issues with downcasting ObjectStore errors."
     );
     dotenv().ok();
 
@@ -367,8 +369,11 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_should_fail()
 -> Result<(), Error> {
-    eprintln!("It creates data on s3 volume, and one time run select, and then corrupt s3 volume credentials, \n
-    and run select that should fail. Currently this select query accidentally is not failing.");
+    eprintln!(
+        "This test creates data on an S3 volume and runs a select query. \
+        Then it corrupts the S3 volume credentials and verifies that subsequent select queries fail. \
+        Note: Currently, the select query is not failing as expected."
+    );
     dotenv().ok();
 
     let executor = create_executor(
@@ -413,8 +418,10 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_shou
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail()
 -> Result<(), Error> {
-    eprintln!("It creates data on s3 volume, and then creates new executor with injected credential error, \n
-    and then run select that should fail");
+    eprintln!(
+        "This test creates data on an S3 volume, then creates a new executor with injected credential errors. \
+        It verifies that select operations fail with the corrupted credentials."
+    );
     dotenv().ok();
 
     let executor = create_executor(
@@ -469,7 +476,8 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
 async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inserts_should_pass()
 -> Result<(), Error> {
     eprintln!(
-        "It runs single Embucket (file based, s3 based volumes), two sessions, writes to different tables."
+        "This test runs a single Embucket instance with file-based and S3-based volumes across two sessions, \
+        writing to different tables in each session."
     );
     dotenv().ok();
 
@@ -548,10 +556,9 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
 async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions_file_s3_volumes()
 -> Result<(), Error> {
     eprintln!(
-        "In this test first session creates objects and then using precreated sessions \
-    that was existing before objects created by first session and trying to select/insert them.\
-    Also it creates new sessions and check if that can access objects created by other session.\
-    Executor uses file and s3 based volumes."
+        "This test verifies object access across sessions with different lifecycles. \
+        The first session creates objects, then tests access from both pre-existing and newly created sessions. \
+        The test uses both file and S3-based volumes."
     );
     dotenv().ok();
 
@@ -570,10 +577,9 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
 async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions_memory_volume()
 -> Result<(), Error> {
     eprintln!(
-        "In this test first session creates objects and then using precreated sessions \
-    that was existing before objects created by first session and trying to select/insert them.\
-    Also it creates new sessions and check if that can access objects created by other session.
-    Uses memory volume."
+        "This test verifies object access across sessions with different lifecycles. \
+        The first session creates objects, then tests access from both pre-existing and newly created sessions. \
+        The test uses an in-memory volume."
     );
     dotenv().ok();
 
@@ -591,7 +597,7 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
 async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes_fails()
 -> Result<(), Error> {
     eprintln!(
-        "This test illustrates that after creating second executor first one fails on write."
+        "This test demonstrates that after creating a second executor, the first one fails on write operations."
     );
     dotenv().ok();
 
@@ -621,9 +627,9 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
 async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_writes_ok()
 -> Result<(), Error> {
     eprintln!(
-        "On top of the same file object store, it creates data using one executor \
-        and then creates second executor. After this second executor becomes single writer, and \
-        first executor can only read, and gets `Fenced` error on any write attempt."
+        "This test creates data using one executor, then creates a second executor. \
+        The second executor becomes the single writer, while the first executor can only read and \
+        receives a 'Fenced' error on any write attempt."
     );
     dotenv().ok();
 
@@ -642,10 +648,10 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
 async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails_if_delayed_is_this_needed()
 -> Result<(), Error> {
     eprintln!(
-        "On top of the same file object store, it creates data using one executor \
-        and then creates second executor. After this second executor becomes single writer, and \
-        first executor can only read, and gets `Fenced` error on any write attempt. \
-        This test introduces aditional delay after second executor created and first executor starts any sql."
+        "This test creates data using one executor, then creates a second executor. \
+        The second executor becomes the single writer, while the first executor can only read and \
+        receives a 'Fenced' error on any write attempt. \
+        This test includes an additional delay after creating the second executor and before the first executor starts any SQL operations."
     );
     dotenv().ok();
 
