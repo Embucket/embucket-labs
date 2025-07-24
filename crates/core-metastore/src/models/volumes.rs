@@ -106,6 +106,7 @@ pub struct S3Volume {
 }
 
 impl S3Volume {
+    #[must_use]
     pub fn get_s3_builder(&self) -> AmazonS3Builder {
         let mut s3_builder = AmazonS3Builder::new()
             .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
@@ -278,6 +279,7 @@ impl Volume {
         }
     }
 
+    #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
             VolumeType::S3(volume) => volume

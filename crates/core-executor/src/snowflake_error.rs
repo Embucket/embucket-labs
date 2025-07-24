@@ -9,7 +9,7 @@ use datafusion_common::error::DataFusionError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
 use snafu::GenerateImplicitData;
-use snafu::{Snafu, Location, location};
+use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
 
 // How SLT tests are used in Snowflake error conversion?
@@ -40,13 +40,14 @@ pub enum SnowflakeError {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct InternalMessage(String);
 
 impl GenerateImplicitData for InternalMessage {
     #[inline]
     #[track_caller]
     fn generate() -> Self {
-        Self("".to_string())
+        Self(String::new())
     }
 }
 
@@ -84,10 +85,18 @@ impl From<Error> for SnowflakeError {
                 let source = *source;
                 match source {
                     MetastoreError::TableDataExists { .. } => CustomSnafu { message }.build(),
-                    MetastoreError::TableRequirementFailed { .. } => CustomSnafu { message }.build(),
-                    MetastoreError::VolumeValidationFailed { .. } => CustomSnafu { message }.build(),
-                    MetastoreError::VolumeMissingCredentials { .. } => CustomSnafu { message }.build(),
-                    MetastoreError::CloudProviderNotImplemented { .. } => CustomSnafu { message }.build(),
+                    MetastoreError::TableRequirementFailed { .. } => {
+                        CustomSnafu { message }.build()
+                    }
+                    MetastoreError::VolumeValidationFailed { .. } => {
+                        CustomSnafu { message }.build()
+                    }
+                    MetastoreError::VolumeMissingCredentials { .. } => {
+                        CustomSnafu { message }.build()
+                    }
+                    MetastoreError::CloudProviderNotImplemented { .. } => {
+                        CustomSnafu { message }.build()
+                    }
                     MetastoreError::ObjectStore { .. } => CustomSnafu { message }.build(),
                     MetastoreError::ObjectStorePath { .. } => CustomSnafu { message }.build(),
                     MetastoreError::CreateDirectory { .. } => CustomSnafu { message }.build(),
@@ -103,7 +112,9 @@ impl From<Error> for SnowflakeError {
                     MetastoreError::SchemaNotFound { .. } => CustomSnafu { message }.build(),
                     MetastoreError::TableAlreadyExists { .. } => CustomSnafu { message }.build(),
                     MetastoreError::TableNotFound { .. } => CustomSnafu { message }.build(),
-                    MetastoreError::TableObjectStoreNotFound { .. } => CustomSnafu { message }.build(),
+                    MetastoreError::TableObjectStoreNotFound { .. } => {
+                        CustomSnafu { message }.build()
+                    }
                     MetastoreError::VolumeInUse { .. } => CustomSnafu { message }.build(),
                     MetastoreError::DatabaseInUse { .. } => CustomSnafu { message }.build(),
                     MetastoreError::Iceberg { .. } => CustomSnafu { message }.build(),
@@ -141,7 +152,9 @@ impl From<Error> for SnowflakeError {
             Error::UploadFailed { .. } => CustomSnafu { message }.build(),
             Error::CatalogListDowncast { .. } => CustomSnafu { message }.build(),
             Error::RegisterCatalog { .. } => CustomSnafu { message }.build(),
-            Error::ExternalVolumeRequiredForCreateDatabase { .. } => CustomSnafu { message }.build(),
+            Error::ExternalVolumeRequiredForCreateDatabase { .. } => {
+                CustomSnafu { message }.build()
+            }
             Error::SerdeParse { .. } => CustomSnafu { message }.build(),
             Error::OnyUseWithVariables { .. } => CustomSnafu { message }.build(),
             Error::OnlyPrimitiveStatements { .. } => CustomSnafu { message }.build(),
@@ -150,7 +163,9 @@ impl From<Error> for SnowflakeError {
             Error::OnlyCreateTableStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlyCreateStageStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlyCopyIntoStatements { .. } => CustomSnafu { message }.build(),
-            Error::FromObjectRequiredForCopyIntoStatements { .. } => CustomSnafu { message }.build(),
+            Error::FromObjectRequiredForCopyIntoStatements { .. } => {
+                CustomSnafu { message }.build()
+            }
             Error::OnlyMergeStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlyCreateSchemaStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlySimpleSchemaNames { .. } => CustomSnafu { message }.build(),
@@ -175,6 +190,7 @@ impl From<Error> for SnowflakeError {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
     let message = df_error.to_string();
     match df_error {
@@ -241,8 +257,7 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                 } else {
                     unreachable!()
                 }
-            }
-            else if err.is::<Error>() {
+            } else if err.is::<Error>() {
                 if let Ok(e) = err.downcast::<Error>() {
                     let e = *e;
                     let message = e.to_string();
@@ -250,8 +265,7 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                 } else {
                     unreachable!()
                 }
-            }
-            else if err.is::<object_store::Error>() {
+            } else if err.is::<object_store::Error>() {
                 if let Ok(e) = err.downcast::<object_store::Error>() {
                     let e = *e;
                     let message = e.to_string();
@@ -259,15 +273,15 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                 } else {
                     unreachable!()
                 }
-            }
-            else if err.is::<iceberg_rust::error::Error>() {
+            } else if err.is::<iceberg_rust::error::Error>() {
                 if let Ok(e) = err.downcast::<iceberg_rust::error::Error>() {
                     let e = *e;
                     let message = e.to_string();
                     match e {
                         iceberg_rust::error::Error::ObjectStore(e) => CustomSnafu {
                             message: format!("Object store error: {e}"),
-                        }.build(),
+                        }
+                        .build(),
                         _ => CustomSnafu { message }.build(),
                     }
                 } else {
@@ -311,9 +325,9 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                     let e = *e;
                     let message = e.to_string();
                     match e {
-                        DFCatalogExternalDFError::OrdinalPositionParamOverflow {
-                            ..
-                        } => CustomSnafu { message }.build(),
+                        DFCatalogExternalDFError::OrdinalPositionParamOverflow { .. } => {
+                            CustomSnafu { message }.build()
+                        }
                         DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
                             CustomSnafu { message }.build()
                         }
@@ -337,12 +351,12 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                 // Accidently CustomSnafu can't see internal field, so create error manually!
                 SnowflakeError::Custom {
                     message,
-                    // Add downcast warning separately as this is internal message 
+                    // Add downcast warning separately as this is internal message
                     internal: InternalMessage(format!("Warning: Didn't downcast error: {err}")),
                     location: location!(),
                 }
             }
-        }        
+        }
         _ => CustomSnafu { message }.build(),
     }
 }

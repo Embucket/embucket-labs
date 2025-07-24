@@ -32,7 +32,7 @@ use std::sync::Arc;
 
 // Set following envs, or add to .env
 
-// # Env vars for s3 object store
+// # Env vars for s3 object store on minio
 // AWS_ACCESS_KEY_ID=
 // AWS_SECRET_ACCESS_KEY=
 // AWS_REGION=us-east-1
@@ -40,8 +40,14 @@ use std::sync::Arc;
 // AWS_ENDPOINT=http://localhost:9000
 // AWS_ALLOW_HTTP=true
 
+// Example env for object store on AWS
+// AWS_ACCESS_KEY_ID=
+// AWS_SECRET_ACCESS_KEY=
+// AWS_REGION=us-east-1
+// AWS_BUCKET=e2e-store
+
 const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME";
-// Env vars for S3Volume:
+// Env vars for S3Volume on minio / AWS (change or remove endpoint):
 // E2E_S3VOLUME_AWS_ACCESS_KEY_ID=
 // E2E_S3VOLUME_AWS_SECRET_ACCESS_KEY=
 // E2E_S3VOLUME_AWS_REGION=us-east-1
@@ -53,7 +59,6 @@ const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME";
 // E2E_S3TABLESVOLUME_AWS_ACCESS_KEY_ID=
 // E2E_S3TABLESVOLUME_AWS_SECRET_ACCESS_KEY=
 // E2E_S3TABLESVOLUME_AWS_ARN=arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket
-// E2E_S3TABLESVOLUME_AWS_ENDPOINT=http://localhost:9000
 
 pub const TEST_SESSION_ID1: &str = "test_session_id1";
 pub const TEST_SESSION_ID2: &str = "test_session_id2";
@@ -260,26 +265,32 @@ impl ExecutorWithObjectStore {
                             credentials: Some(aws_credentials),
                         }),
                     ));
-                    println!("Intentionally corrupting volume: {:#?}", rwobject.data);
+                    eprintln!("Intentionally corrupting volume: {:#?}", rwobject.data);
                     // Use db.put to update volume in metastore
                     self.db
                         .put(&db_key, &rwobject)
                         .await
                         .context(UtilSlateDBSnafu)
                         .context(MetastoreSnafu)?;
-                    // Probably update_volume could be used instead of db.put, 
+                    // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
-                    self.metastore.update_volume(&volume_name, rwobject.data)
-                        .await.context(MetastoreSnafu)?;
+                    self.metastore
+                        .update_volume(&volume_name, rwobject.data)
+                        .await
+                        .context(MetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials
-                    let object_store = self.metastore
-                        .volume_object_store(&volume_name).await.context(MetastoreSnafu)?;
+                    let object_store = self
+                        .metastore
+                        .volume_object_store(&volume_name)
+                        .await
+                        .context(MetastoreSnafu)?;
                     if let Some(object_store) = object_store {
-                        let obj_store_res = object_store.get(&object_store::path::Path::from("/"))
+                        let obj_store_res = object_store
+                            .get(&object_store::path::Path::from("/"))
                             .await
                             .context(ObjectStoreSnafu);
                         // fail if object_store read succesfully
-                        assert_eq!(false, obj_store_res.is_ok());
+                        assert!(obj_store_res.is_err());
                     }
                 } else {
                     return Err(CreateS3VolumeWithBadCredsSnafu.build());
@@ -323,15 +334,15 @@ impl ExecutorWithObjectStore {
 
         if let Ok(s3_volume) = s3_volume() {
             self.metastore
-            .create_volume(
-                &TEST_VOLUME_S3.0.to_string(),
-                MetastoreVolume::new(
-                    TEST_VOLUME_S3.0.to_string(),
-                    core_metastore::VolumeType::S3(s3_volume),
-                ),
-            )
-            .await
-            .context(MetastoreSnafu)?;            
+                .create_volume(
+                    &TEST_VOLUME_S3.0.to_string(),
+                    MetastoreVolume::new(
+                        TEST_VOLUME_S3.0.to_string(),
+                        core_metastore::VolumeType::S3(s3_volume),
+                    ),
+                )
+                .await
+                .context(MetastoreSnafu)?;
         }
 
         if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
@@ -402,15 +413,16 @@ impl ObjectStoreType {
     pub async fn db(&self) -> Result<Db, Error> {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
-            Self::File(suffix, ..)
-            | Self::S3(suffix, ..) => Db::new(Arc::new(
+            Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
                 SlateDb::open_with_opts(
                     object_store::path::Path::from(suffix.clone()),
                     DbOptions::default(),
                     self.object_store()?,
                 )
                 .await
-                .context(SlatedbSnafu{ object_store: self.object_store()? })?,
+                .context(SlatedbSnafu {
+                    object_store: self.object_store()?,
+                })?,
             )),
         };
 
@@ -555,8 +567,8 @@ pub async fn exec_parallel_test_plan(
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
                     }
                 }
-                
-                eprintln!("expected_res: {expected_res}, actual_res: {}", res_is_ok);
+
+                eprintln!("expected_res: {expected_res}, actual_res: {res_is_ok}");
                 if expected_res == &res_is_ok {
                     eprintln!("PASSED\n");
                 } else {
