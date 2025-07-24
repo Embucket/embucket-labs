@@ -23,8 +23,7 @@ concurrency:
 name: unit-tests
 jobs:
   required:
-    runs-on:
-      group: ubuntu-latest
+    runs-on: ubuntu-latest
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
