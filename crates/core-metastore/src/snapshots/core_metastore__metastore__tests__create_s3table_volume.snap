@@ -13,7 +13,7 @@ expression: "(volume, created_volume)"
                 credentials: AccessKey(
                     AwsAccessKeyCredentials {
                         aws_access_key_id: "kPYGGu34jF685erC7gst",
-                        aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL",
+                        aws_secret_access_key: "**********",
                     },
                 ),
                 database: "test",
@@ -31,7 +31,7 @@ expression: "(volume, created_volume)"
                 credentials: AccessKey(
                     AwsAccessKeyCredentials {
                         aws_access_key_id: "kPYGGu34jF685erC7gst",
-                        aws_secret_access_key: "Q2ClWJgwIZLcX4IE2zO2GBl8qXz7g4knqwLwUpWL",
+                        aws_secret_access_key: "**********",
                     },
                 ),
                 database: "test",
