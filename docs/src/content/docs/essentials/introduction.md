@@ -1,6 +1,8 @@
 ---
 title: Introduction
 description: Meet Embucket – an open-source, Snowflake-compatible OLAP lakehouse that marries the simplicity of a single binary with the openness of Apache Iceberg
+sidebar:
+  order: 0
 ---
 
 ## What is Embucket?

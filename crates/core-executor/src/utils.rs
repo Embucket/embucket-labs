@@ -1,12 +1,13 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
+use arrow_schema::ArrowError;
 use chrono::DateTime;
 use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::{
-    Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray,
+    Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray, StringBuilder,
     Time32MillisecondArray, Time32SecondArray, Time64MicrosecondArray, Time64NanosecondArray,
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
     TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
@@ -215,6 +216,15 @@ pub fn convert_record_batches(
                     convert_and_push(column, &field, metadata, &mut fields, |col| {
                         if data_format == DataSerializationFormat::Json {
                             Ok(cast(&col, &DataType::Utf8).context(ArrowSnafu)?)
+                        } else {
+                            Ok(Arc::clone(column))
+                        }
+                    })?
+                }
+                DataType::Boolean => {
+                    convert_and_push(column, &field, metadata, &mut fields, |col| {
+                        if data_format == DataSerializationFormat::Json {
+                            Ok(to_utf8_array(col, true)?)
                         } else {
                             Ok(Arc::clone(column))
                         }
@@ -494,6 +504,30 @@ fn convert_time(
     }
 }
 
+fn to_utf8_array(array: &ArrayRef, upper_case: bool) -> Result<ArrayRef> {
+    let casted = cast(array, &DataType::Utf8).context(ArrowSnafu)?;
+    let utf8_array = casted
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .ok_or_else(|| ArrowError::InvalidArgumentError("expected Utf8 array".into()))
+        .context(ArrowSnafu)?;
+
+    let mut builder = StringBuilder::new();
+    for i in 0..utf8_array.len() {
+        if utf8_array.is_null(i) {
+            builder.append_null();
+        } else {
+            let s = if upper_case {
+                utf8_array.value(i).to_ascii_uppercase()
+            } else {
+                utf8_array.value(i).to_string()
+            };
+            builder.append_value(&s);
+        }
+    }
+    Ok(Arc::new(builder.finish()))
+}
+
 /// Formats the timestamp and subsecond part into a string with the given scale.
 /// `scale` is the number of digits to pad the subsecond value to.
 fn format_time_string<T: std::fmt::Display>(timestamp: i64, subsecond: T, scale: usize) -> String {
@@ -628,7 +662,8 @@ mod tests {
     use super::*;
     use crate::models::ColumnInfo;
     use datafusion::arrow::array::{
-        ArrayRef, Float64Array, Int32Array, TimestampSecondArray, UInt64Array, UnionArray,
+        ArrayRef, BooleanArray, Float64Array, Int32Array, TimestampSecondArray, UInt64Array,
+        UnionArray,
     };
     use datafusion::arrow::array::{BinaryViewArray, StringViewArray};
     use datafusion::arrow::buffer::ScalarBuffer;
@@ -801,15 +836,17 @@ mod tests {
 
     #[test]
     fn test_convert_record_batches() {
+        // helper to downcast to StringArray
+        fn as_str_array(array: &ArrayRef) -> &StringArray {
+            array.as_any().downcast_ref::<StringArray>().unwrap()
+        }
+
         let schema = Arc::new(Schema::new(vec![
             Field::new("int_col", DataType::Int32, false),
-            Field::new(
-                "timestamp_col",
-                DataType::Timestamp(TimeUnit::Second, None),
-                true,
-            ),
+            Field::new("ts_col", DataType::Timestamp(TimeUnit::Second, None), true),
             Field::new("binary_view", DataType::BinaryView, true),
             Field::new("binary_view", DataType::Utf8View, true),
+            Field::new("boolean", DataType::Boolean, true),
         ]));
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
         let timestamp_array = Arc::new(TimestampSecondArray::from(vec![
@@ -825,6 +862,7 @@ mod tests {
         let utf8_view_array = Arc::new(StringViewArray::from_iter_values(vec![
             "hello", "world", "lulu",
         ]));
+        let bool_array = Arc::new(BooleanArray::from(vec![Some(false), Some(true), None]));
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
@@ -832,64 +870,66 @@ mod tests {
                 timestamp_array,
                 binary_view_array,
                 utf8_view_array,
+                bool_array,
             ],
         )
         .unwrap();
         let result = QueryResult::new(vec![batch], schema, 0);
         let column_infos = result.column_info();
+
+        // === JSON conversion ===
         let converted_batches =
             convert_record_batches(result.clone(), DataSerializationFormat::Json).unwrap();
-
-        let converted_batch = &converted_batches[0];
         assert_eq!(converted_batches.len(), 1);
-        assert_eq!(converted_batch.num_columns(), 4);
-        assert_eq!(converted_batch.num_rows(), 3);
 
-        let converted_array = converted_batch
-            .column(1)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-        assert_eq!(converted_array.value(0), "1627846261");
-        assert!(converted_array.is_null(1));
-        assert_eq!(converted_array.value(2), "1627846262");
+        let batch = &converted_batches[0];
+        assert_eq!(batch.num_columns(), 5);
+        assert_eq!(batch.num_rows(), 3);
 
-        let converted_array = converted_batch
-            .column(2)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-        assert_eq!(converted_array.value(0), "hello");
-        assert_eq!(converted_array.value(1), "world");
-        assert_eq!(converted_array.value(2), "lulu");
+        // timestamp → string
+        let arr = as_str_array(batch.column(1));
+        assert_eq!(arr.value(0), "1627846261");
+        assert!(arr.is_null(1));
+        assert_eq!(arr.value(2), "1627846262");
 
-        let converted_array = converted_batch
-            .column(3)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
-        assert_eq!(converted_array.value(0), "hello");
-        assert_eq!(converted_array.value(1), "world");
-        assert_eq!(converted_array.value(2), "lulu");
+        // binary_view → string
+        let arr = as_str_array(batch.column(2));
+        assert_eq!(arr.value(0), "hello");
+        assert_eq!(arr.value(1), "world");
+        assert_eq!(arr.value(2), "lulu");
 
+        // utf8_view → string
+        let arr = as_str_array(batch.column(3));
+        assert_eq!(arr.value(0), "hello");
+        assert_eq!(arr.value(1), "world");
+        assert_eq!(arr.value(2), "lulu");
+
+        // boolean → "TRUE"/"FALSE"/""
+        let arr = as_str_array(batch.column(4));
+        assert_eq!(arr.value(0), "FALSE");
+        assert_eq!(arr.value(1), "TRUE");
+        assert_eq!(arr.value(2), ""); // null boolean to empty string
+
+        // column info
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
-        assert_eq!(column_infos[1].name, "timestamp_col");
+        assert_eq!(column_infos[1].name, "ts_col");
         assert_eq!(column_infos[1].r#type, "timestamp_ntz");
         assert_eq!(column_infos[2].name, "binary_view");
         assert_eq!(column_infos[2].r#type, "binary");
 
+        // === Arrow conversion ===
         let converted_batches =
             convert_record_batches(result, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
-        let converted_array = converted_batch
+        let arr = converted_batch
             .column(1)
             .as_any()
             .downcast_ref::<Int64Array>()
             .unwrap();
-        assert_eq!(converted_array.value(0), 1_627_846_261);
-        assert!(converted_array.is_null(1));
-        assert_eq!(converted_array.value(2), 1_627_846_262);
+        assert_eq!(arr.value(0), 1_627_846_261);
+        assert!(arr.is_null(1));
+        assert_eq!(arr.value(2), 1_627_846_262);
     }
 
     #[allow(

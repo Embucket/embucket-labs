@@ -5,7 +5,7 @@
 WITH raw_account AS (
 
   SELECT *
-  FROM {{ source('salesforce', 'account') }}
+  FROM {{ source('salesforce', 'dup_salesforce_v2_stitch_account') }}
   --FROM raw.salesforce_v2_stitch.account
 
 ), mart_crm_account AS (

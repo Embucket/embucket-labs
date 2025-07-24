@@ -1,7 +1,7 @@
 WITH source as (
 
 	SELECT *
-  	  FROM {{ source('greenhouse', 'organizations') }}
+  	  FROM {{ source('greenhouse', 'dup_greenhouse_organizations') }}
 
 ), renamed as (
 

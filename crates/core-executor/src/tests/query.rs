@@ -2,6 +2,7 @@ use crate::session::UserSession;
 use std::collections::HashMap;
 
 use crate::models::QueryContext;
+use crate::service::CoreExecutionService;
 use crate::utils::Config;
 #[cfg(test)]
 use core_history::MockHistoryStore;
@@ -131,11 +132,17 @@ pub async fn create_df_session() -> Arc<UserSession> {
         )
         .await
         .expect("Failed to create schema");
-
+    let catalog_list = CoreExecutionService::catalog_list(metastore.clone(), history_store.clone())
+        .await
+        .expect("Failed to create catalog list");
     let user_session = Arc::new(
-        UserSession::new(metastore, history_store, Arc::new(Config::default()))
-            .await
-            .expect("Failed to create user session"),
+        UserSession::new(
+            metastore,
+            history_store,
+            Arc::new(Config::default()),
+            catalog_list,
+        )
+        .expect("Failed to create user session"),
     );
 
     for query in TABLE_SETUP.split(';') {
@@ -796,4 +803,73 @@ test_query!(
         "INSERT INTO t2 VALUES(4,'b_8','c_8')",
         "MERGE INTO t1 USING (SELECT * FROM t2) AS t2 ON t1.a = t2.a WHEN MATCHED THEN UPDATE SET t1.c = t2.c WHEN NOT MATCHED THEN INSERT (a,c) VALUES(t2.a,t2.c)",
     ]
+);
+
+test_query!(
+    timestamp_scale,
+    r#"SELECT
+       TO_TIMESTAMP(1000000000, 0) AS "Scale in seconds",
+       TO_TIMESTAMP(1000000000, 3) AS "Scale in milliseconds",
+       TO_TIMESTAMP(1000000000, 6) AS "Scale in microseconds",
+       TO_TIMESTAMP(1000000000, 9) AS "Scale in nanoseconds";"#
+);
+
+test_query!(
+    timestamp_scaled,
+    r#"SELECT
+       TO_TIMESTAMP(1000000000) AS "Scale in seconds",
+       TO_TIMESTAMP(1000000000000, 3) AS "Scale in milliseconds",
+       TO_TIMESTAMP(1000000000000000, 6) AS "Scale in microseconds",
+       TO_TIMESTAMP(1000000000000000000, 9) AS "Scale in nanoseconds";"#
+);
+
+test_query!(
+    timestamp_scale_decimal,
+    r#"SELECT
+       TO_TIMESTAMP(1000000000::DECIMAL, 0) AS "Scale in seconds",
+       TO_TIMESTAMP(1000000000::DECIMAL, 3) AS "Scale in milliseconds",
+       TO_TIMESTAMP(1000000000::DECIMAL, 6) AS "Scale in microseconds",
+       TO_TIMESTAMP(1000000000::DECIMAL, 9) AS "Scale in nanoseconds";"#
+);
+
+test_query!(
+    timestamp_scale_decimal_scaled,
+    r#"SELECT
+       TO_TIMESTAMP(1000000000::DECIMAL, 0) AS "Scale in seconds",
+       TO_TIMESTAMP(1000000000000::DECIMAL, 3) AS "Scale in milliseconds",
+       TO_TIMESTAMP(1000000000000000::DECIMAL, 6) AS "Scale in microseconds",
+       TO_TIMESTAMP(1000000000000000000::DECIMAL, 9) AS "Scale in nanoseconds";"#
+);
+
+test_query!(
+    timestamp_scale_int_str,
+    r#"SELECT
+       TO_TIMESTAMP('1000000000') AS "Scale in seconds",
+       TO_TIMESTAMP('1000000000000') AS "Scale in milliseconds",
+       TO_TIMESTAMP('1000000000000000') AS "Scale in microseconds",
+       TO_TIMESTAMP('1000000000000000000') AS "Scale in nanoseconds";"#
+);
+
+test_query!(
+    timestamp_str_format,
+    "SELECT
+       TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as a,
+       TO_TIMESTAMP('04/05/2024 01:02:03') as b",
+    setup_queries = ["SET timestamp_input_format = 'mm/dd/yyyy hh24:mi:ss'"]
+);
+
+test_query!(
+    timestamp_timestamp,
+    "SELECT TO_TIMESTAMP(1000000000::TIMESTAMP)"
+);
+
+test_query!(
+    timestamp_date,
+    "SELECT TO_TIMESTAMP('2022-01-01 11:30:00'::date)"
+);
+
+test_query!(
+    timestamp_timezone,
+    "SELECT TO_TIMESTAMP(1000000000)",
+    setup_queries = ["ALTER SESSION SET timestamp_input_mapping = 'timestamp_tz'"]
 );

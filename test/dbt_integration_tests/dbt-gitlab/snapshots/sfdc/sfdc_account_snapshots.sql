@@ -10,6 +10,6 @@
     }}
     
     SELECT *
-    FROM {{ source('salesforce', 'account') }}
+    FROM {{ source('salesforce', 'dup_salesforce_v2_stitch_account') }}
     
 {% endsnapshot %}

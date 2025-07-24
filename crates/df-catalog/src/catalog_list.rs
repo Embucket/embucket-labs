@@ -87,14 +87,11 @@ impl EmbucketCatalogList {
             .fail();
         };
         match catalog.catalog_type {
-            CatalogType::Embucket => {
-                self.metastore
-                    .delete_database(&name.to_string(), cascade)
-                    .await
-                    .context(MetastoreSnafu)?;
-                Ok(())
-            }
-            CatalogType::Memory => Ok(()),
+            CatalogType::Embucket | CatalogType::Memory => self
+                .metastore
+                .delete_database(&name.to_string(), cascade)
+                .await
+                .context(MetastoreSnafu),
             CatalogType::S3tables => NotImplementedSnafu {
                 feature: UnsupportedFeature::DropS3TablesDatabase,
                 details: "Dropping S3 tables catalogs is not supported",
@@ -135,19 +132,14 @@ impl EmbucketCatalogList {
                     .create_database(&catalog_name.to_owned(), ident)
                     .await
                     .context(MetastoreSnafu)?;
-                self.catalogs.insert(
-                    catalog_name.to_owned(),
-                    Arc::new(self.get_embucket_catalog(&database)?),
-                );
+                let mut catalog = self.get_embucket_catalog(&database)?;
+                // Set the catalog type based on the volume type
+                if matches!(volume.volume, VolumeType::Memory) {
+                    catalog = catalog.with_catalog_type(CatalogType::Memory);
+                }
+                self.catalogs
+                    .insert(catalog_name.to_owned(), Arc::new(catalog));
             }
-            // VolumeType::Memory => {
-            //     let provider = MemoryCatalogProvider::new();
-            //     let catalog = CachingCatalog::new(Arc::new(provider), catalog_name.to_owned())
-            //         .with_refresh(true)
-            //         .with_catalog_type(CatalogType::Memory);
-            //     self.catalogs
-            //         .insert(catalog_name.to_owned(), Arc::new(catalog));
-            // }
             VolumeType::S3Tables(_) => {
                 return NotImplementedSnafu {
                     feature: UnsupportedFeature::CreateS3TablesDatabase,

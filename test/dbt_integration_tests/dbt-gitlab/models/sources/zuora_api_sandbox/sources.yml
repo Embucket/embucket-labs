@@ -13,42 +13,29 @@ sources:
       identifier: false
 
     tables:
-      - name: account
+      - name: dup_zuora_api_sandbox_stitch_account
         columns:
           - name: id
             description: Primary Key for Accounts
             data_tests:
               - dbt_utils.expression_is_true:
                   expression: "REGEXP '[0-9a-z]{32}'"
-      - name: accounting_period
-        identifier: accountingperiod
-      - name: amendment
-      - name: contact
-      - name: invoice
-      - name: invoice_item
-        identifier: invoiceitem
-      - name: invoice_payment
-        identifier: invoicepayment
-      - name: order
-        identifier: ORDER
-        quoting:
-          identifier: true 
-      - name: order_action
-        identifier: orderaction
-      - name: product
-      - name: product_rate_plan
-        identifier: productrateplan
-      - name: product_rate_plan_charge
-        identifier: productrateplancharge
-      - name: product_rate_plan_charge_tier
-        identifier: productrateplanchargetier
-      - name: rate_plan
-        identifier: rateplan
-      - name: rate_plan_charge
-        identifier: rateplancharge
-      - name: rate_plan_charge_tier
-        identifier: rateplanchargetier
-      - name: refund
-      - name: revenue_schedule_item
-        identifier: revenuescheduleitem
-      - name: subscription
+      - name: dup_zuora_api_sandbox_stitch_accountingperiod
+#        identifier: accountingperiod
+      - name: dup_zuora_api_sandbox_stitch_amendment
+      - name: dup_zuora_api_sandbox_stitch_contact
+      - name: dup_zuora_api_sandbox_stitch_invoice
+      - name: dup_zuora_api_sandbox_stitch_invoiceitem
+      - name: dup_zuora_api_sandbox_stitch_invoicepayment
+      - name: dup_zuora_api_sandbox_stitch_order
+      - name: dup_zuora_api_sandbox_stitch_orderaction
+      - name: dup_zuora_api_sandbox_stitch_product
+      - name: dup_zuora_api_sandbox_stitch_productrateplan
+      - name: dup_zuora_api_sandbox_stitch_productrateplancharge
+      - name: dup_zuora_api_sandbox_stitch_productrateplanchargetier
+      - name: dup_zuora_api_sandbox_stitch_rateplan
+      - name: dup_zuora_api_sandbox_stitch_rateplancharge
+      - name: dup_zuora_api_sandbox_stitch_rateplanchargetier
+      - name: dup_zuora_api_sandbox_stitch_refund
+      - name: dup_zuora_api_sandbox_stitch_revenuescheduleitem
+      - name: dup_zuora_api_sandbox_stitch_subscription

@@ -156,7 +156,7 @@ mod tests {
     use crate::session::SessionStore;
     use core_executor::models::QueryContext;
     use core_executor::service::ExecutionService;
-    use core_executor::service::make_text_execution_svc;
+    use core_executor::service::make_test_execution_svc;
     use std::time::Duration;
     use time::OffsetDateTime;
     use tokio::time::sleep;
@@ -164,7 +164,7 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::expect_used, clippy::too_many_lines)]
     async fn test_expiration() {
-        let execution_svc = make_text_execution_svc().await;
+        let execution_svc = make_test_execution_svc().await;
 
         let df_session_id = "fasfsafsfasafsass".to_string();
         let user_session = execution_svc

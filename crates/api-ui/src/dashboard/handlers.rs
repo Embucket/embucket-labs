@@ -50,7 +50,6 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<Dashboa
         .await
         .context(UtilSlateDBSnafu)
         .context(MetastoreSnafu)?;
-
     let total_databases = rw_databases.len();
     let mut total_schemas = 0;
     let mut total_tables = 0;

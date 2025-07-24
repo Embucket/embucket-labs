@@ -35,7 +35,7 @@ job AS (
 ),
 users_raw AS (
   SELECT *
-  FROM {{ source('greenhouse', 'users') }}
+  FROM {{ source('greenhouse', 'dup_greenhouse_users') }}
 ),
 
 job_custom AS (

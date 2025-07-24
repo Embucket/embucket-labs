@@ -10,6 +10,6 @@
     }}
     
     SELECT * 
-    FROM {{ source('salesforce', 'contact') }}
+    FROM {{ source('salesforce', 'dup_salesforce_v2_stitch_contact') }}
     
 {% endsnapshot %}

@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('salesforce', 'event') }}
+    FROM {{ source('salesforce', 'dup_salesforce_v2_stitch_event') }}
 
 ), renamed AS (
 

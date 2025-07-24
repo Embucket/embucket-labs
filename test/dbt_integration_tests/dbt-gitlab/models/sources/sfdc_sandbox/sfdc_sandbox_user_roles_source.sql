@@ -1,7 +1,7 @@
 WITH base AS (
 
     SELECT * 
-    FROM {{ source('salesforce_sandbox', 'user_role') }}
+    FROM {{ source('salesforce_sandbox', 'dup_salesforce_stitch_sandbox_v2_userrole') }}
 
 ), renamed AS (
 

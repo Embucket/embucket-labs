@@ -43,21 +43,17 @@ pub struct UserSession {
 }
 
 impl UserSession {
-    pub async fn new(
+    pub fn new(
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,
         config: Arc<Config>,
+        catalog_list: Arc<EmbucketCatalogList>,
     ) -> Result<Self> {
         let sql_parser_dialect =
             env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
 
-        let catalog_list_impl = Arc::new(EmbucketCatalogList::new(
-            metastore.clone(),
-            history_store.clone(),
-        ));
-
         let runtime_config = RuntimeEnvBuilder::new()
-            .with_object_store_registry(catalog_list_impl.clone())
+            .with_object_store_registry(catalog_list.clone())
             .build()
             .context(ex_error::DataFusionSnafu)?;
 
@@ -82,7 +78,7 @@ impl UserSession {
             )
             .with_default_features()
             .with_runtime_env(Arc::new(runtime_config))
-            .with_catalog_list(catalog_list_impl.clone())
+            .with_catalog_list(catalog_list)
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
@@ -97,15 +93,6 @@ impl UserSession {
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
 
-        catalog_list_impl
-            .register_catalogs()
-            .await
-            .context(ex_error::RegisterCatalogSnafu)?;
-        catalog_list_impl
-            .refresh()
-            .await
-            .context(ex_error::RefreshCatalogListSnafu)?;
-        catalog_list_impl.start_refresh_internal_catalogs_task(10);
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
             metastore,

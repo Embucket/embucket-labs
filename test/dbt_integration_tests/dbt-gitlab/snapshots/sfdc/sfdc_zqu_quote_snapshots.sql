@@ -10,6 +10,6 @@
     }}
 
     SELECT *
-    FROM {{ source('salesforce', 'zqu_quote') }}
+    FROM {{ source('salesforce', 'dup_salesforce_v2_stitch_zqu__quote__c') }}
 
 {% endsnapshot %}

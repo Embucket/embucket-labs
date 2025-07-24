@@ -24,7 +24,9 @@ async fn test_execute_always_returns_schema() {
         metastore.clone(),
         history_store.clone(),
         Arc::new(Config::default()),
-    );
+    )
+    .await
+    .expect("Failed to create execution service");
 
     execution_svc
         .create_session("test_session_id".to_string())
@@ -102,7 +104,9 @@ async fn test_service_upload_file() {
         metastore.clone(),
         history_store.clone(),
         Arc::new(Config::default()),
-    );
+    )
+    .await
+    .expect("Failed to create execution service");
 
     let session_id = "test_session_id";
     execution_svc
@@ -229,7 +233,9 @@ async fn test_service_create_table_file_volume() {
         metastore.clone(),
         history_store.clone(),
         Arc::new(Config::default()),
-    );
+    )
+    .await
+    .expect("Failed to create execution service");
 
     let session_id = "test_session_id";
     execution_svc
@@ -282,12 +288,6 @@ async fn test_query_recording() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db));
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        history_store.clone(),
-        Arc::new(Config::default()),
-    );
-
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -312,6 +312,14 @@ async fn test_query_recording() {
         )
         .await
         .expect("Failed to create database");
+
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        history_store.clone(),
+        Arc::new(Config::default()),
+    )
+    .await
+    .expect("Failed to create execution service");
 
     let session_id = "test_session_id";
     execution_svc

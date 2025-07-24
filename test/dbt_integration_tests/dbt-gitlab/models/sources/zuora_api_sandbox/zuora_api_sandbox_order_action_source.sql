@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('zuora_api_sandbox', 'order_action') }}
+    FROM {{ source('zuora_api_sandbox', 'dup_zuora_api_sandbox_stitch_orderaction') }}
 
 ), renamed AS(
 

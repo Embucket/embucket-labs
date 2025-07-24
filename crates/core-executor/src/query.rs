@@ -53,8 +53,8 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType,
-    LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and, build_join_schema,
-    is_null, lit, or, when,
+    LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
+    build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -65,11 +65,12 @@ use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::information_schema::session_params::SessionProperty;
 use df_catalog::table::CachingTable;
+use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
     json_element, qualify_in_query, select_expr_aliases, table_functions,
-    table_functions_cte_relation, top_limit,
+    table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -249,6 +250,77 @@ impl UserQuery {
         }
     }
 
+    fn register_session_udfs(&self) {
+        // TO_TIMESTAMP
+        let format = self
+            .session
+            .get_session_variable("timestamp_input_format")
+            .unwrap_or_else(|| "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
+        let tz = self
+            .session
+            .get_session_variable("timezone")
+            .unwrap_or_else(|| "America/Los_Angeles".to_string());
+
+        let mapping = self
+            .session
+            .get_session_variable("timestamp_input_mapping")
+            .unwrap_or_else(|| "timestamp_ntz".to_string());
+
+        let funcs = [
+            (
+                if mapping == "timestamp_ntz" {
+                    None
+                } else {
+                    Some(Arc::from(tz.clone()))
+                },
+                false,
+                "to_timestamp".to_string(),
+            ),
+            (
+                if mapping == "timestamp_ntz" {
+                    None
+                } else {
+                    Some(Arc::from(tz.clone()))
+                },
+                true,
+                "try_to_timestamp".to_string(),
+            ),
+            (None, false, "to_timestamp_ntz".to_string()),
+            (None, true, "try_to_timestamp_ntz".to_string()),
+            (
+                Some(Arc::from(tz.clone())),
+                false,
+                "to_timestamp_tz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz.clone())),
+                true,
+                "try_to_timestamp_tz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz.clone())),
+                false,
+                "to_timestamp_ltz".to_string(),
+            ),
+            (
+                Some(Arc::from(tz)),
+                true,
+                "try_to_timestamp_ltz".to_string(),
+            ),
+        ];
+
+        for (tz, r#try, name) in funcs {
+            self.session
+                .ctx
+                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
+                    tz,
+                    format.clone(),
+                    r#try,
+                    name,
+                )));
+        }
+    }
+
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
         if let DFStatement::Statement(value) = statement {
@@ -262,6 +334,7 @@ impl UserQuery {
             fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
             qualify_in_query::visit(value);
+            timestamp::visit(value);
             table_functions_cte_relation::visit(value);
             visit_all(value);
         }
@@ -279,6 +352,7 @@ impl UserQuery {
     pub async fn execute(&mut self) -> Result<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
+        self.register_session_udfs();
 
         // Record the result as part of the current span.
         tracing::Span::current().record("statement", format!("{statement:#?}"));

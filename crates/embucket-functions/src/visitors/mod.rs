@@ -14,6 +14,7 @@ pub mod qualify_in_query;
 pub mod select_expr_aliases;
 pub mod table_functions;
 pub mod table_functions_cte_relation;
+pub mod timestamp;
 pub mod top_limit;
 pub mod unimplemented;
 

@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('salesforce_sandbox', 'user') }}
+    FROM {{ source('salesforce_sandbox', 'dup_salesforce_stitch_sandbox_v2_user') }}
 
 ), renamed AS(
 

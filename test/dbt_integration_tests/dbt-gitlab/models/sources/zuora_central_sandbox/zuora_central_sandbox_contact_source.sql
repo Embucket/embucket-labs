@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('zuora_central_sandbox', 'contact') }}
+    FROM {{ source('zuora_central_sandbox', 'dup_zuora_central_sandbox_fivetran_contact') }}
 
 ), renamed AS(
 

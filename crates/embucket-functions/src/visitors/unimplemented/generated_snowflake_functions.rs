@@ -534,13 +534,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/cast")
     ),
-    ("DATE", FunctionInfo::new(
-        "DATE",
-        "Converts an input expression to a date."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_date")
-    .with_subcategory("datetime")
-    ),
     ("ST_GEOGFROMGEOHASH", FunctionInfo::new(
         "ST_GEOGFROMGEOHASH",
         "Returns a GEOGRAPHY object for the polygon that represents the boundaries of a geohash."
@@ -617,12 +610,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_object")
     .with_subcategory("semi-structured")
     ),
-    ("TO_VARCHAR", FunctionInfo::new(
-        "TO_VARCHAR",
-        "Converts the input expression to a string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_char")
-    ),
     ("TO_XML", FunctionInfo::new(
         "TO_XML",
         "Converts a VARIANT to a VARCHAR that contains an XML representation of the value."
@@ -635,13 +622,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "A special version of CAST , :: that is available for a subset of data type conversions."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_cast")
-    ),
-    ("TRY_TO_DATE", FunctionInfo::new(
-        "TRY_TO_DATE",
-        "A special version of the TO_DATE function that performs the same operation (i.e. converts an input expression to a date), but with error-handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_date")
-    .with_subcategory("datetime")
     ),
     ("TRY_TO_DOUBLE", FunctionInfo::new(
         "TRY_TO_DOUBLE",

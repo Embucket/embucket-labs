@@ -4,7 +4,7 @@
 
 WITH source AS (
   SELECT *
-  FROM {{ source('gainsight_customer_success','company') }}
+  FROM {{ source('gainsight_customer_success','dup_company') }}
 ),
 
 renamed AS (

@@ -18,7 +18,7 @@ sources:
       error_after: {count: 24, period: hour}
 
     tables:
-      - name: account
+      - name: dup_zuora_stitch_account
         description: '{{ doc("zuora_account_source") }}'
         columns:
           - name: id
@@ -30,7 +30,7 @@ sources:
         identifier: accountingperiod
         description: '{{ doc("zuora_accounting_period_source") }}'
       - name: amendment
-      - name: contact 
+      - name: dup_zuora_stitch_contact
         description: '{{ doc("zuora_contact_source") }}'
       - name: credit_balance_adjustment
         identifier: creditbalanceadjustment

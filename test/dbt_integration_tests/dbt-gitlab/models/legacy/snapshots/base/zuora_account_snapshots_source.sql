@@ -8,7 +8,7 @@ WITH source AS (
 ), zuora_account AS (
 
     SELECT *
-    FROM {{ source('zuora', 'account') }}
+    FROM {{ source('zuora', 'dup_zuora_stitch_account') }}
 
 ), renamed AS(
 

@@ -30,6 +30,7 @@ pub async fn run_test_server_with_demo_auth(
         .with_demo_credentials(demo_user, demo_password);
 
     let app = make_app(metastore, history, snowflake_rest_cfg)
+        .await
         .unwrap()
         .into_make_service_with_connect_info::<SocketAddr>();
 
@@ -45,17 +46,17 @@ pub async fn run_test_server() -> SocketAddr {
     run_test_server_with_demo_auth(String::new(), String::new()).await
 }
 
-#[allow(clippy::needless_pass_by_value)]
-pub fn make_app(
+#[allow(clippy::needless_pass_by_value, clippy::expect_used)]
+pub async fn make_app(
     metastore: Arc<SlateDBMetastore>,
     history_store: Arc<SlateDBHistoryStore>,
     snowflake_rest_cfg: Config,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let execution_svc = Arc::new(CoreExecutionService::new(
-        metastore,
-        history_store,
-        Arc::new(UtilsConfig::default()),
-    ));
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(metastore, history_store, Arc::new(UtilsConfig::default()))
+            .await
+            .expect("Failed to create execution service"),
+    );
 
     // Create the application state
 

@@ -42,13 +42,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Unsupported format: {format}. Valid formats are HEX, BASE64, and UTF-8"))]
-    UnsupportedFormat {
-        format: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Invalid boolean string: {v}"))]
     InvalidBooleanString {
         v: String,
@@ -112,6 +105,77 @@ pub enum Error {
     InvalidIntegerConversion {
         #[snafu(source)]
         error: TryFromIntError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Argument 2 needs to be integer"))]
+    ArgumentTwoNeedsToBeInteger {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Invalid value for function at position 2"))]
+    InvalidValueForFunctionAtPositionTwo {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't cast to {v}"))]
+    CantCastTo {
+        v: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't parse timestamp"))]
+    CantParseTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't get timestamp"))]
+    CantGetTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't parse timezone"))]
+    CantParseTimezone {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't create DateTime from timestamp"))]
+    CantCreateDateTimeFromTimestamp {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Can't add local timezone"))]
+    CantAddLocalTimezone {
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Invalid datatype"))]
+    InvalidDataType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unsupported format: {format}. Valid formats are {expected}."))]
+    UnsupportedFormat {
+        format: String,
+        expected: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Can't format value: {value}. Valid formats are {formats}."))]
+    UnsupportedValueFormat {
+        value: String,
+        formats: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid numeric value: {value}"))]
+    InvalidNumericValue {
+        value: String,
+        #[snafu(source)]
+        error: std::num::ParseFloatError,
         #[snafu(implicit)]
         location: Location,
     },
