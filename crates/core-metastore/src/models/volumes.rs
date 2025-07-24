@@ -39,13 +39,32 @@ fn s3tables_arn_regex_func() -> Regex {
 }
 
 // AWS Access Key Credentials
-#[derive(Validate, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
+#[derive(Validate, Serialize, Deserialize, PartialEq, Eq, Clone, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct AwsAccessKeyCredentials {
     #[validate(regex(path = aws_access_key_id_regex_func(), message="AWS Access key ID is expected to be 20 chars alphanumeric string.\n"))]
     pub aws_access_key_id: String,
     #[validate(regex(path = aws_secret_access_key_regex_func(), message = "AWS Secret access key is expected to be 40 chars Base64-like string with uppercase, lowercase, digits, and +/= .\n"))]
     pub aws_secret_access_key: String,
+}
+
+impl std::fmt::Display for AwsAccessKeyCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "aws_access_key_id: {},",
+            self.aws_access_key_id
+        ))?;
+        f.write_str("aws_secret_access_key: **********")
+    }
+}
+
+impl std::fmt::Debug for AwsAccessKeyCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AwsAccessKeyCredentials")
+            .field("aws_access_key_id", &self.aws_access_key_id)
+            .field("aws_secret_access_key", &"**********")
+            .finish()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, utoipa::ToSchema)]
@@ -86,6 +105,37 @@ pub struct S3Volume {
     pub credentials: Option<AwsCredentials>,
 }
 
+impl S3Volume {
+    pub fn get_s3_builder(&self) -> AmazonS3Builder {
+        let mut s3_builder = AmazonS3Builder::new()
+            .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
+
+        if let Some(region) = &self.region {
+            s3_builder = s3_builder.with_region(region);
+        }
+        if let Some(bucket) = &self.bucket {
+            s3_builder = s3_builder.with_bucket_name(bucket.clone());
+        }
+        if let Some(endpoint) = &self.endpoint {
+            s3_builder = s3_builder.with_endpoint(endpoint);
+            s3_builder = s3_builder.with_allow_http(endpoint.starts_with("http:"));
+        }
+        if let Some(credentials) = &self.credentials {
+            match credentials {
+                AwsCredentials::AccessKey(creds) => {
+                    s3_builder = s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
+                    s3_builder =
+                        s3_builder.with_secret_access_key(creds.aws_secret_access_key.clone());
+                }
+                AwsCredentials::Token(token) => {
+                    s3_builder = s3_builder.with_token(token.clone());
+                }
+            }
+        }
+        s3_builder
+    }
+}
+
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct S3TablesVolume {
@@ -109,7 +159,7 @@ impl S3TablesVolume {
             endpoint: self.endpoint.clone(),
             credentials: Some(self.credentials.clone()),
         };
-        Volume::get_s3_builder(&s3_volume)
+        s3_volume.get_s3_builder()
     }
 
     pub fn bucket(&self) -> Option<String> {
@@ -206,7 +256,7 @@ impl Volume {
     pub fn get_object_store(&self) -> Result<Arc<dyn ObjectStore>> {
         match &self.volume {
             VolumeType::S3(volume) => {
-                let s3_builder = Self::get_s3_builder(volume);
+                let s3_builder = volume.get_s3_builder();
                 s3_builder
                     .build()
                     .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -228,37 +278,6 @@ impl Volume {
         }
     }
 
-    #[must_use]
-    pub fn get_s3_builder(volume: &S3Volume) -> AmazonS3Builder {
-        let mut s3_builder = AmazonS3Builder::new()
-            .with_conditional_put(object_store::aws::S3ConditionalPut::ETagMatch);
-
-        if let Some(region) = &volume.region {
-            s3_builder = s3_builder.with_region(region);
-        }
-        if let Some(bucket) = &volume.bucket {
-            s3_builder = s3_builder.with_bucket_name(bucket.clone());
-        }
-        if let Some(endpoint) = &volume.endpoint {
-            s3_builder = s3_builder.with_endpoint(endpoint);
-            s3_builder = s3_builder.with_allow_http(endpoint.starts_with("http:"));
-        }
-        if let Some(credentials) = &volume.credentials {
-            match credentials {
-                AwsCredentials::AccessKey(creds) => {
-                    s3_builder = s3_builder.with_access_key_id(creds.aws_access_key_id.clone());
-                    s3_builder =
-                        s3_builder.with_secret_access_key(creds.aws_secret_access_key.clone());
-                }
-                AwsCredentials::Token(token) => {
-                    s3_builder = s3_builder.with_token(token.clone());
-                }
-            }
-        }
-        s3_builder
-    }
-
-    #[must_use]
     pub fn prefix(&self) -> String {
         match &self.volume {
             VolumeType::S3(volume) => volume

@@ -87,6 +87,7 @@ utoipa-axum = { version = "0.2.0" }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
+mockall = "0.13.1"
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "185dc7dcfcf1e94501959e53584a22f4f0878c35" }

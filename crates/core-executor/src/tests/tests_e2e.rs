@@ -31,7 +31,7 @@ async fn template_test_two_executors_one_fences_another(
     let object_store_file =
         ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
 
-    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
+    let file_exec1 = create_executor(object_store_file.clone(), "#1").await?;
     let file_exec1 = Arc::new(file_exec1);
 
     // create data using first executor
@@ -48,7 +48,7 @@ async fn template_test_two_executors_one_fences_another(
     assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
 
     // create 2nd executor on the same object store
-    let file_exec2 = create_executor(object_store_file, &test_suffix, "#2").await?;
+    let file_exec2 = create_executor(object_store_file, "#2").await?;
     let file_exec2 = Arc::new(file_exec2);
 
     // write data using 2nd executor
@@ -64,7 +64,7 @@ async fn template_test_two_executors_one_fences_another(
     }])];
     assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
 
-    // give delay for sync job to run 
+    // give delay for sync job to run
     if let Some(delay) = delay {
         tokio::time::sleep(delay).await; // Ensure the executor is created after the previous delay
     }
@@ -128,7 +128,6 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
 
     let executor = create_executor(
         ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
-        &test_suffix,
         "s3_exec",
     )
     .await?;
@@ -195,7 +194,6 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
 
     let file_exec1 = create_executor(
         ObjectStoreType::File(test_suffix1.clone(), env::temp_dir().join("store")),
-        &test_suffix1,
         "#1",
     )
     .await?;
@@ -203,7 +201,6 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
 
     let file_exec2 = create_executor(
         ObjectStoreType::File(test_suffix2.clone(), env::temp_dir().join("store")),
-        &test_suffix2,
         "#2",
     )
     .await?;
@@ -255,6 +252,7 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
     Ok(())
 }
 
+// Running single Embucket (s3 based volume), two sessions, second sessions successfully reads first session writes.
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
@@ -266,7 +264,6 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
 
     let s3_exec = create_executor(
         ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
-        &test_suffix,
         "s3_exec",
     )
     .await?;
@@ -304,6 +301,62 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume() -> Result<(), Error> {
+    dotenv().ok();
+
+    let executor = create_executor(
+        ObjectStoreType::File(test_suffix(), env::temp_dir().join("store")),
+        "file_exec",
+    )
+    .await?;
+    let executor = Arc::new(executor);
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    // corrupt s3 volume
+    executor.create_s3_volume_with_bad_creds().await?;
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: false,
+    }])];
+
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
+        executor,
+        session_id: TEST_SESSION_ID1,
+        expected_res: false,
+    }])];
+
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    Ok(())
+}
+
+// Running single Embucket (file based, s3 based volumes), two sessions, writes to different tables.
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inserts()
 -> Result<(), Error> {
     dotenv().ok();
@@ -313,14 +366,12 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
     let executors = vec![
         create_executor(
             ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store")),
-            &test_suffix,
             "file_exec",
         )
         .await?,
-        create_executor(ObjectStoreType::Memory, &test_suffix, "memory_exec").await?,
+        create_executor(ObjectStoreType::Memory(test_suffix.clone()), "memory_exec").await?,
         create_executor(
             ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
-            &test_suffix,
             "s3_exec",
         )
         .await?,
@@ -330,45 +381,48 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         // test every executor sequentially but their sessions in parallel
         let executor = Arc::new(executor);
 
-        let test_plan = vec![ParallelTest(vec![
-            TestQuery {
+        let test_plan = vec![
+            ParallelTest(vec![TestQuery {
                 sqls: vec![
                     "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
                     "CREATE SCHEMA __DATABASE__.__SCHEMA__",
                     CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES,
                     "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-                    INSERT_INTO_ALL_SNOWFLAKE_TYPES, // last query runs in non blocking mode
                 ],
                 executor: executor.clone(),
                 session_id: TEST_SESSION_ID1,
                 expected_res: true,
-            },
-            TestQuery {
-                sqls: vec![
-                    // test if database and schema created in other sessions can be resolved in this session
-                    "CREATE TABLE __DATABASE__.__SCHEMA__.xxx(test number)",
-                    // test if table created in other sessions can be resolved in this session
-                    "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+            }]),
+            ParallelTest(vec![
+                TestQuery {
+                    sqls: vec![
+                        INSERT_INTO_ALL_SNOWFLAKE_TYPES, // last query runs in non blocking mode
+                    ],
+                    executor: executor.clone(),
+                    session_id: TEST_SESSION_ID1,
+                    expected_res: true,
+                },
+                TestQuery {
+                    sqls: vec![
+                        // test if database and schema table created in other sessions can be resolved in this session
+                        "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                         (100, 'Alice', 'foo'),
                         (200, 'Bob', 'bar'),
                         (300, 'Charlie', 'baz'),
                         (400, 'Diana', 'qux'),
                         (500, 'Eve', 'quux');",
-                ],
-                executor,
-                session_id: TEST_SESSION_ID2, // reuse template for either two sessions or two executors
-                expected_res: true,
-            },
-        ])];
+                    ],
+                    executor,
+                    session_id: TEST_SESSION_ID2, // reuse template for either two sessions or two executors
+                    expected_res: true,
+                },
+            ]),
+        ];
 
         assert!(
             exec_parallel_test_plan(
                 test_plan,
-                vec![
-                    /*TEST_VOLUME_S3TABLES,*/ TEST_VOLUME_MEMORY,
-                    TEST_VOLUME_FILE,
-                    TEST_VOLUME_S3
-                ]
+                vec![TEST_VOLUME_S3, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY,]
             )
             .await?
         );
@@ -416,11 +470,10 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
 
     let test_suffix = test_suffix();
 
-    let object_store_file =
-        ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store"));
+    let object_store_file = ObjectStoreType::File(test_suffix, env::temp_dir().join("store"));
 
-    let file_exec1 = create_executor(object_store_file.clone(), &test_suffix, "#1").await?;
-    let _ = create_executor(object_store_file, &test_suffix, "#2").await?;
+    let file_exec1 = create_executor(object_store_file.clone(), "#1").await?;
+    let _ = create_executor(object_store_file, "#2").await?;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec!["CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__"],
@@ -433,6 +486,8 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
     Ok(())
 }
 
+// Two embucket instances, both writers, one succeed with writing, other should fail
+// Two embucket instances with shared s3 based configuration, second instance should read first instance writes
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
@@ -448,7 +503,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails_if_delayed()
+async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails_if_delayed_is_this_needed()
 -> Result<(), Error> {
     dotenv().ok();
 

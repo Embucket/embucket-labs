@@ -1,16 +1,19 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
+use crate::SnowflakeError;
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
 use chrono::Utc;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::Metastore;
+use core_metastore::RwObject;
 use core_metastore::SlateDBMetastore;
 use core_metastore::Volume as MetastoreVolume;
+use core_metastore::error::UtilSlateDBSnafu;
 use core_metastore::models::volumes::AwsAccessKeyCredentials;
 use core_metastore::models::volumes::AwsCredentials;
-use core_metastore::{FileVolume, S3TablesVolume, S3Volume};
+use core_metastore::{FileVolume, S3TablesVolume, S3Volume, VolumeType};
 use core_utils::Db;
 use futures::future::join_all;
 use object_store::ObjectStore;
@@ -27,7 +30,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-// Set envs, and add to .env
+// Set following envs, or add to .env
 
 // # Env vars for s3 object store
 // AWS_ACCESS_KEY_ID=
@@ -63,6 +66,7 @@ pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
 
+#[snafu(visibility(pub))]
 #[derive(Debug, Snafu)]
 pub enum Error {
     Slatedb {
@@ -75,9 +79,10 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    Execution {
+    SnowflakeExecution {
         query: String,
-        source: crate::Error,
+        #[snafu(source(from(crate::Error, SnowflakeError::from)))]
+        source: SnowflakeError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -88,6 +93,16 @@ pub enum Error {
     },
     S3TablesVolumeConfig {
         source: VarError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    Metastore {
+        source: core_metastore::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Error corrupting S3 volume: No Aws access key credentials found"))]
+    CreateS3VolumeWithBadCreds {
         #[snafu(implicit)]
         location: Location,
     },
@@ -177,6 +192,8 @@ impl S3ObjectStore {
 
 pub struct ExecutorWithObjectStore {
     pub executor: CoreExecutionService,
+    pub metastore: Arc<dyn Metastore>,
+    pub db: Arc<Db>,
     pub object_store_type: ObjectStoreType,
     pub alias: String,
 }
@@ -187,20 +204,155 @@ impl ExecutorWithObjectStore {
         self.alias = alias;
         self
     }
+
+    pub async fn create_sessions(&self) -> Result<(), Error> {
+        self.executor
+            .create_session(TEST_SESSION_ID1.to_string())
+            .await
+            .context(SnowflakeExecutionSnafu {
+                query: "create session TEST_SESSION_ID1",
+            })?;
+
+        self.executor
+            .create_session(TEST_SESSION_ID2.to_string())
+            .await
+            .context(SnowflakeExecutionSnafu {
+                query: "create session TEST_SESSION_ID2",
+            })?;
+
+        Ok(())
+    }
+
+    // Update volume saved in metastore, can't use metastore trait as it checks existance before write
+    // Therefore define our own version of metastore volume saver
+    // Saves corrupted aws credentials for s3 volume
+    pub(crate) async fn create_s3_volume_with_bad_creds(&self) -> Result<(), Error> {
+        let volume_name = TEST_VOLUME_S3.0.to_string();
+        let db_key = format!("vol/{volume_name}");
+        let volume = self
+            .db
+            .get::<RwObject<MetastoreVolume>>(&db_key)
+            .await
+            .context(UtilSlateDBSnafu)
+            .context(MetastoreSnafu)?;
+        if let Some(volume) = volume {
+            let volume = volume.data;
+            // set_bad_aws_credentials_for_bucket, by reversing creds
+            if let VolumeType::S3(s3_volume) = volume.volume {
+                if let Some(AwsCredentials::AccessKey(access_key)) = s3_volume.credentials {
+                    // assign reversed string
+                    let aws_credentials = AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                        aws_access_key_id: access_key.aws_access_key_id.chars().rev().collect(),
+                        aws_secret_access_key: access_key
+                            .aws_secret_access_key
+                            .chars()
+                            .rev()
+                            .collect(),
+                    });
+                    // wrap as a fresh RwObject, this sets new updated at
+                    let rwobject = RwObject::new(MetastoreVolume::new(
+                        volume_name,
+                        VolumeType::S3(S3Volume {
+                            region: s3_volume.region,
+                            bucket: s3_volume.bucket,
+                            endpoint: s3_volume.endpoint,
+                            credentials: Some(aws_credentials),
+                        }),
+                    ));
+                    println!("Intentionally corrupting volume: {:#?}", rwobject.data);
+                    self.db
+                        .put(&db_key, &rwobject)
+                        .await
+                        .context(UtilSlateDBSnafu)
+                        .context(MetastoreSnafu)?;
+                } else {
+                    return Err(CreateS3VolumeWithBadCredsSnafu.build());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn create_volumes(&self) -> Result<(), Error> {
+        let suffix = self.object_store_type.suffix();
+
+        // ignore errors when creating volume, as it could be created in previous run
+        let _ = self
+            .metastore
+            .create_volume(
+                &TEST_VOLUME_MEMORY.0.to_string(),
+                MetastoreVolume::new(
+                    TEST_VOLUME_MEMORY.0.to_string(),
+                    core_metastore::VolumeType::Memory,
+                ),
+            )
+            .await;
+
+        let mut user_data_dir = env::temp_dir();
+        user_data_dir.push("store");
+        user_data_dir.push(format!("user-volume-{suffix}"));
+        let user_data_dir = user_data_dir.as_path();
+        let _ = self
+            .metastore
+            .create_volume(
+                &TEST_VOLUME_FILE.0.to_string(),
+                MetastoreVolume::new(
+                    TEST_VOLUME_FILE.0.to_string(),
+                    core_metastore::VolumeType::File(FileVolume {
+                        path: user_data_dir.display().to_string(),
+                    }),
+                ),
+            )
+            .await;
+
+        self.metastore
+            .create_volume(
+                &TEST_VOLUME_S3.0.to_string(),
+                MetastoreVolume::new(
+                    TEST_VOLUME_S3.0.to_string(),
+                    core_metastore::VolumeType::S3(s3_volume()?),
+                ),
+            )
+            .await
+            .context(MetastoreSnafu)?;
+
+        if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
+            let _ = self
+                .metastore
+                .create_volume(
+                    &TEST_VOLUME_S3TABLES.0.to_string(),
+                    MetastoreVolume::new(
+                        TEST_VOLUME_S3TABLES.0.to_string(),
+                        core_metastore::VolumeType::S3Tables(s3_tables_volume),
+                    ),
+                )
+                .await;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum ObjectStoreType {
-    Memory,
+    Memory(String),            // suffix, not used by memory volume
     File(String, PathBuf),     // + suffix
     S3(String, S3ObjectStore), // + suffix
+}
+
+impl ObjectStoreType {
+    pub fn suffix(&self) -> &str {
+        match self {
+            Self::Memory(suffix) | Self::File(suffix, ..) | Self::S3(suffix, ..) => suffix,
+        }
+    }
 }
 
 // Display
 impl fmt::Display for ObjectStoreType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Memory => write!(f, "Memory"),
+            Self::Memory(_) => write!(f, "Memory"),
             Self::File(suffix, path) => write!(f, "File({}/{suffix})", path.display()),
             Self::S3(suffix, s3_object_store) => write!(
                 f,
@@ -218,7 +370,7 @@ impl ObjectStoreType {
     #[allow(clippy::as_conversions)]
     pub fn object_store(&self) -> Result<Arc<dyn ObjectStore>, Error> {
         match &self {
-            Self::Memory => Ok(Arc::new(object_store::memory::InMemory::new())),
+            Self::Memory(_) => Ok(Arc::new(object_store::memory::InMemory::new())),
             Self::File(_, path, ..) => Ok(Arc::new(Self::object_store_at_path(path.as_path())?)),
             Self::S3(_, s3_object_store, ..) => s3_object_store
                 .s3_builder
@@ -231,7 +383,7 @@ impl ObjectStoreType {
 
     pub async fn db(&self) -> Result<Db, Error> {
         let db = match &self {
-            Self::Memory => Db::memory().await,
+            Self::Memory(_) => Db::memory().await,
             Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
                 SlateDb::open_with_opts(
                     object_store::path::Path::from(suffix.clone()),
@@ -259,89 +411,30 @@ impl ObjectStoreType {
 
 pub async fn create_executor(
     object_store_type: ObjectStoreType,
-    fs_volume_suffix: &str,
     alias: &str,
 ) -> Result<ExecutorWithObjectStore, Error> {
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
         Arc::new(Config::default()),
     );
 
-    // Create all kind of volumes to just use them in queries
-
-    // TODO: Move volume creation to prerequisite_statements after we can create volume with SQL
-    // Now, just ignore volume creating error, as we create multiple executors
-
-    // ignore errors when creating volume, as it could be created in previous run
-    let _ = metastore
-        .create_volume(
-            &TEST_VOLUME_MEMORY.0.to_string(),
-            MetastoreVolume::new(
-                TEST_VOLUME_MEMORY.0.to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
-        .await;
-
-    let mut user_data_dir = env::temp_dir();
-    user_data_dir.push("store");
-    user_data_dir.push(format!("user-volume-{fs_volume_suffix}"));
-    let user_data_dir = user_data_dir.as_path();
-    let _ = metastore
-        .create_volume(
-            &TEST_VOLUME_FILE.0.to_string(),
-            MetastoreVolume::new(
-                TEST_VOLUME_FILE.0.to_string(),
-                core_metastore::VolumeType::File(FileVolume {
-                    path: user_data_dir.display().to_string(),
-                }),
-            ),
-        )
-        .await;
-
-    if let Ok(s3_volume) = s3_volume() {
-        let _ = metastore
-            .create_volume(
-                &TEST_VOLUME_S3.0.to_string(),
-                MetastoreVolume::new(
-                    TEST_VOLUME_S3.0.to_string(),
-                    core_metastore::VolumeType::S3(s3_volume),
-                ),
-            )
-            .await;
-    }
-
-    if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
-        let _ = metastore
-            .create_volume(
-                &TEST_VOLUME_S3TABLES.0.to_string(),
-                MetastoreVolume::new(
-                    TEST_VOLUME_S3TABLES.0.to_string(),
-                    core_metastore::VolumeType::S3Tables(s3_tables_volume),
-                ),
-            )
-            .await;
-    }
-
-    execution_svc
-        .create_session(TEST_SESSION_ID1.to_string())
-        .await
-        .expect("Failed to create session 1");
-
-    execution_svc
-        .create_session(TEST_SESSION_ID2.to_string())
-        .await
-        .expect("Failed to create session 2");
-
-    Ok(ExecutorWithObjectStore {
+    let exec = ExecutorWithObjectStore {
         executor: execution_svc,
+        metastore,
+        db: Arc::new(db),
         object_store_type: object_store_type.clone(),
         alias: alias.to_string(),
-    })
+    };
+
+    // Create all kind of volumes to just use them in queries
+    let _ = exec.create_volumes().await;
+    exec.create_sessions().await?;
+
+    Ok(exec)
 }
 
 // Every executor
@@ -376,7 +469,7 @@ pub async fn exec_parallel_test_plan(
                         .executor
                         .query(test.session_id, sql, QueryContext::default())
                         .await
-                        .context(ExecutionSnafu { query: sql.clone() });
+                        .context(SnowflakeExecutionSnafu { query: sql.clone() });
                     let ExecutorWithObjectStore {
                         alias,
                         object_store_type,
@@ -412,13 +505,15 @@ pub async fn exec_parallel_test_plan(
 
             let results = join_all(futures).await;
 
-            for (idx, (sql, test)) in parallel_runs.iter().enumerate() {
+            for (idx, res) in results.into_iter().enumerate() {
+                let (sql, test) = parallel_runs[idx];
+                // let res = result.context(SnowflakeExecutionSnafu { query: sql.clone() });
+                let res_is_ok = res.is_ok();
                 let TestQuery {
                     expected_res,
                     session_id,
                     ..
                 } = test;
-                let res = &results[idx];
                 let test_num = idx + 1;
                 let parallel_runs = parallel_runs.len();
                 let ExecutorWithObjectStore {
@@ -429,10 +524,19 @@ pub async fn exec_parallel_test_plan(
                 eprintln!(
                     "Exec concurrently with executor [{alias}], on object store: {object_store_type}, session: {session_id}"
                 );
-                eprintln!(
-                    "sql {test_num}/{parallel_runs}: {sql}\nexpected_res: {expected_res}, res: {res:#?}"
-                );
-                if expected_res == &res.is_ok() {
+                eprintln!("sql {test_num}/{parallel_runs}: {sql}");
+                match res {
+                    Ok(res) => eprintln!("res: {res:#?}"),
+                    Err(error) => {
+                        eprintln!("Debug error #? : {error:#?}");
+                        let snowflake_error = SnowflakeError::from(error);
+                        eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
+                        eprintln!("Display display error: {snowflake_error}"); // clean message as from transport
+                    }
+                }
+                
+                eprintln!("expected_res: {expected_res}, actual_res: {}", res_is_ok);
+                if expected_res == &res_is_ok {
                     eprintln!("PASSED\n");
                 } else {
                     eprintln!("FAILED\n");
