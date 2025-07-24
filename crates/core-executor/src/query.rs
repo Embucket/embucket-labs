@@ -255,32 +255,32 @@ impl UserQuery {
         let format = self
             .session
             .get_session_variable("timestamp_input_format")
-            .unwrap_or("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
+            .unwrap_or_else(|| "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
         let tz = self
             .session
             .get_session_variable("timezone")
-            .unwrap_or("America/Los_Angeles".to_string());
+            .unwrap_or_else(|| "America/Los_Angeles".to_string());
 
         let mapping = self
             .session
             .get_session_variable("timestamp_input_mapping")
-            .unwrap_or("timestamp_ntz".to_string());
+            .unwrap_or_else(|| "timestamp_ntz".to_string());
 
         let funcs = [
             (
-                if mapping != "timestamp_ntz" {
-                    Some(Arc::from(tz.clone()))
-                } else {
+                if mapping == "timestamp_ntz" {
                     None
+                } else {
+                    Some(Arc::from(tz.clone()))
                 },
                 false,
                 "to_timestamp".to_string(),
             ),
             (
-                if mapping != "timestamp_ntz" {
-                    Some(Arc::from(tz.clone()))
-                } else {
+                if mapping == "timestamp_ntz" {
                     None
+                } else {
+                    Some(Arc::from(tz.clone()))
                 },
                 true,
                 "try_to_timestamp".to_string(),
@@ -303,7 +303,7 @@ impl UserQuery {
                 "to_timestamp_ltz".to_string(),
             ),
             (
-                Some(Arc::from(tz.clone())),
+                Some(Arc::from(tz)),
                 true,
                 "try_to_timestamp_ltz".to_string(),
             ),
