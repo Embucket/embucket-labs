@@ -2,6 +2,7 @@ use chrono::{DateTime, NaiveDateTime};
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int32Array, Int64Array, StringArray, StringViewArray,
     TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Array, UInt64Array,
+    new_null_array,
 };
 use datafusion::arrow::compute::kernels;
 use datafusion::arrow::compute::kernels::cast_utils::string_to_timestamp_nanos;
@@ -420,6 +421,18 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
                 } else {
                     ColumnarValue::Array(Arc::new(arr))
+                }
+            }
+            DataType::Null => {
+                let null_arr = new_null_array(
+                    &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
+                    arr.len(),
+                );
+
+                if arr.len() == 1 {
+                    ColumnarValue::Scalar(ScalarValue::try_from_array(&null_arr, 0)?)
+                } else {
+                    ColumnarValue::Array(null_arr)
                 }
             }
             _ => InvalidDataTypeSnafu.fail()?,
@@ -878,6 +891,22 @@ mod tests {
             &result
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_null() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "mm/dd/yyyy hh24:mi:ss".to_string(),
+            false,
+            "to_timestamp".to_string(),
+        )));
+
+        let sql = "SELECT TO_TIMESTAMP(NULL) as a";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(&["+---+", "| a |", "+---+", "|   |", "+---+",], &result);
         Ok(())
     }
 
