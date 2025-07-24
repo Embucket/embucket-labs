@@ -1,1 +1,1 @@
-Test Coverage: 58.5%
+Test Coverage: 60.4%
