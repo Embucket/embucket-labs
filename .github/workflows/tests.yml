@@ -24,7 +24,7 @@ name: unit-tests
 jobs:
   required:
     runs-on:
-      group: large-runners
+      group: ubuntu-latest
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
@@ -50,4 +50,4 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       - name: cargo test
-        run: cargo test --workspace --all-features --all-targets
+        run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --all-features --all-targets
