@@ -124,10 +124,8 @@ async fn template_test_two_executors_one_fences_another(
 async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
     volumes: &[(&str, &str)],
 ) -> Result<(), Error> {
-    let test_suffix = test_suffix();
-
     let executor = create_executor(
-        ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+        ObjectStoreType::S3(test_suffix(), S3ObjectStore::from_env()),
         "s3_exec",
     )
     .await?;
@@ -301,7 +299,9 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume() -> Result<(), Error> {
+async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_should_fail() -> Result<(), Error> {
+    eprintln!("This test should fail. It creates some table and then corrupts s3 volume and checks if insert fails. \
+    It has known issue: Output error is not that clean, as unable downcast ObjectStore error.");
     dotenv().ok();
 
     let executor = create_executor(
@@ -341,6 +341,93 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume() -> Result
 
     assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
 
+    Ok(())
+}
+
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_should_fail() -> Result<(), Error> {
+    dotenv().ok();
+
+    let executor = create_executor(
+        ObjectStoreType::File(test_suffix(), env::temp_dir().join("store")),
+        "file_exec",
+    )
+    .await?;
+    let executor = Arc::new(executor);
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    // corrupt s3 volume
+    executor.create_s3_volume_with_bad_creds().await?;
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: false,
+    }])];
+
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_ok() -> Result<(), Error> {
+    dotenv().ok();
+
+    let executor = create_executor(
+        ObjectStoreType::File(test_suffix(), env::temp_dir().join("store")),
+        "#1",
+    )
+    .await?;
+    let executor = Arc::new(executor);
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                    (100, 'Alice', 'foo')",
+            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+
+    // This executor uses correct credentials by default
+    let executor = create_executor(
+        ObjectStoreType::File(test_suffix(), env::temp_dir().join("store")),
+        "#2",
+    )
+    .await?;
+
+    let executor = Arc::new(executor);
+
+    // corrupt s3 volume
+    executor.create_s3_volume_with_bad_creds().await?;
+
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
         executor,
@@ -353,12 +440,15 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume() -> Result
     Ok(())
 }
 
-// Running single Embucket (file based, s3 based volumes), two sessions, writes to different tables.
+
+
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inserts()
+async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inserts_should_pass()
 -> Result<(), Error> {
+    eprintln!("This test should pass. It's running single Embucket (file based, s3 based volumes), \
+    two sessions, writes to different tables.");
     dotenv().ok();
 
     let test_suffix = test_suffix();

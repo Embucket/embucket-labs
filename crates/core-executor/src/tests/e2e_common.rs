@@ -66,11 +66,12 @@ pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_
 pub const TEST_DATABASE_NAME: &str = "embucket";
 pub const TEST_SCHEMA_NAME: &str = "public";
 
-#[snafu(visibility(pub))]
 #[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
 pub enum Error {
     Slatedb {
         source: slatedb::SlateDBError,
+        object_store: Arc<dyn ObjectStore>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -251,7 +252,7 @@ impl ExecutorWithObjectStore {
                     });
                     // wrap as a fresh RwObject, this sets new updated at
                     let rwobject = RwObject::new(MetastoreVolume::new(
-                        volume_name,
+                        volume_name.clone(),
                         VolumeType::S3(S3Volume {
                             region: s3_volume.region,
                             bucket: s3_volume.bucket,
@@ -260,11 +261,26 @@ impl ExecutorWithObjectStore {
                         }),
                     ));
                     println!("Intentionally corrupting volume: {:#?}", rwobject.data);
+                    // Use db.put to update volume in metastore
                     self.db
                         .put(&db_key, &rwobject)
                         .await
                         .context(UtilSlateDBSnafu)
                         .context(MetastoreSnafu)?;
+                    // Probably update_volume could be used instead of db.put, 
+                    // so use update_volume to update just cached object_store
+                    self.metastore.update_volume(&volume_name, rwobject.data)
+                        .await.context(MetastoreSnafu)?;
+                    // Directly check if ObjectStore can't access data using bad credentials
+                    let object_store = self.metastore
+                        .volume_object_store(&volume_name).await.context(MetastoreSnafu)?;
+                    if let Some(object_store) = object_store {
+                        let obj_store_res = object_store.get(&object_store::path::Path::from("/"))
+                            .await
+                            .context(ObjectStoreSnafu);
+                        // fail if object_store read succesfully
+                        assert_eq!(false, obj_store_res.is_ok());
+                    }
                 } else {
                     return Err(CreateS3VolumeWithBadCredsSnafu.build());
                 }
@@ -305,16 +321,18 @@ impl ExecutorWithObjectStore {
             )
             .await;
 
-        self.metastore
+        if let Ok(s3_volume) = s3_volume() {
+            self.metastore
             .create_volume(
                 &TEST_VOLUME_S3.0.to_string(),
                 MetastoreVolume::new(
                     TEST_VOLUME_S3.0.to_string(),
-                    core_metastore::VolumeType::S3(s3_volume()?),
+                    core_metastore::VolumeType::S3(s3_volume),
                 ),
             )
             .await
-            .context(MetastoreSnafu)?;
+            .context(MetastoreSnafu)?;            
+        }
 
         if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
             let _ = self
@@ -384,14 +402,15 @@ impl ObjectStoreType {
     pub async fn db(&self) -> Result<Db, Error> {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
-            Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
+            Self::File(suffix, ..)
+            | Self::S3(suffix, ..) => Db::new(Arc::new(
                 SlateDb::open_with_opts(
                     object_store::path::Path::from(suffix.clone()),
                     DbOptions::default(),
                     self.object_store()?,
                 )
                 .await
-                .context(SlatedbSnafu)?,
+                .context(SlatedbSnafu{ object_store: self.object_store()? })?,
             )),
         };
 
@@ -531,7 +550,7 @@ pub async fn exec_parallel_test_plan(
                         eprintln!("Debug error #? : {error:#?}");
                         let snowflake_error = SnowflakeError::from(error);
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
-                        eprintln!("Display display error: {snowflake_error}"); // clean message as from transport
+                        eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
                     }
                 }
                 

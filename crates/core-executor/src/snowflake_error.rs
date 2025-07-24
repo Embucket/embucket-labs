@@ -8,7 +8,8 @@ use datafusion_common::diagnostic::DiagnosticKind;
 use datafusion_common::error::DataFusionError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
-use snafu::{Snafu, Location};
+use snafu::GenerateImplicitData;
+use snafu::{Snafu, Location, location};
 use sqlparser::parser::ParserError;
 
 // How SLT tests are used in Snowflake error conversion?
@@ -32,8 +33,21 @@ pub enum SnowflakeError {
     Custom {
         message: String,
         #[snafu(implicit)]
+        internal: InternalMessage,
+        #[snafu(implicit)]
         location: Location,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct InternalMessage(String);
+
+impl GenerateImplicitData for InternalMessage {
+    #[inline]
+    #[track_caller]
+    fn generate() -> Self {
+        Self("".to_string())
+    }
 }
 
 #[derive(Snafu, Debug)]
@@ -65,104 +79,7 @@ impl From<Error> for SnowflakeError {
             | Error::DataFusionLogicalPlanMergeTarget { error, .. }
             | Error::DataFusionLogicalPlanMergeSource { error, .. }
             | Error::DataFusionLogicalPlanMergeJoin { error, .. }
-            | Error::DataFusion { error, .. } => match *error {
-                DataFusionError::External(err) => {
-                    if err.is::<DataFusionError>() {
-                        if let Ok(e) = err.downcast::<DataFusionError>() {
-                            let err = *e;
-                            datafusion_error(err)
-                        } else {
-                            unreachable!()
-                        }
-                    } else if err.is::<object_store::Error>() {
-                        if let Ok(e) = err.downcast::<object_store::Error>() {
-                            let e = *e;
-                            let message = e.to_string();
-                            CustomSnafu { message }.build()
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    else if err.is::<iceberg_rust::error::Error>() {
-                        if let Ok(e) = err.downcast::<iceberg_rust::error::Error>() {
-                            let e = *e;
-                            let message = e.to_string();
-                            match e {
-                                iceberg_rust::error::Error::ObjectStore(e) => CustomSnafu {
-                                    message: format!("Object store error: {e}"),
-                                }.build(),
-                                _ => CustomSnafu { message }.build(),
-                            }
-                        } else {
-                            unreachable!()
-                        }
-                    } else if err.is::<EmubucketFunctionsExternalDFError>() {
-                        if let Ok(e) = err.downcast::<EmubucketFunctionsExternalDFError>() {
-                            let e = *e;
-                            let message = e.to_string();
-                            match e {
-                                EmubucketFunctionsExternalDFError::Aggregate { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::Conversion { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::DateTime { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::Numeric { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::SemiStructured { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::StringBinary { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::Table { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                EmubucketFunctionsExternalDFError::Crate { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                            }
-                        } else {
-                            unreachable!()
-                        }
-                    } else if err.is::<DFCatalogExternalDFError>() {
-                        if let Ok(e) = err.downcast::<DFCatalogExternalDFError>() {
-                            let e = *e;
-                            let message = e.to_string();
-                            match e {
-                                DFCatalogExternalDFError::OrdinalPositionParamOverflow {
-                                    ..
-                                } => CustomSnafu { message }.build(),
-                                DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                DFCatalogExternalDFError::CoreHistory { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                DFCatalogExternalDFError::CoreUtils { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                DFCatalogExternalDFError::CatalogNotFound { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                                DFCatalogExternalDFError::ObjectStoreNotFound { .. } => {
-                                    CustomSnafu { message }.build()
-                                }
-                            }
-                        } else {
-                            unreachable!()
-                        }
-                    } else {
-                        CustomSnafu { message: format!("Can't downcast error: {err}") }.build()
-                    }
-                }
-                // Rest of datafusion errors except External, which is handled above
-                _ => datafusion_error(*error),
-            },
+            | Error::DataFusion { error, .. } => datafusion_error(*error),
             Error::Metastore { source, .. } => {
                 let source = *source;
                 match source {
@@ -258,9 +175,9 @@ impl From<Error> for SnowflakeError {
     }
 }
 
-fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
-    let message = datafusion_error.to_string();
-    match datafusion_error {
+fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
+    let message = df_error.to_string();
+    match df_error {
         DataFusionError::ArrowError(_arrow_error, Some(_backtrace)) => {
             CustomSnafu { message }.build()
         }
@@ -314,8 +231,118 @@ fn datafusion_error(datafusion_error: DataFusionError) -> SnowflakeError {
             ParserError::RecursionLimitExceeded => CustomSnafu { message }.build(),
         },
         DataFusionError::Substrait(_substrait_error) => CustomSnafu { message }.build(),
-        DataFusionError::External(_external_error) => CustomSnafu { message }.build(),
+        // DataFusionError::External(_external_error) => CustomSnafu { message }.build(),
         DataFusionError::Internal(_internal_error) => CustomSnafu { message }.build(),
+        DataFusionError::External(err) => {
+            if err.is::<DataFusionError>() {
+                if let Ok(e) = err.downcast::<DataFusionError>() {
+                    let err = *e;
+                    datafusion_error(err)
+                } else {
+                    unreachable!()
+                }
+            }
+            else if err.is::<Error>() {
+                if let Ok(e) = err.downcast::<Error>() {
+                    let e = *e;
+                    let message = e.to_string();
+                    CustomSnafu { message }.build()
+                } else {
+                    unreachable!()
+                }
+            }
+            else if err.is::<object_store::Error>() {
+                if let Ok(e) = err.downcast::<object_store::Error>() {
+                    let e = *e;
+                    let message = e.to_string();
+                    CustomSnafu { message }.build()
+                } else {
+                    unreachable!()
+                }
+            }
+            else if err.is::<iceberg_rust::error::Error>() {
+                if let Ok(e) = err.downcast::<iceberg_rust::error::Error>() {
+                    let e = *e;
+                    let message = e.to_string();
+                    match e {
+                        iceberg_rust::error::Error::ObjectStore(e) => CustomSnafu {
+                            message: format!("Object store error: {e}"),
+                        }.build(),
+                        _ => CustomSnafu { message }.build(),
+                    }
+                } else {
+                    unreachable!()
+                }
+            } else if err.is::<EmubucketFunctionsExternalDFError>() {
+                if let Ok(e) = err.downcast::<EmubucketFunctionsExternalDFError>() {
+                    let e = *e;
+                    let message = e.to_string();
+                    match e {
+                        EmubucketFunctionsExternalDFError::Aggregate { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::Conversion { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::DateTime { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::Numeric { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::SemiStructured { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::StringBinary { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::Table { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        EmubucketFunctionsExternalDFError::Crate { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                    }
+                } else {
+                    unreachable!()
+                }
+            } else if err.is::<DFCatalogExternalDFError>() {
+                if let Ok(e) = err.downcast::<DFCatalogExternalDFError>() {
+                    let e = *e;
+                    let message = e.to_string();
+                    match e {
+                        DFCatalogExternalDFError::OrdinalPositionParamOverflow {
+                            ..
+                        } => CustomSnafu { message }.build(),
+                        DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        DFCatalogExternalDFError::CoreHistory { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        DFCatalogExternalDFError::CoreUtils { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        DFCatalogExternalDFError::CatalogNotFound { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                        DFCatalogExternalDFError::ObjectStoreNotFound { .. } => {
+                            CustomSnafu { message }.build()
+                        }
+                    }
+                } else {
+                    unreachable!()
+                }
+            } else {
+                // Accidently CustomSnafu can't see internal field, so create error manually!
+                SnowflakeError::Custom {
+                    message,
+                    // Add downcast warning separately as this is internal message 
+                    internal: InternalMessage(format!("Warning: Didn't downcast error: {err}")),
+                    location: location!(),
+                }
+            }
+        }        
         _ => CustomSnafu { message }.build(),
     }
 }
