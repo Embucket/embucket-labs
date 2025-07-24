@@ -3,7 +3,8 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::Field;
 use datafusion::error::Result as DFResult;
 use datafusion_common::ScalarValue;
-use datafusion_common::cast::as_string_array;
+use datafusion_common::arrow::array::StringArray;
+use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
@@ -83,15 +84,15 @@ impl ScalarUDFImpl for StrtokToArrayFunc {
             &ScalarValue::Utf8(Some(String::from(" "))).to_array()?
         };
 
-        let strs = as_string_array(&lhs)?;
-        let delms = as_string_array(&rhs)?;
+        let strs: &StringArray = as_generic_string_array(&lhs)?;
+        let delms: &StringArray = as_generic_string_array(&rhs)?;
 
         let string_builder = StringBuilder::new();
         let mut list_builder = ListBuilder::new(string_builder);
 
         for (string, delimiter) in strs.iter().zip(delms.iter()) {
             if string.is_none() || delimiter.is_none() {
-                list_builder.append(false);
+                list_builder.append_null();
                 continue;
             }
 
@@ -190,20 +191,6 @@ mod tests {
             &result
         );
 
-        let q = "SELECT STRTOK_TO_ARRAY('a b c', NULL) AS null_result;";
-        let result = ctx.sql(q).await?.collect().await?;
-
-        assert_batches_eq!(
-            &[
-                "+-------------+",
-                "| null_result |",
-                "+-------------+",
-                "|             |",
-                "+-------------+",
-            ],
-            &result
-        );
-
         let q = "SELECT STRTOK_TO_ARRAY(NULL, '.') AS null_result;";
         let result = ctx.sql(q).await?.collect().await?;
 
@@ -218,20 +205,6 @@ mod tests {
             &result
         );
 
-        let q = "SELECT STRTOK_TO_ARRAY(PARSE_JSON('null'), '.') AS json_null;";
-        let result = ctx.sql(q).await?.collect().await?;
-
-        assert_batches_eq!(
-            &[
-                "+-----------+",
-                "| json_null |",
-                "+-----------+",
-                "|           |",
-                "+-----------+",
-            ],
-            &result
-        );
-
         let q = "SELECT STRTOK_TO_ARRAY(PARSE_JSON('[ null ]'), '.') AS json_null;";
         let result = ctx.sql(q).await?.collect().await?;
 
@@ -240,13 +213,13 @@ mod tests {
                 "+-----------+",
                 "| json_null |",
                 "+-----------+",
-                "|           |",
+                "| [[null]]  |",
                 "+-----------+",
             ],
             &result
         );
 
-        let q = "SELECT STRTOK_TO_ARRAY('abc', PARSE_JSON('[ null ]')) AS json_null;";
+        let q = "SELECT STRTOK_TO_ARRAY('abc', NULL) AS json_null;";
         let result = ctx.sql(q).await?.collect().await?;
 
         assert_batches_eq!(

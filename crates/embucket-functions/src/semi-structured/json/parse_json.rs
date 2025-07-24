@@ -128,6 +128,19 @@ mod tests {
             &result
         );
 
+        let sql = "SELECT parse_json('[ null ]') AS parsed_json";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-------------+",
+                "| parsed_json |",
+                "+-------------+",
+                "| [null]      |",
+                "+-------------+",
+            ],
+            &result
+        );
+
         let sql = "SELECT parse_json('{\"invalid\": \"json\"') AS parsed_json";
         assert!(ctx.sql(sql).await?.collect().await.is_err());
 
