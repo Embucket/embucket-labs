@@ -36,7 +36,7 @@ impl CastAnalyzer {
                 if let Expr::Cast(cast) = &e {
                     if cast.data_type == DataType::Date32 {
                         return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-                            //TODO: should we somehow provide this function from context?
+                            //TODO: should we somehow provide this function from session context?
                             func: Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
                             args: vec![cast.expr.deref().clone()],
                         })));
@@ -54,7 +54,7 @@ impl CastAnalyzer {
 
 impl AnalyzerRule for CastAnalyzer {
     fn analyze(&self, plan: LogicalPlan, _: &ConfigOptions) -> DFResult<LogicalPlan> {
-        //TODO: What plans should it concern? Projection what else?
+        //TODO: What plans should it concern? Projection what else? Or all of them?
         plan.transform_down_with_subqueries(Self::analyze_internal)
             .data()
     }
