@@ -42,7 +42,11 @@ impl ScalarUDFImpl for ParseJsonFunc {
     }
 
     fn name(&self) -> &'static str {
-        "parse_json"
+        if self.try_mode {
+            "try_parse_json"
+        } else {
+            "parse_json"
+        }
     }
 
     fn signature(&self) -> &Signature {
