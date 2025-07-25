@@ -306,7 +306,7 @@ fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::semi_structured::json::parse_json::ParseJsonFunc;
+    use crate::semi_structured::parse_json::ParseJsonFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use std::sync::Arc;
@@ -663,7 +663,7 @@ mod tests {
     async fn test_inner_func() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
-        ctx.register_udf(ParseJsonFunc::new().into());
+        ctx.register_udf(ParseJsonFunc::new(false).into());
         let sql = "SELECT * from flatten(parse_json('[1,77]'),'',false,false,'both')";
         let result = ctx.sql(sql).await?.collect().await?;
 
