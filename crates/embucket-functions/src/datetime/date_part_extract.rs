@@ -33,17 +33,19 @@ pub enum Interval {
 pub struct DatePartExtractFunc {
     signature: Signature,
     interval: Interval,
+    week_start: usize,
+    week_of_year_policy: usize,
 }
 
 impl Default for DatePartExtractFunc {
     fn default() -> Self {
-        Self::new(Interval::Year)
+        Self::new(Interval::Year, 1, 0)
     }
 }
 
 impl DatePartExtractFunc {
     #[must_use]
-    pub fn new(interval: Interval) -> Self {
+    pub fn new(interval: Interval, week_start: usize, week_of_year_policy: usize) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -54,6 +56,8 @@ impl DatePartExtractFunc {
                 Volatility::Immutable,
             ),
             interval,
+            week_start,
+            week_of_year_policy,
         }
     }
 }
