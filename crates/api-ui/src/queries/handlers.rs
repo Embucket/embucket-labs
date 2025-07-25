@@ -78,7 +78,7 @@ pub struct ApiDoc;
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
-#[tracing::instrument(name = "api_ui::query", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_ui::query", level = "info", skip(state), fields(query_id) err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
@@ -118,6 +118,8 @@ pub async fn query(
         .context(queries_errors::QuerySnafu)
     {
         Ok(QueryResult { query_id, .. }) => {
+            // Record the result as part of the current span.
+            tracing::Span::current().record("query_id", query_id);
             let query_record = state
                 .history_store
                 .get_query(query_id)

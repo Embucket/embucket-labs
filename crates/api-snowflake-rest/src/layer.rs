@@ -5,6 +5,13 @@ use axum::middleware::Next;
 use axum::response::IntoResponse;
 
 #[allow(clippy::unwrap_used)]
+#[tracing::instrument(
+    name = "api_snowflake_rest::layer::require_auth",
+    level = "trace",
+    skip(state, req, next),
+    fields(request_headers = format!("{:#?}", req.headers()), response_headers),
+    err,
+)]
 pub async fn require_auth(
     State(state): State<AppState>,
     req: Request,
@@ -29,5 +36,10 @@ pub async fn require_auth(
     //Dropping the lock guard before going to the next request
     drop(sessions);
 
-    Ok(next.run(req).await)
+    let response = next.run(req).await;
+
+    // Record the result as part of the current span.
+    tracing::Span::current().record("response_headers", format!("{:#?}", response.headers()));
+
+    Ok(response)
 }

@@ -32,7 +32,7 @@ use tracing::debug;
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
-#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
     State(state): State<AppState>,
     Query(query): Query<LoginRequestQuery>,
@@ -106,7 +106,7 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
-#[tracing::instrument(level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state, body), fields(query_id), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
@@ -139,6 +139,8 @@ pub async fn query(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
     );
+    // Record the result as part of the current span.
+    tracing::Span::current().record("query_id", query_result.query_id);
 
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {

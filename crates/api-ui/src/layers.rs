@@ -20,6 +20,12 @@ enum AuthDetails {
 }
 
 #[allow(clippy::unwrap_used)]
+#[tracing::instrument(
+    name = "api_ui::layers::add_request_metadata",
+    level = "trace",
+    skip(request, next),
+    fields(response_headers)
+)]
 pub async fn add_request_metadata(
     headers: HeaderMap,
     mut request: axum::extract::Request,
@@ -38,11 +44,13 @@ pub async fn add_request_metadata(
         request_id,
         auth_details: AuthDetails::Unauthenticated,
     });
-    tracing::debug!("Request headers: {:#?}", request.headers());
     let mut response = next.run(request).await;
     response
         .headers_mut()
         .insert("x-request-id", request_id.to_string().parse().unwrap());
+
+    // Record the result as part of the current span.
+    tracing::Span::current().record("response_headers", format!("{:#?}", response.headers()));
     response
 }
 

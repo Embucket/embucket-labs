@@ -107,7 +107,7 @@ pub enum Error {
 
 impl IntoResponse for Error {
     #[tracing::instrument(
-        name = "api-snowflake-rest::Error::into_response",
+        name = "api_snowflake_rest::Error::into_response",
         level = "info",
         fields(error, error_stack_trace, status_code),
         skip(self)
