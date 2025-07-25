@@ -54,6 +54,7 @@ impl VisitorMut for FunctionsRewriter {
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
                 "sha2" => normalize_sha2(func),
+                "date" => "to_date",
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);
