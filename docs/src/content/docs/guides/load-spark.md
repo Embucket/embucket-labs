@@ -143,8 +143,6 @@ In this guide we will first create a S3 based volume that we will use to store d
 
 An example with `httpie` utility:
 
-Install `httpie` if not installed:
-
 ```bash
 http http://localhost:3000/v1/metastore/volumes ident=demo type=s3 credentials:='{"credential_type":"access_key","aws-access-key-id":"AKIAIOSFODNN7EXAMPLE","aws-secret-access-key":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}' bucket=mybucket endpoint='http://warehouse.minio:9000'
 ```
