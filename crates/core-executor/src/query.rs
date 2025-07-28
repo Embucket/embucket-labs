@@ -52,8 +52,8 @@ use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
-    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, Extension, JoinType,
-    LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
+    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
+    JoinType, LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
     build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
@@ -2361,6 +2361,30 @@ pub fn merge_clause_projection<S: ContextProvider>(
     Ok(exprs)
 }
 
+/// Casts an expression to the target data type if the expression's type differs from the target type.
+/// If the expression already produces the target type, returns the expression unchanged.
+///
+/// # Arguments
+/// * `expr` - The expression to potentially cast
+/// * `target_type` - The target data type
+/// * `schema` - The schema context for type resolution
+///
+/// # Returns
+/// Either the original expression or a cast expression
+fn cast_if_necessary(expr: DFExpr, target_type: &DataType, schema: &DFSchema) -> DFExpr {
+    // Try to get the expression's current type
+    match expr.get_type(schema) {
+        Ok(expr_type) if expr_type == *target_type => {
+            // Types match, return original expression
+            expr
+        }
+        _ => {
+            // Types don't match or couldn't determine type, add cast
+            DFExpr::TryCast(TryCast::new(Box::new(expr), target_type.clone()))
+        }
+    }
+}
+
 /// Builds projection expressions for MERGE statement by combining UPDATE and INSERT operations.
 ///
 /// This function creates a CASE expression for each column in the target schema that handles
@@ -2389,6 +2413,8 @@ fn collect_merge_clause_expressions(
             let updates = updates.remove(field.name());
             let insert = inserts.remove(field.name());
 
+            let field_type = field.data_type();
+
             // If there is no update or insert, do nothing
             if updates.is_none() && insert.is_none() {
                 return Ok(col(name));
@@ -2400,9 +2426,9 @@ fn collect_merge_clause_expressions(
                         None::<CaseBuilder>,
                         |acc, (w, t)| {
                             if let Some(mut acc) = acc {
-                                Some(acc.when(w, t))
+                                Some(acc.when(w, cast_if_necessary(t, field_type, target_schema)))
                             } else {
-                                Some(when(w, t))
+                                Some(when(w, cast_if_necessary(t, field_type, target_schema)))
                             }
                         },
                     );
@@ -2415,9 +2441,9 @@ fn collect_merge_clause_expressions(
                 (Some(x), None) | (None, Some(x)) => {
                     let builder_opt = x.into_iter().fold(None::<CaseBuilder>, |acc, (w, t)| {
                         if let Some(mut acc) = acc {
-                            Some(acc.when(w, t))
+                            Some(acc.when(w, cast_if_necessary(t, field_type, target_schema)))
                         } else {
-                            Some(when(w, t))
+                            Some(when(w, cast_if_necessary(t, field_type, target_schema)))
                         }
                     });
                     if let Some(mut builder) = builder_opt {
