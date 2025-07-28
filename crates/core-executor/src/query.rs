@@ -1245,8 +1245,13 @@ impl UserQuery {
             .sql_to_expr((*on).clone(), &schema, &mut planner_context)
             .context(ex_error::DataFusionLogicalPlanMergeJoinSnafu)?;
 
-        let merge_clause_projection =
-            merge_clause_projection(&sql_planner, &schema, &target_schema, clauses)?;
+        let merge_clause_projection = merge_clause_projection(
+            &sql_planner,
+            &schema,
+            &target_schema,
+            &source_schema,
+            clauses,
+        )?;
 
         let join_plan = LogicalPlanBuilder::new(target_plan)
             .join_on(source_plan, JoinType::Full, [on_expr; 1])
@@ -2272,6 +2277,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
     sql_planner: &ExtendedSqlToRel<'_, S>,
     schema: &DFSchema,
     target_schema: &DFSchema,
+    source_schema: &DFSchema,
     merge_clause: Vec<MergeClause>,
 ) -> Result<Vec<logical_expr::Expr>> {
     let mut updates: HashMap<String, Vec<(logical_expr::Expr, logical_expr::Expr)>> =
@@ -2342,7 +2348,7 @@ pub fn merge_clause_projection<S: ContextProvider>(
                     let column_name = column.value.clone();
                     let expr = sql_planner
                         .as_ref()
-                        .sql_to_expr(value, schema, &mut planner_context)
+                        .sql_to_expr(value, source_schema, &mut planner_context)
                         .context(ex_error::DataFusionSnafu)?;
                     all_columns.remove(&column_name);
                     inserts
