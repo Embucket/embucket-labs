@@ -5,12 +5,12 @@ use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
-use datafusion_common::cast::as_timestamp_nanosecond_array;
+use datafusion::prelude::SessionContext;
 use datafusion_common::ScalarValue;
+use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::prelude::SessionContext;
 
 #[derive(Debug, Clone)]
 pub enum Interval {
@@ -197,11 +197,7 @@ impl ScalarUDFImpl for DatePartExtractFunc {
 }
 
 /// Register all date part extract functions with session parameters
-pub fn register_udfs(
-    ctx: &SessionContext,
-    week_start: usize,
-    week_of_year_policy: usize,
-) {
+pub fn register_udfs(ctx: &SessionContext, week_start: usize, week_of_year_policy: usize) {
     let functions: Vec<ScalarUDF> = vec![
         ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Year,
@@ -574,7 +570,7 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Week,
             1,
-            2,
+            0,
         )));
 
         let sql = "SELECT WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)";
@@ -582,32 +578,31 @@ mod tests {
 
         assert_batches_eq!(
             &[
-                "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
-                "| tstamp                  | YEAR | QUARTER OF YEAR | MONTH | DAY | DAY OF MONTH | DAY OF YEAR |",
-                "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
-                "| 2025-04-12T06:39:20.123 | 2025 | 2               | 4     | 11  | 11           | 101         |",
-                "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
+                "+---------------------------------------------+",
+                "| week(Utf8(\"2016-01-02T23:39:20.123-07:00\")) |",
+                "+---------------------------------------------+",
+                "| 53                                          |",
+                "+---------------------------------------------+",
             ],
             &result
         );
 
-        let sql = r#"SELECT '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
-        WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "WEEK",
-       WEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)       AS "WEEK ISO",
-       WEEKOFYEAR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS "WEEK OF YEAR",
-       YEAROFWEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS "YEAR OF WEEK",
-       YEAROFWEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR OF WEEK ISO""#;
-        let result = ctx.sql(sql).await?.collect().await?;
+        ctx.register_udf(ScalarUDF::from(DatePartExtractFunc::new(
+            Interval::Week,
+            1,
+            1,
+        )));
 
-        print_batches(&result)?;
+        let sql = "SELECT WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)";
+        let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
-                "+-------------------------+------+----------+--------------+--------------+------------------+",
-                "| tstamp                  | WEEK | WEEK ISO | WEEK OF YEAR | YEAR OF WEEK | YEAR OF WEEK ISO |",
-                "+-------------------------+------+----------+--------------+--------------+------------------+",
-                "| 2016-01-03T06:39:20.123 | 53   | 53       | 53           | 2015         | 2015             |",
-                "+-------------------------+------+----------+--------------+--------------+------------------+",
+                "+---------------------------------------------+",
+                "| week(Utf8(\"2016-01-02T23:39:20.123-07:00\")) |",
+                "+---------------------------------------------+",
+                "| 1                                           |",
+                "+---------------------------------------------+",
             ],
             &result
         );

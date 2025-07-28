@@ -260,13 +260,16 @@ impl UserQuery {
             .parse::<usize>()
             .unwrap_or(0);
 
+        panic!("sdf {:?}",self
+            .session
+            .get_session_variable("week_of_year_policy"));
         let week_of_year_policy = self
             .session
             .get_session_variable("week_of_year_policy")
             .unwrap_or_else(|| "0".to_string())
             .parse::<usize>()
             .unwrap_or(0);
-
+        panic!("sdf {}",week_of_year_policy);
         date_part_extract::register_udfs(&self.session.ctx, week_start, week_of_year_policy);
 
         // TO_TIMESTAMP
