@@ -1,13 +1,16 @@
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use datafusion::arrow::array::{Array, Int64Builder};
+use datafusion::arrow::compute::{CastOptions, cast_with_options};
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
-use datafusion_common::{ScalarValue, exec_err};
-use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
+use datafusion_common::cast::as_timestamp_nanosecond_array;
+use datafusion_common::ScalarValue;
+use datafusion_expr::{ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
+use datafusion::prelude::SessionContext;
 
 #[derive(Debug, Clone)]
 pub enum Interval {
@@ -29,6 +32,21 @@ pub enum Interval {
     Second,
 }
 
+/// `YEAR*` / `DAY*` / `WEEK*` / `MONTH` / `QUARTER` / `HOUR` / `MINUTE` / `SECOND` SQL function
+///
+/// Extracts a specific part of a date or timestamp.
+///
+/// These functions are alternatives to using the DATE_PART function with the equivalent date part (see Supported date and time parts).
+///
+/// Syntax: `YEAR(<date_or_timestamp>)`
+///
+/// Arguments:
+/// - `date_or_timestamp`: A date or timestamp value.
+///
+/// Example: `SELECT YEAR('2025-05-08T23:39:20.123-07:00'::timestamp) AS value;`
+///
+/// Returns:
+/// - Returns an integer representing the specified part of the date or timestamp.
 #[derive(Debug)]
 pub struct DatePartExtractFunc {
     signature: Signature,
@@ -112,54 +130,61 @@ impl ScalarUDFImpl for DatePartExtractFunc {
         };
 
         let mut res = Int64Builder::with_capacity(arr.len());
-        for i in 0..arr.len() {
-            let v = ScalarValue::try_from_array(&arr, i)?
-                .cast_to(&DataType::Timestamp(TimeUnit::Nanosecond, None))?;
-            let ScalarValue::TimestampNanosecond(Some(ts), None) = v else {
-                return exec_err!("First argument must be a timestamp with nanosecond precision");
-            };
-            let naive = DateTime::<Utc>::from_timestamp_nanos(ts);
-            let date = naive.date_naive();
-            let value = match self.interval {
-                Interval::Year => date.year(),
-                Interval::YearOfWeekIso => {
-                    // Always use ISO year regardless of session settings
-                    date.iso_week().year()
-                }
-                Interval::YearOfWeek => {
-                    // Use session settings for year of week calculation
-                    calculate_year_of_week(&date, self.week_start, self.week_of_year_policy)
-                }
-                Interval::Day | Interval::DayOfMonth => date.day() as i32 - 1,
-                Interval::DayOfWeek => {
-                    // Use session week_start setting
-                    calculate_day_of_week(&date, self.week_start)
-                }
-                Interval::DayOfWeekIso => {
-                    // Always use ISO (Monday = 1, Sunday = 7) regardless of session settings
-                    date.weekday().number_from_monday() as i32
-                }
-                Interval::DayOfYear => date.ordinal() as i32 - 1, // 0-based: 0..=364/365
-                Interval::Week => {
-                    // Use session settings for week calculation
-                    calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
-                }
-                Interval::WeekOfYear => {
-                    // Use session settings for week of year calculation
-                    calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
-                }
-                Interval::WeekIso => {
-                    // Always use ISO week regardless of session settings
-                    date.iso_week().week() as i32
-                }
-                Interval::Month => date.month() as i32, // 1..=12
-                Interval::Quarter => ((date.month() - 1) / 3 + 1) as i32, // 1..=4
-                Interval::Hour => naive.hour() as i32,
-                Interval::Minute => naive.minute() as i32,
-                Interval::Second => naive.second() as i32,
-            };
+        let arr = cast_with_options(
+            &arr,
+            &DataType::Timestamp(TimeUnit::Nanosecond, None),
+            &CastOptions::default(),
+        )?;
+        let arr = as_timestamp_nanosecond_array(&arr)?;
 
-            res.append_value(value as i64);
+        for v in arr {
+            match v {
+                None => res.append_null(),
+                Some(ts) => {
+                    let naive = DateTime::<Utc>::from_timestamp_nanos(ts);
+                    let date = naive.date_naive();
+                    let value = match self.interval {
+                        Interval::Year => date.year(),
+                        Interval::YearOfWeekIso => {
+                            // Always use ISO year regardless of session settings
+                            date.iso_week().year()
+                        }
+                        Interval::YearOfWeek => {
+                            // Use session settings for year of week calculation
+                            calculate_year_of_week(&date, self.week_start, self.week_of_year_policy)
+                        }
+                        Interval::Day | Interval::DayOfMonth => date.day() as i32 - 1,
+                        Interval::DayOfWeek => {
+                            // Use session week_start setting
+                            calculate_day_of_week(&date, self.week_start)
+                        }
+                        Interval::DayOfWeekIso => {
+                            // Always use ISO (Monday = 1, Sunday = 7) regardless of session settings
+                            date.weekday().number_from_monday() as i32
+                        }
+                        Interval::DayOfYear => date.ordinal() as i32 - 1, // 0-based: 0..=364/365
+                        Interval::Week => {
+                            // Use session settings for week calculation
+                            calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
+                        }
+                        Interval::WeekOfYear => {
+                            // Use session settings for week of year calculation
+                            calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
+                        }
+                        Interval::WeekIso => {
+                            // Always use ISO week regardless of session settings
+                            date.iso_week().week() as i32
+                        }
+                        Interval::Month => date.month() as i32, // 1..=12
+                        Interval::Quarter => ((date.month() - 1) / 3 + 1) as i32, // 1..=4
+                        Interval::Hour => naive.hour() as i32,
+                        Interval::Minute => naive.minute() as i32,
+                        Interval::Second => naive.second() as i32,
+                    };
+
+                    res.append_value(value as i64);
+                }
+            }
         }
 
         let res = res.finish();
@@ -172,110 +197,97 @@ impl ScalarUDFImpl for DatePartExtractFunc {
 }
 
 /// Register all date part extract functions with session parameters
-pub fn register_date_part_extract_udfs(
-    registry: &mut dyn datafusion_expr::registry::FunctionRegistry,
+pub fn register_udfs(
+    ctx: &SessionContext,
     week_start: usize,
     week_of_year_policy: usize,
-) -> datafusion_common::Result<()> {
-    use datafusion_expr::ScalarUDF;
-    use std::sync::Arc;
-
-    let functions: Vec<Arc<ScalarUDF>> = vec![
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+) {
+    let functions: Vec<ScalarUDF> = vec![
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Year,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::YearOfWeek,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::YearOfWeekIso,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Day,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::DayOfMonth,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::DayOfWeek,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::DayOfWeekIso,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::DayOfYear,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Week,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::WeekOfYear,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::WeekIso,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Month,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Quarter,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Hour,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Minute,
             week_start,
             week_of_year_policy,
-        ))),
-        Arc::new(ScalarUDF::from(DatePartExtractFunc::new(
+        )),
+        ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Second,
             week_start,
             week_of_year_policy,
-        ))),
+        )),
     ];
 
     for func in functions {
-        registry.register_udf(func)?;
+        ctx.register_udf(func);
     }
-
-    Ok(())
-}
-
-/// Register date part extract functions with default session parameters
-pub fn register_date_part_extract_udfs_default(
-    registry: &mut dyn datafusion_expr::registry::FunctionRegistry,
-) -> datafusion_common::Result<()> {
-    // Default values: week_start = 1 (Monday), week_of_year_policy = 0
-    register_date_part_extract_udfs(registry, 1, 0)
 }
 
 /// Helper functions for week calculations
@@ -365,11 +377,6 @@ fn calculate_week_of_year(date: &NaiveDate, week_start: usize, week_of_year_poli
                 && first_week_start > jan1 - chrono::Duration::days(7)
             {
                 first_week_start = first_week_start.pred_opt().unwrap();
-            }
-
-            // If we went backwards, we need to go forward to find the first week start
-            if first_week_start < jan1 {
-                first_week_start = first_week_start + chrono::Duration::weeks(1);
             }
 
             // If January 1 is not on the week start day, find the previous week start
@@ -549,11 +556,58 @@ mod tests {
 
         assert_batches_eq!(
             &[
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
+                "| tstamp                  | WEEK | WEEK ISO | WEEK OF YEAR | YEAR OF WEEK | YEAR OF WEEK ISO |",
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
+                "| 2016-01-03T06:39:20.123 | 53   | 53       | 53           | 2015         | 2015             |",
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_week_policy() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(DatePartExtractFunc::new(
+            Interval::Week,
+            1,
+            2,
+        )));
+
+        let sql = "SELECT WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
                 "| tstamp                  | YEAR | QUARTER OF YEAR | MONTH | DAY | DAY OF MONTH | DAY OF YEAR |",
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
                 "| 2025-04-12T06:39:20.123 | 2025 | 2               | 4     | 11  | 11           | 101         |",
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
+            ],
+            &result
+        );
+
+        let sql = r#"SELECT '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+        WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "WEEK",
+       WEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)       AS "WEEK ISO",
+       WEEKOFYEAR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS "WEEK OF YEAR",
+       YEAROFWEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS "YEAR OF WEEK",
+       YEAROFWEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR OF WEEK ISO""#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        print_batches(&result)?;
+
+        assert_batches_eq!(
+            &[
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
+                "| tstamp                  | WEEK | WEEK ISO | WEEK OF YEAR | YEAR OF WEEK | YEAR OF WEEK ISO |",
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
+                "| 2016-01-03T06:39:20.123 | 53   | 53       | 53           | 2015         | 2015             |",
+                "+-------------------------+------+----------+--------------+--------------+------------------+",
             ],
             &result
         );
@@ -576,8 +630,6 @@ mod tests {
 
     #[test]
     fn test_day_of_week_calculation() {
-        use chrono::NaiveDate;
-
         // Test with a known date: 2024-01-01 is a Monday
         let monday = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
 

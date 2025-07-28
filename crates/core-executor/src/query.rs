@@ -65,6 +65,7 @@ use df_catalog::catalog_list::CachedEntity;
 use df_catalog::information_schema::session_params::SessionProperty;
 use df_catalog::table::CachingTable;
 use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
+use embucket_functions::datetime::date_part_extract;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
@@ -251,6 +252,23 @@ impl UserQuery {
     }
 
     fn register_session_udfs(&self) {
+        // DATE_PART_EXTRACT
+        let week_start = self
+            .session
+            .get_session_variable("week_start")
+            .unwrap_or_else(|| "0".to_string())
+            .parse::<usize>()
+            .unwrap_or(0);
+
+        let week_of_year_policy = self
+            .session
+            .get_session_variable("week_of_year_policy")
+            .unwrap_or_else(|| "0".to_string())
+            .parse::<usize>()
+            .unwrap_or(0);
+
+        date_part_extract::register_udfs(&self.session.ctx, week_start, week_of_year_policy);
+
         // TO_TIMESTAMP
         let format = self
             .session
