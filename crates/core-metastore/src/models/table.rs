@@ -207,10 +207,10 @@ impl TableRequirementExt {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn assert(&self, metadata: &TableMetadata, exists: bool) -> Result<()> {
+    pub fn assert(&self, metadata: &TableMetadata) -> Result<()> {
         match self.inner() {
             TableRequirement::AssertCreate => {
-                if exists {
+                if !metadata.snapshots.is_empty() {
                     return Err(metastore_error::TableDataExistsSnafu {
                         path: metadata.location.to_string(),
                     }
