@@ -428,6 +428,9 @@ impl UserQuery {
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
+                Statement::CreateView { .. } => {
+                    return Box::pin(self.create_view(*s)).await;
+                }
                 Statement::CreateDatabase {
                     db_name,
                     if_not_exists,
@@ -1291,6 +1294,18 @@ impl UserQuery {
         self.create_catalog(&catalog_name, &external_volume.unwrap_or_default())
             .await?;
         self.created_entity_response()
+    }
+
+    #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
+    pub async fn create_view(&self, statement: Statement) -> Result<QueryResult> {
+        let mut plan = self.sql_statement_to_plan(statement).await?;
+        match &mut plan {
+            LogicalPlan::Ddl(DdlStatement::CreateView(cv)) => {
+                cv.temporary = false;
+            }
+            _ => return ex_error::OnlyCreateViewStatementsSnafu.fail(),
+        }
+        self.execute_logical_plan(plan).await
     }
 
     #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]

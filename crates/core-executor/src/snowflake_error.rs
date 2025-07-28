@@ -168,6 +168,7 @@ impl From<Error> for SnowflakeError {
             }
             Error::OnlyMergeStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlyCreateSchemaStatements { .. } => CustomSnafu { message }.build(),
+            Error::OnlyCreateViewStatements { .. } => CustomSnafu { message }.build(),
             Error::OnlySimpleSchemaNames { .. } => CustomSnafu { message }.build(),
             Error::UnsupportedShowStatement { .. } => CustomSnafu { message }.build(),
             Error::NoTableNamesForTruncateTable { .. } => CustomSnafu { message }.build(),

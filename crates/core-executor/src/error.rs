@@ -358,6 +358,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Only CREATE VIEW statements are supported"))]
+    OnlyCreateViewStatements {
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Only simple schema names are supported"))]
     OnlySimpleSchemaNames {
         #[snafu(implicit)]
