@@ -131,9 +131,9 @@ impl UserSession {
 
         for (key, prop) in params {
             if key.to_lowercase().starts_with("datafusion.") {
-                datafusion_params.push((key, prop.value));
+                datafusion_params.push((key.to_ascii_lowercase(), prop.value));
             } else {
-                session_params.insert(key, prop);
+                session_params.insert(key.to_ascii_lowercase(), prop);
             }
         }
         let options = write.config_mut().options_mut();

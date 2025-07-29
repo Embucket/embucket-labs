@@ -787,3 +787,28 @@ test_query!(
     "SELECT TO_TIMESTAMP(1000000000)",
     setup_queries = ["ALTER SESSION SET timestamp_input_mapping = 'timestamp_tz'"]
 );
+
+// Basic date part extraction tests
+test_query!(
+    date_part_extract_basic,
+    r#"SELECT '2016-01-02T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
+        YEAR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR",
+        QUARTER('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "QUARTER",
+        MONTH('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "MONTH",
+        DAY('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "DAY",
+        DAYOFMONTH('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF MONTH",
+        DAYOFWEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF WEEK",
+        DAYOFWEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF WEEK ISO",
+        DAYOFYEAR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF YEAR",
+        HOUR('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "HOUR",
+        MINUTE('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "MINUTE",
+        SECOND('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "SECOND""#,
+    snapshot_path = "date_part_extract"
+);
+
+test_query!(
+    date_part_extract_week_of_year_policy,
+    "SELECT WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)",
+    setup_queries = ["ALTER SESSION SET WEEK_OF_YEAR_POLICY = '1'"],
+    snapshot_path = "date_part_extract_week_of_year_policy"
+);

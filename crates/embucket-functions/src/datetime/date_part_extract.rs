@@ -36,7 +36,7 @@ pub enum Interval {
 ///
 /// Extracts a specific part of a date or timestamp.
 ///
-/// These functions are alternatives to using the DATE_PART function with the equivalent date part (see Supported date and time parts).
+/// These functions are alternatives to using the `DATE_PART` function with the equivalent date part (see Supported date and time parts).
 ///
 /// Syntax: `YEAR(<date_or_timestamp>)`
 ///
@@ -151,12 +151,12 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                         }
                         Interval::YearOfWeek => {
                             // Use session settings for year of week calculation
-                            calculate_year_of_week(&date, self.week_start, self.week_of_year_policy)
+                            calculate_year_of_week(date, self.week_start, self.week_of_year_policy)
                         }
                         Interval::Day | Interval::DayOfMonth => date.day() as i32 - 1,
                         Interval::DayOfWeek => {
                             // Use session week_start setting
-                            calculate_day_of_week(&date, self.week_start)
+                            calculate_day_of_week(date, self.week_start)
                         }
                         Interval::DayOfWeekIso => {
                             // Always use ISO (Monday = 1, Sunday = 7) regardless of session settings
@@ -165,11 +165,11 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                         Interval::DayOfYear => date.ordinal() as i32 - 1, // 0-based: 0..=364/365
                         Interval::Week => {
                             // Use session settings for week calculation
-                            calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
+                            calculate_week_of_year(date, self.week_start, self.week_of_year_policy)
                         }
                         Interval::WeekOfYear => {
                             // Use session settings for week of year calculation
-                            calculate_week_of_year(&date, self.week_start, self.week_of_year_policy)
+                            calculate_week_of_year(date, self.week_start, self.week_of_year_policy)
                         }
                         Interval::WeekIso => {
                             // Always use ISO week regardless of session settings
@@ -287,14 +287,14 @@ pub fn register_udfs(ctx: &SessionContext, week_start: usize, week_of_year_polic
 }
 
 /// Helper functions for week calculations
-
-/// Convert week_start parameter to Weekday
-/// WEEK_START:
+///
+/// Convert `week_start` parameter to Weekday
+/// `WEEK_START`:
 /// 0: Legacy Snowflake behavior (ISO-like semantics, Monday start)
 /// 1 (Monday) to 7 (Sunday): Week starts on the specified day
-fn week_start_to_weekday(week_start: usize) -> Weekday {
+#[allow(clippy::match_same_arms)]
+const fn week_start_to_weekday(week_start: usize) -> Weekday {
     match week_start {
-        0 => Weekday::Mon, // Legacy Snowflake behavior (ISO-like)
         1 => Weekday::Mon,
         2 => Weekday::Tue,
         3 => Weekday::Wed,
@@ -302,31 +302,36 @@ fn week_start_to_weekday(week_start: usize) -> Weekday {
         5 => Weekday::Fri,
         6 => Weekday::Sat,
         7 => Weekday::Sun,
-        _ => Weekday::Mon, // fallback
+        _ => Weekday::Mon, // Legacy Snowflake behavior (ISO-like)
     }
 }
 
-/// Calculate day of week based on week_start parameter
-/// Returns 0-6 where 0 is the week_start day
-/// For DAYOFWEEK function, this should return 0-6 based on the week start
-fn calculate_day_of_week(date: &NaiveDate, week_start: usize) -> i32 {
+/// Calculate day of week based on `week_start` parameter
+/// Returns 0-6 where 0 is the `week_start` day
+/// For `DAYOFWEEK` function, this should return 0-6 based on the week start
+#[allow(clippy::cast_possible_wrap, clippy::as_conversions)]
+fn calculate_day_of_week(date: NaiveDate, week_start: usize) -> i32 {
     let start_weekday = week_start_to_weekday(week_start);
     let current_weekday = date.weekday();
 
     // Calculate days from the start of week (0-6)
-    let days_from_start = (current_weekday.num_days_from_monday() as i32
-        - start_weekday.num_days_from_monday() as i32
+    (current_weekday.num_days_from_monday() as i32 - start_weekday.num_days_from_monday() as i32
         + 7)
-        % 7;
-
-    days_from_start
+        % 7
 }
 
-/// Calculate week number based on week_of_year_policy
-/// WEEK_OF_YEAR_POLICY:
+/// Calculate week number based on `week_of_year_policy`
+/// `WEEK_OF_YEAR_POLICY`:
 /// 0: ISO semantics - week belongs to a year if at least 4 days of that week are in that year
 /// 1: January 1 is included in the first week, December 31 is included in the last week
-fn calculate_week_of_year(date: &NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::cast_lossless
+)]
+fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
     match week_of_year_policy {
         0 => {
             // ISO semantics: week belongs to a year if at least 4 days are in that year
@@ -349,15 +354,15 @@ fn calculate_week_of_year(date: &NaiveDate, week_start: usize, week_of_year_poli
                 // then the first week belongs to the previous year (ISO rule)
                 let days_before_first_week = (first_week_start - jan1).num_days();
                 if days_before_first_week > 3 {
-                    first_week_start = first_week_start + chrono::Duration::weeks(1);
+                    first_week_start += chrono::Duration::weeks(1);
                 }
 
-                if *date < first_week_start {
+                if date < first_week_start {
                     // This date is in the last week of the previous year
                     let prev_dec31 = NaiveDate::from_ymd_opt(date.year() - 1, 12, 31).unwrap();
-                    calculate_week_of_year(&prev_dec31, week_start, week_of_year_policy)
+                    calculate_week_of_year(prev_dec31, week_start, week_of_year_policy)
                 } else {
-                    let weeks_since_start = (*date - first_week_start).num_weeks();
+                    let weeks_since_start = (date - first_week_start).num_weeks();
                     weeks_since_start as i32 + 1
                 }
             }
@@ -376,17 +381,17 @@ fn calculate_week_of_year(date: &NaiveDate, week_start: usize, week_of_year_poli
             }
 
             // If January 1 is not on the week start day, find the previous week start
-            if jan1.weekday() != start_weekday {
+            if jan1.weekday() == start_weekday {
+                first_week_start = jan1;
+            } else {
                 let days_to_subtract = (jan1.weekday().num_days_from_monday() as i32
                     - start_weekday.num_days_from_monday() as i32
                     + 7)
                     % 7;
                 first_week_start = jan1 - chrono::Duration::days(days_to_subtract as i64);
-            } else {
-                first_week_start = jan1;
             }
 
-            let weeks_since_start = (*date - first_week_start).num_weeks();
+            let weeks_since_start = (date - first_week_start).num_weeks();
             weeks_since_start as i32 + 1
         }
         _ => {
@@ -396,8 +401,9 @@ fn calculate_week_of_year(date: &NaiveDate, week_start: usize, week_of_year_poli
     }
 }
 
-/// Calculate year of week based on week_of_year_policy
-fn calculate_year_of_week(date: &NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
+/// Calculate year of week based on `week_of_year_policy`
+#[allow(clippy::unwrap_used)]
+fn calculate_year_of_week(date: NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
     match week_of_year_policy {
         0 => {
             // ISO semantics: return the year that contains the majority of the week
@@ -420,10 +426,10 @@ fn calculate_year_of_week(date: &NaiveDate, week_start: usize, week_of_year_poli
                 // then the first week belongs to the previous year (ISO rule)
                 let days_before_first_week = (first_week_start - jan1).num_days();
                 if days_before_first_week > 3 {
-                    first_week_start = first_week_start + chrono::Duration::weeks(1);
+                    first_week_start += chrono::Duration::weeks(1);
                 }
 
-                if *date < first_week_start {
+                if date < first_week_start {
                     // This date is in the last week of the previous year
                     date.year() - 1
                 } else {
@@ -629,19 +635,19 @@ mod tests {
         let monday = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
 
         // With Monday start (week_start = 1), Monday should be day 0
-        assert_eq!(calculate_day_of_week(&monday, 1), 0);
+        assert_eq!(calculate_day_of_week(monday, 1), 0);
 
         // With Sunday start (week_start = 7), Monday should be day 1
-        assert_eq!(calculate_day_of_week(&monday, 7), 1);
+        assert_eq!(calculate_day_of_week(monday, 7), 1);
 
         // Test Tuesday (2024-01-02)
         let tuesday = NaiveDate::from_ymd_opt(2024, 1, 2).unwrap();
-        assert_eq!(calculate_day_of_week(&tuesday, 1), 1); // Monday start
-        assert_eq!(calculate_day_of_week(&tuesday, 7), 2); // Sunday start
+        assert_eq!(calculate_day_of_week(tuesday, 1), 1); // Monday start
+        assert_eq!(calculate_day_of_week(tuesday, 7), 2); // Sunday start
 
         // Test Sunday (2024-01-07)
         let sunday = NaiveDate::from_ymd_opt(2024, 1, 7).unwrap();
-        assert_eq!(calculate_day_of_week(&sunday, 1), 6); // Monday start
-        assert_eq!(calculate_day_of_week(&sunday, 7), 0); // Sunday start
+        assert_eq!(calculate_day_of_week(sunday, 1), 6); // Monday start
+        assert_eq!(calculate_day_of_week(sunday, 7), 0); // Sunday start
     }
 }

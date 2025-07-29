@@ -134,7 +134,12 @@ datediff
 datefromparts
 datepart
 datetrunc
+day
 dayname
+dayofmonth
+dayofweek
+dayofweekiso
+dayofyear
 decode
 decrypt_raw
 degrees
@@ -167,6 +172,7 @@ grouping
 hex_decode_binary
 hex_decode_string
 hex_encode
+hour
 iff
 ifnull
 initcap
@@ -268,6 +274,8 @@ md5
 mean
 median
 min
+minute
+month
 monthname
 named_struct
 nanvl
@@ -296,6 +304,7 @@ position
 pow
 power
 previous_day
+quarter
 radians
 random
 range
@@ -326,6 +335,7 @@ row_number
 rpad
 rtrim
 rtrimmed_length
+second
 sha2
 sha224
 sha256
@@ -387,10 +397,13 @@ to_number
 to_numeric
 to_time
 to_timestamp
+to_timestamp_ltz
 to_timestamp_micros
 to_timestamp_millis
 to_timestamp_nanos
+to_timestamp_ntz
 to_timestamp_seconds
+to_timestamp_tz
 to_unixtime
 to_varchar
 to_variant
@@ -409,6 +422,10 @@ try_to_decimal
 try_to_number
 try_to_numeric
 try_to_time
+try_to_timestamp
+try_to_timestamp_ltz
+try_to_timestamp_ntz
+try_to_timestamp_tz
 try_to_varchar
 typeof
 union_extract
@@ -421,4 +438,6 @@ var_samp
 var_sample
 variant_element
 version
+week
+year
 zeroifnull

@@ -643,40 +643,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_geometry")
     .with_subcategory("geospatial")
     ),
-    ("TRY_TO_TIMESTAMP", FunctionInfo::new(
-        "TRY_TO_TIMESTAMP",
-        "Converts an input expression into the corresponding timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_timestamp")
-    .with_subcategory("datetime")
-    ),
-    ("TRY_TO_TIMESTAMP", FunctionInfo::new(
-        "TRY_TO_TIMESTAMP",
-        "A special version of TO_TIMESTAMP / TO_TIMESTAMP_* that performs the same operation (i.e. converts an input expression into a timestamp), but with error-handling support (i.e. if the conversion cannot be performed, it returns a NULL value instead of raising an error)."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/try_to_timestamp")
-    ),
-    ("TRY_TO_TIMESTAMP_LTZ", FunctionInfo::new(
-        "TRY_TO_TIMESTAMP_LTZ",
-        "Converts an input expression into the corresponding timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_timestamp")
-    .with_subcategory("datetime")
-    ),
-    ("TRY_TO_TIMESTAMP_NTZ", FunctionInfo::new(
-        "TRY_TO_TIMESTAMP_NTZ",
-        "Converts an input expression into the corresponding timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_timestamp")
-    .with_subcategory("datetime")
-    ),
-    ("TRY_TO_TIMESTAMP_TZ", FunctionInfo::new(
-        "TRY_TO_TIMESTAMP_TZ",
-        "Converts an input expression into the corresponding timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_timestamp")
-    .with_subcategory("datetime")
-    ),
 ];
 
 pub const DATA_METRIC_FUNCTIONS: &[(&str, FunctionInfo)] = &[
@@ -752,23 +718,11 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/extract")
     ),
-    ("HOUR", FunctionInfo::new(
-        "HOUR",
-        "Extracts the corresponding time part from a time or timestamp value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hour-minute-second")
-    ),
     ("LAST_SUCCESSFUL_SCHEDULED_TIME", FunctionInfo::new(
         "LAST_SUCCESSFUL_SCHEDULED_TIME",
         "Returns the timestamp representing the scheduled time for the most recent successful evaluation of the alert condition, where no errors occurred when executing the action."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/last_successful_scheduled_time")
-    ),
-    ("MINUTE", FunctionInfo::new(
-        "MINUTE",
-        "Extracts the corresponding time part from a time or timestamp value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hour-minute-second")
     ),
     ("MONTHS_BETWEEN", FunctionInfo::new(
         "MONTHS_BETWEEN",
@@ -782,17 +736,35 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/scheduled_time")
     ),
-    ("SECOND", FunctionInfo::new(
-        "SECOND",
-        "Extracts the corresponding time part from a time or timestamp value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/hour-minute-second")
-    ),
     ("TIME_SLICE", FunctionInfo::new(
         "TIME_SLICE",
         "Calculates the beginning or end of a “slice” of time, where the length of the slice is a multiple of a standard unit of time (minute, hour, day, etc.)."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/time_slice")
+    ),
+    ("WEEKISO", FunctionInfo::new(
+        "WEEKISO",
+        "Extracts the corresponding date part from a date or timestamp."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
+    ),
+    ("WEEKOFYEAR", FunctionInfo::new(
+        "WEEKOFYEAR",
+        "Extracts the corresponding date part from a date or timestamp."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
+    ),
+    ("YEAROFWEEK", FunctionInfo::new(
+        "YEAROFWEEK",
+        "Extracts the corresponding date part from a date or timestamp."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
+    ),
+    ("YEAROFWEEKISO", FunctionInfo::new(
+        "YEAROFWEEKISO",
+        "Extracts the corresponding date part from a date or timestamp."
+    )
+    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
 ];
 
