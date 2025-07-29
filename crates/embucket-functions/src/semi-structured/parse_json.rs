@@ -27,10 +27,7 @@ impl ParseJsonFunc {
     #[must_use]
     pub fn new(try_mode: bool) -> Self {
         Self {
-            signature: Signature::one_of(
-                vec![TypeSignature::String(1)],
-                Volatility::Immutable,
-            ),
+            signature: Signature::one_of(vec![TypeSignature::String(1)], Volatility::Immutable),
             try_mode,
         }
     }
