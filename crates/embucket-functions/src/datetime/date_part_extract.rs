@@ -456,9 +456,7 @@ mod tests {
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
 
-    #[tokio::test]
-    async fn test_basic() -> DFResult<()> {
-        let ctx = SessionContext::new();
+    fn register_udfs(ctx: &SessionContext) {
         // Register functions with default week settings (week_start=1, week_of_year_policy=0)
         ctx.register_udf(ScalarUDF::from(DatePartExtractFunc::new(
             Interval::Year,
@@ -525,6 +523,11 @@ mod tests {
             1,
             0,
         )));
+    }
+    #[tokio::test]
+    async fn test_basic() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        register_udfs(&ctx);
 
         let sql = r#"SELECT '2025-04-11T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
        YEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR",
@@ -553,8 +556,6 @@ mod tests {
        YEAROFWEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)    AS "YEAR OF WEEK",
        YEAROFWEEKISO('2016-01-02T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR OF WEEK ISO""#;
         let result = ctx.sql(sql).await?.collect().await?;
-
-        print_batches(&result)?;
 
         assert_batches_eq!(
             &[
@@ -632,7 +633,7 @@ mod tests {
     #[test]
     fn test_day_of_week_calculation() {
         // Test with a known date: 2024-01-01 is a Monday
-        let monday = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let monday = NaiveDate::from_ymd_opt(2024, 1, 1).expect("date");
 
         // With Monday start (week_start = 1), Monday should be day 0
         assert_eq!(calculate_day_of_week(monday, 1), 0);
@@ -641,12 +642,12 @@ mod tests {
         assert_eq!(calculate_day_of_week(monday, 7), 1);
 
         // Test Tuesday (2024-01-02)
-        let tuesday = NaiveDate::from_ymd_opt(2024, 1, 2).unwrap();
+        let tuesday = NaiveDate::from_ymd_opt(2024, 1, 2).expect("date");
         assert_eq!(calculate_day_of_week(tuesday, 1), 1); // Monday start
         assert_eq!(calculate_day_of_week(tuesday, 7), 2); // Sunday start
 
         // Test Sunday (2024-01-07)
-        let sunday = NaiveDate::from_ymd_opt(2024, 1, 7).unwrap();
+        let sunday = NaiveDate::from_ymd_opt(2024, 1, 7).expect("date");
         assert_eq!(calculate_day_of_week(sunday, 1), 6); // Monday start
         assert_eq!(calculate_day_of_week(sunday, 7), 0); // Sunday start
     }
