@@ -1,4 +1,4 @@
-candidate_id,school_name,degree,discipline,start,end,latest,created_at,updated_at,organization_id,_updated_at
+candidate_id,school_name,degree,discipline,start_ts,end_ts,latest,created_at,updated_at,organization_id,_updated_at
 303,249,425,555,801,644,FALSE,670,771,801,421.56
 150,537,937,674,700,514,FALSE,524,932,511,382.56
 483,821,787,209,591,266,FALSE,609,210,334,424.36
