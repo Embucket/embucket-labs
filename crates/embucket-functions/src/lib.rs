@@ -43,6 +43,7 @@ pub mod table;
 pub mod tests;
 mod utils;
 pub mod visitors;
+pub mod regexp;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     conditional::register_udfs(registry)?;

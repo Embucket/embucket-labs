@@ -31,6 +31,7 @@ pub fn pattern_to_regex(pattern: &str) -> String {
 }
 
 pub fn regexp<'a>(array: &'a StringArray, pattern: &str) -> impl Iterator<Item = &'a str> {
+    let regex = pattern_to_regex(pattern);
     array.iter().filter_map(|opt| {
         opt.map(|str| {
             str
