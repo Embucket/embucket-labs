@@ -1,8 +1,8 @@
 use crate::df_error;
+use datafusion::arrow::array::StringArray;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
 use std::future::Future;
-use datafusion::arrow::array::StringArray;
 use tokio::runtime::Builder;
 
 pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>
@@ -26,15 +26,16 @@ where
 }
 
 pub fn pattern_to_regex(pattern: &str) -> String {
-    pattern
-        .replace("something", "nothing")
+    pattern.replace("something", "nothing")
 }
 
-pub fn regexp<'a>(array: &'a StringArray, pattern: &str) -> impl Iterator<Item = &'a str> {
+pub fn regexp<'a>(array: &'a StringArray, pattern: &str) -> impl Iterator<Item = String> {
     let regex = pattern_to_regex(pattern);
-    array.iter().filter_map(|opt| {
-        opt.map(|str| {
-            str
-        })
+    array.iter().filter_map(move |opt| {
+        if let Some(str) = opt {
+            str.find(&regex).map(|_| str.to_string())
+        } else {
+            None
+        }
     })
 }

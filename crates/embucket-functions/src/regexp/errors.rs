@@ -1,5 +1,4 @@
 use arrow_schema::DataType;
-use datafusion_common::ScalarValue;
 use snafu::{Location, Snafu};
 
 #[derive(Snafu)]
@@ -11,7 +10,7 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    
+
     #[snafu(display("Too little arguments, expected at least: {at_least}, got: {got}"))]
     NotEnoughArguments {
         got: usize,
@@ -24,6 +23,21 @@ pub enum Error {
     TooManyArguments {
         got: usize,
         at_maximum: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unsupported input type: {data_type:?}"))]
+    UnsupportedInputType {
+        data_type: DataType,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Unsupported input type: {data_type:?} on position {position}"))]
+    UnsupportedInputTypeWithPosition {
+        data_type: DataType,
+        position: usize,
         #[snafu(implicit)]
         location: Location,
     },
@@ -45,7 +59,6 @@ impl From<Error> for datafusion_common::DataFusionError {
 
 impl Default for Error {
     fn default() -> Self {
-        FormatMustBeNonNullScalarValueSnafu {}
-            .build()
+        FormatMustBeNonNullScalarValueSnafu {}.build()
     }
 }

@@ -32,6 +32,7 @@ pub mod encryption;
 pub mod expr_planner;
 mod json;
 pub mod numeric;
+pub mod regexp;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
@@ -43,7 +44,6 @@ pub mod table;
 pub mod tests;
 mod utils;
 pub mod visitors;
-pub mod regexp;
 
 pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     conditional::register_udfs(registry)?;
@@ -53,6 +53,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     encryption::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;
     semi_structured::register_udfs(registry)?;
+    regexp::register_udfs(registry)?;
     system::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
     Ok(())

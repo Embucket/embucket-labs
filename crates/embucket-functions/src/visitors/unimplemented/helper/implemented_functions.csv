@@ -310,6 +310,7 @@ random
 range
 rank
 regexp_count
+regexp_instr
 regexp_like
 regexp_match
 regexp_replace
