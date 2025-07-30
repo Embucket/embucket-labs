@@ -37,7 +37,6 @@ pub mod semi_structured;
 pub mod session;
 #[path = "string-binary/mod.rs"]
 pub mod string_binary;
-#[path = "system/mod.rs"]
 pub mod system;
 pub mod table;
 #[cfg(test)]
