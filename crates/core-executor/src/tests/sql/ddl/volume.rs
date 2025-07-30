@@ -21,6 +21,7 @@ test_query!(
     "SELECT * FROM slatedb.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
+            STORAGE_BASE_URL = 'bucket_name'
             STORAGE_ENDPOINT = 'https://s3.us-east-2.amazonaws.com'
             CREDENTIALS=(AWS_KEY_ID='1a2b3c...' AWS_SECRET_KEY='4x5y6z...')
         ))"],
@@ -30,11 +31,15 @@ test_query!(
 test_query!(
     s3tables,
     "SELECT * FROM slatedb.meta.volumes",
-    setup_queries = ["CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
+    setup_queries = [
+        // disable s3tables catalog creation
+        "SET DISABLE_S3TABLES_CATALOG_CREATION = true",
+        "CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3TABLES'
             STORAGE_ENDPOINT = 'https://s3.us-east-2.amazonaws.com'
-            STORAGE_AWS_ROLE_ARN = 'arn:aws:s3tables:us-east-2:767397688925:bucket/yaro-bucket'
+            STORAGE_AWS_ACCESS_POINT_ARN = 'arn:aws:s3tables:us-east-2:767397688925:bucket/yaro-bucket'
             CREDENTIALS=(AWS_KEY_ID='1a2b3c...' AWS_SECRET_KEY='4x5y6z...' DATABASE_NAME='yaro_db')
-        ))"],
+        ))"
+    ],
     snapshot_path = "volume"
 );
