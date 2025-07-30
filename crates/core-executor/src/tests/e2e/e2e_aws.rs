@@ -1,12 +1,11 @@
 use aws_config;
 use aws_config::Region;
-use aws_config::meta::region::{ProvideRegion, RegionProviderChain};
+use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3tables::config::Credentials;
 use aws_sdk_s3tables::config::SharedCredentialsProvider;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::{Client, Config, Error};
 use aws_sdk_sts::Client as StsClient;
-use aws_sdk_sts::config::Credentials as StsCredentials;
 
 pub async fn s3_role_client(
     access_key_id: String,
@@ -38,50 +37,18 @@ pub async fn s3_role_client(
         ))
         .send()
         .await;
-    println!("Assumed role: {:?}", assumed_role);
+    eprintln!("Assumed role: {assumed_role:?}");
 
     let assumed_creds = Credentials::from_keys(access_key_id, secret_access_key, None);
 
     let region_provider = RegionProviderChain::first_try(Region::new(region));
 
-    let succeed_config = aws_config::from_env()
+    let config = aws_config::from_env()
         .credentials_provider(assumed_creds)
         .region(region_provider)
         .load()
         .await;
-    println!("succeed config: {:?}", succeed_config);
-    let succeed_client = Client::new(&succeed_config);
-    succeed_client
-
-    ////////////////////// FOO
-    // let region_provider = RegionProviderChain::first_try(Region::new(region.clone()));
-    // let base_config = aws_config::from_env().region(region_provider).load().await;
-
-    // let sts_client = StsClient::new(&base_config);
-
-    // let assumed_creds = Credentials::from_keys(
-    //     access_key_id,
-    //     secret_access_key,
-    //     None,
-    // );
-
-    // let assumed_config = Config::builder()
-    //     .region(region_provider.region().await)
-    //     .credentials_provider(assumed_creds)
-    //     .build();
-
-    // let creds = Credentials::builder()
-    //     .access_key_id(access_key_id)
-    //     .secret_access_key(secret_access_key)
-    //     .account_id(account_id)
-    //     .provider_name("test")
-    //     .build();
-
-    // let config = Config::builder()
-    //     .credentials_provider(SharedCredentialsProvider::new(creds))
-    //     .region(Region::new(region))
-    //     .build();
-    // Client::from_conf(&config)
+    Client::new(&config)
 }
 
 pub async fn s3_client(

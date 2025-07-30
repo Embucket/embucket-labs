@@ -35,6 +35,7 @@ use std::sync::Arc;
 
 // Set following envs, or add to .env
 
+pub const EMBUCKET_OBJECT_STORE_PREFIX: &str = "EMBUCKET_OBJECT_STORE_";
 // # Env vars for s3 object store on minio
 // AWS_ACCESS_KEY_ID=
 // AWS_SECRET_ACCESS_KEY=
@@ -217,21 +218,19 @@ pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3Ta
     })
 }
 
-pub async fn create_s3_client(env_prefix: &str) -> aws_sdk_s3tables::Client {
+pub async fn create_s3_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
     // use the same credentials as for s3 tables volume
-    let s3_tables_volume = s3_tables_volume("test", env_prefix)
-        .expect("Failed to load s3 credentials for s3 tables volume");
+    let s3_tables_volume = s3_tables_volume("test", env_prefix)?;
     if let AwsCredentials::AccessKey(ref access_key) = s3_tables_volume.credentials {
-        return s3_client(
+        return Ok(s3_client(
             access_key.aws_access_key_id.clone(),
             access_key.aws_secret_access_key.clone(),
             s3_tables_volume.region(),
             s3_tables_volume.account_id(),
         )
-        .await;
-    } else {
-        panic!("Unsupported credentials type AwsCredentials::Token");
+        .await);
     }
+    panic!("Unsupported credentials type AwsCredentials::Token");
 }
 
 pub type TestPlan = Vec<ParallelTest>;
@@ -254,19 +253,19 @@ pub struct S3ObjectStore {
     pub s3_builder: AmazonS3Builder,
 }
 impl S3ObjectStore {
-    #[must_use]
-    pub fn from_env() -> Result<Self, Error> {
-        let prefix = "EMBUCKET_OBJECT_STORE";
-        let region = std::env::var(format!("{prefix}_AWS_REGION")).context(S3VolumeConfigSnafu)?;
+    pub fn from_env(env_prefix: &str) -> Result<Self, Error> {
+        let region =
+            std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
         let access_key =
-            std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
-        let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
+            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
+        let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
             .context(S3VolumeConfigSnafu)?;
         let endpoint =
-            std::env::var(format!("{prefix}_AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
         let allow_http =
-            std::env::var(format!("{prefix}_AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu)?;
-        let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu)?;
+        let bucket =
+            std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
 
         let s3_builder = AmazonS3Builder::new()
             .with_access_key_id(access_key)
@@ -277,13 +276,8 @@ impl S3ObjectStore {
             .with_allow_http(allow_http == "true")
             .with_conditional_put(S3ConditionalPut::ETagMatch);
         Ok(Self {
-            s3_builder: s3_builder,
+            s3_builder,
         })
-
-        // Self {
-        //     s3_builder: AmazonS3Builder::from_env()
-        //         .with_conditional_put(S3ConditionalPut::ETagMatch),
-        // }
     }
 }
 
@@ -397,7 +391,7 @@ impl ExecutorWithObjectStore {
     }
 }
 
-#[must_use]
+#[allow(clippy::too_many_lines)]
 pub async fn create_volumes(
     metastore: Arc<dyn Metastore>,
     object_store_type: &ObjectStoreType,
@@ -450,13 +444,14 @@ pub async fn create_volumes(
         ..
     } in used_volumes.values()
     {
+        let volume = (*volume).to_string();
         match volume_type {
             TestVolumeType::Memory => {
                 let res = metastore
                     .create_volume(
-                        &volume.to_string(),
+                        &volume,
                         MetastoreVolume::new(
-                            volume.to_string(),
+                            volume.clone(),
                             core_metastore::VolumeType::Memory,
                         ),
                     )
@@ -472,9 +467,9 @@ pub async fn create_volumes(
                 let user_data_dir = user_data_dir.as_path();
                 let res = metastore
                     .create_volume(
-                        &volume.to_string(),
+                        &volume,
                         MetastoreVolume::new(
-                            volume.to_string(),
+                            volume.clone(),
                             core_metastore::VolumeType::File(FileVolume {
                                 path: user_data_dir.display().to_string(),
                             }),
@@ -490,9 +485,9 @@ pub async fn create_volumes(
                 if let Ok(s3_volume) = s3_volume(prefix) {
                     let res = metastore
                         .create_volume(
-                            &volume.to_string(),
+                            &volume,
                             MetastoreVolume::new(
-                                volume.to_string(),
+                                volume.clone(),
                                 core_metastore::VolumeType::S3(s3_volume),
                             ),
                         )
@@ -507,9 +502,9 @@ pub async fn create_volumes(
                 if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
                     let res = metastore
                         .create_volume(
-                            &volume.to_string(),
+                            &volume,
                             MetastoreVolume::new(
-                                volume.to_string(),
+                                volume.clone(),
                                 core_metastore::VolumeType::S3Tables(s3_tables_volume),
                             ),
                         )
@@ -674,6 +669,7 @@ pub async fn create_executor_with_early_volumes_creation(
 }
 
 // Every executor
+#[allow(clippy::too_many_lines)]
 pub async fn exec_parallel_test_plan(
     test_plan: Vec<ParallelTest>,
     volumes_databases_list: &[TestVolumeType],
@@ -693,7 +689,7 @@ pub async fn exec_parallel_test_plan(
                         ..
                     } = executor
                         .used_volumes
-                        .get(&volume_type)
+                        .get(volume_type)
                         .expect("VolumeConfig not found");
                     sqls.iter()
                         .map(|sql| prepare_statement(sql, volume, database, schema))
