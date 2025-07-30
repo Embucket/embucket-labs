@@ -1,7 +1,6 @@
 use crate::test_query;
 
 // SYSTEM$TYPEOF basic casting examples
-#[allow(clippy::useless_format)]
 test_query!(
     system_typeof_basic,
     "SELECT \
@@ -14,7 +13,6 @@ test_query!(
 );
 
 // SYSTEM$TYPEOF with literal values
-#[allow(clippy::useless_format)]
 test_query!(
     system_typeof_literals,
     "SELECT \
@@ -26,7 +24,6 @@ test_query!(
 );
 
 // SYSTEM$TYPEOF on date and timestamp literals
-#[allow(clippy::useless_format)]
 test_query!(
     system_typeof_date,
     "SELECT \
@@ -36,7 +33,6 @@ test_query!(
 );
 
 // SYSTEM$TYPEOF on basic expressions
-#[allow(clippy::useless_format)]
 test_query!(
     system_typeof_expressions,
     "SELECT \

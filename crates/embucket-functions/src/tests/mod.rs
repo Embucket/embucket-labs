@@ -5,10 +5,10 @@ mod datetime;
 mod encryption;
 mod numeric;
 mod query;
-mod system;
 #[path = "semi-structured/mod.rs"]
 mod semi_structured;
 mod string_binary;
+mod system;
 mod table;
 mod utils;
 mod visitors;

@@ -44,7 +44,9 @@ impl ScalarUDFImpl for SystemTypeofFunc {
         let ScalarFunctionArgs { args, .. } = args;
         let arg = &args[0];
         let dtype = arg.data_type();
-        Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(format!("{dtype}")))))
+        Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(format!(
+            "{dtype}"
+        )))))
     }
 }
 
