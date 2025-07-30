@@ -1336,8 +1336,8 @@ impl UserQuery {
             "s3tables" => {
                 let vol_type = "s3tables";
                 let key_id = get_volume_kv_option(&params.credentials, "aws_key_id", vol_type)?;
-                let secret_key_id =
-                    get_volume_kv_option(&params.credentials, "secret_key_id", vol_type)?;
+                let secret_key =
+                    get_volume_kv_option(&params.credentials, "aws_secret_key", vol_type)?;
                 let db_name = get_volume_kv_option(&params.credentials, "database_name", vol_type)?;
                 catalog_name = Some(db_name.clone());
 
@@ -1347,7 +1347,7 @@ impl UserQuery {
                         endpoint: params.storage_endpoint,
                         credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                             aws_access_key_id: key_id,
-                            aws_secret_access_key: secret_key_id,
+                            aws_secret_access_key: secret_key,
                         }),
                         database: db_name,
                         arn: params.aws_access_point_arn.unwrap_or_default(),
@@ -1357,11 +1357,11 @@ impl UserQuery {
             "s3" => {
                 let vol_type = "s3";
                 let key_id = get_volume_kv_option(&params.credentials, "aws_key_id", vol_type)?;
-                let secret_key_id =
-                    get_volume_kv_option(&params.credentials, "secret_key_id", vol_type)?;
+                let secret_key =
+                    get_volume_kv_option(&params.credentials, "aws_secret_key", vol_type)?;
                 let aws_credentials = AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                     aws_access_key_id: key_id,
-                    aws_secret_access_key: secret_key_id,
+                    aws_secret_access_key: secret_key,
                 });
 
                 Volume::new(
@@ -1388,17 +1388,27 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?;
 
-        // Register catalog if it is S3TablesVolume
+        // Register catalog only if the volume is of type S3Tables,
+        // and session variable `disable_s3tables_catalog_creation` is not set to true.
+        // This allows tests or other environments to skip actual AWS interaction.
         if let VolumeType::S3Tables(_) = &volume.volume {
-            let catalog_name = catalog_name.ok_or_else(|| {
-                ex_error::VolumeFieldRequiredSnafu {
-                    volume_type: volume.volume.to_string(),
-                    field: "storage provider one of S3, S3TABLES, MEMORY OR FILE".to_string(),
-                }
-                .build()
-            })?;
+            let skip_catalog_creation = self
+                .session
+                .get_session_variable("DISABLE_S3TABLES_CATALOG_CREATION")
+                .is_some_and(|v| v.to_lowercase() == "true");
 
-            self.create_catalog(&catalog_name, &ident).await?;
+            if skip_catalog_creation {
+                tracing::debug!("Skipping create_catalog due to session variable override");
+            } else {
+                let catalog_name = catalog_name.ok_or_else(|| {
+                    ex_error::VolumeFieldRequiredSnafu {
+                        volume_type: volume.volume.to_string(),
+                        field: "storage provider one of S3, S3TABLES, MEMORY OR FILE".to_string(),
+                    }
+                    .build()
+                })?;
+                self.create_catalog(&catalog_name, &ident).await?;
+            }
         }
         self.created_entity_response()
     }
