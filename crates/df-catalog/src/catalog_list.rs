@@ -13,9 +13,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
-use core_metastore::{
-    AwsCredentials, Database, Metastore, RwObject, VolumeType as MetastoreVolumeType, VolumeType,
-};
+use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType as MetastoreVolumeType, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
@@ -234,12 +232,12 @@ impl EmbucketCatalogList {
             .with_properties(Properties::default())
     }
 
-    #[tracing::instrument(
-        name = "EmbucketCatalogList::external_catalogs",
-        level = "debug",
-        skip(self),
-        err
-    )]
+    // #[tracing::instrument(
+    //     name = "EmbucketCatalogList::external_catalogs",
+    //     level = "debug",
+    //     skip(self),
+    //     err
+    // )]
     pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         let volumes = self
             .metastore
@@ -260,38 +258,40 @@ impl EmbucketCatalogList {
 
         let mut catalogs = Vec::with_capacity(volumes.len());
         for volume in volumes {
-            let (ak, sk, token) = match volume.credentials {
-                AwsCredentials::AccessKey(ref creds) => (
-                    Some(creds.aws_access_key_id.clone()),
-                    Some(creds.aws_secret_access_key.clone()),
-                    None,
-                ),
-                AwsCredentials::Token(ref t) => (None, None, Some(t.clone())),
-            };
-            let creds =
-                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
-            let config = SdkConfig::builder()
-                .behavior_version(BehaviorVersion::latest())
-                .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region()))
-                .build();
-            let catalog = S3TablesCatalog::new(
-                &config,
-                volume.arn.as_str(),
-                ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
-            )
-            .context(df_catalog_error::S3TablesSnafu)?;
-
-            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
-                .await
-                .context(df_catalog_error::DataFusionSnafu)?;
-            catalogs.push(
-                CachingCatalog::new(Arc::new(catalog), volume.database.clone())
-                    .with_refresh(true)
-                    .with_catalog_type(CatalogType::S3tables),
-            );
+            catalogs.push(self.s3tables_catalog(volume).await?);
         }
         Ok(catalogs)
+    }
+    
+    pub async fn s3tables_catalog(&self, volume: S3TablesVolume) -> Result<CachingCatalog> {
+        let (ak, sk, token) = match volume.credentials {
+            AwsCredentials::AccessKey(ref creds) => (
+                Some(creds.aws_access_key_id.clone()),
+                Some(creds.aws_secret_access_key.clone()),
+                None,
+            ),
+            AwsCredentials::Token(ref t) => (None, None, Some(t.clone())),
+        };
+        let creds =
+            Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
+        let config = SdkConfig::builder()
+            .behavior_version(BehaviorVersion::latest())
+            .credentials_provider(SharedCredentialsProvider::new(creds))
+            .region(Region::new(volume.region()))
+            .build();
+        let catalog = S3TablesCatalog::new(
+            &config,
+            volume.arn.as_str(),
+            ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
+        )
+            .context(df_catalog_error::S3TablesSnafu)?;
+
+        let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
+            .await
+            .context(df_catalog_error::DataFusionSnafu)?;
+        Ok(CachingCatalog::new(Arc::new(catalog), volume.database.clone())
+            .with_refresh(true)
+            .with_catalog_type(CatalogType::S3tables))
     }
 
     /// Do not keep returned references to avoid deadlocks
