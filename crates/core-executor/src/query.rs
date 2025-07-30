@@ -1,5 +1,5 @@
 use super::catalog::information_schema::information_schema::{
-    INFORMATION_SCHEMA, InformationSchemaProvider,
+    InformationSchemaProvider, INFORMATION_SCHEMA,
 };
 use super::catalog::{
     catalog_list::EmbucketCatalogList, catalogs::embucket::catalog::EmbucketCatalog,
@@ -9,7 +9,7 @@ use super::error::{
     self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
 use super::session::UserSession;
-use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use super::utils::{is_logical_plan_effectively_empty, NormalizedIdent};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
 use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
@@ -19,15 +19,18 @@ use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
-use core_metastore::{AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest, TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume};
+use core_metastore::{
+    AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
+    SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
+    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume,
+};
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
 use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
-use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
-use datafusion::execution::session_state::SessionContextProvider;
-use datafusion::execution::session_state::SessionState;
+use datafusion::datasource::DefaultTableSource;
+use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
 use datafusion::prelude::{CsvReadOptions, DataFrame};
@@ -41,22 +44,22 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DFSchema, DataFusionError, ResolvedTableReference, SchemaReference, TableReference,
-    plan_datafusion_err,
+    plan_datafusion_err, DFSchema, DataFusionError, ResolvedTableReference, SchemaReference,
+    TableReference,
 };
 use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
-    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
-    build_join_schema, is_null, lit, or, when,
+    and, build_join_schema, is_null, lit, or, when,
+    BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension, JoinType, LogicalPlanBuilder,
+    Operator, Projection, ScalarUDF, SubqueryAlias, TryCast,
 };
-use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
+use datafusion_iceberg::DataFusionTable;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::information_schema::session_params::SessionProperty;
@@ -69,10 +72,10 @@ use embucket_functions::visitors::{
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
-use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
 use iceberg_rust::catalog::tabular::Tabular;
+use iceberg_rust::catalog::Catalog;
 use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust::spec::arrow::schema::new_fields_with_ids;
 use iceberg_rust::spec::namespace::Namespace;
@@ -82,8 +85,8 @@ use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
-use object_store::ObjectStore;
 use object_store::aws::AmazonS3Builder;
+use object_store::ObjectStore;
 use snafu::ResultExt;
 use sqlparser::ast::{AssignmentTarget, MergeAction, MergeClause, MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut, CloudProviderParams};
 use std::collections::hash_map::Entry;
@@ -92,10 +95,8 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
-use sqlparser::ast::helpers::key_value_options::{KeyValueOption, KeyValueOptions};
 use tracing_attributes::instrument;
 use url::Url;
-use crate::tests::e2e_common::TEST_VOLUME_S3TABLES;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -435,7 +436,11 @@ impl UserQuery {
                         .create_database(db_name, if_not_exists, external_volume)
                         .await;
                 }
-                Statement::CreateExternalVolume{ name, storage_locations, .. } => {
+                Statement::CreateExternalVolume {
+                    name,
+                    storage_locations,
+                    ..
+                } => {
                     return self.create_volume(name, storage_locations).await;
                 }
                 Statement::CreateSchema { .. } => return Box::pin(self.create_schema(*s)).await,
@@ -1305,69 +1310,88 @@ impl UserQuery {
         storage_locations: Vec<CloudProviderParams>,
     ) -> Result<QueryResult> {
         if storage_locations.is_empty() {
-            return ex_error::VolumeFieldRequiredSnafu{
+            return ex_error::VolumeFieldRequiredSnafu {
                 volume_type: None,
                 field: "storage_locations".to_string(),
-            }.fail()
+            }
+            .fail();
         }
         let params = storage_locations[0].clone();
         let ident = object_name_to_string(&name);
         match params.provider.to_lowercase().as_str() {
             "file" => {
                 let vol = Volume::new(
-                    ident,
-                    core_metastore::VolumeType::File(FileVolume{
+                    ident.clone(),
+                    core_metastore::VolumeType::File(FileVolume {
                         path: params.base_url.unwrap_or_default(),
                     }),
                 );
-                self.metastore.create_volume(&ident, vol).await.context(ex_error::MetastoreSnafu)?;
-            },
+                self.metastore
+                    .create_volume(&ident, vol)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?;
+            }
             "memory" => {
-                let vol = Volume::new(ident, core_metastore::VolumeType::Memory);
-                self.metastore.create_volume(&ident, vol).await.context(ex_error::MetastoreSnafu)?;
-            },
+                let vol = Volume::new(ident.clone(), core_metastore::VolumeType::Memory);
+                self.metastore
+                    .create_volume(&ident, vol)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?;
+            }
             "s3tables" => {
-                let key_id = if let Some(val) = get_kv_option(&params.credentials, "aws_key_id") {
-                    val.to_string()
-                } else {
-                    return ex_error::VolumeFieldRequiredSnafu{
-                        volume_type: Some("s3tables"),
-                        field: "AWS_KEY_ID".to_string(),
-                    }.fail()
-                };
-                let secret_key_id = if let Some(val) = get_kv_option(&params.credentials, "aws_secret_key") {
-                    val.to_string()
-                } else {
-                    return ex_error::VolumeFieldRequiredSnafu{
-                        volume_type: Some("s3tables"),
-                        field: "AWS_SECRET_KEY".to_string(),
-                    }.fail()
-                };
-                let db_name = if let Some(val) = get_kv_option(&params.credentials, "database_name") {
-                    val.to_string()
-                } else {
-                    return ex_error::VolumeFieldRequiredSnafu{
-                        volume_type: Some("s3tables"),
-                        field: "DATABASE_NAME".to_string(),
-                    }.fail()
-                };
+                let key_id =
+                    get_volume_kv_option(&params.credentials, "aws_key_id", Some("s3tables"))?
+                        .unwrap_or_default();
+                let secret_key_id =
+                    get_volume_kv_option(&params.credentials, "secret_key_id", Some("s3tables"))?
+                        .unwrap_or_default();
+                let db_name =
+                    get_volume_kv_option(&params.credentials, "database_name", Some("s3tables"))?
+                        .unwrap_or_default();
                 let aws_credentials = AwsCredentials::AccessKey(AwsAccessKeyCredentials {
-                    aws_access_key_id: key_id,
-                    aws_secret_access_key: secret_key_id,
+                    aws_access_key_id: key_id.to_string(),
+                    aws_secret_access_key: secret_key_id.to_string(),
                 });
-
                 let vol = Volume::new(
-                    ident,
-                    core_metastore::VolumeType::S3Tables(S3TablesVolume{
+                    ident.clone(),
+                    core_metastore::VolumeType::S3Tables(S3TablesVolume {
                         endpoint: params.storage_endpoint,
                         credentials: aws_credentials,
-                        database: db_name,
+                        database: db_name.to_string(),
                         arn: params.aws_access_point_arn.unwrap_or_default(),
                     }),
                 );
-                self.metastore.create_volume(&ident, vol).await.context(ex_error::MetastoreSnafu)?;
+                self.metastore
+                    .create_volume(&ident, vol)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?;
                 self.create_catalog(&db_name, &ident).await?;
-            },
+            }
+            "s3" => {
+                let key_id =
+                    get_volume_kv_option(&params.credentials, "aws_key_id", Some("s3tables"))?
+                        .unwrap_or_default();
+                let secret_key_id =
+                    get_volume_kv_option(&params.credentials, "secret_key_id", Some("s3tables"))?
+                        .unwrap_or_default();
+                let aws_credentials = AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                    aws_access_key_id: key_id.to_string(),
+                    aws_secret_access_key: secret_key_id.to_string(),
+                });
+                let vol = Volume::new(
+                    ident.clone(),
+                    core_metastore::VolumeType::S3(S3Volume {
+                        region: None,
+                        bucket: params.base_url,
+                        endpoint: params.storage_endpoint,
+                        credentials: Some(aws_credentials),
+                    }),
+                );
+                self.metastore
+                    .create_volume(&ident, vol)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?;
+            }
             _ => {}
         }
         self.created_entity_response()
@@ -2776,10 +2800,23 @@ pub fn cast_input_to_target_schema(
     Ok(Arc::new(LogicalPlan::Projection(projection)))
 }
 
-pub fn get_kv_option(kv_options: &KeyValueOptions, key: &str) -> Option<&str> {
-    kv_options
+pub fn get_volume_kv_option<'a>(
+    options: &'a KeyValueOptions,
+    key: &str,
+    volume_type: Option<&'static str>,
+) -> Result<Option<&'a str>> {
+    let opt = options
         .options
         .iter()
         .find(|opt| opt.option_name.eq_ignore_ascii_case(key))
-        .map(|opt| opt.value.as_str())
+        .map(|opt| opt.value.as_str());
+
+    match opt {
+        None => Err(ex_error::VolumeFieldRequiredSnafu {
+            volume_type: volume_type.map(str::to_string),
+            field: key.to_ascii_uppercase(),
+        }
+        .build()),
+        value => Ok(value),
+    }
 }

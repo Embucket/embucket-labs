@@ -1,7 +1,7 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::{CachingCatalog, CatalogType, Properties};
-use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
+use crate::catalogs::slatedb::catalog::{SlateDBCatalog, SLATEDB_CATALOG};
 use crate::df_error;
 use crate::error::{
     self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, MissingVolumeSnafu,
@@ -10,10 +10,13 @@ use crate::error::{
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
+use aws_credential_types::Credentials;
 use core_history::HistoryStore;
-use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType as MetastoreVolumeType, VolumeType};
+use core_metastore::{
+    AwsCredentials, Database, Metastore, RwObject, S3TablesVolume,
+    VolumeType as MetastoreVolumeType, VolumeType,
+};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
@@ -24,8 +27,8 @@ use datafusion::{
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
-use object_store::ObjectStore;
 use object_store::local::LocalFileSystem;
+use object_store::ObjectStore;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
@@ -232,12 +235,12 @@ impl EmbucketCatalogList {
             .with_properties(Properties::default())
     }
 
-    // #[tracing::instrument(
-    //     name = "EmbucketCatalogList::external_catalogs",
-    //     level = "debug",
-    //     skip(self),
-    //     err
-    // )]
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::external_catalogs",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
         let volumes = self
             .metastore
@@ -262,7 +265,13 @@ impl EmbucketCatalogList {
         }
         Ok(catalogs)
     }
-    
+
+    #[tracing::instrument(
+        name = "EmbucketCatalogList::s3tables_catalog",
+        level = "debug",
+        skip(self),
+        err
+    )]
     pub async fn s3tables_catalog(&self, volume: S3TablesVolume) -> Result<CachingCatalog> {
         let (ak, sk, token) = match volume.credentials {
             AwsCredentials::AccessKey(ref creds) => (
@@ -272,8 +281,7 @@ impl EmbucketCatalogList {
             ),
             AwsCredentials::Token(ref t) => (None, None, Some(t.clone())),
         };
-        let creds =
-            Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
+        let creds = Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
         let config = SdkConfig::builder()
             .behavior_version(BehaviorVersion::latest())
             .credentials_provider(SharedCredentialsProvider::new(creds))
@@ -284,14 +292,16 @@ impl EmbucketCatalogList {
             volume.arn.as_str(),
             ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
         )
-            .context(df_catalog_error::S3TablesSnafu)?;
+        .context(df_catalog_error::S3TablesSnafu)?;
 
         let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
             .await
             .context(df_catalog_error::DataFusionSnafu)?;
-        Ok(CachingCatalog::new(Arc::new(catalog), volume.database.clone())
-            .with_refresh(true)
-            .with_catalog_type(CatalogType::S3tables))
+        Ok(
+            CachingCatalog::new(Arc::new(catalog), volume.database.clone())
+                .with_refresh(true)
+                .with_catalog_type(CatalogType::S3tables),
+        )
     }
 
     /// Do not keep returned references to avoid deadlocks
