@@ -1,7 +1,7 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::{CachingCatalog, CatalogType, Properties};
-use crate::catalogs::slatedb::catalog::{SlateDBCatalog, SLATEDB_CATALOG};
+use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::df_error;
 use crate::error::{
     self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, MissingVolumeSnafu,
@@ -10,8 +10,8 @@ use crate::error::{
 use crate::schema::CachingSchema;
 use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
-use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_credential_types::Credentials;
+use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
 use core_metastore::{
     AwsCredentials, Database, Metastore, RwObject, S3TablesVolume,
@@ -27,8 +27,8 @@ use datafusion::{
 use datafusion_iceberg::catalog::catalog::IcebergCatalog as DataFusionIcebergCatalog;
 use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
-use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
+use object_store::local::LocalFileSystem;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
@@ -121,7 +121,7 @@ impl EmbucketCatalogList {
             .fail();
         };
 
-        match volume.volume {
+        match &volume.volume {
             VolumeType::S3(_) | VolumeType::File(_) | VolumeType::Memory => {
                 let ident = Database {
                     ident: catalog_name.to_owned(),
@@ -141,12 +141,10 @@ impl EmbucketCatalogList {
                 self.catalogs
                     .insert(catalog_name.to_owned(), Arc::new(catalog));
             }
-            VolumeType::S3Tables(_) => {
-                return NotImplementedSnafu {
-                    feature: UnsupportedFeature::CreateS3TablesDatabase,
-                    details: "Creating an S3 table catalog is not supported",
-                }
-                .fail();
+            VolumeType::S3Tables(vol) => {
+                let catalog = self.s3tables_catalog(vol.clone()).await?;
+                self.catalogs
+                    .insert(catalog_name.to_owned(), Arc::new(catalog));
             }
         }
         Ok(())

@@ -97,5 +97,4 @@ pub enum Error {
 #[derive(Debug)]
 pub enum UnsupportedFeature {
     DropS3TablesDatabase,
-    CreateS3TablesDatabase,
 }

@@ -155,6 +155,7 @@ impl From<Error> for SnowflakeError {
             Error::ExternalVolumeRequiredForCreateDatabase { .. } => {
                 CustomSnafu { message }.build()
             }
+            Error::VolumeFieldRequired { .. } => CustomSnafu { message }.build(),
             Error::SerdeParse { .. } => CustomSnafu { message }.build(),
             Error::OnyUseWithVariables { .. } => CustomSnafu { message }.build(),
             Error::OnlyPrimitiveStatements { .. } => CustomSnafu { message }.build(),

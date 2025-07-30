@@ -181,7 +181,7 @@ pub enum Error {
 
     #[snafu(display("Volume with type {volume_type} requires {field}"))]
     VolumeFieldRequired {
-        volume_type: Option<String>,
+        volume_type: String,
         field: String,
         #[snafu(implicit)]
         location: Location,

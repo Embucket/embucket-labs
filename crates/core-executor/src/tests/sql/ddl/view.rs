@@ -21,5 +21,6 @@ test_query!(
         "CREATE VIEW view AS SELECT 1 as val;",
         "CREATE OR REPLACE VIEW view AS
         SELECT * FROM (VALUES ('2021-03-02 15:55:18.539000'::TIMESTAMP)) AS t(start_tstamp);"
-    ]
+    ],
+    snapshot_path = "view"
 );
