@@ -6,6 +6,7 @@ use aws_sdk_s3tables::config::SharedCredentialsProvider;
 use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::{Client, Config, Error};
 use aws_sdk_sts::Client as StsClient;
+use std::collections::HashMap;
 
 // not yet working
 pub async fn s3_role_client(
@@ -85,6 +86,26 @@ pub async fn get_s3tables_bucket_tables(
         }
         Err(e) => Err(e.into_service_error().into()),
     }
+}
+
+pub async fn get_s3tables_tables_arns_map(
+    client: &Client,
+    bucket_arn: String,
+) -> Result<HashMap<String, String>, Error> {
+    // get tables arns to assign policies
+    let tables = get_s3tables_bucket_tables(client, bucket_arn).await?;
+    let tables: HashMap<String, String> = tables
+        .tables
+        .iter()
+        .map(|table| {
+            (
+                format!("{}.{}", table.namespace.join("."), table.name.clone()),
+                table.table_arn.clone(),
+            )
+        })
+        .collect();
+
+    Ok(tables)
 }
 
 pub async fn set_table_bucket_policy(

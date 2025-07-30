@@ -3,8 +3,8 @@
 use super::e2e_common::AwsSdkSnafu;
 use crate::service::ExecutionService;
 use crate::tests::e2e::e2e_aws::{
-    delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy, get_s3tables_bucket_tables,
-    set_s3table_bucket_table_policy, set_table_bucket_policy,
+    delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
+    get_s3tables_tables_arns_map, set_s3table_bucket_table_policy, set_table_bucket_policy,
 };
 use crate::tests::e2e::e2e_common::{
     E2E_S3TABLESVOLUME_PREFIX, EMBUCKET_OBJECT_STORE_PREFIX, Error, ObjectStoreType, ParallelTest,
@@ -14,63 +14,9 @@ use crate::tests::e2e::e2e_common::{
 };
 use dotenv::dotenv;
 use snafu::ResultExt;
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-
-// Public policies
-// {
-//     "Sid": "AllowS3TablesAccess",
-//     "Effect": "Allow",
-//     "Principal": "*",
-//     "Action": [
-//       "s3tables:PutTableBucketMaintenanceConfiguration",
-//       "s3tables:GetTableData",
-//       "s3tables:GetTableMetadataLocation",
-//       "s3tables:PutTableBucketPolicy",
-//       "s3tables:DeleteTable",
-//       "s3tables:PutTableData"
-//       ],
-//     "Resource": "__ARN__/table/*",
-//     "Condition": {
-//       "StringLike": {
-//           "s3tables:name": "table_rw"
-//       }
-//     }
-//   },
-
-// const S3TABLES_BUCKET_DENY_POLICY_DATA: &str = r#"
-//     {
-//       "Version": "2012-10-17",
-//       "Statement": [
-//         {
-//           "Sid": "DenyWriteS3TablesAccess",
-//           "Effect": "Deny",
-//           "Principal": "*",
-//           "Action": [
-//             "s3tables:PutTableData"
-//             ],
-//           "Resource": "__ARN__RO_TABLE_UUID__"
-//         },
-//         {
-//           "Sid": "DenyReadWriteS3TablesAccess",
-//           "Effect": "Deny",
-//           "Principal": "*",
-//           "Action": [
-//             "s3tables:PutTableData",
-//             "s3tables:GetTableData"
-//           ],
-//           "Resource": "__ARN__NOACCESS_TABLE_UUID__",
-//           "Condition": {
-//             "StringLike": {
-//                 "s3tables:name": "table_partial_create"
-//             }
-//           }
-//         }
-//       ]
-//     }
-//     "#;
 
 const S3TABLES_BUCKET_DENY_READ_WRITE_POLICY_DATA: &str = r#"
     {
@@ -310,14 +256,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     )
     .await
     .context(AwsSdkSnafu);
-    let _ = delete_s3tables_bucket_table_policy(
-        &client,
-        bucket_arn.clone(),
-        TEST_SCHEMA_NAME.to_string(),
-        "table_rw".to_string(),
-    )
-    .await
-    .context(AwsSdkSnafu);
+
     let _ = delete_s3tables_bucket_table_policy(
         &client,
         bucket_arn.clone(),
@@ -350,18 +289,12 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
             "CREATE DATABASE IF NOT EXISTS __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
             "CREATE SCHEMA IF NOT EXISTS __DATABASE__.__SCHEMA__",
             "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_ro(amount number, name string, c5 VARCHAR)",
-            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_rw(amount number, name string, c5 VARCHAR)",
             "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_no_access(amount number, name string, c5 VARCHAR)",
             "INSERT INTO __DATABASE__.__SCHEMA__.table_ro (amount, name, c5) VALUES 
                         (100, 'Alice', 'foo')",
-            "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
-                        (500, 'Eve', 'quux')",
             "INSERT INTO __DATABASE__.__SCHEMA__.table_no_access (amount, name, c5) VALUES 
                         (200, 'Bob', 'bar'),
                         (300, 'Charlie', 'baz')",
-            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
-            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_rw",
-            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
         ],
         executor: exec.clone(),
         session_id: TEST_SESSION_ID1,
@@ -370,14 +303,9 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
     // get tables arns to assign policies
-    let tables = get_s3tables_bucket_tables(&client, bucket_arn.clone())
+    let tables_arns = get_s3tables_tables_arns_map(&client, bucket_arn.clone())
         .await
         .context(AwsSdkSnafu)?;
-    let tables: HashMap<String, String> = tables
-        .tables
-        .iter()
-        .map(|table| (table.name.clone(), table.table_arn.clone()))
-        .collect();
 
     set_s3table_bucket_table_policy(
         &client,
@@ -386,7 +314,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
         "table_ro".to_string(),
         S3TABLES_TABLE_DENY_WRITE_POLICY_DATA.replace(
             "__ARN__DENY_WRITE_TABLE_UUID__",
-            &tables["table_ro"].clone(),
+            &tables_arns[&format!("{TEST_SCHEMA_NAME}.table_ro")].clone(),
         ),
     )
     .await
@@ -399,7 +327,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
         "table_no_access".to_string(),
         S3TABLES_TABLE_DENY_READWRITE_POLICY_DATA.replace(
             "__ARN__DENY_READWRITE_TABLE_UUID__",
-            &tables["table_no_access"].clone(),
+            &tables_arns[&format!("{TEST_SCHEMA_NAME}.table_no_access")].clone(),
         ),
     )
     .await
@@ -410,8 +338,6 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
             sqls: vec![
                 // allowed operarions after permissions set
                 "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
-                "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
-                            (100, 'Alice', 'foo')",
             ],
             executor: exec.clone(),
             session_id: TEST_SESSION_ID1,
@@ -447,9 +373,103 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_data_behaviour()
+-> Result<(), Error> {
+    const TEST_SCHEMA_NAME: &str = "test_non_permitted_selects";
+
+    eprintln!(
+        "This test creates volumes ahead of executor as it s3tables volumes works only in this way. \
+    It creates a table, adds some data and assigns read/write deny policies to it. \
+    Then select query returns data but shouldn't. Occasionally select query fails as expected."
+    );
+    dotenv().ok();
+
+    // this test uses separate tables policies so
+    // parallel tests can operate on the same bucket with other tables set
+
+    let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await?;
+    let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME_PREFIX)?.arn;
+
+    let _ = delete_s3tables_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_no_access".to_string(),
+    )
+    .await
+    .context(AwsSdkSnafu);
+
+    // Currently embucket can only read database from s3tables volume when created before executor
+    let exec = create_executor_with_early_volumes_creation(
+        ObjectStoreType::Memory(test_suffix()),
+        "memory_exec",
+        vec![VolumeConfig {
+            prefix: Some(E2E_S3TABLESVOLUME_PREFIX),
+            volume_type: TestVolumeType::S3Tables,
+            volume: "volume_s3tables",
+            database: "database_in_s3tables",
+            schema: TEST_SCHEMA_NAME,
+        }],
+    )
+    .await?;
+    let exec = Arc::new(exec);
+
+    // create tables & assign separate read, write policies
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE IF NOT EXISTS __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA IF NOT EXISTS __DATABASE__.__SCHEMA__",
+            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_no_access(amount number, name string, c5 VARCHAR)",
+            "INSERT INTO __DATABASE__.__SCHEMA__.table_no_access (amount, name, c5) VALUES 
+                        (200, 'Bob', 'bar'),
+                        (300, 'Charlie', 'baz')",
+            "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+        ],
+        executor: exec.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
+
+    // get tables arns to assign policies
+    let tables_arns = get_s3tables_tables_arns_map(&client, bucket_arn.clone())
+        .await
+        .context(AwsSdkSnafu)?;
+
+    eprintln!("tables arns: {tables_arns:?}");
+    set_s3table_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_no_access".to_string(),
+        S3TABLES_TABLE_DENY_READWRITE_POLICY_DATA.replace(
+            "__ARN__DENY_READWRITE_TABLE_UUID__",
+            &tables_arns[&format!("{TEST_SCHEMA_NAME}.table_no_access")].clone(),
+        ),
+    )
+    .await
+    .context(AwsSdkSnafu)?;
+
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            // not allowed operarions after permissions set
+            "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+        ],
+        executor: exec,
+        session_id: TEST_SESSION_ID2,
+        expected_res: false,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
+
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug()
 -> Result<(), Error> {
-    const TEST2_SCHEMA_NAME: &str = "test2";
+    const TEST_SCHEMA_NAME: &str = "test_create_table_inconsistency_bug";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
     eprintln!(
@@ -465,7 +485,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
     let _ = delete_s3tables_bucket_table(
         &client,
         bucket_arn.clone(),
-        TEST2_SCHEMA_NAME.to_string(),
+        TEST_SCHEMA_NAME.to_string(),
         "table_partial_create".to_string(),
     )
     .await
@@ -488,7 +508,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
             volume_type: TestVolumeType::S3Tables,
             volume: "volume_s3tables",
             database: "database_in_s3tables",
-            schema: TEST2_SCHEMA_NAME,
+            schema: TEST_SCHEMA_NAME,
         }],
     )
     .await?;
@@ -524,7 +544,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
             volume_type: TestVolumeType::S3Tables,
             volume: "volume_s3tables",
             database: "database_in_s3tables",
-            schema: TEST2_SCHEMA_NAME,
+            schema: TEST_SCHEMA_NAME,
         }],
     )
     .await?;
@@ -721,7 +741,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_denied_select_bug()
+async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_not_permitted_select_returns_data_behaviour()
 -> Result<(), Error> {
     eprintln!(
         "This test creates data on an S3 volume and runs a select query. \
