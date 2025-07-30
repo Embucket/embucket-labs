@@ -110,13 +110,13 @@ echo ""
     if [ "$DBT_TARGET" = "embucket" ]; then
         dbt seed
     fi
-# dbt run
+#  dbt run
     if [ -n "$DBT_MODEL" ]; then
         dbt run --full-refresh --select +"$DBT_MODEL" 2>&1 | tee assets/run.log
     else
         dbt run --full-refresh --select result:success --state target_to_run 2>&1 | tee assets/run.log
+	#dbt run --full-refresh
     fi 
-
 
 # Update the errors log and run results
 echo "###############################"
