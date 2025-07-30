@@ -175,6 +175,14 @@ impl S3TablesVolume {
             .nth(3)
             .map_or_else(|| "us-east-1".to_string(), Into::into)
     }
+
+    pub fn account_id(&self) -> String {
+        self.arn
+            .split(':')
+            .nth(4)
+            .map(Into::into)
+            .unwrap_or_default()
+    }
 }
 
 fn validate_bucket_name(bucket_name: &str) -> std::result::Result<(), ValidationError> {

@@ -1,29 +1,133 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
+use super::e2e_common::AwsSdkSnafu;
 use crate::service::ExecutionService;
+use crate::tests::e2e_aws::{
+    create_s3tables_namespace, delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
+    delete_table_bucket_policy, get_s3tables_bucket_tables, set_s3table_bucket_table_policy,
+    set_table_bucket_policy,
+};
 use crate::tests::e2e_common::{
-    Error,
-    ObjectStoreType,
-    ParallelTest,
-    S3ObjectStore,
-    TEST_SESSION_ID1,
-    TEST_SESSION_ID2,
-    TEST_VOLUME_FILE,
-    TEST_VOLUME_MEMORY,
-    TEST_VOLUME_S3,
-    // TEST_VOLUME_S3TABLES
-    TestQuery,
-    create_executor,
-    exec_parallel_test_plan,
-    test_suffix,
+    E2E_S3TABLESVOLUME_PREFIX, Error, ObjectStoreType, ParallelTest, S3ObjectStore,
+    TEST_SESSION_ID1, TEST_SESSION_ID2, TestQuery, TestVolumeType, VolumeConfig, create_executor,
+    create_executor_with_early_volumes_creation, create_s3_client, exec_parallel_test_plan,
+    s3_tables_volume, test_suffix,
 };
 use dotenv::dotenv;
+use snafu::ResultExt;
+use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
+// Public policies
+// {
+//     "Sid": "AllowS3TablesAccess",
+//     "Effect": "Allow",
+//     "Principal": "*",
+//     "Action": [
+//       "s3tables:PutTableBucketMaintenanceConfiguration",
+//       "s3tables:GetTableData",
+//       "s3tables:GetTableMetadataLocation",
+//       "s3tables:PutTableBucketPolicy",
+//       "s3tables:DeleteTable",
+//       "s3tables:PutTableData"
+//       ],
+//     "Resource": "__ARN__/table/*",
+//     "Condition": {
+//       "StringLike": {
+//           "s3tables:name": "table_rw"
+//       }
+//     }
+//   },
+
+// const S3TABLES_BUCKET_DENY_POLICY_DATA: &str = r#"
+//     {
+//       "Version": "2012-10-17",
+//       "Statement": [
+//         {
+//           "Sid": "DenyWriteS3TablesAccess",
+//           "Effect": "Deny",
+//           "Principal": "*",
+//           "Action": [
+//             "s3tables:PutTableData"
+//             ],
+//           "Resource": "__ARN__RO_TABLE_UUID__"
+//         },
+//         {
+//           "Sid": "DenyReadWriteS3TablesAccess",
+//           "Effect": "Deny",
+//           "Principal": "*",
+//           "Action": [
+//             "s3tables:PutTableData",
+//             "s3tables:GetTableData"
+//           ],
+//           "Resource": "__ARN__NOACCESS_TABLE_UUID__",
+//           "Condition": {
+//             "StringLike": {
+//                 "s3tables:name": "table_partial_create"
+//             }
+//           }
+//         }
+//       ]
+//     }
+//     "#;
+
+const S3TABLES_BUCKET_DENY_READ_WRITE_POLICY_DATA: &str = r#"
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "DenyReadWriteS3TablesAccess",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": [
+            "s3tables:PutTableData",
+            "s3tables:GetTableData"
+          ],
+          "Resource": "__BUCKET_ARN__/*"
+        }  
+      ]
+    }
+    "#;
+
+const S3TABLES_TABLE_DENY_WRITE_POLICY_DATA: &str = r#"
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyWriteS3TablesAccess",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": [
+          "s3tables:PutTableData"
+        ],
+        "Resource": "__ARN__DENY_WRITE_TABLE_UUID__"
+      }
+    ]
+}
+"#;
+
+const S3TABLES_TABLE_DENY_READWRITE_POLICY_DATA: &str = r#"
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyReadWriteS3TablesAccess",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": [
+          "s3tables:PutTableData",
+          "s3tables:GetTableData"
+        ],
+        "Resource": "__ARN__DENY_READWRITE_TABLE_UUID__"
+      }
+    ]
+}
+"#;
+
 async fn template_test_two_executors_file_object_store_one_writer_fences_another(
-    volumes: &[(&str, &str)],
+    volumes: &[TestVolumeType],
     delay: Option<Duration>,
 ) -> Result<(), Error> {
     let test_suffix = test_suffix();
@@ -45,7 +149,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     // create 2nd executor on the same object store
     let file_exec2 = create_executor(object_store_file, "#2").await?;
@@ -62,7 +166,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     // give delay for sync job to run
     if let Some(delay) = delay {
@@ -79,7 +183,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     let test_plan = vec![ParallelTest(vec![
         TestQuery {
@@ -104,7 +208,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         },
     ])];
 
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         // After being fenced:
@@ -116,16 +220,16 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec()).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     Ok(())
 }
 
 async fn template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(
-    volumes: &[(&str, &str)],
+    volumes: &[TestVolumeType],
 ) -> Result<(), Error> {
     let executor = create_executor(
-        ObjectStoreType::S3(test_suffix(), S3ObjectStore::from_env()),
+        ObjectStoreType::S3(test_suffix(), S3ObjectStore::from_env()?),
         "s3_exec",
     )
     .await?;
@@ -142,7 +246,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(prerequisite_test, volumes.to_vec(),).await?);
+    assert!(exec_parallel_test_plan(prerequisite_test, volumes).await?);
 
     // Here use freshly created sessions instead of precreated
     let newly_created_session = "newly_created_session";
@@ -177,7 +281,263 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
         },
     ])];
 
-    assert!(exec_parallel_test_plan(test_plan, volumes.to_vec(),).await?);
+    assert!(exec_parallel_test_plan(test_plan, volumes).await?);
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
+    eprintln!("");
+    dotenv().ok();
+    const TEST_SCHEMA_NAME: &str = "test1";
+
+    let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await;
+    let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME_PREFIX)?.arn;
+
+    // old working approach
+    // delete_table_bucket_policy(&client, bucket_arn.clone()).await.context(AwsSdkSnafu)?;
+
+    // delete table policies separately to avoid affecting parallel tests using the same s3tables bucket
+    // let tables = get_s3tables_bucket_tables(&client, bucket_arn.clone()).await.context(AwsSdkSnafu)?;
+    // let tables: HashMap<String, String> = tables.tables.iter()
+    //     .map(|table| (table.name.clone(), table.table_arn.clone())).collect();
+    // for (table_name, _table_arn) in tables {
+    //     delete_s3tables_bucket_table_policy(&client, bucket_arn.clone(), TEST_SCHEMA_NAME.to_string(), table_name)
+    //         .await.context(AwsSdkSnafu)?;
+    // }
+
+    // let _ = create_s3tables_namespace(&client, bucket_arn.clone(), TEST_SCHEMA_NAME.to_string())
+    //     .await.context(AwsSdkSnafu);
+
+    let _ = delete_s3tables_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_ro".to_string(),
+    )
+    .await
+    .context(AwsSdkSnafu);
+    let _ = delete_s3tables_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_rw".to_string(),
+    )
+    .await
+    .context(AwsSdkSnafu);
+    let _ = delete_s3tables_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_no_access".to_string(),
+    )
+    .await
+    .context(AwsSdkSnafu);
+
+    // Currently embucket can only read database from s3tables volume when created before executor
+    let exec = create_executor_with_early_volumes_creation(
+        ObjectStoreType::Memory(test_suffix()),
+        "memory_exec",
+        vec![VolumeConfig {
+            prefix: Some(E2E_S3TABLESVOLUME_PREFIX),
+            volume_type: TestVolumeType::S3Tables,
+            volume: "volume_s3tables",
+            database: "database_in_s3tables",
+            schema: TEST_SCHEMA_NAME,
+        }],
+    )
+    .await?;
+    let exec = Arc::new(exec);
+
+    // create tables & assign separate read, write policies
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            // "SHOW DATABASES",
+            // "SHOW TABLES IN __DATABASE__.__SCHEMA__",
+            // "CREATE DATABASE IF NOT EXISTS __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA IF NOT EXISTS __DATABASE__.__SCHEMA__",
+            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_ro(amount number, name string, c5 VARCHAR)",
+            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_rw(amount number, name string, c5 VARCHAR)",
+            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_no_access(amount number, name string, c5 VARCHAR)",
+            "INSERT INTO __DATABASE__.__SCHEMA__.table_ro (amount, name, c5) VALUES 
+                        (100, 'Alice', 'foo')",
+            "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
+                        (500, 'Eve', 'quux')",
+            "INSERT INTO __DATABASE__.__SCHEMA__.table_no_access (amount, name, c5) VALUES 
+                        (200, 'Bob', 'bar'),
+                        (300, 'Charlie', 'baz')",
+            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
+            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_rw",
+            // "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+        ],
+        executor: exec.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: true,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
+
+    // get tables uuids to assign policies
+    let tables = get_s3tables_bucket_tables(&client, bucket_arn.clone())
+        .await
+        .context(AwsSdkSnafu)?;
+    let tables: HashMap<String, String> = tables
+        .tables
+        .iter()
+        .map(|table| (table.name.clone(), table.table_arn.clone()))
+        .collect();
+
+    eprintln!("Tables: {:#?}", tables);
+
+    set_s3table_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_ro".to_string(),
+        S3TABLES_TABLE_DENY_WRITE_POLICY_DATA.replace(
+            "__ARN__DENY_WRITE_TABLE_UUID__",
+            &tables["table_ro"].clone(),
+        ),
+    )
+    .await
+    .context(AwsSdkSnafu)?;
+
+    set_s3table_bucket_table_policy(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_no_access".to_string(),
+        S3TABLES_TABLE_DENY_READWRITE_POLICY_DATA.replace(
+            "__ARN__DENY_READWRITE_TABLE_UUID__",
+            &tables["table_no_access"].clone(),
+        ),
+    )
+    .await
+    .context(AwsSdkSnafu)?;
+
+    // old working approach
+    // let deny_policy = S3TABLES_BUCKET_DENY_POLICY_DATA
+    //     .replace("__ARN__RO_TABLE_UUID__", &tables["table_ro"].clone())
+    //     .replace("__ARN__NOACCESS_TABLE_UUID__", &tables["table_no_access"].clone());
+    // set_table_bucket_policy(&client, bucket_arn, deny_policy).await.context(AwsSdkSnafu)?;
+
+    // Here use freshly created sessions instead of precreated
+    let session3 = "session3";
+    exec.executor
+        .create_session(session3.to_string())
+        .await
+        .expect("Failed to create session3");
+
+    let test_plan = vec![ParallelTest(vec![
+        // TestQuery {
+        //     sqls: vec![
+        //         // allowed operarions after permissions set
+        //         "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
+        //         "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
+        //                 (100, 'Alice', 'foo')",
+        //     ],
+        //     executor: exec.clone(),
+        //     session_id: TEST_SESSION_ID1,
+        //     expected_res: true,
+        // },
+        TestQuery {
+            sqls: vec![
+                // not allowed operarions after permissions set
+                "INSERT INTO __DATABASE__.__SCHEMA__.table_ro (amount, name, c5) VALUES 
+                        (400, 'Diana', 'qux')",
+            ],
+            executor: exec.clone(),
+            session_id: TEST_SESSION_ID2,
+            expected_res: false,
+        },
+        TestQuery {
+            sqls: vec![
+                // not allowed operarions after permissions set
+                "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+            ],
+            executor: exec,
+            session_id: session3,
+            expected_res: false,
+        },
+    ])];
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
+
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_memory_store_s3_tables_volumes_partial_create_table() -> Result<(), Error> {
+    eprintln!("");
+    dotenv().ok();
+    const TEST_SCHEMA_NAME: &str = "test2";
+    const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
+
+    let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await;
+    let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME_PREFIX)?.arn;
+
+    // Ignore deletion status
+    let _ = delete_s3tables_bucket_table(
+        &client,
+        bucket_arn.clone(),
+        TEST_SCHEMA_NAME.to_string(),
+        "table_partial_create".to_string(),
+    )
+    .await
+    .context(AwsSdkSnafu);
+
+    set_table_bucket_policy(
+        &client,
+        bucket_arn.clone(),
+        S3TABLES_BUCKET_DENY_READ_WRITE_POLICY_DATA.replace("__BUCKET_ARN__", &bucket_arn),
+    )
+    .await
+    .context(AwsSdkSnafu)?;
+
+    // Currently embucket can only read database from s3tables volume when created before executor
+    let exec = create_executor_with_early_volumes_creation(
+        ObjectStoreType::Memory(test_suffix()),
+        "memory_exec",
+        vec![VolumeConfig {
+            prefix: Some(E2E_S3TABLESVOLUME_PREFIX), // Note: prefix is different, it contains other bucket
+            volume_type: TestVolumeType::S3Tables,
+            volume: "volume_s3tables",
+            database: "database_in_s3tables",
+            schema: TEST_SCHEMA_NAME,
+        }],
+    )
+    .await?;
+    let exec = Arc::new(exec);
+
+    // create tables & assign separate read, write policies
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE IF NOT EXISTS __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA IF NOT EXISTS __DATABASE__.__SCHEMA__",
+            "CREATE TABLE IF NOT EXISTS __DATABASE__.__SCHEMA__.table_partial_create(amount number, name string, c5 VARCHAR)",
+        ],
+        executor: exec.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: false,
+    }])];
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
+
+    // Create new executor that fails as of partially created table
+    let _ = create_executor_with_early_volumes_creation(
+        ObjectStoreType::Memory(test_suffix()),
+        "memory_exec",
+        vec![VolumeConfig {
+            prefix: Some(E2E_S3TABLESVOLUME_PREFIX), // Note: prefix is different, it contains other bucket
+            volume_type: TestVolumeType::S3Tables,
+            volume: "volume_s3tables",
+            database: "database_in_s3tables",
+            schema: TEST_SCHEMA_NAME,
+        }],
+    )
+    .await?;
+
     Ok(())
 }
 
@@ -243,10 +603,10 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
     assert!(
         exec_parallel_test_plan(
             test_plan,
-            vec![
-                TEST_VOLUME_MEMORY,
-                TEST_VOLUME_FILE,
-                TEST_VOLUME_S3, /*TEST_VOLUME_S3TABLES*/
+            &[
+                TestVolumeType::Memory,
+                TestVolumeType::File,
+                TestVolumeType::S3
             ]
         )
         .await?
@@ -268,7 +628,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
     let test_suffix = test_suffix();
 
     let s3_exec = create_executor(
-        ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+        ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()?),
         "s3_exec",
     )
     .await?;
@@ -308,7 +668,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
         ]),
     ];
 
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
     Ok(())
 }
 
@@ -344,10 +704,10 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     // corrupt s3 volume
-    executor.create_s3_volume_with_bad_creds().await?;
+    executor.create_s3_volume_with_bad_creds(None).await?;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec![
@@ -359,7 +719,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
         expected_res: false,
     }])];
 
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     Ok(())
 }
@@ -396,10 +756,10 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_shou
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     // corrupt s3 volume
-    executor.create_s3_volume_with_bad_creds().await?;
+    executor.create_s3_volume_with_bad_creds(None).await?;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
@@ -408,7 +768,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_shou
         expected_res: false,
     }])];
 
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     Ok(())
 }
@@ -444,7 +804,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
         session_id: TEST_SESSION_ID1,
         expected_res: true,
     }])];
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     // This executor uses correct credentials by default
     let executor = create_executor(
@@ -456,7 +816,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
     let executor = Arc::new(executor);
 
     // corrupt s3 volume
-    executor.create_s3_volume_with_bad_creds().await?;
+    executor.create_s3_volume_with_bad_creds(None).await?;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
@@ -465,7 +825,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
         expected_res: false,
     }])];
 
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     Ok(())
 }
@@ -491,7 +851,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         .await?,
         create_executor(ObjectStoreType::Memory(test_suffix.clone()), "memory_exec").await?,
         create_executor(
-            ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()),
+            ObjectStoreType::S3(test_suffix.clone(), S3ObjectStore::from_env()?),
             "s3_exec",
         )
         .await?,
@@ -542,7 +902,11 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         assert!(
             exec_parallel_test_plan(
                 test_plan,
-                vec![TEST_VOLUME_S3, TEST_VOLUME_FILE, TEST_VOLUME_MEMORY,]
+                &[
+                    TestVolumeType::S3,
+                    TestVolumeType::File,
+                    TestVolumeType::Memory
+                ]
             )
             .await?
         );
@@ -563,8 +927,8 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
     dotenv().ok();
 
     template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(&[
-        TEST_VOLUME_FILE,
-        TEST_VOLUME_S3,
+        TestVolumeType::File,
+        TestVolumeType::S3,
     ])
     .await?;
 
@@ -584,7 +948,7 @@ async fn test_e2e_s3_store_single_executor_with_old_and_freshly_created_sessions
     dotenv().ok();
 
     template_test_s3_store_single_executor_with_old_and_freshly_created_sessions(&[
-        TEST_VOLUME_MEMORY,
+        TestVolumeType::Memory,
     ])
     .await?;
 
@@ -615,7 +979,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
         expected_res: false,
     }])];
 
-    assert!(exec_parallel_test_plan(test_plan, vec![TEST_VOLUME_S3]).await?);
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
     Ok(())
 }
 
@@ -634,7 +998,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_write
     dotenv().ok();
 
     template_test_two_executors_file_object_store_one_writer_fences_another(
-        &[TEST_VOLUME_S3],
+        &[TestVolumeType::S3],
         None,
     )
     .await?;
@@ -656,7 +1020,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails
     dotenv().ok();
 
     template_test_two_executors_file_object_store_one_writer_fences_another(
-        &[TEST_VOLUME_S3],
+        &[TestVolumeType::S3],
         Some(Duration::from_secs(11)),
     )
     .await?;
