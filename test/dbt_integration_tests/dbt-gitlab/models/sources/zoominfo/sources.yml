@@ -21,5 +21,4 @@ sources:
         description: Technograph table,  data ingested from Zoominfo inbound share.
            
       - name: contact_enhance
-        identifier: gitlab_contact_enhance_10_25_21         
         description: User company matched table which appends company information to the user list Gitlab sends to zoominfo. Data ingested from Zoominfo inbound share.

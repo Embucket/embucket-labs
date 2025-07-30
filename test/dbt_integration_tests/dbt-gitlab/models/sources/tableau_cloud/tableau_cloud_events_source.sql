@@ -1,6 +1,6 @@
 WITH source AS (
   SELECT *
-  FROM {{ source('tableau_cloud','events') }}
+  FROM {{ source('tableau_cloud','dup_tableau_cloud_events') }}
 ),
 
 renamed AS (

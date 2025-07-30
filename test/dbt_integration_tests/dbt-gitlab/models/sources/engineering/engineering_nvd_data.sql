@@ -6,8 +6,8 @@ WITH source AS (
 ), renamed AS (
 
     SELECT
-      "0"::NUMBER       AS year,
-      "1"::NUMBER       AS count
+      year::NUMBER       AS year,
+      cnt::NUMBER       AS count
     FROM source
 
 )
