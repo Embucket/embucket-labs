@@ -449,6 +449,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
     )
     .await
     .context(AwsSdkSnafu)?;
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec![
