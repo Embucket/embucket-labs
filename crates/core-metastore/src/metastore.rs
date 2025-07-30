@@ -666,7 +666,7 @@ impl Metastore for SlateDBMetastore {
             .requirements
             .into_iter()
             .map(TableRequirementExt::new)
-            .try_for_each(|req| req.assert(&table.metadata, true))?;
+            .try_for_each(|req| req.assert(&table.metadata))?;
 
         apply_table_updates(&mut table.metadata, update.updates)
             .context(metastore_error::IcebergSnafu)?;

@@ -129,7 +129,7 @@ mod tests {
             &result
         );
 
-        let sql = r#"SELECT try_parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json"#;
+        let sql = r"SELECT try_parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[

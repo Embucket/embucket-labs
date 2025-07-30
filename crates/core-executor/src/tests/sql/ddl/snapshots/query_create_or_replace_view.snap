@@ -1,5 +1,5 @@
 ---
-source: crates/core-executor/src/tests/query.rs
+source: crates/core-executor/src/tests/sql/ddl/view.rs
 description: "\"SELECT * FROM view\""
 info: "Setup queries: CREATE VIEW view AS SELECT 1 as val;; CREATE OR REPLACE VIEW view AS\n        SELECT * FROM (VALUES ('2021-03-02 15:55:18.539000'::TIMESTAMP)) AS t(start_tstamp);"
 ---

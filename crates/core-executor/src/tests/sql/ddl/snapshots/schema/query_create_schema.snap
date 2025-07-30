@@ -1,5 +1,5 @@
 ---
-source: crates/core-executor/src/tests/query.rs
+source: crates/core-executor/src/tests/sql/ddl/schema.rs
 description: "\"SHOW SCHEMAS IN embucket STARTS WITH 'new'\""
 info: "Setup queries: CREATE SCHEMA embucket.new_schema; CREATE SCHEMA embucket.\"new schema\""
 ---

@@ -3,9 +3,10 @@ use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, Result};
-use crate::datafusion::analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
+use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -82,6 +83,7 @@ impl UserSession {
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
+            .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();

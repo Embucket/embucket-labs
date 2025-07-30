@@ -63,7 +63,8 @@ services:
     image: embucket/embucket
     container_name: embucket
     depends_on:
-      - mc
+      mc:
+        condition: service_healthy
     networks:
       iceberg_net:
     ports:
@@ -143,7 +144,7 @@ In this guide we will first create a S3 based volume that we will use to store d
 An example with `httpie` utility:
 
 ```bash
-$ http http://localhost:3000/v1/metastore/volumes ident=demo type=s3 credentials:='{"credential_type":"access_key","aws-access-key-id":"AKIAIOSFODNN7EXAMPLE","aws-secret-access-key":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}' bucket=mybucket endpoint='http://warehouse.minio:9000'
+http http://localhost:3000/v1/metastore/volumes ident=demo type=s3 credentials:='{"credential_type":"access_key","aws-access-key-id":"AKIAIOSFODNN7EXAMPLE","aws-secret-access-key":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}' bucket=mybucket endpoint='http://warehouse.minio:9000'
 ```
 
 Next, we will create a database. This can be done either in the UI or using the internal API.
@@ -151,7 +152,7 @@ Next, we will create a database. This can be done either in the UI or using the 
 An example with `httpie` utility:
 
 ```bash
-$ http http://localhost:3000/v1/metastore/databases ident=demo volume=demo
+http http://localhost:3000/v1/metastore/databases ident=demo volume=demo
 ```
 
 ## Step 3: Load NYC Taxi dataset
@@ -161,10 +162,10 @@ Now, we will use Apache Spark to load NYC Taxi dataset into Embucket. We will us
 ```
 %%sql
 
-CREATE DATABASE nyc IF NOT EXISTS;
+CREATE DATABASE IF NOT EXISTS nyc;
 ```
 
-NYC Taxi dataset is available at https://www.nyc.gov/site/tlc/about/tlc-data.page and is already downloaded in the spark-iceberg container:
+NYC Taxi dataset is available at https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page and is already downloaded in the spark-iceberg container:
 
 ```
 !ls -l /home/iceberg/data/

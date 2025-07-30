@@ -1,5 +1,5 @@
 ---
-source: crates/runtime/src/tests/queries.rs
+source: crates/core-executor/src/tests/query.rs
 description: "\"SELECT * EXCLUDE (department_id, employee_id) FROM employee_table;\""
 ---
 Ok(

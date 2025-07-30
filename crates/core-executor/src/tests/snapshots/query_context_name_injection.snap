@@ -2,7 +2,6 @@
 source: crates/core-executor/src/tests/query.rs
 description: "\"SHOW TABLES IN new_schema\""
 info: "Setup queries: CREATE SCHEMA embucket.new_schema; SET schema = 'new_schema'; CREATE table new_table (id INT)"
-snapshot_kind: text
 ---
 Ok(
     [
