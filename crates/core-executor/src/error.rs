@@ -179,6 +179,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Volume with type {volume_type} requires {field}"))]
+    VolumeFieldRequired {
+        volume_type: Option<String>,
+        field: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Object store error: {error}"))]
     ObjectStore {
         #[snafu(source)]
