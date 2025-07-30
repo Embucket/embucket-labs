@@ -7,6 +7,7 @@ use aws_sdk_s3tables::operation::list_tables::ListTablesOutput;
 use aws_sdk_s3tables::{Client, Config, Error};
 use aws_sdk_sts::Client as StsClient;
 
+// not yet working
 pub async fn s3_role_client(
     access_key_id: String,
     secret_access_key: String,

@@ -275,9 +275,7 @@ impl S3ObjectStore {
             .with_endpoint(endpoint)
             .with_allow_http(allow_http == "true")
             .with_conditional_put(S3ConditionalPut::ETagMatch);
-        Ok(Self {
-            s3_builder,
-        })
+        Ok(Self { s3_builder })
     }
 }
 
@@ -450,10 +448,7 @@ pub async fn create_volumes(
                 let res = metastore
                     .create_volume(
                         &volume,
-                        MetastoreVolume::new(
-                            volume.clone(),
-                            core_metastore::VolumeType::Memory,
-                        ),
+                        MetastoreVolume::new(volume.clone(), core_metastore::VolumeType::Memory),
                     )
                     .await;
                 if let Err(e) = res {

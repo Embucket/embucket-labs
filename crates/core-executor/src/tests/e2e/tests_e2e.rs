@@ -3,8 +3,8 @@
 use super::e2e_common::AwsSdkSnafu;
 use crate::service::ExecutionService;
 use crate::tests::e2e::e2e_aws::{
-    delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
-    get_s3tables_bucket_tables, set_s3table_bucket_table_policy, set_table_bucket_policy,
+    delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy, get_s3tables_bucket_tables,
+    set_s3table_bucket_table_policy, set_table_bucket_policy,
 };
 use crate::tests::e2e::e2e_common::{
     E2E_S3TABLESVOLUME_PREFIX, EMBUCKET_OBJECT_STORE_PREFIX, Error, ObjectStoreType, ParallelTest,
@@ -296,7 +296,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     eprintln!("This test creates volumes ahead of executor as it is expected from s3tables");
     dotenv().ok();
 
-    // this test uses separate tables policies so 
+    // this test uses separate tables policies so
     // parallel tests can operate on the same bucket with other tables set
 
     let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await?;
@@ -406,19 +406,17 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     .context(AwsSdkSnafu)?;
 
     let test_plan = vec![
-        ParallelTest(vec![
-            TestQuery {
-                sqls: vec![
-                    // allowed operarions after permissions set
-                    "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
-                    "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                // allowed operarions after permissions set
+                "SELECT * FROM __DATABASE__.__SCHEMA__.table_ro",
+                "INSERT INTO __DATABASE__.__SCHEMA__.table_rw (amount, name, c5) VALUES
                             (100, 'Alice', 'foo')",
-                ],
-                executor: exec.clone(),
-                session_id: TEST_SESSION_ID1,
-                expected_res: true,
-            },
-        ]),
+            ],
+            executor: exec.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        }]),
         ParallelTest(vec![
             TestQuery {
                 sqls: vec![
@@ -439,7 +437,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
                 session_id: TEST_SESSION_ID2,
                 expected_res: false,
             },
-        ])
+        ]),
     ];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
@@ -449,13 +447,14 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug() -> Result<(), Error> {
+async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug()
+-> Result<(), Error> {
     const TEST2_SCHEMA_NAME: &str = "test2";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
     eprintln!(
-        "This test assigns deny policy to s3tables bucket and runs create table sql,  \
-    which fails but creates table artifact in bucket. Subsequent run of executor/Embucket fails."
+        "This test assigns deny policy to s3tables bucket and runs create table sql, which fails as expected, \
+    but creates table artifact in bucket. So subsequent run of executor/Embucket fails."
     );
     dotenv().ok();
 
