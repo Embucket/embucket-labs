@@ -129,7 +129,9 @@ impl IntoResponse for Error {
                 | core_executor::Error::MergeFilterStreamNotMatching { .. }
                 | core_executor::Error::MatchingFilesAlreadyConsumed { .. }
                 | core_executor::Error::MissingFilterPredicates { .. }
-                | core_executor::Error::RegisterCatalog { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+                | core_executor::Error::RegisterCatalog { .. } => {
+                    http::StatusCode::INTERNAL_SERVER_ERROR
+                }
                 _ => http::StatusCode::OK,
             },
             Self::GZipDecompress { .. }

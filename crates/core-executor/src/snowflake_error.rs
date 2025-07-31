@@ -5,11 +5,12 @@ use core_metastore::error::Error as MetastoreError;
 use datafusion::arrow::error::ArrowError;
 use datafusion_common::Diagnostic;
 use datafusion_common::diagnostic::DiagnosticKind;
+// use datafusion_common::spans::{Span, Location as SpanLocation};
 use datafusion_common::error::DataFusionError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
 use iceberg_rust::error::Error as IcebergError;
-use iceberg_rust_spec::error::Error as IcebergSpecError;
+// use iceberg_rust_spec::error::Error as IcebergSpecError;
 use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
@@ -65,7 +66,8 @@ pub enum SqlCompilationError {
     // Verified: this Diagnostic error has span
     #[snafu(display("{} line {} at position {}\n{}",
         if error.kind == DiagnosticKind::Error { "error" } else { "warning" },
-        error.span.unwrap().start.line, error.span.unwrap().start.column,
+        if let Some(span) = error.span { span.start.line } else { 0 },
+        if let Some(span) = error.span { span.start.column } else { 0 },
         error.message,
     ))]
     CompilationDiagnosticGeneric {
@@ -90,11 +92,11 @@ pub enum SqlCompilationError {
 }
 
 impl SnowflakeError {
+    #[must_use]
     pub fn display_debug_error_messages(&self) -> (String, String) {
         (self.to_string(), format!("{self:?}"))
     }
 }
-
 
 // Self { message: format!("SQL execution error: {}", message) }
 impl From<Error> for SnowflakeError {
@@ -110,7 +112,7 @@ impl From<Error> for SnowflakeError {
             | Error::DataFusionLogicalPlanMergeJoin { error, .. }
             | Error::DataFusion { error, .. } => datafusion_error(*error),
             Error::Metastore { source, .. } => metastore_error(*source),
-            Error::Iceberg{ error, .. } => iceberg_error(*error),
+            Error::Iceberg { error, .. } => iceberg_error(*error),
             _ => CustomSnafu { message }.build(),
         }
     }
@@ -129,7 +131,10 @@ fn object_store_error(error: object_store::Error) -> SnowflakeError {
     match error {
         object_store::Error::NotFound { source, .. } => {
             // source: is RetryError
-            CustomSnafu { message: source.to_string() }.build()
+            CustomSnafu {
+                message: source.to_string(),
+            }
+            .build()
         }
         _ => CustomSnafu { message }.build(),
     }
@@ -138,16 +143,8 @@ fn object_store_error(error: object_store::Error) -> SnowflakeError {
 fn iceberg_error(error: IcebergError) -> SnowflakeError {
     let message = error.to_string();
     match error {
-        IcebergError::Iceberg(iceberg_error) => {
-            match iceberg_error {
-                // leave single error case as an example
-                IcebergSpecError::InvalidFormat { .. } => CustomSnafu { message }.build(),
-                _ => CustomSnafu { message }.build(),
-            }
-        }
-        IcebergError::ObjectStore(error) => {
-            object_store_error(error)
-        }
+        IcebergError::Iceberg(_) => CustomSnafu { message }.build(),
+        IcebergError::ObjectStore(error) => object_store_error(error),
         IcebergError::External(err) => {
             if err.is::<MetastoreError>() {
                 if let Ok(e) = err.downcast::<MetastoreError>() {
@@ -155,8 +152,7 @@ fn iceberg_error(error: IcebergError) -> SnowflakeError {
                 } else {
                     unreachable!()
                 }
-            }
-            else if err.is::<object_store::Error>() {
+            } else if err.is::<object_store::Error>() {
                 if let Ok(e) = err.downcast::<object_store::Error>() {
                     object_store_error(*e)
                 } else {
@@ -172,7 +168,7 @@ fn iceberg_error(error: IcebergError) -> SnowflakeError {
                 }
             }
         }
-        IcebergError::NotFound(message) => CustomSnafu { message }.build(),        
+        IcebergError::NotFound(message) => CustomSnafu { message }.build(),
         _ => CustomSnafu { message }.build(),
     }
 }
@@ -181,7 +177,7 @@ fn iceberg_error(error: IcebergError) -> SnowflakeError {
 fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
     let message = df_error.to_string();
     match df_error {
-        DataFusionError::ArrowError(arrow_error, .. ) => {
+        DataFusionError::ArrowError(arrow_error, ..) => {
             match arrow_error {
                 ArrowError::ParquetError(message) => CustomSnafu { message }.build(),
                 ArrowError::ExternalError(err) => {
@@ -191,7 +187,7 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                         // Add downcast warning separately as this is internal message
                         internal: InternalMessage(format!("Warning: Didn't downcast error: {err}")),
                         location: location!(),
-                    }    
+                    }
                 }
                 _ => CustomSnafu { message }.build(),
             }
@@ -211,13 +207,9 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
             // Following goes here:
             // SQL compilation error: Object 'DATABASE.PUBLIC.ARRAY_DATA' does not exist or not authorized.
             let diagn_error = if diagnostic.span.is_some() {
-                CompilationDiagnosticGenericSnafu {
-                    error: diagnostic,
-                }.build()
+                CompilationDiagnosticGenericSnafu { error: diagnostic }.build()
             } else {
-                CompilationDiagnosticEmptySpanSnafu {
-                    error: diagnostic,
-                }.build()
+                CompilationDiagnosticEmptySpanSnafu { error: diagnostic }.build()
             };
             SnowflakeError::SqlCompilation { error: diagn_error }
         }
@@ -247,7 +239,10 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
             }
             ParserError::RecursionLimitExceeded => CustomSnafu { message }.build(),
         },
-        DataFusionError::ExecutionJoin(join_error) => CustomSnafu { message: join_error.to_string() }.build(),
+        DataFusionError::ExecutionJoin(join_error) => CustomSnafu {
+            message: join_error.to_string(),
+        }
+        .build(),
         DataFusionError::Substrait(_substrait_error) => CustomSnafu { message }.build(),
         DataFusionError::Internal(_internal_error) => CustomSnafu { message }.build(),
         DataFusionError::External(err) => {
@@ -343,7 +338,10 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
             } else if err.is::<ArrowError>() {
                 if let Ok(e) = err.downcast::<ArrowError>() {
                     let error = *e;
-                    CustomSnafu { message: error.to_string() }.build()
+                    CustomSnafu {
+                        message: error.to_string(),
+                    }
+                    .build()
                 } else {
                     unreachable!()
                 }
