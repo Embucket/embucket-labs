@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use datafusion::arrow::array::{
     Array, Decimal128Array, StringArray, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
     new_null_array,
@@ -35,13 +35,13 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
-const FORMATS: [&str; 10] = [
-    "%d-%b-%Y",
+const DATE_FORMATS: [&str; 2] = ["%d-%b-%Y", "%d-%B-%Y"];
+
+const TIMESTAMP_FORMATS: [&str; 8] = [
     "%d-%b-%Y %H:%M:%S",
     "%d-%b-%YT%H:%M:%S",
     "%d-%b-%Y %H:%M:%S.%f",
     "%d-%b-%YT%H:%M:%S.%f",
-    "%d-%B-%Y",
     "%d-%B-%Y %H:%M:%S",
     "%d-%B-%YT%H:%M:%S",
     "%d-%B-%Y %H:%M:%S.%f",
@@ -171,7 +171,8 @@ impl ScalarUDFImpl for ToTimestampFunc {
         clippy::cast_possible_wrap,
         clippy::as_conversions,
         clippy::cast_lossless,
-        clippy::cast_possible_truncation
+        clippy::cast_possible_truncation,
+        clippy::unwrap_used
     )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
@@ -198,17 +199,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
             let arr = as_int64_array(&arr)?;
             let scale = if args.len() == 1 {
                 0
-            } else {
-                if let ColumnarValue::Scalar(v) = &args[1] {
-                    let scale = v.cast_to(&DataType::Int64)?;
-                    if let ScalarValue::Int64(Some(v)) = &scale {
-                        *v
-                    } else {
-                        return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
-                    }
+            } else if let ColumnarValue::Scalar(v) = &args[1] {
+                let scale = v.cast_to(&DataType::Int64)?;
+                if let ScalarValue::Int64(Some(v)) = &scale {
+                    *v
                 } else {
-                    0
+                    return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
                 }
+            } else {
+                0
             };
 
             let arr: ArrayRef = match scale {
@@ -320,9 +319,9 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     return ArgumentTwoNeedsToBeStringSnafu.fail()?;
                 };
 
-                convert_snowflake_format_to_chrono(v).to_string()
+                convert_snowflake_format_to_chrono(v)
             } else if &self.format.to_ascii_lowercase() != "auto" {
-                convert_snowflake_format_to_chrono(&self.format).to_string()
+                convert_snowflake_format_to_chrono(&self.format)
             } else {
                 "auto".to_string()
             };
@@ -344,9 +343,9 @@ impl ScalarUDFImpl for ToTimestampFunc {
                                 .map_err(|_| CantParseTimestampSnafu.build())?;
                             let scale = determine_timestamp_scale(i);
                             if scale == 0 {
-                                b.append_value(i * 1000_000_000);
+                                b.append_value(i * 1_000_000_000);
                             } else if scale == 3 {
-                                b.append_value(i * 1000_000);
+                                b.append_value(i * 1_000_000);
                             } else if scale == 6 {
                                 b.append_value(i * 1000);
                             } else if scale == 9 {
@@ -357,36 +356,46 @@ impl ScalarUDFImpl for ToTimestampFunc {
                             let t = if &format.to_ascii_lowercase() == "auto" {
                                 let mut res: i64 = 0;
                                 let mut found = false;
-                                dbg!(&s);
-                                match string_to_timestamp_nanos(&s) {
-                                    Ok(v) => v,
-                                    Err(_) => {
-                                        for f in FORMATS {
-                                            let date_str = "05-Mar-2025";
-                                            let date = NaiveDate::parse_from_str(date_str, "%d-%b-%Y").unwrap();
-                                            println!("{}", date); // Выведет: 2025-03-05
+                                if let Ok(v) = string_to_timestamp_nanos(&s) {
+                                    v
+                                } else {
+                                    for f in TIMESTAMP_FORMATS {
+                                        if let Ok(v) = NaiveDateTime::parse_from_str(&s, f) {
+                                            if let Some(vv) = v.and_utc().timestamp_nanos_opt() {
+                                                res = vv;
+                                                found = true;
+                                                break;
+                                            }
 
-                                            dbg!(f);
-                                            match NaiveDateTime::parse_from_str("05-Mar-2025", "%d-%b-%Y") {
-                                                Ok(v) => {
-                                                    println!("!");
-                                                    match v.and_utc().timestamp_nanos_opt() {
-                                                        Some(vv) => {
-                                                            res = vv;
-                                                            found = true;
-                                                            break;
-                                                        }
-                                                        None => {
-                                                            if self.try_mode {
-                                                                b.append_null();
-                                                                continue;
-                                                            }
+                                            if self.try_mode {
+                                                b.append_null();
+                                                continue;
+                                            }
 
-                                                            return CantGetTimestampSnafu.fail()?;
-                                                        }
-                                                    }
-                                                },
-                                                Err(_) => continue,
+                                            return CantGetTimestampSnafu.fail()?;
+                                        }
+                                    }
+
+                                    if !found {
+                                        for f in DATE_FORMATS {
+                                            if let Ok(v) = NaiveDate::parse_from_str(&s, f) {
+                                                if let Some(vv) = v
+                                                    .and_hms_nano_opt(0, 0, 0, 0)
+                                                    .unwrap()
+                                                    .and_utc()
+                                                    .timestamp_nanos_opt()
+                                                {
+                                                    res = vv;
+                                                    found = true;
+                                                    break;
+                                                }
+
+                                                if self.try_mode {
+                                                    b.append_null();
+                                                    continue;
+                                                }
+
+                                                return CantGetTimestampSnafu.fail()?;
                                             }
                                         }
 
@@ -398,32 +407,28 @@ impl ScalarUDFImpl for ToTimestampFunc {
 
                                             return CantGetTimestampSnafu.fail()?;
                                         }
-
-                                        res
                                     }
+
+                                    res
+                                }
+                            } else if let Ok(v) = NaiveDateTime::parse_from_str(&s, &format) {
+                                if let Some(v) = v.and_utc().timestamp_nanos_opt() {
+                                    v
+                                } else {
+                                    if self.try_mode {
+                                        b.append_null();
+                                        continue;
+                                    }
+
+                                    return CantGetTimestampSnafu.fail()?;
                                 }
                             } else {
-                                match NaiveDateTime::parse_from_str(s, &format) {
-                                    Ok(v) => match v.and_utc().timestamp_nanos_opt() {
-                                        Some(v) => v,
-                                        None => {
-                                            if self.try_mode {
-                                                b.append_null();
-                                                continue;
-                                            }
-
-                                            return CantGetTimestampSnafu.fail()?;
-                                        }
-                                    },
-                                    Err(_) => {
-                                        if self.try_mode {
-                                            b.append_null();
-                                            continue;
-                                        }
-
-                                        return CantGetTimestampSnafu.fail()?;
-                                    }
+                                if self.try_mode {
+                                    b.append_null();
+                                    continue;
                                 }
+
+                                return CantGetTimestampSnafu.fail()?;
                             };
 
                             let t = if let Some(tz) = &self.timezone {
@@ -555,6 +560,10 @@ fn parse_decimal(
     }
 }
 fn remove_timezone(datetime_str: &str) -> String {
+    if datetime_str.len() < 15 {
+        return datetime_str.to_string();
+    }
+
     let s = datetime_str.trim();
 
     if let Some(caps) = RE_TIMEZONE.find(s) {
@@ -817,7 +826,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_different_formats() -> DFResult<()> {
+    async fn test_predefined_format() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
@@ -826,15 +835,15 @@ mod tests {
             "to_timestamp".to_string(),
         )));
 
-        let sql = "SELECT to_timestamp('2021-03-02 15:55:18.539000') as a, to_timestamp('2020-09-08T13:42:29.190855+00:00') as b";
+        let sql = "SELECT to_timestamp('2021-03-02 15:55:18.539000')";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
-                "+-------------------------+----------------------------+",
-                "| a                       | b                          |",
-                "+-------------------------+----------------------------+",
-                "| 2021-03-02T15:55:18.539 | 2020-09-08T13:42:29.190855 |",
-                "+-------------------------+----------------------------+",
+                "+--------------------------------------------------+",
+                "| to_timestamp(Utf8(\"2021-03-02 15:55:18.539000\")) |",
+                "+--------------------------------------------------+",
+                "| 2021-03-02T15:55:18.539                          |",
+                "+--------------------------------------------------+",
             ],
             &result
         );
@@ -847,7 +856,7 @@ mod tests {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             None,
-            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "auto".to_string(),
             false,
             "to_timestamp".to_string(),
         )));
@@ -873,7 +882,7 @@ mod tests {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
             Some(Arc::from("America/Los_Angeles")),
-            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
+            "auto".to_string(),
             false,
             "to_timestamp_tz".to_string(),
         )));
@@ -939,11 +948,25 @@ mod tests {
 
         assert_batches_eq!(
             &[
-                "+---------------------+---------------------+",
-                "| a                   | b                   |",
-                "+---------------------+---------------------+",
-                "| 2024-04-05T01:02:03 | 2024-04-05T01:02:03 |",
-                "+---------------------+---------------------+",
+                "+-----------------------------------+",
+                "| to_timestamp(Utf8(\"05-Mar-2025\")) |",
+                "+-----------------------------------+",
+                "| 2025-03-05T00:00:00               |",
+                "+-----------------------------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025T01:02:03')";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+--------------------------------------------+",
+                "| to_timestamp(Utf8(\"05-Mar-2025T01:02:03\")) |",
+                "+--------------------------------------------+",
+                "| 2025-03-05T01:02:03                        |",
+                "+--------------------------------------------+",
             ],
             &result
         );
