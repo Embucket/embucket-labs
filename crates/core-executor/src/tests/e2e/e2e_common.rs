@@ -765,7 +765,7 @@ pub async fn exec_parallel_test_plan(
                 match res {
                     Ok(res) => eprintln!("res: {res:#?}"),
                     Err(error) => {
-                        eprintln!("Debug error #? : {error:#?}");
+                        eprintln!("Debug error: {error:#?}");
                         let snowflake_error = SnowflakeError::from(error);
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport

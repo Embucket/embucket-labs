@@ -1046,6 +1046,72 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails
     Ok(())
 }
 
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_s3_store_create_volume_with_non_existing_bucket()
+-> Result<(), Error> {
+    eprintln!(
+        "Create s3 volume with non existing bucket"
+    );
+    dotenv().ok();
+
+    let test_suffix = test_suffix();
+
+    let s3_exec = create_executor_with_early_volumes_creation(
+        ObjectStoreType::S3(
+            test_suffix.clone(),
+            S3ObjectStore::from_env(EMBUCKET_OBJECT_STORE_PREFIX)?,
+        ),
+        "s3_exec",
+        vec![
+            VolumeConfig {
+                prefix: Some("E2E_S3VOLUME_NON_EXISTING_BUCKET_"),
+                volume_type: TestVolumeType::S3,
+                volume: "s3_volume_with_existing_bucket",
+                database: "db",
+                schema: "schema",
+            },
+        ],
+    )
+    .await?;
+    let s3_exec = Arc::new(s3_exec);
+
+    let test_plan = vec![
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                "SHOW DATABASES",
+                "SHOW SCHEMAS",
+                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            ],
+            executor: s3_exec.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: false,
+        }]),
+
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+                (100, 'Alice', 'foo'),
+                (200, 'Bob', 'bar'),
+                (300, 'Charlie', 'baz'),
+                (400, 'Diana', 'qux'),
+                (500, 'Eve', 'quux')",
+            ],
+            executor: s3_exec.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: false,
+        }])        
+    ];
+
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
+    assert!(false);
+    Ok(())
+}
+
 const CREATE_TABLE_WITH_ALL_SNOWFLAKE_TYPES: &str =
     "CREATE TABLE __DATABASE__.__SCHEMA__.all_snowflake_types (
     -- Numeric Types

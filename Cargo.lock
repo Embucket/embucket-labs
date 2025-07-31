@@ -1932,6 +1932,7 @@ dependencies = [
  "error-stack-trace",
  "futures",
  "iceberg-rust",
+ "iceberg-rust-spec",
  "iceberg-s3tables-catalog",
  "indexmap 2.10.0",
  "insta",
