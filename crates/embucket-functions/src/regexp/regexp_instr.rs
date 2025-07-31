@@ -141,9 +141,11 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         let mut result_array =
             Decimal128Builder::with_capacity(array.len()).with_precision_and_scale(38, 0)?;
         
-        let occurence = 0;
+        let occurence = 1;
 
-        let group_num = 0;
+        let option = 0;
+
+        let group_num = 1;
         
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
@@ -151,8 +153,12 @@ impl ScalarUDFImpl for RegexpInstrFunc {
                 let regex = pattern_to_regex(pattern).context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, position as usize).for_each(|opt_iter| {
                     result_array.append_option(opt_iter.and_then(|mut cap_iter| {
-                        cap_iter.nth(occurence).and_then(|cap| {
-                            cap.get(group_num).map(|mat| mat.start() as i128)
+                        cap_iter.nth(occurence - 1).and_then(|cap| {
+                            cap.get(group_num).map(|mat| if option == 0 {
+                                mat.start() as i128
+                            } else {
+                                mat.end() as i128
+                            } + 1)
                         })
                     }));
                 });
