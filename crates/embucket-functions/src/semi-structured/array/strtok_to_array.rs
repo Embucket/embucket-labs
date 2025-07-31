@@ -136,9 +136,8 @@ crate::macros::make_udf_function!(StrtokToArrayFunc);
 
 #[cfg(test)]
 mod tests {
-    use crate::semi_structured::json::parse_json::ParseJsonFunc;
-
     use super::*;
+    use crate::semi_structured::parse_json::ParseJsonFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::{DataFusionError, assert_batches_eq};
     use datafusion_expr::ScalarUDF;
@@ -147,7 +146,7 @@ mod tests {
     async fn test_it_works() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(StrtokToArrayFunc::new()));
-        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new(false)));
 
         let q = "SELECT STRTOK_TO_ARRAY('a.b.c', '.') AS string_to_array;";
         let result = ctx.sql(q).await?.collect().await?;

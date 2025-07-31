@@ -162,8 +162,8 @@ seeds:
     gcp_billing:
       +schema: gcp_billing
       +database: RAW
-    gitlab_hz:
-      +schema: gitlab_hz
+    zoominfo:
+      +schema: zoominfo
       +database: ZOOMINFO_INBOUND
     gitlab:
       +schema: gitlab

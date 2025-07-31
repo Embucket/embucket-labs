@@ -4,7 +4,7 @@
     config(
       unique_key='user_group_sk',
       strategy='check',
-      check_cols=['"Group LUID"', '"User LUID"'],
+      check_cols=['"GROUP_LUID"', '"USER_LUID"'],
       invalidate_hard_deletes=True,
       post_hook=["{{ rolling_window_delete('UPLOADED_AT', 'month', 24) }}"]
     )
@@ -12,9 +12,9 @@
 
 WITH snapshot_data AS (
   SELECT
-    {{ dbt_utils.generate_surrogate_key(['"Group LUID"', '"User LUID"']) }} AS user_group_sk,
+    {{ dbt_utils.generate_surrogate_key(['"GROUP_LUID"', '"USER_LUID"']) }} AS user_group_sk,
     *
-  FROM {{ source('tableau_cloud', 'groups') }}
+  FROM {{ source('tableau_cloud', 'tableau_cloud_groups') }}
 )
 
 SELECT *

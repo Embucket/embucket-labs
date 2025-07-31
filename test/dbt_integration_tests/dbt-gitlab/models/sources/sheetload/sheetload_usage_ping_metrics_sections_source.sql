@@ -9,7 +9,7 @@ WITH source AS (
       section::VARCHAR                AS section_name,
       metrics_path::VARCHAR           AS metrics_path,
       stage::VARCHAR                  AS stage_name,
-      "group"::VARCHAR                AS group_name,
+      group_pm::VARCHAR                AS group_name,
       true::BOOLEAN                   AS is_smau,
       true::BOOLEAN                   AS is_gmau,
       clean_metric_name::VARCHAR      AS clean_metrics_name,

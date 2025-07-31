@@ -3201,12 +3201,6 @@ pub const SYSTEM_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_task_runtime_info")
     ),
-    ("SYSTEM$TYPEOF", FunctionInfo::new(
-        "SYSTEM$TYPEOF",
-        "Returns a string representing the SQL data type associated with an expression."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_typeof")
-    ),
     ("SYSTEM$UNBLOCK_INTERNAL_STAGES_PUBLIC_ACCESS", FunctionInfo::new(
         "SYSTEM$UNBLOCK_INTERNAL_STAGES_PUBLIC_ACCESS",
         "Allows traffic from public IP addresses to access the internal stage of the current Snowflake account on Microsoft Azure."

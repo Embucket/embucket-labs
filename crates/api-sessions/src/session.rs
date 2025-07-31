@@ -34,7 +34,7 @@ impl SessionStore {
             let mut sessions = sessions.write().await;
 
             let now = OffsetDateTime::now_utc();
-            tracing::error!("Starting to delete expired for: {}", now);
+            tracing::trace!("Starting to delete expired for: {}", now);
             //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
             let mut session_ids = Vec::new();
             for (session_id, session) in sessions.iter() {
@@ -45,7 +45,7 @@ impl SessionStore {
             }
 
             for session_id in session_ids {
-                tracing::error!("Deleting expired: {}", session_id);
+                tracing::trace!("Deleting expired: {}", session_id);
                 sessions.remove(&session_id);
             }
         }

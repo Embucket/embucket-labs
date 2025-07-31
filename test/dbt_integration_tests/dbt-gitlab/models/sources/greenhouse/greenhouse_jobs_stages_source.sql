@@ -11,7 +11,7 @@ WITH source as (
             stage_id::NUMBER                AS job_stage_id,
 
             --info
-            "order"::NUMBER                    AS job_stage_order,
+            order_js::NUMBER                    AS job_stage_order,
             name::varchar                   AS job_stage_name,
             stage_alert_setting::varchar    AS job_stage_alert_setting,
             created_at::timestamp           AS job_stage_created_at,

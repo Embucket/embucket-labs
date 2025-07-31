@@ -1,4 +1,4 @@
-candidate_id,company_name,title,start,end,latest,created_at,updated_at,organization_id,_updated_at
+candidate_id,company_name,title,start_ts,end_ts,latest,created_at,updated_at,organization_id,_updated_at
 972,877,285,226,246,FALSE,532,777,339,718.56
 85,915,123,259,362,FALSE,738,403,540,5.3
 355,502,402,246,509,TRUE,656,658,201,731.14

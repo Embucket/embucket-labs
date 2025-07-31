@@ -28,6 +28,7 @@ sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", r
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
@@ -58,6 +59,9 @@ insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 slatedb = { workspace = true }
 dotenv = "0.15.0"
+aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }
+aws-sdk-s3tables = { version = "1.32.0", features = ["behavior-version-latest"] }
+aws-sdk-sts = { version = "1.80.0", features = ["behavior-version-latest"] }
 
 [lints]
 workspace = true

@@ -7,24 +7,24 @@ sources:
     loader: Tableau
     loaded_at_field: UPLOADED_AT
 
-    quoting:
-      database: false
-      schema: false
-      identifier: false
+#    quoting:
+#      database: false
+#      schema: false
+#      identifier: false
 
     tables:
-      - name: events
+      - name: dup_tableau_cloud_events
         description: "{{ doc('tableau_cloud_events') }}"
 
-      - name: groups
+      - name: tableau_cloud_groups
         description: "{{ doc('tableau_cloud_events') }}"
           
       - name: permissions
         description: "{{ doc('tableau_cloud_permissions') }}" 
           
-      - name: site_content
+      - name: tableau_cloud_site_content
         description: "{{ doc('tableau_cloud_site_content') }}" 
           
-      - name: users
+      - name: dup_tableau_cloud_users
         description: "{{ doc('tableau_cloud_users') }}"
           

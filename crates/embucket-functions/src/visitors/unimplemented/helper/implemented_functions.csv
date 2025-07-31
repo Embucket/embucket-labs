@@ -352,6 +352,7 @@ substr_index
 substring
 substring_index
 sum
+system$typeof
 tan
 tanh
 time
@@ -384,13 +385,6 @@ to_number
 to_numeric
 to_time
 to_timestamp
-to_timestamp_tz
-to_timestamp_ntz
-to_timestamp_ltz
-try_to_timestamp
-try_to_timestamp_tz
-try_to_timestamp_ntz
-try_to_timestamp_ltz
 to_timestamp_micros
 to_timestamp_millis
 to_timestamp_nanos

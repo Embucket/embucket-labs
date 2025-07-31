@@ -32,8 +32,6 @@ test_query!(
     s3tables,
     "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = [
-        // disable s3tables catalog creation
-        "SET DISABLE_S3TABLES_CATALOG_CREATION = true",
         "CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3TABLES'
             STORAGE_ENDPOINT = 'https://s3.us-east-2.amazonaws.com'

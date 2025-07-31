@@ -98,7 +98,7 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api-ui::Error::into_response",
         level = "info",
-        fields(error, error_stack_trace, status_code),
+        fields(display_error, debug_error, error_stack_trace, status_code),
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
@@ -112,13 +112,14 @@ impl IntoResponse for Error {
             // no error added into span here and it's Ok
             source.into_response()
         } else {
-            let message = self.error_message();
+            let (display_message, debug_message) = self.display_debug_error_messages();
             // Record the result as part of the current span.
-            tracing::Span::current().record("error", message.clone());
+            tracing::Span::current().record("display_error", &display_message);
+            tracing::Span::current().record("debug_error", &debug_message);
             (
                 code,
                 Json(ErrorResponse {
-                    message,
+                    message: display_message,
                     status_code: code.as_u16(),
                 }),
             )
@@ -128,18 +129,19 @@ impl IntoResponse for Error {
 }
 
 impl Error {
-    pub fn error_message(self) -> String {
+    pub fn display_debug_error_messages(self) -> (String, String) {
         // acquire error str as later it will be moved
         let error_str = self.to_string();
+        let debug_str = format!("{self:?}");
         match self {
             Self::QueriesError { source, .. } => match *source {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
-                } => SnowflakeError::from(source).to_string(),
-                _ => error_str,
+                } => SnowflakeError::from(source).display_debug_error_messages(),
+                _ => (error_str, debug_str),
             },
-            _ => error_str,
+            _ => (error_str, debug_str),
         }
     }
 }

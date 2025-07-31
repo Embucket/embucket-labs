@@ -15,8 +15,8 @@ WITH source as (
                 school_name::varchar    AS candidate_school_name,
                 degree::varchar         AS candidate_degree,
                 discipline::varchar     AS candidate_discipline,
-                "start"::date           AS candidate_education_start_date,
-                "end"::date               AS candidate_education_end_date,
+                start_ts::date           AS candidate_education_start_date,
+                end_ts::date               AS candidate_education_end_date,
                 latest::boolean         AS candidate_latest_education,
                 created_at::timestamp   AS candidate_education_created_at,
                 updated_at::timestamp   AS candidate_education_updated_at

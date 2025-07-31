@@ -1,9 +1,11 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
+use super::e2e_aws::s3_client;
 use crate::SnowflakeError;
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
+use aws_sdk_s3tables;
 use chrono::Utc;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::Metastore;
@@ -23,6 +25,7 @@ use object_store::{
 use slatedb::{Db as SlateDb, config::DbOptions};
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
+use std::collections::HashMap;
 use std::env::{self, VarError};
 use std::fmt;
 use std::fs;
@@ -32,21 +35,22 @@ use std::sync::Arc;
 
 // Set following envs, or add to .env
 
+pub const EMBUCKET_OBJECT_STORE_PREFIX: &str = "EMBUCKET_OBJECT_STORE_";
 // # Env vars for s3 object store on minio
-// AWS_ACCESS_KEY_ID=
-// AWS_SECRET_ACCESS_KEY=
-// AWS_REGION=us-east-1
-// AWS_BUCKET=tables-data
-// AWS_ENDPOINT=http://localhost:9000
-// AWS_ALLOW_HTTP=true
+// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
+// EMBUCKET_OBJECT_STORE_AWS_BUCKET=tables-data
+// EMBUCKET_OBJECT_STORE_AWS_ENDPOINT=http://localhost:9000
+// EMBUCKET_OBJECT_STORE_AWS_ALLOW_HTTP=true
 
 // Example env for object store on AWS
-// AWS_ACCESS_KEY_ID=
-// AWS_SECRET_ACCESS_KEY=
-// AWS_REGION=us-east-1
-// AWS_BUCKET=e2e-store
+// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
+// EMBUCKET_OBJECT_STORE_AWS_BUCKET=e2e-store
 
-const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME";
+pub const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME_";
 // Env vars for S3Volume on minio / AWS (change or remove endpoint):
 // E2E_S3VOLUME_AWS_ACCESS_KEY_ID=
 // E2E_S3VOLUME_AWS_SECRET_ACCESS_KEY=
@@ -54,7 +58,7 @@ const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME";
 // E2E_S3VOLUME_AWS_BUCKET=e2e-store
 // E2E_S3VOLUME_AWS_ENDPOINT=http://localhost:9000
 
-const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME";
+pub const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME_";
 // Env vars for S3TablesVolume:
 // E2E_S3TABLESVOLUME_AWS_ACCESS_KEY_ID=
 // E2E_S3TABLESVOLUME_AWS_SECRET_ACCESS_KEY=
@@ -63,13 +67,53 @@ const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME";
 pub const TEST_SESSION_ID1: &str = "test_session_id1";
 pub const TEST_SESSION_ID2: &str = "test_session_id2";
 
-pub const TEST_VOLUME_MEMORY: (&str, &str) = ("volume_memory", "database_in_memory");
-pub const TEST_VOLUME_FILE: (&str, &str) = ("volume_file", "database_in_file");
-pub const TEST_VOLUME_S3: (&str, &str) = ("volume_s3", "database_in_s3");
-pub const TEST_VOLUME_S3TABLES: (&str, &str) = ("volume_s3tables", "database_in_s3tables");
+#[derive(Clone)]
+pub struct VolumeConfig {
+    pub prefix: Option<&'static str>,
+    pub volume_type: TestVolumeType,
+    pub volume: &'static str,
+    pub database: &'static str,
+    pub schema: &'static str,
+}
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub enum TestVolumeType {
+    Memory,
+    File,
+    S3,
+    S3Tables,
+}
+
+pub const TEST_VOLUME_MEMORY: VolumeConfig = VolumeConfig {
+    prefix: None,
+    volume_type: TestVolumeType::Memory,
+    volume: "volume_memory",
+    database: "database_in_memory",
+    schema: "public",
+};
+pub const TEST_VOLUME_FILE: VolumeConfig = VolumeConfig {
+    prefix: None,
+    volume_type: TestVolumeType::File,
+    volume: "volume_file",
+    database: "database_in_file",
+    schema: "public",
+};
+pub const TEST_VOLUME_S3: VolumeConfig = VolumeConfig {
+    prefix: Some(E2E_S3VOLUME_PREFIX),
+    volume_type: TestVolumeType::S3,
+    volume: "volume_s3",
+    database: "database_in_s3",
+    schema: "public",
+};
+pub const TEST_VOLUME_S3TABLES: VolumeConfig = VolumeConfig {
+    prefix: Some(E2E_S3TABLESVOLUME_PREFIX),
+    volume_type: TestVolumeType::S3Tables,
+    volume: "volume_s3tables",
+    database: "database_in_s3tables",
+    schema: "public",
+};
 
 pub const TEST_DATABASE_NAME: &str = "embucket";
-pub const TEST_SCHEMA_NAME: &str = "public";
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -112,6 +156,16 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    AwsSdk {
+        source: aws_sdk_s3tables::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    BadVolumeType {
+        volume_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[must_use]
@@ -122,16 +176,15 @@ pub fn test_suffix() -> String {
         .to_string()
 }
 
-pub fn s3_volume() -> Result<S3Volume, Error> {
-    let prefix = E2E_S3VOLUME_PREFIX.to_ascii_uppercase();
-
-    let region = std::env::var(format!("{prefix}_AWS_REGION")).context(S3VolumeConfigSnafu)?;
+pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
+    let region = std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
     let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
+        std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
     let secret_key =
-        std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY")).context(S3VolumeConfigSnafu)?;
-    let endpoint = std::env::var(format!("{prefix}_AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
-    let bucket = std::env::var(format!("{prefix}_AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
+        std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).context(S3VolumeConfigSnafu)?;
+    let endpoint =
+        std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+    let bucket = std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
 
     Ok(S3Volume {
         region: Some(region),
@@ -144,15 +197,13 @@ pub fn s3_volume() -> Result<S3Volume, Error> {
     })
 }
 
-pub fn s3_tables_volume(database: &str) -> Result<S3TablesVolume, Error> {
-    let prefix = E2E_S3TABLESVOLUME_PREFIX.to_ascii_uppercase();
-
-    let access_key =
-        std::env::var(format!("{prefix}_AWS_ACCESS_KEY_ID")).context(S3TablesVolumeConfigSnafu)?;
-    let secret_key = std::env::var(format!("{prefix}_AWS_SECRET_ACCESS_KEY"))
+pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3TablesVolume, Error> {
+    let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
         .context(S3TablesVolumeConfigSnafu)?;
-    let arn = std::env::var(format!("{prefix}_AWS_ARN")).context(S3TablesVolumeConfigSnafu)?;
-    let endpoint: Option<String> = std::env::var(format!("{prefix}_AWS_ENDPOINT"))
+    let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
+        .context(S3TablesVolumeConfigSnafu)?;
+    let arn = std::env::var(format!("{env_prefix}AWS_ARN")).context(S3TablesVolumeConfigSnafu)?;
+    let endpoint: Option<String> = std::env::var(format!("{env_prefix}AWS_ENDPOINT"))
         .map(Some)
         .unwrap_or(None);
 
@@ -164,6 +215,21 @@ pub fn s3_tables_volume(database: &str) -> Result<S3TablesVolume, Error> {
         }),
         arn,
     })
+}
+
+pub async fn create_s3_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
+    // use the same credentials as for s3 tables volume
+    let s3_tables_volume = s3_tables_volume("test", env_prefix)?;
+    if let AwsCredentials::AccessKey(ref access_key) = s3_tables_volume.credentials {
+        return Ok(s3_client(
+            access_key.aws_access_key_id.clone(),
+            access_key.aws_secret_access_key.clone(),
+            s3_tables_volume.region(),
+            s3_tables_volume.account_id(),
+        )
+        .await);
+    }
+    panic!("Unsupported credentials type AwsCredentials::Token");
 }
 
 pub type TestPlan = Vec<ParallelTest>;
@@ -186,12 +252,29 @@ pub struct S3ObjectStore {
     pub s3_builder: AmazonS3Builder,
 }
 impl S3ObjectStore {
-    #[must_use]
-    pub fn from_env() -> Self {
-        Self {
-            s3_builder: AmazonS3Builder::from_env()
-                .with_conditional_put(S3ConditionalPut::ETagMatch),
-        }
+    pub fn from_env(env_prefix: &str) -> Result<Self, Error> {
+        let region =
+            std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
+        let access_key =
+            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
+        let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
+            .context(S3VolumeConfigSnafu)?;
+        let endpoint =
+            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+        let allow_http =
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu)?;
+        let bucket =
+            std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
+
+        let s3_builder = AmazonS3Builder::new()
+            .with_access_key_id(access_key)
+            .with_secret_access_key(secret_key)
+            .with_region(region)
+            .with_bucket_name(bucket)
+            .with_endpoint(endpoint)
+            .with_allow_http(allow_http == "true")
+            .with_conditional_put(S3ConditionalPut::ETagMatch);
+        Ok(Self { s3_builder })
     }
 }
 
@@ -201,6 +284,7 @@ pub struct ExecutorWithObjectStore {
     pub db: Arc<Db>,
     pub object_store_type: ObjectStoreType,
     pub alias: String,
+    pub used_volumes: HashMap<TestVolumeType, VolumeConfig>,
 }
 
 impl ExecutorWithObjectStore {
@@ -231,8 +315,12 @@ impl ExecutorWithObjectStore {
     // Update volume saved in metastore, can't use metastore trait as it checks existance before write
     // Therefore define our own version of metastore volume saver
     // Saves corrupted aws credentials for s3 volume
-    pub(crate) async fn create_s3_volume_with_bad_creds(&self) -> Result<(), Error> {
-        let volume_name = TEST_VOLUME_S3.0.to_string();
+    pub(crate) async fn create_s3_volume_with_bad_creds(
+        &self,
+        volume: Option<VolumeConfig>,
+    ) -> Result<(), Error> {
+        let volume_name = volume.unwrap_or(TEST_VOLUME_S3).volume;
+        let volume_name = volume_name.to_string();
         let db_key = format!("vol/{volume_name}");
         let volume = self
             .db
@@ -298,67 +386,132 @@ impl ExecutorWithObjectStore {
         }
         Ok(())
     }
+}
 
-    pub async fn create_volumes(&self) -> Result<(), Error> {
-        let suffix = self.object_store_type.suffix();
+#[allow(clippy::too_many_lines)]
+pub async fn create_volumes(
+    metastore: Arc<dyn Metastore>,
+    object_store_type: &ObjectStoreType,
+    override_volumes: Vec<VolumeConfig>,
+) -> Result<HashMap<TestVolumeType, VolumeConfig>, Error> {
+    let suffix = object_store_type.suffix();
 
-        // ignore errors when creating volume, as it could be created in previous run
-        let _ = self
-            .metastore
-            .create_volume(
-                &TEST_VOLUME_MEMORY.0.to_string(),
-                MetastoreVolume::new(
-                    TEST_VOLUME_MEMORY.0.to_string(),
-                    core_metastore::VolumeType::Memory,
-                ),
-            )
-            .await;
+    let used_volumes: HashMap<TestVolumeType, VolumeConfig> = HashMap::from([
+        (
+            TestVolumeType::Memory,
+            override_volumes
+                .iter()
+                .find(|volume| volume.volume_type == TestVolumeType::Memory)
+                .unwrap_or(&TEST_VOLUME_MEMORY)
+                .clone(),
+        ),
+        (
+            TestVolumeType::File,
+            override_volumes
+                .iter()
+                .find(|volume| volume.volume_type == TestVolumeType::File)
+                .unwrap_or(&TEST_VOLUME_FILE)
+                .clone(),
+        ),
+        (
+            TestVolumeType::S3,
+            override_volumes
+                .iter()
+                .find(|volume| volume.volume_type == TestVolumeType::S3)
+                .unwrap_or(&TEST_VOLUME_S3)
+                .clone(),
+        ),
+        (
+            TestVolumeType::S3Tables,
+            override_volumes
+                .iter()
+                .find(|volume| volume.volume_type == TestVolumeType::S3Tables)
+                .unwrap_or(&TEST_VOLUME_S3TABLES)
+                .clone(),
+        ),
+    ]);
 
-        let mut user_data_dir = env::temp_dir();
-        user_data_dir.push("store");
-        user_data_dir.push(format!("user-volume-{suffix}"));
-        let user_data_dir = user_data_dir.as_path();
-        let _ = self
-            .metastore
-            .create_volume(
-                &TEST_VOLUME_FILE.0.to_string(),
-                MetastoreVolume::new(
-                    TEST_VOLUME_FILE.0.to_string(),
-                    core_metastore::VolumeType::File(FileVolume {
-                        path: user_data_dir.display().to_string(),
-                    }),
-                ),
-            )
-            .await;
+    // ignore errors when creating volume, as it could be created in previous run
 
-        if let Ok(s3_volume) = s3_volume() {
-            self.metastore
-                .create_volume(
-                    &TEST_VOLUME_S3.0.to_string(),
-                    MetastoreVolume::new(
-                        TEST_VOLUME_S3.0.to_string(),
-                        core_metastore::VolumeType::S3(s3_volume),
-                    ),
-                )
-                .await
-                .context(MetastoreSnafu)?;
+    for VolumeConfig {
+        volume_type,
+        volume,
+        database,
+        prefix,
+        ..
+    } in used_volumes.values()
+    {
+        let volume = (*volume).to_string();
+        match volume_type {
+            TestVolumeType::Memory => {
+                let res = metastore
+                    .create_volume(
+                        &volume,
+                        MetastoreVolume::new(volume.clone(), core_metastore::VolumeType::Memory),
+                    )
+                    .await;
+                if let Err(e) = res {
+                    eprintln!("Failed to create memory volume: {e}");
+                }
+            }
+            TestVolumeType::File => {
+                let mut user_data_dir = env::temp_dir();
+                user_data_dir.push("store");
+                user_data_dir.push(format!("user-volume-{suffix}"));
+                let user_data_dir = user_data_dir.as_path();
+                let res = metastore
+                    .create_volume(
+                        &volume,
+                        MetastoreVolume::new(
+                            volume.clone(),
+                            core_metastore::VolumeType::File(FileVolume {
+                                path: user_data_dir.display().to_string(),
+                            }),
+                        ),
+                    )
+                    .await;
+                if let Err(e) = res {
+                    eprintln!("Failed to create file volume: {e}");
+                }
+            }
+            TestVolumeType::S3 => {
+                let prefix = prefix.unwrap_or(E2E_S3VOLUME_PREFIX);
+                if let Ok(s3_volume) = s3_volume(prefix) {
+                    let res = metastore
+                        .create_volume(
+                            &volume,
+                            MetastoreVolume::new(
+                                volume.clone(),
+                                core_metastore::VolumeType::S3(s3_volume),
+                            ),
+                        )
+                        .await;
+                    if let Err(e) = res {
+                        eprintln!("Failed to create s3 volume: {e}");
+                    }
+                }
+            }
+            TestVolumeType::S3Tables => {
+                let prefix = prefix.unwrap_or(E2E_S3TABLESVOLUME_PREFIX);
+                if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
+                    let res = metastore
+                        .create_volume(
+                            &volume,
+                            MetastoreVolume::new(
+                                volume.clone(),
+                                core_metastore::VolumeType::S3Tables(s3_tables_volume),
+                            ),
+                        )
+                        .await;
+                    if let Err(e) = res {
+                        eprintln!("Failed to create s3tables volume: {e}");
+                    }
+                }
+            }
         }
-
-        if let Ok(s3_tables_volume) = s3_tables_volume(TEST_VOLUME_S3TABLES.1) {
-            let _ = self
-                .metastore
-                .create_volume(
-                    &TEST_VOLUME_S3TABLES.0.to_string(),
-                    MetastoreVolume::new(
-                        TEST_VOLUME_S3TABLES.0.to_string(),
-                        core_metastore::VolumeType::S3Tables(s3_tables_volume),
-                    ),
-                )
-                .await;
-        }
-
-        Ok(())
     }
+
+    Ok(used_volumes)
 }
 
 #[derive(Debug, Clone)]
@@ -456,33 +609,84 @@ pub async fn create_executor(
 
     let exec = ExecutorWithObjectStore {
         executor: execution_svc,
-        metastore,
+        metastore: metastore.clone(),
         db: Arc::new(db),
         object_store_type: object_store_type.clone(),
         alias: alias.to_string(),
+        // Here the place we normally create volumes
+        used_volumes: create_volumes(metastore.clone(), &object_store_type, vec![]).await?,
     };
 
-    // Create all kind of volumes to just use them in queries
-    let _ = exec.create_volumes().await;
+    exec.create_sessions().await?;
+
+    Ok(exec)
+}
+
+// Support temporary option: early volumes creation for s3tables.
+// TODO: Remove this function after adding EXTRANL VOLUME CREATING via sql
+pub async fn create_executor_with_early_volumes_creation(
+    object_store_type: ObjectStoreType,
+    alias: &str,
+    override_volumes: Vec<VolumeConfig>,
+) -> Result<ExecutorWithObjectStore, Error> {
+    let db = object_store_type.db().await?;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+
+    // create volumes before execution service is not a part of normal Embucket flow,
+    // but we need it now to test s3 tables somehow
+    let used_volumes =
+        create_volumes(metastore.clone(), &object_store_type, override_volumes).await?;
+
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let execution_svc = CoreExecutionService::new(
+        metastore.clone(),
+        history_store.clone(),
+        Arc::new(Config::default()),
+    )
+    .await
+    .context(SnowflakeExecutionSnafu {
+        query: "EXECUTOR CREATE ERROR".to_string(),
+    })?;
+
+    let exec = ExecutorWithObjectStore {
+        executor: execution_svc,
+        metastore: metastore.clone(),
+        db: Arc::new(db),
+        object_store_type: object_store_type.clone(),
+        alias: alias.to_string(),
+        used_volumes,
+    };
+
     exec.create_sessions().await?;
 
     Ok(exec)
 }
 
 // Every executor
+#[allow(clippy::too_many_lines)]
 pub async fn exec_parallel_test_plan(
     test_plan: Vec<ParallelTest>,
-    volumes_databases_list: Vec<(&str, &str)>,
+    volumes_databases_list: &[TestVolumeType],
 ) -> Result<bool, Error> {
     let mut passed = true;
-    for (volume_name, database_name) in &volumes_databases_list {
+    for volume_type in volumes_databases_list {
+        // for VolumeConfig { volume, database, schema, .. } in &volumes_databases_list {
         for ParallelTest(tests) in &test_plan {
             // create sqls array here sql ref to String won't survive in the loop below
             let tests_sqls = tests
                 .iter()
-                .map(|TestQuery { sqls, .. }| {
+                .map(|TestQuery { sqls, executor, .. }| {
+                    let VolumeConfig {
+                        volume,
+                        database,
+                        schema,
+                        ..
+                    } = executor
+                        .used_volumes
+                        .get(volume_type)
+                        .expect("VolumeConfig not found");
                     sqls.iter()
-                        .map(|sql| prepare_statement(sql, volume_name, database_name))
+                        .map(|sql| prepare_statement(sql, volume, database, schema))
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
@@ -560,7 +764,7 @@ pub async fn exec_parallel_test_plan(
                 match res {
                     Ok(res) => eprintln!("res: {res:#?}"),
                     Err(error) => {
-                        eprintln!("Debug error #? : {error:#?}");
+                        eprintln!("Debug error: {error:#?}");
                         let snowflake_error = SnowflakeError::from(error);
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
@@ -584,9 +788,14 @@ pub async fn exec_parallel_test_plan(
     Ok(true)
 }
 
-fn prepare_statement(raw_statement: &str, volume_name: &str, database_name: &str) -> String {
+fn prepare_statement(
+    raw_statement: &str,
+    volume_name: &str,
+    database_name: &str,
+    schema_name: &str,
+) -> String {
     raw_statement
         .replace("__VOLUME__", volume_name)
         .replace("__DATABASE__", database_name)
-        .replace("__SCHEMA__", TEST_SCHEMA_NAME)
+        .replace("__SCHEMA__", schema_name)
 }

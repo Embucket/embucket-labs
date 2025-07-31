@@ -1,4 +1,5 @@
 use crate::macros::make_udf_function;
+use crate::semi_structured::errors::FailedToDeserializeJsonSnafu;
 use datafusion::arrow::array::{StringBuilder, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
@@ -6,39 +7,43 @@ use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatili
 use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct TryParseJsonFunc {
+pub struct ParseJsonFunc {
     signature: Signature,
+    try_mode: bool,
 }
 
-impl Default for TryParseJsonFunc {
+impl Default for ParseJsonFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
-impl TryParseJsonFunc {
+impl ParseJsonFunc {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(try_mode: bool) -> Self {
         Self {
-            signature: Signature::one_of(
-                vec![TypeSignature::String(1), TypeSignature::String(2)],
-                Volatility::Immutable,
-            ),
+            signature: Signature::one_of(vec![TypeSignature::String(1)], Volatility::Immutable),
+            try_mode,
         }
     }
 }
 
-impl ScalarUDFImpl for TryParseJsonFunc {
+impl ScalarUDFImpl for ParseJsonFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &'static str {
-        "try_parse_json"
+        if self.try_mode {
+            "try_parse_json"
+        } else {
+            "parse_json"
+        }
     }
 
     fn signature(&self) -> &Signature {
@@ -73,7 +78,13 @@ impl ScalarUDFImpl for TryParseJsonFunc {
                             b.append_value(v.to_string());
                         }
                     }
-                    Err(_) => b.append_null(),
+                    Err(err) => {
+                        if self.try_mode {
+                            b.append_null();
+                        } else {
+                            return Err(err).context(FailedToDeserializeJsonSnafu)?;
+                        }
+                    }
                 }
             } else {
                 b.append_null();
@@ -89,7 +100,7 @@ impl ScalarUDFImpl for TryParseJsonFunc {
     }
 }
 
-make_udf_function!(TryParseJsonFunc);
+make_udf_function!(ParseJsonFunc);
 
 #[cfg(test)]
 mod tests {
@@ -101,9 +112,9 @@ mod tests {
     #[tokio::test]
     async fn test_basic() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(TryParseJsonFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new(false)));
 
-        let sql = "SELECT try_parse_json('{\"key\": \"value\"}') AS parsed_json";
+        let sql = "SELECT parse_json('{\"key\": \"value\"}') AS parsed_json";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
@@ -116,7 +127,7 @@ mod tests {
             &result
         );
 
-        let sql = "SELECT try_parse_json('{\"invalid\": \"json\"') AS parsed_json";
+        let sql = "SELECT parse_json('null') AS parsed_json";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
@@ -129,7 +140,23 @@ mod tests {
             &result
         );
 
-        let sql = r"SELECT try_parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json";
+        let sql = "SELECT parse_json('[ null ]') AS parsed_json";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+-------------+",
+                "| parsed_json |",
+                "+-------------+",
+                "| [null]      |",
+                "+-------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT parse_json('{\"invalid\": \"json\"') AS parsed_json";
+        assert!(ctx.sql(sql).await?.collect().await.is_err());
+
+        let sql = r"SELECT parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
