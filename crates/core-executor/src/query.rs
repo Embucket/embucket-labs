@@ -1308,7 +1308,41 @@ impl UserQuery {
         self.created_entity_response()
     }
 
-    // #[instrument(name = "UserQuery::create_volume", level = "trace", skip(self), err)]
+    /// Creates a new volume in the system and optionally registers a catalog depending on the storage provider type.
+    ///
+    /// This function handles multiple types of storage volumes: `file`, `memory`, `s3`, and `s3tables`.
+    ///
+    /// # Parameters
+    /// - `name`: The logical name for the volume, represented as an `ObjectName`.
+    /// - `storage_locations`: A list of `CloudProviderParams`, where only the first entry is currently used.
+    ///   This includes provider type (e.g. "s3tables"), credentials, endpoint, base URL, etc.
+    ///
+    /// # Behavior
+    /// - Validates that the storage location is not empty.
+    /// - Parses provider-specific parameters and constructs the appropriate `VolumeType`.
+    /// - Stores the volume in the metastore.
+    /// - If the volume is of type `s3tables`, the system also attempts to register a corresponding
+    ///   query catalog (e.g. for Glue or AWS Athena integration).
+    ///
+    /// # Special Handling for `s3tables`
+    /// - The function checks the session variable `DISABLE_S3TABLES_CATALOG_CREATION`. If this is set
+    ///   to `"true"` (case-insensitive), catalog registration is skipped.
+    ///   This is useful in tests or restricted environments where creating cloud-side catalogs is
+    ///   unnecessary or undesired.
+    ///
+    /// # Errors
+    /// - Returns a descriptive error if:
+    ///     - The provider type is unrecognized.
+    ///     - Required credentials (e.g. AWS key/secret) are missing.
+    ///     - The metastore fails to persist the volume.
+    ///     - Catalog registration fails (unless it was intentionally skipped).
+    ///
+    /// # Example Session Variable Usage
+    /// To skip `create_catalog` call in a test:
+    /// ```text
+    /// SET DISABLE_S3TABLES_CATALOG_CREATION = 'true';
+    /// ```
+    #[instrument(name = "UserQuery::create_volume", level = "trace", skip(self), err)]
     pub async fn create_volume(
         &self,
         name: ObjectName,
