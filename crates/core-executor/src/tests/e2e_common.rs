@@ -162,7 +162,6 @@ pub fn s3_tables_volume(database: &str) -> Result<S3TablesVolume, Error> {
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
         }),
-        database: database.to_string(),
         arn,
     })
 }

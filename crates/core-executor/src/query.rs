@@ -1308,7 +1308,7 @@ impl UserQuery {
         self.created_entity_response()
     }
 
-    /// Creates a new volume in the system and optionally registers a catalog depending on the storage provider type.
+    /// Creates a new volume in the system
     ///
     /// This function handles multiple types of storage volumes: `file`, `memory`, `s3`, and `s3tables`.
     ///
@@ -1316,32 +1316,15 @@ impl UserQuery {
     /// - `name`: The logical name for the volume, represented as an `ObjectName`.
     /// - `storage_locations`: A list of `CloudProviderParams`, where only the first entry is currently used.
     ///   This includes provider type (e.g. "s3tables"), credentials, endpoint, base URL, etc.
-    ///
     /// # Behavior
     /// - Validates that the storage location is not empty.
     /// - Parses provider-specific parameters and constructs the appropriate `VolumeType`.
     /// - Stores the volume in the metastore.
-    /// - If the volume is of type `s3tables`, the system also attempts to register a corresponding
-    ///   query catalog (e.g. for Glue or AWS Athena integration).
-    ///
-    /// # Special Handling for `s3tables`
-    /// - The function checks the session variable `DISABLE_S3TABLES_CATALOG_CREATION`. If this is set
-    ///   to `"true"` (case-insensitive), catalog registration is skipped.
-    ///   This is useful in tests or restricted environments where creating cloud-side catalogs is
-    ///   unnecessary or undesired.
-    ///
     /// # Errors
     /// - Returns a descriptive error if:
     ///     - The provider type is unrecognized.
     ///     - Required credentials (e.g. AWS key/secret) are missing.
     ///     - The metastore fails to persist the volume.
-    ///     - Catalog registration fails (unless it was intentionally skipped).
-    ///
-    /// # Example Session Variable Usage
-    /// To skip `create_catalog` call in a test:
-    /// ```text
-    /// SET DISABLE_S3TABLES_CATALOG_CREATION = 'true';
-    /// ```
     #[instrument(name = "UserQuery::create_volume", level = "trace", skip(self), err)]
     pub async fn create_volume(
         &self,
@@ -1357,7 +1340,6 @@ impl UserQuery {
         }
         let params = storage_locations[0].clone();
         let ident = object_name_to_string(&name);
-        let mut catalog_name = None;
 
         let volume = match params.provider.to_lowercase().as_str() {
             "file" => Volume::new(
@@ -1372,9 +1354,6 @@ impl UserQuery {
                 let key_id = get_volume_kv_option(&params.credentials, "aws_key_id", vol_type)?;
                 let secret_key =
                     get_volume_kv_option(&params.credentials, "aws_secret_key", vol_type)?;
-                let db_name = get_volume_kv_option(&params.credentials, "database_name", vol_type)?;
-                catalog_name = Some(db_name.clone());
-
                 Volume::new(
                     ident.clone(),
                     VolumeType::S3Tables(S3TablesVolume {
@@ -1383,7 +1362,6 @@ impl UserQuery {
                             aws_access_key_id: key_id,
                             aws_secret_access_key: secret_key,
                         }),
-                        database: db_name,
                         arn: params.aws_access_point_arn.unwrap_or_default(),
                     }),
                 )
@@ -1421,29 +1399,6 @@ impl UserQuery {
             .create_volume(&ident, volume.clone())
             .await
             .context(ex_error::MetastoreSnafu)?;
-
-        // Register catalog only if the volume is of type S3Tables,
-        // and session variable `disable_s3tables_catalog_creation` is not set to true.
-        // This allows tests or other environments to skip actual AWS interaction.
-        if let VolumeType::S3Tables(_) = &volume.volume {
-            let skip_catalog_creation = self
-                .session
-                .get_session_variable("DISABLE_S3TABLES_CATALOG_CREATION")
-                .is_some_and(|v| v.to_lowercase() == "true");
-
-            if skip_catalog_creation {
-                tracing::debug!("Skipping create_catalog due to session variable override");
-            } else {
-                let catalog_name = catalog_name.ok_or_else(|| {
-                    ex_error::VolumeFieldRequiredSnafu {
-                        volume_type: volume.volume.to_string(),
-                        field: "storage provider one of S3, S3TABLES, MEMORY OR FILE".to_string(),
-                    }
-                    .build()
-                })?;
-                self.create_catalog(&catalog_name, &ident).await?;
-            }
-        }
         self.created_entity_response()
     }
 

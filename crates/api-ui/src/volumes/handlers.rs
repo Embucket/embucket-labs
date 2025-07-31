@@ -1,21 +1,26 @@
 use crate::state::AppState;
 use crate::{
-    OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
-    error::ErrorResponse,
-    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
-    volumes::models::{
+    apply_parameters, downcast_string_column, error::ErrorResponse, volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu}, volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
         VolumeResponse, VolumeType, VolumesResponse,
     },
+    OrderDirection,
+    Result,
+    SearchParameters,
 };
 use api_sessions::DFSessionId;
 use axum::{
-    Json,
     extract::{Path, Query, State},
+    Json,
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_metastore::error::{self as metastore_error, ValidationSnafu};
-use core_metastore::models::{AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume};
+use core_metastore::error::{
+    self as metastore_error, ValidationSnafu, VolumeMissingCredentialsSnafu,
+};
+use core_metastore::models::{
+    AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume,
+    VolumeType as MetastoreVolumeType,
+};
 use snafu::ResultExt;
 use utoipa::OpenApi;
 use validator::Validate;
@@ -79,6 +84,7 @@ pub struct QueryParameters {
 )]
 #[tracing::instrument(name = "api_ui::create_volume", level = "info", skip(state, volume), err, ret(level = tracing::Level::TRACE))]
 pub async fn create_volume(
+    DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Json(volume): Json<VolumeCreatePayload>,
 ) -> Result<Json<VolumeCreateResponse>> {
@@ -88,14 +94,67 @@ pub async fn create_volume(
         .context(ValidationSnafu)
         .context(CreateSnafu)?;
 
+    let ident = embucket_volume.ident;
+    let vol_params = match &embucket_volume.volume {
+        MetastoreVolumeType::File(vol) => format!(
+            "STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{}'",
+            vol.path
+        ),
+        MetastoreVolumeType::Memory => "STORAGE_PROVIDER = 'MEMORY'".to_string(),
+        MetastoreVolumeType::S3(vol) => {
+            let credentials_str = match &vol.credentials {
+                Some(AwsCredentials::AccessKey(creds)) => format!(
+                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
+                    creds.aws_access_key_id, creds.aws_secret_access_key
+                ),
+                _ => return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?,
+            };
+            format!(
+                "STORAGE_PROVIDER = 'S3' STORAGE_BASE_URL = '{:?}' STORAGE_ENDPOINT = '{:?}' {})",
+                vol.bucket, vol.endpoint, credentials_str,
+            )
+        }
+        MetastoreVolumeType::S3Tables(vol) => {
+            let credentials_str = match &vol.credentials {
+                AwsCredentials::AccessKey(creds) => format!(
+                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
+                    creds.aws_access_key_id, creds.aws_secret_access_key
+                ),
+                AwsCredentials::Token(_) => {
+                    return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?;
+                }
+            };
+            format!(
+                "STORAGE_PROVIDER = 'S3TABLES' STORAGE_ENDPOINT = '{:?}' \
+                STORAGE_AWS_ACCESS_POINT_ARN = '{}' {}",
+                vol.endpoint, vol.arn, credentials_str
+            )
+        }
+    };
+    state
+        .execution_svc
+        .query(
+            &session_id,
+            &format!(
+                "CREATE EXTERNAL VOLUME '{ident}' STORAGE_LOCATIONS = ((NAME = '{ident}' {vol_params}))",
+            ),
+            QueryContext::default(),
+        )
+        .await
+        .context(crate::schemas::error::CreateSnafu)?;
+
     let volume = state
         .metastore
-        .create_volume(&embucket_volume.ident.clone(), embucket_volume)
+        .get_volume(&ident)
         .await
-        .map(Volume::from)
-        .context(CreateSnafu)?;
+        .context(GetSnafu)?
+        .map_or(
+            metastore_error::VolumeNotFoundSnafu { volume: ident }.fail(),
+            Ok,
+        )
+        .context(GetSnafu)?;
 
-    Ok(Json(VolumeCreateResponse(volume)))
+    Ok(Json(VolumeCreateResponse(Volume::from(volume))))
 }
 
 #[utoipa::path(
