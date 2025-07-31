@@ -72,7 +72,7 @@ However, underneath, the data is stored as TEXT:
 ## Numeric support
 
 Embucket relies on Datafusion for type coercion and might use different numeric types than Snowflake. This might lead to different results in some cases. For example, for most (all?) aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale, while Embucket use Decimal128.
-Embucket uses it for the better compatibility and less errors. `Decimal128` has the closest behaviour to a `NUMBER`. 
+Embucket uses it for the better compatibility and less errors. `Decimal128` has the closest behaviour to a `NUMBER`.
 This is a known issue and we plan to address it in the future.
 At the moment this leads to some numeric functions returning different results than Snowflake:
 
