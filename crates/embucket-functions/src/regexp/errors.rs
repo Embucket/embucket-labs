@@ -41,6 +41,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Unsupported regex: {error}"))]
+    UnsupportedRegex {
+        #[snafu(source)]
+        error: regex::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError

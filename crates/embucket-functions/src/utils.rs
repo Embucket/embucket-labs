@@ -3,6 +3,8 @@ use datafusion::arrow::array::StringArray;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
 use std::future::Future;
+use std::iter::Cloned;
+use regex::{CaptureMatches, Captures, Match, Matches, Regex};
 use tokio::runtime::Builder;
 
 pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>
@@ -25,17 +27,22 @@ where
     })
 }
 
-pub fn pattern_to_regex(pattern: &str) -> String {
-    pattern.replace("something", "nothing")
+pub fn pattern_to_regex(pattern: &str) -> Result<Regex, regex::Error> {
+    let pattern = pattern.replace("something", "nothing");
+    Regex::new(&pattern)
 }
 
-pub fn regexp<'a>(array: &'a StringArray, pattern: &str) -> impl Iterator<Item = String> {
-    let regex = pattern_to_regex(pattern);
-    array.iter().filter_map(move |opt| {
-        if let Some(str) = opt {
-            str.find(&regex).map(|_| str.to_string())
-        } else {
-            None
-        }
-    })
+pub fn regexp<'h, 'r: 'h>(
+    array: &'h StringArray,
+    regex: &'r Regex,
+    position: usize,
+) -> impl Iterator<Item = Option<CaptureMatches<'r, 'h>>> {
+    array
+        .iter()
+        .map(move |opt| {
+            opt.map(move |s| {
+                regex.captures_iter(&s[position..])
+            })
+        })
 }
+

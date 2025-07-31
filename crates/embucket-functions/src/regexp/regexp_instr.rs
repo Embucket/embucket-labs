@@ -1,5 +1,4 @@
 use super::errors as regexp_errors;
-use crate::utils::regexp;
 use datafusion::arrow::array::{Decimal128Builder, StringArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
@@ -14,6 +13,8 @@ use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
+use snafu::ResultExt;
+use crate::utils::{pattern_to_regex, regexp};
 
 ///TODO: Docs
 #[derive(Debug)]
@@ -96,14 +97,14 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         match arg_types.len() {
             0 => regexp_errors::NotEnoughArgumentsSnafu {
                 got: 0usize,
-                at_least: 1usize,
+                at_least: 2usize,
             }
             .fail()?,
             //TODO: or Int8..64? Return type specified as Number, probably Integer as alias to Number(38, 0)
-            1 | 2 => Ok(DataType::Decimal128(38, 0)),
+            n if 8 > n && 1 < n => Ok(DataType::Decimal128(38, 0)),
             n => regexp_errors::TooManyArgumentsSnafu {
                 got: n,
-                at_maximum: 2usize,
+                at_maximum: 7usize,
             }
             .fail()?,
         }
@@ -129,14 +130,32 @@ impl ScalarUDFImpl for RegexpInstrFunc {
             _ => return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?,
         };
 
+        let position = &args.args[2];
+        let position = match position {
+            ColumnarValue::Scalar(
+                ScalarValue::UInt64(Some(int))
+            ) => *int,
+            _ => return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?,
+        };
+
         let mut result_array =
             Decimal128Builder::with_capacity(array.len()).with_precision_and_scale(38, 0)?;
+        
+        let occurence = 0;
 
+        let group_num = 0;
+        
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = as_generic_string_array(array)?;
-
-                //regexp(string_array, pattern)
+                let regex = pattern_to_regex(pattern).context(regexp_errors::UnsupportedRegexSnafu)?;
+                regexp(string_array, &regex, position as usize).for_each(|opt_iter| {
+                    result_array.append_option(opt_iter.and_then(|mut cap_iter| {
+                        cap_iter.nth(occurence).and_then(|cap| {
+                            cap.get(group_num).map(|mat| mat.start() as i128)
+                        })
+                    }));
+                });
             }
             other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
                 position: 1usize,
