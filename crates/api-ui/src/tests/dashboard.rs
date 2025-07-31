@@ -71,7 +71,7 @@ async fn test_ui_dashboard() {
     assert_eq!(4, dashboard.total_databases);
     assert_eq!(0, dashboard.total_schemas);
     assert_eq!(0, dashboard.total_tables);
-    assert_eq!(4, dashboard.total_queries);
+    assert_eq!(5, dashboard.total_queries);
 
     let schema_name = "testing1".to_string();
     let payload = SchemaCreatePayload {
@@ -101,7 +101,7 @@ async fn test_ui_dashboard() {
     assert_eq!(1, dashboard.total_schemas);
     assert_eq!(0, dashboard.total_tables);
     //Since databases and schemas are created with sql
-    assert_eq!(5, dashboard.total_queries);
+    assert_eq!(6, dashboard.total_queries);
 
     let res = req(
         &client,
@@ -160,6 +160,6 @@ async fn test_ui_dashboard() {
     assert_eq!(4, dashboard.total_databases);
     assert_eq!(1, dashboard.total_schemas);
     assert_eq!(1, dashboard.total_tables);
-    //Since databases and schemas are created with sql
-    assert_eq!(6, dashboard.total_queries);
+    //Since volumes, databases and schemas are created with sql
+    assert_eq!(7, dashboard.total_queries);
 }
