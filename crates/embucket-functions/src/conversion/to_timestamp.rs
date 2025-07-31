@@ -1,7 +1,6 @@
 use chrono::{DateTime, NaiveDateTime};
 use datafusion::arrow::array::{
-    Array, Decimal128Array, Int32Array, Int64Array, StringArray, StringViewArray,
-    TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Array, UInt64Array,
+    Array, Decimal128Array, StringArray, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
     new_null_array,
 };
 use datafusion::arrow::compute::kernels;
@@ -16,11 +15,12 @@ use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
 
 use crate::conversion_errors::{
-    ArgumentTwoNeedsToBeIntegerSnafu, CantAddLocalTimezoneSnafu, CantCastToSnafu,
-    CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu, InvalidDataTypeSnafu,
-    InvalidValueForFunctionAtPositionTwoSnafu,
+    ArgumentTwoNeedsToBeIntegerSnafu, ArgumentTwoNeedsToBeStringSnafu, CantAddLocalTimezoneSnafu,
+    CantCastToSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu,
+    InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use chrono_tz::Tz;
+use datafusion_common::cast::{as_generic_string_array, as_int64_array};
 use datafusion_expr::{
     ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
@@ -35,189 +35,18 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
-macro_rules! build_from_int_scale {
-    ($tz:expr,$args:expr,$arr:expr, $type:ty) => {{
-        let scale = if $args.len() == 1 {
-            0
-        } else {
-            if let ColumnarValue::Scalar(v) = &$args[1] {
-                let scale = v.cast_to(&DataType::Int64)?;
-                if let ScalarValue::Int64(Some(v)) = &scale {
-                    *v
-                } else {
-                    return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
-                }
-            } else {
-                0
-            }
-        };
-
-        let arr = $arr
-            .as_any()
-            .downcast_ref::<$type>()
-            .ok_or_else(|| CantCastToSnafu { v: "integer" }.build())?;
-        let arr: ArrayRef = match scale {
-            0 => {
-                let mut b = TimestampSecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
-                for v in arr {
-                    match v {
-                        None => b.append_null(),
-                        Some(v) => b.append_value(v as i64),
-                    }
-                }
-                Arc::new(b.finish())
-            }
-            3 => {
-                let mut b =
-                    TimestampMillisecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
-                for v in arr {
-                    match v {
-                        None => b.append_null(),
-                        Some(v) => b.append_value(v as i64),
-                    }
-                }
-                Arc::new(b.finish())
-            }
-            6 => {
-                let mut b =
-                    TimestampMicrosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
-                for v in arr {
-                    match v {
-                        None => b.append_null(),
-                        Some(v) => b.append_value(v as i64),
-                    }
-                }
-                Arc::new(b.finish())
-            }
-            9 => {
-                let mut b =
-                    TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
-                for v in arr {
-                    match v {
-                        None => b.append_null(),
-                        Some(v) => b.append_value(v as i64),
-                    }
-                }
-                Arc::new(b.finish())
-            }
-            _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
-        };
-
-        if arr.len() == 1 {
-            ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
-        } else {
-            ColumnarValue::Array(Arc::new(arr))
-        }
-    }};
-}
-
-macro_rules! build_from_int_string {
-    ($format:expr,$tz:expr,$args:expr,$arr:expr, $type:ty,$try:expr) => {{
-        let format = if $args.len() == 1 {
-            convert_snowflake_format_to_chrono($format)
-        } else {
-            if let ColumnarValue::Scalar(v) = &$args[1] {
-                let format = v.cast_to(&DataType::Utf8)?;
-                let ScalarValue::Utf8(Some(v)) = &format else {
-                    return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
-                };
-
-                convert_snowflake_format_to_chrono(v)
-            } else {
-                convert_snowflake_format_to_chrono("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM")
-            }
-        };
-
-        let arr = $arr
-            .as_any()
-            .downcast_ref::<$type>()
-            .ok_or_else(|| CantCastToSnafu { v: "string" }.build())?;
-
-        let mut b = TimestampNanosecondBuilder::with_capacity(arr.len()).with_timezone_opt($tz);
-        for v in arr {
-            match v {
-                None => b.append_null(),
-                Some(s) => {
-                    if contains_only_digits(s) {
-                        let i = s
-                            .parse::<i64>()
-                            .map_err(|_| CantParseTimestampSnafu.build())?;
-                        let scale = determine_timestamp_scale(i);
-                        if scale == 0 {
-                            b.append_value(i * 1000_000_000);
-                        } else if scale == 3 {
-                            b.append_value(i * 1000_000);
-                        } else if scale == 6 {
-                            b.append_value(i * 1000);
-                        } else if scale == 9 {
-                            b.append_value(i);
-                        }
-                    } else {
-                        let s = remove_timezone(s);
-                        let t = match NaiveDateTime::parse_from_str(s.as_str(), &format) {
-                            Ok(v) => match v.and_utc().timestamp_nanos_opt() {
-                                Some(v) => v,
-                                None => {
-                                    if $try {
-                                        b.append_null();
-                                        continue;
-                                    }
-
-                                    return CantGetTimestampSnafu.fail()?;
-                                }
-                            },
-                            Err(_) => match string_to_timestamp_nanos(s.as_str()) {
-                                Ok(v) => v,
-                                Err(_) => {
-                                    if $try {
-                                        b.append_null();
-                                        continue;
-                                    }
-
-                                    return CantGetTimestampSnafu.fail()?;
-                                }
-                            },
-                        };
-
-                        let t = if let Some(tz) = $tz {
-                            let tz: Tz = tz.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
-                            let t = DateTime::from_timestamp_nanos(t);
-                            let Some(t) = t.naive_utc().and_local_timezone(tz).single() else {
-                                if $try {
-                                    b.append_null();
-                                    continue;
-                                }
-
-                                return CantAddLocalTimezoneSnafu.fail()?;
-                            };
-
-                            let Some(t) = t.naive_utc().and_utc().timestamp_nanos_opt() else {
-                                if $try {
-                                    b.append_null();
-                                    continue;
-                                }
-
-                                return CantGetTimestampSnafu.fail()?;
-                            };
-
-                            t
-                        } else {
-                            t
-                        };
-                        b.append_value(t);
-                    }
-                }
-            }
-        }
-
-        let arr = Arc::new(b.finish()) as ArrayRef;
-        if arr.len() == 1 {
-            ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
-        } else {
-            ColumnarValue::Array(Arc::new(arr))
-        }
-    }};
-}
+const FORMATS: [&str; 10] = [
+    "%d-%b-%Y",
+    "%d-%b-%Y %H:%M:%S",
+    "%d-%b-%YT%H:%M:%S",
+    "%d-%b-%Y %H:%M:%S.%f",
+    "%d-%b-%YT%H:%M:%S.%f",
+    "%d-%B-%Y",
+    "%d-%B-%Y %H:%M:%S",
+    "%d-%B-%YT%H:%M:%S",
+    "%d-%B-%Y %H:%M:%S.%f",
+    "%d-%B-%YT%H:%M:%S.%f",
+];
 
 #[derive(Debug)]
 pub struct ToTimestampFunc {
@@ -225,29 +54,24 @@ pub struct ToTimestampFunc {
     timezone: Option<Arc<str>>,
     format: String,
     name: String,
-    r#try: bool,
+    try_mode: bool,
 }
 
 impl Default for ToTimestampFunc {
     fn default() -> Self {
-        Self::new(
-            None,
-            "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string(),
-            false,
-            "to_timstamp".to_string(),
-        )
+        Self::new(None, "auto".to_string(), false, "to_timstamp".to_string())
     }
 }
 
 impl ToTimestampFunc {
     #[must_use]
-    pub fn new(timezone: Option<Arc<str>>, format: String, r#try: bool, name: String) -> Self {
+    pub fn new(timezone: Option<Arc<str>>, format: String, try_mode: bool, name: String) -> Self {
         Self {
             signature: Signature::variadic_any(Volatility::Immutable),
             timezone,
             format,
             name,
-            r#try,
+            try_mode,
         }
     }
 }
@@ -357,86 +181,292 @@ impl ScalarUDFImpl for ToTimestampFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        Ok(match arr.data_type() {
-            DataType::Int64 => {
-                build_from_int_scale!(self.timezone.clone(), args, arr, Int64Array)
-            }
-            DataType::UInt64 => {
-                build_from_int_scale!(self.timezone.clone(), args, arr, UInt64Array)
-            }
-            DataType::Int32 => {
-                build_from_int_scale!(self.timezone.clone(), args, arr, Int32Array)
-            }
-            DataType::UInt32 => {
-                build_from_int_scale!(self.timezone.clone(), args, arr, UInt32Array)
-            }
-            DataType::Decimal128(_, s) => parse_decimal(&arr, &args, self.timezone.clone(), *s)?,
-            DataType::Utf8 => {
-                build_from_int_string!(
-                    &self.format,
-                    self.timezone.clone(),
-                    args,
-                    arr,
-                    StringArray,
-                    self.r#try
-                )
-            }
-            DataType::Utf8View => {
-                build_from_int_string!(
-                    &self.format,
-                    self.timezone.clone(),
-                    args,
-                    arr,
-                    StringViewArray,
-                    self.r#try
-                )
-            }
-            DataType::Timestamp(_, tz) => {
-                let tz = if let Some(tz) = tz {
-                    Some(tz.clone())
+        if arr.data_type().is_null() {
+            let arr = new_null_array(
+                &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
+                arr.len(),
+            );
+            Ok(if arr.len() == 1 {
+                ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+            } else {
+                ColumnarValue::Array(Arc::new(arr))
+            })
+        } else if arr.data_type().is_integer() {
+            let arr =
+                kernels::cast::cast_with_options(&arr, &DataType::Int64, &DEFAULT_CAST_OPTIONS)?;
+
+            let arr = as_int64_array(&arr)?;
+            let scale = if args.len() == 1 {
+                0
+            } else {
+                if let ColumnarValue::Scalar(v) = &args[1] {
+                    let scale = v.cast_to(&DataType::Int64)?;
+                    if let ScalarValue::Int64(Some(v)) = &scale {
+                        *v
+                    } else {
+                        return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
+                    }
                 } else {
-                    self.timezone.clone()
+                    0
+                }
+            };
+
+            let arr: ArrayRef = match scale {
+                0 => {
+                    let mut b = TimestampSecondBuilder::with_capacity(arr.len())
+                        .with_timezone_opt(self.timezone.clone());
+                    for v in arr {
+                        match v {
+                            None => b.append_null(),
+                            Some(v) => b.append_value(v),
+                        }
+                    }
+                    Arc::new(b.finish())
+                }
+                3 => {
+                    let mut b = TimestampMillisecondBuilder::with_capacity(arr.len())
+                        .with_timezone_opt(self.timezone.clone());
+                    for v in arr {
+                        match v {
+                            None => b.append_null(),
+                            Some(v) => b.append_value(v),
+                        }
+                    }
+                    Arc::new(b.finish())
+                }
+                6 => {
+                    let mut b = TimestampMicrosecondBuilder::with_capacity(arr.len())
+                        .with_timezone_opt(self.timezone.clone());
+                    for v in arr {
+                        match v {
+                            None => b.append_null(),
+                            Some(v) => b.append_value(v),
+                        }
+                    }
+                    Arc::new(b.finish())
+                }
+                9 => {
+                    let mut b = TimestampNanosecondBuilder::with_capacity(arr.len())
+                        .with_timezone_opt(self.timezone.clone());
+                    for v in arr {
+                        match v {
+                            None => b.append_null(),
+                            Some(v) => b.append_value(v),
+                        }
+                    }
+                    Arc::new(b.finish())
+                }
+                _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
+            };
+
+            Ok(if arr.len() == 1 {
+                ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+            } else {
+                ColumnarValue::Array(Arc::new(arr))
+            })
+        } else if matches!(arr.data_type(), DataType::Timestamp(_, _)) {
+            let DataType::Timestamp(_, tz) = arr.data_type() else {
+                InvalidDataTypeSnafu.fail()?
+            };
+
+            let tz = if let Some(tz) = tz {
+                Some(tz.clone())
+            } else {
+                self.timezone.clone()
+            };
+
+            let arr = kernels::cast::cast_with_options(
+                &arr,
+                &DataType::Timestamp(TimeUnit::Nanosecond, tz),
+                &DEFAULT_CAST_OPTIONS,
+            )?;
+
+            Ok(if arr.len() == 1 {
+                ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+            } else {
+                ColumnarValue::Array(Arc::new(arr))
+            })
+        } else if matches!(arr.data_type(), DataType::Date32)
+            || matches!(arr.data_type(), DataType::Date64)
+        {
+            let arr = kernels::cast::cast_with_options(
+                &arr,
+                &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
+                &DEFAULT_CAST_OPTIONS,
+            )?;
+
+            Ok(if arr.len() == 1 {
+                ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+            } else {
+                ColumnarValue::Array(Arc::new(arr))
+            })
+        } else if matches!(arr.data_type(), DataType::Decimal128(_, _)) {
+            let DataType::Decimal128(_, s) = arr.data_type() else {
+                InvalidDataTypeSnafu.fail()?
+            };
+
+            parse_decimal(&arr, &args, self.timezone.clone(), *s)
+        } else if matches!(arr.data_type(), DataType::Utf8)
+            || matches!(arr.data_type(), DataType::Utf8View)
+            || matches!(arr.data_type(), DataType::LargeUtf8)
+        {
+            let format = if args.len() > 1 {
+                let ColumnarValue::Scalar(v) = &args[1] else {
+                    return ArgumentTwoNeedsToBeStringSnafu.fail()?;
                 };
 
-                let arr = kernels::cast::cast_with_options(
-                    &arr,
-                    &DataType::Timestamp(TimeUnit::Nanosecond, tz),
-                    &DEFAULT_CAST_OPTIONS,
-                )?;
+                let format = v.cast_to(&DataType::Utf8)?;
+                let ScalarValue::Utf8(Some(v)) = &format else {
+                    return ArgumentTwoNeedsToBeStringSnafu.fail()?;
+                };
 
-                if arr.len() == 1 {
-                    ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
-                } else {
-                    ColumnarValue::Array(Arc::new(arr))
+                convert_snowflake_format_to_chrono(v).to_string()
+            } else if &self.format.to_ascii_lowercase() != "auto" {
+                convert_snowflake_format_to_chrono(&self.format).to_string()
+            } else {
+                "auto".to_string()
+            };
+
+            let arr =
+                kernels::cast::cast_with_options(&arr, &DataType::Utf8, &DEFAULT_CAST_OPTIONS)?;
+
+            let arr: &StringArray = as_generic_string_array(&arr)?;
+
+            let mut b = TimestampNanosecondBuilder::with_capacity(arr.len())
+                .with_timezone_opt(self.timezone.clone());
+            for v in arr {
+                match v {
+                    None => b.append_null(),
+                    Some(s) => {
+                        if contains_only_digits(s) {
+                            let i = s
+                                .parse::<i64>()
+                                .map_err(|_| CantParseTimestampSnafu.build())?;
+                            let scale = determine_timestamp_scale(i);
+                            if scale == 0 {
+                                b.append_value(i * 1000_000_000);
+                            } else if scale == 3 {
+                                b.append_value(i * 1000_000);
+                            } else if scale == 6 {
+                                b.append_value(i * 1000);
+                            } else if scale == 9 {
+                                b.append_value(i);
+                            }
+                        } else {
+                            let s = remove_timezone(s);
+                            let t = if &format.to_ascii_lowercase() == "auto" {
+                                let mut res: i64 = 0;
+                                let mut found = false;
+                                dbg!(&s);
+                                match string_to_timestamp_nanos(&s) {
+                                    Ok(v) => v,
+                                    Err(_) => {
+                                        for f in FORMATS {
+                                            let date_str = "05-Mar-2025";
+                                            let date = NaiveDate::parse_from_str(date_str, "%d-%b-%Y").unwrap();
+                                            println!("{}", date); // Выведет: 2025-03-05
+
+                                            dbg!(f);
+                                            match NaiveDateTime::parse_from_str("05-Mar-2025", "%d-%b-%Y") {
+                                                Ok(v) => {
+                                                    println!("!");
+                                                    match v.and_utc().timestamp_nanos_opt() {
+                                                        Some(vv) => {
+                                                            res = vv;
+                                                            found = true;
+                                                            break;
+                                                        }
+                                                        None => {
+                                                            if self.try_mode {
+                                                                b.append_null();
+                                                                continue;
+                                                            }
+
+                                                            return CantGetTimestampSnafu.fail()?;
+                                                        }
+                                                    }
+                                                },
+                                                Err(_) => continue,
+                                            }
+                                        }
+
+                                        if !found {
+                                            if self.try_mode {
+                                                b.append_null();
+                                                continue;
+                                            }
+
+                                            return CantGetTimestampSnafu.fail()?;
+                                        }
+
+                                        res
+                                    }
+                                }
+                            } else {
+                                match NaiveDateTime::parse_from_str(s, &format) {
+                                    Ok(v) => match v.and_utc().timestamp_nanos_opt() {
+                                        Some(v) => v,
+                                        None => {
+                                            if self.try_mode {
+                                                b.append_null();
+                                                continue;
+                                            }
+
+                                            return CantGetTimestampSnafu.fail()?;
+                                        }
+                                    },
+                                    Err(_) => {
+                                        if self.try_mode {
+                                            b.append_null();
+                                            continue;
+                                        }
+
+                                        return CantGetTimestampSnafu.fail()?;
+                                    }
+                                }
+                            };
+
+                            let t = if let Some(tz) = &self.timezone {
+                                let tz: Tz =
+                                    tz.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
+                                let t = DateTime::from_timestamp_nanos(t);
+                                let Some(t) = t.naive_utc().and_local_timezone(tz).single() else {
+                                    if self.try_mode {
+                                        b.append_null();
+                                        continue;
+                                    }
+
+                                    return CantAddLocalTimezoneSnafu.fail()?;
+                                };
+
+                                let Some(t) = t.naive_utc().and_utc().timestamp_nanos_opt() else {
+                                    if self.try_mode {
+                                        b.append_null();
+                                        continue;
+                                    }
+
+                                    return CantGetTimestampSnafu.fail()?;
+                                };
+
+                                t
+                            } else {
+                                t
+                            };
+                            b.append_value(t);
+                        }
+                    }
                 }
             }
-            DataType::Date32 | DataType::Date64 => {
-                let arr = kernels::cast::cast_with_options(
-                    &arr,
-                    &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
-                    &DEFAULT_CAST_OPTIONS,
-                )?;
 
-                if arr.len() == 1 {
-                    ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
-                } else {
-                    ColumnarValue::Array(Arc::new(arr))
-                }
-            }
-            DataType::Null => {
-                let null_arr = new_null_array(
-                    &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone.clone()),
-                    arr.len(),
-                );
-
-                if arr.len() == 1 {
-                    ColumnarValue::Scalar(ScalarValue::try_from_array(&null_arr, 0)?)
-                } else {
-                    ColumnarValue::Array(null_arr)
-                }
-            }
-            _ => InvalidDataTypeSnafu.fail()?,
-        })
+            let arr = Arc::new(b.finish()) as ArrayRef;
+            Ok(if arr.len() == 1 {
+                ColumnarValue::Scalar(ScalarValue::try_from_array(&arr, 0)?)
+            } else {
+                ColumnarValue::Array(Arc::new(arr))
+            })
+        } else {
+            InvalidDataTypeSnafu.fail()?
+        }
     }
 }
 
@@ -878,6 +908,33 @@ mod tests {
        TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as "a",
        TO_TIMESTAMP('04/05/2024 01:02:03') as "b"
        "#;
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+---------------------+",
+                "| a                   | b                   |",
+                "+---------------------+---------------------+",
+                "| 2024-04-05T01:02:03 | 2024-04-05T01:02:03 |",
+                "+---------------------+---------------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_auto() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToTimestampFunc::new(
+            None,
+            "auto".to_string(),
+            false,
+            "to_timestamp".to_string(),
+        )));
+
+        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025')";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
