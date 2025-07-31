@@ -18,7 +18,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import type { FileVolume, S3Volume, VolumeCreatePayload } from '@/orval/models';
 import {
-  S3TablesVolume,
   VolumeTypeOneOfAllOfType,
   VolumeTypeOneOfFourAllOfType,
   VolumeTypeOneOfOnezeroType,
