@@ -8,6 +8,12 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
+    #[snafu(display("Query error: {source}"))]
+    Query {
+        source: core_executor::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Create database error: {source}"))]
     Create {
         source: core_metastore::Error,
@@ -45,6 +51,17 @@ pub enum Error {
 impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::Query { source, .. } => match &source {
+                core_executor::Error::Metastore { source, .. } => match **source {
+                    core_metastore::Error::DatabaseAlreadyExists { .. }
+                    | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                    core_metastore::Error::VolumeNotFound { .. }
+                    | core_metastore::Error::DatabaseNotFound { .. }
+                    | core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
             Self::Create { source, .. } => match &source {
                 core_metastore::Error::DatabaseAlreadyExists { .. }
                 | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,

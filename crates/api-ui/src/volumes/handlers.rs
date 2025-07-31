@@ -2,7 +2,7 @@ use crate::state::AppState;
 use crate::{
     OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
+    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, QuerySnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
         VolumeResponse, VolumeType, VolumesResponse,
@@ -110,8 +110,10 @@ pub async fn create_volume(
                 _ => return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?,
             };
             format!(
-                "STORAGE_PROVIDER = 'S3' STORAGE_BASE_URL = '{:?}' STORAGE_ENDPOINT = '{:?}' {})",
-                vol.bucket, vol.endpoint, credentials_str,
+                "STORAGE_PROVIDER = 'S3' STORAGE_BASE_URL = '{:?}' STORAGE_ENDPOINT = '{:?}' {}",
+                vol.bucket.clone().unwrap_or_default(),
+                vol.endpoint.clone().unwrap_or_default(),
+                credentials_str,
             )
         }
         MetastoreVolumeType::S3Tables(vol) => {
@@ -141,7 +143,7 @@ pub async fn create_volume(
             QueryContext::default(),
         )
         .await
-        .context(crate::schemas::error::CreateSnafu)?;
+        .context(QuerySnafu)?;
 
     let volume = state
         .metastore
