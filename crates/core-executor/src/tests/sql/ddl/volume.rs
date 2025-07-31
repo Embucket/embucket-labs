@@ -2,7 +2,7 @@ use crate::test_query;
 
 test_query!(
     file,
-    "SELECT * FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME file STORAGE_LOCATIONS = (\
         (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '/home/'))"],
     snapshot_path = "volume"
@@ -10,7 +10,7 @@ test_query!(
 
 test_query!(
     memory,
-    "SELECT * FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME mem STORAGE_LOCATIONS = (\
         (NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))"],
     snapshot_path = "volume"
@@ -18,7 +18,7 @@ test_query!(
 
 test_query!(
     s3,
-    "SELECT * FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
             STORAGE_BASE_URL = 'bucket_name'
@@ -30,14 +30,14 @@ test_query!(
 
 test_query!(
     s3tables,
-    "SELECT * FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = [
         // disable s3tables catalog creation
         "SET DISABLE_S3TABLES_CATALOG_CREATION = true",
         "CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3TABLES'
             STORAGE_ENDPOINT = 'https://s3.us-east-2.amazonaws.com'
-            STORAGE_AWS_ACCESS_POINT_ARN = 'arn:aws:s3tables:us-east-2:767397688925:bucket/yaro-bucket'
+            STORAGE_AWS_ACCESS_POINT_ARN = 'arn:aws:s3tables:us-east-1:111122223333:bucket/my-embucket'
             CREDENTIALS=(AWS_KEY_ID='1a2b3c...' AWS_SECRET_KEY='4x5y6z...' DATABASE_NAME='yaro_db')
         ))"
     ],
