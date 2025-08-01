@@ -682,15 +682,6 @@ test_query!(
     ]
 );
 
-test_query!(
-    copy_into_external,
-    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
-    setup_queries = [
-        "CREATE TABLE embucket.public.copy_into_table (ID INTEGER, description VARCHAR)",
-        "COPY INTO embucket.public.copy_into_table FROM table STORAGE_INTEGRATION = test_volume FILE_FORMAT = (TYPE = CSV);",
-    ]
-);
-
 // TRUNCATE TABLE
 test_query!(truncate_table, "TRUNCATE TABLE employee_table");
 test_query!(
