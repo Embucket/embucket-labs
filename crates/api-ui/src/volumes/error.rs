@@ -53,10 +53,10 @@ impl IntoStatusCode for Error {
                 core_executor::Error::Metastore { source, .. } => match **source {
                     core_metastore::Error::VolumeAlreadyExists { .. }
                     | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                    core_metastore::Error::DatabaseNotFound { .. }
-                    | core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+                    core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
+                core_executor::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
                 core_executor::Error::VolumeFieldRequired { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
