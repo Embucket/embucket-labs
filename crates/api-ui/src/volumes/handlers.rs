@@ -2,7 +2,7 @@ use crate::state::AppState;
 use crate::{
     OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
-    volumes::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, QuerySnafu},
+    volumes::error::{CreateQuerySnafu, CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
         VolumeResponse, VolumeType, VolumesResponse,
@@ -143,7 +143,7 @@ pub async fn create_volume(
             QueryContext::default(),
         )
         .await
-        .context(QuerySnafu)?;
+        .context(CreateQuerySnafu)?;
 
     let volume = state
         .metastore

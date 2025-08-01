@@ -7,8 +7,8 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("Query error: {source}"))]
-    Query {
+    #[snafu(display("Create volume query error: {source}"))]
+    CreateQuery {
         source: core_executor::Error,
         #[snafu(implicit)]
         location: Location,
@@ -49,7 +49,7 @@ pub enum Error {
 impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::Query { source, .. } => match &source {
+            Self::CreateQuery { source, .. } => match &source {
                 core_executor::Error::Metastore { source, .. } => match **source {
                     core_metastore::Error::VolumeAlreadyExists { .. }
                     | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,

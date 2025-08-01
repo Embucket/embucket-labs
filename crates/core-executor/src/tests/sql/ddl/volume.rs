@@ -17,6 +17,16 @@ test_query!(
 );
 
 test_query!(
+    memory_if_not_exists,
+    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    setup_queries = [
+        "CREATE EXTERNAL VOLUME mem STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))",
+        "CREATE EXTERNAL VOLUME IF NOT EXISTS mem STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))",
+    ],
+    snapshot_path = "volume"
+);
+
+test_query!(
     s3,
     "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((

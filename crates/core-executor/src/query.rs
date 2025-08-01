@@ -444,9 +444,12 @@ impl UserQuery {
                 Statement::CreateExternalVolume {
                     name,
                     storage_locations,
+                    if_not_exists,
                     ..
                 } => {
-                    return self.create_volume(name, storage_locations).await;
+                    return self
+                        .create_volume(name, storage_locations, if_not_exists)
+                        .await;
                 }
                 Statement::CreateSchema { .. } => return Box::pin(self.create_schema(*s)).await,
                 Statement::CreateStage { .. } => {
@@ -1330,7 +1333,21 @@ impl UserQuery {
         &self,
         name: ObjectName,
         storage_locations: Vec<CloudProviderParams>,
+        if_not_exists: bool,
     ) -> Result<QueryResult> {
+        let ident = object_name_to_string(&name);
+
+        if let Ok(Some(_)) = self.metastore.get_volume(&ident).await {
+            if if_not_exists {
+                return self.created_entity_response();
+            }
+            return ex_error::ObjectAlreadyExistsSnafu {
+                r#type: ExistingObjectType::Volume,
+                name: ident,
+            }
+            .fail();
+        }
+
         if storage_locations.is_empty() {
             return ex_error::VolumeFieldRequiredSnafu {
                 volume_type: "",
@@ -1339,7 +1356,6 @@ impl UserQuery {
             .fail();
         }
         let params = storage_locations[0].clone();
-        let ident = object_name_to_string(&name);
 
         let volume = match params.provider.to_lowercase().as_str() {
             "file" => Volume::new(

@@ -3,7 +3,9 @@ use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
-    databases::error::{self as databases_error, CreateSnafu, GetSnafu, QuerySnafu, UpdateSnafu},
+    databases::error::{
+        self as databases_error, CreateQuerySnafu, CreateSnafu, GetSnafu, UpdateSnafu,
+    },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
@@ -100,7 +102,7 @@ pub async fn create_database(
             QueryContext::default(),
         )
         .await
-        .context(QuerySnafu)?;
+        .context(CreateQuerySnafu)?;
 
     let database = state
         .metastore
