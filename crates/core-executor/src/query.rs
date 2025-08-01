@@ -2956,18 +2956,18 @@ pub fn cast_input_to_target_schema(
 }
 
 /// Checks if the `ObjectName` indicates an external location for a Snowflake COPY INTO statement.
-/// 
+///
 /// This function validates that the object name represents a valid external location by checking:
 /// - The object name contains exactly one identifier
 /// - The identifier is single-quoted
 /// - The identifier value starts with a supported scheme (s3://, gcs://, file://, or memory://)
-/// 
+///
 /// External locations allow loading files directly from cloud storage or file systems
 /// without requiring a stage. See: https://docs.snowflake.com/en/sql-reference/sql/copy-into-table#loading-files-directly-from-an-external-location
-/// 
+///
 /// # Arguments
 /// * `from_obj` - The object name from the COPY INTO FROM clause
-/// 
+///
 /// # Returns
 /// * `Some(&Ident)` - The identifier containing the external location if valid
 /// * `None` - If the object name doesn't represent a valid external location
