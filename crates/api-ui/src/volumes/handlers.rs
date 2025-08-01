@@ -106,7 +106,7 @@ pub async fn create_volume(
             let region = vol.region.clone().unwrap_or_default();
             let credentials_str = match &vol.credentials {
                 Some(AwsCredentials::AccessKey(creds)) => format!(
-                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}' REGION='{region}')",
+                    " CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}' REGION='{region}')",
                     creds.aws_access_key_id, creds.aws_secret_access_key,
                 ),
                 _ => return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?,
@@ -124,7 +124,7 @@ pub async fn create_volume(
         MetastoreVolumeType::S3Tables(vol) => {
             let credentials_str = match &vol.credentials {
                 AwsCredentials::AccessKey(creds) => format!(
-                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
+                    " CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
                     creds.aws_access_key_id, creds.aws_secret_access_key
                 ),
                 AwsCredentials::Token(_) => {
@@ -137,7 +137,7 @@ pub async fn create_volume(
                 .map(|e| format!(" STORAGE_ENDPOINT = '{e}'"))
                 .unwrap_or_default();
             format!(
-                "STORAGE_PROVIDER = 'S3TABLES'{endpoint_str} STORAGE_AWS_ACCESS_POINT_ARN = '{}' {}",
+                "STORAGE_PROVIDER = 'S3TABLES'{endpoint_str} STORAGE_AWS_ACCESS_POINT_ARN = '{}'{}",
                 vol.arn, credentials_str
             )
         }
