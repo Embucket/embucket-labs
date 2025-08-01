@@ -30,6 +30,8 @@ use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
+use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
+use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
@@ -1098,22 +1100,86 @@ impl UserQuery {
         err
     )]
     pub async fn copy_into_snowflake_query(&self, statement: Statement) -> Result<QueryResult> {
-        let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement else {
+        let Statement::CopyIntoSnowflake {
+            into,
+            from_obj,
+            stage_params,
+            ..
+        } = statement
+        else {
             return ex_error::OnlyCopyIntoStatementsSnafu.fail();
         };
         let Some(from_obj) = from_obj else {
             return ex_error::FromObjectRequiredForCopyIntoStatementsSnafu.fail();
         };
-        let from_stage: Vec<ObjectNamePart> = from_obj
-            .0
-            .iter()
-            .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
-            .collect();
+
         let insert_into = self.resolve_table_object_name(into.0)?;
-        let insert_from = self.resolve_table_object_name(from_stage)?;
-        // Insert data to table
-        let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
-        self.execute_with_custom_plan(&insert_query).await
+
+        if let Some(location) = is_external_location(&from_obj) {
+            let object_store = match (stage_params.storage_integration, stage_params.credentials) {
+                (Some(volume), _) => {
+                    let volume = self.metastore.get_volume(&volume).await.unwrap().unwrap();
+                    volume.get_object_store().unwrap()
+                }
+                (None, _) => {
+                    todo!()
+                }
+            };
+
+            let url = ObjectStoreUrl::parse(&location.value).unwrap();
+            self.session
+                .ctx
+                .register_object_store(url.as_ref(), object_store)
+                .unwrap();
+
+            let table_url =
+                ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
+            let config = ListingTableConfig::new(table_url);
+            let table_provider =
+                ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?;
+
+            let input = LogicalPlanBuilder::scan(
+                "external_copy_into_location",
+                Arc::new(DefaultTableSource::new(Arc::new(table_provider))),
+                None,
+            )
+            .context(ex_error::DataFusionSnafu)?
+            .build()
+            .context(ex_error::DataFusionSnafu)?;
+
+            let insert_reference: datafusion_common::TableReference = (&insert_into).into();
+
+            let into_provider = self
+                .session
+                .ctx
+                .table_provider(insert_reference.clone())
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+
+            let plan = LogicalPlanBuilder::insert_into(
+                input,
+                insert_reference,
+                Arc::new(DefaultTableSource::new(into_provider)),
+                InsertOp::Append,
+            )
+            .context(ex_error::DataFusionSnafu)?
+            .build()
+            .context(ex_error::DataFusionSnafu)?;
+
+            self.execute_logical_plan(plan).await
+        } else {
+            let from_stage: Vec<ObjectNamePart> = from_obj
+                .0
+                .iter()
+                .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
+                .collect();
+
+            let insert_from = self.resolve_table_object_name(from_stage)?;
+            // Insert data to table
+            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
+
+            self.execute_with_custom_plan(&insert_query).await
+        }
     }
 
     #[allow(clippy::too_many_lines)]
@@ -2886,6 +2952,31 @@ pub fn cast_input_to_target_schema(
     }
     let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
     Ok(Arc::new(LogicalPlan::Projection(projection)))
+}
+
+fn is_external_location(from_obj: &ObjectName) -> Option<&Ident> {
+    if let (Some(location), true, true, true) = (
+        from_obj.0[0].as_ident(),
+        from_obj.0.len() == 1,
+        from_obj.0[0]
+            .as_ident()
+            .and_then(|x| x.quote_style)
+            .is_some_and(|x| x == '\''),
+        from_obj.0[0]
+            .as_ident()
+            .as_ref()
+            .map(|x| &x.value)
+            .is_some_and(|x| {
+                x.starts_with("s3://")
+                    || x.starts_with("gcs://")
+                    || x.starts_with("file://")
+                    || x.starts_with("memory://")
+            }),
+    ) {
+        Some(location)
+    } else {
+        None
+    }
 }
 
 pub fn get_volume_kv_option(
