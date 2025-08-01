@@ -11,10 +11,10 @@ pub mod jarowinkler_similarity;
 pub mod length;
 pub mod lower;
 pub mod rtrimmed_length;
+pub mod sha2;
 pub mod split;
 pub mod strtok;
 pub mod substr;
-pub mod sha2;
 
 use crate::string_binary::hex_decode_binary::HexDecodeBinaryFunc;
 use crate::string_binary::hex_decode_string::HexDecodeStringFunc;

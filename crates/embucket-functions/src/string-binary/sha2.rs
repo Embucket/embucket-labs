@@ -3,7 +3,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
 use datafusion_common::cast::as_int64_array;
-use datafusion_common::{exec_err, ScalarValue};
+use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use sha2::{Digest, Sha224, Sha256, Sha384, Sha512};
 use std::any::Any;
@@ -74,9 +74,12 @@ impl ScalarUDFImpl for Sha2Func {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let args = &args.args;
-        
+
         if args.is_empty() || args.len() > 2 {
-            return exec_err!("SHA2 function requires 1 or 2 arguments, got {}", args.len());
+            return exec_err!(
+                "SHA2 function requires 1 or 2 arguments, got {}",
+                args.len()
+            );
         }
 
         let message = &args[0];
@@ -101,7 +104,10 @@ impl ScalarUDFImpl for Sha2Func {
 
         // Validate digest size
         if !matches!(digest_bits, 224 | 256 | 384 | 512) {
-            return exec_err!("Invalid digest size: {}. Must be 224, 256, 384, or 512", digest_bits);
+            return exec_err!(
+                "Invalid digest size: {}. Must be 224, 256, 384, or 512",
+                digest_bits
+            );
         }
 
         // Process the message input
@@ -116,7 +122,7 @@ impl ScalarUDFImpl for Sha2Func {
             ColumnarValue::Array(array) => {
                 let string_array = array.as_string::<i32>();
                 let mut builder = StringBuilder::new();
-                
+
                 for i in 0..string_array.len() {
                     if string_array.is_null(i) {
                         builder.append_null();
@@ -126,7 +132,7 @@ impl ScalarUDFImpl for Sha2Func {
                         builder.append_value(hash_result);
                     }
                 }
-                
+
                 Ok(ColumnarValue::Array(Arc::new(builder.finish())))
             }
             _ => exec_err!("SHA2 function only supports string inputs"),
@@ -158,7 +164,7 @@ fn compute_sha2_hash(data: &[u8], digest_bits: i64) -> DFResult<String> {
         }
         _ => return exec_err!("Invalid digest size: {}", digest_bits),
     };
-    
+
     Ok(hex::encode(hash_bytes))
 }
 
@@ -212,15 +218,15 @@ mod tests {
     fn test_sha2_default() {
         let func = Sha2Func::new();
         let message = ColumnarValue::Scalar(ScalarValue::Utf8(Some("Snowflake".to_string())));
-        
+
         let args = ScalarFunctionArgs {
             args: vec![message],
             number_rows: 1,
             return_type: &DataType::Utf8,
         };
-        
+
         let result = func.invoke_with_args(args).unwrap();
-        
+
         if let ColumnarValue::Scalar(ScalarValue::Utf8(Some(hex_result))) = result {
             // This should be a hex string for SHA-256
             assert!(!hex_result.is_empty());
@@ -237,15 +243,15 @@ mod tests {
         let func = Sha2Func::new();
         let message = ColumnarValue::Scalar(ScalarValue::Utf8(Some("Snowflake".to_string())));
         let digest_size = ColumnarValue::Scalar(ScalarValue::Int64(Some(224)));
-        
+
         let args = ScalarFunctionArgs {
             args: vec![message, digest_size],
             number_rows: 1,
             return_type: &DataType::Utf8,
         };
-        
+
         let result = func.invoke_with_args(args).unwrap();
-        
+
         if let ColumnarValue::Scalar(ScalarValue::Utf8(Some(hex_result))) = result {
             // SHA-224 produces 28 bytes = 56 hex chars
             assert_eq!(hex_result.len(), 56);
@@ -263,31 +269,36 @@ mod tests {
         let func = Sha2Func::new();
         let message = ColumnarValue::Scalar(ScalarValue::Utf8(Some("test".to_string())));
         let digest_size = ColumnarValue::Scalar(ScalarValue::Int64(Some(128))); // Invalid
-        
+
         let args = ScalarFunctionArgs {
             args: vec![message, digest_size],
             number_rows: 1,
             return_type: &DataType::Utf8,
         };
-        
+
         let result = func.invoke_with_args(args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid digest size"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid digest size")
+        );
     }
 
     #[test]
     fn test_sha2_null_input() {
         let func = Sha2Func::new();
         let message = ColumnarValue::Scalar(ScalarValue::Utf8(None));
-        
+
         let args = ScalarFunctionArgs {
             args: vec![message],
             number_rows: 1,
             return_type: &DataType::Utf8,
         };
-        
+
         let result = func.invoke_with_args(args).unwrap();
-        
+
         if let ColumnarValue::Scalar(ScalarValue::Utf8(None)) = result {
             // Expected null output for null input
         } else {
