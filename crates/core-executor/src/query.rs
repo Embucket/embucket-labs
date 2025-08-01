@@ -1101,20 +1101,19 @@ impl UserQuery {
         let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement else {
             return ex_error::OnlyCopyIntoStatementsSnafu.fail();
         };
-        if let Some(from_obj) = from_obj {
-            let from_stage: Vec<ObjectNamePart> = from_obj
-                .0
-                .iter()
-                .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
-                .collect();
-            let insert_into = self.resolve_table_object_name(into.0)?;
-            let insert_from = self.resolve_table_object_name(from_stage)?;
-            // Insert data to table
-            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
-            self.execute_with_custom_plan(&insert_query).await
-        } else {
-            ex_error::FromObjectRequiredForCopyIntoStatementsSnafu.fail()
-        }
+        let Some(from_obj) = from_obj else {
+            return ex_error::FromObjectRequiredForCopyIntoStatementsSnafu.fail();
+        };
+        let from_stage: Vec<ObjectNamePart> = from_obj
+            .0
+            .iter()
+            .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
+            .collect();
+        let insert_into = self.resolve_table_object_name(into.0)?;
+        let insert_from = self.resolve_table_object_name(from_stage)?;
+        // Insert data to table
+        let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
+        self.execute_with_custom_plan(&insert_query).await
     }
 
     #[allow(clippy::too_many_lines)]
