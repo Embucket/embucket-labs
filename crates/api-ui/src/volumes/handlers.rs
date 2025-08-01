@@ -130,10 +130,14 @@ pub async fn create_volume(
                     return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?;
                 }
             };
+            let endpoint_str = vol
+                .endpoint
+                .as_ref()
+                .map(|e| format!(" STORAGE_ENDPOINT = '{e}'"))
+                .unwrap_or_default();
             format!(
-                "STORAGE_PROVIDER = 'S3TABLES' STORAGE_ENDPOINT = '{:?}' \
-                STORAGE_AWS_ACCESS_POINT_ARN = '{}' {}",
-                vol.endpoint, vol.arn, credentials_str
+                "STORAGE_PROVIDER = 'S3TABLES'{endpoint_str} STORAGE_AWS_ACCESS_POINT_ARN = '{}' {}",
+                vol.arn, credentials_str
             )
         }
     };
