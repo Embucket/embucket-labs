@@ -43,6 +43,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Volume {volume} not found"))]
+    VolumeNotFound {
+        volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
@@ -78,6 +84,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
         }
     }
 }

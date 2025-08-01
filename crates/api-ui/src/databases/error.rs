@@ -45,6 +45,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Database {database} not found"))]
+    DatabaseNotFound {
+        database: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
@@ -79,6 +85,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
         }
     }
 }

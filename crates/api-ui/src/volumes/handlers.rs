@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::volumes::error::VolumeNotFoundSnafu;
 use crate::{
     OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
     error::ErrorResponse,
@@ -21,7 +22,7 @@ use core_metastore::models::{
     AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume,
     VolumeType as MetastoreVolumeType,
 };
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -158,11 +159,7 @@ pub async fn create_volume(
         .get_volume(&ident)
         .await
         .context(GetSnafu)?
-        .map_or(
-            metastore_error::VolumeNotFoundSnafu { volume: ident }.fail(),
-            Ok,
-        )
-        .context(GetSnafu)?;
+        .context(VolumeNotFoundSnafu { volume: ident })?;
 
     Ok(Json(VolumeCreateResponse(Volume::from(volume))))
 }
