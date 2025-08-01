@@ -14,6 +14,7 @@ pub mod rtrimmed_length;
 pub mod split;
 pub mod strtok;
 pub mod substr;
+pub mod sha2;
 
 use crate::string_binary::hex_decode_binary::HexDecodeBinaryFunc;
 use crate::string_binary::hex_decode_string::HexDecodeStringFunc;
@@ -31,6 +32,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         length::get_udf(),
         lower::get_udf(),
         rtrimmed_length::get_udf(),
+        sha2::get_udf(),
         split::get_udf(),
         strtok::get_udf(),
         substr::get_udf(),
