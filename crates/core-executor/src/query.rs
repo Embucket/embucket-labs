@@ -1384,6 +1384,7 @@ impl UserQuery {
             }
             "s3" => {
                 let vol_type = "s3";
+                let region = get_volume_kv_option(&params.credentials, "region", vol_type)?;
                 let key_id = get_volume_kv_option(&params.credentials, "aws_key_id", vol_type)?;
                 let secret_key =
                     get_volume_kv_option(&params.credentials, "aws_secret_key", vol_type)?;
@@ -1395,7 +1396,7 @@ impl UserQuery {
                 Volume::new(
                     ident.clone(),
                     VolumeType::S3(S3Volume {
-                        region: None,
+                        region: Some(region),
                         bucket: params.base_url,
                         endpoint: params.storage_endpoint,
                         credentials: Some(aws_credentials),

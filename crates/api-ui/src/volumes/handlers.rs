@@ -102,18 +102,22 @@ pub async fn create_volume(
         ),
         MetastoreVolumeType::Memory => "STORAGE_PROVIDER = 'MEMORY'".to_string(),
         MetastoreVolumeType::S3(vol) => {
+            let region = vol.region.clone().unwrap_or_default();
             let credentials_str = match &vol.credentials {
                 Some(AwsCredentials::AccessKey(creds)) => format!(
-                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
-                    creds.aws_access_key_id, creds.aws_secret_access_key
+                    "CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}' REGION='{region}')",
+                    creds.aws_access_key_id, creds.aws_secret_access_key,
                 ),
                 _ => return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?,
             };
+            let base_url = vol.bucket.clone().unwrap_or_default();
+            let endpoint_str = vol
+                .endpoint
+                .as_ref()
+                .map(|e| format!(" STORAGE_ENDPOINT = '{e}'"))
+                .unwrap_or_default();
             format!(
-                "STORAGE_PROVIDER = 'S3' STORAGE_BASE_URL = '{:?}' STORAGE_ENDPOINT = '{:?}' {}",
-                vol.bucket.clone().unwrap_or_default(),
-                vol.endpoint.clone().unwrap_or_default(),
-                credentials_str,
+                "STORAGE_PROVIDER = 'S3' STORAGE_BASE_URL = '{base_url}'{endpoint_str}{credentials_str}",
             )
         }
         MetastoreVolumeType::S3Tables(vol) => {

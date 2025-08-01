@@ -33,7 +33,7 @@ test_query!(
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
             STORAGE_BASE_URL = 'bucket_name'
             STORAGE_ENDPOINT = 'https://s3.us-east-2.amazonaws.com'
-            CREDENTIALS=(AWS_KEY_ID='1a2b3c...' AWS_SECRET_KEY='4x5y6z...')
+            CREDENTIALS=(AWS_KEY_ID='1a2b3c...' AWS_SECRET_KEY='4x5y6z...' REGION='us-east-2')
         ))"],
     snapshot_path = "volume"
 );
