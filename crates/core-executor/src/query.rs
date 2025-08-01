@@ -1115,6 +1115,7 @@ impl UserQuery {
 
         let insert_into = self.resolve_table_object_name(into.0)?;
 
+        // Check if this copies from an external location
         if let Some(location) = is_external_location(&from_obj) {
             let object_store = match (stage_params.storage_integration, stage_params.credentials) {
                 (Some(volume), _) => {
@@ -2954,6 +2955,22 @@ pub fn cast_input_to_target_schema(
     Ok(Arc::new(LogicalPlan::Projection(projection)))
 }
 
+/// Checks if the `ObjectName` indicates an external location for a Snowflake COPY INTO statement.
+/// 
+/// This function validates that the object name represents a valid external location by checking:
+/// - The object name contains exactly one identifier
+/// - The identifier is single-quoted
+/// - The identifier value starts with a supported scheme (s3://, gcs://, file://, or memory://)
+/// 
+/// External locations allow loading files directly from cloud storage or file systems
+/// without requiring a stage. See: https://docs.snowflake.com/en/sql-reference/sql/copy-into-table#loading-files-directly-from-an-external-location
+/// 
+/// # Arguments
+/// * `from_obj` - The object name from the COPY INTO FROM clause
+/// 
+/// # Returns
+/// * `Some(&Ident)` - The identifier containing the external location if valid
+/// * `None` - If the object name doesn't represent a valid external location
 fn is_external_location(from_obj: &ObjectName) -> Option<&Ident> {
     if let (Some(location), true, true, true) = (
         from_obj.0[0].as_ident(),
