@@ -1,10 +1,9 @@
 use crate::df_error;
 use datafusion::arrow::array::StringArray;
 use datafusion_common::DataFusionError;
+use regex::{CaptureMatches, Regex, RegexBuilder};
 use snafu::ResultExt;
 use std::future::Future;
-use std::iter::Cloned;
-use regex::{CaptureMatches, Captures, Match, Matches, Regex};
 use tokio::runtime::Builder;
 
 pub fn block_in_new_runtime<F, R>(future: F) -> Result<R, DataFusionError>
@@ -27,9 +26,12 @@ where
     })
 }
 
-pub fn pattern_to_regex(pattern: &str) -> Result<Regex, regex::Error> {
-    let pattern = pattern.replace("something", "nothing");
-    Regex::new(&pattern)
+pub fn pattern_to_regex(pattern: &str, regexp_paramaters: &str) -> Result<Regex, regex::Error> {
+    RegexBuilder::new(pattern)
+        .case_insensitive(regexp_paramaters.contains('i') && !regexp_paramaters.contains('c'))
+        .multi_line(regexp_paramaters.contains('m'))
+        .dot_matches_new_line(regexp_paramaters.contains('s'))
+        .build()
 }
 
 pub fn regexp<'h, 'r: 'h>(
@@ -39,10 +41,5 @@ pub fn regexp<'h, 'r: 'h>(
 ) -> impl Iterator<Item = Option<CaptureMatches<'r, 'h>>> {
     array
         .iter()
-        .map(move |opt| {
-            opt.map(move |s| {
-                regex.captures_iter(&s[position..])
-            })
-        })
+        .map(move |opt| opt.map(move |s| regex.captures_iter(&s[position..])))
 }
-

@@ -49,6 +49,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Unsupported argument value, got: {got}. Expected: {expected}."))]
+    UnsupportedArgValue {
+        got: String,
+        expected: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
