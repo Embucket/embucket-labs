@@ -1,0 +1,8 @@
+
+env/
+.env
+run.log
+logs/
+assets/
+dbt-snowplow-web/
+
