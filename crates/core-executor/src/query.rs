@@ -1119,19 +1119,25 @@ impl UserQuery {
         if let Some(location) = is_external_location(&from_obj) {
             let object_store = match (stage_params.storage_integration, stage_params.credentials) {
                 (Some(volume), _) => {
-                    let volume = self.metastore.get_volume(&volume).await.unwrap().unwrap();
-                    volume.get_object_store().unwrap()
+                    let volume = self
+                        .metastore
+                        .get_volume(&volume)
+                        .await
+                        .context(ex_error::MetastoreSnafu)?
+                        .ok_or_else(|| ex_error::VolumeNotFoundSnafu { volume }.build())?;
+                    volume
+                        .get_object_store()
+                        .context(ex_error::MetastoreSnafu)?
                 }
                 (None, _) => {
                     todo!()
                 }
             };
 
-            let url = ObjectStoreUrl::parse(&location.value).unwrap();
+            let url = ObjectStoreUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
             self.session
                 .ctx
-                .register_object_store(url.as_ref(), object_store)
-                .unwrap();
+                .register_object_store(url.as_ref(), object_store);
 
             let table_url =
                 ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
