@@ -40,6 +40,7 @@ axum = { version = "0.8.1", features = ["multipart", "macros"] }
 axum-macros = "0.5"
 bytes = { version = "1.8.0" }
 chrono = { version = "0.4.41", default-features = false, features = ["serde",  "clock"] }
+clap = { version = "4.5.27", features = ["env", "derive"] }
 dashmap = "6.1.0"
 datafusion = { version = "47.0.0" }
 datafusion-common = { version = "47.0.0" }

@@ -132,15 +132,19 @@ pub async fn create_df_session() -> Arc<UserSession> {
         )
         .await
         .expect("Failed to create schema");
+    let config = Arc::new(Config::default());
     let catalog_list = CoreExecutionService::catalog_list(metastore.clone(), history_store.clone())
         .await
         .expect("Failed to create catalog list");
+    let runtime_env = CoreExecutionService::runtime_env(&config, catalog_list.clone())
+        .expect("Failed to create runtime env");
     let user_session = Arc::new(
         UserSession::new(
             metastore,
             history_store,
             Arc::new(Config::default()),
             catalog_list,
+            runtime_env,
         )
         .expect("Failed to create user session"),
     );

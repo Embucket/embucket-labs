@@ -103,7 +103,14 @@ async fn main() {
             opts.auth_demo_user.clone().unwrap(),
             opts.auth_demo_password.clone().unwrap(),
         );
-    let execution_cfg = ExecutionConfig::new().expect("Failed to create execution config");
+    let execution_cfg = ExecutionConfig {
+        embucket_version: "0.1.0".to_string(),
+        sql_parser_dialect: opts.sql_parser_dialect.clone(),
+        mem_pool_type: opts.mem_pool_type,
+        mem_pool_size_mb: opts.mem_pool_size_mb,
+        mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
+        disk_pool_size_mb: opts.disk_pool_size_mb,
+    };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),

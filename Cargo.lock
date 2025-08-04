@@ -1966,6 +1966,7 @@ dependencies = [
  "aws-sdk-sts",
  "bytes",
  "chrono",
+ "clap",
  "core-history",
  "core-metastore",
  "core-utils",

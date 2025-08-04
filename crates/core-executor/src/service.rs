@@ -1,6 +1,3 @@
-use std::vec;
-use std::{collections::HashMap, sync::Arc};
-
 use bytes::{Buf, Bytes};
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::ReaderBuilder;
@@ -8,12 +5,21 @@ use datafusion::arrow::csv::reader::Format;
 use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::memory::MemTable;
-use datafusion_common::TableReference;
+use datafusion::execution::DiskManager;
+use datafusion::execution::disk_manager::DiskManagerConfig;
+use datafusion::execution::memory_pool::{
+    FairSpillPool, GreedyMemoryPool, MemoryPool, TrackConsumersPool,
+};
+use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
+use datafusion_common::{DataFusionError, TableReference};
 use snafu::ResultExt;
+use std::num::NonZeroUsize;
+use std::vec;
+use std::{collections::HashMap, sync::Arc};
 
 use super::error::{self as ex_error, Result};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
-use crate::utils::{Config, query_result_to_history};
+use crate::utils::{Config, MemPoolType, query_result_to_history};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
@@ -49,6 +55,7 @@ pub struct CoreExecutionService {
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Arc<Config>,
     catalog_list: Arc<EmbucketCatalogList>,
+    runtime_env: Arc<RuntimeEnv>,
 }
 
 impl CoreExecutionService {
@@ -64,12 +71,14 @@ impl CoreExecutionService {
         config: Arc<Config>,
     ) -> Result<Self> {
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
+        let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
             metastore,
             history_store,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
             catalog_list,
+            runtime_env,
         })
     }
 
@@ -100,6 +109,71 @@ impl CoreExecutionService {
             .start_refresh_internal_catalogs_task(10);
         Ok(catalog_list)
     }
+
+    #[allow(clippy::unwrap_used, clippy::as_conversions)]
+    pub fn runtime_env(
+        config: &Config,
+        catalog_list: Arc<EmbucketCatalogList>,
+    ) -> Result<Arc<RuntimeEnv>> {
+        let mut rt_builder = RuntimeEnvBuilder::new().with_object_store_registry(catalog_list);
+
+        if let Some(memory_limit_mb) = config.mem_pool_size_mb {
+            const NUM_TRACKED_CONSUMERS: usize = 5;
+
+            // set memory pool type
+            let memory_limit = memory_limit_mb * 1024 * 1024;
+            let enable_track = config.mem_enable_track_consumers_pool.unwrap_or(false);
+
+            let memory_pool: Arc<dyn MemoryPool> = match config.mem_pool_type {
+                MemPoolType::Fair => {
+                    let pool = FairSpillPool::new(memory_limit);
+                    if enable_track {
+                        Arc::new(TrackConsumersPool::new(
+                            pool,
+                            NonZeroUsize::new(NUM_TRACKED_CONSUMERS).unwrap(),
+                        ))
+                    } else {
+                        Arc::new(FairSpillPool::new(memory_limit))
+                    }
+                }
+                MemPoolType::Greedy => {
+                    let pool = GreedyMemoryPool::new(memory_limit);
+                    if enable_track {
+                        Arc::new(TrackConsumersPool::new(
+                            pool,
+                            NonZeroUsize::new(NUM_TRACKED_CONSUMERS).unwrap(),
+                        ))
+                    } else {
+                        Arc::new(GreedyMemoryPool::new(memory_limit))
+                    }
+                }
+            };
+            rt_builder = rt_builder.with_memory_pool(memory_pool);
+        }
+
+        // set disk limit
+        if let Some(disk_limit) = config.disk_pool_size_mb {
+            let disk_limit_bytes = (disk_limit as u64) * 1024 * 1024;
+
+            let disk_manager = DiskManager::try_new(DiskManagerConfig::NewOs)
+                .context(ex_error::DataFusionSnafu)?;
+
+            let disk_manager = Arc::try_unwrap(disk_manager)
+                .map_err(|_| {
+                    DataFusionError::External(Box::new(DataFusionError::Execution(
+                        "DiskManager should be a single instance".to_string(),
+                    )))
+                })
+                .context(ex_error::DataFusionSnafu)?
+                .with_max_temp_directory_size(disk_limit_bytes)
+                .context(ex_error::DataFusionSnafu)?;
+
+            let disk_config = DiskManagerConfig::new_existing(Arc::new(disk_manager));
+            rt_builder = rt_builder.with_disk_manager(disk_config);
+        }
+
+        rt_builder.build_arc().context(ex_error::DataFusionSnafu)
+    }
 }
 
 #[async_trait::async_trait]
@@ -122,6 +196,7 @@ impl ExecutionService for CoreExecutionService {
             self.history_store.clone(),
             self.config.clone(),
             self.catalog_list.clone(),
+            self.runtime_env.clone(),
         )?);
         {
             tracing::trace!("Acquiring write lock for df_sessions");
