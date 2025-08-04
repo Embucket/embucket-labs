@@ -64,7 +64,7 @@ class EmbucketHelper:
 
             # Create volume first
             try:
-                volume_query = "CREATE VOLUME IF NOT EXISTS local TYPE = memory"
+                volume_query = "CREATE EXTERNAL VOLUME IF NOT EXISTS local STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'memory'))"
                 cursor.execute(volume_query, _no_retry=True)
                 print(f"Created or verified volume: local")
             except Exception as e:
@@ -73,7 +73,7 @@ class EmbucketHelper:
 
             # Create database (requires volume to exist)
             try:
-                database_query = f"CREATE DATABASE IF NOT EXISTS {database} VOLUME = 'local'"
+                database_query = f"CREATE DATABASE IF NOT EXISTS {database} EXTERNAL_VOLUME = 'local'"
                 cursor.execute(database_query, _no_retry=True)
                 print(f"Created or verified database: {database}")
             except Exception as e:
