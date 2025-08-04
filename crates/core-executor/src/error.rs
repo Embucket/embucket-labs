@@ -141,10 +141,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(
-        display("DataFusion erro when building logical plan for join of merge target and source: {error}"
-        )
-    )]
+    #[snafu(display("DataFusion erro when building logical plan for join of merge target and source: {error}"))]
     DataFusionLogicalPlanMergeJoin {
         #[snafu(source(from(DataFusionError, Box::new)))]
         error: Box<DataFusionError>,

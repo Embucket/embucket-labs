@@ -106,6 +106,7 @@ async fn main() {
     let execution_cfg = ExecutionConfig {
         embucket_version: "0.1.0".to_string(),
         sql_parser_dialect: opts.sql_parser_dialect.clone(),
+        max_concurrency_level: opts.max_concurrency_level,
         mem_pool_type: opts.mem_pool_type,
         mem_pool_size_mb: opts.mem_pool_size_mb,
         mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,

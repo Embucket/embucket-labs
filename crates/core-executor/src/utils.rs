@@ -35,6 +35,7 @@ use strum::{Display, EnumString};
 pub struct Config {
     pub embucket_version: String,
     pub sql_parser_dialect: Option<String>,
+    pub max_concurrency_level: usize,
     pub mem_pool_type: MemPoolType,
     pub mem_pool_size_mb: Option<usize>,
     pub mem_enable_track_consumers_pool: Option<bool>,
@@ -46,6 +47,7 @@ impl Default for Config {
         Self {
             embucket_version: "0.1.0".to_string(),
             sql_parser_dialect: None,
+            max_concurrency_level: 100,
             mem_pool_type: MemPoolType::default(),
             mem_pool_size_mb: None,
             mem_enable_track_consumers_pool: None,

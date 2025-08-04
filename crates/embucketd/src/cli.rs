@@ -157,6 +157,14 @@ pub struct CliOpts {
 
     #[arg(
         long,
+        env = "MAX_CONCURRENCY_LEVEL",
+        default_value = "100",
+        help = "Maximum number of running queries at the same time"
+    )]
+    pub max_concurrency_level: usize,
+
+    #[arg(
+        long,
         value_enum,
         env = "MEM_POOL_TYPE",
         default_value = "greedy",

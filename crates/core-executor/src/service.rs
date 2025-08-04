@@ -72,6 +72,7 @@ impl CoreExecutionService {
         config: Arc<Config>,
     ) -> Result<Self> {
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
+        let max_concurrency_level = config.max_concurrency_level;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
             metastore,
@@ -80,7 +81,7 @@ impl CoreExecutionService {
             config,
             catalog_list,
             runtime_env,
-            concurrency_limit: Arc::new(Semaphore::new(2)),
+            concurrency_limit: Arc::new(Semaphore::new(max_concurrency_level)),
         })
     }
 
