@@ -37,7 +37,6 @@ use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::listing::{
     ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
 };
-use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
@@ -1142,14 +1141,12 @@ impl UserQuery {
                 }
             };
 
-            let url = ObjectStoreUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
+            let url = ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
             self.session
                 .ctx
-                .register_object_store(url.as_ref(), object_store);
+                .register_object_store(url.object_store().as_ref(), object_store);
 
-            let table_url =
-                ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
-            let config = ListingTableConfig::new(table_url);
+            let config = ListingTableConfig::new(url);
             let config = if let Some(format) = create_file_format(&file_format)? {
                 config.with_listing_options(ListingOptions::new(format))
             } else {
