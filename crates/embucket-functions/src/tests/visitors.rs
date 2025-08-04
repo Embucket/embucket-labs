@@ -86,11 +86,6 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
-        // SHA2 function tests
-        ("SELECT sha2('hello')", "SELECT sha256('hello')"),
-        ("SELECT sha2('hello', 224)", "SELECT sha224('hello')"),
-        ("SELECT sha2('hello', 256)", "SELECT sha256('hello')"),
-        ("SELECT sha2('hello', 512)", "SELECT sha512('hello')"),
     ];
 
     for (input, expected) in cases {

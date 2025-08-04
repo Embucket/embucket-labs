@@ -113,6 +113,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Argument 2 needs to be string"))]
+    ArgumentTwoNeedsToBeString {
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Invalid value for function at position 2"))]
     InvalidValueForFunctionAtPositionTwo {
         #[snafu(implicit)]

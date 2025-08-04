@@ -221,20 +221,6 @@ macro_rules! test_query {
     };
 }
 
-test_query!(drop_database_error_in_use, "DROP DATABASE embucket");
-
-test_query!(
-    drop_database,
-    "DROP DATABASE embucket",
-    setup_queries = ["DROP SCHEMA embucket.public"]
-);
-
-test_query!(
-    create_database,
-    "SHOW DATABASES STARTS WITH 'db_test'",
-    setup_queries = ["CREATE DATABASE db_test external_volume = 'test_volume'",]
-);
-
 // Empty plan
 test_query!(alter_iceberg_table, "ALTER ICEBERG TABLE test ADD col INT;");
 

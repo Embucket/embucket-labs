@@ -3,7 +3,10 @@ use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
-    databases::error::{self as databases_error, CreateSnafu, GetSnafu, UpdateSnafu},
+    databases::error::{
+        self as databases_error, CreateQuerySnafu, CreateSnafu, DatabaseNotFoundSnafu, GetSnafu,
+        UpdateSnafu,
+    },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
@@ -19,7 +22,7 @@ use axum::{
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::{self as metastore_error, ValidationSnafu};
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use utoipa::OpenApi;
 use validator::Validate;
 
@@ -100,24 +103,18 @@ pub async fn create_database(
             QueryContext::default(),
         )
         .await
-        .context(crate::schemas::error::CreateSnafu)?;
+        .context(CreateQuerySnafu)?;
 
     let database = state
         .metastore
         .get_database(&database.ident)
         .await
-        .map(|opt_rw_obj| {
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::DatabaseNotFoundSnafu {
-                    db: database.ident.clone(),
-                }
-                .build()
-            })
-        })
         .context(GetSnafu)?
-        .map(Database::from)
-        .context(GetSnafu)?;
-    Ok(Json(DatabaseCreateResponse(database)))
+        .context(DatabaseNotFoundSnafu {
+            database: database.ident.clone(),
+        })?;
+
+    Ok(Json(DatabaseCreateResponse(Database::from(database))))
 }
 
 #[utoipa::path(

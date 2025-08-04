@@ -214,7 +214,6 @@ pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3Ta
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
         }),
-        database: schema_namespace.to_string(),
         arn,
     })
 }

@@ -11,5 +11,6 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
     for func in functions {
         registry.register_udf(func)?;
     }
+
     Ok(())
 }

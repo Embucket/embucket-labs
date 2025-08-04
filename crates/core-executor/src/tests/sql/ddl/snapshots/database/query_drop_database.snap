@@ -1,5 +1,5 @@
 ---
-source: crates/core-executor/src/tests/query.rs
+source: crates/core-executor/src/tests/sql/ddl/database.rs
 description: "\"DROP DATABASE embucket\""
 info: "Setup queries: DROP SCHEMA embucket.public"
 ---

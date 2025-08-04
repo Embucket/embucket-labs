@@ -326,8 +326,10 @@ row_number
 rpad
 rtrim
 rtrimmed_length
+sha2
 sha224
 sha256
+sha2_hex
 sha384
 sha512
 signum

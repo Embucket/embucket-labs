@@ -56,6 +56,7 @@ tracing = "0.1.41"
 tokio = { workspace = true }
 datafusion-functions-json = { workspace = true }
 hex = "0.4.3"
+sha2 = "0.10"
 snafu = { workspace = true }
 rust_decimal = "1.37.2"
 futures = { workspace = true }

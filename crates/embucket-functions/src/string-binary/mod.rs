@@ -11,6 +11,7 @@ pub mod jarowinkler_similarity;
 pub mod length;
 pub mod lower;
 pub mod rtrimmed_length;
+pub mod sha2;
 pub mod split;
 pub mod strtok;
 pub mod substr;
@@ -31,6 +32,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         length::get_udf(),
         lower::get_udf(),
         rtrimmed_length::get_udf(),
+        sha2::get_udf(),
         split::get_udf(),
         strtok::get_udf(),
         substr::get_udf(),

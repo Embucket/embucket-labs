@@ -1,5 +1,5 @@
 ---
-source: crates/core-executor/src/tests/query.rs
+source: crates/core-executor/src/tests/sql/ddl/database.rs
 description: "\"SHOW DATABASES STARTS WITH 'db_test'\""
 info: "Setup queries: CREATE DATABASE db_test external_volume = 'test_volume'"
 ---

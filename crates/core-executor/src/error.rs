@@ -179,6 +179,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Volume with type {volume_type} requires {field}"))]
+    VolumeFieldRequired {
+        volume_type: String,
+        field: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Object store error: {error}"))]
     ObjectStore {
         #[snafu(source)]
@@ -467,6 +475,7 @@ pub enum Error {
 
 #[derive(Debug)]
 pub enum ObjectType {
+    Volume,
     Database,
     Schema,
     Table,
@@ -475,6 +484,7 @@ pub enum ObjectType {
 impl Display for ObjectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Volume => write!(f, "volume"),
             Self::Database => write!(f, "database"),
             Self::Schema => write!(f, "schema"),
             Self::Table => write!(f, "table"),

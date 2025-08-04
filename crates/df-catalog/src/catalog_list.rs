@@ -13,9 +13,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
-use core_metastore::{
-    AwsCredentials, Database, Metastore, RwObject, VolumeType as MetastoreVolumeType, VolumeType,
-};
+use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
@@ -111,43 +109,35 @@ impl EmbucketCatalogList {
             .metastore
             .get_volume(&volume_ident.to_string())
             .await
+            .context(MetastoreSnafu)?
+            .map_or(
+                MissingVolumeSnafu {
+                    name: volume_ident.to_string(),
+                }
+                .fail(),
+                Ok,
+            )?;
+
+        let ident = Database {
+            ident: catalog_name.to_owned(),
+            volume: volume_ident.to_owned(),
+            properties: None,
+        };
+        let database = self
+            .metastore
+            .create_database(&catalog_name.to_owned(), ident)
+            .await
             .context(MetastoreSnafu)?;
 
-        let Some(volume) = volume else {
-            return MissingVolumeSnafu {
-                name: volume_ident.to_string(),
-            }
-            .fail();
+        let catalog = match &volume.volume {
+            VolumeType::S3(_) | VolumeType::File(_) => self.get_embucket_catalog(&database)?,
+            VolumeType::Memory => self
+                .get_embucket_catalog(&database)?
+                .with_catalog_type(CatalogType::Memory),
+            VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), catalog_name).await?,
         };
-
-        match volume.volume {
-            VolumeType::S3(_) | VolumeType::File(_) | VolumeType::Memory => {
-                let ident = Database {
-                    ident: catalog_name.to_owned(),
-                    volume: volume_ident.to_owned(),
-                    properties: None,
-                };
-                let database = self
-                    .metastore
-                    .create_database(&catalog_name.to_owned(), ident)
-                    .await
-                    .context(MetastoreSnafu)?;
-                let mut catalog = self.get_embucket_catalog(&database)?;
-                // Set the catalog type based on the volume type
-                if matches!(volume.volume, VolumeType::Memory) {
-                    catalog = catalog.with_catalog_type(CatalogType::Memory);
-                }
-                self.catalogs
-                    .insert(catalog_name.to_owned(), Arc::new(catalog));
-            }
-            VolumeType::S3Tables(_) => {
-                return NotImplementedSnafu {
-                    feature: UnsupportedFeature::CreateS3TablesDatabase,
-                    details: "Creating an S3 table catalog is not supported",
-                }
-                .fail();
-            }
-        }
+        self.catalogs
+            .insert(catalog_name.to_owned(), Arc::new(catalog));
         Ok(())
     }
 
@@ -171,12 +161,10 @@ impl EmbucketCatalogList {
     )]
     pub async fn register_catalogs(self: &Arc<Self>) -> Result<()> {
         let mut all_catalogs = Vec::new();
-        // Internal catalogs
+        // Add metastore databases as catalogs
         all_catalogs.extend(self.internal_catalogs().await?);
         // Add the SlateDB catalog to support querying against internal tables via SQL
         all_catalogs.push(self.slatedb_catalog());
-        // Load external catalogs defined via metastore volumes (e.g., S3 tables)
-        all_catalogs.extend(self.external_catalogs().await?);
 
         for catalog in all_catalogs {
             self.catalogs
@@ -192,14 +180,34 @@ impl EmbucketCatalogList {
         err
     )]
     pub async fn internal_catalogs(&self) -> Result<Vec<CachingCatalog>> {
-        self.metastore
+        let mut catalogs = Vec::new();
+        let databases = self
+            .metastore
             .iter_databases()
             .collect()
             .await
-            .context(df_catalog_error::CoreSnafu)?
-            .into_iter()
-            .map(|db| self.get_embucket_catalog(&db))
-            .collect()
+            .context(df_catalog_error::CoreSnafu)?;
+        for db in databases {
+            let volume = self
+                .metastore
+                .get_volume(&db.volume)
+                .await
+                .context(MetastoreSnafu)?
+                .map_or(
+                    MissingVolumeSnafu {
+                        name: db.volume.clone(),
+                    }
+                    .fail(),
+                    Ok,
+                )?;
+            // Create catalog depending on the volume type
+            let catalog = match &volume.volume {
+                VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), &db.ident).await?,
+                _ => self.get_embucket_catalog(&db)?,
+            };
+            catalogs.push(catalog);
+        }
+        Ok(catalogs)
     }
 
     fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
@@ -235,63 +243,43 @@ impl EmbucketCatalogList {
     }
 
     #[tracing::instrument(
-        name = "EmbucketCatalogList::external_catalogs",
+        name = "EmbucketCatalogList::s3tables_catalog",
         level = "debug",
         skip(self),
         err
     )]
-    pub async fn external_catalogs(&self) -> Result<Vec<CachingCatalog>> {
-        let volumes = self
-            .metastore
-            .iter_volumes()
-            .collect()
+    pub async fn s3tables_catalog(
+        &self,
+        volume: S3TablesVolume,
+        name: &str,
+    ) -> Result<CachingCatalog> {
+        let (ak, sk, token) = match volume.credentials {
+            AwsCredentials::AccessKey(ref creds) => (
+                Some(creds.aws_access_key_id.clone()),
+                Some(creds.aws_secret_access_key.clone()),
+                None,
+            ),
+            AwsCredentials::Token(ref t) => (None, None, Some(t.clone())),
+        };
+        let creds = Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
+        let config = SdkConfig::builder()
+            .behavior_version(BehaviorVersion::latest())
+            .credentials_provider(SharedCredentialsProvider::new(creds))
+            .region(Region::new(volume.region()))
+            .build();
+        let catalog = S3TablesCatalog::new(
+            &config,
+            volume.arn.as_str(),
+            ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
+        )
+        .context(df_catalog_error::S3TablesSnafu)?;
+
+        let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
             .await
-            .context(df_catalog_error::CoreSnafu)?
-            .into_iter()
-            .filter_map(|v| match v.volume.clone() {
-                MetastoreVolumeType::S3Tables(s3) => Some(s3),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        if volumes.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut catalogs = Vec::with_capacity(volumes.len());
-        for volume in volumes {
-            let (ak, sk, token) = match volume.credentials {
-                AwsCredentials::AccessKey(ref creds) => (
-                    Some(creds.aws_access_key_id.clone()),
-                    Some(creds.aws_secret_access_key.clone()),
-                    None,
-                ),
-                AwsCredentials::Token(ref t) => (None, None, Some(t.clone())),
-            };
-            let creds =
-                Credentials::from_keys(ak.unwrap_or_default(), sk.unwrap_or_default(), token);
-            let config = SdkConfig::builder()
-                .behavior_version(BehaviorVersion::latest())
-                .credentials_provider(SharedCredentialsProvider::new(creds))
-                .region(Region::new(volume.region()))
-                .build();
-            let catalog = S3TablesCatalog::new(
-                &config,
-                volume.arn.as_str(),
-                ObjectStoreBuilder::S3(Box::new(volume.s3_builder())),
-            )
-            .context(df_catalog_error::S3TablesSnafu)?;
-
-            let catalog = DataFusionIcebergCatalog::new(Arc::new(catalog), None)
-                .await
-                .context(df_catalog_error::DataFusionSnafu)?;
-            catalogs.push(
-                CachingCatalog::new(Arc::new(catalog), volume.database.clone())
-                    .with_refresh(true)
-                    .with_catalog_type(CatalogType::S3tables),
-            );
-        }
-        Ok(catalogs)
+            .context(df_catalog_error::DataFusionSnafu)?;
+        Ok(CachingCatalog::new(Arc::new(catalog), name.to_string())
+            .with_refresh(true)
+            .with_catalog_type(CatalogType::S3tables))
     }
 
     /// Do not keep returned references to avoid deadlocks

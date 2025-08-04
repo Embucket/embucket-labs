@@ -7,6 +7,12 @@ use snafu::prelude::*;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
+    #[snafu(display("Create volume query error: {source}"))]
+    CreateQuery {
+        source: core_executor::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Create volume error: {source}"))]
     Create {
         source: core_metastore::Error,
@@ -37,12 +43,29 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Volume {volume} not found"))]
+    VolumeNotFound {
+        volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::CreateQuery { source, .. } => match &source {
+                core_executor::Error::Metastore { source, .. } => match **source {
+                    core_metastore::Error::VolumeAlreadyExists { .. }
+                    | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                    core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
+                core_executor::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+                core_executor::Error::VolumeFieldRequired { .. } => StatusCode::BAD_REQUEST,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
             Self::Create { source, .. } => match &source {
                 core_metastore::Error::VolumeAlreadyExists { .. }
                 | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
@@ -61,6 +84,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
         }
     }
 }

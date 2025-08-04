@@ -32,23 +32,26 @@ class EmbucketClient:
         token = res.json()["accessToken"]
         self.headers["authorization"] = f"Bearer {token}"
 
-    def volume(self):
-        vol = requests.get(
-            f"{self.base_url}/v1/metastore/volumes",
-            headers=self.headers,
-            json={"ident": "test"},
-        )
-        if vol.status_code != 200:
-            response = requests.post(
-                f"{self.base_url}/v1/metastore/volumes",
-                headers=self.headers,
-                json={
-                    "ident": "test",
-                    "type": "file",
-                    "path": f"{os.getcwd()}/data",
-                },
-            )
-            response.raise_for_status()
+    @staticmethod
+    def get_volume_sql(vol_type=None):
+        if vol_type == "s3":
+            return f"""
+                CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((
+                    NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
+                    STORAGE_BASE_URL = 'acmecom-lakehouse'
+                    CREDENTIALS=(AWS_KEY_ID='xxx' AWS_SECRET_KEY='xxx' REGION='us-east-2')
+                ))"""
+        elif vol_type == "minio":
+            return f"""
+                CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((
+                    NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
+                    STORAGE_BASE_URL = 'acmecom-lakehouse'
+                    STORAGE_ENDPOINT = 'http://localhost:9000'
+                    CREDENTIALS=(AWS_KEY_ID='minioadmin' AWS_SECRET_KEY='minioadmin')
+                ))"""
+        return f"CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
+            (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}/data'))"
+
 
     def sql(self, query: str):
         response = requests.post(
@@ -104,7 +107,7 @@ class PyIcebergClient:
 
 
 embucket_client = EmbucketClient()
-embucket_client.volume()
+embucket_client.sql(embucket_client.get_volume_sql())
 embucket_client.sql("CREATE DATABASE IF NOT EXISTS test_db EXTERNAL_VOLUME = 'test'")
 embucket_client.sql("CREATE SCHEMA IF NOT EXISTS test_db.public")
 embucket_client.sql("DROP TABLE IF EXISTS test_db.public.test")
