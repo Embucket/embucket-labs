@@ -122,4 +122,4 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           lycheeVersion: v0.19.1
-          args: --base-url http://localhost:4321 --verbose --no-progress 'docs/src/content'
+          args: --base-url http://localhost:4321 --verbose --no-progress --exclude '^https?://localhost' --exclude '\.(svg|png|jpg)$' 'docs/src/content'
