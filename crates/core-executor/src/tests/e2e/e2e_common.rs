@@ -23,6 +23,7 @@ use object_store::{
     aws::AmazonS3Builder, aws::AmazonS3ConfigKey, aws::S3ConditionalPut, local::LocalFileSystem,
 };
 use slatedb::DbBuilder;
+use slatedb::db_cache::moka::MokaCache;
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
 use std::collections::HashMap;
@@ -568,6 +569,7 @@ impl ObjectStoreType {
             Self::Memory(_) => Db::memory().await,
             Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
                 DbBuilder::new(object_store::path::Path::from(suffix.clone()), self.object_store()?)
+                .with_block_cache(Arc::new(MokaCache::new()))
                 .build()
                 .await
                 .context(SlatedbSnafu {
