@@ -78,6 +78,125 @@ impl RegexpInstrFunc {
             ),
         }
     }
+    //TODO: clippy fix conversions
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::as_conversions
+    )]
+    fn take_args_values(args: &[ColumnarValue]) -> DFResult<(usize, usize, usize, &str, usize)> {
+        let position = args.get(2).map_or_else(
+            || Ok(0), // Default value of 0 if the index is out of bounds
+            |value| match value {
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
+                    Ok(*value as usize - 1)
+                }
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
+                    regexp_errors::WrongArgValueSnafu {
+                        got: value.to_string(),
+                        reason: "Position must be positive".to_string(),
+                    }
+                    .fail()
+                }
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 3usize,
+                }
+                .fail(), // Construct the error
+            },
+        )?;
+
+        let occurrence = args.get(3).map_or_else(
+            || Ok(0), // Default value of 0 if the index is out of bounds
+            |value| match value {
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
+                    Ok(*value as usize - 1)
+                }
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
+                    regexp_errors::WrongArgValueSnafu {
+                        got: value.to_string(),
+                        reason: "Occurrence must be positive".to_string(),
+                    }
+                    .fail()
+                }
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 4usize,
+                }
+                .fail(), // Construct the error
+            },
+        )?;
+
+        let option = args.get(4).map_or_else(
+            || Ok(0), // Default value of 0 if the index is out of bounds
+            |value| match value {
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value)))
+                    if (0..=1).contains(value) =>
+                {
+                    Ok(*value as usize)
+                }
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value)))
+                    if !(0..=1).contains(value) =>
+                {
+                    regexp_errors::WrongArgValueSnafu {
+                        got: value.to_string(),
+                        reason: "Return option must be 0, 1, or NULL".to_string(),
+                    }
+                    .fail()
+                }
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 5usize,
+                }
+                .fail(), // Construct the error
+            },
+        )?;
+
+        let regexp_parameters = args.get(5).map_or_else(
+            || Ok(""), // Default value of 0 if the index is out of bounds
+            |value| match value {
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(value))
+                    | ScalarValue::Utf8View(Some(value))
+                    | ScalarValue::LargeUtf8(Some(value)),
+                ) => Ok(value),
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 6usize,
+                }
+                .fail(), // Construct the error
+            },
+        )?;
+
+        let group_num = args.get(6).map_or_else(
+            || {
+                if regexp_parameters.contains('e') {
+                    Ok(1)
+                } else {
+                    Ok(0)
+                }
+            }, // Default value of 0 if the index is out of bounds
+            |value| match value {
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
+                    Ok(*value as usize)
+                }
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
+                    regexp_errors::WrongArgValueSnafu {
+                        got: value.to_string(),
+                        reason: "Capture group mustbe non-negative".to_string(),
+                    }
+                    .fail()
+                }
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 6usize,
+                }
+                .fail(), // Construct the error
+            },
+        )?;
+
+        Ok((position, occurrence, option, regexp_parameters, group_num))
+    }
 }
 
 impl ScalarUDFImpl for RegexpInstrFunc {
@@ -117,6 +236,7 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         clippy::as_conversions
     )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        //TODO: errors
         //Already checked that it's at least > 1
         let subject = &args.args[0];
         let array = match subject {
@@ -135,43 +255,8 @@ impl ScalarUDFImpl for RegexpInstrFunc {
             return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
         };
 
-        let ColumnarValue::Scalar(ScalarValue::Int64(Some(position))) = args.args[2] else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
-        };
-        let position = position as usize - 1;
-        //TODO: errors + reasonable defaults + length
-        let ColumnarValue::Scalar(ScalarValue::Int64(Some(occurrence))) = args.args[3] else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
-        };
-        let occurrence = occurrence as usize - 1;
-
-        let ColumnarValue::Scalar(ScalarValue::Int64(Some(option))) = args.args[4] else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
-        };
-        let option = match option {
-            0 | 1 => option as usize,
-            n => {
-                return regexp_errors::UnsupportedArgValueSnafu {
-                    got: n.to_string(),
-                    expected: "0 or 1".to_string(),
-                }
-                .fail()?;
-            }
-        };
-
-        let ColumnarValue::Scalar(
-            ScalarValue::Utf8(Some(regexp_parameters))
-            | ScalarValue::LargeUtf8(Some(regexp_parameters))
-            | ScalarValue::Utf8View(Some(regexp_parameters)),
-        ) = &args.args[5]
-        else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
-        };
-
-        let ColumnarValue::Scalar(ScalarValue::Int64(Some(group_num))) = args.args[6] else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
-        };
-        let group_num = group_num as usize;
+        let (position, occurrence, option, regexp_parameters, group_num) =
+            Self::take_args_values(&args.args)?;
 
         let mut result_array =
             Decimal128Builder::with_capacity(array.len()).with_precision_and_scale(38, 0)?;

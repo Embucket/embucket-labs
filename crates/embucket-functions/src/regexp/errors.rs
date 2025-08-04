@@ -57,6 +57,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Invalid parameter value: {got}. Reason: {reason}"))]
+    WrongArgValue {
+        got: String,
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
