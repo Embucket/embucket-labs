@@ -110,6 +110,9 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/docs/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        working-directory: ./docs
+        run: pnpm install
       - name: Run local server
         working-directory: ./docs
         run: pnpm dev
