@@ -25,7 +25,7 @@ use core_history::store::SlateDBHistoryStore;
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use df_catalog::catalog_list::EmbucketCatalogList;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Semaphore};
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -56,6 +56,7 @@ pub struct CoreExecutionService {
     config: Arc<Config>,
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
+    concurrency_limit: Arc<Semaphore>,
 }
 
 impl CoreExecutionService {
@@ -79,6 +80,7 @@ impl CoreExecutionService {
             config,
             catalog_list,
             runtime_env,
+            concurrency_limit: Arc::new(Semaphore::new(2)),
         })
     }
 
@@ -227,6 +229,13 @@ impl ExecutionService for CoreExecutionService {
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult> {
+        // Acquire a permit before proceeding
+        let _permit = self
+            .concurrency_limit
+            .acquire()
+            .await
+            .context(ex_error::ConcurrencyLimitSnafu)?;
+
         let user_session = {
             let sessions = self.df_sessions.read().await;
             sessions

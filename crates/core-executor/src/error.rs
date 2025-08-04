@@ -14,6 +14,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
+    #[snafu(display("Concurrency limit reached — too many concurrent queries are running"))]
+    ConcurrencyLimitError {
+        #[snafu(source)]
+        error: tokio::sync::AcquireError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {
         #[snafu(source(from(DataFusionError, Box::new)))]
@@ -133,7 +141,10 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("DataFusion erro when building logical plan for join of merge target and source: {error}"))]
+    #[snafu(
+        display("DataFusion erro when building logical plan for join of merge target and source: {error}"
+        )
+    )]
     DataFusionLogicalPlanMergeJoin {
         #[snafu(source(from(DataFusionError, Box::new)))]
         error: Box<DataFusionError>,
