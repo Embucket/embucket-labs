@@ -121,5 +121,5 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          lycheeVersion: 0.19.1
+          lycheeVersion: v0.19.1
           args: --base-url http://localhost:4321 --verbose --no-progress 'docs/src/content'
