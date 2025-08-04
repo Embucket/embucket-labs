@@ -30,7 +30,13 @@ use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
-use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
+use datafusion::datasource::file_format::FileFormat;
+use datafusion::datasource::file_format::csv::CsvFormat;
+use datafusion::datasource::file_format::json::JsonFormat;
+use datafusion::datasource::file_format::parquet::ParquetFormat;
+use datafusion::datasource::listing::{
+    ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
+};
 use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
@@ -1105,7 +1111,7 @@ impl UserQuery {
             from_obj,
             from_obj_alias,
             stage_params,
-            file_format: _,
+            file_format,
             ..
         } = statement
         else {
@@ -1144,15 +1150,22 @@ impl UserQuery {
             let table_url =
                 ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
             let config = ListingTableConfig::new(table_url);
+            let config = if let Some(format) = create_file_format(&file_format)? {
+                config.with_listing_options(ListingOptions::new(format))
+            } else {
+                config
+            };
+
             let table_provider =
                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?;
 
             let builder = LogicalPlanBuilder::scan(
-                "external_copy_into_location",
+                "external_location",
                 Arc::new(DefaultTableSource::new(Arc::new(table_provider))),
                 None,
             )
             .context(ex_error::DataFusionSnafu)?;
+
             let builder = if let Some(alias) = from_obj_alias {
                 builder
                     .alias(alias.to_string())
@@ -3031,5 +3044,33 @@ pub fn get_volume_kv_option(
         .fail()
     } else {
         Ok(value)
+    }
+}
+
+#[must_use]
+pub fn get_kv_option<'a>(options: &'a KeyValueOptions, key: &str) -> Option<&'a str> {
+    options
+        .options
+        .iter()
+        .find(|opt| opt.option_name.eq_ignore_ascii_case(key))
+        .map(|opt| opt.value.as_str())
+}
+
+fn create_file_format(file_format: &KeyValueOptions) -> Result<Option<Arc<dyn FileFormat>>> {
+    if let Some(format_type) = get_kv_option(file_format, "type") {
+        if format_type.eq_ignore_ascii_case("parquet") {
+            Ok(Some(Arc::new(ParquetFormat::default())))
+        } else if format_type.eq_ignore_ascii_case("csv") {
+            Ok(Some(Arc::new(CsvFormat::default())))
+        } else if format_type.eq_ignore_ascii_case("json") {
+            Ok(Some(Arc::new(JsonFormat::default())))
+        } else {
+            Err(ex_error::UnsupportedFileFormatSnafu {
+                format: format_type,
+            }
+            .build())
+        }
+    } else {
+        Ok(None)
     }
 }
