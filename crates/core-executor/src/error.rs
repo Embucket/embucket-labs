@@ -38,6 +38,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Expected unique ownership of DiskManager"))]
+    DataFusionDiskManager {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid column identifier: {ident}"))]
     InvalidColumnIdentifier {
         ident: String,

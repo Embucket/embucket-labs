@@ -11,8 +11,8 @@ use datafusion::execution::memory_pool::{
     FairSpillPool, GreedyMemoryPool, MemoryPool, TrackConsumersPool,
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
-use datafusion_common::{DataFusionError, TableReference};
-use snafu::ResultExt;
+use datafusion_common::TableReference;
+use snafu::{OptionExt, ResultExt};
 use std::num::NonZeroUsize;
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
@@ -159,12 +159,8 @@ impl CoreExecutionService {
                 .context(ex_error::DataFusionSnafu)?;
 
             let disk_manager = Arc::try_unwrap(disk_manager)
-                .map_err(|_| {
-                    DataFusionError::External(Box::new(DataFusionError::Execution(
-                        "DiskManager should be a single instance".to_string(),
-                    )))
-                })
-                .context(ex_error::DataFusionSnafu)?
+                .ok()
+                .context(ex_error::DataFusionDiskManagerSnafu)?
                 .with_max_temp_directory_size(disk_limit_bytes)
                 .context(ex_error::DataFusionSnafu)?;
 
