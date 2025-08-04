@@ -67,9 +67,6 @@ def spark_session_factory(
         builder.config("spark.driver.memory", "15g") \
                .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,org.apache.hadoop:hadoop-aws:3.3.4") \
                .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-               .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY_ID or "") \
-               .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_ACCESS_KEY or "") \
-               .config("spark.hadoop.fs.s3a.endpoint", f"s3.{AWS_REGION}.amazonaws.com" if AWS_REGION else "") \
                .config("spark.hadoop.fs.s3a.path.style.access", "true") \
                .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
                .config("spark.sql.catalog.rest", "org.apache.iceberg.spark.SparkCatalog") \
