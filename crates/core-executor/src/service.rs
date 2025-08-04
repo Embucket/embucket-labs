@@ -52,6 +52,12 @@ pub struct CoreExecutionService {
 }
 
 impl CoreExecutionService {
+    #[tracing::instrument(
+        name = "CoreExecutionService::new",
+        level = "debug",
+        skip(metastore, history_store, config),
+        err
+    )]
     pub async fn new(
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,
@@ -67,6 +73,12 @@ impl CoreExecutionService {
         })
     }
 
+    #[tracing::instrument(
+        name = "CoreExecutionService::catalog_list",
+        level = "debug",
+        skip(metastore, history_store),
+        err
+    )]
     pub async fn catalog_list(
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,

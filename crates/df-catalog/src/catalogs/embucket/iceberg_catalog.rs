@@ -39,6 +39,7 @@ pub struct EmbucketIcebergCatalog {
 }
 
 impl EmbucketIcebergCatalog {
+    #[tracing::instrument(name = "EmbucketIcebergCatalog::new", level = "debug", skip(metastore))]
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
         let db = block_on(metastore.get_database(&database))?.ok_or_else(|| {
             metastore_error::DatabaseNotFoundSnafu {
@@ -77,6 +78,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         &self.database
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::create_namespace",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Create a namespace in the catalog
     async fn create_namespace(
         &self,
@@ -104,6 +111,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(schema.data.properties.unwrap_or_default())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::drop_namespace",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Drop a namespace in the catalog
     async fn drop_namespace(&self, namespace: &IcebergNamespace) -> Result<(), IcebergError> {
         if namespace.len() > 1 {
@@ -122,6 +135,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::load_namespace",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Load the namespace properties from the catalog
     async fn load_namespace(
         &self,
@@ -150,6 +169,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         }
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::update_namespace",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Update the namespace properties in the catalog
     async fn update_namespace(
         &self,
@@ -197,6 +222,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         }
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::namespace_exists",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Check if a namespace exists
     async fn namespace_exists(&self, namespace: &IcebergNamespace) -> Result<bool, IcebergError> {
         if namespace.len() > 1 {
@@ -216,6 +247,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .is_some())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::list_tabulars",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Lists all tables in the given namespace.
     async fn list_tabulars(
         &self,
@@ -247,6 +284,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .collect())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::list_namespaces",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Lists all namespaces in the catalog.
     async fn list_namespaces(
         &self,
@@ -272,6 +315,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(namespaces)
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::tabular_exists",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Check if a table exists
     async fn tabular_exists(&self, identifier: &IcebergIdentifier) -> Result<bool, IcebergError> {
         let table_ident = self.ident(identifier);
@@ -283,6 +332,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .is_some())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::drop_table",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Drop a table and delete all data and metadata files.
     async fn drop_table(&self, identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
         let table_ident = self.ident(identifier);
@@ -293,6 +348,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::drop_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Drop a view
     async fn drop_view(&self, _identifier: &IcebergIdentifier) -> Result<(), IcebergError> {
         // Err(IcebergError::NotSupported(
@@ -301,6 +362,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::drop_materialized_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Drop a table and delete all data and metadata files.
     async fn drop_materialized_view(
         &self,
@@ -311,6 +378,14 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         ))
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::load_tabular",
+        level = "debug",
+        skip(self),
+        fields(found)
+        // err 
+        // do not log error as this returns error on regular basis ant poisoning graph, so it marks trace as red
+    )]
     /// Load a table.
     async fn load_tabular(
         self: Arc<Self>,
@@ -322,7 +397,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .get_table(&ident)
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
-        match table {
+        let res = match table {
             Some(table) => {
                 let iceberg_table = IcebergTable::new(
                     identifier.clone(),
@@ -338,9 +413,18 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
                 "Table {}",
                 identifier.name()
             ))),
-        }
+        };
+        // Record the result as part of the current span.
+        tracing::Span::current().record("found", res.is_ok());
+        res
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::create_table",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Create a table in the catalog if it doesn't exist.
     async fn create_table(
         self: Arc<Self>,
@@ -377,6 +461,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         .await?)
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::create_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Create a view with the catalog if it doesn't exist.
     async fn create_view(
         self: Arc<Self>,
@@ -388,6 +478,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         ))
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::create_materialized_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Register a materialized view with the catalog if it doesn't exist.
     async fn create_materialized_view(
         self: Arc<Self>,
@@ -399,6 +495,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         ))
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::update_table",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// perform commit table operation
     async fn update_table(
         self: Arc<Self>,
@@ -426,6 +528,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         Ok(iceberg_table)
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::update_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// perform commit view operation
     async fn update_view(
         self: Arc<Self>,
@@ -436,6 +544,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         ))
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::update_materialized_view",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// perform commit view operation
     async fn update_materialized_view(
         self: Arc<Self>,
@@ -446,6 +560,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         ))
     }
 
+    #[tracing::instrument(
+        name = "EmbucketIcebergCatalog::register_table",
+        level = "debug",
+        skip(self),
+        err
+    )]
     /// Register a table with the catalog if it doesn't exist.
     async fn register_table(
         self: Arc<Self>,
