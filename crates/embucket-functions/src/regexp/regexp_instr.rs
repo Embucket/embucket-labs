@@ -110,6 +110,12 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         }
     }
 
+    //TODO: clippy fix conversions
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::as_conversions
+    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         //Already checked that it's at least > 1
         let subject = &args.args[0];
@@ -133,7 +139,7 @@ impl ScalarUDFImpl for RegexpInstrFunc {
             return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
         };
         let position = position as usize - 1;
-        //TODO: errors
+        //TODO: errors + reasonable defaults + length
         let ColumnarValue::Scalar(ScalarValue::Int64(Some(occurrence))) = args.args[3] else {
             return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
         };
@@ -176,17 +182,19 @@ impl ScalarUDFImpl for RegexpInstrFunc {
                 let regex = pattern_to_regex(pattern, regexp_parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, position).for_each(|opt_iter| {
-                    result_array.append_option(opt_iter.and_then(|mut cap_iter| {
-                        cap_iter.nth(occurrence).and_then(|cap| {
-                            cap.get(group_num)
-                                .map(|mat| match option {
-                                    0 => (mat.start() + position) as i128 + 1,
-                                    1 => (mat.end() + position) as i128 + 1,
-                                    _ => unreachable!(),
+                    result_array.append_option(
+                        opt_iter
+                            .and_then(|mut cap_iter| {
+                                cap_iter.nth(occurrence).and_then(|cap| {
+                                    cap.get(group_num).map(|mat| match option {
+                                        0 => (mat.start() + position) as i128 + 1,
+                                        1 => (mat.end() + position) as i128 + 1,
+                                        _ => unreachable!(),
+                                    })
                                 })
-                                .or(Some(0i128))
-                        })
-                    }));
+                            })
+                            .or(Some(0i128)),
+                    );
                 });
             }
             other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {

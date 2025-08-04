@@ -1,3 +1,4 @@
+use datafusion::sql::sqlparser::ast::ValueWithSpan;
 use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
@@ -32,6 +33,27 @@ impl VisitorMut for FunctionsRewriter {
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
                 "date" => "to_date",
+                fn_name if fn_name.starts_with("regexp_") => {
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
+                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
+                            args.get_mut(1)
+                        //second arg is pattern for regex
+                        {
+                            if let Expr::Value(ValueWithSpan {
+                                value: SingleQuotedString(value),
+                                span,
+                            }) = pattern
+                            {
+                                let value = value.replace('\\', "\\\\");
+                                *pattern = Expr::Value(ValueWithSpan {
+                                    value: SingleQuotedString(value),
+                                    span: *span,
+                                });
+                            }
+                        }
+                    }
+                    func_name
+                }
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);
