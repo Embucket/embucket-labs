@@ -1124,7 +1124,7 @@ impl UserQuery {
         let insert_into = self.resolve_table_object_name(into.0)?;
 
         // Check if this copies from an external location
-        if let Some(location) = is_external_location(&from_obj) {
+        if let Some(location) = get_external_location(&from_obj) {
             let object_store = match (stage_params.storage_integration, stage_params.credentials) {
                 (Some(volume), _) => {
                     let volume = self
@@ -2999,7 +2999,7 @@ pub fn cast_input_to_target_schema(
 /// # Returns
 /// * `Some(&Ident)` - The identifier containing the external location if valid
 /// * `None` - If the object name doesn't represent a valid external location
-fn is_external_location(from_obj: &ObjectName) -> Option<&Ident> {
+fn get_external_location(from_obj: &ObjectName) -> Option<&Ident> {
     if let (Some(location), true, true, true) = (
         from_obj.0[0].as_ident(),
         from_obj.0.len() == 1,
