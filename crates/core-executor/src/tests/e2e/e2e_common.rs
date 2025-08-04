@@ -22,7 +22,7 @@ use object_store::ObjectStore;
 use object_store::{
     aws::AmazonS3Builder, aws::AmazonS3ConfigKey, aws::S3ConditionalPut, local::LocalFileSystem,
 };
-use slatedb::{Db as SlateDb, config::DbOptions};
+use slatedb::DbBuilder;
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
 use std::collections::HashMap;
@@ -567,11 +567,8 @@ impl ObjectStoreType {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
             Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
-                SlateDb::open_with_opts(
-                    object_store::path::Path::from(suffix.clone()),
-                    DbOptions::default(),
-                    self.object_store()?,
-                )
+                DbBuilder::new(object_store::path::Path::from(suffix.clone()), self.object_store()?)
+                .build()
                 .await
                 .context(SlatedbSnafu {
                     object_store: self.object_store()?,
