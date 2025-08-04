@@ -2969,7 +2969,7 @@ pub fn cast_input_to_target_schema(
 /// - The identifier value starts with a supported scheme (s3://, gcs://, file://, or memory://)
 ///
 /// External locations allow loading files directly from cloud storage or file systems
-/// without requiring a stage. See: https://docs.snowflake.com/en/sql-reference/sql/copy-into-table#loading-files-directly-from-an-external-location
+/// without requiring a stage. See: <https://docs.snowflake.com/en/sql-reference/sql/copy-into-table#loading-files-directly-from-an-external-location>
 ///
 /// # Arguments
 /// * `from_obj` - The object name from the COPY INTO FROM clause
