@@ -115,7 +115,7 @@ jobs:
         run: pnpm install
       - name: Run local server
         working-directory: ./docs
-        run: pnpm dev
+        run: pnpm dev &
 
       - name: Link Checker
         id: lychee
