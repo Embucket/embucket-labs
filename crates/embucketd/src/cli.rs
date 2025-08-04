@@ -166,7 +166,6 @@ pub struct CliOpts {
 
     #[arg(
         long,
-        default_value = "4096", // 4 GB
         env = "MEM_POOL_SIZE_MB",
         help = "Maximum memory pool size in megabytes"
     )]
@@ -181,7 +180,6 @@ pub struct CliOpts {
 
     #[arg(
         long,
-        default_value = "102400", // 100 GB
         env = "DISK_POOL_SIZE_MB",
         help = "Maximum disk pool size in megabytes (for spilling)"
     )]
