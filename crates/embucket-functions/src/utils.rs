@@ -27,8 +27,13 @@ where
 }
 
 pub fn pattern_to_regex(pattern: &str, regexp_paramaters: &str) -> Result<Regex, regex::Error> {
+    let case_insensitive = regexp_paramaters
+        .chars()
+        .rev()
+        .find(|&ch| ch == 'i' || ch == 'c')
+        == Some('i');
     RegexBuilder::new(pattern)
-        .case_insensitive(regexp_paramaters.contains('i') && !regexp_paramaters.contains('c'))
+        .case_insensitive(case_insensitive)
         .multi_line(regexp_paramaters.contains('m'))
         .dot_matches_new_line(regexp_paramaters.contains('s'))
         .build()
@@ -41,5 +46,5 @@ pub fn regexp<'h, 'r: 'h>(
 ) -> impl Iterator<Item = Option<CaptureMatches<'r, 'h>>> {
     array
         .iter()
-        .map(move |opt| opt.map(move |s| regex.captures_iter(&s[position..])))
+        .map(move |opt| opt.map(move |s| regex.captures_iter(&s[position.min(s.len())..])))
 }

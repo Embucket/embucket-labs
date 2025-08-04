@@ -82,11 +82,13 @@ impl RegexpInstrFunc {
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        clippy::as_conversions
+        clippy::as_conversions,
+        clippy::too_many_lines,
+        clippy::unwrap_used
     )]
     fn take_args_values(args: &[ColumnarValue]) -> DFResult<(usize, usize, usize, &str, usize)> {
         let position = args.get(2).map_or_else(
-            || Ok(0), // Default value of 0 if the index is out of bounds
+            || Ok(0),
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
                     Ok(*value as usize - 1)
@@ -102,12 +104,12 @@ impl RegexpInstrFunc {
                     data_type: other.data_type(),
                     position: 3usize,
                 }
-                .fail(), // Construct the error
+                .fail(),
             },
         )?;
 
         let occurrence = args.get(3).map_or_else(
-            || Ok(0), // Default value of 0 if the index is out of bounds
+            || Ok(0),
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
                     Ok(*value as usize - 1)
@@ -123,7 +125,7 @@ impl RegexpInstrFunc {
                     data_type: other.data_type(),
                     position: 4usize,
                 }
-                .fail(), // Construct the error
+                .fail(),
             },
         )?;
 
@@ -135,9 +137,7 @@ impl RegexpInstrFunc {
                 {
                     Ok(*value as usize)
                 }
-                ColumnarValue::Scalar(ScalarValue::Int64(Some(value)))
-                    if !(0..=1).contains(value) =>
-                {
+                ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) => {
                     regexp_errors::WrongArgValueSnafu {
                         got: value.to_string(),
                         reason: "Return option must be 0, 1, or NULL".to_string(),
@@ -148,23 +148,37 @@ impl RegexpInstrFunc {
                     data_type: other.data_type(),
                     position: 5usize,
                 }
-                .fail(), // Construct the error
+                .fail(),
             },
         )?;
 
         let regexp_parameters = args.get(5).map_or_else(
-            || Ok(""), // Default value of 0 if the index is out of bounds
+            || Ok("c"),
             |value| match value {
                 ColumnarValue::Scalar(
                     ScalarValue::Utf8(Some(value))
                     | ScalarValue::Utf8View(Some(value))
                     | ScalarValue::LargeUtf8(Some(value)),
-                ) => Ok(value),
+                ) if value.contains(['c', 'i', 'm', 'e', 's']) => Ok(value),
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(value))
+                    | ScalarValue::Utf8View(Some(value))
+                    | ScalarValue::LargeUtf8(Some(value)),
+                ) if value.is_empty() => Ok("c"),
+                ColumnarValue::Scalar(
+                    ScalarValue::Utf8(Some(value))
+                    | ScalarValue::Utf8View(Some(value))
+                    | ScalarValue::LargeUtf8(Some(value)),
+                ) => regexp_errors::WrongArgValueSnafu {
+                    got: value.to_string(),
+                    reason: format!("Unknown parameter: '{}'", value.get(0..1).unwrap()),
+                }
+                .fail(),
                 other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
                     data_type: other.data_type(),
                     position: 6usize,
                 }
-                .fail(), // Construct the error
+                .fail(),
             },
         )?;
 
@@ -175,7 +189,7 @@ impl RegexpInstrFunc {
                 } else {
                     Ok(0)
                 }
-            }, // Default value of 0 if the index is out of bounds
+            },
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
                     Ok(*value as usize)
@@ -191,7 +205,7 @@ impl RegexpInstrFunc {
                     data_type: other.data_type(),
                     position: 6usize,
                 }
-                .fail(), // Construct the error
+                .fail(),
             },
         )?;
 
