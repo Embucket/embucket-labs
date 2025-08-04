@@ -1103,7 +1103,9 @@ impl UserQuery {
         let Statement::CopyIntoSnowflake {
             into,
             from_obj,
+            from_obj_alias,
             stage_params,
+            file_format: _,
             ..
         } = statement
         else {
@@ -1145,14 +1147,21 @@ impl UserQuery {
             let table_provider =
                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?;
 
-            let input = LogicalPlanBuilder::scan(
+            let builder = LogicalPlanBuilder::scan(
                 "external_copy_into_location",
                 Arc::new(DefaultTableSource::new(Arc::new(table_provider))),
                 None,
             )
-            .context(ex_error::DataFusionSnafu)?
-            .build()
             .context(ex_error::DataFusionSnafu)?;
+            let builder = if let Some(alias) = from_obj_alias {
+                builder
+                    .alias(alias.to_string())
+                    .context(ex_error::DataFusionSnafu)?
+            } else {
+                builder
+            };
+
+            let input = builder.build().context(ex_error::DataFusionSnafu)?;
 
             let insert_reference: datafusion_common::TableReference = (&insert_into).into();
 
