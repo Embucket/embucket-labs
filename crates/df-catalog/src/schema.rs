@@ -50,11 +50,20 @@ impl SchemaProvider for CachingSchema {
         // of SQL (e.g., via direct catalog API calls). In such cases, our cache could contain
         // stale metadata and ignore the latest snapshot updates.
         //
-        // Therefore, we remove the cache lookup logic and always fetch from the original schema.
+        // However, views are registered and stored only in the local cache, so we must
+        // check the cache first and return the view if present.
+
+        if let Some(table) = self.tables_cache.get(name) {
+            let table = table.value();
+            if table.table_type() == TableType::View {
+                return Ok(Some(Arc::clone(table) as Arc<dyn TableProvider>));
+            }
+        }
+
         if let Some(table) = self.schema.table(name).await? {
             let caching_table = Arc::new(CachingTable::new(name.to_string(), Arc::clone(&table)));
 
-            // Optionally update the cache (for reuse purposes, but should not be source of truth)
+            // Optionally update the cache for reuse (not as source of truth)
             self.tables_cache
                 .insert(name.to_string(), Arc::clone(&caching_table));
 
