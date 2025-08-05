@@ -2,14 +2,15 @@
 #![allow(clippy::large_enum_variant)]
 use super::e2e_common::AwsSdkSnafu;
 use crate::service::ExecutionService;
-use crate::tests::e2e::e2e_aws::{
+use crate::tests::e2e::e2e_s3tables_aws::{
     delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
     get_s3tables_tables_arns_map, set_s3table_bucket_table_policy, set_table_bucket_policy,
 };
 use crate::tests::e2e::e2e_common::{
-    E2E_S3TABLESVOLUME_PREFIX, EMBUCKET_OBJECT_STORE_PREFIX, Error, ObjectStoreType, ParallelTest,
+    E2E_S3TABLESVOLUME_PREFIX, MINIO_OBJECT_STORE_PREFIX, AWS_OBJECT_STORE_PREFIX, 
+    Error, ObjectStoreType, ParallelTest,
     S3ObjectStore, TEST_SESSION_ID1, TEST_SESSION_ID2, TestQuery, TestVolumeType, VolumeConfig,
-    create_executor, create_executor_with_early_volumes_creation, create_s3_client,
+    create_executor, create_executor_with_early_volumes_creation, create_s3tables_client,
     exec_parallel_test_plan, s3_tables_volume, test_suffix,
 };
 use dotenv::dotenv;
@@ -176,7 +177,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
     let executor = create_executor(
         ObjectStoreType::S3(
             test_suffix(),
-            S3ObjectStore::from_env(EMBUCKET_OBJECT_STORE_PREFIX)?,
+            S3ObjectStore::from_env(MINIO_OBJECT_STORE_PREFIX)?,
         ),
         "s3_exec",
     )
@@ -245,7 +246,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     // this test uses separate tables policies so
     // parallel tests can operate on the same bucket with other tables set
 
-    let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await?;
+    let client = create_s3tables_client(E2E_S3TABLESVOLUME_PREFIX).await?;
     let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME_PREFIX)?.arn;
 
     let _ = delete_s3tables_bucket_table_policy(
@@ -387,7 +388,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
     // this test uses separate tables policies so
     // parallel tests can operate on the same bucket with other tables set
 
-    let client = create_s3_client(E2E_S3TABLESVOLUME_PREFIX).await?;
+    let client = create_s3tables_client(E2E_S3TABLESVOLUME_PREFIX).await?;
     let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME_PREFIX)?.arn;
 
     let _ = delete_s3tables_bucket_table_policy(
@@ -407,7 +408,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
             prefix: Some(E2E_S3TABLESVOLUME_PREFIX),
             volume_type: TestVolumeType::S3Tables,
             volume: "volume_s3tables",
-            database: "database_in_s3tables",
+            database: "database_in_s3tables_no_selects",
             schema: TEST_SCHEMA_NAME,
         }],
     )
@@ -423,7 +424,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
             "INSERT INTO __DATABASE__.__SCHEMA__.table_no_access (amount, name, c5) VALUES 
                         (200, 'Bob', 'bar'),
                         (300, 'Charlie', 'baz')",
-            "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+            "SELECT count(*) FROM __DATABASE__.__SCHEMA__.table_no_access",
         ],
         executor: exec.clone(),
         session_id: TEST_SESSION_ID1,
@@ -454,7 +455,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
     let test_plan = vec![ParallelTest(vec![TestQuery {
         sqls: vec![
             // not allowed operarions after permissions set
-            "SELECT * FROM __DATABASE__.__SCHEMA__.table_no_access",
+            "SELECT count(*) FROM __DATABASE__.__SCHEMA__.table_no_access",
         ],
         executor: exec,
         session_id: TEST_SESSION_ID2,
@@ -468,7 +469,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug()
+async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug()
 -> Result<(), Error> {
     const TEST_SCHEMA_NAME: &str = "test_create_table_inconsistency_bug";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
@@ -479,7 +480,8 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
     );
     dotenv().ok();
 
-    let client = create_s3_client(E2E_S3TABLESVOLUME2_PREFIX).await?;
+    let test_suffix = test_suffix();
+    let client = create_s3tables_client(E2E_S3TABLESVOLUME2_PREFIX).await?;
     let bucket_arn = s3_tables_volume("", E2E_S3TABLESVOLUME2_PREFIX)?.arn; // get bucket from arn
 
     // Ignore deletion status
@@ -502,7 +504,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
 
     // Currently embucket can only read database from s3tables volume when created before executor
     let exec = create_executor_with_early_volumes_creation(
-        ObjectStoreType::Memory(test_suffix()),
+        ObjectStoreType::File(test_suffix.clone(), env::temp_dir().join("store")),
         "memory_exec",
         vec![VolumeConfig {
             prefix: Some(E2E_S3TABLESVOLUME2_PREFIX), // Note: prefix is different, it contains other bucket
@@ -538,7 +540,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_create_table_inconsistency_bug(
 
     // Create new executor that fails as of partially created table
     let _ = create_executor_with_early_volumes_creation(
-        ObjectStoreType::Memory(test_suffix()),
+        ObjectStoreType::File(test_suffix, env::temp_dir().join("store")),
         "memory_exec",
         vec![VolumeConfig {
             prefix: Some(E2E_S3TABLESVOLUME2_PREFIX), // Note: prefix is different, it contains other bucket
@@ -642,7 +644,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
     let s3_exec = create_executor(
         ObjectStoreType::S3(
             test_suffix.clone(),
-            S3ObjectStore::from_env(EMBUCKET_OBJECT_STORE_PREFIX)?,
+            S3ObjectStore::from_env(MINIO_OBJECT_STORE_PREFIX)?,
         ),
         "s3_exec",
     )
@@ -738,6 +740,71 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 
     Ok(())
 }
+
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_select_ok()
+-> Result<(), Error> {
+    eprintln!(
+        "Test uses s3 bucket with read only permisisons for s3 volumes. \
+        select should pass, insert should fail."
+    );
+    dotenv().ok();
+
+    let executor = create_executor_with_early_volumes_creation(
+        // use static suffix to reuse the same metastore every time for this test
+        ObjectStoreType::S3("static".to_string(),
+        S3ObjectStore::from_env(AWS_OBJECT_STORE_PREFIX)?),
+        "s3_readonly_exec",
+        vec![VolumeConfig {
+            prefix: Some("E2E_READONLY_S3VOLUME_"),
+            volume_type: TestVolumeType::S3,
+            volume: "volume_s3",
+            database: "read_only_database_in_s3",
+            schema: "public",
+        }],
+    )
+    .await?;
+    let executor = Arc::new(executor);
+
+    let test_plan = vec![
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                //
+                // uncomment this once if schema bucket deleted but need to recreate a table 
+                //
+                // "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                // "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                // "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+                // "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                //         (100, 'Alice', 'foo'),
+                //         (200, 'Bob', 'bar'),
+                //         (300, 'Charlie', 'baz'),
+                //         (400, 'Diana', 'qux'),
+                //         (500, 'Eve', 'quux')",
+                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        }, TestQuery {
+            sqls: vec![
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+                        (100, 'Alice', 'foo')",
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: false,
+        }])
+    ];
+
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
+
+    Ok(())
+}
+
 
 #[tokio::test]
 #[ignore = "e2e test"]
@@ -868,7 +935,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
         create_executor(
             ObjectStoreType::S3(
                 test_suffix.clone(),
-                S3ObjectStore::from_env(EMBUCKET_OBJECT_STORE_PREFIX)?,
+                S3ObjectStore::from_env(MINIO_OBJECT_STORE_PREFIX)?,
             ),
             "s3_exec",
         )
@@ -1058,7 +1125,7 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     let s3_exec = create_executor_with_early_volumes_creation(
         ObjectStoreType::S3(
             test_suffix.clone(),
-            S3ObjectStore::from_env(EMBUCKET_OBJECT_STORE_PREFIX)?,
+            S3ObjectStore::from_env(MINIO_OBJECT_STORE_PREFIX)?,
         ),
         "s3_exec",
         vec![VolumeConfig {

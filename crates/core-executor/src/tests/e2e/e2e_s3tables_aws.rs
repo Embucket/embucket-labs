@@ -53,7 +53,7 @@ pub async fn s3_role_client(
     Client::new(&config)
 }
 
-pub async fn s3_client(
+pub async fn s3tables_client(
     access_key_id: String,
     secret_access_key: String,
     region: String,

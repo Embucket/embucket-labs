@@ -1,6 +1,6 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
-use super::e2e_aws::s3_client;
+use super::e2e_s3tables_aws::s3tables_client;
 use crate::SnowflakeError;
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
@@ -36,20 +36,21 @@ use std::sync::Arc;
 
 // Set following envs, or add to .env
 
-pub const EMBUCKET_OBJECT_STORE_PREFIX: &str = "EMBUCKET_OBJECT_STORE_";
+pub const MINIO_OBJECT_STORE_PREFIX: &str = "MINIO_OBJECT_STORE_";
 // # Env vars for s3 object store on minio
-// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
-// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
-// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
-// EMBUCKET_OBJECT_STORE_AWS_BUCKET=tables-data
-// EMBUCKET_OBJECT_STORE_AWS_ENDPOINT=http://localhost:9000
-// EMBUCKET_OBJECT_STORE_AWS_ALLOW_HTTP=true
+// MINIO_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// MINIO_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// MINIO_OBJECT_STORE_AWS_REGION=us-east-1
+// MINIO_OBJECT_STORE_AWS_BUCKET=tables-data
+// MINIO_OBJECT_STORE_AWS_ENDPOINT=http://localhost:9000
+// MINIO_OBJECT_STORE_AWS_ALLOW_HTTP=true
 
-// Example env for object store on AWS
-// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
-// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
-// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
-// EMBUCKET_OBJECT_STORE_AWS_BUCKET=e2e-store
+pub const AWS_OBJECT_STORE_PREFIX: &str = "AWS_OBJECT_STORE_";
+// # Env vars for s3 object store on AWS
+// AWS_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// AWS_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// AWS_OBJECT_STORE_AWS_REGION=us-east-1
+// AWS_OBJECT_STORE_AWS_BUCKET=tables-data
 
 pub const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME_";
 // Env vars for S3Volume on minio / AWS (change or remove endpoint):
@@ -183,14 +184,14 @@ pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
         std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
     let secret_key =
         std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).context(S3VolumeConfigSnafu)?;
-    let endpoint =
-        std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+    // endpoint is optional
+    let endpoint = std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu);
     let bucket = std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
 
     Ok(S3Volume {
         region: Some(region),
         bucket: Some(bucket),
-        endpoint: Some(endpoint),
+        endpoint: endpoint.ok(),
         credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
@@ -218,11 +219,11 @@ pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3Ta
     })
 }
 
-pub async fn create_s3_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
+pub async fn create_s3tables_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
     // use the same credentials as for s3 tables volume
     let s3_tables_volume = s3_tables_volume("test", env_prefix)?;
     if let AwsCredentials::AccessKey(ref access_key) = s3_tables_volume.credentials {
-        return Ok(s3_client(
+        return Ok(s3tables_client(
             access_key.aws_access_key_id.clone(),
             access_key.aws_secret_access_key.clone(),
             s3_tables_volume.region(),
@@ -261,20 +262,32 @@ impl S3ObjectStore {
         let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
             .context(S3VolumeConfigSnafu)?;
         let endpoint =
-            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu);
         let allow_http =
-            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu);
         let bucket =
             std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
 
-        let s3_builder = AmazonS3Builder::new()
-            .with_access_key_id(access_key)
-            .with_secret_access_key(secret_key)
-            .with_region(region)
-            .with_bucket_name(bucket)
-            .with_endpoint(endpoint)
-            .with_allow_http(allow_http == "true")
-            .with_conditional_put(S3ConditionalPut::ETagMatch);
+        let s3_builder = if endpoint.is_ok() {
+            AmazonS3Builder::new()
+                .with_access_key_id(access_key)
+                .with_secret_access_key(secret_key)
+                .with_region(region)
+                .with_bucket_name(bucket)
+                .with_allow_http(allow_http.ok().unwrap_or("false".to_string()) == "true")
+                .with_conditional_put(S3ConditionalPut::ETagMatch)
+                // don't know how to apply optional endpoint with the builder
+                .with_endpoint(endpoint?)
+        } else {
+            AmazonS3Builder::new()
+                .with_access_key_id(access_key)
+                .with_secret_access_key(secret_key)
+                .with_region(region)
+                .with_bucket_name(bucket)
+                .with_allow_http(allow_http.ok().unwrap_or("false".to_string()) == "true")
+                .with_conditional_put(S3ConditionalPut::ETagMatch)
+        };
+        
         Ok(Self { s3_builder })
     }
 }
