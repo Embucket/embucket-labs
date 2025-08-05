@@ -52,7 +52,7 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
+    Column, DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
     TableReference, plan_datafusion_err,
 };
 use datafusion_expr::conditional_expressions::CaseBuilder;
@@ -2963,24 +2963,51 @@ pub fn cast_input_to_target_schema(
     input: Arc<LogicalPlan>,
     target_schema: &SchemaRef,
 ) -> Result<LogicalPlan> {
-    let input_schema = input.schema().as_arrow();
+    let input_schema = input.schema();
     let mut projections: Vec<DFExpr> = Vec::with_capacity(target_schema.fields().len());
 
     for field in target_schema.fields() {
         let name = field.name();
         let data_type = field.data_type();
-        let input_field = input_schema
-            .field_with_name(name)
-            .context(ex_error::ArrowSnafu)?;
+        let (reference, input_field) = input_schema
+            .qualified_fields_with_unqualified_name(name)
+            .pop()
+            .or_else(|| {
+                // If exact match fails, try case-insensitive matching
+                let name_lower = name.to_lowercase();
+                for (reference, field) in input_schema.iter() {
+                    if field.name().to_lowercase() == name_lower {
+                        return Some((reference, field));
+                    }
+                }
+                None
+            })
+            .unwrap();
         if input_field.data_type() == data_type {
-            projections.push(col(name));
+            if input_field.name() == name {
+                projections.push(col(input_field.name()));
+            } else {
+                projections.push(
+                    logical_expr::Expr::Column(Column::new(reference.cloned(), input_field.name()))
+                        .alias(name),
+                );
+            }
+        } else if input_field.name() == name {
+            projections.push(DFExpr::TryCast(TryCast::new(
+                Box::new(col(input_field.name())),
+                data_type.clone(),
+            )));
         } else {
             projections.push(DFExpr::TryCast(TryCast::new(
-                Box::new(col(name)),
+                Box::new(
+                    logical_expr::Expr::Column(Column::new(reference.cloned(), input_field.name()))
+                        .alias(name),
+                ),
                 data_type.clone(),
             )));
         }
     }
+    dbg!(&projections);
     let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
     Ok(LogicalPlan::Projection(projection))
 }
