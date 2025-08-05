@@ -1,5 +1,6 @@
 use crate::models::{QueryContext, QueryResult};
 use crate::service::{CoreExecutionService, ExecutionService};
+use crate::tests::sleep_udf;
 use crate::utils::Config;
 use core_history::entities::worksheet::Worksheet;
 use core_history::history_store::{GetQueriesParams, HistoryStore};
@@ -487,4 +488,65 @@ async fn test_query_recording() {
             .expect("Failed to get queries")
             .len()
     );
+}
+
+#[tokio::test]
+#[allow(clippy::expect_used)]
+async fn test_max_concurrency_level() {
+    use tokio::sync::Barrier;
+
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(
+            metastore.clone(),
+            history_store.clone(),
+            Arc::new(Config::default().with_max_concurrency_level(2)),
+        )
+        .await
+        .expect("Failed to create execution service"),
+    );
+
+    let session = execution_svc
+        .create_session("test_session_id".to_string())
+        .await
+        .expect("Failed to create session");
+
+    // register sleep UDF for testing purposes
+    session.ctx.register_udf(sleep_udf());
+
+    let barrier = Arc::new(Barrier::new(3)); // wait for 3 threads: 2 queries + main thread
+
+    // Reserve 2 permitted slots for the queries
+    for _ in 0..2 {
+        let svc = execution_svc.clone();
+        let barrier = barrier.clone();
+        tokio::spawn(async move {
+            let _ = svc
+                .query(
+                    "test_session_id",
+                    "SELECT sleep(2)",
+                    QueryContext::default(),
+                )
+                .await;
+            barrier.wait().await;
+        });
+    }
+
+    // Add small sleep to be sure that the first two queries are running
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    let res = execution_svc
+        .query(
+            "test_session_id",
+            "SELECT sleep(3)",
+            QueryContext::default(),
+        )
+        .await;
+    assert!(
+        res.is_err(),
+        "Expected concurrency limit error but got {res:?}"
+    );
+
+    // Pass the barrier to allow the first two queries to finish
+    barrier.wait().await;
 }

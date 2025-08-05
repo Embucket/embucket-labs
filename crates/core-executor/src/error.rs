@@ -17,7 +17,7 @@ pub enum Error {
     #[snafu(display("Concurrency limit reached — too many concurrent queries are running"))]
     ConcurrencyLimitError {
         #[snafu(source)]
-        error: tokio::sync::AcquireError,
+        error: tokio::sync::TryAcquireError,
         #[snafu(implicit)]
         location: Location,
     },

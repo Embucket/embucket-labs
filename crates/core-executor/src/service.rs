@@ -230,11 +230,15 @@ impl ExecutionService for CoreExecutionService {
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult> {
-        // Acquire a permit before proceeding
+        // Attempt to acquire a concurrency permit without waiting.
+        // This immediately returns an error if the concurrency limit has been reached.
+        // If you want the task to wait until a permit becomes available, use `.acquire().await` instead.
+
+        // Holding this permit ensures that no more than the configured number of concurrent queries
+        // can execute at the same time. When the permit is dropped, the slot is released back to the semaphore.
         let _permit = self
             .concurrency_limit
-            .acquire()
-            .await
+            .try_acquire()
             .context(ex_error::ConcurrencyLimitSnafu)?;
 
         let user_session = {

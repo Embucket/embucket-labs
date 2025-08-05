@@ -56,6 +56,14 @@ impl Default for Config {
     }
 }
 
+impl Config {
+    #[must_use]
+    pub const fn with_max_concurrency_level(mut self, level: usize) -> Self {
+        self.max_concurrency_level = level;
+        self
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, EnumString, Display, Default)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
