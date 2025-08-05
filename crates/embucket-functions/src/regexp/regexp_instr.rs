@@ -79,19 +79,14 @@ impl RegexpInstrFunc {
         }
     }
     //TODO: clippy fix conversions
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::as_conversions,
-        clippy::too_many_lines,
-        clippy::unwrap_used
-    )]
+    #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     fn take_args_values(args: &[ColumnarValue]) -> DFResult<(usize, usize, usize, &str, usize)> {
         let position = args.get(2).map_or_else(
             || Ok(0),
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
-                    Ok(*value as usize - 1)
+                    usize::try_from(*value - 1)
+                        .context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
@@ -112,7 +107,8 @@ impl RegexpInstrFunc {
             || Ok(0),
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
-                    Ok(*value as usize - 1)
+                    usize::try_from(*value - 1)
+                        .context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
@@ -135,7 +131,7 @@ impl RegexpInstrFunc {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value)))
                     if (0..=1).contains(value) =>
                 {
-                    Ok(*value as usize)
+                    usize::try_from(*value).context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) => {
                     regexp_errors::WrongArgValueSnafu {
@@ -171,6 +167,7 @@ impl RegexpInstrFunc {
                     | ScalarValue::LargeUtf8(Some(value)),
                 ) => regexp_errors::WrongArgValueSnafu {
                     got: value.to_string(),
+                    //We just checked if value is empty, if not - this is valid, since we are getting here the excluded range so just the zeroes character
                     reason: format!("Unknown parameter: '{}'", value.get(0..1).unwrap()),
                 }
                 .fail(),
@@ -192,7 +189,7 @@ impl RegexpInstrFunc {
             },
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
-                    Ok(*value as usize)
+                    usize::try_from(*value).context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
@@ -243,14 +240,7 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         }
     }
 
-    //TODO: clippy fix conversions
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::as_conversions
-    )]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        //TODO: errors
         //Already checked that it's at least > 1
         let subject = &args.args[0];
         let array = match subject {
@@ -260,18 +250,25 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         };
 
         //Already checked that it's at least > 1
-        let ColumnarValue::Scalar(
-            ScalarValue::Utf8(Some(pattern))
-            | ScalarValue::LargeUtf8(Some(pattern))
-            | ScalarValue::Utf8View(Some(pattern)),
-        ) = &args.args[1]
-        else {
-            return regexp_errors::FormatMustBeNonNullScalarValueSnafu.fail()?;
+        let pattern = match &args.args[1] {
+            ColumnarValue::Scalar(
+                ScalarValue::Utf8(Some(pattern))
+                | ScalarValue::LargeUtf8(Some(pattern))
+                | ScalarValue::Utf8View(Some(pattern)),
+            ) => pattern,
+            other => {
+                return regexp_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.data_type(),
+                    position: 2usize,
+                }
+                .fail()?;
+            }
         };
 
         let (position, occurrence, option, regexp_parameters, group_num) =
             Self::take_args_values(&args.args)?;
 
+        //TODO: or Int8..64? Return type specified as Number, probably Integer as alias to Number(38, 0)
         let mut result_array =
             Decimal128Builder::with_capacity(array.len()).with_precision_and_scale(38, 0)?;
 
@@ -285,9 +282,14 @@ impl ScalarUDFImpl for RegexpInstrFunc {
                         opt_iter
                             .and_then(|mut cap_iter| {
                                 cap_iter.nth(occurrence).and_then(|cap| {
-                                    cap.get(group_num).map(|mat| match option {
-                                        0 => (mat.start() + position) as i128 + 1,
-                                        1 => (mat.end() + position) as i128 + 1,
+                                    //group_num == 0, means get the whole match (seems docs in regex are incorrect)
+                                    cap.get(group_num).and_then(|mat| match option {
+                                        0 => i128::try_from(mat.start() + position + 1)
+                                            .context(regexp_errors::InvalidIntegerConversionSnafu)
+                                            .ok(),
+                                        1 => i128::try_from(mat.end() + position + 1)
+                                            .context(regexp_errors::InvalidIntegerConversionSnafu)
+                                            .ok(),
                                         _ => unreachable!(),
                                     })
                                 })

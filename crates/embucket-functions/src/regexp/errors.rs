@@ -1,5 +1,6 @@
 use arrow_schema::DataType;
 use snafu::{Location, Snafu};
+use std::num::TryFromIntError;
 
 #[derive(Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -61,6 +62,14 @@ pub enum Error {
     WrongArgValue {
         got: String,
         reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid integer conversion: {error}"))]
+    InvalidIntegerConversion {
+        #[snafu(source)]
+        error: TryFromIntError,
         #[snafu(implicit)]
         location: Location,
     },
