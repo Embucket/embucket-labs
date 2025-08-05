@@ -185,7 +185,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
     }
 }
 
-#[allow(clippy::cast_sign_loss,clippy::as_conversions)]
+#[allow(clippy::cast_sign_loss, clippy::as_conversions)]
 fn convert_timezone(
     source_timezone: Tz,
     target_timezone: Tz,
