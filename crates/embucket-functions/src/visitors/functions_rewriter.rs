@@ -33,6 +33,9 @@ impl VisitorMut for FunctionsRewriter {
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
                 "date" => "to_date",
+                //regexp_ udfs need `\\` in the pattern for regex, but when converting to the logical plan, it gets removed,
+                // the only way to make it stay is to make it `\\\\` or maybe use another type?
+                // Escaped blah blah String from postgres types may work, but differently
                 fn_name if fn_name.starts_with("regexp_") => {
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
                         if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =

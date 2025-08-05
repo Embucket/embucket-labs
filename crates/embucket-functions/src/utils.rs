@@ -26,16 +26,17 @@ where
     })
 }
 
-pub fn pattern_to_regex(pattern: &str, regexp_paramaters: &str) -> Result<Regex, regex::Error> {
-    let case_insensitive = regexp_paramaters
+pub fn pattern_to_regex(pattern: &str, regexp_parameters: &str) -> Result<Regex, regex::Error> {
+    //Snowflake registers only the last c or i in the sequence of regexp_parameters
+    let case_insensitive = regexp_parameters
         .chars()
         .rev()
         .find(|&ch| ch == 'i' || ch == 'c')
         == Some('i');
     RegexBuilder::new(pattern)
         .case_insensitive(case_insensitive)
-        .multi_line(regexp_paramaters.contains('m'))
-        .dot_matches_new_line(regexp_paramaters.contains('s'))
+        .multi_line(regexp_parameters.contains('m'))
+        .dot_matches_new_line(regexp_parameters.contains('s'))
         .build()
 }
 
