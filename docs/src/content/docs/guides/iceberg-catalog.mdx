@@ -3,26 +3,34 @@ title: Iceberg catalog
 description: Use Embucket as an Iceberg Catalog.
 ---
 
-Embucket provides an Iceberg Catalog REST API that allows other clients (like Apache Spark and Trino) to query and write to your data.
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-This guide will show you how to connect to Embucket using `pyiceberg`, a python library for working with Iceberg tables.
+This guide shows how to connect external Iceberg clients to Embucket's Rest API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced Apache Iceberg features, or production deployment considerations.
 
-## Step 1: Install pyiceberg
+- Install `pyiceberg` and ensure Embucket runs
+- Create a volume and database for data persistence
+- Connect to Embucket's Iceberg Catalog API
+- Create and populate Iceberg tables
+- Query tables through Embucket's SQL interface
+
+## Prerequisites
+
+Install `pyiceberg` and run Embucket before starting this guide. If you haven't already, follow the [quick start](/essentials/quick-start) to get started.
 
 ```bash
 pip install 'pyiceberg[all]'
 ```
 
-## Step 2: Ensure Embucket is running
+## Create a volume and database
 
-Embucket must be running for this guide to work. If you haven't already, follow the [quick start](/essentials/quick-start) to get started.
+<Aside type="caution">
+Select your volume type based on deployment needs. Memory volumes store data in Embucket's memory, making them inaccessible to external Iceberg clients. Filesystem volumes store data on disk. They work only when clients share the same filesystem with Embucket. S3 volumes work with all deployment configurations.
+</Aside>
 
-## Step 3: Create a volume
+[Volumes](/essentials/volumes) specify where Embucket stores data. For this guide create a volume of type `file`, name it `demo` and specify path to a directory to store the data.
 
-> Note: If you are running Embucket in docker, you will need to use a volume that is accessible from the client machine. Memory volumes store data in embucket memory and Iceberg clients won't be able to read from them. Filesystem volume store data on the disk and Iceberg clients will be able to read from them given embucket and iceberg clients are running on the same machine (i.e. running embucket in docker also won't work). Only S3 volumes are guaranteed to work with all different deployments.
-
-As explained in the [Volume](/essentials/volumes) guide, volumes are used to specify where data is persisted between runs of Embucket. This is where we will store our Iceberg tables. Volume can be create in the UI or using internal API. We will be creating filesystem based volume here, path needs to be absolute.
-
+<Tabs>
+  <TabItem label="API">
 ```python
 import requests
 
@@ -31,12 +39,21 @@ response = requests.post(
     json={
         "ident": "demo",
         "type": "file",
-        "path": "/Users/ramp/tmp/demo",
+        "path": "/home/ec2-user/tmp/demo",
     })
 ```
+</TabItem>
+<TabItem label="SQL">
+```sql
+CREATE EXTERNAL VOLUME IF NOT EXISTS demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 'file' PATH = '/home/ec2-user/tmp/demo'));
+```
+</TabItem>
+</Tabs>
 
-Next, let's create a database: in Embucket to create a database a volume is required. Database could also be created in the UI or using internal API. At the moment, `CREATE DATABASE` is not supported (since database requires a volume to be specified).
+Next, create a database. Embucket requires a volume for each database. Create databases in the UI, using the internal API or SQL interface:
 
+<Tabs>
+  <TabItem label="API">
 ```python
 response = requests.post(
     "http://127.0.0.1:3000/v1/metastore/databases",
@@ -45,20 +62,23 @@ response = requests.post(
         "volume": "demo",
     })
 ```
-
-## Step 4: Connect to Embucket
-
-```python
-from pyiceberg.catalog import load_catalog
-# Connect to Embucket
-catalog = load_catalog(
-    type="rest",
-    uri="http://127.0.0.1:3000/catalog",
-    warehouse="demo",
-)
+</TabItem>
+<TabItem label="SQL">
+```sql
+CREATE DATABASE IF NOT EXISTS demo EXTERNAL_VOLUME = 'demo';
 ```
+</TabItem>
+</Tabs>
 
-Here we specify catalog type to be used (`rest`), its URI and a warehouse. In Iceberg entities warehouse is used to group namespaces, and namespaces group tables and views. In Snowflake (and in Apache Datafusion that is used as a query engine), databases are used to group schemas, and schemas group tables and views. Thus, here we use warehouse name as a database name. `demo` in the example above is the name of the database:
+Since Embucket is a Snowflake compatible database, it uses database terminology, while Iceberg uses warehouse terminology. At the same time, Embucket also provides an Iceberg Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and Iceberg entities:
+
+| Embucket | Iceberg |
+| --- | --- |
+| Database | Warehouse |
+| Schema | Namespace |
+| Table | Table |
+
+Run the following query to show databases:
 
 ```sh
 $ snow sql -c local
@@ -73,45 +93,64 @@ $ snow sql -c local
 +----------------------------------------------------------------+
 ```
 
-Let's take the NYC Taxi dataset, and write this to a table.
+## Connect to Embucket
 
-First download one month of data:
-
-```bash
-curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
-```
-
-Load it into your PyArrow dataframe:
-
+Use `pyiceberg` to connect to the Embucket's Iceberg Catalog API. It requires `rest` catalog type, URI of the API and a warehouse name. Warehouse matches a database name in Embucket.
 ```python
-import pyarrow.parquet as pq
+from pyiceberg.catalog import load_catalog
 
-df = pq.read_table("yellow_tripdata_2023-01.parquet")
-```
-
-Create a new Iceberg table:
-
-```python
-catalog.create_namespace("public")
-table = catalog.create_table(
-    "public.taxi_dataset",
-    schema=df.schema,
+# Connect to Embucket
+catalog = load_catalog(
+    type="rest",
+    uri="http://127.0.0.1:3000/catalog",
+    warehouse="demo",
 )
 ```
+## Upload the dataset
 
-Append the dataframe to the table:
 
-```python
-table.append(df)
-len(table.scan().to_arrow())
+<Steps>
+
+1. Download the NYC Taxi dataset as an example
+
+    ```bash
+    curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
+    ```
+
+2. Load it into your PyArrow dataframe:
+
+    ```python
+    import pyarrow.parquet as pq
+
+    df = pq.read_table("yellow_tripdata_2023-01.parquet")
+    ```
+
+3. Create a new Iceberg table:
+
+    ```python
+    catalog.create_namespace("public")
+    table = catalog.create_table(
+        "public.taxi_dataset",
+        schema=df.schema,
+    )
+    ```
+
+4. Append the dataframe to the table:
+
+    ```python
+    table.append(df)
+    len(table.scan().to_arrow())
+    ```
+
+</Steps>
+
+At this moment `pyiceberg` SDK have written a data and committed an Iceberg transaction with Embucket Iceberg Catalog API. Query the data using SQL interface:
+
+```sql
+select * from demo.public.taxi_dataset limit 10;
 ```
 
-Now we can query the table with snowflake-cli:
-
-```bash
-$ snow sql -c local
-
- > select * from demo.public.taxi_dataset limit 10;
+```
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | VendorID | tpep_pickup_datetime | tpep_dropoff_datetime | passenger_count | trip_distance | RatecodeID | store_and_fwd_flag | PULocationID | DOLocationID | payment_type | fare_amount | extra | mta_tax | tip_amount | tolls_amount | improvement_surcharge | total_amount | congestion_surcharge | airport_fee |
 |----------+----------------------+-----------------------+-----------------+---------------+------------+--------------------+--------------+--------------+--------------+-------------+-------+---------+------------+--------------+-----------------------+--------------+----------------------+-------------|
@@ -126,13 +165,16 @@ $ snow sql -c local
 | 2        | 2023-01-22 21:59:58  | 2023-01-22 22:36:35   | 1.0             | 22.26         | 1.0        | N                  | 132          | 241          | 1            | 83.5        | 1.0   | 0.5     | 10.0       | 6.55         | 1.0                   | 103.8        | 0.0                  | 1.25        |
 | 2        | 2023-01-22 21:15:44  | 2023-01-22 21:40:22   | 2.0             | 9.14          | 1.0        | N                  | 264          | 151          | 1            | 38.7        | 6.0   | 0.5     | 13.81      | 6.55         | 1.0                   | 70.31        | 2.5                  | 1.25        |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
 
- > select count(*) from demo.PUBLIC.taxi_dataset;
+```sql
+select count(*) from demo.PUBLIC.taxi_dataset;
+```
+
+```
 +----------+
 | count(*) |
 |----------|
 | 3066766  |
 +----------+
 ```
-
-**I was running embucket in docker and thus path was not accessible from host machine.**

@@ -1,0 +1,2 @@
+[Ee]mbucket
+Trino
