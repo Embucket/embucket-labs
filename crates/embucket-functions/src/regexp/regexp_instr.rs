@@ -1,6 +1,6 @@
 use super::errors as regexp_errors;
 use crate::utils::{pattern_to_regex, regexp};
-use datafusion::arrow::array::{Decimal128Builder, StringArray};
+use datafusion::arrow::array::{Int64Builder, StringArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
@@ -16,7 +16,47 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-///TODO: Docs
+/// `REGEXP_INSTR` function implementation
+///
+/// Returns the position of the specified occurrence of the regular expression pattern in the string subject.
+/// If no match is found, returns 0.
+///
+/// Syntax: `REGEXP_INSTR( <subject> , <pattern> [ , <position> [ , <occurrence> [ , <option> [ , <regexp_parameters> [ , <group_num> ] ] ] ] ] )`
+///
+/// Arguments:
+///
+/// `Required`:
+/// - `<subject>` the string to search for matches.
+/// - `<pattern>` pattern to match.
+///
+/// `Optional`:
+/// - `<position>` number of characters from the beginning of the string where the function starts searching for matches.
+///   Default: `1` (the search for a match starts at the first character on the left)
+/// - `<occurrence>` specifies the first occurrence of the pattern from which to start returning matches.
+///   The function skips the first occurrence - 1 matches. For example, if there are 5 matches and you specify 3 for the occurrence argument,
+///   the function ignores the first two matches and returns the third, fourth, and fifth matches.
+///   Default: `1`
+/// - `<option>` specifies whether to return the offset of the first character of the match (0) or
+///   the offset of the first character following the end of the match (1).
+///   Default: `0`
+/// - `<regexp_parameters>` String of one or more characters that specifies the parameters used for searching for matches.
+///   Supported values:
+///   ---------------------------------------------------------------------------
+///   | Parameter       | Description                               |
+///   |-----------------|-------------------------------------------|
+///   | c               | Case-sensitive matching                   |
+///   | i               | Case-insensitive matching                 |
+///   | m               | Multi-line mode                           |
+///   | e               | Extract submatches                        |
+///   | s               | POSIX wildcard character `.` matches `\n` |
+///   ---------------------------------------------------------------------------
+///   Default: `c`
+/// - `<group_num>` the `group_num` parameter specifies which group to extract.
+///   Groups are specified by using parentheses in the regular expression.
+///   If a `group_num` is specified, it allows extraction even if the e option was not also specified.
+///   The e option is implied.
+///
+/// Example: `REGEXP_INSTR('nevermore1, nevermore2, nevermore3.', 'nevermore')`
 #[derive(Debug)]
 pub struct RegexpInstrFunc {
     signature: Signature,
@@ -78,7 +118,6 @@ impl RegexpInstrFunc {
             ),
         }
     }
-    //TODO: clippy fix conversions
     #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     fn take_args_values(args: &[ColumnarValue]) -> DFResult<(usize, usize, usize, &str, usize)> {
         let position = args.get(2).map_or_else(
@@ -230,8 +269,9 @@ impl ScalarUDFImpl for RegexpInstrFunc {
                 at_least: 2usize,
             }
             .fail()?,
-            //TODO: or Int8..64? Return type specified as Number, probably Integer as alias to Number(38, 0)
-            n if 8 > n && 1 < n => Ok(DataType::Decimal128(38, 0)),
+            //Return type specified as Number, probably an `Integer` which is an alias to `Number(38, 0)`,
+            // we return `Int64` for better internal DF compatibility
+            n if 8 > n && 1 < n => Ok(DataType::Int64),
             n => regexp_errors::TooManyArgumentsSnafu {
                 got: n,
                 at_maximum: 7usize,
@@ -269,8 +309,7 @@ impl ScalarUDFImpl for RegexpInstrFunc {
             Self::take_args_values(&args.args)?;
 
         //TODO: or Int8..64? Return type specified as Number, probably Integer as alias to Number(38, 0)
-        let mut result_array =
-            Decimal128Builder::with_capacity(array.len()).with_precision_and_scale(38, 0)?;
+        let mut result_array = Int64Builder::with_capacity(array.len());
 
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
@@ -284,17 +323,17 @@ impl ScalarUDFImpl for RegexpInstrFunc {
                                 cap_iter.nth(occurrence).and_then(|cap| {
                                     //group_num == 0, means get the whole match (seems docs in regex are incorrect)
                                     cap.get(group_num).and_then(|mat| match option {
-                                        0 => i128::try_from(mat.start() + position + 1)
+                                        0 => i64::try_from(mat.start() + position + 1)
                                             .context(regexp_errors::InvalidIntegerConversionSnafu)
                                             .ok(),
-                                        1 => i128::try_from(mat.end() + position + 1)
+                                        1 => i64::try_from(mat.end() + position + 1)
                                             .context(regexp_errors::InvalidIntegerConversionSnafu)
                                             .ok(),
                                         _ => unreachable!(),
                                     })
                                 })
                             })
-                            .or(Some(0i128)),
+                            .or(Some(0i64)),
                     );
                 });
             }
