@@ -78,7 +78,7 @@ echo ""
     dbt clean
     dbt deps
 # dbt seed
-        dbt seed
+        dbt seed --full-refresh
 #  dbt run
     if [ -n "$DBT_MODEL" ]; then
         dbt run --full-refresh --select +"$DBT_MODEL" 2>&1 | tee assets/run.log

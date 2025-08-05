@@ -1,5 +1,5 @@
 snowplow_web:
-  target: snowflake
+  target: embucket
   outputs:
     snowflake:
       dev:
