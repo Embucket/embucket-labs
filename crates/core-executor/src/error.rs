@@ -486,8 +486,15 @@ pub enum Error {
         location: Location,
     },
 
+
     #[snafu(display("Unexpected subquery result for set variable"))]
     UnexpectedSubqueryResultForSetVariable {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Stages are currently not supported"))]
+    StagesNotSupported {
         #[snafu(implicit)]
         location: Location,
     },

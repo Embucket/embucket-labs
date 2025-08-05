@@ -1191,7 +1191,7 @@ impl UserQuery {
 
             let input = builder.build().context(ex_error::DataFusionSnafu)?;
 
-            let input = if input.schema().as_arrow() == into_provider.schema().deref() {
+            let input = if input.schema().as_arrow() == &*into_provider.schema() {
                 input
             } else {
                 cast_input_to_target_schema(Arc::new(input), &into_provider.schema())?
@@ -1209,17 +1209,7 @@ impl UserQuery {
 
             self.execute_logical_plan(plan).await
         } else {
-            let from_stage: Vec<ObjectNamePart> = from_obj
-                .0
-                .iter()
-                .map(|fs| ObjectNamePart::Identifier(Ident::new(fs.to_string().replace('@', ""))))
-                .collect();
-
-            let insert_from = self.resolve_table_object_name(from_stage)?;
-            // Insert data to table
-            let insert_query = format!("INSERT INTO {insert_into} SELECT * FROM {insert_from}");
-
-            self.execute_with_custom_plan(&insert_query).await
+            ex_error::StagesNotSupportedSnafu.fail()
         }
     }
 
