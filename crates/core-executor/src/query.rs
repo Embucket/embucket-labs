@@ -3069,10 +3069,22 @@ fn create_file_format(
                 .is_some_and(|x| x.to_lowercase() == "true");
             let has_header =
                 get_kv_option(file_format, "skip_header").is_some_and(|x| x.to_lowercase() == "1");
-            Ok(Some((
-                Arc::new(CsvFormat::default().with_has_header(has_header)),
-                infer_schema,
-            )))
+
+            let csv_format = CsvFormat::default().with_has_header(has_header);
+
+            // Handle field_delimiter parameter
+            let csv_format = if let Some(delimiter) = get_kv_option(file_format, "field_delimiter")
+            {
+                if delimiter.len() == 1 {
+                    csv_format.with_delimiter(delimiter.as_bytes()[0])
+                } else {
+                    csv_format
+                }
+            } else {
+                csv_format
+            };
+
+            Ok(Some((Arc::new(csv_format), infer_schema)))
         } else if format_type.eq_ignore_ascii_case("json") {
             Ok(Some((Arc::new(JsonFormat::default()), true)))
         } else {
