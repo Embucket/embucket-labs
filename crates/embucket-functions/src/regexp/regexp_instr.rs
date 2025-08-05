@@ -308,7 +308,6 @@ impl ScalarUDFImpl for RegexpInstrFunc {
         let (position, occurrence, option, regexp_parameters, group_num) =
             Self::take_args_values(&args.args)?;
 
-        //TODO: or Int8..64? Return type specified as Number, probably Integer as alias to Number(38, 0)
         let mut result_array = Int64Builder::with_capacity(array.len());
 
         match array.data_type() {
