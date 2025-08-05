@@ -508,6 +508,13 @@ test_query!(
     snapshot_path = "session"
 );
 test_query!(
+    set_variable_and_access_by_placeholder,
+    "SELECT $v1",
+    setup_queries = ["SET v1 = 'test';"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
+    snapshot_path = "session"
+);
+test_query!(
     set_variable_system,
     "SELECT name, value FROM snowplow.information_schema.df_settings
      WHERE name = 'datafusion.execution.time_zone'",

@@ -4,14 +4,25 @@ use datafusion::logical_expr::sqlparser::ast::Value;
 use datafusion::logical_expr::sqlparser::ast::helpers::key_value_options::{
     KeyValueOption, KeyValueOptionType,
 };
-use datafusion_common::ScalarValue;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
+use datafusion_common::{ParamValues, ScalarValue};
 use std::any::Any;
 use std::collections::HashMap;
 
 #[derive(Default, Debug, Clone)]
 pub struct SessionParams {
     pub properties: HashMap<String, SessionProperty>,
+}
+
+impl From<SessionParams> for ParamValues {
+    fn from(value: SessionParams) -> Self {
+        let map: HashMap<String, ScalarValue> = value
+            .properties
+            .into_iter()
+            .filter_map(|(key, prop)| prop.to_scalar_value().map(|scalar| (key, scalar)))
+            .collect();
+        Self::Map(map)
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -91,6 +102,28 @@ impl SessionProperty {
             value,
             property_type: "text".to_string(),
             comment: None,
+        }
+    }
+
+    #[must_use]
+    pub fn to_scalar_value(&self) -> Option<ScalarValue> {
+        match self.property_type.as_str() {
+            "boolean" => self
+                .value
+                .parse::<bool>()
+                .ok()
+                .map(|b| ScalarValue::Boolean(Some(b))),
+            "fixed" => {
+                if let Ok(i) = self.value.parse::<i64>() {
+                    Some(ScalarValue::Int64(Some(i)))
+                } else if let Ok(f) = self.value.parse::<f64>() {
+                    Some(ScalarValue::Float64(Some(f)))
+                } else {
+                    None
+                }
+            }
+            "text" => Some(ScalarValue::Utf8(Some(self.value.clone()))),
+            _ => None,
         }
     }
 }

@@ -33,6 +33,7 @@ use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
+use datafusion::optimizer::OptimizerConfig;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
@@ -44,8 +45,8 @@ use datafusion::sql::sqlparser::ast::{
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
-    DFSchema, DataFusionError, ResolvedTableReference, SchemaReference, TableReference,
-    plan_datafusion_err,
+    DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
+    TableReference, plan_datafusion_err,
 };
 use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
@@ -62,7 +63,7 @@ use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
-use df_catalog::information_schema::session_params::SessionProperty;
+use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
 use df_catalog::table::CachingTable;
 use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::datetime::date_part_extract;
@@ -1953,9 +1954,31 @@ impl UserQuery {
     )]
     pub async fn execute_with_custom_plan(&self, query: &str) -> Result<QueryResult> {
         let mut plan = self.get_custom_logical_plan(query).await?;
+        let session_params = self
+            .session
+            .ctx
+            .state()
+            .options()
+            .extensions
+            .get::<SessionParams>()
+            .cloned()
+            .map_or_else(|| ParamValues::Map(HashMap::default()), ParamValues::from);
+
         plan = self
             .session_context_expr_rewriter()
             .rewrite_plan(&plan)
+            .context(ex_error::DataFusionSnafu)?
+            // Inject session-scoped parameter values into the logical plan.
+            // These parameters can be referenced in SQL via $param_name or $1-style placeholders,
+            // and are resolved at planning time. This allows users to define session variables
+            // (e.g., via `SET id_threshold = 100`) and use them inside queries.
+            //
+            // For example:
+            //   SET threshold = 100;
+            //   SELECT * FROM my_table WHERE value > $threshold;
+            //
+            // The call to `with_param_values` replaces the parameter references with actual values.
+            .with_param_values(session_params)
             .context(ex_error::DataFusionSnafu)?;
         self.execute_logical_plan(plan).await
     }
