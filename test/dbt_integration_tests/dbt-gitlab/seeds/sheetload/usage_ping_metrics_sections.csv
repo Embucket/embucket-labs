@@ -1,4 +1,4 @@
-section,metrics_path,stage,group,smau,gmau,clean_metric_name,periscope_metrics_name,time_period,mau,paid_gmau,_updated_at
+section,metrics_path,stage,group_pm,smau,gmau,clean_metric_name,periscope_metrics_name,time_period,mau,paid_gmau,_updated_at
 588,751,806,361,177,993,976,992,645,708,616,459.89
 685,698,572,665,478,379,222,786,685,500,528,357.81
 549,934,638,860,334,758,927,936,734,458,906,330.89

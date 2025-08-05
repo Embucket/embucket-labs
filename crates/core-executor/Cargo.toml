@@ -24,15 +24,16 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "12655c2be19d4796236154f8826e23f84d2978b0", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "4a91f2fd6af1b6d413621949e724c55c34f8a29b", features = [
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
+iceberg-rust-spec = { workspace = true }
 iceberg-s3tables-catalog = { workspace = true }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
-
+clap = {  workspace = true }
 object_store = { workspace = true }
 regex = { workspace = true }
 snafu = { workspace = true }
@@ -58,6 +59,9 @@ insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 slatedb = { workspace = true }
 dotenv = "0.15.0"
+aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }
+aws-sdk-s3tables = { version = "1.32.0", features = ["behavior-version-latest"] }
+aws-sdk-sts = { version = "1.80.0", features = ["behavior-version-latest"] }
 
 [lints]
 workspace = true

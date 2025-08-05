@@ -32,7 +32,6 @@ fn create_s3_tables_volume_ok_payload() -> VolumeCreatePayload {
         name: "embucket3".to_string(),
         volume: VolumeType::S3Tables(S3TablesVolume {
             arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-embucket".to_string(),
-            database: "test".to_string(),
             endpoint: Some("https://localhost:9000".to_string()),
             credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                 aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),

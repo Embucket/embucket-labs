@@ -16,6 +16,12 @@ pub struct MetastoreViewConfig {
 }
 
 impl MetastoreViewConfig {
+    #[tracing::instrument(
+        name = "MetastoreViewConfig::make_volumes",
+        level = "debug",
+        skip(self, builder),
+        err
+    )]
     pub async fn make_volumes(
         &self,
         builder: &mut VolumesViewBuilder,
@@ -37,6 +43,12 @@ impl MetastoreViewConfig {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "MetastoreViewConfig::make_databases",
+        level = "debug",
+        skip(self, builder),
+        err
+    )]
     pub async fn make_databases(
         &self,
         builder: &mut DatabasesViewBuilder,
@@ -57,6 +69,12 @@ impl MetastoreViewConfig {
         }
         Ok(())
     }
+    #[tracing::instrument(
+        name = "MetastoreViewConfig::make_schemas",
+        level = "debug",
+        skip(self, builder),
+        err
+    )]
     pub async fn make_schemas(
         &self,
         builder: &mut SchemasViewBuilder,
@@ -77,6 +95,12 @@ impl MetastoreViewConfig {
         }
         Ok(())
     }
+    #[tracing::instrument(
+        name = "MetastoreViewConfig::make_tables",
+        level = "debug",
+        skip(self, builder),
+        err
+    )]
     pub async fn make_tables(
         &self,
         builder: &mut TablesViewBuilder,

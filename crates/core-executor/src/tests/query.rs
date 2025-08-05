@@ -132,15 +132,19 @@ pub async fn create_df_session() -> Arc<UserSession> {
         )
         .await
         .expect("Failed to create schema");
+    let config = Arc::new(Config::default());
     let catalog_list = CoreExecutionService::catalog_list(metastore.clone(), history_store.clone())
         .await
         .expect("Failed to create catalog list");
+    let runtime_env = CoreExecutionService::runtime_env(&config, catalog_list.clone())
+        .expect("Failed to create runtime env");
     let user_session = Arc::new(
         UserSession::new(
             metastore,
             history_store,
             Arc::new(Config::default()),
             catalog_list,
+            runtime_env,
         )
         .expect("Failed to create user session"),
     );
@@ -220,20 +224,6 @@ macro_rules! test_query {
         }
     };
 }
-
-test_query!(drop_database_error_in_use, "DROP DATABASE embucket");
-
-test_query!(
-    drop_database,
-    "DROP DATABASE embucket",
-    setup_queries = ["DROP SCHEMA embucket.public"]
-);
-
-test_query!(
-    create_database,
-    "SHOW DATABASES STARTS WITH 'db_test'",
-    setup_queries = ["CREATE DATABASE db_test external_volume = 'test_volume'",]
-);
 
 // Empty plan
 test_query!(alter_iceberg_table, "ALTER ICEBERG TABLE test ADD col INT;");

@@ -16,7 +16,7 @@ api-iceberg-rest = { path = "../api-iceberg-rest" }
 api-internal-rest = { path = "../api-internal-rest" }
 
 axum = { workspace = true }
-clap = { version = "4.5.27", features = ["env", "derive"] }
+clap = {  workspace = true }
 console-subscriber = { version = "0.4.1" } 
 dotenv = "0.15.0"
 object_store = { workspace = true }

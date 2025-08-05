@@ -1,4 +1,4 @@
-id,job_id,stage_id,interview_id,order,estimated_duration,created_at,updated_at,interview_name,stage_name,organization_id,_updated_at
+id,job_id,stage_id,interview_id,order_ji,estimated_duration,created_at,updated_at,interview_name,stage_name,organization_id,_updated_at
 253,437,367,506,149,142.36,887,742,166,822,406,668.94
 678,379,666,905,714,660.48,115,352,957,509,533,916.78
 835,557,961,131,997,131.97,289,603,185,192,377,415.73

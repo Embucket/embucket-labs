@@ -12,8 +12,8 @@ WITH source as (
                 --info
                 company_name::varchar       AS candidate_company_name,
                 title::varchar              AS candidate_employment_title,
-                "start"::date               AS candidate_employment_start_date,
-                "end"::date                   AS candidate_employment_end_date,
+                start_ts::date               AS candidate_employment_start_date,
+                end_ts::date                   AS candidate_employment_end_date,
                 latest::boolean             AS is_candidate_latest_employment,
                 created_at::timestamp       AS candidate_employement_created_at,
                 updated_at::timestamp       AS candidate_employement_updated_at

@@ -22,7 +22,7 @@ use futures::{
 use object_store::path::Path;
 use object_store::{
     GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload, ObjectMeta, ObjectStore,
-    PutMultipartOpts, PutOptions, PutPayload, PutResult, UploadPart,
+    PutMultipartOptions, PutOptions, PutPayload, PutResult, UploadPart,
 };
 use std::cell::RefCell;
 use std::pin::Pin;
@@ -695,7 +695,7 @@ impl ObjectStore for IoObjectStore {
     async fn put_multipart_opts(
         &self,
         location: &Path,
-        opts: PutMultipartOpts,
+        opts: PutMultipartOptions,
     ) -> object_store::Result<Box<dyn MultipartUpload>> {
         let location = location.clone();
         let store = Arc::clone(&self.inner);
@@ -1521,7 +1521,7 @@ mod tests {
         async fn put_multipart_opts(
             &self,
             location: &Path,
-            opts: PutMultipartOpts,
+            opts: PutMultipartOptions,
         ) -> object_store::Result<Box<dyn MultipartUpload>> {
             mock_io().await;
             let res = self.inner.put_multipart_opts(location, opts).await?;

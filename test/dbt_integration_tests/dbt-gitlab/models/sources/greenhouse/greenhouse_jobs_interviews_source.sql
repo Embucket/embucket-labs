@@ -14,7 +14,7 @@ WITH source as (
             interview_id::NUMBER        AS interview_id,
 
             --info
-            "order"::NUMBER                AS interview_order,
+            order_ji::NUMBER                AS interview_order,
             estimated_duration::NUMBER     AS estimated_duration,
             created_at::timestamp       AS interview_created_at,
             updated_at::timestamp       AS interview_updated_at

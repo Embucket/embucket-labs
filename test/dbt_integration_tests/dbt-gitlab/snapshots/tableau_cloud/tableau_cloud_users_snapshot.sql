@@ -2,7 +2,7 @@
 
 {{
     config(
-      unique_key='"User ID"',
+      unique_key='"USER_ID"',
       strategy='timestamp',
       updated_at='uploaded_at',
       invalidate_hard_deletes=True,
@@ -13,7 +13,7 @@
 WITH snapshot_data AS (
   SELECT
     *
-  FROM {{ source('tableau_cloud', 'users') }}
+  FROM {{ source('tableau_cloud', 'dup_tableau_cloud_users') }}
 )
 
 SELECT *

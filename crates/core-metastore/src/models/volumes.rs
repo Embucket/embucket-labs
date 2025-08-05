@@ -144,8 +144,6 @@ pub struct S3TablesVolume {
     pub endpoint: Option<String>,
     #[validate(nested)]
     pub credentials: AwsCredentials,
-    #[validate(length(min = 1), custom(function = "validate_bucket_name"))]
-    pub database: String,
     #[validate(regex(path = s3tables_arn_regex_func(), message="ARN must start with arn:aws:s3tables: .\n"))]
     pub arn: String,
 }
@@ -174,6 +172,14 @@ impl S3TablesVolume {
             .split(':')
             .nth(3)
             .map_or_else(|| "us-east-1".to_string(), Into::into)
+    }
+
+    pub fn account_id(&self) -> String {
+        self.arn
+            .split(':')
+            .nth(4)
+            .map(Into::into)
+            .unwrap_or_default()
     }
 }
 

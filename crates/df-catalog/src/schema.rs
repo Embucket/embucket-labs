@@ -45,22 +45,31 @@ impl SchemaProvider for CachingSchema {
     #[allow(clippy::as_conversions)]
     #[tracing::instrument(name = "CachingSchema::table", level = "debug", skip(self), err)]
     async fn table(&self, name: &str) -> Result<Option<Arc<dyn TableProvider>>, DataFusionError> {
+        // NOTE: We should always rely on the original schema provider instead of the cache,
+        // because the underlying Iceberg catalog may have updated the table metadata outside
+        // of SQL (e.g., via direct catalog API calls). In such cases, our cache could contain
+        // stale metadata and ignore the latest snapshot updates.
+        //
+        // However, views are registered and stored only in the local cache, so we must
+        // check the cache first and return the view if present.
+
         if let Some(table) = self.tables_cache.get(name) {
-            Ok(Some(Arc::clone(table.value()) as Arc<dyn TableProvider>))
-        } else {
-            // Fallback to the original schema table if the cache is empty
-            if let Some(table) = self.schema.table(name).await? {
-                let caching_table =
-                    Arc::new(CachingTable::new(name.to_string(), Arc::clone(&table)));
-
-                // Insert into cache
-                self.tables_cache
-                    .insert(name.to_string(), Arc::clone(&caching_table));
-
-                Ok(Some(caching_table as Arc<dyn TableProvider>))
-            } else {
-                Ok(None)
+            let table = table.value();
+            if table.table_type() == TableType::View {
+                return Ok(Some(Arc::clone(table) as Arc<dyn TableProvider>));
             }
+        }
+
+        if let Some(table) = self.schema.table(name).await? {
+            let caching_table = Arc::new(CachingTable::new(name.to_string(), Arc::clone(&table)));
+
+            // Optionally update the cache for reuse (not as source of truth)
+            self.tables_cache
+                .insert(name.to_string(), Arc::clone(&caching_table));
+
+            Ok(Some(caching_table as Arc<dyn TableProvider>))
+        } else {
+            Ok(None)
         }
     }
 

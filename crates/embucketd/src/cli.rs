@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use core_executor::utils::MemPoolType;
 use object_store::{
     ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
     local::LocalFileSystem, memory::InMemory,
@@ -145,6 +146,44 @@ pub struct CliOpts {
         help = "Data serialization format in Snowflake v1 API"
     )]
     pub data_format: Option<String>,
+
+    #[arg(
+        long,
+        env = "SQL_PARSER_DIALECT",
+        default_value = "snowflake",
+        help = "SQL parser dialect, can be 'snowflake', 'postgres', 'mysql', 'generic', etc."
+    )]
+    pub sql_parser_dialect: Option<String>,
+
+    #[arg(
+        long,
+        value_enum,
+        env = "MEM_POOL_TYPE",
+        default_value = "greedy",
+        help = "Memory pool type for query execution, can be 'greedy' or 'fair'"
+    )]
+    pub mem_pool_type: MemPoolType,
+
+    #[arg(
+        long,
+        env = "MEM_POOL_SIZE_MB",
+        help = "Maximum memory pool size in megabytes"
+    )]
+    pub mem_pool_size_mb: Option<usize>,
+
+    #[arg(
+        long,
+        env = "MEM_ENABLE_TRACK_CONSUMERS_POOL",
+        help = "Wrap memory pool with TrackConsumersPool for tracking per-consumer memory usage"
+    )]
+    pub mem_enable_track_consumers_pool: Option<bool>,
+
+    #[arg(
+        long,
+        env = "DISK_POOL_SIZE_MB",
+        help = "Maximum disk pool size in megabytes (for spilling)"
+    )]
+    pub disk_pool_size_mb: Option<usize>,
 
     // should unset JWT_SECRET env var after loading
     #[arg(

@@ -32,50 +32,26 @@ class EmbucketClient:
         token = res.json()["accessToken"]
         self.headers["authorization"] = f"Bearer {token}"
 
-    def volume(self):
-        response = requests.post(
-            f"{self.base_url}/v1/metastore/volumes",
-            headers=self.headers,
-            json={
-                "ident": "test",
-                "type": "file",
-                "path": f"{os.getcwd()}/data",
-            },
-        )
-        if response.status_code == 409:
-            print("Volume 'test' already exists.")
-            return
-        response.raise_for_status()
+    @staticmethod
+    def get_volume_sql(vol_type=None):
+        if vol_type == "s3":
+            return f"""
+                CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((
+                    NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
+                    STORAGE_BASE_URL = 'acmecom-lakehouse'
+                    CREDENTIALS=(AWS_KEY_ID='xxx' AWS_SECRET_KEY='xxx' REGION='us-east-2')
+                ))"""
+        elif vol_type == "minio":
+            return f"""
+                CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((
+                    NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
+                    STORAGE_BASE_URL = 'acmecom-lakehouse'
+                    STORAGE_ENDPOINT = 'http://localhost:9000'
+                    CREDENTIALS=(AWS_KEY_ID='minioadmin' AWS_SECRET_KEY='minioadmin')
+                ))"""
+        return f"CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
+            (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}/data'))"
 
-    def create_s3_volume(self, volume_name: str, s3_bucket: str, aws_region: str, aws_access_key_id: str,
-                         aws_secret_access_key: str):
-        print(f"Attempting to create S3 volume '{volume_name}' in bucket '{s3_bucket}' in region '{aws_region}'")
-
-        payload = {
-            "ident": volume_name,
-            "type": "s3",
-            "bucket": s3_bucket,
-            "region": aws_region,
-            "credentials": {
-                "credential_type": "access_key",
-                "aws-access-key-id": aws_access_key_id,
-                "aws-secret-access-key": aws_secret_access_key,
-            }
-        }
-
-        response = requests.post(
-            f"{self.base_url}/v1/metastore/volumes",
-            headers=self.headers,
-            json=payload,
-        )
-
-        if response.status_code == 409:
-            print(f"Volume '{volume_name}' already exists.")
-            return
-
-        response.raise_for_status()
-
-        print(f"Successfully created volume '{volume_name}'.")
 
     def sql(self, query: str):
         response = requests.post(
@@ -117,58 +93,38 @@ class PySparkClient:
 
 
 class PyIcebergClient:
-    def __init__(self, catalog_name: str, warehouse_path: str, catalog_url: str):
-        """Initializes the PyIceberg client."""
+    def __init__(self, catalog_name: str = WAREHOUSE_ID, warehouse_path: str = None):
         self.catalog_name = catalog_name
         self.warehouse_path = warehouse_path
         self.catalog = pyiceberg.catalog.rest.RestCatalog(
-            name=catalog_name,
-            uri=catalog_url,
-            warehouse=warehouse_path
+            name="test-catalog",
+            uri=CATALOG_URL.rstrip("/") + "/",
+            warehouse=WAREHOUSE_ID,
         )
-
-    def read_table(self, table_name: str, limit: int = None):
-        """Loads an Iceberg table and returns its rows as a list of dicts."""
-        print(f"Reading table '{table_name}' with pyiceberg...")
-        try:
-            table = self.catalog.load_table(table_name)
-            print(f"Schema: {table.schema()}")
-            arrow_table = table.scan().to_arrow()
-            if limit is not None:
-                arrow_table = arrow_table.slice(0, limit)
-            rows = arrow_table.to_pylist()
-            return rows
-        except pyiceberg.exceptions.NoSuchTableError:
-            print(f"Table '{table_name}' does not exist in the catalog.")
-            return []
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return []
 
     def sql(self, query: str):
         raise NotImplementedError("Use SparkClient or REST endpoint to execute Iceberg SQL.")
 
 
+embucket_client = EmbucketClient()
+embucket_client.sql(embucket_client.get_volume_sql())
+embucket_client.sql("CREATE DATABASE IF NOT EXISTS test_db EXTERNAL_VOLUME = 'test'")
+embucket_client.sql("CREATE SCHEMA IF NOT EXISTS test_db.public")
+embucket_client.sql("DROP TABLE IF EXISTS test_db.public.test")
+embucket_client.sql("CREATE TABLE IF NOT EXISTS test_db.public.test (id int, name string)")
 
-# embucket_client = EmbucketClient()
-# embucket_client.volume()
-# embucket_client.sql("CREATE DATABASE IF NOT EXISTS test_db EXTERNAL_VOLUME = 'test'")
-# embucket_client.sql("CREATE SCHEMA IF NOT EXISTS test_db.public")
-# embucket_client.sql("DROP TABLE IF EXISTS test_db.public.test")
-# embucket_client.sql("CREATE TABLE IF NOT EXISTS test_db.public.test (id int, name string)")
-#
-# spark_client = PySparkClient()
-# spark_client.sql(f"INSERT INTO public.test VALUES (1, 'test_name')")
-# spark_client.sql(f"SELECT * FROM public.test ")
-#
-# pyiceberg_client = PyIcebergClient()
-# table = pyiceberg_client.catalog.load_table(("public", "test"))
-# df = pd.DataFrame(
-#     {
-#         "id": [1, 2, 3, 4],
-#         "name": ["a", "b", "c", "d"],
-#     }
-# )
+spark_client = PySparkClient()
+spark_client.sql(f"INSERT INTO public.test VALUES (1, 'test_name')")
+spark_client.sql(f"SELECT * FROM public.test ")
+
+pyiceberg_client = PyIcebergClient()
+table = pyiceberg_client.catalog.load_table(("public", "test"))
+df = pd.DataFrame(
+    {
+        "id": [1, 2, 3, 4],
+        "name": ["a", "b", "c", "d"],
+    }
+)
 # without schema it returns
 # ValueError: Mismatch in fields:
 # ┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -177,15 +133,15 @@ class PyIcebergClient:
 # │ ❌ │ 1: id: optional int      │ 1: id: optional long     │
 # │ ✅ │ 2: name: optional string │ 2: name: optional string │
 # └────┴──────────────────────────┴──────────────────────────┘
-# schema = pa.schema([
-#     ("id", pa.int32()),
-#     ("name", pa.string()),
-# ])
-# data = pa.Table.from_pandas(df, schema=schema)
-# table.append(data)
-# print(table.scan().to_arrow().to_pandas())
-# table.delete(delete_filter="id = 4")
-# print(table.scan().to_arrow().to_pandas())
+schema = pa.schema([
+    ("id", pa.int32()),
+    ("name", pa.string()),
+])
+data = pa.Table.from_pandas(df, schema=schema)
+table.append(data)
+print(table.scan().to_arrow().to_pandas())
+table.delete(delete_filter="id = 4")
+print(table.scan().to_arrow().to_pandas())
 #     table.overwrite(df=pa.Table.from_pandas(pd.DataFrame(
 #         {
 #             "id": [12, 13, 14, 15, 16],

@@ -37,6 +37,7 @@ pub mod semi_structured;
 pub mod session;
 #[path = "string-binary/mod.rs"]
 pub mod string_binary;
+pub mod system;
 pub mod table;
 #[cfg(test)]
 pub mod tests;
@@ -51,6 +52,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
     encryption::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;
     semi_structured::register_udfs(registry)?;
+    system::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
     Ok(())
 }

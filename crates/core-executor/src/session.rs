@@ -3,10 +3,10 @@ use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
 use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, Result};
-use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
+use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -14,7 +14,7 @@ use crate::query::UserQuery;
 use crate::utils::Config;
 use core_history::history_store::HistoryStore;
 use core_metastore::Metastore;
-use datafusion::execution::runtime_env::RuntimeEnvBuilder;
+use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
@@ -26,7 +26,6 @@ use embucket_functions::register_udafs;
 use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
 use std::collections::HashMap;
-use std::env;
 use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use tokio::sync::Mutex;
@@ -49,14 +48,12 @@ impl UserSession {
         history_store: Arc<dyn HistoryStore>,
         config: Arc<Config>,
         catalog_list: Arc<EmbucketCatalogList>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let sql_parser_dialect =
-            env::var("SQL_PARSER_DIALECT").unwrap_or_else(|_| "snowflake".to_string());
-
-        let runtime_config = RuntimeEnvBuilder::new()
-            .with_object_store_registry(catalog_list.clone())
-            .build()
-            .context(ex_error::DataFusionSnafu)?;
+        let sql_parser_dialect = config
+            .sql_parser_dialect
+            .clone()
+            .unwrap_or_else(|| "snowflake".to_string());
 
         let mut expr_planners = SessionStateDefaults::default_expr_planners();
         // That's a hack to use our custom expr planner first and default ones later. We probably need to get rid of default planners at some point.
@@ -78,7 +75,7 @@ impl UserSession {
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true),
             )
             .with_default_features()
-            .with_runtime_env(Arc::new(runtime_config))
+            .with_runtime_env(runtime_env)
             .with_catalog_list(catalog_list)
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))

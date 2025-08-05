@@ -38,6 +38,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Expected unique ownership of DiskManager"))]
+    DataFusionDiskManager {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Invalid column identifier: {ident}"))]
     InvalidColumnIdentifier {
         ident: String,
@@ -175,6 +181,14 @@ pub enum Error {
     #[snafu(display("Volume {volume} not found"))]
     VolumeNotFound {
         volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Volume with type {volume_type} requires {field}"))]
+    VolumeFieldRequired {
+        volume_type: String,
+        field: String,
         #[snafu(implicit)]
         location: Location,
     },
@@ -467,6 +481,7 @@ pub enum Error {
 
 #[derive(Debug)]
 pub enum ObjectType {
+    Volume,
     Database,
     Schema,
     Table,
@@ -475,6 +490,7 @@ pub enum ObjectType {
 impl Display for ObjectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Volume => write!(f, "volume"),
             Self::Database => write!(f, "database"),
             Self::Schema => write!(f, "schema"),
             Self::Table => write!(f, "table"),

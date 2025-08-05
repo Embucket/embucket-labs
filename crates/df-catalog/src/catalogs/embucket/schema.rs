@@ -103,6 +103,7 @@ impl SchemaProvider for EmbucketSchema {
         }
     }
 
+    #[tracing::instrument(name = "EmbucketSchema::table_exist", level = "debug", skip(self))]
     fn table_exist(&self, name: &str) -> bool {
         let iceberg_catalog = self.iceberg_catalog.clone();
         let database = self.database.clone();

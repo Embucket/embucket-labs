@@ -1,77 +1,51 @@
-import requests
 import os
-import json
+
+import snowflake.connector
 
 url = "http://localhost:3000"
 database = "embucket"
 schema = "public"
 
-def bootstrap(catalog, schema, table_name="sample_table"):
-    headers = {'Content-Type': 'application/json'}
-    res = requests.request(
-        "POST", f'http://localhost:3000/ui/auth/login',
-        headers=headers,
-        data=json.dumps({"username":"embucket","password":"embucket"})
-    ).json()
-    headers['authorization'] = f'Bearer {res['accessToken']}'
 
-    response = requests.get(f"{url}/v1/metastore/databases", headers=headers)
-    response.raise_for_status()
+def bootstrap(table_name="sample_table"):
+    cursor = get_cursor()
 
-    wh_list = [wh for wh in response.json() if wh["ident"] == catalog]
-    if wh_list:
-        print(f"Database {catalog} already exists, skipping creation.")
-    else:
-        # Create Volume
-        response = requests.post(
-            f"{url}/v1/metastore/volumes",
-            headers=headers,
-            json={
-                "ident": "test",
-                "type": "file",
-                "path": f"{os.getcwd()}/data",
-            },
-        )
-        response.raise_for_status()
-        print(f"Volume 'test' created at {os.getcwd()}/data.")
+    # Volume
+    cursor.execute(f"CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
+        (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}/data'))")
+    print(f"Volume 'test' created at '{os.getcwd()}/data' created or already exists.")
 
-        # Create Database
-        response = requests.post(
-            f"{url}/v1/metastore/databases",
-            headers=headers,
-            json={
-                "volume": "test",
-                "ident": catalog,
-            },
-        )
-        response.raise_for_status()
-        print(f"Database {catalog} created.")
+    # Database
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database} EXTERNAL_VOLUME = test")
+    print(f"Database {database} created or already exists.")
 
-    # Create Schema
-    query = f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}"
-    response = requests.post(
-        f"{url}/ui/queries",
-        headers=headers,
-        data=json.dumps({"query": query})
+    # Schema
+    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
+    print(f"Schema {database}.{schema} created or already exists.")
+
+    # Sample Table
+    cursor.execute(f"CREATE TABLE IF NOT EXISTS {database}.{schema}.{table_name} \
+        (id INT, name VARCHAR, created_at TIMESTAMP)")
+    print(f"Sample table {database}.{schema}.{table_name} created or already exists.")
+
+
+def get_cursor():
+    con = snowflake.connector.connect(
+        host=os.getenv("EMBUCKET_HOST", "localhost"),
+        port=os.getenv("EMBUCKET_PORT", 3000),
+        protocol=os.getenv("EMBUCKET_PROTOCOL", "http"),
+        user=os.getenv("EMBUCKET_USER", "embucket"),
+        password=os.getenv("EMBUCKET_PASSWORD", "embucket"),
+        account=os.getenv("EMBUCKET_ACCOUNT", "acc"),
+        warehouse=os.getenv("EMBUCKET_WAREHOUSE", ""),
+        database=os.getenv("EMBUCKET_DATABASE", database),
+        schema=os.getenv("EMBUCKET_SCHEMA", schema),
+        session_parameters={
+            "QUERY_TAG": "dbt-testing",
+        },
     )
-    response.raise_for_status()
-    print(f"Schema {catalog}.{schema} created or already exists.")
+    return con.cursor()
 
-    # Create Sample Table
-    table_query = f"""
-    CREATE TABLE IF NOT EXISTS {catalog}.{schema}.{table_name} (
-        id INT,
-        name VARCHAR,
-        created_at TIMESTAMP
-    )
-    """
-    response = requests.post(
-        f"{url}/ui/queries",
-        headers=headers,
-        data=json.dumps({"query": table_query})
-    )
-    response.raise_for_status()
-    print(f"Sample table {catalog}.{schema}.{table_name} created successfully.")
 
 if __name__ == "__main__":
-    bootstrap(database, schema)
+    bootstrap()

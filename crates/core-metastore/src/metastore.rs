@@ -943,7 +943,6 @@ mod tests {
 
         let s3table_volume = VolumeType::S3Tables(S3TablesVolume {
             arn: "arn:aws:s3tables:us-east-1:111122223333:bucket/my-table-bucket".to_string(),
-            database: "test".to_string(),
             endpoint: Some("https://my-bucket-name.s3.us-east-1.amazonaws.com/".to_string()),
             credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
                 aws_access_key_id: "kPYGGu34jF685erC7gst".to_string(),

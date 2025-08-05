@@ -2489,23 +2489,11 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/sha1")
     ),
-    ("SHA2", FunctionInfo::new(
-        "SHA2",
-        "Returns a hex-encoded string containing the N-bit SHA-2 message digest, where N is the specified output digest size."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/sha2")
-    ),
     ("SHA2_BINARY", FunctionInfo::new(
         "SHA2_BINARY",
         "Returns a binary containing the N-bit SHA-2 message digest, where N is the specified output digest size."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/sha2_binary")
-    ),
-    ("SHA2_HEX", FunctionInfo::new(
-        "SHA2_HEX",
-        "Returns a hex-encoded string containing the N-bit SHA-2 message digest, where N is the specified output digest size."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/sha2")
     ),
     ("SOUNDEX", FunctionInfo::new(
         "SOUNDEX",
@@ -3200,12 +3188,6 @@ pub const SYSTEM_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Returns information about the current task run."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_task_runtime_info")
-    ),
-    ("SYSTEM$TYPEOF", FunctionInfo::new(
-        "SYSTEM$TYPEOF",
-        "Returns a string representing the SQL data type associated with an expression."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_typeof")
     ),
     ("SYSTEM$UNBLOCK_INTERNAL_STAGES_PUBLIC_ACCESS", FunctionInfo::new(
         "SYSTEM$UNBLOCK_INTERNAL_STAGES_PUBLIC_ACCESS",

@@ -46,7 +46,8 @@ use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
-use slatedb::{Db as SlateDb, config::DbOptions};
+use slatedb::DbBuilder;
+use slatedb::db_cache::moka::MokaCache;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -102,7 +103,14 @@ async fn main() {
             opts.auth_demo_user.clone().unwrap(),
             opts.auth_demo_password.clone().unwrap(),
         );
-    let execution_cfg = ExecutionConfig::new().expect("Failed to create execution config");
+    let execution_cfg = ExecutionConfig {
+        embucket_version: "0.1.0".to_string(),
+        sql_parser_dialect: opts.sql_parser_dialect.clone(),
+        mem_pool_type: opts.mem_pool_type,
+        mem_pool_size_mb: opts.mem_pool_size_mb,
+        mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
+        disk_pool_size_mb: opts.disk_pool_size_mb,
+    };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),
@@ -126,13 +134,11 @@ async fn main() {
         .object_store_backend()
         .expect("Failed to create object store");
     let db = Db::new(Arc::new(
-        SlateDb::open_with_opts(
-            Path::from(slatedb_prefix),
-            DbOptions::default(),
-            object_store.clone(),
-        )
-        .await
-        .expect("Failed to start Slate DB"),
+        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+            .with_block_cache(Arc::new(MokaCache::new()))
+            .build()
+            .await
+            .expect("Failed to start Slate DB"),
     ));
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
@@ -141,6 +147,7 @@ async fn main() {
 
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
 
+    tracing::info!("Creating execution service");
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -150,6 +157,7 @@ async fn main() {
         .await
         .expect("Failed to create execution service"),
     );
+    tracing::info!("Execution service created");
 
     let session_store = SessionStore::new(execution_svc.clone());
 

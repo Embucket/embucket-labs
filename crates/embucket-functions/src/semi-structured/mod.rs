@@ -2,7 +2,6 @@ pub mod array;
 pub mod errors;
 pub mod get;
 pub mod get_path;
-pub mod json;
 pub mod object;
 pub mod variant;
 pub use errors::Error;
@@ -11,6 +10,7 @@ pub mod typeof_func;
 
 mod conversion;
 pub mod is_typeof;
+pub mod parse_json;
 
 use crate::semi_structured::array::{
     array_append, array_cat, array_compact, array_construct, array_contains, array_distinct,
@@ -23,6 +23,7 @@ use crate::semi_structured::get::GetFunc;
 use crate::semi_structured::is_typeof::IsTypeofFunc;
 use crate::semi_structured::object::object_construct::ObjectConstructUDF;
 use crate::semi_structured::object::{object_delete, object_insert, object_pick};
+use crate::semi_structured::parse_json::ParseJsonFunc;
 use crate::semi_structured::variant::variant_element;
 use datafusion::common::Result;
 use datafusion_expr::ScalarUDF;
@@ -74,9 +75,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         object_insert::get_udf(),
         object::object_keys::get_udf(),
         object_pick::get_udf(),
-        json::parse_json::get_udf(),
         array::strtok_to_array::get_udf(),
-        json::try_parse_json::get_udf(),
+        Arc::new(ScalarUDF::from(ParseJsonFunc::new(false))),
+        Arc::new(ScalarUDF::from(ParseJsonFunc::new(true))),
         Arc::new(ScalarUDF::from(GetFunc::new(false))),
         Arc::new(ScalarUDF::from(GetFunc::new(true))),
         typeof_func::get_udf(),

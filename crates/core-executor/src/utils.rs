@@ -2,6 +2,7 @@ use super::models::QueryResult;
 use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use arrow_schema::ArrowError;
 use chrono::DateTime;
+use clap::ValueEnum;
 use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
@@ -30,24 +31,26 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use strum::{Display, EnumString};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub embucket_version: String,
+    pub sql_parser_dialect: Option<String>,
+    pub mem_pool_type: MemPoolType,
+    pub mem_pool_size_mb: Option<usize>,
+    pub mem_enable_track_consumers_pool: Option<bool>,
+    pub disk_pool_size_mb: Option<usize>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             embucket_version: "0.1.0".to_string(),
+            sql_parser_dialect: None,
+            mem_pool_type: MemPoolType::default(),
+            mem_pool_size_mb: None,
+            mem_enable_track_consumers_pool: None,
+            disk_pool_size_mb: None,
         }
-    }
-}
-
-impl Config {
-    pub fn new() -> std::result::Result<Self, strum::ParseError> {
-        Ok(Self {
-            embucket_version: "0.1.0".to_string(),
-        })
     }
 }
 
@@ -57,6 +60,25 @@ pub enum DataSerializationFormat {
     Arrow,
     #[default]
     Json,
+}
+
+/// Memory pool type for query execution.
+///
+/// - `Fair`: Enforces fair memory usage across all consumers, with spill-based control.
+///   Suitable for concurrent workloads where no single query should dominate memory resources.
+///
+/// - `Greedy`: Allows aggressive memory consumption up to the limit.
+///   Once the pool is full, all consumers are blocked until memory is freed.
+///   Suitable for simpler or single-query workloads.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
+pub enum MemPoolType {
+    /// Enforces fair memory usage across all consumers.
+    /// Spills memory from large consumers to maintain fairness.
+    Fair,
+    /// Allows each consumer to use memory freely until the pool is exhausted.
+    /// All consumers are blocked when the memory limit is reached.
+    #[default]
+    Greedy,
 }
 
 #[must_use]
