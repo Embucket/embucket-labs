@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
 import mermaid from 'astro-mermaid';
+import starlightLinksValidator from 'starlight-links-validator';
 
 // https://astro.build/config
 export default defineConfig({
@@ -32,6 +33,11 @@ export default defineConfig({
       components: {
         ThemeSelect: './src/components/Empty.astro',
       },
+      plugins: [
+        starlightLinksValidator({
+          errorOnLocalLinks: false,
+        }),
+      ],
     }),
   ],
   vite: {
