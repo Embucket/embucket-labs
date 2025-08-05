@@ -107,7 +107,7 @@ use sqlparser::ast::{
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
-use std::ops::{ControlFlow, Deref};
+use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
 use tracing_attributes::instrument;
