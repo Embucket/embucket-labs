@@ -2,16 +2,15 @@
 #![allow(clippy::large_enum_variant)]
 use super::e2e_common::AwsSdkSnafu;
 use crate::service::ExecutionService;
+use crate::tests::e2e::e2e_common::{
+    AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, Error, MINIO_OBJECT_STORE_PREFIX,
+    ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1, TEST_SESSION_ID2, TestQuery,
+    TestVolumeType, VolumeConfig, create_executor, create_executor_with_early_volumes_creation,
+    create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix,
+};
 use crate::tests::e2e::e2e_s3tables_aws::{
     delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
     get_s3tables_tables_arns_map, set_s3table_bucket_table_policy, set_table_bucket_policy,
-};
-use crate::tests::e2e::e2e_common::{
-    E2E_S3TABLESVOLUME_PREFIX, MINIO_OBJECT_STORE_PREFIX, AWS_OBJECT_STORE_PREFIX, 
-    Error, ObjectStoreType, ParallelTest,
-    S3ObjectStore, TEST_SESSION_ID1, TEST_SESSION_ID2, TestQuery, TestVolumeType, VolumeConfig,
-    create_executor, create_executor_with_early_volumes_creation, create_s3tables_client,
-    exec_parallel_test_plan, s3_tables_volume, test_suffix,
 };
 use dotenv::dotenv;
 use snafu::ResultExt;
@@ -469,8 +468,8 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug()
--> Result<(), Error> {
+async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() -> Result<(), Error>
+{
     const TEST_SCHEMA_NAME: &str = "test_create_table_inconsistency_bug";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
@@ -741,7 +740,6 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
     Ok(())
 }
 
-
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
@@ -755,8 +753,10 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
 
     let executor = create_executor_with_early_volumes_creation(
         // use static suffix to reuse the same metastore every time for this test
-        ObjectStoreType::S3("static".to_string(),
-        S3ObjectStore::from_env(AWS_OBJECT_STORE_PREFIX)?),
+        ObjectStoreType::S3(
+            "static".to_string(),
+            S3ObjectStore::from_env(AWS_OBJECT_STORE_PREFIX)?,
+        ),
         "s3_readonly_exec",
         vec![VolumeConfig {
             prefix: Some("E2E_READONLY_S3VOLUME_"),
@@ -769,11 +769,11 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
     .await?;
     let executor = Arc::new(executor);
 
-    let test_plan = vec![
-        ParallelTest(vec![TestQuery {
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
             sqls: vec![
                 //
-                // uncomment this once if schema bucket deleted but need to recreate a table 
+                // uncomment this once if schema bucket deleted but need to recreate a table
                 //
                 // "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
                 // "CREATE SCHEMA __DATABASE__.__SCHEMA__",
@@ -789,7 +789,8 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
-        }, TestQuery {
+        },
+        TestQuery {
             sqls: vec![
                 "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
                         (100, 'Alice', 'foo')",
@@ -797,14 +798,13 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: false,
-        }])
-    ];
+        },
+    ])];
 
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     Ok(())
 }
-
 
 #[tokio::test]
 #[ignore = "e2e test"]

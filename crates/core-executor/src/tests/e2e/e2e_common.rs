@@ -199,7 +199,10 @@ pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
     })
 }
 
-pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3TablesVolume, Error> {
+pub fn s3_tables_volume(
+    _schema_namespace: &str,
+    env_prefix: &str,
+) -> Result<S3TablesVolume, Error> {
     let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
         .context(S3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
@@ -254,6 +257,7 @@ pub struct S3ObjectStore {
     pub s3_builder: AmazonS3Builder,
 }
 impl S3ObjectStore {
+    #[allow(clippy::or_fun_call)]
     pub fn from_env(env_prefix: &str) -> Result<Self, Error> {
         let region =
             std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
@@ -287,7 +291,7 @@ impl S3ObjectStore {
                 .with_allow_http(allow_http.ok().unwrap_or("false".to_string()) == "true")
                 .with_conditional_put(S3ConditionalPut::ETagMatch)
         };
-        
+
         Ok(Self { s3_builder })
     }
 }
@@ -580,7 +584,10 @@ impl ObjectStoreType {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
             Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
-                DbBuilder::new(object_store::path::Path::from(suffix.clone()), self.object_store()?)
+                DbBuilder::new(
+                    object_store::path::Path::from(suffix.clone()),
+                    self.object_store()?,
+                )
                 .with_block_cache(Arc::new(MokaCache::new()))
                 .build()
                 .await
