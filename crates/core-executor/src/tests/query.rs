@@ -810,5 +810,5 @@ test_query!(
     date_part_extract_week_of_year_policy,
     "SELECT WEEK('2016-01-02T23:39:20.123-07:00'::TIMESTAMP)",
     setup_queries = ["ALTER SESSION SET WEEK_OF_YEAR_POLICY = '1'"],
-    snapshot_path = "date_part_extract_week_of_year_policy"
+    snapshot_path = "date_part_extract"
 );

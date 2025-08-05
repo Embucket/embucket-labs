@@ -273,7 +273,7 @@ impl UserQuery {
         let format = self
             .session
             .get_session_variable("timestamp_input_format")
-            .unwrap_or_else(|| "YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string());
+            .unwrap_or_else(|| "auto".to_string());
         let tz = self
             .session
             .get_session_variable("timezone")
