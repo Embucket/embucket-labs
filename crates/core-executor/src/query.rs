@@ -814,7 +814,7 @@ impl UserQuery {
                 name,
                 provider_as_source(target_table),
                 WriteOp::Insert(InsertOp::Append),
-                cast_input_to_target_schema(input, &schema)?,
+                Arc::new(cast_input_to_target_schema(input, &schema)?),
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
@@ -1124,6 +1124,15 @@ impl UserQuery {
 
         // Check if this copies from an external location
         if let Some(location) = get_external_location(&from_obj) {
+            let insert_reference: datafusion_common::TableReference = (&insert_into).into();
+
+            let into_provider = self
+                .session
+                .ctx
+                .table_provider(insert_reference.clone())
+                .await
+                .context(ex_error::DataFusionSnafu)?;
+
             let object_store = match (stage_params.storage_integration, stage_params.credentials) {
                 (Some(volume), _) => {
                     let volume = self
@@ -1146,9 +1155,12 @@ impl UserQuery {
                 .ctx
                 .register_object_store(url.object_store().as_ref(), object_store);
 
-            let config = ListingTableConfig::new(url);
+            let config = ListingTableConfig::new(url.clone());
             let config = if let Some(format) = create_file_format(&file_format)? {
-                config.with_listing_options(ListingOptions::new(format))
+                let options = ListingOptions::new(format);
+                config
+                    .with_listing_options(options)
+                    .with_schema(into_provider.schema())
             } else {
                 config
             };
@@ -1172,15 +1184,6 @@ impl UserQuery {
             };
 
             let input = builder.build().context(ex_error::DataFusionSnafu)?;
-
-            let insert_reference: datafusion_common::TableReference = (&insert_into).into();
-
-            let into_provider = self
-                .session
-                .ctx
-                .table_provider(insert_reference.clone())
-                .await
-                .context(ex_error::DataFusionSnafu)?;
 
             let plan = LogicalPlanBuilder::insert_into(
                 input,
@@ -2957,7 +2960,7 @@ fn apply_show_filters(sql: String, filters: &[String]) -> String {
 pub fn cast_input_to_target_schema(
     input: Arc<LogicalPlan>,
     target_schema: &SchemaRef,
-) -> Result<Arc<LogicalPlan>> {
+) -> Result<LogicalPlan> {
     let input_schema = input.schema().as_arrow();
     let mut projections: Vec<DFExpr> = Vec::with_capacity(target_schema.fields().len());
 
@@ -2977,7 +2980,7 @@ pub fn cast_input_to_target_schema(
         }
     }
     let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
-    Ok(Arc::new(LogicalPlan::Projection(projection)))
+    Ok(LogicalPlan::Projection(projection))
 }
 
 /// Checks if the `ObjectName` indicates an external location for a Snowflake COPY INTO statement.
