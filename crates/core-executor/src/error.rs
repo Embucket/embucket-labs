@@ -498,6 +498,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Field '{field_name}' not found in input schema"))]
+    FieldNotFoundInInputSchema {
+        field_name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Debug)]

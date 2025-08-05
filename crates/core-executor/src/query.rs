@@ -2982,7 +2982,12 @@ pub fn cast_input_to_target_schema(
                 }
                 None
             })
-            .unwrap();
+            .ok_or_else(|| {
+                ex_error::FieldNotFoundInInputSchemaSnafu {
+                    field_name: name.to_string(),
+                }
+                .build()
+            })?;
         if input_field.data_type() == data_type {
             if input_field.name() == name {
                 projections.push(col(input_field.name()));
