@@ -107,7 +107,7 @@ use sqlparser::ast::{
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
-use std::ops::ControlFlow;
+use std::ops::{ControlFlow, Deref};
 use std::result::Result as StdResult;
 use std::sync::Arc;
 use tracing_attributes::instrument;
@@ -1156,11 +1156,17 @@ impl UserQuery {
                 .register_object_store(url.object_store().as_ref(), object_store);
 
             let config = ListingTableConfig::new(url.clone());
-            let config = if let Some(format) = create_file_format(&file_format)? {
+            let config = if let Some((format, infer_schema)) = create_file_format(&file_format)? {
                 let options = ListingOptions::new(format);
-                config
-                    .with_listing_options(options)
-                    .with_schema(into_provider.schema())
+                let schema = if infer_schema {
+                    options
+                        .infer_schema(&self.session.ctx.state(), &url)
+                        .await
+                        .context(ex_error::DataFusionSnafu)?
+                } else {
+                    into_provider.schema()
+                };
+                config.with_listing_options(options).with_schema(schema)
             } else {
                 config
             };
@@ -1184,6 +1190,12 @@ impl UserQuery {
             };
 
             let input = builder.build().context(ex_error::DataFusionSnafu)?;
+
+            let input = if input.schema().as_arrow() == into_provider.schema().deref() {
+                input
+            } else {
+                cast_input_to_target_schema(Arc::new(input), &into_provider.schema())?
+            };
 
             let plan = LogicalPlanBuilder::insert_into(
                 input,
@@ -3056,14 +3068,23 @@ pub fn get_kv_option<'a>(options: &'a KeyValueOptions, key: &str) -> Option<&'a 
         .map(|opt| opt.value.as_str())
 }
 
-fn create_file_format(file_format: &KeyValueOptions) -> Result<Option<Arc<dyn FileFormat>>> {
+fn create_file_format(
+    file_format: &KeyValueOptions,
+) -> Result<Option<(Arc<dyn FileFormat>, bool)>> {
     if let Some(format_type) = get_kv_option(file_format, "type") {
         if format_type.eq_ignore_ascii_case("parquet") {
-            Ok(Some(Arc::new(ParquetFormat::default())))
+            Ok(Some((Arc::new(ParquetFormat::default()), true)))
         } else if format_type.eq_ignore_ascii_case("csv") {
-            Ok(Some(Arc::new(CsvFormat::default())))
+            let infer_schema = get_kv_option(file_format, "parse_header")
+                .is_some_and(|x| x.to_lowercase() == "true");
+            let has_header =
+                get_kv_option(file_format, "skip_header").is_some_and(|x| x.to_lowercase() == "1");
+            Ok(Some((
+                Arc::new(CsvFormat::default().with_has_header(has_header)),
+                infer_schema,
+            )))
         } else if format_type.eq_ignore_ascii_case("json") {
-            Ok(Some(Arc::new(JsonFormat::default())))
+            Ok(Some((Arc::new(JsonFormat::default()), true)))
         } else {
             Err(ex_error::UnsupportedFileFormatSnafu {
                 format: format_type,
