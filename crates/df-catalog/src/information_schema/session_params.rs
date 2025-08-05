@@ -4,9 +4,11 @@ use datafusion::logical_expr::sqlparser::ast::Value;
 use datafusion::logical_expr::sqlparser::ast::helpers::key_value_options::{
     KeyValueOption, KeyValueOptionType,
 };
+use datafusion_common::ScalarValue;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use std::any::Any;
 use std::collections::HashMap;
+
 #[derive(Default, Debug, Clone)]
 pub struct SessionParams {
     pub properties: HashMap<String, SessionProperty>,
@@ -56,6 +58,25 @@ impl SessionProperty {
                 Value::Boolean(_) => "boolean".to_string(),
                 _ => "text".to_string(),
             },
+            comment: None,
+        }
+    }
+
+    #[must_use]
+    pub fn from_scalar_value(value: &ScalarValue, session_id: String) -> Self {
+        let now = Utc::now();
+        let (property_type, value) = match value {
+            ScalarValue::Boolean(Some(b)) => ("boolean".to_string(), b.to_string()),
+            ScalarValue::Int64(Some(i)) => ("fixed".to_string(), i.to_string()),
+            ScalarValue::Float64(Some(f)) => ("fixed".to_string(), f.to_string()),
+            _ => ("text".to_string(), value.to_string()),
+        };
+        Self {
+            session_id: Some(session_id),
+            created_on: now,
+            updated_on: now,
+            value,
+            property_type,
             comment: None,
         }
     }

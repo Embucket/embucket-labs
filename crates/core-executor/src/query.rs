@@ -91,8 +91,9 @@ use snafu::ResultExt;
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::{
     AssignmentTarget, CloudProviderParams, MergeAction, MergeClause, MergeClauseKind,
-    MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource, ShowObjects,
-    ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value, visit_relations_mut,
+    MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens, PivotValueSource,
+    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
+    visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -406,25 +407,7 @@ impl UserQuery {
                 }
                 Statement::SetVariable {
                     variables, value, ..
-                } => {
-                    let values: Vec<SessionProperty> = value
-                        .iter()
-                        .map(|v| match v {
-                            Expr::Value(v) => Ok(SessionProperty::from_value(
-                                &v.value,
-                                self.session.ctx.session_id(),
-                            )),
-                            _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
-                        })
-                        .collect::<std::result::Result<_, _>>()?;
-                    let params = variables
-                        .iter()
-                        .map(ToString::to_string)
-                        .zip(values.into_iter())
-                        .collect();
-                    self.session.set_session_variable(true, params)?;
-                    return self.status_response();
-                }
+                } => return self.set_variable(variables, value).await,
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
@@ -568,6 +551,49 @@ impl UserQuery {
                 .fail(),
             )
         }
+    }
+
+    #[instrument(name = "UserQuery::set_variable", level = "trace", skip(self), err)]
+    pub async fn set_variable(
+        &self,
+        variables: OneOrManyWithParens<ObjectName>,
+        values: Vec<Expr>,
+    ) -> Result<QueryResult> {
+        let mut session_values = Vec::new();
+        for value in values {
+            let session_value = match value {
+                Expr::Value(v) => Ok(SessionProperty::from_value(
+                    &v.value,
+                    self.session.ctx.session_id(),
+                )),
+                Expr::Subquery(query) => {
+                    let query_str = query.to_string();
+                    let res = self.execute_with_custom_plan(&query_str).await?;
+                    if res.records.is_empty()
+                        || res.records[0].num_columns() < 1
+                        || res.records[0].num_rows() < 1
+                    {
+                        return ex_error::UnexpectedSubqueryResultForSetVariableSnafu.fail();
+                    }
+                    let column = res.records[0].column(0);
+                    let scalar = ScalarValue::try_from_array(column, 0)
+                        .context(ex_error::DataFusionSnafu)?;
+                    Ok(SessionProperty::from_scalar_value(
+                        &scalar,
+                        self.session.ctx.session_id(),
+                    ))
+                }
+                _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
+            }?;
+            session_values.push(session_value);
+        }
+        let params = variables
+            .iter()
+            .map(ToString::to_string)
+            .zip(session_values.into_iter())
+            .collect();
+        self.session.set_session_variable(true, params)?;
+        self.status_response()
     }
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
