@@ -5,7 +5,7 @@ description: Use Embucket as an Iceberg Catalog.
 
 import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-This guide shows how to connect external Iceberg clients to Embucket's Rest API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced Apache Iceberg features, or production deployment considerations.
+This guide shows how to connect external Iceberg clients to Embucket's Iceberg Catalog API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced Apache Iceberg features, or production deployment considerations.
 
 - Install `pyiceberg` and ensure Embucket runs
 - Create a volume and database for data persistence
@@ -31,6 +31,7 @@ Select your volume type based on deployment needs. Memory volumes store data in 
 
 <Tabs>
   <TabItem label="API">
+
 ```python
 import requests
 
@@ -44,6 +45,7 @@ response = requests.post(
 ```
 </TabItem>
 <TabItem label="SQL">
+
 ```sql
 CREATE EXTERNAL VOLUME IF NOT EXISTS demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 'file' PATH = '/home/ec2-user/tmp/demo'));
 ```
@@ -54,6 +56,7 @@ Next, create a database. Embucket requires a volume for each database. Create da
 
 <Tabs>
   <TabItem label="API">
+
 ```python
 response = requests.post(
     "http://127.0.0.1:3000/v1/metastore/databases",
@@ -64,13 +67,14 @@ response = requests.post(
 ```
 </TabItem>
 <TabItem label="SQL">
+
 ```sql
 CREATE DATABASE IF NOT EXISTS demo EXTERNAL_VOLUME = 'demo';
 ```
 </TabItem>
 </Tabs>
 
-Since Embucket is a Snowflake compatible database, it uses database terminology, while Iceberg uses warehouse terminology. At the same time, Embucket also provides an Iceberg Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and Iceberg entities:
+Embucket uses database terminology, while Iceberg uses warehouse terminology. At the same time, Embucket provides an Iceberg Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and Iceberg entities:
 
 | Embucket | Iceberg |
 | --- | --- |
@@ -111,13 +115,13 @@ catalog = load_catalog(
 
 <Steps>
 
-1. Download the NYC Taxi dataset as an example
+1. Download the [NYC Taxi dataset](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) as an example
 
     ```bash
     curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
     ```
 
-2. Load it into your PyArrow dataframe:
+2. Load it into a PyArrow table:
 
     ```python
     import pyarrow.parquet as pq
@@ -135,7 +139,7 @@ catalog = load_catalog(
     )
     ```
 
-4. Append the dataframe to the table:
+4. Append the PyArrow table to the Iceberg table:
 
     ```python
     table.append(df)

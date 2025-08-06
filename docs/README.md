@@ -67,8 +67,10 @@ Static assets, like favicons, can be placed in the `public/` directory.
 | `pnpm format`    | Format with Prettier + fix errors                |
 | `pnpm ncu`       | Update repo dependencies                         |
 
+
 ### Tech stack
 
 - [Astro Starlight](https://starlight.astro.build)
 - [Tailwind](https://tailwindcss.com)
 - [Prettier](https://prettier.io)
+- [Vale](https://vale.sh)

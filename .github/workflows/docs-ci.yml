@@ -82,3 +82,14 @@ jobs:
       - name: Validate build
         working-directory: ./docs
         run: pnpm build:dry-run
+
+  vale-lint:
+    name: Vale lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: errata-ai/vale-action@v2.1.1
+        with:
+          files: "docs/src/content/"
+          fail_on_error: true
+        

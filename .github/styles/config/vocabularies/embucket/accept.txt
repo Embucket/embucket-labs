@@ -1,0 +1,5 @@
+[Ee]mbucket
+Trino
+AWS
+Snowflake
+[Nn]amespaces?
