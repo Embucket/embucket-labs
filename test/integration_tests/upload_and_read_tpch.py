@@ -1,154 +1,31 @@
 import os
-import sys
 import logging
 import random
 import math
-from collections import OrderedDict
+import pytest
 
 from dotenv import load_dotenv
-import requests
 from decimal import Decimal
 from datetime import datetime
-from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType, StructField,
-    IntegerType, LongType, StringType,
-    DecimalType, DateType,
-    TimestampType, DoubleType, BooleanType,
 )
 from clients import EmbucketClient, PyIcebergClient
+from tables_metadata import TABLE_METADATA, TYPE_CHECKS
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("tpch-loader")
 
-AWS_REGION = os.getenv("AWS_REGION")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_BUCKET = os.getenv("S3_BUCKET")
 
 EMBUCKET_URL = "http://localhost:8080"
 CATALOG_URL = "http://localhost:3000/catalog"
-WAREHOUSE_ID = "test_s3_volume"
+WAREHOUSE_ID = "test_db"
 VOLUME = "test_s3_volume"
-BASE = "tpc_h/public"
+BASE = f"{WAREHOUSE_ID}/public"
 TPC_H_DATA_PATH = f"s3a://{S3_BUCKET}/{BASE}"
-
-# Map simplified SQL types to Python type checks
-TYPE_CHECKS = {
-    "BIGINT": lambda v: isinstance(v, int),
-    "INT": lambda v: isinstance(v, int),
-    "DECIMAL": lambda v: isinstance(v, (Decimal, float, int)),  # Arrow may materialize decimals as Decimal or float
-    "VARCHAR": lambda v: isinstance(v, str),
-    "DATE": lambda v: hasattr(v, "year") and hasattr(v, "month") and hasattr(v, "day"),  # datetime.date
-    "TIMESTAMP": lambda v: hasattr(v, "year") and hasattr(v, "hour"),  # datetime-like
-    "DOUBLE": lambda v: isinstance(v, float),
-    "BOOLEAN": lambda v: isinstance(v, bool) or v is None,
-}
-
-
-TABLE_METADATA = {
-    "nation": OrderedDict([
-        ("n_nationkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("n_name", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("n_regionkey", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("n_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),  # nullable for coverage
-    ]),
-    "region": OrderedDict([
-        ("r_regionkey", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("r_name", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("r_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "supplier": OrderedDict([
-        ("s_suppkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("s_name", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("s_address", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("s_nationkey", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("s_phone", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("s_acctbal", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("s_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "part": OrderedDict([
-        ("p_partkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("p_name", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("p_mfgr", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("p_brand", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("p_type", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("p_size", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("p_container", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("p_retailprice", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("p_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "partsupp": OrderedDict([
-        ("ps_partkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("ps_suppkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("ps_availqty", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("ps_supplycost", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("ps_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "customer": OrderedDict([
-        ("c_custkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("c_name", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("c_address", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("c_nationkey", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("c_phone", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("c_acctbal", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("c_mktsegment", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("c_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "orders": OrderedDict([
-        ("o_orderkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("o_custkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("o_orderstatus", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("o_totalprice", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("o_orderdate", {"type": "DATE", "nullable": False, "spark": DateType}),
-        ("o_orderpriority", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("o_clerk", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("o_shippriority", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("o_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "lineitem": OrderedDict([
-        ("l_orderkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("l_partkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("l_suppkey", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("l_linenumber", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("l_quantity", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("l_extendedprice", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("l_discount", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("l_tax", {"type": "DECIMAL(15,2)", "nullable": False, "spark": lambda: DecimalType(15, 2)}),
-        ("l_returnflag", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("l_linestatus", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("l_shipdate", {"type": "DATE", "nullable": False, "spark": DateType}),
-        ("l_commitdate", {"type": "DATE", "nullable": False, "spark": DateType}),
-        ("l_receiptdate", {"type": "DATE", "nullable": False, "spark": DateType}),
-        ("l_shipinstruct", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("l_shipmode", {"type": "VARCHAR", "nullable": False, "spark": StringType}),
-        ("l_comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "datatypes_test": OrderedDict([
-        ("id", {"type": "INT", "nullable": False, "spark": IntegerType}),
-        ("ts_col", {"type": "TIMESTAMP", "nullable": True, "spark": TimestampType}),
-        ("double_col", {"type": "DOUBLE", "nullable": True, "spark": DoubleType}),
-        ("bool_col", {"type": "BOOLEAN", "nullable": True, "spark": BooleanType}),
-        ("comment", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-    ]),
-    "edge_cases_test": OrderedDict([
-        ("pk", {"type": "BIGINT", "nullable": False, "spark": LongType}),
-        ("large_int", {"type": "BIGINT", "nullable": True, "spark": LongType}),
-        ("negative_int", {"type": "INT", "nullable": True, "spark": IntegerType}),
-        ("high_precision_dec", {"type": "DECIMAL(38,18)", "nullable": True, "spark": lambda: DecimalType(38, 18)}),
-        ("zero_dec", {"type": "DECIMAL(5,2)", "nullable": True, "spark": lambda: DecimalType(5, 2)}),
-        ("empty_string", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-        ("unicode_string", {"type": "VARCHAR", "nullable": True, "spark": StringType}),
-        ("timestamp_min", {"type": "TIMESTAMP", "nullable": True, "spark": TimestampType}),
-        ("timestamp_max", {"type": "TIMESTAMP", "nullable": True, "spark": TimestampType}),
-        ("bool_true", {"type": "BOOLEAN", "nullable": True, "spark": BooleanType}),
-        ("bool_null", {"type": "BOOLEAN", "nullable": True, "spark": BooleanType}),
-        ("floating_nan", {"type": "DOUBLE", "nullable": True, "spark": DoubleType}),
-        ("floating_inf", {"type": "DOUBLE", "nullable": True, "spark": DoubleType}),
-])
-}
 
 
 def make_spark_schema_from(metadata):
@@ -166,8 +43,8 @@ def make_create_table_ddl(table_name, metadata, volume, catalog_url, base):
         col_defs.append(f"{name} {col_type} {nullability}".strip())
     col_block = ",\n  ".join(col_defs)
     ddl = f"""
-    CREATE OR REPLACE TABLE tpc_h.public.{table_name}
-      EXTERNAL_VOLUME = '{volume}'
+    CREATE OR REPLACE TABLE {WAREHOUSE_ID}.public.{table_name}
+      EXTERNAL_VOLUME = '{VOLUME}'
       CATALOG         = '{catalog_url}'
       BASE_LOCATION   = '{base}/{table_name}'
     (
@@ -208,6 +85,18 @@ def sample_value_for_column(name, info):
 
 
 def coerce_value(name, info, raw_value):
+    """
+    Converts raw input values to appropriate Python types based on SQL type definition.
+
+    Args:
+        name: Column name for error reporting
+        info: Column metadata dictionary containing type information
+        raw_value: The value to be coerced to the appropriate type
+
+    Returns:
+        Value converted to the appropriate Python type (Decimal, datetime, int, etc.)
+        or None if raw_value is None
+    """
     sql_type = info["type"].upper()
     if raw_value is None:
         return None
@@ -235,13 +124,64 @@ def coerce_value(name, info, raw_value):
     return str(raw_value)
 
 
-def insert_edge_case_rows(spark):
-    table_name = "edge_cases_test"
-    full_table = f"rest.public.{table_name}"
-    logger.info("→ Generating deterministic edge-case row for edge_cases_test")
+def build_row(metadata, custom_values=None):
+    """
+    Build a row dictionary based on table metadata with appropriate type coercion.
 
-    # raw edge-case literals
-    raw_edge = {
+    Args:
+        metadata: Column metadata dictionary
+        custom_values: Optional dictionary of custom values to override sample values
+
+    Returns:
+        Dictionary with column names as keys and coerced values as values
+    """
+    # Start with sample values or empty dict
+    row = {}
+    for col, info in metadata.items():
+        if custom_values and col in custom_values:
+            # Use custom value if provided
+            row[col] = custom_values[col]
+        else:
+            # Otherwise use sample value
+            row[col] = sample_value_for_column(col, info)
+
+    # Coerce all values to correct types
+    return {
+        name: coerce_value(name, info, row.get(name))
+        for name, info in metadata.items()
+    }
+
+
+def insert_row(spark, table_name, metadata, custom_values=None):
+    """
+    Insert a single row into a table.
+    Args:
+        spark: Spark session
+        table_name: Name of the table
+        metadata: Column metadata for the table
+        custom_values: Optional dictionary of custom values to override sample values
+    """
+    # Build the row with appropriate values
+    coerced_row = build_row(metadata, custom_values)
+
+    # Create DataFrame and insert
+    schema = make_spark_schema_from(metadata)
+    temp_view = f"tmp_sample_{table_name}"
+    df = spark.createDataFrame([coerced_row], schema=schema)
+    df.createOrReplaceTempView(temp_view)
+
+    spark.sql(f"INSERT INTO public.{table_name} SELECT * FROM {temp_view}")
+    logger.info(f"Inserted row into {table_name}")
+
+
+def insert_edge_case_rows(spark):
+    """Use the generic insert_row function for edge cases"""
+    table_name = "edge_cases_test"
+    logger.info(f"→ Generating deterministic edge-case row for {table_name}")
+    metadata = TABLE_METADATA[table_name]
+
+    # Define edge case values
+    edge_case_values = {
         "pk": 1,
         "large_int": 2 ** 60,
         "negative_int": -1,
@@ -257,82 +197,11 @@ def insert_edge_case_rows(spark):
         "floating_inf": float("inf"),
     }
 
-    # build coerced row
-    coerced_row = {
-        name: coerce_value(name, info, raw_edge.get(name))
-        for name, info in TABLE_METADATA[table_name].items()
-    }
-
-    edge_schema = make_spark_schema_from(TABLE_METADATA[table_name])
-
-    tmp_view = f"tmp_{table_name}"
-    df = spark.createDataFrame([coerced_row], schema=edge_schema)
-    df.createOrReplaceTempView(tmp_view)
-
-    logger.info(f"→ Inserting edge-case row into {full_table} from temp view {tmp_view}")
-    spark.sql(f"INSERT INTO {table_name} SELECT * FROM {tmp_view}")
-
-
-def insert_sample_tpch_rows(spark):
-    """
-    For each non-edge TPC-H table, create one synthetic row conforming to its schema and insert it.
-    """
-    for table_name in TABLE_METADATA:
-        if table_name == "edge_cases_test":
-            continue  # skip edge table here
-
-        logger.info(f"→ Generating and inserting sample row for {table_name}")
-        metadata = TABLE_METADATA[table_name]
-        # build one row
-        row = {
-            col: sample_value_for_column(col, info)
-            for col, info in metadata.items()
-        }
-
-        # Coerce decimals / timestamps using existing coerce_value to ensure compatibility
-        coerced_row = {
-            name: coerce_value(name, info, row.get(name))
-            for name, info in metadata.items()
-        }
-
-        schema = make_spark_schema_from(metadata)
-        temp_view = f"tmp_sample_{table_name}"
-        df = spark.createDataFrame([coerced_row], schema=schema)
-        df.createOrReplaceTempView(temp_view)
-
-
-        spark.sql(f"INSERT INTO {table_name} SELECT * FROM {temp_view}")
-        logger.info(f"Inserted sample row into {table_name}")
-
-
-def create_spark_session():
-    if not (AWS_REGION and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY):
-        logger.warning("AWS credentials or region missing; S3 access may fail.")
-    builder = (
-        SparkSession.builder
-            .appName("embucket-tpch-load")
-            .config("spark.driver.memory", "15g")
-            .config("spark.jars.packages",
-                    "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,"
-                    "org.apache.hadoop:hadoop-aws:3.3.4")
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            .config("spark.hadoop.fs.s3a.access.key", AWS_ACCESS_KEY_ID or "")
-            .config("spark.hadoop.fs.s3a.secret.key", AWS_SECRET_ACCESS_KEY or "")
-            .config("spark.hadoop.fs.s3a.endpoint", f"s3.{AWS_REGION}.amazonaws.com" if AWS_REGION else "")
-            .config("spark.hadoop.fs.s3a.path.style.access", "true")
-            .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-            .config("spark.sql.catalog.rest", "org.apache.iceberg.spark.SparkCatalog")
-            .config("spark.sql.catalog.rest.catalog-impl", "org.apache.iceberg.rest.RESTCatalog")
-            .config("spark.sql.catalog.rest.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO")
-            .config("spark.sql.catalog.rest.uri", f"{CATALOG_URL}")
-            .config("spark.sql.catalog.rest.warehouse", WAREHOUSE_ID)
-            .config("spark.sql.defaultCatalog", "rest")
-    )
-    return builder.getOrCreate()
+    insert_row(spark, table_name, metadata, edge_case_values)
 
 
 def validate_dataframe(df, schema, table_name):
-    # check non-nullable
+    """ Check non-nullable """
     for field in schema.fields:
         if not field.nullable:
             null_count = df.filter(df[field.name].isNull()).count()
@@ -356,65 +225,17 @@ def upload_table(spark, table_name, schema):
     spark.sql(f"INSERT INTO {table_name} SELECT * FROM {table_name}")
 
 
-def create_volume(embucket_client):
-    logger.info(f"Creating S3 volume '{VOLUME}' -> bucket '{S3_BUCKET}'")
-    embucket_client.create_s3_volume(
-        volume_name=VOLUME,
-        s3_bucket=S3_BUCKET,
-        aws_region=AWS_REGION,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-    )
-
-
-def ensure_database_and_schema(embucket_client):
-    logger.info("Ensuring database and schema exist")
-    embucket_client.sql(f"CREATE DATABASE IF NOT EXISTS tpc_h EXTERNAL_VOLUME = '{VOLUME}';")
-    embucket_client.sql("CREATE SCHEMA IF NOT EXISTS tpc_h.public;")
-
-
-def create_all_tables(embucket_client):
-    for name, metadata in TABLE_METADATA.items():
-        ddl = make_create_table_ddl(name, metadata, VOLUME, CATALOG_URL, BASE)
-        logger.info(f"Creating table tpc_h.public.{name}")
-        embucket_client.sql(ddl)
-
-# Read the table and materialize rows (e.g., for edge_cases_test)
-def fetch_rows_pyiceberg(pyiceberg, table_name, limit=10):
-    logger.info(f"Fetching up to {limit} rows from {table_name} via PyIceberg")
-    table = pyiceberg.read_table(table_name)  # this should give you an Iceberg Table object
-    try:
-        # Convert to pyarrow and then to Python dict
-        arrow_table = table.to_pyarrow()  # if the wrapper exposes this
-        batch = arrow_table.slice(0, limit)
-        pandas_df = batch.to_pandas()
-        logger.info(f"Read {len(pandas_df)} rows from {table_name}")
-        print(pandas_df)
-        return pandas_df
-    except AttributeError:
-        # Fallback: if read_table returns a scan object with a .to_pyarrow() method
-        scan = table  # adjust if different
-        arrow_table = scan.to_pyarrow()
-        pandas_df = arrow_table.to_pandas().head(limit)
-        logger.info(f"Read {len(pandas_df)} rows from {table_name}")
-        print(pandas_df)
-        return pandas_df
-    except Exception as e:
-        logger.error(f"Failed to fetch rows from {table_name}: {e}")
-        raise
-
-
-def validate_table_with_pyiceberg(pyiceberg, table_name):
+def validate_table_with_pyiceberg(pyiceberg_client, table_name):
     """
     Reads up to a few rows from Iceberg via pyiceberg, ensures at least one row exists,
     and checks that each column value conforms to the declared TABLE_METADATA types.
     """
     logger.info(f"→ Validating table {table_name} via PyIceberg")
-    rows = pyiceberg.read_table(table_name, limit=5)  # returns list of dicts
+    rows = pyiceberg_client.read_table(table_name, limit=5)  # returns list of dicts
     if not rows:
         raise AssertionError(f"No rows found in table {table_name}")
 
-    metadata = TABLE_METADATA.get(table_name.split(".")[-1])  # e.g., "public.customer" -> "customer"
+    metadata = TABLE_METADATA.get(table_name.split(".")[-1])
     if metadata is None:
         logger.warning(f"No metadata for {table_name}; skipping type validation.")
         return
@@ -433,15 +254,13 @@ def validate_table_with_pyiceberg(pyiceberg, table_name):
         # Determine base type token (e.g., DECIMAL(15,2) -> DECIMAL)
         base = expected_type.split("(")[0]
         checker = TYPE_CHECKS.get(base)
-        if checker:
-            ok = checker(val)
-            # Special handling: NaN is float but semantically okay for DOUBLE
-            if base == "DOUBLE" and isinstance(val, float) and math.isnan(val):
-                ok = True
-            if not ok:
-                mismatches.append(f"Column {col}: value {val!r} (type {type(val)}) does not match expected {base}")
-        else:
-            logger.debug(f"No checker for base type {base}, skipping {col}")
+        ok = checker(val)
+        # Special handling: NaN is float but semantically okay for DOUBLE
+        if base == "DOUBLE" and isinstance(val, float) and math.isnan(val):
+            ok = True
+        if not ok:
+            mismatches.append(f"Column {col}: value {val!r} (type {type(val)}) does not match expected {base}")
+
 
     if mismatches:
         for msg in mismatches:
@@ -451,71 +270,149 @@ def validate_table_with_pyiceberg(pyiceberg, table_name):
     logger.info(f"Table {table_name} passed validation (has {len(rows)} row(s) and types match).")
 
 
-def main():
-    try:
-        embucket = EmbucketClient()
-        # 1. create volume
-        create_volume(embucket)
+def insert_sample_row(spark, table_name, metadata):
+    """Insert a single sample row into a table."""
+    row = {col: sample_value_for_column(col, info) for col, info in metadata.items()}
+    coerced_row = {
+        name: coerce_value(name, info, row.get(name))
+        for name, info in metadata.items()
+    }
+    schema = make_spark_schema_from(metadata)
+    temp_view = f"tmp_sample_{table_name}"
+    df = spark.createDataFrame([coerced_row], schema=schema)
+    df.createOrReplaceTempView(temp_view)
+    spark.sql(f"INSERT INTO public.{table_name} SELECT * FROM {temp_view}")
 
-        # 2. ensure DB + schema
-        ensure_database_and_schema(embucket)
+@pytest.fixture(scope="session", autouse=False)
+def load_all_tables(s3_spark_session):
+    """Load TPC-H data, and insert edge-case row"""
+    spark = s3_spark_session
+    emb = EmbucketClient()
+    emb.sql(emb.get_volume_sql(VOLUME, "s3"))
 
-        # 3. create tables
-        create_all_tables(embucket)
+    # ensure DB & schema exist
+    emb.sql(f"CREATE DATABASE IF NOT EXISTS {WAREHOUSE_ID} EXTERNAL_VOLUME = {VOLUME};")
+    emb.sql(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_ID}.public;")
 
-        # 4. Spark session
-        spark = create_spark_session()
+    # for each table: DDL + data
+    for table_name, metadata in TABLE_METADATA.items():
+        ddl = make_create_table_ddl(table_name, metadata, VOLUME, CATALOG_URL, BASE)
+        emb.sql(ddl)
 
-        # 5. Load tables
-        for tbl in TABLE_METADATA:
-            schema = make_spark_schema_from(TABLE_METADATA[tbl])
-            upload_table(spark, tbl, schema)
+        schema = make_spark_schema_from(metadata)
+        if table_name == "edge_cases_test":
+            insert_edge_case_rows(spark)
+        else:
+            upload_table(spark, table_name, schema)
 
-        # 6. insert sample rows for TPC-H tables
-        insert_sample_tpch_rows(spark)
+        # Insert special data based on table type
+        if table_name == "edge_cases_test":
+            insert_edge_case_rows(spark)
+        else:
+            # For regular tables, insert sample TPC-H data
+            insert_sample_row(spark, table_name, metadata)
+    return
 
-        # 7. insert edge-case rows
-        insert_edge_case_rows(spark)
+@pytest.fixture
+def loaded_spark(load_all_tables):
+    """Yields the Spark session after all tables are loaded."""
+    return load_all_tables
 
-        # 8. Read back via PyIceberg to validate presence
-        pyiceberg = PyIcebergClient(
-            catalog_name="rest",
-            warehouse_path='tpc_h',  # database name
-            catalog_url=CATALOG_URL
+@pytest.fixture
+def pyiceberg_client():
+    return PyIcebergClient(
+        catalog_name="rest",
+        warehouse_path=WAREHOUSE_ID
+    )
+
+@pytest.mark.parametrize(
+    "table_name, metadata",
+    [
+        pytest.param(name, meta, id=name)
+        for name, meta in TABLE_METADATA.items()
+        if name != "edge_cases_test"
+    ],
+)
+def test_read_tpch_tables_with_embucket(table_name, metadata):
+    emb = EmbucketClient()
+    full_name = f"{WAREHOUSE_ID}.public.{table_name}"
+    result = emb.sql(f"SELECT * FROM {full_name}")
+    rows = result["result"]["rows"]
+    assert rows, f"No rows in {full_name}"
+
+    cols = [c["name"] for c in result["result"]["columns"]]
+    first = dict(zip(cols, rows[0]))
+
+    # non‐nullable check + type checks
+    for col, info in metadata.items():
+        val = first[col]
+        if val is None:
+            assert info["nullable"], f"{col!r} in {table_name} is NULL but non‐nullable"
+            continue
+
+        base = info["type"].split("(")[0]
+        # allow date‐string parsing
+        if base == "DATE" and isinstance(val, str):
+            datetime.strptime(val, "%Y-%m-%d")
+            continue
+
+        assert TYPE_CHECKS[base](val), (
+            f"{table_name}.{col}: expected type {base}, got value {val!r} (type {type(val).__name__})"
         )
 
-        all_errors = []
 
-        for table in list(TABLE_METADATA.keys()):
-            fq = f"public.{table}"
-            logger.info(f"→ Reading back table {fq} via PyIceberg")
-            try:
-                validate_table_with_pyiceberg(pyiceberg, fq)
-                logger.info(f"Successfully validated {fq}")
-            except AssertionError as e:
-                logger.error(f"Validation error for {fq}: {e}")
-                all_errors.append((fq, str(e)))
-            except Exception as e:
-                logger.error(f"Unexpected error validating {fq}: {e}")
-                all_errors.append((fq, f"Unexpected: {e}"))
+def test_edge_case_table_has_correct_values():
+    """
+    Using Embucket, verify the single edge_cases_test row and its special values.
+    """
+    emb = EmbucketClient()
+    result = emb.sql("SELECT * FROM test_db.public.edge_cases_test")
+    rows = result["result"]["rows"]
+    assert rows, "No rows in edge_cases_test"
 
-        if all_errors:
-            logger.error("Summary of validation failures:")
-            for tbl, msg in all_errors:
-                logger.error(f" - {tbl}: {msg}")
-        else:
-            logger.info("All tables passed validation.")
+    cols = [c["name"] for c in result["result"]["columns"]]
+    row = dict(zip(cols, rows[0]))
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Embucket API error: {e}")
-        sys.exit(1)
-    except AssertionError as ae:
-        logger.error(f"Validation failed: {ae}")
-        sys.exit(2)
-    except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
-        sys.exit(3)
+    # Integer edge cases
+    assert row["pk"] == 1
+    assert row["large_int"] == 2**60
+    assert row["negative_int"] == -1
+
+    # Decimal edge cases
+    assert Decimal(str(row["high_precision_dec"])) == Decimal("0.123456789012345678")
+    assert Decimal(str(row["zero_dec"])) == Decimal("0.00")
+
+    # String edge cases
+    assert row["empty_string"] == ""
+    assert row["unicode_string"] == "𝔘𝔫𝔦𝔠𝔬𝔡𝔢✓"
+
+    # Timestamp edge cases
+    ts_min = datetime.fromisoformat(row["timestamp_min"].replace(" ", "T"))
+    assert ts_min == datetime(1970, 1, 1, 0, 0, 0)
+
+    ts_max = datetime.fromisoformat(row["timestamp_max"].replace(" ", "T"))
+    assert ts_max == datetime(9999, 12, 31, 23, 59, 59)
+
+    # Boolean edge cases
+    assert row["bool_true"] is True
+    assert row["bool_null"] is None
+
+    # Floating-point edge cases (NaN and Infinity)
+    nan_val = row["floating_nan"]
+    # Either returned as None or a NaN float
+    assert nan_val is None or math.isnan(float(nan_val)), f"Expected NaN or None, got {nan_val!r}"
+
+    inf_val = row["floating_inf"]
+    # Either returned as None or an infinite float
+    assert inf_val is None or math.isinf(float(inf_val)), f"Expected Inf or None, got {inf_val!r}"
 
 
-if __name__ == "__main__":
-    main()
+def test_read_tpch_with_pyiceberg(pyiceberg_client):
+    for table_name in TABLE_METADATA:
+        if table_name == "edge_cases_test":
+            continue
+        validate_table_with_pyiceberg(pyiceberg_client, f"public.{table_name}")
+
+
+def test_read_edge_cases_with_pyiceberg(pyiceberg_client):
+    validate_table_with_pyiceberg(pyiceberg_client, "public.edge_cases_test")

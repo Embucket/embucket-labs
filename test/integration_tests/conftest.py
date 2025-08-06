@@ -1,23 +1,29 @@
 import pytest
-import os
+
+from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 
-CATALOG_URL = "http://localhost:8080"
-WAREHOUSE_ID = "test_db"
-AWS_REGION = os.getenv("AWS_REGION")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+load_dotenv()
 
-@pytest.fixture()
+CATALOG_URL = "http://localhost:3000/catalog"
+WAREHOUSE_ID = "test_db"
+
+
+@pytest.fixture(scope="session")
 def rest_spark_session():
-    spark_session = spark_session_factory(config_type='file_catalog', app_name='FileCatalogTest')
+    spark_session = spark_session_factory(
+        config_type='file_catalog',
+        app_name='FileCatalogTest'
+    )
     yield spark_session
     spark_session.stop()
 
-
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def s3_spark_session():
-    spark_session = spark_session_factory(config_type='s3_catalog', app_name='S3CatalogTest')
+    spark_session = spark_session_factory(
+        config_type='s3_catalog',
+        app_name='S3CatalogTest'
+    )
     yield spark_session
     spark_session.stop()
 
@@ -45,16 +51,8 @@ def spark_session_factory(
 
     # --- Configuration Type 1: REST Client with SimpleAWSCredentialsProvider ---
     if config_type == 'file_catalog':
-        builder.config("spark.driver.memory", "15g") \
-               .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1") \
+        builder.config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,org.apache.hadoop:hadoop-aws:3.3.4") \
                .config("spark.driver.extraJavaOptions", "-Dlog4j.configurationFile=log4j2.properties") \
-               .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-               .config("spark.hadoop.fs.s3a.change.detection.mode", "error") \
-               .config("spark.hadoop.fs.s3a.change.detection.version.required", "false") \
-               .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "true") \
-               .config("spark.hadoop.fs.s3a.impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
-               .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-               .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
                .config("spark.sql.catalog.rest", "org.apache.iceberg.spark.SparkCatalog") \
                .config("spark.sql.catalog.rest.catalog-impl", "org.apache.iceberg.rest.RESTCatalog") \
                .config("spark.sql.catalog.rest.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
@@ -64,17 +62,17 @@ def spark_session_factory(
 
     # --- Configuration Type 2: Direct S3 Access with Explicit Keys ---
     elif config_type == 's3_catalog':
-        builder.config("spark.driver.memory", "15g") \
-               .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,org.apache.hadoop:hadoop-aws:3.3.4") \
-               .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-               .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-               .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-               .config("spark.sql.catalog.rest", "org.apache.iceberg.spark.SparkCatalog") \
-               .config("spark.sql.catalog.rest.catalog-impl", "org.apache.iceberg.rest.RESTCatalog") \
-               .config("spark.sql.catalog.rest.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
-               .config("spark.sql.catalog.rest.uri", CATALOG_URL) \
-               .config("spark.sql.catalog.rest.warehouse", WAREHOUSE_ID) \
-               .config("spark.sql.defaultCatalog", "rest")
+        builder.config("spark.jars.packages","org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
+            .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+            .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+            .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+            .config("spark.sql.catalog.rest", "org.apache.iceberg.spark.SparkCatalog") \
+            .config("spark.sql.catalog.rest.catalog-impl", "org.apache.iceberg.rest.RESTCatalog") \
+            .config("spark.sql.catalog.rest.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
+            .config("spark.sql.catalog.rest.uri", CATALOG_URL) \
+            .config("spark.sql.catalog.rest.warehouse", WAREHOUSE_ID) \
+            .config("spark.sql.defaultCatalog", "rest")
+
     else:
         raise ValueError(f"Unknown config_type: '{config_type}'. Expected 'file_catalog' or 's3_catalog'.")
 

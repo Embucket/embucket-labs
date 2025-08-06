@@ -14,6 +14,11 @@ BASE_URL = "http://127.0.0.1:3000"
 CATALOG_URL = f"{BASE_URL}/catalog"
 WAREHOUSE_ID = "test_db"
 
+AWS_REGION = os.getenv("AWS_REGION")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+S3_BUCKET = os.getenv("S3_BUCKET")
+
 class EmbucketClient:
     def __init__(self, username: str="embucket", password: str="embucket", base_url: str=BASE_URL):
         self.base_url = base_url
@@ -33,13 +38,13 @@ class EmbucketClient:
         self.headers["authorization"] = f"Bearer {token}"
 
     @staticmethod
-    def get_volume_sql(vol_type=None):
+    def get_volume_sql(volume_name, vol_type=None):
         if vol_type == "s3":
             return f"""
-                CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((
+                CREATE EXTERNAL VOLUME IF NOT EXISTS '{volume_name}' STORAGE_LOCATIONS = ((
                     NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
-                    STORAGE_BASE_URL = 'acmecom-lakehouse'
-                    CREDENTIALS=(AWS_KEY_ID='xxx' AWS_SECRET_KEY='xxx' REGION='us-east-2')
+                    STORAGE_BASE_URL = '{S3_BUCKET}'
+                    CREDENTIALS=(AWS_KEY_ID='{AWS_ACCESS_KEY_ID}' AWS_SECRET_KEY='{AWS_SECRET_ACCESS_KEY}' REGION='{AWS_REGION}')
                 ))"""
         elif vol_type == "minio":
             return f"""
@@ -49,7 +54,7 @@ class EmbucketClient:
                     STORAGE_ENDPOINT = 'http://localhost:9000'
                     CREDENTIALS=(AWS_KEY_ID='minioadmin' AWS_SECRET_KEY='minioadmin')
                 ))"""
-        return f"CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
+        return f"CREATE EXTERNAL VOLUME IF NOT EXISTS '{volume_name}' STORAGE_LOCATIONS = (\
             (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}/data'))"
 
 
@@ -102,29 +107,47 @@ class PyIcebergClient:
             warehouse=WAREHOUSE_ID,
         )
 
+    def read_table(self, table_name: str, limit: int = None):
+        """Loads an Iceberg table and returns its rows as a list of dicts."""
+        print(f"Reading table '{table_name}' with pyiceberg...")
+        try:
+            table = self.catalog.load_table(table_name)
+            print(f"Schema: {table.schema()}")
+            arrow_table = table.scan().to_arrow()
+            if limit is not None:
+                arrow_table = arrow_table.slice(0, limit)
+            rows = arrow_table.to_pylist()
+            return rows
+        except pyiceberg.exceptions.NoSuchTableError:
+            print(f"Table '{table_name}' does not exist in the catalog.")
+            return []
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return []
+
     def sql(self, query: str):
         raise NotImplementedError("Use SparkClient or REST endpoint to execute Iceberg SQL.")
 
 
-embucket_client = EmbucketClient()
-embucket_client.sql(embucket_client.get_volume_sql())
-embucket_client.sql("CREATE DATABASE IF NOT EXISTS test_db EXTERNAL_VOLUME = 'test'")
-embucket_client.sql("CREATE SCHEMA IF NOT EXISTS test_db.public")
-embucket_client.sql("DROP TABLE IF EXISTS test_db.public.test")
-embucket_client.sql("CREATE TABLE IF NOT EXISTS test_db.public.test (id int, name string)")
-
-spark_client = PySparkClient()
-spark_client.sql(f"INSERT INTO public.test VALUES (1, 'test_name')")
-spark_client.sql(f"SELECT * FROM public.test ")
-
-pyiceberg_client = PyIcebergClient()
-table = pyiceberg_client.catalog.load_table(("public", "test"))
-df = pd.DataFrame(
-    {
-        "id": [1, 2, 3, 4],
-        "name": ["a", "b", "c", "d"],
-    }
-)
+# embucket_client = EmbucketClient()
+# embucket_client.sql(embucket_client.get_volume_sql())
+# embucket_client.sql("CREATE DATABASE IF NOT EXISTS test_db EXTERNAL_VOLUME = 'test'")
+# embucket_client.sql("CREATE SCHEMA IF NOT EXISTS test_db.public")
+# embucket_client.sql("DROP TABLE IF EXISTS test_db.public.test")
+# embucket_client.sql("CREATE TABLE IF NOT EXISTS test_db.public.test (id int, name string)")
+#
+# spark_client = PySparkClient()
+# spark_client.sql(f"INSERT INTO public.test VALUES (1, 'test_name')")
+# spark_client.sql(f"SELECT * FROM public.test ")
+#
+# pyiceberg_client = PyIcebergClient()
+# table = pyiceberg_client.catalog.load_table(("public", "test"))
+# df = pd.DataFrame(
+#     {
+#         "id": [1, 2, 3, 4],
+#         "name": ["a", "b", "c", "d"],
+#     }
+# )
 # without schema it returns
 # ValueError: Mismatch in fields:
 # ┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -133,15 +156,15 @@ df = pd.DataFrame(
 # │ ❌ │ 1: id: optional int      │ 1: id: optional long     │
 # │ ✅ │ 2: name: optional string │ 2: name: optional string │
 # └────┴──────────────────────────┴──────────────────────────┘
-schema = pa.schema([
-    ("id", pa.int32()),
-    ("name", pa.string()),
-])
-data = pa.Table.from_pandas(df, schema=schema)
-table.append(data)
-print(table.scan().to_arrow().to_pandas())
-table.delete(delete_filter="id = 4")
-print(table.scan().to_arrow().to_pandas())
+# schema = pa.schema([
+#     ("id", pa.int32()),
+#     ("name", pa.string()),
+# ])
+# data = pa.Table.from_pandas(df, schema=schema)
+# table.append(data)
+# print(table.scan().to_arrow().to_pandas())
+# table.delete(delete_filter="id = 4")
+# print(table.scan().to_arrow().to_pandas())
 #     table.overwrite(df=pa.Table.from_pandas(pd.DataFrame(
 #         {
 #             "id": [12, 13, 14, 15, 16],
