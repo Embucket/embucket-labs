@@ -26,8 +26,8 @@ use core_metastore::{
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
-use datafusion::catalog::MemoryCatalogProvider;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
+use datafusion::catalog::{MemoryCatalogProvider, TableProvider};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::datasource::file_format::FileFormat;
@@ -98,6 +98,7 @@ use object_store::ObjectStore;
 use object_store::aws::AmazonS3Builder;
 use snafu::ResultExt;
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
+use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
     AssignmentTarget, CloudProviderParams, MergeAction, MergeClause, MergeClauseKind,
     MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens, PivotValueSource,
@@ -1098,12 +1099,12 @@ impl UserQuery {
         self.status_response()
     }
 
-    #[instrument(
-        name = "UserQuery::copy_into_snowflake_query",
-        level = "trace",
-        skip(self),
-        err
-    )]
+    // #[instrument(
+    //     name = "UserQuery::copy_into_snowflake_query",
+    //     level = "trace",
+    //     skip(self),
+    //     err
+    // )]
     pub async fn copy_into_snowflake_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CopyIntoSnowflake {
             into,
@@ -1133,43 +1134,18 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?;
 
-            let object_store = match (stage_params.storage_integration, stage_params.credentials) {
-                (Some(volume), _) => {
-                    let volume = self
-                        .metastore
-                        .get_volume(&volume)
-                        .await
-                        .context(ex_error::MetastoreSnafu)?
-                        .ok_or_else(|| ex_error::VolumeNotFoundSnafu { volume }.build())?;
-                    volume
-                        .get_object_store()
-                        .context(ex_error::MetastoreSnafu)?
-                }
-                (None, _) => {
-                    todo!()
-                }
-            };
+            let object_store = self
+                .get_object_store_from_stage_params(stage_params)
+                .await?;
 
             let url = ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
             self.session
                 .ctx
                 .register_object_store(url.object_store().as_ref(), object_store);
 
-            let config = ListingTableConfig::new(url.clone());
-            let config = if let Some((format, infer_schema)) = create_file_format(&file_format)? {
-                let options = ListingOptions::new(format);
-                let schema = if infer_schema {
-                    options
-                        .infer_schema(&self.session.ctx.state(), &url)
-                        .await
-                        .context(ex_error::DataFusionSnafu)?
-                } else {
-                    into_provider.schema()
-                };
-                config.with_listing_options(options).with_schema(schema)
-            } else {
-                config
-            };
+            let config = self
+                .build_listing_table_config(file_format, &into_provider, url)
+                .await?;
 
             let table_provider =
                 ListingTable::try_new(config).context(ex_error::DataFusionSnafu)?;
@@ -2540,6 +2516,53 @@ impl UserQuery {
             schema,
             ..target_ref.clone()
         })
+    }
+
+    async fn get_object_store_from_stage_params(
+        &self,
+        stage_params: StageParamsObject,
+    ) -> Result<Arc<dyn ObjectStore + 'static>> {
+        let object_store = match (stage_params.storage_integration, stage_params.credentials) {
+            (Some(volume), _) => {
+                let volume = self
+                    .metastore
+                    .get_volume(&volume)
+                    .await
+                    .context(ex_error::MetastoreSnafu)?
+                    .ok_or_else(|| ex_error::VolumeNotFoundSnafu { volume }.build())?;
+                volume
+                    .get_object_store()
+                    .context(ex_error::MetastoreSnafu)?
+            }
+            (None, _) => {
+                todo!()
+            }
+        };
+        Ok(object_store)
+    }
+
+    async fn build_listing_table_config(
+        &self,
+        file_format: KeyValueOptions,
+        into_provider: &Arc<dyn TableProvider>,
+        url: ListingTableUrl,
+    ) -> Result<ListingTableConfig> {
+        let config = ListingTableConfig::new(url.clone());
+        let config = if let Some((format, infer_schema)) = create_file_format(&file_format)? {
+            let options = ListingOptions::new(format);
+            let schema = if infer_schema {
+                options
+                    .infer_schema(&self.session.ctx.state(), &url)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?
+            } else {
+                into_provider.schema()
+            };
+            config.with_listing_options(options).with_schema(schema)
+        } else {
+            config
+        };
+        Ok(config)
     }
 }
 
