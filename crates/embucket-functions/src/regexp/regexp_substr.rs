@@ -16,7 +16,44 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-//TODO: Docs
+/// `REGEXP_SUBSTR` function implementation
+///
+/// Returns the position of the specified occurrence of the regular expression pattern in the string subject.
+/// If no match is found, returns 0.
+///
+/// Syntax: `REGEXP_SUBSTR( <subject> , <pattern> [ , <position> [ , <occurrence> [ , <regex_parameters> [ , <group_num> ] ] ] ] )`
+///
+/// Arguments:
+///
+/// `Required`:
+/// - `<subject>` the string to search for matches.
+/// - `<pattern>` pattern to match.
+///
+/// `Optional`:
+/// - `<position>` number of characters from the beginning of the string where the function starts searching for matches.
+///   Default: `1` (the search for a match starts at the first character on the left)
+/// - `<occurrence>` specifies the first occurrence of the pattern from which to start returning matches.
+///   The function skips the first occurrence - 1 matches. For example, if there are 5 matches and you specify 3 for the occurrence argument,
+///   the function ignores the first two matches and returns the third, fourth, and fifth matches.
+///   Default: `1`
+/// - `<regex_parameters>` String of one or more characters that specifies the parameters used for searching for matches.
+///   Supported values:
+///   ---------------------------------------------------------------------------
+///   | Parameter       | Description                               |
+///   |-----------------|-------------------------------------------|
+///   | c               | Case-sensitive matching                   |
+///   | i               | Case-insensitive matching                 |
+///   | m               | Multi-line mode                           |
+///   | e               | Extract submatches                        |
+///   | s               | POSIX wildcard character `.` matches `\n` |
+///   ---------------------------------------------------------------------------
+///   Default: `c`
+/// - `<group_num>` the `group_num` parameter specifies which group to extract.
+///   Groups are specified by using parentheses in the regular expression.
+///   If a `group_num` is specified, it allows extraction even if the e option was not also specified.
+///   The e option is implied.
+///
+/// Example: `REGEXP_SUBSTR('nevermore1, nevermore2, nevermore3.', 'nevermore')`
 #[derive(Debug)]
 pub struct RegexpSubstrFunc {
     signature: Signature,
@@ -114,7 +151,7 @@ impl RegexpSubstrFunc {
             },
         )?;
 
-        let regexp_parameters = args.get(4).map_or_else(
+        let regex_parameters = args.get(4).map_or_else(
             || Ok("c"),
             |value| match value {
                 ColumnarValue::Scalar(
@@ -147,7 +184,7 @@ impl RegexpSubstrFunc {
 
         let group_num = args.get(5).map_or_else(
             || {
-                if regexp_parameters.contains('e') {
+                if regex_parameters.contains('e') {
                     Ok(1)
                 } else {
                     Ok(0)
@@ -173,7 +210,7 @@ impl RegexpSubstrFunc {
             },
         )?;
 
-        Ok((position, occurrence, regexp_parameters, group_num))
+        Ok((position, occurrence, regex_parameters, group_num))
     }
 }
 
@@ -233,7 +270,7 @@ impl ScalarUDFImpl for RegexpSubstrFunc {
             }
         };
 
-        let (position, occurrence, regexp_parameters, group_num) =
+        let (position, occurrence, regex_parameters, group_num) =
             Self::take_args_values(&args.args)?;
 
         //TODO: Or data_capacity: 1024
@@ -242,7 +279,7 @@ impl ScalarUDFImpl for RegexpSubstrFunc {
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = as_generic_string_array(array)?;
-                let regex = pattern_to_regex(pattern, regexp_parameters)
+                let regex = pattern_to_regex(pattern, regex_parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, position).for_each(|opt_iter| {
                     result_array.append_option(opt_iter.and_then(|mut cap_iter| {

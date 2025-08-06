@@ -2,7 +2,7 @@ use crate::test_query;
 
 test_query!(
     regexp_substr_basic_scalar,
-    "SELECT REGEXP_SUBSTR('nevermore1, nevermore2, nevermore3.', 'nevermore\\d')",
+    "SELECT REGEXP_SUBSTR('nevermore1, nevermore2, nevermore3.', 'nevermore')",
     snapshot_path = "regexp_substr"
 );
 
