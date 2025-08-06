@@ -451,6 +451,7 @@ fn calculate_year_of_week(date: NaiveDate, week_start: usize, week_of_year_polic
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
