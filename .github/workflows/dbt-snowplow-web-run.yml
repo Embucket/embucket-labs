@@ -76,7 +76,7 @@ jobs:
           python-version: '3.12'
 
       - name: Create assets dir
-        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web
         run: |
           mkdir assets
 
@@ -87,7 +87,7 @@ jobs:
 
       # Generate Test Assets
       - name: Generate data for commit message
-        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web
         run: |
           
           # Get coverage percentage for commit message
@@ -99,8 +99,8 @@ jobs:
         run: |
           # Copy test assets and statistics file to a temporary location before switching branches
           mkdir -p /tmp/embucket-assets-snowplow
-          cp -r test/dbt_integration_tests/dbt-snowplow-web/assets/* /tmp/embucket-assets-snowplow/
-          rm -rf test/dbt_integration_tests/dbt-snowplow-web/assets/
+          cp -r test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web/assets/* /tmp/embucket-assets-snowplow/
+          rm -rf test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web/assets/
         
           # Setup git
           git config --global user.name "github-actions[bot]"
