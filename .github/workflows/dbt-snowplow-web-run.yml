@@ -1,0 +1,130 @@
+name: DBT Snowplow Web run
+
+permissions:
+  contents: write
+  
+on:
+  pull_request:
+    branches: [osmazur/dbt-snowplow-web-ci]
+  workflow_dispatch:
+
+  # schedule:
+  #   # Runs every day at 2 AM UTC
+  #   - cron: '0 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  sql-logic-tests:
+    runs-on: ubuntu-latest
+    name: DBT Snowplow Web run
+    env:
+      SNOWFLAKE_ACCOUNT: test
+      SNOWFLAKE_USER: embucket
+      SNOWFLAKE_PASSWORD: embucket
+      SNOWFLAKE_ROLE: SYSADMIN
+      SNOWFLAKE_WAREHOUSE: COMPUTE_WH
+      SNOWFLAKE_SCHEMA: public
+      DBT_ENV_SECRET_SNOWFLAKE_PASS: embucket
+      RESET_DB: false
+      EMBUCKET_ENABLED: true
+      EMBUCKET_PROTOCOL: http
+      EMBUCKET_HOST: localhost
+      EMBUCKET_PORT: 3000
+      EMBUCKET_USER: embucket
+      EMBUCKET_PASSWORD: embucket
+      EMBUCKET_ROLE: SYSADMIN
+      EMBUCKET_DATABASE: EMBUCKET
+      EMBUCKET_WAREHOUSE: COMPUTE_WH
+      EMBUCKET_SCHEMA: public
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build only the embucketd binary
+      - name: Build embucketd
+        run: cargo build --bin embucketd
+
+      - name: Start Embucket Server
+        run: |
+          target/debug/embucketd &
+          echo "Starting Embucket server..."
+          sleep 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create assets dir
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        run: |
+          mkdir assets
+
+      - name: DBT Snowplow Web run
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        run: |
+          ./run.sh --target embucket
+
+      # Generate Test Assets
+      - name: Generate data for commit message
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        run: |
+          
+          # Get coverage percentage for commit message
+          COVERAGE=$(grep -o '[0-9.]\+%' assets/dbt_success_badge.txt | tr -d '%')
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+
+      # Push Assets to Branch
+      - name: Push Assets to Branch
+        run: |
+          # Copy test assets and statistics file to a temporary location before switching branches
+          mkdir -p /tmp/embucket-assets-snowplow
+          cp -r test/dbt_integration_tests/dbt-snowplow-web/assets/* /tmp/embucket-assets-snowplow/
+          rm -rf test/dbt_integration_tests/dbt-snowplow-web/assets/
+        
+          # Setup git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
+                    # Fetch and checkout the existing assets branch
+          git fetch origin assets_dbt
+          git checkout assets_dbt || git checkout -b assets_dbt
+          # Note: .git folder is preserved when switching branches in the same repo
+          
+          # Clean only the snowplow assets directory (preserve .git and other directories)
+          if [ -d "assets_dbt_snowplow" ]; then
+            rm -rf assets_dbt_snowplow
+          fi
+          
+          # Create assets directory
+          mkdir -p assets_dbt_snowplow
+          
+          # Copy assets from the temporary location
+          cp -r /tmp/embucket-assets-snowplow/* assets_dbt_snowplow/
+          
+          # Add and commit
+          git add assets_dbt_snowplow
+          git commit -m "Update test assets [DBT Snowplow Web run result: $COVERAGE%] [skip ci]" || echo "No changes to commit"
+          
+          # Push to the existing assets branch
+          git push origin assets_dbt 
