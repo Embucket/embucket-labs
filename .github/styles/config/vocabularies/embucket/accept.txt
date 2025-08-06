@@ -1,5 +1,8 @@
 [Ee]mbucket
 Trino
 AWS
-Snowflake
+[Ss]nowflake
 [Nn]amespaces?
+dbt
+minio
+mc

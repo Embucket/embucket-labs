@@ -24,7 +24,10 @@ pip install 'pyiceberg[all]'
 ## Create a volume and database
 
 <Aside type="caution">
-Select your volume type based on deployment needs. Memory volumes store data in Embucket's memory, making them inaccessible to external Iceberg clients. Filesystem volumes store data on disk. They work only when clients share the same filesystem with Embucket. S3 volumes work with all deployment configurations.
+  Select your volume type based on deployment needs. Memory volumes store data in Embucket's memory,
+  making them inaccessible to external Iceberg clients. Filesystem volumes store data on disk. They
+  work only when clients share the same filesystem with Embucket. S3 volumes work with all
+  deployment configurations.
 </Aside>
 
 [Volumes](/essentials/volumes) specify where Embucket stores data. For this guide create a volume of type `file`, name it `demo` and specify path to a directory to store the data.
@@ -43,12 +46,14 @@ response = requests.post(
         "path": "/home/ec2-user/tmp/demo",
     })
 ```
+
 </TabItem>
 <TabItem label="SQL">
 
 ```sql
 CREATE EXTERNAL VOLUME IF NOT EXISTS demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 'file' PATH = '/home/ec2-user/tmp/demo'));
 ```
+
 </TabItem>
 </Tabs>
 
@@ -65,22 +70,24 @@ response = requests.post(
         "volume": "demo",
     })
 ```
+
 </TabItem>
 <TabItem label="SQL">
 
 ```sql
 CREATE DATABASE IF NOT EXISTS demo EXTERNAL_VOLUME = 'demo';
 ```
+
 </TabItem>
 </Tabs>
 
 Embucket uses database terminology, while Iceberg uses warehouse terminology. At the same time, Embucket provides an Iceberg Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and Iceberg entities:
 
-| Embucket | Iceberg |
-| --- | --- |
+| Embucket | Iceberg   |
+| -------- | --------- |
 | Database | Warehouse |
-| Schema | Namespace |
-| Table | Table |
+| Schema   | Namespace |
+| Table    | Table     |
 
 Run the following query to show databases:
 
@@ -100,6 +107,7 @@ $ snow sql -c local
 ## Connect to Embucket
 
 Use `pyiceberg` to connect to the Embucket's Iceberg Catalog API. It requires `rest` catalog type, URI of the API and a warehouse name. Warehouse matches a database name in Embucket.
+
 ```python
 from pyiceberg.catalog import load_catalog
 
@@ -110,41 +118,41 @@ catalog = load_catalog(
     warehouse="demo",
 )
 ```
-## Upload the dataset
 
+## Upload the dataset
 
 <Steps>
 
 1. Download the [NYC Taxi dataset](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) as an example
 
-    ```bash
-    curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
-    ```
+   ```bash
+   curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
+   ```
 
 2. Load it into a PyArrow table:
 
-    ```python
-    import pyarrow.parquet as pq
+   ```python
+   import pyarrow.parquet as pq
 
-    df = pq.read_table("yellow_tripdata_2023-01.parquet")
-    ```
+   df = pq.read_table("yellow_tripdata_2023-01.parquet")
+   ```
 
 3. Create a new Iceberg table:
 
-    ```python
-    catalog.create_namespace("public")
-    table = catalog.create_table(
-        "public.taxi_dataset",
-        schema=df.schema,
-    )
-    ```
+   ```python
+   catalog.create_namespace("public")
+   table = catalog.create_table(
+       "public.taxi_dataset",
+       schema=df.schema,
+   )
+   ```
 
 4. Append the PyArrow table to the Iceberg table:
 
-    ```python
-    table.append(df)
-    len(table.scan().to_arrow())
-    ```
+   ```python
+   table.append(df)
+   len(table.scan().to_arrow())
+   ```
 
 </Steps>
 

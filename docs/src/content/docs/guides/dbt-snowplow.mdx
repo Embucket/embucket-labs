@@ -22,7 +22,8 @@ Follow this guide to:
 This guide covers local development setup with sample data and basic dbt transformations. This guide doesn't cover production deployment, advanced dbt customizations, custom Snowplow tracking implementation, or enterprise security configurations.
 
 <Aside type="note">
-  For complete example, see [dbt integration tests](https://github.com/Embucket/embucket/tree/main/test/dbt_integration_tests/dbt-snowplow-web).
+  For complete example, see [dbt integration
+  tests](https://github.com/Embucket/embucket/tree/main/test/dbt_integration_tests/dbt-snowplow-web).
 </Aside>
 
 ## Prerequisites
@@ -37,7 +38,7 @@ Add the Snowplow Web package (a dbt package for web analytics transformations) t
 ```yaml
 packages:
   - package: snowplow-analytics/snowplow_web
-    version: [">=0.16.0", "<0.17.0"]
+    version: ['>=0.16.0', '<0.17.0']
 ```
 
 Configure your `profiles.yml` to connect to Embucket:
@@ -70,7 +71,9 @@ snowplow_project:
 - **Performance**: Set `threads` based on your system capacity
 
 <Aside type="tip">
-**Data Persistence**: Embucket creates in-memory storage and `embucket` database by default. For persistent data, run Embucket with `--no-bootstrap` and configure external storage. See the [volumes guide](/essentials/volumes) for details.
+  **Data Persistence**: Embucket creates in-memory storage and `embucket` database by default. For
+  persistent data, run Embucket with `--no-bootstrap` and configure external storage. See the
+  [volumes guide](/essentials/volumes) for details.
 </Aside>
 
 Update your `dbt_project.yml`:
@@ -80,10 +83,10 @@ name: 'snowplow_analytics'
 version: '1.0.0'
 profile: 'snowplow_project'
 
-target-path: "target"
+target-path: 'target'
 clean-targets:
-  - "target"
-  - "dbt_packages"
+  - 'target'
+  - 'dbt_packages'
 
 dispatch:
   - macro_namespace: dbt
@@ -108,27 +111,26 @@ This setup directs the Snowplow Web package to read from `analytics.snowplow.eve
 
 1. Create and activate a Python virtual environment:
 
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-    ```
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
 
 2. Install the required dbt packages:
 
-    ```bash
-    pip install dbt-core dbt-snowflake
-    ```
+   ```bash
+   pip install dbt-core dbt-snowflake
+   ```
 
 3. Download dbt dependencies:
 
-    ```bash
-    dbt deps
-    ```
+   ```bash
+   dbt deps
+   ```
 
 </Steps>
 
 ## Load source data
-
 
 Download the Snowplow sample dataset:
 
@@ -304,6 +306,7 @@ Upload the fixed CSV file to Embucket through the web UI or SQL interface:
 ```sql
 COPY INTO analytics.snowplow.events FROM '/home/ec2-user/tmp/Web_Analytics_sample_events_fixed.csv' FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = ',');
 ```
+
 </TabItem>
 
 <TabItem label="UI">
@@ -350,24 +353,24 @@ dbt run
 Output shows successful run of all models:
 
 ```bash
-17:22:59  
+17:22:59
 17:22:59  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
 17:22:59  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [OK in 0.01s]
-17:22:59  
+17:22:59
 17:22:59  Finished running 2 project hooks, 4 seeds in 0 hours 0 minutes and 20.91 seconds (20.91s).
-17:22:59  
+17:22:59
 17:22:59  Completed successfully
-17:22:59  
+17:22:59
 17:22:59  Done. PASS=6 WARN=0 ERROR=0 SKIP=0 TOTAL=6
 17:23:01  Running with dbt=1.9.8
 17:23:02  Registered adapter: snowflake=1.9.1
 17:23:03  Found 18 models, 103 data tests, 4 seeds, 2 operations, 8 sources, 768 macros
-17:23:03  
+17:23:03
 17:23:03  Concurrency: 4 threads (target='*****')
-17:23:03  
+17:23:03
 17:23:04  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
 17:23:04  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [OK in 0.03s]
-17:23:04  
+17:23:04
 17:23:04  1 of 18 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
 17:23:04  2 of 18 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
 17:23:04  1 of 18 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [ok 1 in 0.61s]
@@ -375,13 +378,13 @@ Output shows successful run of all models:
 ...
 17:23:10  18 of 18 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
 17:23:10  18 of 18 OK created sql incremental model public_derived.snowplow_web_users .... [ok 1 in 0.50s]
-17:23:10  
+17:23:10
 17:23:10  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
 17:23:11  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [OK in 0.30s]
-17:23:11  
+17:23:11
 17:23:11  Finished running 7 incremental models, 2 project hooks, 11 table models in 0 hours 0 minutes and 7.54 seconds (7.54s).
-17:23:11  
+17:23:11
 17:23:11  Completed successfully
-17:23:11  
+17:23:11
 17:23:11  Done. PASS=20 WARN=0 ERROR=0 SKIP=0 TOTAL=20
 ```
