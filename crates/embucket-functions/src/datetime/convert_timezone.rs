@@ -3,7 +3,7 @@ use arrow_schema::DataType::{Timestamp, Utf8};
 use arrow_schema::{DataType, TimeUnit};
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
-use datafusion::arrow::array::TimestampNanosecondBuilder;
+use datafusion::arrow::array::{ArrayRef, TimestampNanosecondBuilder};
 use datafusion::arrow::compute::cast_with_options;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::Exact;
@@ -15,20 +15,48 @@ use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFI
 use std::any::Any;
 use std::sync::Arc;
 
+/// `CONVERT_TIMEZONE` SQL function
+///
+/// Converts a timestamp from one timezone to another.
+///
+/// Syntax: `CONVERT_TIMEZONE(<target_timezone>, <source_timezone>, <source_timestamp_ntz>)`
+/// Syntax: `CONVERT_TIMEZONE(<target_timezone>, <source_timestamp_tz>)`
+///
+/// Arguments:
+/// - `<target_timezone>`: A string representing the target timezone (e.g. America/Los_Angeles).
+/// - `<source_timezone>`: A string representing the source timezone (e.g. America/Los_Angeles).
+/// - `<source_timestamp_ntz>`: A timestamp without timezone to convert.
+/// - `<source_timestamp_tz>`: A timestamp with timezone to convert.
+///
+/// Example: `SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', '2024-01-01 14:00:00'::TIMESTAMP) AS conv;`
+///
+/// Returns:
+/// - For the 3-argument version, returns a value of type TIMESTAMP_NTZ.
+/// - For the 2-argument version, returns a value of type TIMESTAMP_TZ.
+///
+/// Usage notes:
+/// For the 3-argument version, the “wallclock” time in the result represents the same moment in time
+/// as the input “wallclock” in the input time zone, but in the target time zone.
+///
+/// For the 2-argument version, the source_timestamp argument typically includes the time zone.
+/// If the value is of type TIMESTAMP_TZ, the time zone is taken from its value. Otherwise, the current session time zone is used.
+///
+///
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
+    tz: String,
 }
 
 impl Default for ConvertTimezoneFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new("America/Los_Angeles".to_string())
     }
 }
 
 impl ConvertTimezoneFunc {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(tz: String) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -55,6 +83,7 @@ impl ConvertTimezoneFunc {
                 ],
                 Volatility::Immutable,
             ),
+            tz,
         }
     }
 }
@@ -144,47 +173,54 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         };
 
         match (source_tz, target_tz, arr) {
-            (Some(source_tz), Some(target_tz), arr) => {
-                let source_tz = source_tz
-                    .parse::<Tz>()
-                    .map_err(|_| CantParseTimezoneSnafu.build())?;
-                let target_tz = target_tz
-                    .parse::<Tz>()
-                    .map_err(|_| CantParseTimezoneSnafu.build())?;
-                let arr = as_timestamp_nanosecond_array(&arr)?;
-                let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
-                for v in arr {
-                    match v {
-                        Some(v) => {
-                            let v = convert_timezone(source_tz, target_tz, v).map_err(|e| {
-                                CantConvertTimezoneSnafu { err: e.to_string() }.build()
-                            })?;
-
-                            b.append_value(v);
-                        }
-                        None => b.append_null(),
-                    }
-                }
-
-                Ok(ColumnarValue::Array(Arc::new(b.finish())))
-            }
+            (Some(source_tz), Some(target_tz), arr) => build_array(&arr, &source_tz, &target_tz),
             (None, Some(target_tz), arr) => {
-                let arr = cast_with_options(
-                    &arr,
-                    &Timestamp(
-                        TimeUnit::Nanosecond,
-                        Some(Arc::from(target_tz.into_boxed_str())),
-                    ),
-                    &DEFAULT_CAST_OPTIONS,
-                )?;
+                match arr.data_type() {
+                    Timestamp(_, Some(_)) => {
+                        let arr = cast_with_options(
+                            &arr,
+                            &Timestamp(
+                                TimeUnit::Nanosecond,
+                                Some(Arc::from(target_tz.into_boxed_str())),
+                            ),
+                            &DEFAULT_CAST_OPTIONS,
+                        )?;
 
-                Ok(ColumnarValue::Array(arr))
-            }
+                        Ok(ColumnarValue::Array(arr))
+                    }
+                    Timestamp(_, None) => build_array(&arr, &self.tz, &target_tz),
+                    _ => internal_err!("Invalid source_timestamp type"),
+                }
+            },
             _ => internal_err!("Invalid arguments"),
         }
     }
 }
 
+fn build_array(arr: &ArrayRef, source_tz: &str, target_tz: &str) -> DFResult<ColumnarValue> {
+    let source_tz = source_tz
+        .parse::<Tz>()
+        .map_err(|_| CantParseTimezoneSnafu.build())?;
+    let target_tz = target_tz
+        .parse::<Tz>()
+        .map_err(|_| CantParseTimezoneSnafu.build())?;
+
+    let arr = as_timestamp_nanosecond_array(&arr)?;
+    let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
+    for v in arr {
+        match v {
+            Some(v) => {
+                let v = convert_timezone(source_tz, target_tz, v)
+                    .map_err(|e| CantConvertTimezoneSnafu { err: e.to_string() }.build())?;
+
+                b.append_value(v);
+            }
+            None => b.append_null(),
+        }
+    }
+
+    Ok(ColumnarValue::Array(Arc::new(b.finish())))
+}
 #[allow(clippy::cast_sign_loss, clippy::as_conversions)]
 fn convert_timezone(
     source_timezone: Tz,
@@ -224,8 +260,6 @@ fn convert_timezone(
         .ok_or("Failed to convert target time to nanoseconds")?)
 }
 
-crate::macros::make_udf_function!(ConvertTimezoneFunc);
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,7 +270,7 @@ mod tests {
     #[tokio::test]
     async fn test_ntz() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::default()));
 
         let sql = "SELECT CONVERT_TIMEZONE('America/Los_Angeles','America/New_York','2024-01-01 14:00:00'::TIMESTAMP) AS conv;";
         let result = ctx.sql(sql).await?.collect().await?;
@@ -258,7 +292,7 @@ mod tests {
     #[tokio::test]
     async fn test_tz() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::default()));
 
         let sql = "SELECT CONVERT_TIMEZONE('America/Los_Angeles','2024-01-01 14:00:00 -07:00'::TIMESTAMP) AS conv;";
         let result = ctx.sql(sql).await?.collect().await?;

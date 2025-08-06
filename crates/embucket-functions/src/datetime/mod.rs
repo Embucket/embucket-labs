@@ -27,7 +27,6 @@ pub fn register_udfs(
 ) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         add_months::get_udf(),
-        convert_timezone::get_udf(),
         date_add::get_udf(),
         Arc::new(ScalarUDF::from(DateDiffFunc::new(session_params.clone()))),
         date_from_parts::get_udf(),
