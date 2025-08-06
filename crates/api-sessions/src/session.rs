@@ -31,7 +31,8 @@ impl SessionStore {
             interval.tick().await;
             let sessions = self.execution_svc.get_sessions().await;
 
-            let mut sessions = sessions.write().await;
+            // Acquire read lock while looking for expired sessions
+            let sessions = sessions.read().await;
 
             let now = OffsetDateTime::now_utc();
             tracing::trace!("Starting to delete expired for: {}", now);
@@ -46,7 +47,7 @@ impl SessionStore {
 
             for session_id in session_ids {
                 tracing::trace!("Deleting expired: {}", session_id);
-                sessions.remove(&session_id);
+                let _ = self.execution_svc.delete_session(session_id).await;
             }
         }
     }
