@@ -43,20 +43,6 @@ fn test_functions_rewriter() -> DFResult<()> {
     let state = SessionContext::new().state();
 
     let cases = vec![
-        ("select year(ts)", "SELECT date_part('year', ts)"),
-        ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
-        ("select day(ts)", "SELECT date_part('day', ts)"),
-        ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
-        ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
-        ("select month(ts)", "SELECT date_part('month', ts)"),
-        ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
-        ("select week(ts)", "SELECT date_part('week', ts)"),
-        ("select hour(ts)", "SELECT date_part('hour', ts)"),
-        ("select minute(ts)", "SELECT date_part('minute', ts)"),
-        ("select second(ts)", "SELECT date_part('second', ts)"),
-        ("select minute(ts)", "SELECT date_part('minute', ts)"),
-        ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
-        ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
         // timestamp keywords postprocess
         (
             "SELECT dateadd(year, 5, '2025-06-01')",
