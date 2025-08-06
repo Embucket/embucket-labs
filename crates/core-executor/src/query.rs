@@ -2969,28 +2969,13 @@ pub fn cast_input_to_target_schema(
     for field in target_schema.fields() {
         let name = field.name();
         let data_type = field.data_type();
-        let (reference, input_field) = input_schema
-            .qualified_fields_with_unqualified_name(name)
-            .pop()
-            .or_else(|| {
-                // If exact match fails, try case-insensitive matching
-                let name_lower = name.to_lowercase();
-                for (reference, field) in input_schema.iter() {
-                    if field.name().to_lowercase() == name_lower {
-                        return Some((reference, field));
-                    }
-                }
-                None
-            })
-            .ok_or_else(|| {
-                ex_error::FieldNotFoundInInputSchemaSnafu {
-                    field_name: name.to_string(),
-                }
-                .build()
-            })?;
+        let (reference, input_field) = get_field(input_schema, name)?;
         if input_field.data_type() == data_type {
             if input_field.name() == name {
-                projections.push(col(input_field.name()));
+                projections.push(logical_expr::Expr::Column(Column::new(
+                    reference.cloned(),
+                    input_field.name(),
+                )));
             } else {
                 projections.push(
                     logical_expr::Expr::Column(Column::new(reference.cloned(), input_field.name()))
@@ -2999,7 +2984,10 @@ pub fn cast_input_to_target_schema(
             }
         } else if input_field.name() == name {
             projections.push(DFExpr::TryCast(TryCast::new(
-                Box::new(col(input_field.name())),
+                Box::new(logical_expr::Expr::Column(Column::new(
+                    reference.cloned(),
+                    input_field.name(),
+                ))),
                 data_type.clone(),
             )));
         } else {
@@ -3012,9 +3000,34 @@ pub fn cast_input_to_target_schema(
             )));
         }
     }
-    dbg!(&projections);
     let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
     Ok(LogicalPlan::Projection(projection))
+}
+
+fn get_field<'a>(
+    input_schema: &'a Arc<DFSchema>,
+    name: &str,
+) -> Result<(Option<&'a TableReference>, &'a Field)> {
+    let (reference, input_field) = input_schema
+        .qualified_fields_with_unqualified_name(name)
+        .pop()
+        .or_else(|| {
+            // If exact match fails, try case-insensitive matching
+            let name_lower = name.to_lowercase();
+            for (reference, field) in input_schema.iter() {
+                if field.name().to_lowercase() == name_lower {
+                    return Some((reference, field));
+                }
+            }
+            None
+        })
+        .ok_or_else(|| {
+            ex_error::FieldNotFoundInInputSchemaSnafu {
+                field_name: name.to_string(),
+            }
+            .build()
+        })?;
+    Ok((reference, input_field))
 }
 
 /// Checks if the `ObjectName` indicates an external location for a Snowflake COPY INTO statement.
