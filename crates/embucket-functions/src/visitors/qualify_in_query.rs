@@ -66,11 +66,7 @@ impl VisitorMut for QualifyInQuery {
         match query.body.as_mut() {
             SetExpr::Select(select) => {
                 if let Some(Expr::BinaryOp { left, op, right }) = select.qualify.as_ref() {
-                    let mut inner_select = if select.selection.is_some() {
-                        Box::from(wrap_select_in_subquery(select, None))
-                    } else {
-                        select.clone()
-                    };
+                    let mut inner_select = select.clone();
                     inner_select.qualify = None;
                     inner_select.projection.push(SelectItem::ExprWithAlias {
                         expr: *(left.clone()),

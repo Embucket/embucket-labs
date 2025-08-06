@@ -43,6 +43,20 @@ fn test_functions_rewriter() -> DFResult<()> {
     let state = SessionContext::new().state();
 
     let cases = vec![
+        ("select year(ts)", "SELECT date_part('year', ts)"),
+        ("select dayofyear(ts)", "SELECT date_part('doy', ts)"),
+        ("select day(ts)", "SELECT date_part('day', ts)"),
+        ("select dayofmonth(ts)", "SELECT date_part('day', ts)"),
+        ("select dayofweek(ts)", "SELECT date_part('dow', ts)"),
+        ("select month(ts)", "SELECT date_part('month', ts)"),
+        ("select weekofyear(ts)", "SELECT date_part('week', ts)"),
+        ("select week(ts)", "SELECT date_part('week', ts)"),
+        ("select hour(ts)", "SELECT date_part('hour', ts)"),
+        ("select minute(ts)", "SELECT date_part('minute', ts)"),
+        ("select second(ts)", "SELECT date_part('second', ts)"),
+        ("select minute(ts)", "SELECT date_part('minute', ts)"),
+        ("select yearofweek(ts)", "SELECT yearofweek(ts)"),
+        ("select yearofweekiso(ts)", "SELECT yearofweekiso(ts)"),
         // timestamp keywords postprocess
         (
             "SELECT dateadd(year, 5, '2025-06-01')",
@@ -260,19 +274,22 @@ fn test_qualify_in_query() -> DFResult<()> {
                 WHERE _task_instance = (SELECT max_column_value  FROM max_task_instance)
                 QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) = 1
             ) SELECT * FROM filtered);",
-            "CREATE TABLE test_table AS (WITH max_task_instance AS (SELECT MAX(task_instance) \
-            AS max_column_value FROM base WHERE RIGHT(task_instance, 8) = (SELECT MAX(RIGHT(task_instance, 8)) FROM base)), \
+            "CREATE TABLE test_table AS (WITH max_task_instance AS (SELECT MAX(task_instance) AS max_column_value \
+            FROM base WHERE RIGHT(task_instance, 8) = (SELECT MAX(RIGHT(task_instance, 8)) FROM base)), \
             filtered AS (SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) AS qualify_alias \
-            FROM (SELECT * FROM base WHERE _task_instance = (SELECT max_column_value FROM max_task_instance))) WHERE qualify_alias = 1) \
-            SELECT * FROM filtered)"
+            FROM base WHERE _task_instance = (SELECT max_column_value FROM max_task_instance)) WHERE qualify_alias = 1) SELECT * FROM filtered)"
         ),
         (
             "SELECT * FROM test
             WHERE task = (SELECT max_column_value FROM max_task_instance)
             QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) = 1",
-            "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) \
-            AS qualify_alias FROM (SELECT * FROM test WHERE task = (SELECT max_column_value FROM max_task_instance))) \
-            WHERE qualify_alias = 1",
+            "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) AS qualify_alias \
+            FROM test WHERE task = (SELECT max_column_value FROM max_task_instance)) WHERE qualify_alias = 1",
+        ),
+        (
+            "select id from t ev where field is not null qualify row_number() over (partition by id order by tstamp) = 1",
+            "SELECT * FROM (SELECT id, row_number() OVER (PARTITION BY id ORDER BY tstamp) AS qualify_alias \
+            FROM t AS ev WHERE field IS NOT NULL) WHERE qualify_alias = 1"
         ),
     ];
 
