@@ -4,13 +4,9 @@ permissions:
   contents: write
   
 on:
-  pull_request:
-    branches: [osmazur/dbt-snowplow-web-ci]
-  workflow_dispatch:
-
-  # schedule:
-  #   # Runs every day at 2 AM UTC
-  #   - cron: '0 2 * * *'
+  schedule:
+    # Runs every day at 4 AM UTC
+    - cron: '0 4 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -24,10 +20,9 @@ jobs:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: embucket
       SNOWFLAKE_PASSWORD: embucket
-      SNOWFLAKE_ROLE: SYSADMIN
-      SNOWFLAKE_WAREHOUSE: COMPUTE_WH
-      SNOWFLAKE_SCHEMA: public
-      DBT_ENV_SECRET_SNOWFLAKE_PASS: embucket
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
       RESET_DB: false
       EMBUCKET_ENABLED: true
       EMBUCKET_PROTOCOL: http
@@ -35,10 +30,6 @@ jobs:
       EMBUCKET_PORT: 3000
       EMBUCKET_USER: embucket
       EMBUCKET_PASSWORD: embucket
-      EMBUCKET_ROLE: SYSADMIN
-      EMBUCKET_DATABASE: EMBUCKET
-      EMBUCKET_WAREHOUSE: COMPUTE_WH
-      EMBUCKET_SCHEMA: public
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,15 +66,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Create assets dir
-        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web
-        run: |
-          mkdir assets
-
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./run.sh --target embucket
+          ./run_snowplow_web.sh
 
       # Generate Test Assets
       - name: Generate data for commit message
@@ -127,4 +113,4 @@ jobs:
           git commit -m "Update test assets [DBT Snowplow Web run result: $COVERAGE%] [skip ci]" || echo "No changes to commit"
           
           # Push to the existing assets branch
-          git push origin assets_dbt 
+          git push origin assets_dbt

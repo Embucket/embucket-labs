@@ -1,7 +1,7 @@
 
 echo ""
 echo "Cloning dbt-snowplow-web repository"
-git clone git@github.com:snowplow/dbt-snowplow-web.git
+git clone https://github.com/snowplow/dbt-snowplow-web.git
 echo ""
 
 echo "###############################"

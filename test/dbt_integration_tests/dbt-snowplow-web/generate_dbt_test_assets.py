@@ -62,7 +62,7 @@ def generate_badge(success_rate, output_dir='assets'):
     pct_text = f"{success_rate:.1f}%"
 
     # Label text for the badge
-    label_text = "DBT Gitlab Success Rate"
+    label_text = "DBT Snowplow Web Success Rate"
 
     # Calculate widths
     label_width = len(label_text) * 7 + 10  # Width based on text length plus padding
@@ -98,7 +98,7 @@ def generate_badge(success_rate, output_dir='assets'):
 
         # Write a text file with the percentage for the GitHub workflow
         with open(os.path.join(output_dir, 'dbt_success_badge.txt'), 'w') as f:
-            f.write(f"DBT Gitlab Success Rate: {pct_text}")
+            f.write(f"DBT Snowplow Web Success Rate: {pct_text}")
 
         print(f"Badge generated with {pct_text} success rate")
         return output_file
