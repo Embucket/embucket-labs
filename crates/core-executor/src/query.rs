@@ -2995,10 +2995,7 @@ pub fn cast_input_to_target_schema(
         let (reference, input_field) = get_field(input_schema, name)?;
         if input_field.data_type() == data_type {
             if input_field.name() == name {
-                projections.push(logical_expr::Expr::Column(Column::new(
-                    reference.cloned(),
-                    input_field.name(),
-                )));
+                projections.push(col(name));
             } else {
                 projections.push(
                     logical_expr::Expr::Column(Column::new(reference.cloned(), input_field.name()))
@@ -3007,10 +3004,7 @@ pub fn cast_input_to_target_schema(
             }
         } else if input_field.name() == name {
             projections.push(DFExpr::TryCast(TryCast::new(
-                Box::new(logical_expr::Expr::Column(Column::new(
-                    reference.cloned(),
-                    input_field.name(),
-                ))),
+                Box::new(col(name)),
                 data_type.clone(),
             )));
         } else {
