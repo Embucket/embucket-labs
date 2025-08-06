@@ -35,6 +35,7 @@ use strum::{Display, EnumString};
 pub struct Config {
     pub embucket_version: String,
     pub sql_parser_dialect: Option<String>,
+    pub query_timeout_secs: u64,
     pub max_concurrency_level: usize,
     pub mem_pool_type: MemPoolType,
     pub mem_pool_size_mb: Option<usize>,
@@ -47,6 +48,7 @@ impl Default for Config {
         Self {
             embucket_version: "0.1.0".to_string(),
             sql_parser_dialect: None,
+            query_timeout_secs: 1200, // 20 minutes
             max_concurrency_level: 100,
             mem_pool_type: MemPoolType::default(),
             mem_pool_size_mb: None,
@@ -60,6 +62,12 @@ impl Config {
     #[must_use]
     pub const fn with_max_concurrency_level(mut self, level: usize) -> Self {
         self.max_concurrency_level = level;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_query_timeout(mut self, timeout_secs: u64) -> Self {
+        self.query_timeout_secs = timeout_secs;
         self
     }
 }
