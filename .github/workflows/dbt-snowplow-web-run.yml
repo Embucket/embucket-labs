@@ -127,4 +127,5 @@ jobs:
           git commit -m "Update test assets [DBT Snowplow Web run result: $COVERAGE%] [skip ci]" || echo "No changes to commit"
           
           # Push to the existing assets branch
-          git push origin assets_dbt 
+          git push origin assets_dbt
+          
