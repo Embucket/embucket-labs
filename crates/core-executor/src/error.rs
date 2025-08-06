@@ -14,6 +14,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
+    #[snafu(display("Concurrency limit reached — too many concurrent queries are running"))]
+    ConcurrencyLimitError {
+        #[snafu(source)]
+        error: tokio::sync::TryAcquireError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Cannot register UDF functions"))]
     RegisterUDF {
         #[snafu(source(from(DataFusionError, Box::new)))]
@@ -34,6 +42,12 @@ pub enum Error {
     DataFusion {
         #[snafu(source(from(DataFusionError, Box::new)))]
         error: Box<DataFusionError>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Expected unique ownership of DiskManager"))]
+    DataFusionDiskManager {
         #[snafu(implicit)]
         location: Location,
     },
@@ -468,6 +482,26 @@ pub enum Error {
     #[snafu(display("Unsupported IcebergValue type for literal conversion: {value_type}"))]
     UnsupportedIcebergValueType {
         value_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+
+    #[snafu(display("Unexpected subquery result for set variable"))]
+    UnexpectedSubqueryResultForSetVariable {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Stages are currently not supported"))]
+    StagesNotSupported {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Field '{field_name}' not found in input schema"))]
+    FieldNotFoundInInputSchema {
+        field_name: String,
         #[snafu(implicit)]
         location: Location,
     },
