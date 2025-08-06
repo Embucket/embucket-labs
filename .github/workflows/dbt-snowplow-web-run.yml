@@ -20,10 +20,9 @@ jobs:
       SNOWFLAKE_ACCOUNT: test
       SNOWFLAKE_USER: embucket
       SNOWFLAKE_PASSWORD: embucket
-      SNOWFLAKE_ROLE: SYSADMIN
-      SNOWFLAKE_WAREHOUSE: COMPUTE_WH
-      SNOWFLAKE_SCHEMA: public
-      DBT_ENV_SECRET_SNOWFLAKE_PASS: embucket
+      WAREHOUSE: COMPUTE_WH
+      DATABASE: embucket
+      SCHEMA: public
       RESET_DB: false
       EMBUCKET_ENABLED: true
       EMBUCKET_PROTOCOL: http
@@ -31,10 +30,6 @@ jobs:
       EMBUCKET_PORT: 3000
       EMBUCKET_USER: embucket
       EMBUCKET_PASSWORD: embucket
-      EMBUCKET_ROLE: SYSADMIN
-      EMBUCKET_DATABASE: EMBUCKET
-      EMBUCKET_WAREHOUSE: COMPUTE_WH
-      EMBUCKET_SCHEMA: public
     steps:
       - uses: actions/checkout@v4
         with:
