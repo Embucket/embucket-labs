@@ -1,10 +1,11 @@
 # DBT Run Summary
-PASS: 20
+PASS: 13
 WARN: 0
-ERROR: 0
-SKIP: 0
+ERROR: 1
+SKIP: 6
 TOTAL: 20
 
 # Total top 10 errors
+      1 SQL compilation error: column 'derived_tstamp' not found
 
 # Top function errors
