@@ -1099,12 +1099,12 @@ impl UserQuery {
         self.status_response()
     }
 
-    // #[instrument(
-    //     name = "UserQuery::copy_into_snowflake_query",
-    //     level = "trace",
-    //     skip(self),
-    //     err
-    // )]
+    #[instrument(
+        name = "UserQuery::copy_into_snowflake_query",
+        level = "trace",
+        skip(self),
+        err
+    )]
     pub async fn copy_into_snowflake_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::CopyIntoSnowflake {
             into,
