@@ -96,7 +96,7 @@ use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::ObjectStore;
 use object_store::aws::AmazonS3Builder;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
@@ -2529,7 +2529,7 @@ impl UserQuery {
                     .get_volume(&volume)
                     .await
                     .context(ex_error::MetastoreSnafu)?
-                    .ok_or_else(|| ex_error::VolumeNotFoundSnafu { volume }.build())?;
+                    .context(ex_error::VolumeNotFoundSnafu { volume })?;
                 volume
                     .get_object_store()
                     .context(ex_error::MetastoreSnafu)?
@@ -3038,11 +3038,8 @@ fn get_field<'a>(
             }
             None
         })
-        .ok_or_else(|| {
-            ex_error::FieldNotFoundInInputSchemaSnafu {
-                field_name: name.to_string(),
-            }
-            .build()
+        .context(ex_error::FieldNotFoundInInputSchemaSnafu {
+            field_name: name.to_string(),
         })?;
     Ok((reference, input_field))
 }
@@ -3150,10 +3147,10 @@ fn create_file_format(
         } else if format_type.eq_ignore_ascii_case("json") {
             Ok(Some((Arc::new(JsonFormat::default()), true)))
         } else {
-            Err(ex_error::UnsupportedFileFormatSnafu {
+            ex_error::UnsupportedFileFormatSnafu {
                 format: format_type,
             }
-            .build())
+            .fail()
         }
     } else {
         Ok(None)
