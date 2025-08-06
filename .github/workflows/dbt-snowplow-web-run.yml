@@ -75,15 +75,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Create assets dir
-        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web
-        run: |
-          mkdir assets
-
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./run.sh --target embucket
+          ./run_snowplow_web.sh
 
       # Generate Test Assets
       - name: Generate data for commit message
@@ -128,4 +123,3 @@ jobs:
           
           # Push to the existing assets branch
           git push origin assets_dbt
-          
