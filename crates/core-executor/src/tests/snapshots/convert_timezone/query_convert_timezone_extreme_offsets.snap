@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/datetime/convert_timezone.rs
+source: crates/core-executor/src/tests/query.rs
 description: "r#\"SELECT\n        '2024-01-15T12:00:00Z'::TIMESTAMP AS utc_time,\n        CONVERT_TIMEZONE('Pacific/Kiritimati', '2024-01-15T12:00:00Z'::TIMESTAMP) AS plus_14_hours,\n        CONVERT_TIMEZONE('Pacific/Niue', '2024-01-15T12:00:00Z'::TIMESTAMP) AS minus_11_hours,\n        CONVERT_TIMEZONE('Pacific/Chatham', '2024-01-15T12:00:00Z'::TIMESTAMP) AS plus_12_45_minutes\"#"
 ---
 Ok(

@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/datetime/convert_timezone.rs
+source: crates/core-executor/src/tests/query.rs
 description: "r#\"SELECT\n        '2024-01-15T12:00:00Z'::TIMESTAMP AS utc_time,\n        CONVERT_TIMEZONE('America/New_York', '2024-01-15T12:00:00Z'::TIMESTAMP) AS est_time\"#"
 ---
 Ok(

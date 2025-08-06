@@ -23,23 +23,23 @@ use std::sync::Arc;
 /// Syntax: `CONVERT_TIMEZONE(<target_timezone>, <source_timestamp_tz>)`
 ///
 /// Arguments:
-/// - `<target_timezone>`: A string representing the target timezone (e.g. America/Los_Angeles).
-/// - `<source_timezone>`: A string representing the source timezone (e.g. America/Los_Angeles).
+/// - `<target_timezone>`: A string representing the target timezone (e.g. `America/Los_Angeles`).
+/// - `<source_timezone>`: A string representing the source timezone (e.g. `America/Los_Angeles`).
 /// - `<source_timestamp_ntz>`: A timestamp without timezone to convert.
 /// - `<source_timestamp_tz>`: A timestamp with timezone to convert.
 ///
 /// Example: `SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', '2024-01-01 14:00:00'::TIMESTAMP) AS conv;`
 ///
 /// Returns:
-/// - For the 3-argument version, returns a value of type TIMESTAMP_NTZ.
-/// - For the 2-argument version, returns a value of type TIMESTAMP_TZ.
+/// - For the 3-argument version, returns a value of type `TIMESTAMP_NTZ`.
+/// - For the 2-argument version, returns a value of type `TIMESTAMP_TZ`.
 ///
 /// Usage notes:
 /// For the 3-argument version, the “wallclock” time in the result represents the same moment in time
 /// as the input “wallclock” in the input time zone, but in the target time zone.
 ///
-/// For the 2-argument version, the source_timestamp argument typically includes the time zone.
-/// If the value is of type TIMESTAMP_TZ, the time zone is taken from its value. Otherwise, the current session time zone is used.
+/// For the 2-argument version, the `source_timestamp` argument typically includes the time zone.
+/// If the value is of type `TIMESTAMP_TZ`, the time zone is taken from its value. Otherwise, the current session time zone is used.
 ///
 ///
 #[derive(Debug)]
@@ -174,23 +174,21 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
 
         match (source_tz, target_tz, arr) {
             (Some(source_tz), Some(target_tz), arr) => build_array(&arr, &source_tz, &target_tz),
-            (None, Some(target_tz), arr) => {
-                match arr.data_type() {
-                    Timestamp(_, Some(_)) => {
-                        let arr = cast_with_options(
-                            &arr,
-                            &Timestamp(
-                                TimeUnit::Nanosecond,
-                                Some(Arc::from(target_tz.into_boxed_str())),
-                            ),
-                            &DEFAULT_CAST_OPTIONS,
-                        )?;
+            (None, Some(target_tz), arr) => match arr.data_type() {
+                Timestamp(_, Some(_)) => {
+                    let arr = cast_with_options(
+                        &arr,
+                        &Timestamp(
+                            TimeUnit::Nanosecond,
+                            Some(Arc::from(target_tz.into_boxed_str())),
+                        ),
+                        &DEFAULT_CAST_OPTIONS,
+                    )?;
 
-                        Ok(ColumnarValue::Array(arr))
-                    }
-                    Timestamp(_, None) => build_array(&arr, &self.tz, &target_tz),
-                    _ => internal_err!("Invalid source_timestamp type"),
+                    Ok(ColumnarValue::Array(arr))
                 }
+                Timestamp(_, None) => build_array(&arr, &self.tz, &target_tz),
+                _ => internal_err!("Invalid source_timestamp type"),
             },
             _ => internal_err!("Invalid arguments"),
         }

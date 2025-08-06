@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/datetime/convert_timezone.rs
+source: crates/core-executor/src/tests/query.rs
 description: "r#\"-- Financial market opening times in UTC converted to local times\n    WITH market_opens AS (\n        SELECT '2024-03-15T14:30:00Z'::TIMESTAMP AS utc_time, 'NYSE Open (9:30 AM EST)' AS market\n        UNION ALL SELECT '2024-03-15T08:00:00Z'::TIMESTAMP, 'LSE Open (8:00 AM GMT)'\n        UNION ALL SELECT '2024-03-15T00:00:00Z'::TIMESTAMP, 'TSE Open (9:00 AM JST)'\n        UNION ALL SELECT '2024-03-15T22:00:00Z'::TIMESTAMP, 'ASX Open (9:00 AM AEDT)'\n    )\n    SELECT\n        market,\n        utc_time,\n        CONVERT_TIMEZONE('America/New_York', utc_time) AS new_york_time,\n        CONVERT_TIMEZONE('Europe/London', utc_time) AS london_time,\n        CONVERT_TIMEZONE('Asia/Tokyo', utc_time) AS tokyo_time,\n        CONVERT_TIMEZONE('Australia/Sydney', utc_time) AS sydney_time\n    FROM market_opens\n    ORDER BY utc_time\"#"
 ---
 Ok(

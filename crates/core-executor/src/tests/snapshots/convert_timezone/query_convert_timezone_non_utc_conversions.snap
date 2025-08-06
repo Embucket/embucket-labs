@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/datetime/convert_timezone.rs
+source: crates/core-executor/src/tests/query.rs
 description: "r#\"SELECT\n        '2024-07-15T14:30:00'::TIMESTAMP AS source_time,\n        CONVERT_TIMEZONE('America/New_York', 'Europe/London', '2024-07-15T14:30:00'::TIMESTAMP) AS ny_to_london,\n        CONVERT_TIMEZONE('Europe/London', 'Asia/Tokyo', '2024-07-15T14:30:00'::TIMESTAMP) AS london_to_tokyo,\n        CONVERT_TIMEZONE('Asia/Tokyo', 'America/Los_Angeles', '2024-07-15T14:30:00'::TIMESTAMP) AS tokyo_to_la\"#"
 ---
 Ok(

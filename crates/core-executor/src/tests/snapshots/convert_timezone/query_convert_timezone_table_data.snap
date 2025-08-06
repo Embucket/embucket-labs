@@ -1,5 +1,5 @@
 ---
-source: crates/embucket-functions/src/tests/datetime/convert_timezone.rs
+source: crates/core-executor/src/tests/query.rs
 description: "r#\"WITH event_times AS (\n        SELECT 'Meeting Start' AS event, '2024-01-15T09:00:00Z'::TIMESTAMP AS utc_time\n        UNION ALL SELECT 'Lunch Break', '2024-01-15T12:00:00Z'::TIMESTAMP\n        UNION ALL SELECT 'Meeting End', '2024-01-15T17:00:00Z'::TIMESTAMP\n        UNION ALL SELECT 'Dinner', '2024-01-15T19:30:00Z'::TIMESTAMP\n    )\n    SELECT\n        event,\n        utc_time,\n        CONVERT_TIMEZONE('America/New_York', utc_time) AS eastern_time,\n        CONVERT_TIMEZONE('America/Los_Angeles', utc_time) AS pacific_time,\n        CONVERT_TIMEZONE('Europe/London', utc_time) AS london_time\n    FROM event_times\n    ORDER BY utc_time\"#"
 ---
 Ok(
