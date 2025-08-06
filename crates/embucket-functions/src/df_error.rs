@@ -29,6 +29,8 @@ pub enum DFExternalError {
     // Geospatial { source: crate::geospatial::Error },
     #[snafu(transparent)]
     Crate { source: CrateError },
+    #[snafu(transparent)]
+    Regexp { source: crate::regexp::Error },
 }
 
 impl From<DFExternalError> for datafusion_common::DataFusionError {

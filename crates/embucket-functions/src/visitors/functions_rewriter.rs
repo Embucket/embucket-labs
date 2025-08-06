@@ -1,3 +1,4 @@
+use datafusion::sql::sqlparser::ast::ValueWithSpan;
 use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
@@ -17,28 +18,6 @@ impl VisitorMut for FunctionsRewriter {
             let func_name = func_name_string.as_str();
             let args = &mut func.args;
             let name = match func_name {
-                "year" | "day" | "dayofmonth" | "dayofweek" | "dayofweekiso" | "dayofyear"
-                | "week" | "weekofyear" | "weekiso" | "month" | "quarter" | "hour" | "minute"
-                | "second" => {
-                    if let FunctionArguments::List(arg_list) = args {
-                        let arg = match func_name {
-                            "year" | "quarter" | "month" | "week" | "day" | "hour" | "minute"
-                            | "second" => func_name,
-                            "dayofyear" => "doy",
-                            "dayofweek" => "dow",
-                            "dayofmonth" => "day",
-                            "weekofyear" => "week",
-                            _ => "unknown",
-                        };
-                        arg_list.args.insert(
-                            0,
-                            FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                                SingleQuotedString(arg.to_string()).into(),
-                            ))),
-                        );
-                    }
-                    "date_part"
-                }
                 "dateadd" | "date_add" | "datediff" | "date_diff" => {
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
                         if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
@@ -54,6 +33,30 @@ impl VisitorMut for FunctionsRewriter {
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
                 "date" => "to_date",
+                //regexp_ udfs need `\\` in the pattern for regex, but when converting to the logical plan, it gets removed,
+                // the only way to make it stay is to make it `\\\\` or maybe use another type?
+                // Escaped blah blah String from postgres types may work, but differently
+                fn_name if fn_name.starts_with("regexp_") => {
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
+                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
+                            args.get_mut(1)
+                        //second arg is pattern for regex
+                        {
+                            if let Expr::Value(ValueWithSpan {
+                                value: SingleQuotedString(value),
+                                span,
+                            }) = pattern
+                            {
+                                let value = value.replace('\\', "\\\\");
+                                *pattern = Expr::Value(ValueWithSpan {
+                                    value: SingleQuotedString(value),
+                                    span: *span,
+                                });
+                            }
+                        }
+                    }
+                    func_name
+                }
                 _ => func_name,
             };
             func.name = ObjectName::from(vec![Ident::new(name)]);

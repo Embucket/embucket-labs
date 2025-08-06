@@ -304,6 +304,9 @@ fn datafusion_error(df_error: DataFusionError) -> SnowflakeError {
                         EmubucketFunctionsExternalDFError::Crate { .. } => {
                             CustomSnafu { message }.build()
                         }
+                        EmubucketFunctionsExternalDFError::Regexp { .. } => {
+                            CustomSnafu { message }.build()
+                        }
                     }
                 } else {
                     unreachable!()

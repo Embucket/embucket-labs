@@ -567,7 +567,10 @@ impl ObjectStoreType {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
             Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
-                DbBuilder::new(object_store::path::Path::from(suffix.clone()), self.object_store()?)
+                DbBuilder::new(
+                    object_store::path::Path::from(suffix.clone()),
+                    self.object_store()?,
+                )
                 .with_block_cache(Arc::new(MokaCache::new()))
                 .build()
                 .await
