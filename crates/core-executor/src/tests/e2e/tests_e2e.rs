@@ -1,13 +1,16 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
 use super::e2e_common::AwsSdkSnafu;
-use super::e2e_toxiproxy::{create_toxiproxy, create_toxic_conn_limit, delete_toxic_conn_limit, delete_toxiproxy};
+use super::e2e_toxiproxy::{
+    create_toxic_conn_limit, create_toxiproxy, delete_toxic_conn_limit, delete_toxiproxy,
+};
 use crate::service::ExecutionService;
 use crate::tests::e2e::e2e_common::{
-    AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, Error, MINIO_OBJECT_STORE_PREFIX, E2E_S3VOLUME_PREFIX,
-    ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_SESSION_ID3,
-    TestQuery, TestVolumeType, VolumeConfig, create_executor, create_executor_with_early_volumes_creation,
-    create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix, copy_env_to_new_prefix,
+    AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, Error,
+    MINIO_OBJECT_STORE_PREFIX, ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1,
+    TEST_SESSION_ID2, TEST_SESSION_ID3, TestQuery, TestVolumeType, VolumeConfig,
+    copy_env_to_new_prefix, create_executor, create_executor_with_early_volumes_creation,
+    create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix,
 };
 use crate::tests::e2e::e2e_s3tables_aws::{
     delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
@@ -122,43 +125,48 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         tokio::time::sleep(delay).await; // Ensure the executor is created after the previous delay
     }
 
-    let test_plan = vec![ParallelTest(vec![TestQuery {
-        // After being fenced:
-        sqls: vec![
-            // first executor still successfully reads data
-            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
-        ],
-        executor: file_exec1.clone(),
-        session_id: TEST_SESSION_ID1,
-        expected_res: true,
-    }, TestQuery {
-        // After being fenced:
-        sqls: vec![
-            // first executor fails to write
-            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            // After being fenced:
+            sqls: vec![
+                // first executor still successfully reads data
+                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+            ],
+            executor: file_exec1.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+        TestQuery {
+            // After being fenced:
+            sqls: vec![
+                // first executor fails to write
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
             (100, 'Alice', 'foo')",
-        ],
-        executor: file_exec1.clone(),
-        session_id: TEST_SESSION_ID2,
-        expected_res: false,
-    }, TestQuery {
-        // After being fenced:
-        sqls: vec![
-            // first executor still successfully reads data
-            "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
-        ],
-        executor: file_exec1,
-        session_id: TEST_SESSION_ID3,
-        expected_res: true,
-    }, TestQuery {
-        sqls: vec![
-            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
+            ],
+            executor: file_exec1.clone(),
+            session_id: TEST_SESSION_ID2,
+            expected_res: false,
+        },
+        TestQuery {
+            // After being fenced:
+            sqls: vec![
+                // first executor still successfully reads data
+                "SELECT * FROM __DATABASE__.__SCHEMA__.hello",
+            ],
+            executor: file_exec1,
+            session_id: TEST_SESSION_ID3,
+            expected_res: true,
+        },
+        TestQuery {
+            sqls: vec![
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES
                 (100, 'Alice', 'foo')",
-        ],
-        executor: file_exec2,
-        session_id: TEST_SESSION_ID1,
-        expected_res: true,
-    }])];
+            ],
+            executor: file_exec2,
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+        },
+    ])];
     assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
     Ok(())
@@ -227,28 +235,40 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
     Ok(())
 }
 
-async fn template_s3_connections_test(some_id: usize, bytes_limit: usize, port: usize, expected_res: bool) -> Result<(), Error> {
+async fn template_s3_connections_test(
+    some_id: usize,
+    bytes_limit: usize,
+    port: usize,
+    expected_res: bool,
+) -> Result<(), Error> {
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
     copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
-    unsafe { 
-        std::env::set_var(format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"), 
-        format!("http://localhost:{port}"));
+    unsafe {
+        std::env::set_var(
+            format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
+            format!("http://localhost:{port}"),
+        );
     }
 
     // prepare envs for volumes
     const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";
     copy_env_to_new_prefix(E2E_S3VOLUME_PREFIX, E2E_S3VOLUME_TOXIC_PREFIX);
-    unsafe  {
-        std::env::set_var(format!("{E2E_S3VOLUME_TOXIC_PREFIX}AWS_ENDPOINT"), format!("http://localhost:{port}"));
+    unsafe {
+        std::env::set_var(
+            format!("{E2E_S3VOLUME_TOXIC_PREFIX}AWS_ENDPOINT"),
+            format!("http://localhost:{port}"),
+        );
     }
 
     let minio_proxy_name = format!("minio-proxy-{some_id}");
-    let toxic_minio_proxy_payload = format!(r#"{{
+    let toxic_minio_proxy_payload = format!(
+        r#"{{
         "name": "{minio_proxy_name}",
         "listen": "0.0.0.0:{port}",
         "upstream": "localhost:9000"
-    }}"#);
+    }}"#
+    );
 
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
@@ -271,7 +291,7 @@ async fn template_s3_connections_test(some_id: usize, bytes_limit: usize, port: 
             volume: "s3_volume_with_toxic",
             database: "db",
             schema: "schema",
-        }],        
+        }],
     )
     .await;
     if let Err(e) = &executor {
@@ -279,28 +299,31 @@ async fn template_s3_connections_test(some_id: usize, bytes_limit: usize, port: 
     }
     let executor = Arc::new(executor?);
 
-    let test_plan = vec![ParallelTest(vec![TestQuery {
-        sqls: vec![
-            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-            "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
-        ],
-        executor: executor.clone(),
-        session_id: TEST_SESSION_ID1,
-        expected_res,
-    }]), ParallelTest(vec![TestQuery {
-        sqls: vec![
-            "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
+    let test_plan = vec![
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+                "CREATE TABLE __DATABASE__.__SCHEMA__.hello(amount number, name string, c5 VARCHAR)",
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res,
+        }]),
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                "INSERT INTO __DATABASE__.__SCHEMA__.hello (amount, name, c5) VALUES 
                 (100, 'Alice', 'foo'),
                 (200, 'Bob', 'bar'),
                 (300, 'Charlie', 'baz'),
                 (400, 'Diana', 'qux'),
                 (500, 'Eve', 'quux');",
-        ],
-        executor: executor.clone(),
-        session_id: TEST_SESSION_ID1,
-        expected_res,
-    }])];
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res,
+        }]),
+    ];
     let res = exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await;
     if let Err(e) = &res {
         eprintln!("test failed: {e}, {e:#?}");
@@ -554,10 +577,8 @@ async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() 
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
     // Set envs by copying envs from other prefix, restore some of them
-    let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"))
-        .expect(&format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
-    let namespace2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE"))
-        .expect(&format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE env variable wasn't set"));
+    let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN")).unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
+    let namespace2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE")).unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE env variable wasn't set"));
     copy_env_to_new_prefix(E2E_S3TABLESVOLUME_PREFIX, E2E_S3TABLESVOLUME2_PREFIX);
     unsafe {
         std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"), aws_arn2);
@@ -841,16 +862,18 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
         select should pass, insert should fail."
     );
     dotenv().ok();
-    
+
     const E2E_READONLY_S3VOLUME_PREFIX: &str = "E2E_READONLY_S3VOLUME_";
 
     // Set envs by copying envs from other prefix, restore some of them
-    let aws_bucket = std::env::var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"))
-        .expect(&format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET env variable wasn't set"));
-    
+    let aws_bucket = std::env::var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET")).unwrap_or_else(|_| panic!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET env variable wasn't set"));
+
     copy_env_to_new_prefix(AWS_OBJECT_STORE_PREFIX, E2E_READONLY_S3VOLUME_PREFIX);
     unsafe {
-        std::env::set_var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"), aws_bucket);
+        std::env::set_var(
+            format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"),
+            aws_bucket,
+        );
     }
 
     let executor = create_executor_with_early_volumes_creation(
@@ -1223,9 +1246,15 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     dotenv().ok();
 
     const E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX: &str = "E2E_S3VOLUME_NON_EXISTING_BUCKET_";
-    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX);
-    unsafe  {
-        std::env::set_var(format!("{E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX}AWS_BUCKET"), "non_existing_bucket");
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX,
+    );
+    unsafe {
+        std::env::set_var(
+            format!("{E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX}AWS_BUCKET"),
+            "non_existing_bucket",
+        );
     }
 
     let test_suffix = test_suffix();
@@ -1280,12 +1309,10 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     Ok(())
 }
 
-
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_volume_connection_issues()
--> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_volume_connection_issues() -> Result<(), Error> {
     eprintln!(
         "This spawns a test server and emulates running queries in environment with unstable network. \
         It injects communication failures between executor and s3 for both metadata & volumes."
@@ -1294,7 +1321,11 @@ async fn test_e2e_s3_store_single_executor_s3_volume_connection_issues()
 
     // 1st test is injecting error, and another is checking false positives
     // use proxies listening on different ports
-    assert!(template_s3_connections_test(1, 1000, 9998, false).await.is_err());
+    assert!(
+        template_s3_connections_test(1, 1000, 9998, false)
+            .await
+            .is_err()
+    );
     template_s3_connections_test(2, 100000, 9999, true).await?;
     Ok(())
 }

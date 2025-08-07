@@ -173,7 +173,7 @@ pub enum Error {
         source: reqwest::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
 }
 
 #[must_use]
@@ -210,7 +210,7 @@ pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str) {
             format!("{new_env_prefix}AWS_ALLOW_HTTP"),
             std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),
         );
-    }   
+    }
 }
 
 pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
@@ -367,7 +367,7 @@ impl ExecutorWithObjectStore {
             .await
             .context(SnowflakeExecutionSnafu {
                 query: "create session TEST_SESSION_ID3",
-            })?;            
+            })?;
         Ok(())
     }
 
