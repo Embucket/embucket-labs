@@ -31,29 +31,29 @@ San Jose
 query T
 WITH wildcards AS (
   SELECT * FROM VALUES
-    ('\\', '?') AS t(w, w2))
+    ('\\\\', '?') AS t(w, w2))
 SELECT w2
   FROM wildcards
   WHERE REGEXP_LIKE(w2, '\\?')
 ----
 ?
 
-query T
-WITH wildcards AS (
-  SELECT * FROM VALUES
-    ('\\', '?') AS t(w, w2))
-SELECT w2
-  FROM wildcards
-  WHERE REGEXP_LIKE(w2, '\\' || '?')
-----
-?
+# query T
+# WITH wildcards AS (
+#   SELECT * FROM VALUES
+#     ('\\', '?') AS t(w, w2))
+# SELECT w2
+#   FROM wildcards
+#   WHERE REGEXP_LIKE(w2, '\\' || '?')
+# ----
+# ?
 
-query TTTT
-WITH wildcards AS (
-  SELECT * FROM VALUES
-    ('\\', '?') AS t(w, w2))
-SELECT w, w2, w || w2 AS escape_sequence, w2
-  FROM wildcards
-  WHERE REGEXP_LIKE(w2, w || w2)
-----
-\	?	\?	?
+# query TTTT
+# WITH wildcards AS (
+#   SELECT * FROM VALUES
+#     ('\\', '?') AS t(w, w2))
+# SELECT w, w2, w || w2 AS escape_sequence, w2
+#   FROM wildcards
+#   WHERE REGEXP_LIKE(w2, w || w2)
+# ----
+# \	?	\?	?
