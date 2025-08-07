@@ -192,8 +192,7 @@ impl RegexpSubstrFunc {
             },
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
-                    usize::try_from(*value)
-                        .context(regexp_errors::InvalidIntegerConversionSnafu)
+                    usize::try_from(*value).context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
