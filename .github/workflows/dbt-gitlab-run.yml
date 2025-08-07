@@ -4,9 +4,11 @@ permissions:
   contents: write
   
 on:
-  schedule:
-    # Runs every day at 2 AM UTC
-    - cron: '0 4 31 2 *'
+  pull_request:
+    branches: [osmazur/dbt-snowplow-web-ci]
+  # schedule:
+  #   # Runs every day at 2 AM UTC
+  #   - cron: '0 4 31 2 *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -16,48 +18,17 @@ jobs:
   sql-logic-tests:
     runs-on: ubuntu-latest
     name: DBT Gitlab run
-    env:
-      SNOWFLAKE_ACCOUNT: test
-      SNOWFLAKE_USER: embucket
-      SNOWFLAKE_PASSWORD: embucket
-      WAREHOUSE: COMPUTE_WH
-      DATABASE: embucket
-      SCHEMA: public
-      RESET_DB: false
-      EMBUCKET_ENABLED: true
-      EMBUCKET_PROTOCOL: http
-      EMBUCKET_HOST: localhost
-      EMBUCKET_PORT: 3000
-      EMBUCKET_USER: embucket
-      EMBUCKET_PASSWORD: embucket
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      # Build only the embucketd binary
-      - name: Build embucketd
-        run: cargo build --bin embucketd
-
-      - name: Start Embucket Server
+      - name: Start Embucket Server (Docker)
         run: |
-          target/debug/embucketd &
+          docker run -d \
+            --name embucket-server \
+            -p 3000:3000 \
+            embucket/embucket
           echo "Starting Embucket server..."
           sleep 20
 
