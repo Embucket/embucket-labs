@@ -1993,6 +1993,7 @@ dependencies = [
  "paste",
  "pin-project-lite",
  "regex",
+ "reqwest",
  "serde",
  "serde_json",
  "slatedb",

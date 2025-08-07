@@ -68,6 +68,7 @@ pub const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME_";
 
 pub const TEST_SESSION_ID1: &str = "test_session_id1";
 pub const TEST_SESSION_ID2: &str = "test_session_id2";
+pub const TEST_SESSION_ID3: &str = "test_session_id3";
 
 #[derive(Clone)]
 pub struct VolumeConfig {
@@ -168,6 +169,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    ToxiProxy {
+        source: reqwest::Error,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 #[must_use]
@@ -176,6 +182,35 @@ pub fn test_suffix() -> String {
         .timestamp_nanos_opt()
         .unwrap_or_else(|| Utc::now().timestamp_millis())
         .to_string()
+}
+
+pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str) {
+    unsafe {
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_ACCESS_KEY_ID"),
+            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).unwrap_or_default(),
+        );
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_SECRET_ACCESS_KEY"),
+            std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).unwrap_or_default(),
+        );
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_REGION"),
+            std::env::var(format!("{env_prefix}AWS_REGION")).unwrap_or_default(),
+        );
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_BUCKET"),
+            std::env::var(format!("{env_prefix}AWS_BUCKET")).unwrap_or_default(),
+        );
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_ENDPOINT"),
+            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).unwrap_or_default(),
+        );
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_ALLOW_HTTP"),
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),
+        );
+    }   
 }
 
 pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
@@ -327,6 +362,12 @@ impl ExecutorWithObjectStore {
                 query: "create session TEST_SESSION_ID2",
             })?;
 
+        self.executor
+            .create_session(TEST_SESSION_ID3.to_string())
+            .await
+            .context(SnowflakeExecutionSnafu {
+                query: "create session TEST_SESSION_ID3",
+            })?;            
         Ok(())
     }
 
