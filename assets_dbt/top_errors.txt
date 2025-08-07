@@ -1,3 +1,20 @@
+# DBT Run Summary
+PASS: 1145
+WARN: 0
+ERROR: 343
+SKIP: 208
+TOTAL: 1696
+
 # Total top 10 errors
+     26 Optimizer rule 'optimize_projections' failed
+     18 Error during planning: Inserting query must have the same schema with the table.
+     11 Optimizer rule 'common_sub_expression_eliminate' failed
+     10 SQL compilation error: error line 7 at position 8
+     10 Optimizer rule 'eliminate_cross_join' failed
+      4 External error: Feature Arrow datatype Null is not supported. is not supported.
+      3 type_coercion
+      3 This feature is not implemented: ANY in LIKE expression
+      3 SQL error: ParserError("Expected: [EXTERNAL] TABLE or [MATERIALIZED] VIEW or FUNCTION after CREATE OR REPLACE, found: secure at Line: 2, Column: 19")
+      3 SQL compilation error: column 'metric_value' not found
 
 # Top function errors
