@@ -1,4 +1,7 @@
-use crate::datetime_errors::{CantConvertTimezoneSnafu, CantParseTimezoneSnafu};
+use crate::datetime_errors::Result;
+use crate::datetime_errors::{
+    CantGetNanosecondsSnafu, CantParseTimezoneSnafu, InvalidDatetimeSnafu, InvalidTimestampSnafu,
+};
 use arrow_schema::DataType::{Timestamp, Utf8};
 use arrow_schema::{DataType, TimeUnit};
 use chrono::{DateTime, TimeZone, Utc};
@@ -12,6 +15,7 @@ use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
 use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -109,7 +113,11 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         match args.arg_types.len() {
             2 => {
                 let tz = match &args.scalar_arguments[0] {
-                    Some(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    Some(
+                        ScalarValue::Utf8(Some(part))
+                        | ScalarValue::Utf8View(Some(part))
+                        | ScalarValue::LargeUtf8(Some(part)),
+                    ) => part.clone(),
                     _ => return internal_err!("Invalid target_tz type"),
                 };
 
@@ -196,21 +204,15 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
 }
 
 fn build_array(arr: &ArrayRef, source_tz: &str, target_tz: &str) -> DFResult<ColumnarValue> {
-    let source_tz = source_tz
-        .parse::<Tz>()
-        .map_err(|_| CantParseTimezoneSnafu.build())?;
-    let target_tz = target_tz
-        .parse::<Tz>()
-        .map_err(|_| CantParseTimezoneSnafu.build())?;
+    let source_tz = source_tz.parse::<Tz>().context(CantParseTimezoneSnafu)?;
+    let target_tz = target_tz.parse::<Tz>().context(CantParseTimezoneSnafu)?;
 
     let arr = as_timestamp_nanosecond_array(&arr)?;
     let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
     for v in arr {
         match v {
             Some(v) => {
-                let v = convert_timezone(source_tz, target_tz, v)
-                    .map_err(|e| CantConvertTimezoneSnafu { err: e.to_string() }.build())?;
-
+                let v = convert_timezone(source_tz, target_tz, v)?;
                 b.append_value(v);
             }
             None => b.append_null(),
@@ -224,21 +226,21 @@ fn convert_timezone(
     source_timezone: Tz,
     target_timezone: Tz,
     source_timestamp_ntz: i64,
-) -> Result<i64, Box<dyn std::error::Error>> {
+) -> Result<i64> {
     // Convert nanoseconds to seconds and nanoseconds remainder
     let secs = source_timestamp_ntz / 1_000_000_000;
     let nanos = (source_timestamp_ntz % 1_000_000_000) as u32;
 
     // Create a naive datetime from the timestamp (treating it as epoch time but interpreting as naive)
     let naive_dt = DateTime::from_timestamp(secs, nanos)
-        .ok_or("Invalid timestamp")?
+        .context(InvalidTimestampSnafu)?
         .naive_utc(); // Get the naive representation
 
     // Interpret this naive datetime as being in the source timezone
     let source_dt = source_timezone
         .from_local_datetime(&naive_dt)
         .single()
-        .ok_or("Failed to convert source time to source timezone")?;
+        .context(InvalidDatetimeSnafu)?;
 
     // Convert to target timezone
     let target_dt = source_dt.with_timezone(&target_timezone);
@@ -250,12 +252,12 @@ fn convert_timezone(
     let target_utc = Utc
         .from_local_datetime(&target_naive)
         .single()
-        .ok_or("Failed to convert target time to UTC")?;
+        .context(InvalidDatetimeSnafu)?;
 
     // Return as nanoseconds
-    Ok(target_utc
+    target_utc
         .timestamp_nanos_opt()
-        .ok_or("Failed to convert target time to nanoseconds")?)
+        .context(CantGetNanosecondsSnafu)
 }
 
 #[cfg(test)]
