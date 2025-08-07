@@ -43,7 +43,7 @@ fn sleep_udf() -> ScalarUDF {
                     .expect("Expected Int64Array");
                 array.value(0)
             }
-            _ => 0,
+            ColumnarValue::Scalar(_) => 0,
         };
         thread::sleep(Duration::from_secs(seconds.try_into().unwrap()));
         let result = Int64Array::from(vec![seconds]);

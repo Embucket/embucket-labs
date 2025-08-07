@@ -1,8 +1,10 @@
 pub mod errors;
 pub mod regexp_instr;
+mod regexp_like;
 mod regexp_substr;
 
 use crate::regexp::regexp_instr::RegexpInstrFunc;
+use crate::regexp::regexp_like::RegexpLikeFunc;
 use crate::regexp::regexp_substr::RegexpSubstrFunc;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
@@ -13,6 +15,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
     let functions: Vec<Arc<ScalarUDF>> = vec![
         Arc::new(ScalarUDF::from(RegexpInstrFunc::new())),
         Arc::new(ScalarUDF::from(RegexpSubstrFunc::new())),
+        Arc::new(ScalarUDF::from(RegexpLikeFunc::new())),
     ];
     for func in functions {
         registry.register_udf(func)?;
