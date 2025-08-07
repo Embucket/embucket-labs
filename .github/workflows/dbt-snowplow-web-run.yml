@@ -6,6 +6,9 @@ permissions:
 on:
   pull_request:
     branches: [osmazur/dbt-snowplow-web-ci]
+# schedule:
+  #   # Runs every day at 2 AM UTC
+  #   - cron: '0 4 31 2 *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
