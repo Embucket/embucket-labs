@@ -50,6 +50,32 @@ impl VisitorMut for FunctionsRewriter {
                             span: *span,
                         });
                     }
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
+                        && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(replacement))) =
+                        args.get_mut(2)
+                        //third arg may be a replacement
+                        && let Expr::Value(ValueWithSpan {
+                                               value: SingleQuotedString(value),
+                                               span,
+                                           }) = replacement
+                    {
+                        let value = if let Ok(regex) = regex::Regex::new(r"\\(\d)") {
+                            tracing::error!("Made a regex: {:?}", regex);
+                            tracing::error!("The string is: {}", value);
+                            regex
+                                .replace_all(value, |caps: &regex::Captures| {
+                                    tracing::error!("Found capture: {:?}", caps);
+                                    format!("${}", &caps[1]) // Replace with `$number`.
+                                })
+                                .to_string()
+                        } else {
+                            (*value).to_string()
+                        };
+                        *replacement = Expr::Value(ValueWithSpan {
+                            value: SingleQuotedString(value),
+                            span: *span,
+                        });
+                    }
                     match func_name {
                         "rlike" => "regexp_like",
                         "regexp_extract_all" => "regexp_substr_all",
