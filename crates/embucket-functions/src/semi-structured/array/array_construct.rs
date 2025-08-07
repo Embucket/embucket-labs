@@ -92,10 +92,10 @@ impl ScalarUDFImpl for ArrayConstructUDF {
         }
 
         for result in &mut results {
-            if let Value::Array(arr) = result {
-                if arr.len() == 1 {
-                    *result = arr[0].clone();
-                }
+            if let Value::Array(arr) = result
+                && arr.len() == 1
+            {
+                *result = arr[0].clone();
             }
         }
 

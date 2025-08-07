@@ -14,51 +14,49 @@ impl VisitorMut for ArrayConstructCompactRewriter {
         &mut self,
         expr: &mut datafusion_expr::sqlparser::ast::Expr,
     ) -> std::ops::ControlFlow<Self::Break> {
-        if let datafusion_expr::sqlparser::ast::Expr::Function(Function { name, args, .. }) = expr {
-            if let Some(part) = name.0.last() {
-                if part
-                    .as_ident()
-                    .is_some_and(|i| i.value == "array_construct_compact")
-                {
-                    // Create the inner array_construct function
-                    let array_construct = Function {
-                        name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
-                            "array_construct".to_string(),
-                        ))]),
-                        uses_odbc_syntax: false,
-                        parameters: FunctionArguments::None,
-                        args: args.clone(),
-                        filter: None,
-                        null_treatment: None,
-                        over: None,
-                        within_group: Vec::default(),
-                    };
+        if let datafusion_expr::sqlparser::ast::Expr::Function(Function { name, args, .. }) = expr
+            && let Some(part) = name.0.last()
+            && part
+                .as_ident()
+                .is_some_and(|i| i.value == "array_construct_compact")
+        {
+            // Create the inner array_construct function
+            let array_construct = Function {
+                name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
+                    "array_construct".to_string(),
+                ))]),
+                uses_odbc_syntax: false,
+                parameters: FunctionArguments::None,
+                args: args.clone(),
+                filter: None,
+                null_treatment: None,
+                over: None,
+                within_group: Vec::default(),
+            };
 
-                    // Create the outer array_compact function that wraps array_construct
-                    let array_compact = Function {
-                        name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
-                            "array_compact".to_string(),
-                        ))]),
-                        uses_odbc_syntax: false,
-                        parameters: FunctionArguments::None,
-                        args: FunctionArguments::List(FunctionArgumentList {
-                            args: vec![FunctionArg::Unnamed(
-                                datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(
-                                    Expr::Function(array_construct),
-                                ),
-                            )],
-                            duplicate_treatment: None,
-                            clauses: vec![],
-                        }),
-                        filter: None,
-                        null_treatment: None,
-                        over: None,
-                        within_group: Vec::default(),
-                    };
+            // Create the outer array_compact function that wraps array_construct
+            let array_compact = Function {
+                name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
+                    "array_compact".to_string(),
+                ))]),
+                uses_odbc_syntax: false,
+                parameters: FunctionArguments::None,
+                args: FunctionArguments::List(FunctionArgumentList {
+                    args: vec![FunctionArg::Unnamed(
+                        datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(Expr::Function(
+                            array_construct,
+                        )),
+                    )],
+                    duplicate_treatment: None,
+                    clauses: vec![],
+                }),
+                filter: None,
+                null_treatment: None,
+                over: None,
+                within_group: Vec::default(),
+            };
 
-                    *expr = Expr::Function(array_compact);
-                }
-            }
+            *expr = Expr::Function(array_compact);
         }
         std::ops::ControlFlow::Continue(())
     }

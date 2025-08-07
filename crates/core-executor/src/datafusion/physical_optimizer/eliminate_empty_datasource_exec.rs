@@ -55,14 +55,14 @@ impl PhysicalOptimizerRule for EliminateEmptyDataSourceExec {
         _config: &ConfigOptions,
     ) -> DFResult<Arc<dyn ExecutionPlan>> {
         plan.transform_up(|plan| {
-            if let Some(source_exec) = plan.as_any().downcast_ref::<DataSourceExec>() {
-                if matches!(
+            if let Some(source_exec) = plan.as_any().downcast_ref::<DataSourceExec>()
+                && matches!(
                     source_exec.properties().output_partitioning(),
                     Partitioning::UnknownPartitioning(0)
-                ) {
-                    let schema = source_exec.schema();
-                    return Ok(Transformed::yes(Arc::new(EmptyExec::new(schema))));
-                }
+                )
+            {
+                let schema = source_exec.schema();
+                return Ok(Transformed::yes(Arc::new(EmptyExec::new(schema))));
             }
 
             Ok(Transformed::no(plan))

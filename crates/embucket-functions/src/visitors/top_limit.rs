@@ -19,15 +19,15 @@ impl TopLimitVisitor {
 
                 if let Some(top) = select.top.take() {
                     if !top.percent && !top.with_ties {
-                        if outer_limit.is_none() {
-                            if let Some(expr) = top.quantity.map(|q| match q {
+                        if outer_limit.is_none()
+                            && let Some(expr) = top.quantity.map(|q| match q {
                                 TopQuantity::Expr(expr) => expr,
                                 TopQuantity::Constant(n) => Expr::Value(
                                     Value::Number(n.to_string(), false).with_empty_span(),
                                 ),
-                            }) {
-                                *outer_limit = Some(expr);
-                            }
+                            })
+                        {
+                            *outer_limit = Some(expr);
                         }
                     } else {
                         select.top = Some(top);

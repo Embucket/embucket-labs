@@ -19,14 +19,12 @@ impl VisitorMut for FunctionsRewriter {
             let args = &mut func.args;
             let name = match func_name {
                 "dateadd" | "date_add" | "datediff" | "date_diff" => {
-                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
-                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
+                        && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
                             args.iter_mut().next()
-                        {
-                            if let Expr::Identifier(Ident { value, .. }) = ident {
-                                *ident = Expr::Value(SingleQuotedString(value.clone()).into());
-                            }
-                        }
+                        && let Expr::Identifier(Ident { value, .. }) = ident
+                    {
+                        *ident = Expr::Value(SingleQuotedString(value.clone()).into());
                     }
                     func_name
                 }
@@ -37,23 +35,20 @@ impl VisitorMut for FunctionsRewriter {
                 // the only way to make it stay is to make it `\\\\` or maybe use another type?
                 // Escaped blah blah String from postgres types may work, but differently
                 fn_name if fn_name.starts_with("regexp_") => {
-                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args {
-                        if let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
+                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
+                        && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
                             args.get_mut(1)
                         //second arg is pattern for regex
-                        {
-                            if let Expr::Value(ValueWithSpan {
+                            && let Expr::Value(ValueWithSpan {
                                 value: SingleQuotedString(value),
                                 span,
                             }) = pattern
-                            {
-                                let value = value.replace('\\', "\\\\");
-                                *pattern = Expr::Value(ValueWithSpan {
-                                    value: SingleQuotedString(value),
-                                    span: *span,
-                                });
-                            }
-                        }
+                    {
+                        let value = value.replace('\\', "\\\\");
+                        *pattern = Expr::Value(ValueWithSpan {
+                            value: SingleQuotedString(value),
+                            span: *span,
+                        });
                     }
                     func_name
                 }

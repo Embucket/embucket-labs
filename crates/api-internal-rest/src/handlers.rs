@@ -113,11 +113,11 @@ pub async fn delete_volume(
 #[must_use]
 pub fn hide_sensitive(volume: RwObject<Volume>) -> RwObject<Volume> {
     let mut new_volume = volume;
-    if let VolumeType::S3(ref mut s3_volume) = new_volume.data.volume {
-        if let Some(AwsCredentials::AccessKey(ref mut access_key)) = s3_volume.credentials {
-            access_key.aws_access_key_id = "******".to_string();
-            access_key.aws_secret_access_key = "******".to_string();
-        }
+    if let VolumeType::S3(ref mut s3_volume) = new_volume.data.volume
+        && let Some(AwsCredentials::AccessKey(ref mut access_key)) = s3_volume.credentials
+    {
+        access_key.aws_access_key_id = "******".to_string();
+        access_key.aws_secret_access_key = "******".to_string();
     }
     new_volume
 }

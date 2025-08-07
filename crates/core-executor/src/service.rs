@@ -26,6 +26,7 @@ use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableId
 use core_utils::Db;
 use df_catalog::catalog_list::EmbucketCatalogList;
 use tokio::sync::{RwLock, Semaphore};
+use tokio::time::{Duration, timeout};
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -264,7 +265,20 @@ impl ExecutionService for CoreExecutionService {
             query_context.with_query_id(history_record.query_id()),
         );
 
-        let query_result = query_obj.execute().await;
+        // Execute the query with a timeout to prevent long-running or stuck queries
+        // from blocking system resources indefinitely. If the timeout is exceeded,
+        // convert the timeout into a standard QueryTimeout error so it can be handled
+        // and recorded like any other execution failure.
+        let result = timeout(
+            Duration::from_secs(self.config.query_timeout_secs),
+            query_obj.execute(),
+        )
+        .await;
+        let query_result: Result<QueryResult> = match result {
+            Ok(inner_result) => inner_result,
+            Err(_) => Err(ex_error::QueryTimeoutSnafu.build()),
+        };
+
         // Record the query in the session’s history, including result count or error message.
         // This ensures all queries are traceable and auditable within a session, which enables
         // features like `last_query_id()` and enhances debugging and observability.

@@ -53,18 +53,17 @@ fn analyze_internal(plan: LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
         let original_name = name_preserver.save(&expr);
 
         let transformed_expr = expr.transform_up(|e| {
-            if let Expr::Column(col) = &e {
-                if let Ok(field) = schema.field_with_unqualified_name(&col.name) {
-                    if field.data_type() == &DataType::UInt64 {
-                        let casted = Expr::Cast(Cast {
-                            expr: Box::new(Expr::Column(col.clone())),
-                            data_type: DataType::Int64,
-                        })
-                        .alias(col.name.clone());
+            if let Expr::Column(col) = &e
+                && let Ok(field) = schema.field_with_unqualified_name(&col.name)
+                && field.data_type() == &DataType::UInt64
+            {
+                let casted = Expr::Cast(Cast {
+                    expr: Box::new(Expr::Column(col.clone())),
+                    data_type: DataType::Int64,
+                })
+                .alias(col.name.clone());
 
-                        return Ok(Transformed::yes(casted));
-                    }
-                }
+                return Ok(Transformed::yes(casted));
             }
             Ok(Transformed::no(e))
         })?;

@@ -181,23 +181,23 @@ impl TableFuncInlineCte {
 
         // Check if the column is a part of any CTE's projection on the same level
         for cte in cte_names_on_same_level.clone() {
-            if let Some((alias, query)) = self.ctes.get_key_value(&cte) {
-                if let SetExpr::Select(select) = &*query.body {
-                    let mut columns = vec![];
-                    for item in &select.projection {
-                        match item {
-                            SelectItem::ExprWithAlias { alias, .. } => {
-                                columns.push(alias.value.clone());
-                            }
-                            SelectItem::UnnamedExpr(Expr::Identifier(ident)) => {
-                                columns.push(ident.value.clone());
-                            }
-                            _ => {}
+            if let Some((alias, query)) = self.ctes.get_key_value(&cte)
+                && let SetExpr::Select(select) = &*query.body
+            {
+                let mut columns = vec![];
+                for item in &select.projection {
+                    match item {
+                        SelectItem::ExprWithAlias { alias, .. } => {
+                            columns.push(alias.value.clone());
                         }
+                        SelectItem::UnnamedExpr(Expr::Identifier(ident)) => {
+                            columns.push(ident.value.clone());
+                        }
+                        _ => {}
                     }
-                    if columns.iter().any(|c| c == column) {
-                        return Some((alias, query));
-                    }
+                }
+                if columns.iter().any(|c| c == column) {
+                    return Some((alias, query));
                 }
             }
         }
