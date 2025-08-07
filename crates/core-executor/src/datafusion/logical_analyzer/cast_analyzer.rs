@@ -33,14 +33,14 @@ impl CastAnalyzer {
             let original_name = name_preserver.save(&expr);
 
             let transformed_expr = expr.transform_up(|e| {
-                if let Expr::Cast(cast) = &e {
-                    if cast.data_type == DataType::Date32 {
-                        return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-                            //TODO: should we somehow provide this function from session context?
-                            func: Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
-                            args: vec![cast.expr.deref().clone()],
-                        })));
-                    }
+                if let Expr::Cast(cast) = &e
+                    && cast.data_type == DataType::Date32
+                {
+                    return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
+                        //TODO: should we somehow provide this function from session context?
+                        func: Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
+                        args: vec![cast.expr.deref().clone()],
+                    })));
                 }
                 Ok(Transformed::no(e))
             })?;

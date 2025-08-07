@@ -15,47 +15,43 @@ impl VisitorMut for VariantArrayAggRewriter {
         &mut self,
         expr: &mut datafusion_expr::sqlparser::ast::Expr,
     ) -> std::ops::ControlFlow<Self::Break> {
-        if let datafusion_expr::sqlparser::ast::Expr::Function(Function { name, .. }) = expr {
-            if let Some(part) = name.0.last() {
-                if part.as_ident().is_some_and(|i| i.value == "array_agg") {
-                    let wrapped_function = Function {
-                        name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
-                            "array_construct".to_string(),
-                        ))]),
-                        uses_odbc_syntax: false,
-                        parameters: FunctionArguments::None,
-                        args: FunctionArguments::List(FunctionArgumentList {
-                            args: vec![FunctionArg::Unnamed(
-                                datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(
-                                    expr.clone(),
-                                ),
-                            )],
-                            duplicate_treatment: None,
-                            clauses: vec![],
+        if let datafusion_expr::sqlparser::ast::Expr::Function(Function { name, .. }) = expr
+            && let Some(part) = name.0.last()
+            && part.as_ident().is_some_and(|i| i.value == "array_agg")
+        {
+            let wrapped_function = Function {
+                name: ObjectName(vec![ObjectNamePart::Identifier(Ident::new(
+                    "array_construct".to_string(),
+                ))]),
+                uses_odbc_syntax: false,
+                parameters: FunctionArguments::None,
+                args: FunctionArguments::List(FunctionArgumentList {
+                    args: vec![FunctionArg::Unnamed(
+                        datafusion_expr::sqlparser::ast::FunctionArgExpr::Expr(expr.clone()),
+                    )],
+                    duplicate_treatment: None,
+                    clauses: vec![],
+                }),
+                filter: None,
+                null_treatment: None,
+                over: None,
+                within_group: Vec::default(),
+            };
+            let fn_call_expr = datafusion_expr::sqlparser::ast::Expr::Function(wrapped_function);
+
+            let index_expr = Expr::JsonAccess {
+                value: Box::new(fn_call_expr),
+                path: JsonPath {
+                    path: vec![JsonPathElem::Bracket {
+                        key: Expr::Value(ValueWithSpan {
+                            value: Value::Number("0".to_string(), false),
+                            span: Span::new(Location::new(0, 0), Location::new(0, 0)),
                         }),
-                        filter: None,
-                        null_treatment: None,
-                        over: None,
-                        within_group: Vec::default(),
-                    };
-                    let fn_call_expr =
-                        datafusion_expr::sqlparser::ast::Expr::Function(wrapped_function);
+                    }],
+                },
+            };
 
-                    let index_expr = Expr::JsonAccess {
-                        value: Box::new(fn_call_expr),
-                        path: JsonPath {
-                            path: vec![JsonPathElem::Bracket {
-                                key: Expr::Value(ValueWithSpan {
-                                    value: Value::Number("0".to_string(), false),
-                                    span: Span::new(Location::new(0, 0), Location::new(0, 0)),
-                                }),
-                            }],
-                        },
-                    };
-
-                    *expr = index_expr;
-                }
-            }
+            *expr = index_expr;
         }
         std::ops::ControlFlow::Continue(())
     }

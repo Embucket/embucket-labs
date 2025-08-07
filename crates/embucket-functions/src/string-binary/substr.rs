@@ -159,42 +159,42 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
-        if args.len() >= 2 && args.len() <= 3 {
-            if let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) =
+        if args.len() >= 2
+            && args.len() <= 3
+            && let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) =
                 (&args[0], &args[1])
-            {
-                if string_scalar.is_null() || start_scalar.is_null() {
-                    return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-                        ScalarValue::Null,
-                    )));
-                }
+        {
+            if string_scalar.is_null() || start_scalar.is_null() {
+                return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
+                    ScalarValue::Null,
+                )));
+            }
 
-                let string_val = string_scalar.to_string();
-                if let Ok(start_val) = start_scalar.to_string().parse::<i64>() {
-                    let length_val = if args.len() == 3 {
-                        if let Expr::Literal(length_scalar) = &args[2] {
-                            if length_scalar.is_null() {
-                                return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-                                    ScalarValue::Null,
-                                )));
-                            }
-                            length_scalar.to_string().parse::<i64>().ok()
-                        } else {
-                            None
+            let string_val = string_scalar.to_string();
+            if let Ok(start_val) = start_scalar.to_string().parse::<i64>() {
+                let length_val = if args.len() == 3 {
+                    if let Expr::Literal(length_scalar) = &args[2] {
+                        if length_scalar.is_null() {
+                            return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
+                                ScalarValue::Null,
+                            )));
                         }
+                        length_scalar.to_string().parse::<i64>().ok()
                     } else {
                         None
-                    };
+                    }
+                } else {
+                    None
+                };
 
-                    let result = compute_substr_string(
-                        &string_val,
-                        start_val,
-                        length_val.and_then(|l| u64::try_from(l).ok()),
-                    );
-                    return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-                        ScalarValue::Utf8View(Some(result)),
-                    )));
-                }
+                let result = compute_substr_string(
+                    &string_val,
+                    start_val,
+                    length_val.and_then(|l| u64::try_from(l).ok()),
+                );
+                return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
+                    ScalarValue::Utf8View(Some(result)),
+                )));
             }
         }
 
@@ -544,26 +544,26 @@ fn process_string_arrays(
             continue;
         }
 
-        if let Some(length_arr) = &length_array {
-            if length_arr.is_null(i) {
-                result_builder.append_null();
-                continue;
-            }
+        if let Some(length_arr) = &length_array
+            && length_arr.is_null(i)
+        {
+            result_builder.append_null();
+            continue;
         }
 
         let string_val = extract_value(base_array, i)?;
         let start_val = start_array.value(i);
         let length_val = length_array.as_ref().map(|arr| arr.value(i));
 
-        if let Some(length_val) = length_val {
-            if length_val < 0 {
-                return NegativeSubstringLengthSnafu {
-                    function_name: "substr".to_string(),
-                    start: start_val,
-                    length: length_val,
-                }
-                .fail()?;
+        if let Some(length_val) = length_val
+            && length_val < 0
+        {
+            return NegativeSubstringLengthSnafu {
+                function_name: "substr".to_string(),
+                start: start_val,
+                length: length_val,
             }
+            .fail()?;
         }
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
@@ -589,11 +589,11 @@ fn process_binary_arrays(
             continue;
         }
 
-        if let Some(length_arr) = &length_array {
-            if length_arr.is_null(i) {
-                result_builder.append_null();
-                continue;
-            }
+        if let Some(length_arr) = &length_array
+            && length_arr.is_null(i)
+        {
+            result_builder.append_null();
+            continue;
         }
 
         let binary_val: Vec<u8> = match base_array.data_type() {
@@ -619,15 +619,15 @@ fn process_binary_arrays(
         let start_val = start_array.value(i);
         let length_val = length_array.as_ref().map(|arr| arr.value(i));
 
-        if let Some(length_val) = length_val {
-            if length_val < 0 {
-                return NegativeSubstringLengthSnafu {
-                    function_name: "substr".to_string(),
-                    start: start_val,
-                    length: length_val,
-                }
-                .fail()?;
+        if let Some(length_val) = length_val
+            && length_val < 0
+        {
+            return NegativeSubstringLengthSnafu {
+                function_name: "substr".to_string(),
+                start: start_val,
+                length: length_val,
             }
+            .fail()?;
         }
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());
@@ -654,11 +654,11 @@ fn process_large_binary_arrays(
             continue;
         }
 
-        if let Some(length_arr) = &length_array {
-            if length_arr.is_null(i) {
-                result_builder.append_null();
-                continue;
-            }
+        if let Some(length_arr) = &length_array
+            && length_arr.is_null(i)
+        {
+            result_builder.append_null();
+            continue;
         }
 
         let binary_val: Vec<u8> = match base_array.data_type() {
@@ -676,15 +676,15 @@ fn process_large_binary_arrays(
         let start_val = start_array.value(i);
         let length_val = length_array.as_ref().map(|arr| arr.value(i));
 
-        if let Some(length_val) = length_val {
-            if length_val < 0 {
-                return NegativeSubstringLengthSnafu {
-                    function_name: "substr".to_string(),
-                    start: start_val,
-                    length: length_val,
-                }
-                .fail()?;
+        if let Some(length_val) = length_val
+            && length_val < 0
+        {
+            return NegativeSubstringLengthSnafu {
+                function_name: "substr".to_string(),
+                start: start_val,
+                length: length_val,
             }
+            .fail()?;
         }
 
         let length_u64 = length_val.and_then(|l| u64::try_from(l).ok());

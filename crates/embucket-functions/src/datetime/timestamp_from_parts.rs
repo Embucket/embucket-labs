@@ -162,13 +162,13 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
     }
 
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
-        if args.arg_types.len() == 8 {
-            if let Some(ScalarValue::Utf8(Some(tz))) = args.scalar_arguments[7] {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Nanosecond,
-                    Some(Arc::from(tz.clone())),
-                )));
-            }
+        if args.arg_types.len() == 8
+            && let Some(ScalarValue::Utf8(Some(tz))) = args.scalar_arguments[7]
+        {
+            return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                TimeUnit::Nanosecond,
+                Some(Arc::from(tz.clone())),
+            )));
         }
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
             TimeUnit::Nanosecond,

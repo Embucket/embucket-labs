@@ -666,7 +666,7 @@ impl UserQuery {
 
         let catalog_name = table_ref.catalog.as_ref();
         let schema_name = table_ref.schema.to_string();
-        let ident = Identifier::new(&[schema_name.clone()], table_ref.table.as_ref());
+        let ident = Identifier::new(std::slice::from_ref(&schema_name), table_ref.table.as_ref());
 
         let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
@@ -1593,7 +1593,7 @@ impl UserQuery {
             }
             .fail();
         }
-        let namespace = Namespace::try_new(&[ident.schema.clone()])
+        let namespace = Namespace::try_new(std::slice::from_ref(&ident.schema))
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
         iceberg_catalog
@@ -2068,16 +2068,14 @@ impl UserQuery {
             .context(ex_error::DataFusionSnafu)?;
         for reference in references {
             let resolved = self.resolve_table_ref(reference);
-            if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
-                if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
-                    if let Some(table) = schema
-                        .table(&resolved.table)
-                        .await
-                        .context(ex_error::DataFusionSnafu)?
-                    {
-                        v.insert(provider_as_source(table));
-                    }
-                }
+            if let Entry::Vacant(v) = tables.entry(resolved.clone())
+                && let Ok(schema) = self.schema_for_ref(resolved.clone())
+                && let Some(table) = schema
+                    .table(&resolved.table)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?
+            {
+                v.insert(provider_as_source(table));
             }
         }
         Ok(tables)
@@ -2143,22 +2141,21 @@ impl UserQuery {
             if batch.num_columns() > 0 {
                 let column = batch.column(0);
                 for row_idx in 0..batch.num_rows() {
-                    if !column.is_null(row_idx) {
-                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
-                            let expr = if batch.schema().fields()[0].data_type().is_numeric() {
-                                Expr::Value(
-                                    Value::Number(scalar_value.to_string(), false)
-                                        .with_empty_span(),
-                                )
-                            } else {
-                                Expr::Value(
-                                    Value::SingleQuotedString(scalar_value.to_string())
-                                        .with_empty_span(),
-                                )
-                            };
+                    if !column.is_null(row_idx)
+                        && let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx)
+                    {
+                        let expr = if batch.schema().fields()[0].data_type().is_numeric() {
+                            Expr::Value(
+                                Value::Number(scalar_value.to_string(), false).with_empty_span(),
+                            )
+                        } else {
+                            Expr::Value(
+                                Value::SingleQuotedString(scalar_value.to_string())
+                                    .with_empty_span(),
+                            )
+                        };
 
-                            exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
-                        }
+                        exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
                     }
                 }
             }

@@ -150,16 +150,16 @@ impl InformationSchemaConfig {
                 }
                 if let Some(schema) = catalog.schema(&schema_name) {
                     for table_name in schema.table_names() {
-                        if let Some(table) = schema.table(&table_name).await? {
-                            if table.table_type() == TableType::View {
-                                builder.add_view(
-                                    &self.catalog_name,
-                                    &schema_name,
-                                    &table_name,
-                                    table.table_type(),
-                                    table.get_table_definition(),
-                                );
-                            }
+                        if let Some(table) = schema.table(&table_name).await?
+                            && table.table_type() == TableType::View
+                        {
+                            builder.add_view(
+                                &self.catalog_name,
+                                &schema_name,
+                                &table_name,
+                                table.table_type(),
+                                table.get_table_definition(),
+                            );
                         }
                     }
                 }

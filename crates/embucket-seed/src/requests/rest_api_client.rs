@@ -82,7 +82,7 @@ pub trait RestApiClient {
     /// * `database` - The name of the parent database
     /// * `schema` - The name of the parent schema
     /// * `table` - The name of the table to create
-    /// * `columns` - A slice of (column_name, column_type) tuples defining the table columns
+    /// * `columns` - A slice of (`column_name`, `column_type`) tuples defining the table columns
     ///
     /// # Errors
     /// Returns `HttpRequestError` if the operation fails.

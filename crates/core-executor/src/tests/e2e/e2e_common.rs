@@ -198,7 +198,10 @@ pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
     })
 }
 
-pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3TablesVolume, Error> {
+pub fn s3_tables_volume(
+    _schema_namespace: &str,
+    env_prefix: &str,
+) -> Result<S3TablesVolume, Error> {
     let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
         .context(S3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))

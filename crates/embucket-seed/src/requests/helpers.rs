@@ -54,10 +54,10 @@ pub fn get_set_cookie_name_value_map(headers: &HeaderMap) -> HashMap<String, Str
 
     let mut cookies = HashMap::new();
     for (_name, value) in values {
-        if let Ok(cookie_str) = value.1.to_str() {
-            if let Ok(cookie) = Cookie::parse(cookie_str) {
-                cookies.insert(cookie.name().to_string(), cookie.value().to_string());
-            }
+        if let Ok(cookie_str) = value.1.to_str()
+            && let Ok(cookie) = Cookie::parse(cookie_str)
+        {
+            cookies.insert(cookie.name().to_string(), cookie.value().to_string());
         }
     }
     cookies

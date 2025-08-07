@@ -19,7 +19,7 @@ pub trait ServiceClient {
     fn addr(&self) -> SocketAddr;
 
     /// Authenticates with the Embucket service using the provided credentials.
-    /// Must login before calling query or generic_request functions.
+    /// Must login before calling query or `generic_request` functions.
     ///
     /// # Arguments
     /// * `user` - The username for authentication
