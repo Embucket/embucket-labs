@@ -5,24 +5,24 @@ description: Complete guide for setting up dbt with the Snowplow Web package usi
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-This guide demonstrates how to set up a dbt project using the Snowplow Web package with Embucket as your target database. Embucket allows you to run existing Snowflake-compatible tools without modification.
+This guide demonstrates how to set up a [dbt](https://docs.getdbt.com/) project using the [Snowplow](https://docs.snowplowanalytics.com/) Web package with Embucket as your target database. Embucket allows you to run existing Snowflake-compatible tools without modification.
 
 ## What you'll learn
 
 Follow this guide to:
 
-- Configure dbt project dependencies and database connections for Embucket
-- Set up sample Snowplow event data for testing and development
-- Execute dbt transformations using the Snowplow Web package
+- Configure [dbt](https://docs.getdbt.com/) project dependencies and database connections for Embucket
+- Set up sample [Snowplow](https://docs.snowplowanalytics.com/) event data for testing and development
+- Execute [dbt](https://docs.getdbt.com/) transformations using the [Snowplow](https://docs.snowplowanalytics.com/) Web package
 - Validate results and explore generated analytics models
 - Plan next steps for production deployment
 
 ## What this guide covers
 
-This guide covers local development setup with sample data and basic dbt transformations. This guide doesn't cover production deployment, advanced dbt customizations, custom Snowplow tracking implementation, or enterprise security configurations.
+This guide covers local development setup with sample data and basic [dbt](https://docs.getdbt.com/) transformations. This guide doesn't cover production deployment, advanced [dbt](https://docs.getdbt.com/) customizations, custom [Snowplow](https://docs.snowplowanalytics.com/) tracking implementation, or enterprise security configurations.
 
 <Aside type="note">
-  For complete example, see [dbt integration
+  For complete example, see [[dbt](https://docs.getdbt.com/) integration
   tests](https://github.com/Embucket/embucket/tree/main/test/dbt_integration_tests/dbt-snowplow-web).
 </Aside>
 
@@ -33,7 +33,7 @@ This guide covers local development setup with sample data and basic dbt transfo
 
 ## Configuration
 
-Add the Snowplow Web package (a dbt package for web analytics transformations) to your `packages.yml`:
+Add the [Snowplow](https://docs.snowplowanalytics.com/) Web package (a [dbt](https://docs.getdbt.com/) package for web analytics transformations) to your `packages.yml`:
 
 ```yaml
 packages:
@@ -103,9 +103,9 @@ vars:
     snowplow__enable_consent: false
 ```
 
-This setup directs the Snowplow Web package to read from `analytics.snowplow.events` and process data for August 19-26, 2022.
+This setup directs the [Snowplow](https://docs.snowplowanalytics.com/) Web package to read from `analytics.snowplow.events` and process data for August 19-26, 2022.
 
-## Setup dbt
+## Setup [dbt](https://docs.getdbt.com/)
 
 <Steps>
 
@@ -116,13 +116,13 @@ This setup directs the Snowplow Web package to read from `analytics.snowplow.eve
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-2. Install the required dbt packages:
+2. Install the required [dbt](https://docs.getdbt.com/) packages:
 
    ```bash
    pip install dbt-core dbt-snowflake
    ```
 
-3. Download dbt dependencies:
+3. Download [dbt](https://docs.getdbt.com/) dependencies:
 
    ```bash
    dbt deps
@@ -132,7 +132,7 @@ This setup directs the Snowplow Web package to read from `analytics.snowplow.eve
 
 ## Load source data
 
-Download the Snowplow sample dataset:
+Download the [Snowplow](https://docs.snowplowanalytics.com/) sample dataset:
 
 ```bash
 curl -o Web_Analytics_sample_events.csv \
@@ -319,9 +319,9 @@ COPY INTO analytics.snowplow.events FROM '/home/ec2-user/tmp/Web_Analytics_sampl
 </TabItem>
 </Tabs>
 
-## Running dbt
+## Running [dbt](https://docs.getdbt.com/)
 
-Load reference data required by the Snowplow Web package:
+Load reference data required by the [Snowplow](https://docs.snowplowanalytics.com/) Web package:
 
 ```bash
 dbt seed
@@ -344,7 +344,7 @@ Found 18 models, 103 data tests, 3 seeds, 2 operations, 8 sources, 781 macros
 Completed successfully
 ```
 
-Run dbt pipeline:
+Run [dbt](https://docs.getdbt.com/) pipeline:
 
 ```bash
 dbt run

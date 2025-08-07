@@ -30,8 +30,8 @@ Usually `RUST_LOG=debug` is just enough. For tracing use `RUST_LOG=trace`
 
 ### Open-Telemetry with Jaeger v2
 
-Instrumented calls in Embucket produce tracing events and spans by using the OpenTelemetry SDK. These events are then sent via OTLP (OpenTelemetry Protocol) to port 4317, where OpenTelemetry Collector is listening.
-It starts collecting data when you run the Docker container, which also serves a [Jaeger](https://www.jaegertracing.io/download/) dashboard at [http://localhost:16686/](http://localhost:16686)
+Instrumented calls in Embucket produce tracing events and spans by using the [OpenTelemetry](https://opentelemetry.io/) SDK. These events are then sent via OTLP (OpenTelemetry Protocol) to port 4317, where OpenTelemetry Collector is listening.
+It starts collecting data when you run the Docker container, which also serves a [Jaeger](https://www.jaegertracing.io/) dashboard at [http://localhost:16686/](http://localhost:16686)
 
 ```bash
 # Run docker container with Jaeger UI v2
@@ -40,7 +40,7 @@ docker run --rm --name jaeger -p 16686:16686 -p 4317:4317 -p 4318:4318 -p 5778:5
 
 ### Run Embucket in tracing mode
 
-Use `RUST_LOG` environment variable to define log levels, and `--tracing-level` argument to enable tracing with Jaeger.
+Use `RUST_LOG` environment variable to define log levels, and `--tracing-level` argument to enable tracing with [Jaeger](https://www.jaegertracing.io/).
 Default log level is `info`, and default tracing level is `info` too.
 
 ```

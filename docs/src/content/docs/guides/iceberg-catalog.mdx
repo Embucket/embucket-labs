@@ -5,12 +5,12 @@ description: Use Embucket as an Iceberg Catalog.
 
 import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-This guide shows how to connect external Iceberg clients to Embucket's Iceberg Catalog API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced Apache Iceberg features, or production deployment considerations.
+This guide shows how to connect external [Iceberg](https://iceberg.apache.org/) clients to Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced [Apache Iceberg](https://iceberg.apache.org/) features, or production deployment considerations.
 
 - Install `pyiceberg` and ensure Embucket runs
 - Create a volume and database for data persistence
-- Connect to Embucket's Iceberg Catalog API
-- Create and populate Iceberg tables
+- Connect to Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API
+- Create and populate [Iceberg](https://iceberg.apache.org/) tables
 - Query tables through Embucket's SQL interface
 
 ## Prerequisites
@@ -81,7 +81,7 @@ CREATE DATABASE IF NOT EXISTS demo EXTERNAL_VOLUME = 'demo';
 </TabItem>
 </Tabs>
 
-Embucket uses database terminology, while Iceberg uses warehouse terminology. At the same time, Embucket provides an Iceberg Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and Iceberg entities:
+Embucket uses database terminology, while [Iceberg](https://iceberg.apache.org/) uses warehouse terminology. At the same time, Embucket provides an [Iceberg](https://iceberg.apache.org/) Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and [Iceberg](https://iceberg.apache.org/) entities:
 
 | Embucket | Iceberg   |
 | -------- | --------- |
@@ -106,7 +106,7 @@ $ snow sql -c local
 
 ## Connect to Embucket
 
-Use `pyiceberg` to connect to the Embucket's Iceberg Catalog API. It requires `rest` catalog type, URI of the API and a warehouse name. Warehouse matches a database name in Embucket.
+Use `pyiceberg` to connect to the Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API. It requires `rest` catalog type, URI of the API and a warehouse name. Warehouse matches a database name in Embucket.
 
 ```python
 from pyiceberg.catalog import load_catalog
@@ -137,7 +137,7 @@ catalog = load_catalog(
    df = pq.read_table("yellow_tripdata_2023-01.parquet")
    ```
 
-3. Create a new Iceberg table:
+3. Create a new [Iceberg](https://iceberg.apache.org/) table:
 
    ```python
    catalog.create_namespace("public")
@@ -147,7 +147,7 @@ catalog = load_catalog(
    )
    ```
 
-4. Append the PyArrow table to the Iceberg table:
+4. Append the PyArrow table to the [Iceberg](https://iceberg.apache.org/) table:
 
    ```python
    table.append(df)
@@ -156,7 +156,7 @@ catalog = load_catalog(
 
 </Steps>
 
-At this moment `pyiceberg` SDK have written a data and committed an Iceberg transaction with Embucket Iceberg Catalog API. Query the data using SQL interface:
+At this moment `pyiceberg` SDK have written a data and committed an [Iceberg](https://iceberg.apache.org/) transaction with Embucket [Iceberg](https://iceberg.apache.org/) Catalog API. Query the data using SQL interface:
 
 ```sql
 select * from demo.public.taxi_dataset limit 10;

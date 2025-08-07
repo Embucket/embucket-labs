@@ -27,9 +27,9 @@ Embucket is a thoughtful integration of best-in-class open-source projects, whic
 
 Embucket embraces and contributes to three battle-tested projects:
 
-- For execution: Apache DataFusion (Rust, vectorised, ANSI SQL, and pluggable)
-- For storage: Apache Iceberg (ACID tables, schema evolution, time-travel—without leaving S3)
-- For metadata: SlateDB (Embedded LSM that writes directly to object storage—no RDS or etcd required)
+- For execution: [Apache DataFusion](https://datafusion.apache.org/) (Rust, vectorised, ANSI SQL, and pluggable)
+- For storage: [Apache Iceberg](https://iceberg.apache.org/) (ACID tables, schema evolution, time-travel—without leaving S3)
+- For metadata: [SlateDB](https://slatedb.io/) (Embedded LSM that writes directly to object storage—no RDS or etcd required)
 
 ### Snowflake Compatibility
 
@@ -41,7 +41,7 @@ Embucket’s lakehouse philosophy is to treat the object store as the database: 
 
 - Tables are Iceberg directories inside your bucket (s3://data/warehouse/db/table/).
 - Metadata—catalog changes, role grants, query history—is persisted by SlateDB as immutable SSTs in the same bucket.
-- Queries are compiled and executed in-memory by DataFusion, reading Iceberg data lazily and writing new snapshots atomically.
+- Queries are compiled and executed in-memory by [DataFusion](https://datafusion.apache.org/), reading [Iceberg](https://iceberg.apache.org/) data lazily and writing new snapshots atomically.
 
 ### Iceberg integration
 
@@ -55,10 +55,10 @@ SlateDB is a simple, embedded key-value database used by Embucket to persist met
 
 ### Query execution
 
-Embucket uses Apache DataFusion as its query engine. DataFusion is a powerful and extensible in-memory query engine written in Rust, leveraging the Apache Arrow ecosystem for columnar data processing.
+Embucket uses [Apache DataFusion](https://datafusion.apache.org/) as its query engine. DataFusion is a powerful and extensible in-memory query engine written in Rust, leveraging the [Apache Arrow](https://arrow.apache.org/) ecosystem for columnar data processing.
 
 We chose DataFusion for several reasons:
 
 - Performance: Its columnar, vectorized processing engine provides excellent query performance.
 - Extensibility: It allows us to customize and extend the SQL dialect and engine functionality.
-- Ecosystem: As part of the Apache Arrow project, it benefits from a vibrant community and a robust development pace.
+- Ecosystem: As part of the [Apache Arrow](https://arrow.apache.org/) project, it benefits from a vibrant community and a robust development pace.

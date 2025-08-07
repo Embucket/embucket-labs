@@ -5,16 +5,16 @@ description: Set up Apache Spark with Embucket to load and query data using Dock
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-This guide walks you through setting up Apache Spark with Embucket to create a complete data processing environment. You'll use Docker containers to deploy Spark with Embucket's Apache Iceberg storage format for efficient data operations.
+This guide walks you through setting up [Apache Spark](https://spark.apache.org/) with Embucket to create a complete data processing environment. You'll use Docker containers to deploy Spark with Embucket's [Apache Iceberg](https://iceberg.apache.org/) storage format for efficient data operations.
 
-Embucket provides an Iceberg Catalog API that enables Apache Spark to read and write data seamlessly. This integration lets you process large datasets while maintaining data consistency and performance.
+Embucket provides an [Iceberg](https://iceberg.apache.org/) Catalog API that enables [Apache Spark](https://spark.apache.org/) to read and write data seamlessly. This integration lets you process large datasets while maintaining data consistency and performance.
 
 ## What you'll learn
 
 In this guide, you:
 
-- Deploy a complete Apache Spark environment with Embucket using Docker
-- Configure Spark to connect with Embucket's Iceberg catalog
+- Deploy a complete [Apache Spark](https://spark.apache.org/) environment with Embucket using Docker
+- Configure Spark to connect with Embucket's [Iceberg](https://iceberg.apache.org/) catalog
 - Load sample data into Embucket tables
 - Query data using Spark SQL in Jupyter notebooks
 
@@ -170,8 +170,8 @@ The Docker Compose configuration creates four interconnected services:
 | ----------------- | ---------------------- | ------------------------------------------------------------------ |
 | **spark-iceberg** | Apache Spark runtime   | Provides Spark with Iceberg support and Jupyter notebook interface |
 | **embucket**      | Catalog management     | Main server that manages the Iceberg catalog and web interface     |
-| **minio**         | Object storage         | S3-compatible storage backend for table data files                 |
-| **mc**            | Storage initialization | minio client that sets up the initial storage bucket               |
+| **[MinIO](https://min.io/)**         | Object storage         | S3-compatible storage backend for table data files                 |
+| **mc**            | Storage initialization | [MinIO](https://min.io/) client that sets up the initial storage bucket               |
 
 All services communicate through a custom Docker network `iceberg_net` and share consistent AWS credentials for secure authentication between components.
 
@@ -218,9 +218,9 @@ Once deployment completes, access these interfaces:
 | --------------------- | ---------------------------------------------- | ------------------------------------- |
 | **Embucket Web UI**   | [http://localhost:8080](http://localhost:8080) | Manage databases, volumes, and tables |
 | **Jupyter Notebooks** | [http://localhost:8888](http://localhost:8888) | Interactive Spark development         |
-| **minio Console**     | [http://localhost:9001](http://localhost:9001) | Track object storage                  |
+| **[MinIO](https://min.io/) Console**     | [http://localhost:9001](http://localhost:9001) | Track object storage                  |
 
-Use the minio console credentials: username `AKIAIOSFODNN7EXAMPLE`, password `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
+Use the [MinIO](https://min.io/) console credentials: username `AKIAIOSFODNN7EXAMPLE`, password `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
 
 ## Configure Embucket storage
 
@@ -228,7 +228,7 @@ Before loading data, configure Embucket with the necessary storage volumes and d
 
 ### Create a storage volume
 
-A volume defines where Embucket stores your table data. Create an S3-compatible volume that connects to your minio instance.
+A volume defines where Embucket stores your table data. Create an S3-compatible volume that connects to your [MinIO](https://min.io/) instance.
 
 <Tabs>
 <TabItem label="Web interface">
@@ -323,7 +323,7 @@ Both commands should return JSON responses showing your `demo` volume and databa
 
 ## Work with data using Spark
 
-Use Apache Spark through Jupyter notebooks to load data into Embucket and run queries on your tables.
+Use [Apache Spark](https://spark.apache.org/) through Jupyter notebooks to load data into Embucket and run queries on your tables.
 
 ### Open Jupyter notebook
 
@@ -427,7 +427,7 @@ To work with your own data files:
 
 1. Copy files to the `notebooks` directory in your project folder
 2. Access them from `/home/iceberg/notebooks/notebooks/` in the container
-3. Load and process using Spark:
+3. Load and process using [Spark](https://spark.apache.org/):
 
 ```python
 # Load different file formats
