@@ -66,6 +66,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
+          rust-version: "1.88.0"
       - name: Run clippy
         run: cargo clippy --all-targets --workspace
   # semver:
