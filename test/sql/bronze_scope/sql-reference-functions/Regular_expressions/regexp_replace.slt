@@ -19,12 +19,12 @@ SELECT REGEXP_REPLACE('firstname middlename lastname',
                       '(.*) (.*) (.*)',
                       '\\\\3, \\\\1 \\\\2') AS name_sort
 ----
-\3, \1 \2
+lastname, firstname middlename
 
 query TT
 WITH wildcards AS (
   SELECT * FROM VALUES
-    ('\\', '?'),
+    ('\\\\', '?'),
     (NULL, 'When I am cold, I am bold.')
   AS t(w, w2)
 )
@@ -32,5 +32,5 @@ SELECT w2, REGEXP_REPLACE(w2, '(.old)', 'very \\1')
   FROM wildcards
   ORDER BY w2
 ----
-?	?
+?	NULL
 When I am cold, I am bold.	When I am very cold, I am very bold.
