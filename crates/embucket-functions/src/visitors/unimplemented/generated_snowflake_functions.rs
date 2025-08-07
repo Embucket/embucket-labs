@@ -2331,13 +2331,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_url")
     ),
-    ("REGEXP_SUBSTR_ALL", FunctionInfo::new(
-        "REGEXP_SUBSTR_ALL",
-        "Returns an ARRAY that contains all substrings that match a regular expression within a string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regexp_substr_all")
-    .with_subcategory("regex")
-    ),
     ("SEARCH", FunctionInfo::new(
         "SEARCH",
         "Searches character data (text) in specified columns from one or more tables, including fields in VARIANT, OBJECT, and ARRAY columns."

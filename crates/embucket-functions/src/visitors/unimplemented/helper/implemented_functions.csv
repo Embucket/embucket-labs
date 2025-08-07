@@ -315,6 +315,7 @@ regexp_like
 regexp_match
 regexp_replace
 regexp_substr
+regexp_substr_all
 regr_avgx
 regr_avgy
 regr_count
