@@ -4,7 +4,6 @@ use super::e2e_common::{Error, ToxiProxySnafu};
 
 const TOXIPROXY_ENDPOINT: &str = "http://localhost:8474/proxies";
 
-#[must_use]
 pub async fn create_toxiproxy(payload: &str) -> Result<reqwest::Response, Error> {
     let client = reqwest::Client::new();
     let res = client
@@ -21,7 +20,6 @@ pub async fn create_toxiproxy(payload: &str) -> Result<reqwest::Response, Error>
     }
 }
 
-#[must_use]
 pub async fn delete_toxiproxy(proxy_name: &str) -> Result<reqwest::Response, Error> {
     let client = reqwest::Client::new();
     let res = client

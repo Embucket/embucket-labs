@@ -241,6 +241,8 @@ async fn template_s3_connections_test(
     port: usize,
     expected_res: bool,
 ) -> Result<(), Error> {
+    const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";
+
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
     copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
@@ -252,7 +254,6 @@ async fn template_s3_connections_test(
     }
 
     // prepare envs for volumes
-    const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";
     copy_env_to_new_prefix(E2E_S3VOLUME_PREFIX, E2E_S3VOLUME_TOXIC_PREFIX);
     unsafe {
         std::env::set_var(
@@ -577,8 +578,12 @@ async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() 
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
     // Set envs by copying envs from other prefix, restore some of them
-    let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN")).unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
-    let namespace2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE")).unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE env variable wasn't set"));
+    let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"))
+        .unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
+    let namespace2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE"))
+        .unwrap_or_else(|_| {
+            panic!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE env variable wasn't set")
+        });
     copy_env_to_new_prefix(E2E_S3TABLESVOLUME_PREFIX, E2E_S3TABLESVOLUME2_PREFIX);
     unsafe {
         std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"), aws_arn2);
@@ -857,16 +862,19 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_select_ok()
 -> Result<(), Error> {
+    const E2E_READONLY_S3VOLUME_PREFIX: &str = "E2E_READONLY_S3VOLUME_";
+
     eprintln!(
         "Test uses s3 bucket with read only permisisons for s3 volumes. \
         select should pass, insert should fail."
     );
     dotenv().ok();
 
-    const E2E_READONLY_S3VOLUME_PREFIX: &str = "E2E_READONLY_S3VOLUME_";
-
     // Set envs by copying envs from other prefix, restore some of them
-    let aws_bucket = std::env::var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET")).unwrap_or_else(|_| panic!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET env variable wasn't set"));
+    let aws_bucket = std::env::var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"))
+        .unwrap_or_else(|_| {
+            panic!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET env variable wasn't set")
+        });
 
     copy_env_to_new_prefix(AWS_OBJECT_STORE_PREFIX, E2E_READONLY_S3VOLUME_PREFIX);
     unsafe {
@@ -1242,10 +1250,11 @@ async fn test_e2e_same_file_object_store_two_executors_first_fenced_second_fails
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<(), Error> {
+    const E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX: &str = "E2E_S3VOLUME_NON_EXISTING_BUCKET_";
+
     eprintln!("Create s3 volume with non existing bucket");
     dotenv().ok();
 
-    const E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX: &str = "E2E_S3VOLUME_NON_EXISTING_BUCKET_";
     copy_env_to_new_prefix(
         MINIO_OBJECT_STORE_PREFIX,
         E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX,
@@ -1326,7 +1335,7 @@ async fn test_e2e_s3_store_single_executor_s3_volume_connection_issues() -> Resu
             .await
             .is_err()
     );
-    template_s3_connections_test(2, 100000, 9999, true).await?;
+    template_s3_connections_test(2, 100_000, 9999, true).await?;
     Ok(())
 }
 

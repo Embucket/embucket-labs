@@ -4,6 +4,8 @@
 
 ### Prerequisites
 
+Should set envs, please check at the repository root `.env_e2e` file that contains the list ov vars needed to be set.
+
 Some of tests may require toxiproxy, some allow to use MinIO, and some require pure AWS for s3, s3tables buckets.
 
 Use following to run toxiproxy and MinIO docker containers:
