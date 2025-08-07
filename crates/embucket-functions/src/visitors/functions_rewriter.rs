@@ -50,7 +50,11 @@ impl VisitorMut for FunctionsRewriter {
                             span: *span,
                         });
                     }
-                    func_name
+                    match func_name {
+                        "rlike" => "regexp_like",
+                        "regexp_extract_all" => "regexp_substr_all",
+                        _ => func_name,
+                    }
                 }
                 _ => func_name,
             };

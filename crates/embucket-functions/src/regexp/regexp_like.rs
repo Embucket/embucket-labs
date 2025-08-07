@@ -160,7 +160,7 @@ impl ScalarUDFImpl for RegexpLikeFunc {
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = as_generic_string_array(array)?;
-                let regex = pattern_to_regex(pattern, parameters)
+                let regex = pattern_to_regex(&format!("^{pattern}$"), parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, 0).for_each(|opt_iter| {
                     result_array.append_option(
