@@ -134,7 +134,7 @@ impl RegexpSubstrFunc {
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
                     usize::try_from(*value - 1)
-                        .context(crate::regexp::errors::InvalidIntegerConversionSnafu)
+                        .context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
@@ -193,16 +193,16 @@ impl RegexpSubstrFunc {
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
                     usize::try_from(*value)
-                        .context(crate::regexp::errors::InvalidIntegerConversionSnafu)
+                        .context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
-                    crate::regexp::errors::WrongArgValueSnafu {
+                    regexp_errors::WrongArgValueSnafu {
                         got: value.to_string(),
                         reason: "Capture group mustbe non-negative".to_string(),
                     }
                     .fail()
                 }
-                other => crate::regexp::errors::UnsupportedInputTypeWithPositionSnafu {
+                other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
                     data_type: other.data_type(),
                     position: 6usize,
                 }
