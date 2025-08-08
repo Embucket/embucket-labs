@@ -1,6 +1,6 @@
 use snafu::ResultExt;
 
-use super::e2e_common::{Error, ToxiProxySnafu};
+use super::e2e_common::{Error, TestToxiProxySnafu};
 
 const TOXIPROXY_ENDPOINT: &str = "http://localhost:8474/proxies";
 
@@ -12,11 +12,11 @@ pub async fn create_toxiproxy(payload: &str) -> Result<reqwest::Response, Error>
         .body(payload.to_string())
         .send()
         .await
-        .context(ToxiProxySnafu)?;
+        .context(TestToxiProxySnafu)?;
     if res.status().is_success() {
         Ok(res)
     } else {
-        res.error_for_status().context(ToxiProxySnafu)
+        res.error_for_status().context(TestToxiProxySnafu)
     }
 }
 
@@ -29,11 +29,11 @@ pub async fn delete_toxiproxy(proxy_name: &str) -> Result<reqwest::Response, Err
         )
         .send()
         .await
-        .context(ToxiProxySnafu)?;
+        .context(TestToxiProxySnafu)?;
     if res.status().is_success() {
         Ok(res)
     } else {
-        res.error_for_status().context(ToxiProxySnafu)
+        res.error_for_status().context(TestToxiProxySnafu)
     }
 }
 
@@ -61,11 +61,11 @@ pub async fn create_toxic_conn_limit(
         .body(payload)
         .send()
         .await
-        .context(ToxiProxySnafu)?;
+        .context(TestToxiProxySnafu)?;
     if res.status().is_success() {
         Ok(res)
     } else {
-        res.error_for_status().context(ToxiProxySnafu)
+        res.error_for_status().context(TestToxiProxySnafu)
     }
 }
 
@@ -78,10 +78,10 @@ pub async fn delete_toxic_conn_limit(proxy_name: &str) -> Result<reqwest::Respon
         )
         .send()
         .await
-        .context(ToxiProxySnafu)?;
+        .context(TestToxiProxySnafu)?;
     if res.status().is_success() {
         Ok(res)
     } else {
-        res.error_for_status().context(ToxiProxySnafu)
+        res.error_for_status().context(TestToxiProxySnafu)
     }
 }

@@ -9,4 +9,4 @@ embucket = "run -- --jwt-secret=test --backend=memory --cors-allow-origin=http:/
 embucket-trace = "run -- --jwt-secret=test --backend=memory --cors-allow-origin=http://localhost:8080 --cors-enabled=true --tracing-level=trace"
 embucket-seed = "run -p embucket-seed -- --server-address 127.0.0.1:3000 --auth-user embucket --auth-password embucket --seed-variant typical"
 update-functions = "run -p embucket-functions generate-implemented-functions"
-e2e = "test --workspace e2e_ -- --ignored"
+e2e = "test --jobs 8 --workspace e2e_ -- --ignored"
