@@ -22,7 +22,9 @@ Embucket supports the Snowflake SQL dialect and provides a Snowflake v1 REST API
 
 Embucket provides a Snowflake v1 REST API that works with any Snowflake client. The platform has tested compatibility primarily with snowflake-connector-python and tools that depend on it, including [dbt](https://docs.getdbt.com/), snowflake-cli, and Apache Superset.
 
+<!-- vale Google.Headings = NO -->
 ## SQL engine compatibility
+<!-- vale Google.Headings = YES -->
 
 Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion.apache.org/)** - an [Apache Arrow](https://arrow.apache.org/)-native query engine. The engine works with any SQL client. Embucket aims for 100% SQL dialect compatibility with Snowflake but currently support a subset of SQL features. Embucket includes some built-in functions and data types that Snowflake doesn't provide.
 
@@ -56,7 +58,7 @@ These technology choices differ structurally:
 ### Architecture constraints
 
 - **Single-node execution**: Query processing limits to one node's memory and CPU capacity
-- **No distributed parallelism**: Can't distribute queries across multiple nodes
+- **No distributed parallelism**: Can't distribute queries across many nodes
 - **Single writer**: Only one instance can write to a table simultaneously
 
 ### Data type limitations
@@ -125,7 +127,7 @@ select arrow_typeof(c1) from t2;
 
 Embucket uses [DataFusion](https://datafusion.apache.org/) for type coercion and may use different numeric types than Snowflake. This produces different results in some cases.
 
-For aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
+For aggregation functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
 
 <Aside type="note">This feature is under development.</Aside>
 
@@ -172,13 +174,13 @@ Embucket may return different results for the same query depending on the sessio
 
 ## Error message format
 
-Embucket returns errors in a different format than Snowflake. [Apache Arrow](https://arrow.apache.org/) and [DataFusion](https://datafusion.apache.org/) generate these errors and they do not match Snowflake's error format.
+Embucket returns errors in a different format than Snowflake. [Apache Arrow](https://arrow.apache.org/) and [DataFusion](https://datafusion.apache.org/) generate these errors and they don't match Snowflake's error format.
 
 ## Development roadmap
 
 The development roadmap includes these compatibility improvements:
 
-- **Numeric support**: Implement dynamic precision Decimal types for aggregate functions
+- **Numeric support**: Add dynamic precision Decimal types for aggregation functions
 - **VARIANT support**: Add native VARIANT storage when underlying dependencies support it
 - **Timestamp support**: Improve timezone handling to match Snowflake's per-value storage
 - **Error format**: Align error messages with Snowflake's error format
