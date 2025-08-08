@@ -7,7 +7,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 Embucket provides Snowflake compatibility through SQL dialect support and API compatibility. This document explains how Embucket implements Snowflake compatibility, covers current limitations, and outlines development plans.
 
-This document doesn't cover Snowflake enterprise features, data governance capabilities, or advanced security configurations. The current focus is on core SQL compatibility and API integration for analytical workloads.
+This document doesn't cover Snowflake enterprise features, data governance capabilities, or advanced security configurations. The current focus remains on core SQL compatibility and API integration for analytical workloads.
 
 Embucket supports the Snowflake SQL dialect and provides a Snowflake v1 REST API. You can use existing Snowflake clients and tools with Embucket.
 
@@ -34,21 +34,21 @@ Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion
 
 Embucket verifies compatibility using two test methods:
 
-- **SQL Logic Tests (SLT)**: Verify SQL engine compatibility with Snowflake
+- **SQL Logic Tests**: Verify SQL engine compatibility with Snowflake
 - **[dbt](https://docs.getdbt.com/) integration tests**: Verify REST API compatibility with Snowflake
 
-Embucket uses the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibility benchmark. The Embucket [repository](https://github.com/Embucket/embucket) displays current compatibility badges for both SLT test suite and dbt Gitlab.
+Embucket uses the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibility benchmark. The Embucket [repository](https://github.com/Embucket/embucket) displays current compatibility badges for both SQL logic test suite and dbt Gitlab.
 
 ## Architecture differences
 
-Snowflake provides a managed analytics database built on [FoundationDB](https://www.foundationdb.org) and object storage (S3). Snowflake delivers a managed service for deploying and scaling analytics workloads ([whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf)).
+Snowflake provides a managed analytics database built on [FoundationDB](https://www.foundationdb.org) and object storage such as S3. Snowflake delivers a managed service for deploying and scaling analytics workloads. See their [whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf) for details.
 
 Embucket provides an open source Snowflake alternative with the same ease of use and manageability. You gain open source and self-hosting benefits. The system uses open technologies including [Apache DataFusion](https://datafusion.apache.org/), [Apache Iceberg](https://iceberg.apache.org/), [SlateDB](https://slatedb.io/), [Apache Arrow](https://arrow.apache.org/), and Parquet.
 
 These technology choices differ structurally:
 
-- **Metadata storage**: [SlateDB](https://slatedb.io/) on object storage (not FoundationDB distributed database)
-- **Data format**: [Iceberg](https://iceberg.apache.org/) and Parquet format (not proprietary format)
+- **Metadata storage**: [SlateDB](https://slatedb.io/) on object storage instead of FoundationDB distributed database
+- **Data format**: [Iceberg](https://iceberg.apache.org/) and Parquet format instead of proprietary format
 - **Query execution**: Single-node [DataFusion](https://datafusion.apache.org/) SQL engine with [Arrow](https://arrow.apache.org/) in-memory representation
 
 <Aside type="caution">
@@ -75,7 +75,7 @@ These technology choices differ structurally:
 
 ## VARIANT data type support
 
-Embucket implements VARIANT as JSON-serialized `TEXT` on the storage layer. This approach is necessary because Parquet, Iceberg, and Arrow don't support VARIANT natively.
+Embucket implements VARIANT as JSON-serialized `TEXT` on the storage layer. This approach becomes necessary because Parquet, Iceberg, and Arrow don't support VARIANT natively.
 
 <Steps>
 
@@ -131,7 +131,7 @@ Embucket uses [DataFusion](https://datafusion.apache.org/) for type coercion and
 
 For aggregation functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
 
-<Aside type="note">This feature is under development.</Aside>
+<Aside type="note">This feature remains under development.</Aside>
 
 ### Numeric function result differences
 

@@ -73,7 +73,7 @@ These settings control Embucket's basic operation and most deployments need them
 
 <Aside type="caution">
   Set `JWT_SECRET` to a strong, random string in production environments. The demo user credentials
-  are only for testing.
+  work only for testing.
 </Aside>
 
 ### CORS configuration
@@ -165,9 +165,9 @@ S3_ALLOW_HTTP=false
 
 ### Data format
 
-| Setting         | Environment Variable | Default | Description                                                        |
-| --------------- | -------------------- | ------- | ------------------------------------------------------------------ |
-| `--data-format` | `DATA_FORMAT`        | `json`  | Data serialization format for Snowflake v1 API (`json` or `arrow`) |
+| Setting         | Environment Variable | Default | Description                                                       |
+| --------------- | -------------------- | ------- | ----------------------------------------------------------------- |
+| `--data-format` | `DATA_FORMAT`        | `json`  | Data serialization format for Snowflake v1 API: `json` or `arrow` |
 
 ### Memory and disk pools
 
@@ -191,10 +191,10 @@ S3_ALLOW_HTTP=false
 
 ### Tracing and debugging
 
-| Setting                    | Environment Variable | Default                | Description                                 |
-| -------------------------- | -------------------- | ---------------------- | ------------------------------------------- |
-| `--tracing-level`          | `TRACING_LEVEL`      | `info`                 | Log level (`off`, `info`, `debug`, `trace`) |
-| `--tracing-span-processor` | `span_processor`     | `batch-span-processor` | Tracing span processor type                 |
+| Setting                    | Environment Variable | Default                | Description                                   |
+| -------------------------- | -------------------- | ---------------------- | --------------------------------------------- |
+| `--tracing-level`          | `TRACING_LEVEL`      | `info`                 | Log level: `off`, `info`, `debug`, or `trace` |
+| `--tracing-span-processor` | `span_processor`     | `batch-span-processor` | Tracing span processor type                   |
 
 <Aside type="tip">
   Override tracing level using the `RUST_LOG` environment variable for more granular control.

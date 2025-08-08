@@ -16,11 +16,11 @@ Key points:
 
 {/* vale Google.Headings = NO */}
 
-## What's Apache Iceberg?
+## About Apache Iceberg
 
 {/* vale Google.Headings = YES */}
 
-[Apache Iceberg](https://iceberg.apache.org/) is an open table format that defines how to store and manage large datasets.
+[Apache Iceberg](https://iceberg.apache.org/) provides an open table format that defines how to store and manage large datasets.
 
 The platform uses Iceberg for data storage and exposes an Iceberg Catalog REST API that lets external tools read and write data. All tables use Iceberg format internally, allowing any Iceberg client to access your data. This system targets compatibility with Apache Spark, `pyiceberg`, and AWS S3 table buckets.
 
@@ -37,7 +37,7 @@ The platform reads data from Apache Spark, `pyiceberg`, and AWS S3 table buckets
 - Credentials vending
 - Server side planning
 - Views
-- Table maintenance operations (compaction, snapshot cleanup)
+- Table maintenance operations such as compaction and snapshot cleanup
 - `UPDATE` and `DELETE` operations
 - `ALTER TABLE` operations
 
@@ -54,15 +54,17 @@ The platform reads data from Apache Spark, `pyiceberg`, and AWS S3 table buckets
 
 ### Read operations
 
-The system reads delete files but doesn't yet support position delete files (specialized files that mark individual rows for deletion). This limitation exists because the underlying Parquet file reader doesn't yet handle this deletion method.
+The system reads delete files but doesn't yet support position delete files—specialized files that mark individual rows for deletion. This limitation exists because the underlying Parquet file reader doesn't yet handle this deletion method.
 
 ### Write operations
 
-The platform doesn't write delete files, which prevents `DELETE` and `UPDATE` operations. Still it supports limited `MERGE INTO` statements that update and delete table rows. These operations use CoW (Copy-On-Write) semantics, a strategy that overwrites entire Parquet files (columnar data files) with new data instead of modifying individual rows.
+The platform doesn't write delete files, which prevents `DELETE` and `UPDATE` operations. Still it supports limited `MERGE INTO` statements that update and delete table rows. These operations use CoW or Copy-On-Write semantics, a strategy that overwrites entire Parquet files—columnar data files—with new data instead of modifying individual rows.
 
 <Aside type="caution">
-  `MERGE INTO` operations rewrite entire Parquet files, which can be expensive for large files with
-  small changes.
+
+`MERGE INTO` operations rewrite entire Parquet files, which can become expensive for large files with
+small changes.
+
 </Aside>
 
 ## Catalog API

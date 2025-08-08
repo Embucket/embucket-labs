@@ -25,7 +25,7 @@ Start the Embucket server:
 docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
 ```
 
-**That's it.** You need no external dependencies, databases, or complex configuration. Embucket runs everything in-memory for this quick start. This zero-disk architecture requires no external storage.
+**Done.** You need no external dependencies, databases, or complex configuration. Embucket runs everything in-memory for this quick start. This zero-disk architecture requires no external storage.
 
 Embucket displays output like:
 
@@ -35,9 +35,11 @@ Embucket displays output like:
 ```
 
 <Aside type="caution">
-  The default Docker configuration uses file storage for metadata and data. Don't use this
-  configuration for production. See the [configuration guide](/essentials/configuration) for
-  production options.
+
+The default Docker configuration uses file storage for metadata and data. Don't use this
+configuration for production. See the [configuration guide](/essentials/configuration) for
+production options.
+
 </Aside>
 
 Embucket runs and exposes three services:
@@ -78,4 +80,4 @@ Create a table and insert data using the query editor in the web UI or via snowf
 
 </Steps>
 
-Embucket uses [Apache Iceberg](https://iceberg.apache.org/) (an open table format) to store your data and [SlateDB](https://slatedb.io/) (a cloud-native storage engine) to store your metadata.
+Embucket uses [Apache Iceberg](https://iceberg.apache.org/)—an open table format—to store your data and [SlateDB](https://slatedb.io/)—a cloud-native storage engine—to store your metadata.

@@ -22,7 +22,7 @@ Follow this guide to:
 This guide covers local development setup with sample data and basic [dbt](https://docs.getdbt.com/) transformations. This guide doesn't cover production deployment, advanced [dbt](https://docs.getdbt.com/) customizations, custom [Snowplow](https://docs.snowplowanalytics.com/) tracking implementation, or enterprise security configurations.
 
 <Aside type="note">
-  For complete example, see [[dbt](https://docs.getdbt.com/) integration
+  For complete example, see [dbt integration
   tests](https://github.com/Embucket/embucket/tree/main/test/dbt_integration_tests/dbt-snowplow-web).
 </Aside>
 
@@ -67,13 +67,15 @@ snowplow_project:
 - **Connection settings**: Set `host`, `port`, and `protocol` to match your Embucket instance
 - **Authentication**: Use default credentials `embucket`/`embucket` unless you changed them
 - **Identifiers**: Choose descriptive names for `account`, `database`, and `schema`
-- **Warehouse**: Specify any valid identifier (Embucket ignores this parameter)
+- **Warehouse**: Specify any valid identifier. Embucket ignores this parameter.
 - **Performance**: Set `threads` based on your system capacity
 
 <Aside type="tip">
-  **Data persistence:** embucket creates in-memory storage and `embucket` database by default. For
-  persistent data, run Embucket with `--no-bootstrap` and configure external storage. See the
-  [volumes guide](/essentials/volumes) for details.
+
+**Data persistence**: embucket creates in-memory storage and `embucket` database by default. For
+persistent data, run Embucket with `--no-bootstrap` and configure external storage. See the
+[volumes guide](/essentials/volumes) for details.
+
 </Aside>
 
 Update your `dbt_project.yml`:
