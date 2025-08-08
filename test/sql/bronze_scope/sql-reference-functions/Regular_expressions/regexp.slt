@@ -20,7 +20,7 @@ WITH strings(v) AS (SELECT * FROM
     ('San Jose'),
     ('Santa Clara'),
     ('Sacramento'),
-    ('Contains embedded single \\backslash')
+    ('Contains embedded single \\\\backslash')
 )
 SELECT v, v REGEXP 'San\\b.*' AS matches
   FROM strings
@@ -39,7 +39,7 @@ WITH strings(v) AS (SELECT * FROM
     ('San Jose'),
     ('Santa Clara'),
     ('Sacramento'),
-    ('Contains embedded single \\backslash')
+    ('Contains embedded single \\\\backslash')
 )
 SELECT v, v REGEXP '.*\\s\\\\.*' AS matches
   FROM strings
@@ -58,7 +58,7 @@ WITH strings(v) AS (SELECT * FROM
     ('San Jose'),
     ('Santa Clara'),
     ('Sacramento'),
-    ('Contains embedded single \\backslash')
+    ('Contains embedded single \\\\backslash')
 )
 SELECT v, v REGEXP $$.*\s\\.*$$ AS MATCHES
   FROM strings
