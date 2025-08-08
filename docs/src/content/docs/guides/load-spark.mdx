@@ -39,7 +39,7 @@ services:
       # Directory for Jupyter notebooks
       - ./notebooks:/home/iceberg/notebooks/notebooks
     environment:
-      # AWS credentials for S3 compatibility with MinIO
+      # AWS credentials for S3 compatibility with minio
       - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
       - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - AWS_REGION=us-east-2
@@ -79,7 +79,7 @@ services:
     container_name: embucket
     depends_on:
       mc:
-        condition: service_healthy # Wait for MinIO setup to complete
+        condition: service_healthy # Wait for minio setup to complete
     networks:
       iceberg_net:
     ports:
@@ -91,24 +91,24 @@ services:
       # Configure S3-compatible storage backend
       - OBJECT_STORE_BACKEND=s3
       - SLATEDB_PREFIX=data/
-      # S3 credentials matching MinIO configuration
+      # S3 credentials matching minio configuration
       - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
       - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - AWS_REGION=us-east-2
       # S3 bucket and endpoint configuration
       - S3_BUCKET=mybucket
       - S3_ENDPOINT=http://warehouse.minio:9000
-      - S3_ALLOW_HTTP=true # Required for local MinIO setup
+      - S3_ALLOW_HTTP=true # Required for local minio setup
       - CATALOG_URL=http://embucket:3000/catalog
     volumes:
       - ./tmp:/tmp
 
-  # MinIO S3-compatible object storage
+  # minio S3-compatible object storage
   minio:
     image: minio/minio
     container_name: minio
     environment:
-      # MinIO admin credentials (must match AWS credentials above)
+      # minio admin credentials (must match AWS credentials above)
       - MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
       - MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     volumes:
@@ -120,13 +120,13 @@ services:
           # Network alias for internal container communication
           - warehouse.minio
     ports:
-      # MinIO web console
+      # minio web console
       - 9001:9001
-      # MinIO S3 API
+      # minio S3 API
       - 9000:9000
     command: ['server', '/warehouse', '--console-address', ':9001']
 
-  # MinIO client for initial bucket setup
+  # minio client for initial bucket setup
   mc:
     depends_on:
       - minio
@@ -140,8 +140,8 @@ services:
       - AWS_REGION=us-east-2
     entrypoint: >
       /bin/sh -c "
-      # Wait for MinIO to be ready
-      until (/usr/bin/mc alias set minio http://warehouse.minio:9000 AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) do echo '...waiting for MinIO...' && sleep 1; done;
+      # Wait for minio to be ready
+      until (/usr/bin/mc alias set minio http://warehouse.minio:9000 AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) do echo '...waiting for minio...' && sleep 1; done;
       # Clean up any existing bucket
       /usr/bin/mc rm -r --force minio/mybucket;
       # Create new bucket for Embucket data
@@ -166,12 +166,12 @@ networks:
 
 The Docker Compose configuration creates four interconnected services:
 
-| Service           | Purpose                | Key Features                                                       |
-| ----------------- | ---------------------- | ------------------------------------------------------------------ |
-| **spark-iceberg** | Apache Spark runtime   | Provides Spark with Iceberg support and Jupyter notebook interface |
-| **embucket**      | Catalog management     | Main server that manages the Iceberg catalog and web interface     |
-| **[MinIO](https://min.io/)**         | Object storage         | S3-compatible storage backend for table data files                 |
-| **mc**            | Storage initialization | [MinIO](https://min.io/) client that sets up the initial storage bucket               |
+| Service                      | Purpose                | Key Features                                                            |
+| ---------------------------- | ---------------------- | ----------------------------------------------------------------------- |
+| **spark-iceberg**            | Apache Spark runtime   | Provides Spark with Iceberg support and Jupyter notebook interface      |
+| **embucket**                 | Catalog management     | Main server that manages the Iceberg catalog and web interface          |
+| **[minio](https://min.io/)** | Object storage         | S3-compatible storage backend for table data files                      |
+| **mc**                       | Storage initialization | [minio](https://min.io/) client that sets up the initial storage bucket |
 
 All services communicate through a custom Docker network `iceberg_net` and share consistent AWS credentials for secure authentication between components.
 
@@ -214,13 +214,13 @@ All services should show "Up" status. The `mc` service shows "healthy" when buck
 
 Once deployment completes, access these interfaces:
 
-| Interface             | URL                                            | Purpose                               |
-| --------------------- | ---------------------------------------------- | ------------------------------------- |
-| **Embucket Web UI**   | [http://localhost:8080](http://localhost:8080) | Manage databases, volumes, and tables |
-| **Jupyter Notebooks** | [http://localhost:8888](http://localhost:8888) | Interactive Spark development         |
-| **[MinIO](https://min.io/) Console**     | [http://localhost:9001](http://localhost:9001) | Track object storage                  |
+| Interface                            | URL                                            | Purpose                               |
+| ------------------------------------ | ---------------------------------------------- | ------------------------------------- |
+| **Embucket Web UI**                  | [http://localhost:8080](http://localhost:8080) | Manage databases, volumes, and tables |
+| **Jupyter Notebooks**                | [http://localhost:8888](http://localhost:8888) | Interactive Spark development         |
+| **[minio](https://min.io/) Console** | [http://localhost:9001](http://localhost:9001) | Track object storage                  |
 
-Use the [MinIO](https://min.io/) console credentials: username `AKIAIOSFODNN7EXAMPLE`, password `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
+Use the [minio](https://min.io/) console credentials: username `AKIAIOSFODNN7EXAMPLE`, password `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
 
 ## Configure Embucket storage
 
@@ -228,7 +228,7 @@ Before loading data, configure Embucket with the necessary storage volumes and d
 
 ### Create a storage volume
 
-A volume defines where Embucket stores your table data. Create an S3-compatible volume that connects to your [MinIO](https://min.io/) instance.
+A volume defines where Embucket stores your table data. Create an S3-compatible volume that connects to your [minio](https://min.io/) instance.
 
 <Tabs>
 <TabItem label="Web interface">
@@ -325,7 +325,7 @@ Both commands should return JSON responses showing your `demo` volume and databa
 
 Use [Apache Spark](https://spark.apache.org/) through Jupyter notebooks to load data into Embucket and run queries on your tables.
 
-### Open Jupyter notebook
+### Open Jupyter Notebook
 
 1. Navigate to [http://localhost:8888](http://localhost:8888) in your browser
 2. The Jupyter notebook interface displays with a file browser

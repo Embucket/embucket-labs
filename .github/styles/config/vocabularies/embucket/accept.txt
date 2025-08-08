@@ -1,4 +1,4 @@
-[Ee]mbucket
+[Ee]mbucketd?
 Trino
 AWS
 [Ss]nowflake
@@ -16,3 +16,18 @@ OLTP
 DataFusion
 Superset
 Gitlab
+[Ww]hitepaper
+[Pp]ushdown
+[Mm]etastore
+async
+Samply
+OTLP
+OpenTelemetry
+Jaeger
+ANSI
+JWT
+CORS
+ARN
+IAM
+NYC
+UTC

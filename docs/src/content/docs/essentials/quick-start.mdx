@@ -10,6 +10,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 This guide shows you how to start Embucket and run your first query in under 5 minutes. You use Embucket's single-binary architecture to reach your first "magic moment" quickly.
 
 Read this guide to:
+
 - Start Embucket with zero external dependencies
 - Execute SQL queries using the web dashboard
 - Create and query your first table
@@ -34,7 +35,9 @@ Embucket displays output similar to:
 ```
 
 <Aside type="caution">
-The default Docker configuration uses file storage for metadata and data. Don't use this configuration for production. See the [configuration guide](/essentials/configuration) for production options.
+  The default Docker configuration uses file storage for metadata and data. Don't use this
+  configuration for production. See the [configuration guide](/essentials/configuration) for
+  production options.
 </Aside>
 
 Embucket runs and exposes three services:
@@ -47,9 +50,7 @@ Embucket runs and exposes three services:
 
 Open the browser to `http://127.0.0.1:8080` to explore Embucket's web interface, query editor, and data catalog. The interface resembles Snowflake's interface.
 
-<Aside type="tip">
-Use `embucket` as both the username and password to log in.
-</Aside>
+<Aside type="tip">Use `embucket` as both the username and password to log in.</Aside>
 
 ![Embucket Web UI](/assets/quick-start-ui.png)
 
@@ -59,21 +60,21 @@ Create a table and insert data using the query editor in the web UI or via snowf
 
 1. **Create a table**
 
-    ```sql
-    CREATE TABLE employees (id INT, name STRING, department STRING, salary DECIMAL(10,2));
-    ```
+   ```sql
+   CREATE TABLE employees (id INT, name STRING, department STRING, salary DECIMAL(10,2));
+   ```
 
 2. **Insert data**
 
-    ```sql
-    INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000.00), (2, 'Bob Smith', 'Marketing', 75000.00), (3, 'Carol Davis', 'Engineering', 98000.00);
-    ```
+   ```sql
+   INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000.00), (2, 'Bob Smith', 'Marketing', 75000.00), (3, 'Carol Davis', 'Engineering', 98000.00);
+   ```
 
 3. **Query your data**
 
-    ```sql
-    SELECT department, AVG(salary) as avg_salary FROM employees GROUP BY department ORDER BY avg_salary DESC
-    ```
+   ```sql
+   SELECT department, AVG(salary) as avg_salary FROM employees GROUP BY department ORDER BY avg_salary DESC
+   ```
 
 </Steps>
 

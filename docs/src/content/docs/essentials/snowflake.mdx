@@ -12,6 +12,7 @@ This document doesn't cover Snowflake enterprise features, data governance capab
 Embucket supports the Snowflake SQL dialect and provides a Snowflake v1 REST API. You can use existing Snowflake clients and tools with Embucket.
 
 **Key compatibility features:**
+
 - Snowflake v1 REST API compatibility
 - SQL dialect support through [Apache DataFusion](https://datafusion.apache.org/) engine
 - Compatible with snowflake-connector-python and dependent tools
@@ -24,7 +25,6 @@ Embucket provides a Snowflake v1 REST API that works with any Snowflake client. 
 ## SQL engine compatibility
 
 Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion.apache.org/)** - an [Apache Arrow](https://arrow.apache.org/)-native query engine. The engine works with any SQL client. We aim for 100% SQL dialect compatibility with Snowflake but currently support a subset of SQL features. Embucket includes some built-in functions and data types that Snowflake doesn't provide.
-
 
 ## Compatibility testing
 
@@ -48,22 +48,25 @@ These technology choices differ structurally:
 - **Query execution**: Single-node [DataFusion](https://datafusion.apache.org/) SQL engine with [Arrow](https://arrow.apache.org/) in-memory representation
 
 <Aside type="caution">
-Some features remain unsupported due to limitations in Embucket's dependencies and architecture.
+  Some features remain unsupported due to limitations in Embucket's dependencies and architecture.
 </Aside>
 
 ## Current limitations
 
 ### Architecture constraints
+
 - **Single-node execution**: Query processing limits to one node's memory and CPU capacity
 - **No distributed parallelism**: Can't distribute queries across multiple nodes
 - **Single writer**: Only one instance can write to a table simultaneously
 
 ### Data type limitations
+
 - **Limited VARIANT support**: Embucket stores VARIANT as JSON-serialized `TEXT` because Parquet, Iceberg, and Arrow don't support VARIANT natively
 - **Numeric type differences**: Embucket uses different numeric types than Snowflake for type coercion
 - **Timestamp precision**: Fixed nanosecond precision differs from Snowflake's variable precision
 
 ### Error handling
+
 - **Different error format**: Error messages don't match Snowflake's format
 
 ## VARIANT data type support
@@ -74,37 +77,37 @@ Embucket implements VARIANT as JSON-serialized `TEXT` on the storage layer. This
 
 1. **Create a table**
 
-    ```sql
-    create table t2 (c1 variant) as values (parse_json('{"k1":1}'));
-    ```
+   ```sql
+   create table t2 (c1 variant) as values (parse_json('{"k1":1}'));
+   ```
 
-    ```
-    +-------+
-    | count |
-    |-------|
-    | 1     |
-    +-------+
-    ```
+   ```
+   +-------+
+   | count |
+   |-------|
+   | 1     |
+   +-------+
+   ```
 
 2. **Count rows**
 
-    ```sql
-    select * from t2;
-    ```
+   ```sql
+   select * from t2;
+   ```
 
-    ```
-    +----------+
-    | c1       |
-    |----------|
-    | {"k1":1} |
-    +----------+
-    ```
+   ```
+   +----------+
+   | c1       |
+   |----------|
+   | {"k1":1} |
+   +----------+
+   ```
 
 </Steps>
 
 ### Storage implementation details
 
-In the storage layer, Embucket stores VARIANT as JSON-serialized `TEXT`. 
+In the storage layer, Embucket stores VARIANT as JSON-serialized `TEXT`.
 
 ```sql
 select arrow_typeof(c1) from t2;
@@ -124,9 +127,7 @@ Embucket uses [DataFusion](https://datafusion.apache.org/) for type coercion and
 
 For aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
 
-<Aside type="note">
-We are developing this feature.
-</Aside>
+<Aside type="note">We are developing this feature.</Aside>
 
 ### Numeric function result differences
 

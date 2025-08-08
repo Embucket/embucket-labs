@@ -1,0 +1,64 @@
+---
+title: Tracing and profiling
+description: Learn how to use tracing and profiling features in Embucket for debugging and performance analysis.
+---
+
+## Tracing
+
+Embucket uses `tracing::instrument` to instrument code for tracing. You can use it in both development and production environments. For development, use `info`, `debug`, or `trace` levels. For production, use the `info` level.
+
+### Tracing span processor experimental async runtime
+
+Embucket uses `BatchSpanProcessor`, which uses a dedicated background thread for collecting and exporting spans. This processor works well in production. Some development environments may hang on startup as reported in [issue #1123](https://github.com/embucket/embucket/issues/1123). In this case, you can switch to `BatchSpanProcessor` using the experimental async runtime.
+Use this command-line argument: `--tracing-span-processor=batch-span-processor-experimental-async-runtime`.
+
+### Tracing span processor tuning
+
+You can tune BatchSpanProcessor with the following environment variables:
+
+- `OTEL_BSP_MAX_CONCURRENT_EXPORTS`: Max number of concurrent export threads. Use this when running with the command-line argument:
+  `--tracing-span-processor=batch-span-processor-experimental-async-runtime`
+- `OTEL_BSP_SCHEDULE_DELAY`: Frequency for batch exports, in milliseconds. Higher values reduce "BatchSpanProcessor. ExportError" messages in logs when you don't use an OpenTelemetry Protocol (OTLP) collector.
+- `OTEL_BSP_EXPORT_TIMEOUT`: Max time allowed to export data.
+- `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`: Max number of spans per single export.
+- `OTEL_BSP_MAX_QUEUE_SIZE`: Max number of spans you can buffer.
+
+### Logging
+
+Logging provides the basic way to observe debug and tracing events.
+`RUST_LOG=debug` works for most cases. For tracing, use `RUST_LOG=trace`.
+
+### OpenTelemetry with Jaeger
+
+Instrumented calls in Embucket produce tracing events and spans using the [OpenTelemetry](https://opentelemetry.io/) SDK. These events go via OpenTelemetry Protocol (OTLP) to port 4317, where the OpenTelemetry Collector listens.
+The collector starts collecting data when you run the Docker container, which also serves a [Jaeger](https://www.jaegertracing.io/) dashboard at [http://localhost:16686/](http://localhost:16686).
+
+```bash
+# Run docker container with Jaeger UI v2
+docker run --rm --name jaeger -p 16686:16686 -p 4317:4317 -p 4318:4318 -p 5778:5778 -p 9411:9411 jaegertracing/jaeger:2.6.0
+```
+
+### Run Embucket in tracing mode
+
+Use the `RUST_LOG` environment variable to define log levels and the `--tracing-level` argument to enable tracing with [Jaeger](https://www.jaegertracing.io/).
+Both default log level and default tracing level use `info`.
+
+```
+target/debug/embucketd --jwt-secret=test --backend=memory '--cors-allow-origin=http://localhost:8080' --cors-enabled=true --tracing-level=trace
+```
+
+## Profiling
+
+If you need to profile the `embucketd` executable, you can use [Samply](https://github.com/mstange/samply/).
+This guide includes Samply as one way to profile, presented here as an experiment. This solution works out of the box on macOS, Linux, and Windows.
+
+To start profiling, prepend `samply record` to the `embucketd` command invocation. Perform the actions you need to profile, then stop profiling to open a profile report in the browser.
+
+```
+# install Samply
+cargo install --locked samply
+
+# Profile debug build
+cargo build && samply record RUST_LOG=debug target/debug/embucketd --jwt-secret=test --backend=memory '--cors-allow-origin=http://localhost:8080' --cors-enabled=true
+
+```

@@ -8,12 +8,13 @@ import { Aside } from '@astrojs/starlight/components';
 Embucket uses [Apache Iceberg](https://iceberg.apache.org/)'s open table format to store, manage, and query your data at scale. You can use any Iceberg client to read and write data to Embucket tables.
 
 Key points:
+
 - All Embucket tables use the [Apache Iceberg](https://iceberg.apache.org/) format
 - Embucket exposes an Iceberg Catalog REST API for external tools
 - Compatible with Apache Spark, `pyiceberg`, and AWS S3 table buckets
 - Embucket doesn't yet support some Iceberg features
 
-## What is Apache Iceberg?
+## What's Apache Iceberg?
 
 [Apache Iceberg](https://iceberg.apache.org/) is an open table format that defines how to store and manage large datasets.
 
@@ -24,7 +25,7 @@ The platform uses Iceberg for data storage and exposes an Iceberg Catalog REST A
 The platform reads data from Apache Spark, `pyiceberg`, and AWS S3 table buckets. External tools can read data that Embucket writes.
 
 <Aside type="note">
-Embucket targets compatibility with Iceberg v2, but doesn't yet support some features.
+  Embucket targets compatibility with Iceberg v2, but doesn't yet support some features.
 </Aside>
 
 ### Missing features:
@@ -37,12 +38,13 @@ Embucket targets compatibility with Iceberg v2, but doesn't yet support some fea
 - `ALTER TABLE` operations
 
 <Aside type="tip">
-You can delegate maintenance operations to external tools like AWS S3 table buckets and Apache Spark.
+  You can delegate maintenance operations to external tools like AWS S3 table buckets and Apache
+  Spark.
 </Aside>
 
 ### Supported operations
 
-- `MERGE INTO` statements 
+- `MERGE INTO` statements
 - Read operations for most Iceberg table formats
 - Write operations that create new data files
 
@@ -55,7 +57,8 @@ The system reads delete files but doesn't yet support position delete files (spe
 The platform doesn't write delete files, which prevents `DELETE` and `UPDATE` operations. Still it supports limited `MERGE INTO` statements that update and delete table rows. These operations use CoW (Copy-On-Write) semantics, a strategy that overwrites entire Parquet files (columnar data files) with new data instead of modifying individual rows.
 
 <Aside type="caution">
-`MERGE INTO` operations rewrite entire Parquet files, which can be expensive for large files with small changes.
+  `MERGE INTO` operations rewrite entire Parquet files, which can be expensive for large files with
+  small changes.
 </Aside>
 
 ## Catalog API
@@ -63,7 +66,8 @@ The platform doesn't write delete files, which prevents `DELETE` and `UPDATE` op
 Embucket exposes an Iceberg Catalog REST API that external tools use to read and write data. This API partially implements the [Apache Iceberg Catalog REST API](https://iceberg.apache.org/spec/#catalog-rest-api).
 
 <Aside type="note">
-Not all endpoints are implemented. Some existing endpoints aren't fully compatible with the Apache Iceberg specification.
+  Not all endpoints are implemented. Some existing endpoints aren't fully compatible with the Apache
+  Iceberg specification.
 </Aside>
 
 ### Supported endpoints:
