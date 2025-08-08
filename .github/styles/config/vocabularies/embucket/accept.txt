@@ -6,3 +6,13 @@ AWS
 dbt
 minio
 mc
+REST
+lakehouse
+failover
+SDK
+ACID
+OLAP
+OLTP
+DataFusion
+Superset
+Gitlab
