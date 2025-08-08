@@ -275,34 +275,41 @@ impl ScalarUDFImpl for RegexpSubstrAllFunc {
         let (position, occurrence, regex_parameters, group_num) =
             Self::take_args_values(&args.args)?;
 
-        let data_capacity = array.len() * 10;
         //TODO: Or data_capacity: 1024
-        let mut result_array = StringBuilder::with_capacity(array.len(), data_capacity);
+        let mut result_array = StringBuilder::with_capacity(array.len(), array.len() * 10);
 
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let string_array: &StringArray = as_generic_string_array(array)?;
                 let regex = pattern_to_regex(pattern, regex_parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
-                regexp(string_array, &regex, position).for_each(|opt_iter| {
-                    result_array.append_option(opt_iter.map(|cap_iter| {
-                        let mut result = String::with_capacity(data_capacity) + "[";
-                        cap_iter.skip(occurrence).for_each(|cap| {
-                            //group_num == 0, means get the whole match (seems docs in regex are incorrect)
-                            if let Some(mat) = cap.get(group_num) {
-                                result += "\"";
-                                result += mat.as_str();
-                                result += "\",";
+                regexp(string_array, &regex, position)
+                    .enumerate()
+                    .for_each(|(index, opt_iter)| {
+                        result_array.append_option(opt_iter.map(|cap_iter| {
+                            //Can't panic
+                            let mut result =
+                                String::with_capacity(string_array.value(index).len()) + "[";
+                            cap_iter.skip(occurrence).for_each(|cap| {
+                                //group_num == 0, means get the whole match (seems docs in regex are incorrect)
+                                if let Some(mat) = cap.get(group_num) {
+                                    result += "\"";
+                                    result += mat.as_str();
+                                    result += "\",";
+                                }
+                            });
+                            //to avoid an `if > 0` in for each match, we remove the last ","
+                            if result.len() > 1 {
+                                result.pop();
                             }
-                        });
-                        //to avoid an `if > 0` in for each match, we remove the last ","
-                        if result.len() > 1 {
-                            result.pop();
-                        }
-                        result += "]";
-                        result
-                    }));
-                });
+                            result += "]";
+                            //Only reallocate if we are smaller then or equal 50% of the capacity,
+                            if result.capacity() / 2 >= result.len() {
+                                result.shrink_to_fit();
+                            }
+                            result
+                        }));
+                    });
             }
             other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
                 position: 1usize,
