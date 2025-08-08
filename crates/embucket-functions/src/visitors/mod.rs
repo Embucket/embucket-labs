@@ -11,6 +11,7 @@ pub mod functions_rewriter;
 pub mod inline_aliases_in_query;
 pub mod json_element;
 pub mod qualify_in_query;
+pub mod rlike_regexp_expr_rewriter;
 pub mod select_expr_aliases;
 pub mod table_functions;
 pub mod table_functions_cte_relation;
