@@ -1,171 +1,80 @@
-# Embucket: Snowflake compatible lakehouse platform  
+# Embucket
+
+**Run Snowflake SQL on your data lake in 30 seconds. Zero dependencies.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![SQL Logic Test Coverage](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/badge.svg)](test/README.md)
-[![DBT Gitlab run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_success_badge.svg)](test/dbt_integration_tests/dbt-gitlab/README.md)
+[![dbt Gitlab run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_success_badge.svg)](test/dbt_integration_tests/dbt-gitlab/README.md)
 
+## Quick start
 
-Embucket is an Apache‑2.0‑licensed, Snowflake‑compatible lakehouse platform built for radical simplicity and full openness. It delivers:  
-- A **Snowflake‑style** REST API and SQL dialect  
-- **Apache Iceberg** table format under the hood  
-- **Iceberg REST API** for both internal and external engines  
-- **Zero‑disk**, object‑store‑only architecture (S3 or memory)  
-- **Statically linked single‑binary** for effortless deployment  
-- **SlateDB** for metadata persistence  
-- **Apache DataFusion** as the query engine  
+Start Embucket and run your first query in 30 seconds:
 
-## Features  
+```bash
+docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
+```
 
-- **Snowflake compatible API**  
-  - Snowflake SQL syntax dialect
-  - Snowflake v1 wire compatible REST API
+Open [localhost:8080](http://localhost:8080)—login: `embucket`/`embucket`—and run:
 
-- **Apache Iceberg**  
-  - Data stored in Iceberg format on object storage  
-  - Built-in internal catalog
-  - Exposes Iceberg REST Catalog API
+```sql
+CREATE TABLE sales (id INT, product STRING, revenue DECIMAL(10,2));
+INSERT INTO sales VALUES (1, 'Widget A', 1250.00), (2, 'Widget B', 899.50);
+SELECT product, revenue FROM sales WHERE revenue > 1000;
+```
 
-- **Zero disk architecture**  
-  - All state (data + metadata) lives in your s3 buckets
-  - No other dependencies required
+**Done.** You just ran Snowflake SQL on Apache Iceberg tables with zero configuration.
 
-- **Scalable "query-per-node" parallelism**  
-  - Spin up multiple Embucket instances against the same bucket
-  - Each node handles queries independently for horizontal scale  
+## What just happened?
 
-- **Single statically linked binary**  
-  - One `embucket` executable with zero external dependencies  
+Embucket provides a **single binary** that gives you a **Snowflake-compatible lakehouse**:
 
-- **Iceberg catalog federation**  
-  - Connect to external Iceberg REST catalogs  
-  - Read/write across catalogs
+- **Snowflake SQL & API**: Use your existing queries, dbt projects, and BI tools
+- **Apache Iceberg storage**: Your data stays in open formats on object storage  
+- **Zero dependencies**: No databases, no clusters, no configuration files
+- **Query-per-node**: Each instance handles complete queries independently
+
+Perfect for teams who want Snowflake's simplicity without the vendor lock-in.
 
 ## Architecture
 
 ![Embucket Architecture](architecture.png)
 
-Embucket is designed with radical simplicity in mind: it is a single binary that runs as a server and provides a REST API for interacting with the lakehouse. It has single dependency - object storage - for both data and metadata.
+**Zero-disk lakehouse**: all data and metadata live in object storage. Nodes stay stateless and replaceable.
 
-It is built on top of several open source projects:
+Built on proven open source:
+- [Apache DataFusion](https://datafusion.apache.org/) for SQL execution
+- [Apache Iceberg](https://iceberg.apache.org/) for ACID transactions  
+- [SlateDB](https://slatedb.io/) for metadata management
 
-- [Apache DataFusion](https://github.com/apache/datafusion) - query engine
-- [Apache Iceberg](https://github.com/apache/iceberg) - data storage
-- [SlateDB](https://github.com/slatedb/slatedb) - metadata persistence
+## Why Embucket?
 
-Embucket has deep integration with AWS S3 table buckets and relies on them for proper table maintenance.
+**Escape the dilemma**: choose between vendor lock-in (Snowflake) or operational complexity (do-it-yourself lakehouse).
 
-## SLT coverage
-![Test Coverage Visualization](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/test_coverage_visualization.png)
+- **Radical simplicity** - Single binary deployment  
+- **Snowflake compatibility** - Works with your existing tools  
+- **Open data** - Apache Iceberg format, no lock-in  
+- **Horizontal scaling** - Add nodes for more throughput  
+- **Zero operations** - No external dependencies to manage
 
-![Not Implemented Tests Distribution](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/not_implemented_visualization.png)
+## Next steps
 
-*These visualizations are automatically updated by CI/CD when tests are run.*
+**Ready for more?** Check out the comprehensive documentation:
 
-## DBT Gitlab run results:
-![DBT Gitlab run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_run_status.png)
-*This visualization is automatically updated by CI/CD daily*
+**[Quick Start Guide](docs/src/content/docs/essentials/quick-start.mdx)** - Detailed setup and first queries  
+**[Architecture Guide](docs/src/content/docs/essentials/architecture.mdx)** - How the zero-disk lakehouse works  
+**[Configuration](docs/src/content/docs/essentials/configuration.mdx)** - Production deployment options  
+**[dbt Integration](docs/src/content/docs/guides/dbt-snowplow.mdx)** - Run existing dbt projects  
 
-### Install Embucket  
-
-```sh
-# Clone and build the Embucket binary
-git clone git@github.com:Embucket/embucket.git
-cd embucket/
-cargo build
-```
-
-### Configure and run Embucket  
-
-You can configure Embucket via CLI arguments or environment variables:
-
-```sh
-# Create a .env configuration file
-cat << EOF > .env
-# SlateDB storage settings
-OBJECT_STORE_BACKEND=memory
-FILE_STORAGE_PATH=data
-SLATEDB_PREFIX=sdb
-
-# Optional: AWS S3 storage (leave blank if using local storage)
-AWS_ACCESS_KEY_ID="<your_aws_access_key_id>"
-AWS_SECRET_ACCESS_KEY="<your_aws_secret_access_key>"
-AWS_REGION="<your_aws_region>"
-S3_BUCKET="<your_s3_bucket>"
-S3_ALLOW_HTTP=
-
-# Iceberg Catalog settings
-# Set to your catalog url
-CATALOG_URL=http://127.0.0.1:3000
-
-# Optional: CORS settings
-CORS_ENABLED=true
-CORS_ALLOW_ORIGIN=http://localhost:8080
-
-EOF
-
-# Load environment variables (optional)
-export $(grep -v '^#' .env | xargs)
-
-# Start Embucket
+**From source:**
+```bash
+git clone https://github.com/Embucket/embucket.git
+cd embucket && cargo build
 ./target/debug/embucketd
 ```
 
-Once embucket is running, open:  
-
-- [localhost:8080](http://localhost:8080) → UI Dashboard  
-- [localhost:3000/catalog](http://localhost:3000/catalog) → Iceberg REST Catalog API  
-
-
-## Demo: running dbt project with Embucket  
-
-This demo showcases how to use Embucket with `dbt` and execute the `snowplow_web` dbt project, treating Embucket as a Snowflake-compatible database.
-
-### Prerequisites
-
-* python 3.9+ installed
-* virtualenv installed
-
-### Run dbt workflow  
-
-```sh
-# Clone the dbt project with Snowplow package installed
-git clone git@github.com:Embucket/compatibility-test-suite.git
-cd compatibility-test-suite/dbt-snowplow/
-
-# Set up a virtual environment and install dependencies
-virtualenv .venv
-source .venv/bin/activate
-pip install dbt-core dbt-snowflake
-
-# Activate virtual environment
-source .venv/bin/activate
-
-# Set Snowflake-like environment variables
-export SNOWFLAKE_USER=user
-export SNOWFLAKE_PASSWORD=xxx
-export SNOWFLAKE_DB=snowplow
-export SNOWFLAKE_SCHEMA=public
-export SNOWFLAKE_WAREHOUSE=snowplow
-
-# Install the dbt Snowplow package
-dbt deps
-
-# Upload source data
-python3 upload.py
-
-# Upload initial data
-dbt seed
-
-# Run dbt transformations
-dbt run -m snowplow_web
-```
-
-## Debugging
-Check [TRACING_AND_PROFILING.md](crates/embucketd/TRACING_AND_PROFILING.md) for information on how to trace and profile embucket service.
-
 ## Contributing  
 
-We welcome contributions! To get involved:  
+Contributions welcome. To get involved:  
 
 1. **Fork** the repository on GitHub  
 2. **Create** a new branch for your feature or bug fix  
@@ -175,5 +84,5 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License  
 
-This project is licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
+This project uses the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
 
