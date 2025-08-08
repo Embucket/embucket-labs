@@ -1,13 +1,13 @@
 pub mod errors;
 pub mod regexp_instr;
-mod regexp_replace;
 mod regexp_like;
+mod regexp_replace;
 mod regexp_substr;
 mod regexp_substr_all;
 
 use crate::regexp::regexp_instr::RegexpInstrFunc;
-use crate::regexp::regexp_replace::RegexpReplaceFunc;
 use crate::regexp::regexp_like::RegexpLikeFunc;
+use crate::regexp::regexp_replace::RegexpReplaceFunc;
 use crate::regexp::regexp_substr::RegexpSubstrFunc;
 use crate::regexp::regexp_substr_all::RegexpSubstrAllFunc;
 use datafusion_expr::ScalarUDF;
