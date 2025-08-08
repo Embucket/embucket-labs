@@ -72,6 +72,23 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
+        // to_char format replacements
+        (
+            "SELECT to_char(col::DATE, 'YYYYMMDD')",
+            "SELECT to_char(col::DATE, '%Y%m%d')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'DD-MM-YYYY')",
+            "SELECT to_char(col::DATE, '%d-%m-%Y')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'MM/DD/YYYY HH24:MI:SS')",
+            "SELECT to_char(col::DATE, '%m/%d/%Y %H:%M:%S')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'YYYY/MM/DD HH24')",
+            "SELECT to_char(col::DATE, '%Y/%m/%d %H')",
+        ),
     ];
 
     for (input, expected) in cases {

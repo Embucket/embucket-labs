@@ -30,6 +30,10 @@ impl VisitorMut for FunctionsRewriter {
                 }
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
+                "to_char" => {
+                    rewrite_date_format(args);
+                    func_name
+                }
                 "date" => "to_date",
                 //regexp_ udfs need `\\` in the pattern for regex, but when converting to the logical plan, it gets removed,
                 // the only way to make it stay is to make it `\\\\` or maybe use another type?
@@ -89,4 +93,25 @@ impl VisitorMut for FunctionsRewriter {
 
 pub fn visit(stmt: &mut Statement) {
     let _ = stmt.visit(&mut FunctionsRewriter {});
+}
+
+fn rewrite_date_format(args: &mut FunctionArguments) {
+    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
+        && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(format_expr))) = args.get_mut(1)
+        && let Expr::Value(ValueWithSpan {
+            value: SingleQuotedString(fmt),
+            span: _,
+        }) = format_expr
+    {
+        // Replace common date format specifiers with DataFusion's format
+        // https://docs.snowflake.com/en/sql-reference/functions-conversion#label-date-time-format-conversion
+        // https://docs.rs/chrono/latest/chrono/format/strftime/index.html
+        *fmt = fmt
+            .replace("YYYY", "%Y")
+            .replace("MM", "%m")
+            .replace("DD", "%d")
+            .replace("HH24", "%H")
+            .replace("MI", "%M")
+            .replace("SS", "%S");
+    }
 }
