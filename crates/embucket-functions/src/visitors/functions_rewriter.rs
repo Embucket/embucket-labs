@@ -60,11 +60,8 @@ impl VisitorMut for FunctionsRewriter {
                                            }) = replacement
                     {
                         let value = if let Ok(regex) = regex::Regex::new(r"\\(\d)") {
-                            tracing::error!("Made a regex: {:?}", regex);
-                            tracing::error!("The string is: {}", value);
                             regex
                                 .replace_all(value, |caps: &regex::Captures| {
-                                    tracing::error!("Found capture: {:?}", caps);
                                     format!("${}", &caps[1]) // Replace with `$number`.
                                 })
                                 .to_string()

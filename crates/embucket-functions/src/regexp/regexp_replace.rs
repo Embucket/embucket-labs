@@ -274,11 +274,8 @@ impl ScalarUDFImpl for RegexpReplaceFunc {
                                 let value = string_array.value(index);
                                 //group_num == 0, means get the whole match (seems docs in regex are incorrect)
                                 if let Some(start) = cap.get(0).map(|mat| mat.start()) {
-                                    tracing::error!("Replacement: {}", replacement);
                                     let not_changeable = &value[..(position + start)];
-                                    tracing::error!("Not changeable: {}", not_changeable);
                                     let changeable = &value[(position + start)..];
-                                    tracing::error!("Changeable: {}", changeable);
                                     not_changeable.to_string()
                                         + regex.replace_all(changeable, replacement).as_ref()
                                 } else {
