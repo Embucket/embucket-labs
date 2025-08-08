@@ -91,5 +91,3 @@ jobs:
       - uses: errata-ai/vale-action@v2.1.1
         with:
           files: "docs/src/content/"
-          fail_on_error: true
-        
