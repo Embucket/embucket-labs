@@ -20,20 +20,20 @@ Embucket supports the Snowflake SQL dialect and provides a Snowflake v1 REST API
 
 ## API compatibility
 
-Embucket provides a Snowflake v1 REST API that works with any Snowflake client. We test compatibility primarily with snowflake-connector-python and tools that depend on it, including [dbt](https://docs.getdbt.com/), snowflake-cli, and Apache Superset.
+Embucket provides a Snowflake v1 REST API that works with any Snowflake client. The platform has tested compatibility primarily with snowflake-connector-python and tools that depend on it, including [dbt](https://docs.getdbt.com/), snowflake-cli, and Apache Superset.
 
 ## SQL engine compatibility
 
-Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion.apache.org/)** - an [Apache Arrow](https://arrow.apache.org/)-native query engine. The engine works with any SQL client. We aim for 100% SQL dialect compatibility with Snowflake but currently support a subset of SQL features. Embucket includes some built-in functions and data types that Snowflake doesn't provide.
+Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion.apache.org/)** - an [Apache Arrow](https://arrow.apache.org/)-native query engine. The engine works with any SQL client. Embucket aims for 100% SQL dialect compatibility with Snowflake but currently support a subset of SQL features. Embucket includes some built-in functions and data types that Snowflake doesn't provide.
 
 ## Compatibility testing
 
-We verify compatibility using two test methods:
+Embucket verifies compatibility using two test methods:
 
 - **SQL Logic Tests (SLT)**: Verify SQL engine compatibility with Snowflake
 - **[dbt](https://docs.getdbt.com/) integration tests**: Verify REST API compatibility with Snowflake
 
-We use the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibility benchmark. The Embucket [repository](https://github.com/Embucket/embucket) displays current compatibility badges for both SLT test suite and dbt Gitlab.
+Embucket uses the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibility benchmark. The Embucket [repository](https://github.com/Embucket/embucket) displays current compatibility badges for both SLT test suite and dbt Gitlab.
 
 ## Architecture differences
 
@@ -127,7 +127,7 @@ Embucket uses [DataFusion](https://datafusion.apache.org/) for type coercion and
 
 For aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
 
-<Aside type="note">We are developing this feature.</Aside>
+<Aside type="note">This feature is under development.</Aside>
 
 ### Numeric function result differences
 
@@ -176,7 +176,7 @@ Embucket returns errors in a different format than Snowflake. [Apache Arrow](htt
 
 ## Development roadmap
 
-We are developing the following compatibility improvements:
+The development roadmap includes these compatibility improvements:
 
 - **Numeric support**: Implement dynamic precision Decimal types for aggregate functions
 - **VARIANT support**: Add native VARIANT storage when underlying dependencies support it

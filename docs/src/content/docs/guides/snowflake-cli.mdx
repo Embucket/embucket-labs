@@ -156,7 +156,7 @@ docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
 ## Troubleshooting
 
 - **Connection refused or timeout errors:** Verify Embucket container is running on ports 3000 and 8080
-- **Protocol errors:** Check that `protocol = "http"` is set in your configuration file
+- **Protocol errors:** Check that you set `protocol = "http"` in your configuration file
 - **Authentication failures:** Use exactly `embucket` for both username and password
 - **SQL execution errors:** Check that you're using Snowflake-compatible SQL syntax
 

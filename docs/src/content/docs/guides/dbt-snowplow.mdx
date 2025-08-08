@@ -14,7 +14,7 @@ Follow this guide to:
 - Configure [dbt](https://docs.getdbt.com/) project dependencies and database connections for Embucket
 - Set up sample [Snowplow](https://docs.snowplowanalytics.com/) event data for testing and development
 - Execute [dbt](https://docs.getdbt.com/) transformations using the [Snowplow](https://docs.snowplowanalytics.com/) Web package
-- Validate results and explore generated analytics models
+- Check results and explore generated analytics models
 - Plan next steps for production deployment
 
 ## What this guide covers
@@ -71,7 +71,7 @@ snowplow_project:
 - **Performance**: Set `threads` based on your system capacity
 
 <Aside type="tip">
-  **Data Persistence**: Embucket creates in-memory storage and `embucket` database by default. For
+  **Data persistence:** embucket creates in-memory storage and `embucket` database by default. For
   persistent data, run Embucket with `--no-bootstrap` and configure external storage. See the
   [volumes guide](/essentials/volumes) for details.
 </Aside>
