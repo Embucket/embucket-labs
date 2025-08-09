@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: monte_carlo_prod_insights
-    database: "MONTE_CARLO"
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: prod_insights
     loader: Snowflake Data Exchange
 
@@ -12,23 +12,23 @@ sources:
       identifier: false
 
     tables:
-      - name: key_assets
-        identifier: key_assets
-      - name: monitors
-        identifier: monitors
-      - name: cleanup_suggestions
-        identifier: cleanup_suggestions
+      - name: dup_key_assets
+        identifier: dup_key_assets
+      - name: dup_monitors
+        identifier: dup_monitors
+      - name: dup_cleanup_suggestions
+        identifier: dup_cleanup_suggestions
       - name: custom_rules
         identifier: custom_rules
-      - name: dashboard_analytics
-        identifier: dashboard_analytics
-      - name: field_cleanup_suggestions
-        identifier: field_cleanup_suggestions
-      - name: incident_history
-        identifier: incident_history
-      - name: monitor_issues_and_solutions
-        identifier: monitor_issues_and_solutions
-      - name: monitor_recom_field_health
-        identifier: monitor_recom_field_health
-      - name: events
-        identifier: events
+      - name: dup_dashboard_analytics
+        identifier: dup_dashboard_analytics
+      - name: dup_field_cleanup_suggestions
+        identifier: dup_field_cleanup_suggestions
+      - name: dup_incident_history
+        identifier: dup_incident_history
+      - name: dup_monitor_issues_and_solutions
+        identifier: dup_monitor_issues_and_solutions
+      - name: dup_monitor_recom_field_health
+        identifier: dup_monitor_recom_field_health
+      - name: dup_prod_insights_events
+        identifier: dup_prod_insights_events

@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: omamori
-    database: RAW
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: omamori
     loader: Airflow
     loaded_at_field: uploaded_at
