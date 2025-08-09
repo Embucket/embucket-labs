@@ -1,6 +1,5 @@
 import os
 import logging
-import random
 import math
 import pytest
 
@@ -11,7 +10,8 @@ from pyspark.sql.types import (
     StructType, StructField,
 )
 from clients import EmbucketClient, PyIcebergClient
-from tables_metadata import TABLE_METADATA, TYPE_CHECKS
+from tables_metadata import TABLES_METADATA, TYPE_CHECKS, TPC_H_INSERTION_DATA, EDGE_CASES_VALUES
+from tpc_h_queries import TPC_H_QUERIES
 
 load_dotenv()
 
@@ -35,7 +35,7 @@ def make_spark_schema_from(metadata):
     ])
 
 
-def make_create_table_ddl(table_name, metadata, volume, catalog_url, base):
+def make_create_table_ddl(table_name, metadata, catalog_url, base):
     col_defs = []
     for name, info in metadata.items():
         nullability = "NOT NULL" if not info["nullable"] else ""
@@ -54,76 +54,6 @@ def make_create_table_ddl(table_name, metadata, volume, catalog_url, base):
     return ddl
 
 
-def sample_value_for_column(name, info):
-    """
-    Return a plausible sample value matching the column type for TPC-H tables.
-    """
-    sql_type = info["type"].upper()
-    if "BIGINT" in sql_type:
-        return random.randint(1, 1000)
-    if "INT" in sql_type:
-        return random.randint(1, 100)
-    if "DECIMAL" in sql_type:
-        # take a mid-range value with correct precision
-        if "15,2" in sql_type:
-            return Decimal("12345.67")
-        # fallback
-        return Decimal("1.23")
-    if sql_type == "VARCHAR":
-        # simple synthetic strings
-        return f"{name}_sample"
-    if sql_type == "DATE":
-        return "2023-01-01"  # Spark will coerce string to date via schema
-    if sql_type == "TIMESTAMP":
-        return "2023-01-01T12:34:56"
-    if sql_type == "DOUBLE":
-        return 3.1415
-    if sql_type == "BOOLEAN":
-        return True
-    # default
-    return None
-
-
-def coerce_value(name, info, raw_value):
-    """
-    Converts raw input values to appropriate Python types based on SQL type definition.
-
-    Args:
-        name: Column name for error reporting
-        info: Column metadata dictionary containing type information
-        raw_value: The value to be coerced to the appropriate type
-
-    Returns:
-        Value converted to the appropriate Python type (Decimal, datetime, int, etc.)
-        or None if raw_value is None
-    """
-    sql_type = info["type"].upper()
-    if raw_value is None:
-        return None
-    if "DECIMAL" in sql_type:
-        return raw_value if isinstance(raw_value, Decimal) else Decimal(str(raw_value))
-    if sql_type == "TIMESTAMP":
-        if isinstance(raw_value, str):
-            return datetime.fromisoformat(raw_value.replace(" ", "T"))
-        if isinstance(raw_value, datetime):
-            return raw_value
-        raise ValueError(f"Cannot coerce {raw_value!r} to datetime for {name}")
-    if sql_type == "DATE":
-        if isinstance(raw_value, str):
-            return datetime.fromisoformat(raw_value).date()
-        if isinstance(raw_value, datetime):
-            return raw_value.date()
-        # allow passing a date directly
-        return raw_value
-    if sql_type in ("BIGINT", "INT"):
-        return int(raw_value)
-    if sql_type == "DOUBLE":
-        return float(raw_value)
-    if sql_type == "BOOLEAN":
-        return bool(raw_value) if raw_value is not None else None
-    return str(raw_value)
-
-
 def build_row(metadata, custom_values=None):
     """
     Build a row dictionary based on table metadata with appropriate type coercion.
@@ -135,26 +65,52 @@ def build_row(metadata, custom_values=None):
     Returns:
         Dictionary with column names as keys and coerced values as values
     """
-    # Start with sample values or empty dict
     row = {}
+    # First pass: get raw values (sample or custom)
     for col, info in metadata.items():
-        if custom_values and col in custom_values:
-            # Use custom value if provided
-            row[col] = custom_values[col]
-        else:
-            # Otherwise use sample value
-            row[col] = sample_value_for_column(col, info)
+        row[col] = custom_values[col]
+    # Second pass: convert values to correct types
+    result = {}
+    for name, info in metadata.items():
+        raw_value = row.get(name)
+        sql_type = info["type"].upper()
 
-    # Coerce all values to correct types
-    return {
-        name: coerce_value(name, info, row.get(name))
-        for name, info in metadata.items()
-    }
+        if raw_value is None:
+            result[name] = None
+            continue
+
+        # Handle each type conversion directly
+        if "DECIMAL" in sql_type:
+            result[name] = raw_value if isinstance(raw_value, Decimal) else Decimal(str(raw_value))
+        elif sql_type == "TIMESTAMP":
+            if isinstance(raw_value, str):
+                result[name] = datetime.fromisoformat(raw_value.replace(" ", "T"))
+            elif isinstance(raw_value, datetime):
+                result[name] = raw_value
+            else:
+                raise ValueError(f"Cannot coerce {raw_value!r} to datetime for {name}")
+        elif sql_type == "DATE":
+            if isinstance(raw_value, str):
+                result[name] = datetime.fromisoformat(raw_value).date()
+            elif isinstance(raw_value, datetime):
+                result[name] = raw_value.date()
+            else:
+                result[name] = raw_value  # allow passing a date directly
+        elif sql_type in ("BIGINT", "INT"):
+            result[name] = int(raw_value)
+        elif sql_type == "DOUBLE":
+            result[name] = float(raw_value)
+        elif sql_type == "BOOLEAN":
+            result[name] = bool(raw_value) if raw_value is not None else None
+        else:
+            result[name] = str(raw_value)
+
+    return result
 
 
 def insert_row(spark, table_name, metadata, custom_values=None):
     """
-    Insert a single row into a table.
+    Insert a single row into a table and log the inserted row.
     Args:
         spark: Spark session
         table_name: Name of the table
@@ -169,7 +125,6 @@ def insert_row(spark, table_name, metadata, custom_values=None):
     temp_view = f"tmp_sample_{table_name}"
     df = spark.createDataFrame([coerced_row], schema=schema)
     df.createOrReplaceTempView(temp_view)
-
     spark.sql(f"INSERT INTO public.{table_name} SELECT * FROM {temp_view}")
     logger.info(f"Inserted row into {table_name}")
 
@@ -178,114 +133,27 @@ def insert_edge_case_rows(spark):
     """Use the generic insert_row function for edge cases"""
     table_name = "edge_cases_test"
     logger.info(f"→ Generating deterministic edge-case row for {table_name}")
-    metadata = TABLE_METADATA[table_name]
-
-    # Define edge case values
-    edge_case_values = {
-        "pk": 1,
-        "large_int": 2 ** 60,
-        "negative_int": -1,
-        "high_precision_dec": "0.123456789012345678",
-        "zero_dec": "0.00",
-        "empty_string": "",
-        "unicode_string": "𝔘𝔫𝔦𝔠𝔬𝔡𝔢✓",
-        "timestamp_min": "1970-01-01T00:00:00",
-        "timestamp_max": "9999-12-31T23:59:59",
-        "bool_true": True,
-        "bool_null": None,
-        "floating_nan": float("nan"),
-        "floating_inf": float("inf"),
-    }
-
-    insert_row(spark, table_name, metadata, edge_case_values)
+    metadata = TABLES_METADATA[table_name]
+    insert_row(spark, table_name, metadata, EDGE_CASES_VALUES)
 
 
-def validate_dataframe(df, schema, table_name):
-    """ Check non-nullable """
-    for field in schema.fields:
-        if not field.nullable:
-            null_count = df.filter(df[field.name].isNull()).count()
-            if null_count > 0:
-                raise AssertionError(f"[Validation] Table {table_name}: column {field.name} has {null_count} null(s) but is declared NOT NULL")
-    logger.info(f"[Validation] {table_name} passed non-nullable column check.")
-
-
-def upload_table(spark, table_name, schema):
-    raw_path = f"{TPC_H_DATA_PATH}/{table_name}/"
-    logger.info(f"→ Loading {table_name} from {raw_path}")
-    df = (
-        spark.read
-        .option("sep", "|")
-        .schema(schema)
-        .csv(raw_path, header=False)
-    )
-    validate_dataframe(df, schema, table_name)
-    df.createOrReplaceTempView(table_name)
-    logger.info(f"→ Inserting into Iceberg table rest.public.{table_name}")
-    spark.sql(f"INSERT INTO {table_name} SELECT * FROM {table_name}")
-
-
-def validate_table_with_pyiceberg(pyiceberg_client, table_name):
-    """
-    Reads up to a few rows from Iceberg via pyiceberg, ensures at least one row exists,
-    and checks that each column value conforms to the declared TABLE_METADATA types.
-    """
-    logger.info(f"→ Validating table {table_name} via PyIceberg")
-    rows = pyiceberg_client.read_table(table_name, limit=5)  # returns list of dicts
-    if not rows:
-        raise AssertionError(f"No rows found in table {table_name}")
-
-    metadata = TABLE_METADATA.get(table_name.split(".")[-1])
-    if metadata is None:
-        logger.warning(f"No metadata for {table_name}; skipping type validation.")
-        return
-
-    # Take first row for type checking
-    row = rows[0]
-    mismatches = []
-    for col, info in metadata.items():
-        expected_type = info["type"].upper()
-        val = row.get(col)
-        if val is None:
-            if not info["nullable"]:
-                mismatches.append(f"Column {col} is non-nullable but value is NULL")
+def insert_tpch_data(spark):
+    """Insert data into TPC-H tables based on query requirements."""
+    # Insert the data for each table
+    for table_name, data_rows in TPC_H_INSERTION_DATA.items():
+        metadata = TABLES_METADATA.get(table_name)
+        if metadata is None:
+            logger.warning(f"No metadata found for {table_name}, skipping")
             continue
 
-        # Determine base type token (e.g., DECIMAL(15,2) -> DECIMAL)
-        base = expected_type.split("(")[0]
-        checker = TYPE_CHECKS.get(base)
-        ok = checker(val)
-        # Special handling: NaN is float but semantically okay for DOUBLE
-        if base == "DOUBLE" and isinstance(val, float) and math.isnan(val):
-            ok = True
-        if not ok:
-            mismatches.append(f"Column {col}: value {val!r} (type {type(val)}) does not match expected {base}")
+        logger.info(f"Inserting {len(data_rows)} rows into {table_name}")
+        for row in data_rows:
+            insert_row(spark, table_name, metadata, row)
 
 
-    if mismatches:
-        for msg in mismatches:
-            logger.error(msg)
-        raise AssertionError(f"Type mismatches in table {table_name}: {mismatches}")
-
-    logger.info(f"Table {table_name} passed validation (has {len(rows)} row(s) and types match).")
-
-
-def insert_sample_row(spark, table_name, metadata):
-    """Insert a single sample row into a table."""
-    row = {col: sample_value_for_column(col, info) for col, info in metadata.items()}
-    coerced_row = {
-        name: coerce_value(name, info, row.get(name))
-        for name, info in metadata.items()
-    }
-    schema = make_spark_schema_from(metadata)
-    temp_view = f"tmp_sample_{table_name}"
-    df = spark.createDataFrame([coerced_row], schema=schema)
-    df.createOrReplaceTempView(temp_view)
-    spark.sql(f"INSERT INTO public.{table_name} SELECT * FROM {temp_view}")
-
-@pytest.fixture(scope="session", autouse=False)
+@pytest.fixture(scope="session", autouse=True)
 def load_all_tables(s3_spark_session):
-    """Load TPC-H data, and insert edge-case row"""
+    """Load TPC-H data and edge case data"""
     spark = s3_spark_session
     emb = EmbucketClient()
     emb.sql(emb.get_volume_sql(VOLUME, "s3"))
@@ -295,28 +163,23 @@ def load_all_tables(s3_spark_session):
     emb.sql(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_ID}.public;")
 
     # for each table: DDL + data
-    for table_name, metadata in TABLE_METADATA.items():
-        ddl = make_create_table_ddl(table_name, metadata, VOLUME, CATALOG_URL, BASE)
+    for table_name, metadata in TABLES_METADATA.items():
+        ddl = make_create_table_ddl(table_name, metadata, CATALOG_URL, BASE)
         emb.sql(ddl)
 
-        schema = make_spark_schema_from(metadata)
-        if table_name == "edge_cases_test":
-            insert_edge_case_rows(spark)
-        else:
-            upload_table(spark, table_name, schema)
+    # Insert TPC-H data for regular queries
+    insert_tpch_data(spark)
 
-        # Insert special data based on table type
-        if table_name == "edge_cases_test":
-            insert_edge_case_rows(spark)
-        else:
-            # For regular tables, insert sample TPC-H data
-            insert_sample_row(spark, table_name, metadata)
-    return
+    # Insert edge case data separately
+    insert_edge_case_rows(spark)
+    return spark
+
 
 @pytest.fixture
 def loaded_spark(load_all_tables):
     """Yields the Spark session after all tables are loaded."""
     return load_all_tables
+
 
 @pytest.fixture
 def pyiceberg_client():
@@ -325,94 +188,307 @@ def pyiceberg_client():
         warehouse_path=WAREHOUSE_ID
     )
 
-@pytest.mark.parametrize(
-    "table_name, metadata",
-    [
-        pytest.param(name, meta, id=name)
-        for name, meta in TABLE_METADATA.items()
-        if name != "edge_cases_test"
-    ],
-)
-def test_read_tpch_tables_with_embucket(table_name, metadata):
+
+@pytest.fixture
+def pyiceberg_table_data(pyiceberg_client, request):
+    """Fixture to read table data once and reuse across tests."""
+    table_name = request.param
+    full_name = f"public.{table_name}"
+    rows = pyiceberg_client.read_table(full_name, limit=10)
+    return {
+        "table_name": table_name,
+        "full_name": full_name,
+        "rows": rows,
+        "metadata": TABLES_METADATA.get(table_name)
+    }
+
+
+@pytest.fixture
+def embucket_table_data(request):
+    """Fixture to read Embucket table data once and reuse across tests."""
     emb = EmbucketClient()
+    table_name = request.param
     full_name = f"{WAREHOUSE_ID}.public.{table_name}"
     result = emb.sql(f"SELECT * FROM {full_name}")
     rows = result["result"]["rows"]
-    assert rows, f"No rows in {full_name}"
-
     cols = [c["name"] for c in result["result"]["columns"]]
-    first = dict(zip(cols, rows[0]))
 
-    # non‐nullable check + type checks
-    for col, info in metadata.items():
-        val = first[col]
-        if val is None:
-            assert info["nullable"], f"{col!r} in {table_name} is NULL but non‐nullable"
-            continue
+    # Convert rows of values to list of dicts
+    dict_rows = [dict(zip(cols, row)) for row in rows]
 
-        base = info["type"].split("(")[0]
-        # allow date‐string parsing
-        if base == "DATE" and isinstance(val, str):
-            datetime.strptime(val, "%Y-%m-%d")
-            continue
+    return {
+        "table_name": table_name,
+        "full_name": full_name,
+        "rows": dict_rows,
+        "metadata": TABLES_METADATA.get(table_name)
+    }
 
-        assert TYPE_CHECKS[base](val), (
-            f"{table_name}.{col}: expected type {base}, got value {val!r} (type {type(val).__name__})"
-        )
+# Regular TPC-H tables tests with Embucket
+@pytest.mark.parametrize(
+    "embucket_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_embucket_table_has_rows(embucket_table_data):
+    """Ensure each table has at least one row when queried via Embucket."""
+    assert len(embucket_table_data["rows"]) > 0, \
+        f"Table {embucket_table_data['full_name']} has no rows in Embucket"
 
 
-def test_edge_case_table_has_correct_values():
-    """
-    Using Embucket, verify the single edge_cases_test row and its special values.
-    """
-    emb = EmbucketClient()
-    result = emb.sql("SELECT * FROM test_db.public.edge_cases_test")
-    rows = result["result"]["rows"]
-    assert rows, "No rows in edge_cases_test"
+@pytest.mark.parametrize(
+    "embucket_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_embucket_non_nullable_columns(embucket_table_data):
+    """Check that non-nullable columns don't contain NULL values when queried via Embucket."""
+    rows = embucket_table_data["rows"]
+    metadata = embucket_table_data["metadata"]
+    table_name = embucket_table_data["table_name"]
 
-    cols = [c["name"] for c in result["result"]["columns"]]
-    row = dict(zip(cols, rows[0]))
+    for row in rows:
+        for col, info in metadata.items():
+            if not info["nullable"]:
+                assert col in row, f"Column {col} missing in {table_name}"
+                assert row[col] is not None, \
+                    f"Column {col} in {table_name} is NULL but declared NOT NULL"
 
-    # Integer edge cases
-    assert row["pk"] == 1
-    assert row["large_int"] == 2**60
-    assert row["negative_int"] == -1
 
-    # Decimal edge cases
-    assert Decimal(str(row["high_precision_dec"])) == Decimal("0.123456789012345678")
+@pytest.mark.parametrize(
+    "embucket_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_embucket_column_types(embucket_table_data):
+    """Verify that column values match their expected types when queried via Embucket."""
+    rows = embucket_table_data["rows"]
+    metadata = embucket_table_data["metadata"]
+    table_name = embucket_table_data["table_name"]
+
+    for row in rows:
+        for col, info in metadata.items():
+            val = row.get(col)
+            if val is None:
+                continue
+
+            expected_type = info["type"].upper()
+            base = expected_type.split("(")[0]
+            checker = TYPE_CHECKS.get(base)
+
+            # Special handling for DATE strings in Embucket results
+            if base == "DATE" and isinstance(val, str):
+                try:
+                    datetime.strptime(val, "%Y-%m-%d")
+                    continue
+                except ValueError:
+                    assert False, f"Invalid date format for {col} in {table_name}: {val}"
+
+            assert checker is not None, f"No type checker for {base} in {table_name}"
+            assert checker(val), \
+                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) " \
+                f"does not match expected {base}"
+
+# Edge cases tests with Embucket
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_edge_table_has_rows(embucket_table_data):
+    """Ensure the edge case table has at least one row when queried via Embucket."""
+    assert len(embucket_table_data["rows"]) > 0, "Edge cases table has no rows in Embucket"
+
+
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_integer_edge_cases(embucket_table_data):
+    """Test integer edge cases (large integers, negative values) via Embucket."""
+    row = embucket_table_data["rows"][0]
+    assert row["pk"] == 1, f"Expected pk=1, got {row['pk']}"
+    assert row["large_int"] == 2**60, f"Expected large_int=2^60, got {row['large_int']}"
+    assert row["negative_int"] == -1, f"Expected negative_int=-1, got {row['negative_int']}"
+
+
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_decimal_edge_cases(embucket_table_data):
+    """Test decimal edge cases (high precision, zero values) via Embucket."""
+    row = embucket_table_data["rows"][0]
+    assert Decimal(str(row["high_precision_dec"])) == Decimal("0.12345678901234568")
     assert Decimal(str(row["zero_dec"])) == Decimal("0.00")
 
-    # String edge cases
-    assert row["empty_string"] == ""
-    assert row["unicode_string"] == "𝔘𝔫𝔦𝔠𝔬𝔡𝔢✓"
 
-    # Timestamp edge cases
-    ts_min = datetime.fromisoformat(row["timestamp_min"].replace(" ", "T"))
-    assert ts_min == datetime(1970, 1, 1, 0, 0, 0)
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_string_edge_cases(embucket_table_data):
+    """Test string edge cases (empty strings, Unicode characters) via Embucket."""
+    row = embucket_table_data["rows"][0]
+    assert row["empty_string"] == "", "Empty string not preserved"
+    assert row["unicode_string"] == "𝔘𝔫𝔦𝔠𝔬𝔡𝔢✓", "Unicode characters not preserved"
 
-    ts_max = datetime.fromisoformat(row["timestamp_max"].replace(" ", "T"))
-    assert ts_max == datetime(9999, 12, 31, 23, 59, 59)
 
-    # Boolean edge cases
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_timestamp_edge_cases(embucket_table_data):
+    """Test timestamp edge cases (min/max values) via Embucket."""
+    row = embucket_table_data["rows"][0]
+    # Handle timestamp_min/max which is returned as integer (epoch time in milliseconds or microseconds)
+    ts_min_val = row["timestamp_min"]
+    assert ts_min_val == 0 or ts_min_val == 0.0, \
+        f"Expected timestamp_min to be Unix epoch 0, got {ts_min_val}"
+    ts_max_val = row["timestamp_max"]
+    # 253402300799000000 represents 9999-12-31T23:59:59 in microseconds
+    assert ts_max_val == 253402300799000000, \
+        f"Expected timestamp_max to be 253402300799000000, got {ts_max_val}"
+
+
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_boolean_edge_cases(embucket_table_data):
+    """Test boolean edge cases (true values, null values) via Embucket."""
+    row = embucket_table_data["rows"][0]
     assert row["bool_true"] is True
     assert row["bool_null"] is None
 
-    # Floating-point edge cases (NaN and Infinity)
+
+@pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
+def test_embucket_floating_point_edge_cases(embucket_table_data):
+    """Test floating point edge cases (NaN, Infinity) via Embucket."""
+    row = embucket_table_data["rows"][0]
     nan_val = row["floating_nan"]
-    # Either returned as None or a NaN float
     assert nan_val is None or math.isnan(float(nan_val)), f"Expected NaN or None, got {nan_val!r}"
 
     inf_val = row["floating_inf"]
-    # Either returned as None or an infinite float
     assert inf_val is None or math.isinf(float(inf_val)), f"Expected Inf or None, got {inf_val!r}"
 
+# Regular TPC-H tables pyiceberg tests:
 
-def test_read_tpch_with_pyiceberg(pyiceberg_client):
-    for table_name in TABLE_METADATA:
-        if table_name == "edge_cases_test":
-            continue
-        validate_table_with_pyiceberg(pyiceberg_client, f"public.{table_name}")
+@pytest.mark.parametrize(
+    "pyiceberg_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_pyiceberg_table_has_rows(pyiceberg_table_data):
+    """Ensure each table has at least one row."""
+    assert len(pyiceberg_table_data["rows"]) > 0, \
+        f"Table {pyiceberg_table_data['full_name']} has no rows"
 
 
-def test_read_edge_cases_with_pyiceberg(pyiceberg_client):
-    validate_table_with_pyiceberg(pyiceberg_client, "public.edge_cases_test")
+@pytest.mark.parametrize(
+    "pyiceberg_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_pyiceberg_non_nullable_columns(pyiceberg_table_data):
+    """Check that non-nullable columns don't contain NULL values."""
+    rows = pyiceberg_table_data["rows"]
+    metadata = pyiceberg_table_data["metadata"]
+    table_name = pyiceberg_table_data["table_name"]
+
+    for row in rows:
+        for col, info in metadata.items():
+            if not info["nullable"]:
+                assert col in row, f"Column {col} missing in {table_name}"
+                assert row[col] is not None, \
+                    f"Column {col} in {table_name} is NULL but declared NOT NULL"
+
+
+@pytest.mark.parametrize(
+    "pyiceberg_table_data",
+    [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
+    indirect=True
+)
+def test_pyiceberg_column_types(pyiceberg_table_data):
+    """Verify that column values match their expected types."""
+    rows = pyiceberg_table_data["rows"]
+    metadata = pyiceberg_table_data["metadata"]
+    table_name = pyiceberg_table_data["table_name"]
+
+    for row in rows:
+        for col, info in metadata.items():
+            val = row.get(col)
+            if val is None:
+                continue
+
+            expected_type = info["type"].upper()
+            base = expected_type.split("(")[0]
+            checker = TYPE_CHECKS.get(base)
+
+            assert checker is not None, f"No type checker for {base} in {table_name}"
+            assert checker(val), \
+                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) " \
+                f"does not match expected {base}"
+
+# Edge cases tests
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_edge_table_has_rows(pyiceberg_table_data):
+    """Ensure the edge case table has at least one row."""
+    assert len(pyiceberg_table_data["rows"]) > 0, "Edge cases table has no rows"
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_integer_edge_cases(pyiceberg_table_data):
+    """Test integer edge cases (large integers, negative values)."""
+    row = pyiceberg_table_data["rows"][0]
+    assert row["pk"] == 1, f"Expected pk=1, got {row['pk']}"
+    assert row["large_int"] == 2**60, f"Expected large_int=2^60, got {row['large_int']}"
+    assert row["negative_int"] == -1, f"Expected negative_int=-1, got {row['negative_int']}"
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_decimal_edge_cases(pyiceberg_table_data):
+    """Test decimal edge cases (high precision, zero values)."""
+    row = pyiceberg_table_data["rows"][0]
+    assert Decimal(str(row["high_precision_dec"])) == Decimal("0.12345678901234568")
+    assert Decimal(str(row["zero_dec"])) == Decimal("0.00")
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_string_edge_cases(pyiceberg_table_data):
+    """Test string edge cases (empty strings, Unicode characters)."""
+    row = pyiceberg_table_data["rows"][0]
+    assert row["empty_string"] == "", "Empty string not preserved"
+    assert row["unicode_string"] == "𝔘𝔫𝔦𝔠𝔬𝔡𝔢✓", "Unicode characters not preserved"
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_timestamp_edge_cases(pyiceberg_table_data):
+    """Test timestamp edge cases (min/max values) via PyIceberg."""
+    row = pyiceberg_table_data["rows"][0]
+    ts_min_val = row["timestamp_min"]
+    assert ts_min_val.year == 1970 and ts_min_val.month == 1 and ts_min_val.day == 1, \
+        f"Expected timestamp_min to be 1970-01-01, got {ts_min_val}"
+    # Handle timestamp_max
+    ts_max_val = row["timestamp_max"]
+    assert ts_max_val.year == 9999 and ts_max_val.month == 12 and ts_max_val.day == 31, \
+        f"Expected timestamp_max to be 9999-12-31, got {ts_max_val}"
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_boolean_edge_cases(pyiceberg_table_data):
+    """Test boolean edge cases (true values, null values)."""
+    row = pyiceberg_table_data["rows"][0]
+    assert row["bool_true"] is True
+    assert row["bool_null"] is None
+
+
+@pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
+def test_pyiceberg_floating_point_edge_cases(pyiceberg_table_data):
+    """Test floating point edge cases (NaN, Infinity)."""
+    row = pyiceberg_table_data["rows"][0]
+    nan_val = row["floating_nan"]
+    assert nan_val is None or math.isnan(float(nan_val)), f"Expected NaN or None, got {nan_val!r}"
+
+    inf_val = row["floating_inf"]
+    assert inf_val is None or math.isinf(float(inf_val)), f"Expected Inf or None, got {inf_val!r}"
+
+# TPC-H queries with current database used
+tpc_h_queries = [q.replace("tpc_h", WAREHOUSE_ID) for q in TPC_H_QUERIES]
+
+@pytest.mark.parametrize("query_idx", range(len(tpc_h_queries)))
+def test_tpch_queries_with_embucket(query_idx, load_all_tables):
+    """Test TPC-H queries execution with Embucket client."""
+    emb = EmbucketClient()
+    query = tpc_h_queries[query_idx]
+
+    logger.info(f"Executing TPC-H query {query}")
+    result = emb.sql(query)
+
+    assert "result" in result, f"Query {query_idx + 1} did not return a result"
+    assert "rows" in result["result"], f"Query {query_idx + 1} did not return rows"
+    assert len(result["result"]["rows"]) > 0, f"Query {query_idx + 1} returned empty result"
+
+    row_count = len(result["result"]["rows"])
+    col_count = len(result["result"]["columns"])
+    logger.info(f"Query {query_idx + 1} returned {row_count} rows with {col_count} columns")
