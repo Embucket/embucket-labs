@@ -70,7 +70,7 @@ vars:
     # CONTEXTS, FILTERS, AND LOGS
     snowplow__app_id: []
     snowplow__enable_consent: false
-    snowplow__enable_cwv: false
+    snowplow__enable_cwv: true
     snowplow__enable_iab: false
     snowplow__enable_ua: false
     snowplow__enable_yauaa: false
