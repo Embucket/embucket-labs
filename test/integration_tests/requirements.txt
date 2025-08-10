@@ -4,3 +4,4 @@ pyiceberg[rest]>=0.6.0
 requests>=2.31.0
 findspark>=2.0.1
 pyspark==3.5.1
+pytest==8.4.1
