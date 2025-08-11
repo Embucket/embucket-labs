@@ -39,21 +39,21 @@ impl VisitorMut for FunctionsRewriter {
                 // the only way to make it stay is to make it `\\\\` or maybe use another type?
                 // Escaped blah blah String from postgres types may work, but differently
                 fn_name if fn_name.starts_with("regexp_") || fn_name == "rlike" => {
-                    if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
-                        && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
-                            args.get_mut(1)
-                        //second arg is pattern for regex
-                            && let Expr::Value(ValueWithSpan {
-                                value: SingleQuotedString(value),
-                                span,
-                            }) = pattern
-                    {
-                        let value = value.replace('\\', "\\\\");
-                        *pattern = Expr::Value(ValueWithSpan {
-                            value: SingleQuotedString(value),
-                            span: *span,
-                        });
-                    }
+                    // if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
+                    //     && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(pattern))) =
+                    //         args.get_mut(1)
+                    //     //second arg is pattern for regex
+                    //         && let Expr::Value(ValueWithSpan {
+                    //             value: SingleQuotedString(value),
+                    //             span,
+                    //         }) = pattern
+                    // {
+                    //     let value = value.replace('\\', "\\\\");
+                    //     *pattern = Expr::Value(ValueWithSpan {
+                    //         value: SingleQuotedString(value),
+                    //         span: *span,
+                    //     });
+                    // }
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
                         && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(replacement))) =
                         args.get_mut(2)
