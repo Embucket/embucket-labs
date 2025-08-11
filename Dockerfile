@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile optimized for caching and minimal final image size
-ARG RUST_VERSION=1.87.0
+ARG RUST_VERSION=latest
 
 FROM rust:${RUST_VERSION} AS builder
 WORKDIR /app
