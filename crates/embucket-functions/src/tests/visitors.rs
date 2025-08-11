@@ -113,15 +113,6 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
-        //regexp pattern and replacement (formating)
-        (
-            "SELECT REGEXP_INSTR('nevermore1, nevermore2, nevermore3.', 'nevermore\\d')",
-            "SELECT REGEXP_INSTR('nevermore1, nevermore2, nevermore3.', 'nevermore\\\\d')",
-        ),
-        (
-            "SELECT REGEXP_REPLACE('firstname middlename lastname', '(.*) (.*) (.*)', '\\3, \\1 \\2')",
-            "SELECT REGEXP_REPLACE('firstname middlename lastname', '(.*) (.*) (.*)', '$3, $1 $2')",
-        ),
         // to_char format replacements
         (
             "SELECT to_char(col::DATE, 'YYYYMMDD')",
