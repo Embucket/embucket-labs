@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub use crate::aggregate::errors as aggregate_errors;
 pub use crate::conversion::errors as conversion_errors;
 pub use crate::datetime::errors as datetime_errors;
+use crate::session_params::SessionParams;
 
 pub(crate) mod aggregate;
 pub mod arrow_error;
@@ -36,6 +37,7 @@ pub mod regexp;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
+pub mod session_params;
 #[path = "string-binary/mod.rs"]
 pub mod string_binary;
 pub mod system;
@@ -45,10 +47,13 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
-pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
+pub fn register_udfs(
+    registry: &mut dyn FunctionRegistry,
+    session_params: &Arc<SessionParams>,
+) -> Result<()> {
     conditional::register_udfs(registry)?;
-    conversion::register_udfs(registry)?;
-    datetime::register_udfs(registry)?;
+    conversion::register_udfs(registry, session_params)?;
+    datetime::register_udfs(registry, session_params)?;
     numeric::register_udfs(registry)?;
     encryption::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;

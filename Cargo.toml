@@ -70,8 +70,8 @@ serde_yaml = "0.9"
 slatedb = { version = "0.7.0", features = ["moka"] }
 snafu = { version = "0.8.5", features = ["futures"] }
 snmalloc-rs = { version = "0.3" }
-strum = { version = "0.26.3", features = ["derive"] }
-strum_macros = { version = "0.26.3" }
+strum = { version = "0.27.2", features = ["derive"] }
+strum_macros = { version = "0.27.2" }
 tar = "0.4.44"
 tempfile = { version = "3" }
 time = "0.3.37"

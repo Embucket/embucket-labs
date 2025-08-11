@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use dashmap::DashMap;
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::sqlparser::ast::Value;
 use datafusion::logical_expr::sqlparser::ast::helpers::key_value_options::{
@@ -8,18 +9,30 @@ use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_common::{ParamValues, ScalarValue};
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct SessionParams {
-    pub properties: HashMap<String, SessionProperty>,
+    pub properties: Arc<DashMap<String, SessionProperty>>,
+}
+
+impl Default for SessionParams {
+    fn default() -> Self {
+        Self {
+            properties: Arc::new(DashMap::new()),
+        }
+    }
 }
 
 impl From<SessionParams> for ParamValues {
     fn from(value: SessionParams) -> Self {
         let map: HashMap<String, ScalarValue> = value
             .properties
-            .into_iter()
-            .filter_map(|(key, prop)| prop.to_scalar_value().map(|scalar| (key, scalar)))
+            .iter()
+            .filter_map(|entry| {
+                let (key, prop) = (entry.key().clone(), entry.value().clone());
+                prop.to_scalar_value().map(|scalar| (key, scalar))
+            })
             .collect();
         Self::Map(map)
     }
@@ -129,21 +142,23 @@ impl SessionProperty {
 }
 
 impl SessionParams {
-    pub fn set_properties(&mut self, properties: HashMap<String, SessionProperty>) -> DFResult<()> {
+    pub fn set_properties(&self, properties: HashMap<String, SessionProperty>) -> DFResult<()> {
         for (key, value) in properties {
             self.properties.insert(key, value);
         }
         Ok(())
     }
 
-    pub fn remove_properties(
-        &mut self,
-        properties: HashMap<String, SessionProperty>,
-    ) -> DFResult<()> {
+    pub fn remove_properties(&self, properties: HashMap<String, SessionProperty>) -> DFResult<()> {
         for (key, ..) in properties {
             self.properties.remove(&key);
         }
         Ok(())
+    }
+
+    #[must_use]
+    pub fn get_property(&self, key: &str) -> Option<String> {
+        self.properties.get(key).map(|entry| entry.value.clone())
     }
 }
 
@@ -173,9 +188,9 @@ impl ExtensionOptions for SessionParams {
     fn entries(&self) -> Vec<ConfigEntry> {
         self.properties
             .iter()
-            .map(|(key, prop)| ConfigEntry {
-                key: format!("session_params.{key}"),
-                value: Some(prop.value.clone()),
+            .map(|entry| ConfigEntry {
+                key: format!("session_params.{}", entry.key()),
+                value: Some(entry.value().value.clone()),
                 description: "session variable",
             })
             .collect()

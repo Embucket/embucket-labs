@@ -1,11 +1,12 @@
+use core_history::store::SlateDBHistoryStore;
+use datafusion::prelude::SessionContext;
+use embucket_functions::session_params::SessionParams;
+use embucket_functions::table::register_udtfs;
+use embucket_functions::{register_udafs, register_udfs};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
-
-use core_history::store::SlateDBHistoryStore;
-use datafusion::prelude::SessionContext;
-use embucket_functions::table::register_udtfs;
-use embucket_functions::{register_udafs, register_udfs};
+use std::sync::Arc;
 
 /// Find the project root by looking for the crates folder
 fn find_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -43,7 +44,7 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
     // Create a SessionContext and register all the functions like in session.rs
     let mut ctx = SessionContext::new();
 
-    register_udfs(&mut ctx)?;
+    register_udfs(&mut ctx, &Arc::new(SessionParams::default()))?;
     register_udafs(&mut ctx)?;
 
     let history_store = SlateDBHistoryStore::new_in_memory().await;

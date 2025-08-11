@@ -15,7 +15,7 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
-use df_catalog::information_schema::session_params::SessionProperty;
+use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]

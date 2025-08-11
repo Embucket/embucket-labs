@@ -13,7 +13,6 @@ use crate::catalog::CachingCatalog;
 use crate::df_error;
 use crate::information_schema::databases::InformationSchemaDatabasesBuilder;
 use crate::information_schema::navigation_tree::InformationSchemaNavigationTreeBuilder;
-use crate::information_schema::session_params::SessionParams;
 use dashmap::DashMap;
 use datafusion::arrow::datatypes::Schema;
 use datafusion::catalog::CatalogProviderList;
@@ -22,6 +21,7 @@ use datafusion_common::DataFusionError;
 use datafusion_common::config::ConfigOptions;
 use datafusion_doc::Documentation;
 use datafusion_expr::{AggregateUDF, ScalarUDF, TableType, WindowUDF};
+use embucket_functions::session_params::SessionParams;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -281,7 +281,10 @@ impl InformationSchemaConfig {
 
         let config = config_options.extensions.get::<SessionParams>();
         if let Some(cfg) = config {
-            for (key, prop) in &cfg.properties {
+            for entry in cfg.properties.iter() {
+                let key = entry.key();
+                let prop = entry.value();
+
                 builder.add_setting(
                     key,
                     prop.value.clone(),
