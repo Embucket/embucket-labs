@@ -22,17 +22,17 @@ use std::ops::ControlFlow;
 /// - `regexp` if it is `RLIKE` or is it `REGEXP`, here it doesn't change anything, as it should.
 ///
 /// ## Example
-/// `SELECT column1 WHERE column1 RLIKE 'San* [fF].*' FROM VALUES
+/// `SELECT column1 FROM VALUES
 /// ('San Francisco'),
-///   ('San Jose'),
-///   ('Santa Clara'),
-///   ('Sacramento')`
+/// ('San Jose'),
+/// ('Santa Clara'),
+/// ('Sacramento') WHERE column1 RLIKE 'San* [fF].*'`
 /// Turns in to
-/// `SELECT column1 WHERE regexp_like(column1, 'San* [fF].*') FROM VALUES
+/// `SELECT column1 FROM VALUES
 /// ('San Francisco'),
-///   ('San Jose'),
-///   ('Santa Clara'),
-///   ('Sacramento')`
+/// ('San Jose'),
+/// ('Santa Clara'),
+/// ('Sacramento') WHERE regexp_like(column1, 'San* [fF].*')`
 /// And the result of both are the same.
 #[derive(Debug, Default)]
 pub struct RLikeRegexpExprRewriter;
