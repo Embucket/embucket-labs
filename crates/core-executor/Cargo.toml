@@ -53,11 +53,13 @@ time = { workspace = true }
 pin-project-lite = "0.2.16"
 lru = "0.15.0"
 
+# added for making Snowflake error
+slatedb = { workspace = true }
+
 [dev-dependencies]
 bytes = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
-slatedb = { workspace = true }
 dotenv = "0.15.0"
 reqwest = "0.12.14"
 aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }

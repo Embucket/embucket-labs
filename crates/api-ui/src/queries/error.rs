@@ -80,7 +80,10 @@ impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Query { source, .. } => match &source {
-                QueryError::Execution { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                QueryError::Execution { source, .. } => match source {
+                    core_executor::Error::Iceberg { .. } => StatusCode::SERVICE_UNAVAILABLE,
+                    _ => StatusCode::UNPROCESSABLE_ENTITY,
+                },
                 QueryError::Store { .. } => StatusCode::BAD_REQUEST,
                 QueryError::ResultParse { .. }
                 | QueryError::Utf8 { .. }

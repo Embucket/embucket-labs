@@ -1,7 +1,6 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
 use super::e2e_s3tables_aws::s3tables_client;
-use crate::SnowflakeError;
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
@@ -132,10 +131,9 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-    TestSnowflakeExecution {
+    TestExecution {
         query: String,
-        #[snafu(source(from(crate::Error, SnowflakeError::from)))]
-        source: SnowflakeError,
+        source: crate::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -307,6 +305,8 @@ impl S3ObjectStore {
         let bucket =
             std::env::var(format!("{env_prefix}AWS_BUCKET")).context(TestS3VolumeConfigSnafu)?;
 
+        eprintln!("Create s3_object_store: {region}, {bucket}, {endpoint:?}");
+
         let s3_builder = if endpoint.is_ok() {
             AmazonS3Builder::new()
                 .with_access_key_id(access_key)
@@ -351,21 +351,21 @@ impl ExecutorWithObjectStore {
         self.executor
             .create_session(TEST_SESSION_ID1.to_string())
             .await
-            .context(TestSnowflakeExecutionSnafu {
+            .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID1",
             })?;
 
         self.executor
             .create_session(TEST_SESSION_ID2.to_string())
             .await
-            .context(TestSnowflakeExecutionSnafu {
+            .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID2",
             })?;
 
         self.executor
             .create_session(TEST_SESSION_ID3.to_string())
             .await
-            .context(TestSnowflakeExecutionSnafu {
+            .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID3",
             })?;
         Ok(())
@@ -503,6 +503,7 @@ pub async fn create_volumes(
         let volume = (*volume).to_string();
         match volume_type {
             TestVolumeType::Memory => {
+                eprintln!("Creating memory volume: {volume}");
                 let res = metastore
                     .create_volume(
                         &volume,
@@ -518,6 +519,7 @@ pub async fn create_volumes(
                 user_data_dir.push("store");
                 user_data_dir.push(format!("user-volume-{suffix}"));
                 let user_data_dir = user_data_dir.as_path();
+                eprintln!("Creating file volume: {volume}, {user_data_dir:?}");
                 let res = metastore
                     .create_volume(
                         &volume,
@@ -536,6 +538,7 @@ pub async fn create_volumes(
             TestVolumeType::S3 => {
                 let prefix = prefix.unwrap_or(E2E_S3VOLUME_PREFIX);
                 if let Ok(s3_volume) = s3_volume(prefix) {
+                    eprintln!("Creating s3 volume: {volume}, {s3_volume:?}");
                     let res = metastore
                         .create_volume(
                             &volume,
@@ -553,6 +556,7 @@ pub async fn create_volumes(
             TestVolumeType::S3Tables => {
                 let prefix = prefix.unwrap_or(E2E_S3TABLESVOLUME_PREFIX);
                 if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
+                    eprintln!("Creating s3tables volume: {volume}, {s3_tables_volume:?}");
                     let res = metastore
                         .create_volume(
                             &volume,
@@ -708,7 +712,7 @@ pub async fn create_executor_with_early_volumes_creation(
         Arc::new(Config::default()),
     )
     .await
-    .context(TestSnowflakeExecutionSnafu {
+    .context(TestExecutionSnafu {
         query: "EXECUTOR CREATE ERROR".to_string(),
     })?;
 
@@ -769,7 +773,7 @@ pub async fn exec_parallel_test_plan(
                         .executor
                         .query(test.session_id, sql, QueryContext::default())
                         .await
-                        .context(TestSnowflakeExecutionSnafu { query: sql.clone() });
+                        .context(TestExecutionSnafu { query: sql.clone() });
                     let ExecutorWithObjectStore {
                         alias,
                         object_store_type,
@@ -829,7 +833,7 @@ pub async fn exec_parallel_test_plan(
                     Ok(res) => eprintln!("res: {res:#?}"),
                     Err(error) => {
                         eprintln!("Debug error: {error:#?}");
-                        let snowflake_error = SnowflakeError::from(error);
+                        let snowflake_error = error.to_snowflake_error();
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
                     }

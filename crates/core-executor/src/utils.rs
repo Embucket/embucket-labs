@@ -635,13 +635,16 @@ pub fn query_result_to_history(
 ) -> std::result::Result<ResultSet, QueryResultError> {
     match result {
         Ok(query_result) => {
-            query_result_to_result_set(query_result).map_err(|err| QueryResultError {
-                message: err.to_string(),
-                diagnostic_message: format!("{err:?}"),
-            })
+            query_result_to_result_set(query_result)
+                // ResultSet creation failed from Ok(QueryResult)
+                .map_err(|err| QueryResultError {
+                    message: err.to_string(),
+                    diagnostic_message: format!("{err:?}"),
+                })
         }
+        // Query failed
         Err(err) => Err(QueryResultError {
-            message: err.to_string(),
+            message: err.to_snowflake_error().to_string(),
             diagnostic_message: format!("{err:?}"),
         }),
     }

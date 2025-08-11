@@ -7,6 +7,7 @@ use snafu::Location;
 use snafu::prelude::*;
 use std::backtrace::Backtrace;
 use std::fmt::Display;
+use super::snowflake_error::SnowflakeError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -511,6 +512,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+}
+
+impl Error {
+    #[must_use]
+    pub fn to_snowflake_error(&self) -> SnowflakeError {
+        SnowflakeError::from_executor_error(self)
+    }
 }
 
 #[derive(Debug)]

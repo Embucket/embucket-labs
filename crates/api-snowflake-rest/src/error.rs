@@ -175,7 +175,7 @@ impl Error {
     pub fn display_debug_error_messages(self) -> (String, String) {
         // acquire error str as later it will be moved
         if let Self::Execution { source, .. } = self {
-            SnowflakeError::from(source).display_debug_error_messages()
+            SnowflakeError::from_executor_error(&source).display_debug_error_messages()
         } else {
             (self.to_string(), format!("{self:?}"))
         }

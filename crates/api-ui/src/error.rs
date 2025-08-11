@@ -1,6 +1,5 @@
 use axum::Json;
 use axum::response::IntoResponse;
-use core_executor::SnowflakeError;
 use error_stack::ErrorExt;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -138,7 +137,7 @@ impl Error {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
-                } => SnowflakeError::from(source).display_debug_error_messages(),
+                } => source.to_snowflake_error().display_debug_error_messages(),
                 _ => (error_str, debug_str),
             },
             _ => (error_str, debug_str),
