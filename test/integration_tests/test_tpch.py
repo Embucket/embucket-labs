@@ -7,10 +7,16 @@ from dotenv import load_dotenv
 from decimal import Decimal
 from datetime import datetime
 from pyspark.sql.types import (
-    StructType, StructField,
+    StructType,
+    StructField,
 )
 from clients import EmbucketClient, PyIcebergClient
-from tables_metadata import TABLES_METADATA, TYPE_CHECKS, TPC_H_INSERTION_DATA, EDGE_CASES_VALUES
+from tables_metadata import (
+    TABLES_METADATA,
+    TYPE_CHECKS,
+    TPC_H_INSERTION_DATA,
+    EDGE_CASES_VALUES,
+)
 from tpc_h_queries import TPC_H_QUERIES
 
 load_dotenv()
@@ -29,10 +35,16 @@ TPC_H_DATA_PATH = f"s3a://{S3_BUCKET}/{BASE}"
 
 
 def make_spark_schema_from(metadata):
-    return StructType([
-        StructField(name, info["spark"]() if callable(info["spark"]) else info["spark"], nullable=info["nullable"])
-        for name, info in metadata.items()
-    ])
+    return StructType(
+        [
+            StructField(
+                name,
+                info["spark"]() if callable(info["spark"]) else info["spark"],
+                nullable=info["nullable"],
+            )
+            for name, info in metadata.items()
+        ]
+    )
 
 
 def make_create_table_ddl(table_name, metadata, catalog_url, base):
@@ -81,7 +93,9 @@ def build_row(metadata, custom_values=None):
 
         # Handle each type conversion directly
         if "DECIMAL" in sql_type:
-            result[name] = raw_value if isinstance(raw_value, Decimal) else Decimal(str(raw_value))
+            result[name] = (
+                raw_value if isinstance(raw_value, Decimal) else Decimal(str(raw_value))
+            )
         elif sql_type == "TIMESTAMP":
             if isinstance(raw_value, str):
                 result[name] = datetime.fromisoformat(raw_value.replace(" ", "T"))
@@ -183,10 +197,7 @@ def loaded_spark(load_all_tables):
 
 @pytest.fixture
 def pyiceberg_client():
-    return PyIcebergClient(
-        catalog_name="rest",
-        warehouse_path=WAREHOUSE_ID
-    )
+    return PyIcebergClient(catalog_name="rest", warehouse_path=WAREHOUSE_ID)
 
 
 @pytest.fixture
@@ -199,7 +210,7 @@ def pyiceberg_table_data(pyiceberg_client, request):
         "table_name": table_name,
         "full_name": full_name,
         "rows": rows,
-        "metadata": TABLES_METADATA.get(table_name)
+        "metadata": TABLES_METADATA.get(table_name),
     }
 
 
@@ -220,25 +231,27 @@ def embucket_table_data(request):
         "table_name": table_name,
         "full_name": full_name,
         "rows": dict_rows,
-        "metadata": TABLES_METADATA.get(table_name)
+        "metadata": TABLES_METADATA.get(table_name),
     }
+
 
 # Regular TPC-H tables tests with Embucket
 @pytest.mark.parametrize(
     "embucket_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_embucket_table_has_rows(embucket_table_data):
     """Ensure each table has at least one row when queried via Embucket."""
-    assert len(embucket_table_data["rows"]) > 0, \
-        f"Table {embucket_table_data['full_name']} has no rows in Embucket"
+    assert (
+        len(embucket_table_data["rows"]) > 0
+    ), f"Table {embucket_table_data['full_name']} has no rows in Embucket"
 
 
 @pytest.mark.parametrize(
     "embucket_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_embucket_non_nullable_columns(embucket_table_data):
     """Check that non-nullable columns don't contain NULL values when queried via Embucket."""
@@ -250,14 +263,15 @@ def test_embucket_non_nullable_columns(embucket_table_data):
         for col, info in metadata.items():
             if not info["nullable"]:
                 assert col in row, f"Column {col} missing in {table_name}"
-                assert row[col] is not None, \
-                    f"Column {col} in {table_name} is NULL but declared NOT NULL"
+                assert (
+                    row[col] is not None
+                ), f"Column {col} in {table_name} is NULL but declared NOT NULL"
 
 
 @pytest.mark.parametrize(
     "embucket_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_embucket_column_types(embucket_table_data):
     """Verify that column values match their expected types when queried via Embucket."""
@@ -281,18 +295,22 @@ def test_embucket_column_types(embucket_table_data):
                     datetime.strptime(val, "%Y-%m-%d")
                     continue
                 except ValueError:
-                    assert False, f"Invalid date format for {col} in {table_name}: {val}"
+                    assert (
+                        False
+                    ), f"Invalid date format for {col} in {table_name}: {val}"
 
             assert checker is not None, f"No type checker for {base} in {table_name}"
-            assert checker(val), \
-                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) " \
+            assert checker(val), (
+                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) "
                 f"does not match expected {base}"
+            )
+
 
 # Edge cases tests with Embucket
 @pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
 def test_embucket_edge_table_has_rows(embucket_table_data):
     """Ensure the edge case table has at least one row when queried via Embucket."""
-    assert len(embucket_table_data["rows"]) > 0, "Edge cases table has no rows in Embucket"
+    assert len(embucket_table_data["rows"]) > 0
 
 
 @pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
@@ -301,7 +319,9 @@ def test_embucket_integer_edge_cases(embucket_table_data):
     row = embucket_table_data["rows"][0]
     assert row["pk"] == 1, f"Expected pk=1, got {row['pk']}"
     assert row["large_int"] == 2**60, f"Expected large_int=2^60, got {row['large_int']}"
-    assert row["negative_int"] == -1, f"Expected negative_int=-1, got {row['negative_int']}"
+    assert (
+        row["negative_int"] == -1
+    ), f"Expected negative_int=-1, got {row['negative_int']}"
 
 
 @pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
@@ -326,12 +346,14 @@ def test_embucket_timestamp_edge_cases(embucket_table_data):
     row = embucket_table_data["rows"][0]
     # Handle timestamp_min/max which is returned as integer (epoch time in milliseconds or microseconds)
     ts_min_val = row["timestamp_min"]
-    assert ts_min_val == 0 or ts_min_val == 0.0, \
-        f"Expected timestamp_min to be Unix epoch 0, got {ts_min_val}"
+    assert (
+        ts_min_val == 0 or ts_min_val == 0.0
+    ), f"Expected timestamp_min to be Unix epoch 0, got {ts_min_val}"
     ts_max_val = row["timestamp_max"]
     # 253402300799000000 represents 9999-12-31T23:59:59 in microseconds
-    assert ts_max_val == 253402300799000000, \
-        f"Expected timestamp_max to be 253402300799000000, got {ts_max_val}"
+    assert (
+        ts_max_val == 253402300799000000
+    ), f"Expected timestamp_max to be 253402300799000000, got {ts_max_val}"
 
 
 @pytest.mark.parametrize("embucket_table_data", ["edge_cases_test"], indirect=True)
@@ -347,28 +369,35 @@ def test_embucket_floating_point_edge_cases(embucket_table_data):
     """Test floating point edge cases (NaN, Infinity) via Embucket."""
     row = embucket_table_data["rows"][0]
     nan_val = row["floating_nan"]
-    assert nan_val is None or math.isnan(float(nan_val)), f"Expected NaN or None, got {nan_val!r}"
+    assert nan_val is None or math.isnan(
+        float(nan_val)
+    ), f"Expected NaN or None, got {nan_val!r}"
 
     inf_val = row["floating_inf"]
-    assert inf_val is None or math.isinf(float(inf_val)), f"Expected Inf or None, got {inf_val!r}"
+    assert inf_val is None or math.isinf(
+        float(inf_val)
+    ), f"Expected Inf or None, got {inf_val!r}"
+
 
 # Regular TPC-H tables pyiceberg tests:
 
+
 @pytest.mark.parametrize(
     "pyiceberg_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_pyiceberg_table_has_rows(pyiceberg_table_data):
     """Ensure each table has at least one row."""
-    assert len(pyiceberg_table_data["rows"]) > 0, \
-        f"Table {pyiceberg_table_data['full_name']} has no rows"
+    assert (
+        len(pyiceberg_table_data["rows"]) > 0
+    ), f"Table {pyiceberg_table_data['full_name']} has no rows"
 
 
 @pytest.mark.parametrize(
     "pyiceberg_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_pyiceberg_non_nullable_columns(pyiceberg_table_data):
     """Check that non-nullable columns don't contain NULL values."""
@@ -380,14 +409,15 @@ def test_pyiceberg_non_nullable_columns(pyiceberg_table_data):
         for col, info in metadata.items():
             if not info["nullable"]:
                 assert col in row, f"Column {col} missing in {table_name}"
-                assert row[col] is not None, \
-                    f"Column {col} in {table_name} is NULL but declared NOT NULL"
+                assert (
+                    row[col] is not None
+                ), f"Column {col} in {table_name} is NULL but declared NOT NULL"
 
 
 @pytest.mark.parametrize(
     "pyiceberg_table_data",
     [name for name in TABLES_METADATA.keys() if name != "edge_cases_test"],
-    indirect=True
+    indirect=True,
 )
 def test_pyiceberg_column_types(pyiceberg_table_data):
     """Verify that column values match their expected types."""
@@ -406,9 +436,11 @@ def test_pyiceberg_column_types(pyiceberg_table_data):
             checker = TYPE_CHECKS.get(base)
 
             assert checker is not None, f"No type checker for {base} in {table_name}"
-            assert checker(val), \
-                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) " \
+            assert checker(val), (
+                f"Column {col} in {table_name}: value {val!r} (type {type(val)}) "
                 f"does not match expected {base}"
+            )
+
 
 # Edge cases tests
 @pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
@@ -423,7 +455,9 @@ def test_pyiceberg_integer_edge_cases(pyiceberg_table_data):
     row = pyiceberg_table_data["rows"][0]
     assert row["pk"] == 1, f"Expected pk=1, got {row['pk']}"
     assert row["large_int"] == 2**60, f"Expected large_int=2^60, got {row['large_int']}"
-    assert row["negative_int"] == -1, f"Expected negative_int=-1, got {row['negative_int']}"
+    assert (
+        row["negative_int"] == -1
+    ), f"Expected negative_int=-1, got {row['negative_int']}"
 
 
 @pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
@@ -447,12 +481,14 @@ def test_pyiceberg_timestamp_edge_cases(pyiceberg_table_data):
     """Test timestamp edge cases (min/max values) via PyIceberg."""
     row = pyiceberg_table_data["rows"][0]
     ts_min_val = row["timestamp_min"]
-    assert ts_min_val.year == 1970 and ts_min_val.month == 1 and ts_min_val.day == 1, \
-        f"Expected timestamp_min to be 1970-01-01, got {ts_min_val}"
+    assert (
+        ts_min_val.year == 1970 and ts_min_val.month == 1 and ts_min_val.day == 1
+    ), f"Expected timestamp_min to be 1970-01-01, got {ts_min_val}"
     # Handle timestamp_max
     ts_max_val = row["timestamp_max"]
-    assert ts_max_val.year == 9999 and ts_max_val.month == 12 and ts_max_val.day == 31, \
-        f"Expected timestamp_max to be 9999-12-31, got {ts_max_val}"
+    assert (
+        ts_max_val.year == 9999 and ts_max_val.month == 12 and ts_max_val.day == 31
+    ), f"Expected timestamp_max to be 9999-12-31, got {ts_max_val}"
 
 
 @pytest.mark.parametrize("pyiceberg_table_data", ["edge_cases_test"], indirect=True)
@@ -468,13 +504,19 @@ def test_pyiceberg_floating_point_edge_cases(pyiceberg_table_data):
     """Test floating point edge cases (NaN, Infinity)."""
     row = pyiceberg_table_data["rows"][0]
     nan_val = row["floating_nan"]
-    assert nan_val is None or math.isnan(float(nan_val)), f"Expected NaN or None, got {nan_val!r}"
+    assert nan_val is None or math.isnan(
+        float(nan_val)
+    ), f"Expected NaN or None, got {nan_val!r}"
 
     inf_val = row["floating_inf"]
-    assert inf_val is None or math.isinf(float(inf_val)), f"Expected Inf or None, got {inf_val!r}"
+    assert inf_val is None or math.isinf(
+        float(inf_val)
+    ), f"Expected Inf or None, got {inf_val!r}"
+
 
 # TPC-H queries with current database used
 tpc_h_queries = [q.replace("tpc_h", WAREHOUSE_ID) for q in TPC_H_QUERIES]
+
 
 @pytest.mark.parametrize("query_idx", range(len(tpc_h_queries)))
 def test_tpch_queries_with_embucket(query_idx, load_all_tables):
@@ -487,8 +529,12 @@ def test_tpch_queries_with_embucket(query_idx, load_all_tables):
 
     assert "result" in result, f"Query {query_idx + 1} did not return a result"
     assert "rows" in result["result"], f"Query {query_idx + 1} did not return rows"
-    assert len(result["result"]["rows"]) > 0, f"Query {query_idx + 1} returned empty result"
+    assert (
+        len(result["result"]["rows"]) > 0
+    ), f"Query {query_idx + 1} returned empty result"
 
     row_count = len(result["result"]["rows"])
     col_count = len(result["result"]["columns"])
-    logger.info(f"Query {query_idx + 1} returned {row_count} rows with {col_count} columns")
+    logger.info(
+        f"Query {query_idx + 1} returned {row_count} rows with {col_count} columns"
+    )
