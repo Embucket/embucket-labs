@@ -14,7 +14,8 @@ use std::ops::ControlFlow;
 ///
 /// ## Transformation
 /// When we get this AST node both of which are the same node, just with the `regexp` parament set to `true` or `false` respectively,
-/// we transform it to a `regexp_like` function call with the same parameters, which are:
+/// we transform it to a `regexp_like` function call (with the unary `[ NOT ]` operation if needed, ti will be made apparent further as to why)
+/// same parameters, which are:
 /// - `expr` (the inner expr) on which `RLIKE` operates, a column, another function call, a scalar, etc.
 /// - `negated` which is if this node has the `NOT` before it (it's not an unary operation here, it's part of the node itself).
 /// - `pattern` is the regex pattern on which we try to find the likeness from the `expr`
