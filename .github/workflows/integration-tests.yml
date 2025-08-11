@@ -30,7 +30,7 @@ concurrency:
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
-    name: Run PyTest Integration Suite
+    name: Run pytest integration suite
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +42,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Start Embucket Server (Docker)
+      - name: Start embucket server (Docker)
         run: |
           docker run -d \
             --name embucket-server \
@@ -67,17 +67,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run integration tests
+      - name: Run pytest integration tests
         working-directory: ./test/integration_tests
-        env:
-          # Defaults in clients.py use embucket/embucket credentials
-          EMBUCKET_SNOWFLAKE_HOST: localhost
-          EMBUCKET_SNOWFLAKE_PORT: '3000'
-          EMBUCKET_SNOWFLAKE_PROTOCOL: http
-          # Optional: AWS credentials and bucket for S3-backed tests (not required for FS)
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || '' }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || '' }}
-          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET || '' }}
-        run: |
-          pytest
+        run: pytest
