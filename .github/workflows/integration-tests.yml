@@ -1,0 +1,83 @@
+name: Integration Tests
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/integration_tests/**
+  pull_request:
+    branches: [main]
+    paths:
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .github/workflows/**
+      - test/integration_tests/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Run PyTest Integration Suite
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Java (required for PySpark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Start Embucket Server (Docker)
+        run: |
+          docker run -d \
+            --name embucket-server \
+            -p 3000:3000 \
+            embucket/embucket
+          echo "Starting Embucket server..."
+          # Wait for the server to become ready
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/health >/dev/null 2>&1; then
+              echo "Embucket is healthy"; break; fi; sleep 2; done || true
+          # Fallback wait to ensure readiness
+          sleep 10
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        working-directory: ./test/integration_tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run integration tests
+        working-directory: ./test/integration_tests
+        env:
+          # Defaults in clients.py use embucket/embucket credentials
+          EMBUCKET_SNOWFLAKE_HOST: localhost
+          EMBUCKET_SNOWFLAKE_PORT: '3000'
+          EMBUCKET_SNOWFLAKE_PROTOCOL: http
+          # Optional: AWS credentials and bucket for S3-backed tests (not required for FS)
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || '' }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || '' }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET || '' }}
+        run: |
+          pytest

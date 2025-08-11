@@ -515,14 +515,13 @@ def test_pyiceberg_floating_point_edge_cases(pyiceberg_table_data):
 
 
 # TPC-H queries with current database used
-tpc_h_queries = [q.replace("tpc_h", WAREHOUSE_ID) for q in TPC_H_QUERIES]
 
 
-@pytest.mark.parametrize("query_idx", range(len(tpc_h_queries)))
+@pytest.mark.parametrize("query_idx", range(len(TPC_H_QUERIES)))
 def test_tpch_queries_with_embucket(query_idx, load_all_tables):
     """Test TPC-H queries execution with Embucket client."""
     emb = EmbucketClient()
-    query = tpc_h_queries[query_idx]
+    query = TPC_H_QUERIES[query_idx].replace("tpc_h", WAREHOUSE_ID)
 
     logger.info(f"Executing TPC-H query {query}")
     result = emb.sql(query)

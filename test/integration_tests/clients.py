@@ -46,6 +46,7 @@ class EmbucketClient:
         self.username = username
         self.password = password
         self.host = host
+        self.port = port
         self.protocol = protocol
         self.database = database
         self.schema = schema
@@ -53,6 +54,7 @@ class EmbucketClient:
         # Establish a connection. Keep it for reuse.
         self._conn = snowflake.connector.connect(
             user=self.username,
+            account="account.local",
             password=self.password,
             host=self.host,
             port=self.port,
