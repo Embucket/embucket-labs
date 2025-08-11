@@ -67,7 +67,6 @@ use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
-use datafusion_iceberg::error::Error as DataFusionIcebergError;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
@@ -1319,8 +1318,6 @@ impl UserQuery {
                         .enable_data_file_path_column(true)
                         .enable_manifest_file_path_column(true)
                         .build()
-                        .map_err(DataFusionIcebergError::from)
-                        .map_err(IcebergError::from)
                         .context(ex_error::IcebergSnafu)?,
                 ),
             )
