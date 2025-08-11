@@ -6,6 +6,33 @@ use datafusion_expr::sqlparser::ast::{
 use datafusion_expr::sqlparser::ast::{Function, VisitMut};
 use std::ops::ControlFlow;
 
+/// Rewrites `[ NOT ] RLIKE` & `[ NOT ] REGEXP` expressions to `[ NOT ] regexp_like` function calls.
+///
+/// ## Behavior
+/// `[ NOT ] RLIKE` & `[ NOT ] REGEXP` AST Node (it is one) are not supported by the Logical plan, meaning there are no `REGEXP` or `RLIKE` logical nodes,
+/// or at least anything with those AST nodes can't produce a logical plan.
+///
+/// ## Transformation
+/// When we get this AST node both of which are the same node, just with the `regexp` parament set to `true` or `false` respectively,
+/// we transform it to a `regexp_like` function call with the same parameters, which are:
+/// - `expr` (the inner expr) on which `RLIKE` operates, a column, another function call, a scalar, etc.
+/// - `negated` which is if this node has the `NOT` before it (it's not an unary operation here, it's part of the node itself).
+/// - `pattern` is the regex pattern on which we try to find the likeness from the `expr`
+/// - `regexp` if it is `RLIKE` or is it `REGEXP`, here it doesn't change anything, as it should.
+///
+/// ## Example
+/// `SELECT column1 WHERE column1 RLIKE 'San* [fF].*' FROM VALUES
+/// ('San Francisco'),
+///   ('San Jose'),
+///   ('Santa Clara'),
+///   ('Sacramento')`
+/// Turns in to
+/// `SELECT column1 WHERE regexp_like(column1, 'San* [fF].*') FROM VALUES
+/// ('San Francisco'),
+///   ('San Jose'),
+///   ('Santa Clara'),
+///   ('Sacramento')`
+/// And the result of both are the same.
 #[derive(Debug, Default)]
 pub struct RLikeRegexpExprRewriter;
 
