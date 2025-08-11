@@ -310,6 +310,7 @@ random
 range
 rank
 regexp_count
+regexp_extract_all
 regexp_instr
 regexp_like
 regexp_match
@@ -441,5 +442,9 @@ var_sample
 variant_element
 version
 week
+weekiso
+weekofyear
 year
+yearofweek
+yearofweekiso
 zeroifnull

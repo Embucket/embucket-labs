@@ -417,7 +417,7 @@ mod tests {
         let mut session_params = SessionParams::default();
         session_params.set("week_start", "1")?;
         let mut ctx = SessionContext::new();
-        register_udfs(&mut ctx, Arc::new(session_params))?;
+        register_udfs(&mut ctx, &Arc::new(session_params))?;
 
         let sql = r#"SELECT '2025-04-11T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
        YEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR",

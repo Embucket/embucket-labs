@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::{Array, Date64Builder};
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
@@ -129,6 +129,13 @@ fn last_day(date: &NaiveDateTime, date_part: &str) -> DFResult<NaiveDateTime> {
 
     let new_date = match date_part.to_lowercase().as_str() {
         "day" => date.and_hms_opt(0, 0, 0).unwrap(),
+        "week" => {
+            let weekday_num = date.weekday().num_days_from_monday(); // 0..6
+            let days_to_sunday = 6 - weekday_num;
+
+            let last_day_of_week = date + Duration::days(days_to_sunday.into());
+            last_day_of_week.and_hms_opt(0, 0, 0).unwrap()
+        }
         "month" => {
             let year = date.year();
             let month = date.month();
@@ -181,6 +188,19 @@ mod tests {
                 "| value      |",
                 "+------------+",
                 "| 2025-05-31 |",
+                "+------------+",
+            ],
+            &result
+        );
+
+        let sql = "SELECT last_day('2016-12-30'::date,'week')::date AS value;";
+        let result = ctx.sql(sql).await?.collect().await?;
+        assert_batches_eq!(
+            &[
+                "+------------+",
+                "| value      |",
+                "+------------+",
+                "| 2017-01-01 |",
                 "+------------+",
             ],
             &result

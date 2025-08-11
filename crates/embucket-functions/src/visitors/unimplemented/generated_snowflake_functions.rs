@@ -742,30 +742,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/time_slice")
     ),
-    ("WEEKISO", FunctionInfo::new(
-        "WEEKISO",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("WEEKOFYEAR", FunctionInfo::new(
-        "WEEKOFYEAR",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("YEAROFWEEK", FunctionInfo::new(
-        "YEAROFWEEK",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("YEAROFWEEKISO", FunctionInfo::new(
-        "YEAROFWEEKISO",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
 ];
 
 pub const DIFFERENTIAL_PRIVACY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
