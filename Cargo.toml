@@ -49,15 +49,15 @@ datafusion-expr = { version = "47.0.0" }
 datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-functions-json.git", rev = "4a431bc89fb88731685609618799d392cb0a74e7" }
 datafusion-macros = { version = "47.0.0" }
 datafusion-physical-plan = { version = "47.0.0" }
-datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "e54016942039e96eaf56ccf54943243a254ca420" }
+datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "35dbf08c8c17be1a1a2d25da4ac4413fb1d24d1e" }
 futures = { version = "0.3" }
 http = "1.2"
 http-body-util = "0.1.0"
 iceberg = { git = "https://github.com/apache/iceberg-rust.git", rev="7a5ad1fcaf00d4638857812bab788105f6c60573"}
-iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "e54016942039e96eaf56ccf54943243a254ca420" }
-iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "e54016942039e96eaf56ccf54943243a254ca420" }
-iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "e54016942039e96eaf56ccf54943243a254ca420" }
-iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "e54016942039e96eaf56ccf54943243a254ca420" }
+iceberg-rest-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "35dbf08c8c17be1a1a2d25da4ac4413fb1d24d1e" }
+iceberg-rust = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "35dbf08c8c17be1a1a2d25da4ac4413fb1d24d1e" }
+iceberg-rust-spec = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "35dbf08c8c17be1a1a2d25da4ac4413fb1d24d1e" }
+iceberg-s3tables-catalog = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "35dbf08c8c17be1a1a2d25da4ac4413fb1d24d1e" }
 indexmap = "2.7.1"
 jsonwebtoken = "9.3.1"
 lazy_static = { version = "1.5" }
