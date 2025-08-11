@@ -33,7 +33,7 @@ pub fn pattern_to_regex(pattern: &str, regexp_parameters: &str) -> Result<Regex,
         .rev()
         .find(|&ch| ch == 'i' || ch == 'c')
         == Some('i');
-    tracing::debug!("pattern: {}", pattern);
+    tracing::error!("pattern: {}", pattern);
     RegexBuilder::new(pattern)
         .case_insensitive(case_insensitive)
         .multi_line(regexp_parameters.contains('m'))
