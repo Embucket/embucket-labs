@@ -8,8 +8,8 @@ pub mod query;
 pub mod service;
 pub mod session;
 pub mod snowflake_error;
-pub mod utils;
 pub mod status_code;
+pub mod utils;
 
 #[cfg(test)]
 pub mod tests;

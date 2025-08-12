@@ -2,15 +2,15 @@
 #![allow(clippy::match_same_arms)]
 use crate::error::Error;
 use core_metastore::error::Error as MetastoreError;
+use core_utils::errors::Error as DbError;
 use datafusion::arrow::error::ArrowError;
 use datafusion_common::Diagnostic;
 use datafusion_common::diagnostic::DiagnosticKind;
 use datafusion_common::error::DataFusionError;
-use df_catalog::error::Error as CatalogError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
+use df_catalog::error::Error as CatalogError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
 use iceberg_rust::error::Error as IcebergError;
-use core_utils::errors::Error as DbError;
 use slatedb::SlateDBError;
 use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
@@ -126,7 +126,8 @@ impl SnowflakeError {
 }
 
 fn format_message(subtext: &[&str], error: String) -> String {
-    let subtext = subtext.iter()
+    let subtext = subtext
+        .iter()
         .filter(|s| !s.is_empty())
         .copied()
         .collect::<Vec<_>>()
@@ -142,24 +143,33 @@ fn catalog_error(error: &CatalogError, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Catalog"]].concat();
     match error {
         CatalogError::Metastore { source, .. } => metastore_error(source, &subtext),
-        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+        _ => CustomSnafu {
+            message: format_message(&subtext, error.to_string()),
+        }
+        .build(),
     }
 }
 
 fn core_utils_error(error: &core_utils::Error, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Db"]].concat();
     match error {
-        DbError::Database { error, .. } 
+        DbError::Database { error, .. }
         | DbError::KeyGet { error, .. }
         | DbError::KeyDelete { error, .. }
         | DbError::KeyPut { error, .. }
         | DbError::ScanFailed { error, .. } => match error {
             SlateDBError::ObjectStoreError(obj_store_error) => {
                 object_store_error(obj_store_error, &subtext)
-            },
-            _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+            }
+            _ => CustomSnafu {
+                message: format_message(&subtext, error.to_string()),
+            }
+            .build(),
         },
-        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+        _ => CustomSnafu {
+            message: format_message(&subtext, error.to_string()),
+        }
+        .build(),
     }
 }
 
@@ -169,13 +179,19 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
     match error {
         MetastoreError::ObjectStore { error, .. } => object_store_error(error, &subtext),
         MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
-        _ => CustomSnafu { message: format_message(&subtext, message) }.build(),
+        _ => CustomSnafu {
+            message: format_message(&subtext, message),
+        }
+        .build(),
     }
 }
 
 fn object_store_error(error: &object_store::Error, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Object store"]].concat();
-    CustomSnafu { message: format_message(&subtext, error.to_string()) }.build()
+    CustomSnafu {
+        message: format_message(&subtext, error.to_string()),
+    }
+    .build()
 }
 
 fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
@@ -185,11 +201,9 @@ fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
         IcebergError::External(err) => {
             if let Some(e) = err.downcast_ref::<MetastoreError>() {
                 metastore_error(e, &subtext)
-            } 
-            else if let Some(e) = err.downcast_ref::<object_store::Error>() {
+            } else if let Some(e) = err.downcast_ref::<object_store::Error>() {
                 object_store_error(e, &subtext)
-            } 
-            else {
+            } else {
                 // Accidently CustomSnafu can't see internal field, so create error manually!
                 SnowflakeError::Custom {
                     message: err.to_string(),
@@ -200,7 +214,10 @@ fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
             }
         }
         IcebergError::NotFound(message) => CustomSnafu { message }.build(),
-        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+        _ => CustomSnafu {
+            message: format_message(&subtext, error.to_string()),
+        }
+        .build(),
     }
 }
 
@@ -281,9 +298,15 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             if let Some(e) = err.downcast_ref::<DataFusionError>() {
                 datafusion_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<Error>() {
-                CustomSnafu { message: e.to_string() }.build()
+                CustomSnafu {
+                    message: e.to_string(),
+                }
+                .build()
             } else if let Some(e) = err.downcast_ref::<object_store::Error>() {
-                CustomSnafu { message: e.to_string() }.build()
+                CustomSnafu {
+                    message: e.to_string(),
+                }
+                .build()
             } else if let Some(e) = err.downcast_ref::<iceberg_rust::error::Error>() {
                 iceberg_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<DbError>() {
@@ -328,12 +351,8 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                     DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => {
                         CustomSnafu { message }.build()
                     }
-                    DFCatalogExternalDFError::CoreHistory { .. } => {
-                        CustomSnafu { message }.build()
-                    }
-                    DFCatalogExternalDFError::CoreUtils { .. } => {
-                        CustomSnafu { message }.build()
-                    }
+                    DFCatalogExternalDFError::CoreHistory { .. } => CustomSnafu { message }.build(),
+                    DFCatalogExternalDFError::CoreUtils { .. } => CustomSnafu { message }.build(),
                     DFCatalogExternalDFError::CatalogNotFound { .. } => {
                         CustomSnafu { message }.build()
                     }
@@ -342,7 +361,10 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                     }
                 }
             } else if let Some(e) = err.downcast_ref::<ArrowError>() {
-                CustomSnafu { message: e.to_string() }.build()
+                CustomSnafu {
+                    message: e.to_string(),
+                }
+                .build()
             } else {
                 // Accidently CustomSnafu can't see internal field, so create error manually!
                 SnowflakeError::Custom {

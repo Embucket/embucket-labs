@@ -324,7 +324,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SlateDBHistoryStore::save_query_record",
         level = "trace",
         skip(self, query_record, execution_result),
-        fields(query_id = query_record.id, 
+        fields(query_id = query_record.id,
             query = query_record.query,
             query_result_count = query_record.result_count,
             query_duration_ms = query_record.duration_ms,
@@ -354,8 +354,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
         if let Err(err) = self.add_query(query_record).await {
             // Record the result as part of the current span.
-            tracing::Span::current()
-                .record("save_query_history_error", format!("{err:?}"));
+            tracing::Span::current().record("save_query_history_error", format!("{err:?}"));
 
             tracing::error!("Failed to record query history: {err}");
         }

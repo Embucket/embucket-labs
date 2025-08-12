@@ -1,10 +1,10 @@
-use crate::Error;
 use super::snowflake_error::StatusCode;
+use crate::Error;
+use core_metastore::error::Error as MetastoreError;
+use core_utils::Error as DbError;
 use df_catalog::error::Error as CatalogError;
 use iceberg_rust::error::Error as IcebergError;
 use slatedb::SlateDBError;
-use core_metastore::error::Error as MetastoreError;
-use core_utils::Error as DbError;
 
 pub trait IntoStatusCode {
     fn status_code(&self) -> StatusCode;
@@ -17,7 +17,7 @@ fn status_code_metastore(error: &MetastoreError) -> StatusCode {
     if let MetastoreError::UtilSlateDB { source, .. } = error {
         let error = source.as_ref();
         match error {
-            DbError::Database { error, .. } 
+            DbError::Database { error, .. }
             | DbError::KeyGet { error, .. }
             | DbError::KeyDelete { error, .. }
             | DbError::KeyPut { error, .. }
@@ -27,7 +27,7 @@ fn status_code_metastore(error: &MetastoreError) -> StatusCode {
                 } else {
                     StatusCode::InternalServerError
                 }
-            },
+            }
             _ => StatusCode::InternalServerError,
         }
     } else if let MetastoreError::ObjectStore { .. } = error {
@@ -61,12 +61,12 @@ impl IntoStatusCode for Error {
                     CatalogError::Metastore { source, .. } => status_code_metastore(source),
                     _ => StatusCode::Ok,
                 }
-            } 
+            }
             Self::Iceberg { error, .. } => {
                 let error = error.as_ref();
                 match error {
                     IcebergError::External(err) => {
-                        // match volume communication errors 
+                        // match volume communication errors
                         if err.downcast_ref::<object_store::Error>().is_some() {
                             StatusCode::ServiceUnavailable
                         } else if let Some(error) = err.downcast_ref::<MetastoreError>() {
@@ -77,7 +77,7 @@ impl IntoStatusCode for Error {
                     }
                     _ => StatusCode::InternalServerError,
                 }
-            },
+            }
             Self::Arrow { .. }
             | Self::SerdeParse { .. }
             | Self::CatalogListDowncast { .. }

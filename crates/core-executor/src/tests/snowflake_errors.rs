@@ -1,4 +1,4 @@
-use crate::{error as errors};
+use crate::error as errors;
 use datafusion::error::DataFusionError;
 use datafusion_common::{Diagnostic, Location, Span};
 use embucket_functions::df_error::DFExternalError;
@@ -48,7 +48,8 @@ fn test_error_not_supported() {
     let err = errors::Error::DataFusion {
         error: Box::new(DataFusionError::NotImplemented("1".into())),
         location: location!(),
-    }.to_snowflake_error();
+    }
+    .to_snowflake_error();
 
     if !err
         .to_string()
@@ -72,7 +73,8 @@ fn test_error_diagnostic_location() {
             Box::new(DataFusionError::Plan("plan".into())),
         )),
         location: location!(),
-    }.to_snowflake_error();
+    }
+    .to_snowflake_error();
     if !err
         .to_string()
         .starts_with("SQL compilation error: error line 1 at position 2\n")

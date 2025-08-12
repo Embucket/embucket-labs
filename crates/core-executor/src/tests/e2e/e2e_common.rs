@@ -212,14 +212,17 @@ pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str) {
 }
 
 pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
-    let region = std::env::var(format!("{env_prefix}AWS_REGION")).context(TestS3VolumeConfigSnafu)?;
+    let region =
+        std::env::var(format!("{env_prefix}AWS_REGION")).context(TestS3VolumeConfigSnafu)?;
     let access_key =
         std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(TestS3VolumeConfigSnafu)?;
-    let secret_key =
-        std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).context(TestS3VolumeConfigSnafu)?;
+    let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
+        .context(TestS3VolumeConfigSnafu)?;
     // endpoint is optional
-    let endpoint = std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(TestS3VolumeConfigSnafu);
-    let bucket = std::env::var(format!("{env_prefix}AWS_BUCKET")).context(TestS3VolumeConfigSnafu)?;
+    let endpoint =
+        std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(TestS3VolumeConfigSnafu);
+    let bucket =
+        std::env::var(format!("{env_prefix}AWS_BUCKET")).context(TestS3VolumeConfigSnafu)?;
 
     Ok(S3Volume {
         region: Some(region),
@@ -240,7 +243,8 @@ pub fn s3_tables_volume(
         .context(TestS3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
         .context(TestS3TablesVolumeConfigSnafu)?;
-    let arn = std::env::var(format!("{env_prefix}AWS_ARN")).context(TestS3TablesVolumeConfigSnafu)?;
+    let arn =
+        std::env::var(format!("{env_prefix}AWS_ARN")).context(TestS3TablesVolumeConfigSnafu)?;
     let endpoint: Option<String> = std::env::var(format!("{env_prefix}AWS_ENDPOINT"))
         .map(Some)
         .unwrap_or(None);
@@ -299,8 +303,8 @@ impl S3ObjectStore {
     pub fn from_env(env_prefix: &str) -> Result<Self, Error> {
         let region =
             std::env::var(format!("{env_prefix}AWS_REGION")).context(TestS3VolumeConfigSnafu)?;
-        let access_key =
-            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(TestS3VolumeConfigSnafu)?;
+        let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
+            .context(TestS3VolumeConfigSnafu)?;
         let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
             .context(TestS3VolumeConfigSnafu)?;
         let endpoint =
@@ -845,7 +849,7 @@ pub async fn exec_parallel_test_plan(
                         // callback can fail on user's assertion
                         if let Some(err_callback) = err_callback {
                             err_callback.err_callback(&error);
-                        }                        
+                        }
                     }
                 }
 

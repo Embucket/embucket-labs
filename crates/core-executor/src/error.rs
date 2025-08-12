@@ -1,3 +1,4 @@
+use super::snowflake_error::SnowflakeError;
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -7,7 +8,6 @@ use snafu::Location;
 use snafu::prelude::*;
 use std::backtrace::Backtrace;
 use std::fmt::Display;
-use super::snowflake_error::SnowflakeError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

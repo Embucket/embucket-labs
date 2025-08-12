@@ -4,15 +4,19 @@ use super::e2e_common::TestAwsSdkSnafu;
 use super::e2e_toxiproxy::{
     create_toxic_conn_limit, create_toxiproxy, delete_toxic_conn_limit, delete_toxiproxy,
 };
+use crate::IntoStatusCode;
 use crate::service::ExecutionService;
 use crate::tests::e2e::e2e_common::{
-    copy_env_to_new_prefix, create_executor, create_executor_with_early_volumes_creation, create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix, Error, ObjectStoreType, ParallelTest, S3ObjectStore, TestQuery, TestQueryCallback, TestVolumeType, VolumeConfig, AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, MINIO_OBJECT_STORE_PREFIX, TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_SESSION_ID3
+    AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, Error,
+    MINIO_OBJECT_STORE_PREFIX, ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1,
+    TEST_SESSION_ID2, TEST_SESSION_ID3, TestQuery, TestQueryCallback, TestVolumeType, VolumeConfig,
+    copy_env_to_new_prefix, create_executor, create_executor_with_early_volumes_creation,
+    create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix,
 };
 use crate::tests::e2e::e2e_s3tables_aws::{
     delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
     get_s3tables_tables_arns_map, set_s3table_bucket_table_policy, set_table_bucket_policy,
 };
-use crate::IntoStatusCode;
 use dotenv::dotenv;
 use snafu::ResultExt;
 use std::env;
@@ -241,14 +245,15 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
     Ok(())
 }
 
-fn toxiproxy_name_and_payload (some_id: usize, port: usize) -> (String, String) {
+fn toxiproxy_name_and_payload(some_id: usize, port: usize) -> (String, String) {
     let minio_proxy_name = format!("minio-proxy-{some_id}");
     let toxic_minio_proxy_payload = format!(
         r#"{{
         "name": "{minio_proxy_name}",
         "listen": "0.0.0.0:{port}",
         "upstream": "localhost:9000"
-    }}"#);
+    }}"#
+    );
     (minio_proxy_name, toxic_minio_proxy_payload)
 }
 
@@ -262,9 +267,7 @@ async fn template_s3_connections_test2(
     let volume_env_prefix: &'static str = Box::leak(volume_env_prefix.into_boxed_str());
 
     let test_suffix = test_suffix();
-    let database_name: &'static str = Box::leak(
-        "database".repeat(2000)
-        .into_boxed_str());
+    let database_name: &'static str = Box::leak("database".repeat(2000).into_boxed_str());
     let executor = create_executor_with_early_volumes_creation(
         ObjectStoreType::S3(
             test_suffix.clone(),
@@ -284,21 +287,18 @@ async fn template_s3_connections_test2(
 
     let executor = Arc::new(executor?);
 
-    let test_plan = vec![
-        ParallelTest(vec![TestQuery {
-            sqls: vec![
-                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                // "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: sql_expected_res,
-            err_callback,
-        }]),
-    ];
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            // "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: sql_expected_res,
+        err_callback,
+    }])];
     exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
-
 
 async fn template_s3_connections_test3(
     metastore_env_prefix: String,
@@ -310,9 +310,7 @@ async fn template_s3_connections_test3(
     let volume_env_prefix: &'static str = Box::leak(volume_env_prefix.into_boxed_str());
 
     let test_suffix = test_suffix();
-    let schema_name: &'static str = Box::leak(
-        "schema".repeat(3000)
-        .into_boxed_str());
+    let schema_name: &'static str = Box::leak("schema".repeat(3000).into_boxed_str());
     let executor = create_executor_with_early_volumes_creation(
         ObjectStoreType::S3(
             test_suffix.clone(),
@@ -332,18 +330,16 @@ async fn template_s3_connections_test3(
 
     let executor = Arc::new(executor?);
 
-    let test_plan = vec![
-        ParallelTest(vec![TestQuery {
-            sqls: vec![
-                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: sql_expected_res,
-            err_callback,
-        }]),
-    ];
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: sql_expected_res,
+        err_callback,
+    }])];
     exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
 
@@ -378,24 +374,27 @@ async fn template_s3_connections_test(
 
     let executor = Arc::new(executor?);
 
-    let huge_schema_to_trigger_connection_limit
-        = format!("CREATE TABLE __DATABASE__.__SCHEMA__.test({});",
-            (0..200).map(|i| format!("amount{i} number, name{i} string, c5{i} VARCHAR")).collect::<Vec<_>>().join(","));
-    let huge_schema_to_trigger_connection_limit: &'static str = Box::leak(huge_schema_to_trigger_connection_limit.into_boxed_str());
+    let huge_schema_to_trigger_connection_limit = format!(
+        "CREATE TABLE __DATABASE__.__SCHEMA__.test({});",
+        (0..200)
+            .map(|i| format!("amount{i} number, name{i} string, c5{i} VARCHAR"))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let huge_schema_to_trigger_connection_limit: &'static str =
+        Box::leak(huge_schema_to_trigger_connection_limit.into_boxed_str());
 
-    let test_plan = vec![
-        ParallelTest(vec![TestQuery {
-            sqls: vec![
-                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
-                "CREATE SCHEMA __DATABASE__.__SCHEMA__",
-                huge_schema_to_trigger_connection_limit,
-            ],
-            executor: executor.clone(),
-            session_id: TEST_SESSION_ID1,
-            expected_res: sql_expected_res,
-            err_callback,
-        }]),
-    ];
+    let test_plan = vec![ParallelTest(vec![TestQuery {
+        sqls: vec![
+            "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+            "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            huge_schema_to_trigger_connection_limit,
+        ],
+        executor: executor.clone(),
+        session_id: TEST_SESSION_ID1,
+        expected_res: sql_expected_res,
+        err_callback,
+    }])];
     exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
 
@@ -1410,7 +1409,8 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_fails() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_fails()
+-> Result<(), Error> {
     let some_id = 1;
     let port = 9995;
     let bytes_limit = 1;
@@ -1446,8 +1446,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
     let res = template_s3_connections_test(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        expected_res, expected_res, None)
-        .await;
+        expected_res,
+        expected_res,
+        None,
+    )
+    .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
@@ -1456,7 +1459,10 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
     if let Err(e) = &res {
         match e {
             // error happended in creating ExecutionService is internal, so do not check error type itself
-            Error::TestSlatedb { source: slatedb::SlateDBError::ObjectStoreError(_object_store), .. } => (),
+            Error::TestSlatedb {
+                source: slatedb::SlateDBError::ObjectStoreError(_object_store),
+                ..
+            } => (),
             _ => panic!("Expected other error, Actual error: {e}"),
         }
     }
@@ -1467,12 +1473,17 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_table_fails() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_table_fails()
+-> Result<(), Error> {
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             assert_eq!(err.status_code_u16(), 503);
-            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Db Object store: Generic S3 error:"));
+            assert!(
+                err.to_snowflake_error()
+                    .to_string()
+                    .starts_with("Iceberg Metastore Db Object store: Generic S3 error:")
+            );
         }
     }
 
@@ -1516,8 +1527,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     let res = template_s3_connections_test(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, expected_res, Some(Box::new(ErrCallback)))
-        .await;
+        true,
+        expected_res,
+        Some(Box::new(ErrCallback)),
+    )
+    .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
@@ -1530,14 +1544,19 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_create_table_fails() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_create_table_fails()
+-> Result<(), Error> {
     const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";
 
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             assert_eq!(err.status_code_u16(), 503);
-            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Object store: Generic S3 error:"));
+            assert!(
+                err.to_snowflake_error()
+                    .to_string()
+                    .starts_with("Iceberg Metastore Object store: Generic S3 error:")
+            );
         }
     }
 
@@ -1555,16 +1574,14 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     dotenv().ok();
 
     // prepare envs for volumes
-    copy_env_to_new_prefix(
-        E2E_S3VOLUME_PREFIX, 
-        E2E_S3VOLUME_TOXIC_PREFIX);
+    copy_env_to_new_prefix(E2E_S3VOLUME_PREFIX, E2E_S3VOLUME_TOXIC_PREFIX);
     unsafe {
         std::env::set_var(
             format!("{E2E_S3VOLUME_TOXIC_PREFIX}AWS_ENDPOINT"),
             format!("http://localhost:{port}"),
         );
     }
-    
+
     let (minio_proxy_name, toxic_minio_proxy_payload) = toxiproxy_name_and_payload(some_id, port);
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
@@ -1578,8 +1595,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     let res = template_s3_connections_test(
         MINIO_OBJECT_STORE_PREFIX.to_string(), // metastore conn is not poisoned
         E2E_S3VOLUME_TOXIC_PREFIX.to_string(), // s3 volume conn is poisoned
-        create_executor_res, sql_res, Some(Box::new(ErrCallback)))
-        .await;
+        create_executor_res,
+        sql_res,
+        Some(Box::new(ErrCallback)),
+    )
+    .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
@@ -1589,16 +1609,20 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     Ok(())
 }
 
-
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_database_fails() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_database_fails()
+-> Result<(), Error> {
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             assert_eq!(err.status_code_u16(), 503);
-            assert!(err.to_snowflake_error().to_string().starts_with("Catalog Metastore Db Object store: Generic S3 error:"));
+            assert!(
+                err.to_snowflake_error()
+                    .to_string()
+                    .starts_with("Catalog Metastore Db Object store: Generic S3 error:")
+            );
         }
     }
 
@@ -1642,8 +1666,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     let res = template_s3_connections_test2(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, expected_res, Some(Box::new(ErrCallback)))
-        .await;
+        true,
+        expected_res,
+        Some(Box::new(ErrCallback)),
+    )
+    .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
@@ -1653,16 +1680,20 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     Ok(())
 }
 
-
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_schema_fails() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_create_schema_fails()
+-> Result<(), Error> {
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             assert_eq!(err.status_code_u16(), 503);
-            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Db Object store: Generic S3 error:"));
+            assert!(
+                err.to_snowflake_error()
+                    .to_string()
+                    .starts_with("Iceberg Metastore Db Object store: Generic S3 error:")
+            );
         }
     }
 
@@ -1706,8 +1737,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     let res = template_s3_connections_test3(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, expected_res, Some(Box::new(ErrCallback)))
-        .await;
+        true,
+        expected_res,
+        Some(Box::new(ErrCallback)),
+    )
+    .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
@@ -1720,7 +1754,8 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_s3_connection_issues_false_positive_check() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_false_positive_check()
+-> Result<(), Error> {
     eprintln!(
         "This spawns a test server that runs without introducing connection issues, \
         if it fails that means all the related tests must be broken too."
@@ -1729,9 +1764,12 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_false_positive_c
 
     template_s3_connections_test(
         MINIO_OBJECT_STORE_PREFIX.to_string(), // metastore conn is not poisoned
-        E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, true, None)
-        .await?;
+        E2E_S3VOLUME_PREFIX.to_string(),       // s3 volume conn is not poisoned
+        true,
+        true,
+        None,
+    )
+    .await?;
     Ok(())
 }
 
