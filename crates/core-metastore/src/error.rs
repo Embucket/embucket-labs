@@ -229,4 +229,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Iceberg spec error: {error}"))]
+    IcebergSpec {
+        #[snafu(source)]
+        error: iceberg_rust_spec::error::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
