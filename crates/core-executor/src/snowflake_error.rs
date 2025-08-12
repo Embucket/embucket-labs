@@ -6,6 +6,7 @@ use datafusion::arrow::error::ArrowError;
 use datafusion_common::Diagnostic;
 use datafusion_common::diagnostic::DiagnosticKind;
 use datafusion_common::error::DataFusionError;
+use df_catalog::error::Error as CatalogError;
 use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
 use iceberg_rust::error::Error as IcebergError;
@@ -119,6 +120,10 @@ impl SnowflakeError {
             | Error::DataFusion { error, .. } => datafusion_error(error, &[]),
             Error::Metastore { source, .. } => metastore_error(source, &[]),
             Error::Iceberg { error, .. } => iceberg_error(error, &[]),
+            Error::RefreshCatalogList { source, .. }
+            | Error::RegisterCatalog { source, .. }
+            | Error::DropDatabase { source, .. }
+            | Error::CreateDatabase { source, .. } => catalog_error(&source, &[]),
             _ => CustomSnafu { message }.build(),
         }
     }
@@ -134,6 +139,14 @@ fn format_message(subtext: &[&str], error: String) -> String {
         format!("{}: {}", subtext, error)
     } else {
         error
+    }
+}
+
+fn catalog_error(error: &CatalogError, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["Catalog"]].concat();
+    match error {
+        CatalogError::Metastore { source, .. } => metastore_error(source, &subtext),
+        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
     }
 }
 

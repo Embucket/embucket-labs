@@ -274,7 +274,7 @@ pub type TestPlan = Vec<ParallelTest>;
 
 pub struct ParallelTest(pub Vec<TestQuery>);
 
-pub trait TestQueryCallback {
+pub trait TestQueryCallback: Sync + Send {
     fn err_callback(&self, err: &crate::Error);
 }
 
