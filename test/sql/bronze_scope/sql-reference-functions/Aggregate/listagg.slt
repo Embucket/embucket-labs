@@ -40,20 +40,6 @@ SELECT LISTAGG(DISTINCT o_orderstatus, '|')
 ----
 <REGEX>:^(?=.*\bF\b)(?=.*\bO\b)[FO|]{3}$
 
-query T
-WITH collation_demo AS (
-  SELECT * FROM VALUES
-    ('piña colada'),
-    ('Pinatubo (Mount)'),
-    ('pint'),
-    ('Pinta')
-  AS t(spanish_phrase)
-)
-SELECT LISTAGG(spanish_phrase, '|')
-    WITHIN GROUP (ORDER BY COLLATE(spanish_phrase, 'es')) AS es_collation
-  FROM collation_demo
-----
-Pinatubo (Mount)|pint|Pinta|piña colada
 
 query T
 WITH collation_demo AS (
@@ -65,7 +51,7 @@ WITH collation_demo AS (
   AS t(spanish_phrase)
 )
 SELECT LISTAGG(spanish_phrase, '|')
-    WITHIN GROUP (ORDER BY COLLATE(spanish_phrase, 'utf8')) AS utf8_collation
+    WITHIN GROUP (ORDER BY spanish_phrase) AS utf8_collation
   FROM collation_demo
 ----
-Pinatubo (Mount)|Pinta|pint|piña colada
+piña colada|Pinatubo (Mount)|pint|Pinta

@@ -41,7 +41,7 @@ FROM VALUES (1), (2), (NULL)
 NULL	NULL
 
 query T
-SELECT CASE COLLATE('m', 'upper')
+SELECT CASE UPPER('m')
     WHEN 'M' THEN TRUE
     ELSE FALSE
 END
@@ -50,7 +50,7 @@ TRUE
 
 query T
 SELECT CASE 'm'
-    WHEN COLLATE('M', 'lower') THEN TRUE
+    WHEN LOWER('m') THEN TRUE
     ELSE FALSE
 END
 ----

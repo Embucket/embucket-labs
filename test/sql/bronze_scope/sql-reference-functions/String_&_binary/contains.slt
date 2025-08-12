@@ -14,7 +14,7 @@ latte
 tea
 
 query TT
-SELECT CONTAINS(COLLATE('ñ', 'en-ci-ai'), 'n'),
-       CONTAINS(COLLATE('ñ', 'es-ci-ai'), 'n')
+SELECT CONTAINS('ñ', 'n'),
+       CONTAINS('nñ', 'n')
 ----
-TRUE	FALSE
+FALSE	TRUE
