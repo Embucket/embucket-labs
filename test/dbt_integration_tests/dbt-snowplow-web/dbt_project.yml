@@ -69,11 +69,11 @@ vars:
 
     # CONTEXTS, FILTERS, AND LOGS
     snowplow__app_id: []
-    snowplow__enable_consent: false
+    snowplow__enable_consent: true
     snowplow__enable_cwv: true
-    snowplow__enable_iab: false
-    snowplow__enable_ua: false
-    snowplow__enable_yauaa: false
+    snowplow__enable_iab: true
+    snowplow__enable_ua: true
+    snowplow__enable_yauaa: true
     snowplow__page_view_passthroughs: []
     snowplow__session_passthroughs: []
     snowplow__ua_bot_filter: true
