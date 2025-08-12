@@ -1,10 +1,11 @@
 # DBT Run Summary
-PASS: 20
+PASS: 23
 WARN: 0
-ERROR: 0
+ERROR: 1
 SKIP: 0
-TOTAL: 20
+TOTAL: 24
 
 # Total top 10 errors
+      1 SQL compilation error: unsupported feature: Function 'grouping_id' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/grouping_id
 
 # Top function errors
