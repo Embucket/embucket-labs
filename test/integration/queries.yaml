@@ -1,0 +1,46 @@
+suites:
+  # NYC Taxi single-table suite
+  - name: nyc_basic
+    relations:
+      trips: nyc_taxi_yellow
+    queries:
+      - id: q_count
+        sql: |
+          SELECT COUNT(*) FROM {{TABLE:trips}}
+      - id: q_vendor
+        sql: |
+          SELECT vendor_id, COUNT(*) AS c FROM {{TABLE:trips}} GROUP BY vendor_id
+      - id: q_payment_amounts
+        sql: |
+          SELECT payment_type, COUNT(*) AS c, SUM(total_amount) AS total
+          FROM {{TABLE:trips}}
+          GROUP BY payment_type
+
+  # TPC-H single-table suite using lineitem only
+  - name: tpch_lineitem_basic
+    relations:
+      l: tpch_lineitem
+    queries:
+      - id: q_count
+        sql: |
+          SELECT COUNT(*) FROM {{TABLE:l}}
+      - id: q_group
+        sql: |
+          SELECT L_RETURNFLAG, L_LINESTATUS, SUM(L_QUANTITY) AS qty
+          FROM {{TABLE:l}}
+          GROUP BY L_RETURNFLAG, L_LINESTATUS
+
+  # Example of a cross-table suite (requires you to define more datasets in datasets.yaml)
+  # - name: tpch_cross_example
+  #   relations:
+  #     l: tpch_lineitem
+  #     o: tpch_orders           # Define a matching dataset in datasets.yaml
+  #     c: tpch_customer         # Define a matching dataset in datasets.yaml
+  #   queries:
+  #     - id: q_orders_by_year
+  #       sql: |
+  #         SELECT YEAR(o.O_ORDERDATE) AS y, COUNT(*) AS c
+  #         FROM {{TABLE:o}} o
+  #         JOIN {{TABLE:l}} l ON l.L_ORDERKEY = o.O_ORDERKEY
+  #         GROUP BY YEAR(o.O_ORDERDATE)
+

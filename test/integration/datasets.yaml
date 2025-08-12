@@ -1,0 +1,71 @@
+datasets:
+  - name: tpch_lineitem
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: lineitem
+    ddl:
+      embucket: sql/tpch/lineitem_embucket.sql
+      spark: sql/tpch/lineitem_spark.sql
+    format: parquet
+    options:
+      header: false
+      field_delimiter: '|'
+    sources:
+      - lineitem.parquet
+    first_col: L_ORDERKEY
+    numeric_col: L_QUANTITY
+    queries:
+      - id: q_count
+        sql: |
+          SELECT COUNT(*) FROM {{TABLE_FQN}}
+      - id: q_return_linestatus
+        sql: |
+          SELECT "L_RETURNFLAG", "L_LINESTATUS", SUM("L_QUANTITY") AS qty, SUM("L_EXTENDEDPRICE") AS rev, COUNT(*) AS c
+          FROM {{TABLE_FQN}}
+          GROUP BY "L_RETURNFLAG", "L_LINESTATUS"
+      - id: q_shipmode
+        sql: |
+          SELECT "L_SHIPMODE", COUNT(*) AS c
+          FROM {{TABLE_FQN}}
+          GROUP BY "L_SHIPMODE"
+      - id: q_year_1994
+        sql: |
+          SELECT COUNT(*) AS c
+          FROM {{TABLE_FQN}}
+          WHERE L_SHIPDATE >= CAST('1994-01-01' AS DATE) AND L_SHIPDATE < CAST('1995-01-01' AS DATE)
+      - id: q_discounted_revenue
+        sql: |
+          SELECT SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) AS discounted_rev FROM {{TABLE_FQN}}
+
+  - name: nyc_taxi_yellow
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: yellow_tripdata
+    ddl:
+      embucket: sql/nyc_taxi/yellow_embucket.sql
+      spark: sql/nyc_taxi/yellow_spark.sql
+    format: parquet
+    sources:
+      - yellow_tripdata_2025-01.parquet
+    first_col: vendor_id
+    numeric_col: total_amount
+    queries:
+      - id: q_count
+        sql: |
+          SELECT COUNT(*) FROM {{TABLE_FQN}}
+      - id: q_vendor_counts
+        sql: |
+          SELECT vendor_id, COUNT(*) AS c FROM {{TABLE_FQN}} GROUP BY vendor_id
+      - id: q_payment_amounts
+        sql: |
+          SELECT payment_type, COUNT(*) AS c, SUM(total_amount) AS total
+          FROM {{TABLE_FQN}}
+          GROUP BY payment_type
+      - id: q_daily_counts
+        sql: |
+          SELECT CAST(tpep_pickup_datetime AS DATE) AS d, COUNT(*) AS c
+          FROM {{TABLE_FQN}}
+          GROUP BY CAST(tpep_pickup_datetime AS DATE)
+      - id: q_vendor_avg_distance
+        sql: |
+          SELECT vendor_id, AVG(trip_distance) AS avg_dist
+          FROM {{TABLE_FQN}}
+          GROUP BY vendor_id
