@@ -16,8 +16,10 @@ pub mod next_day;
 pub mod previous_day;
 pub mod time_from_parts;
 pub mod timestamp_from_parts;
+use crate::datetime::date_diff::DateDiffFunc;
 use crate::session_params::SessionParams;
 pub use errors::Error;
+use crate::datetime::last_day::LastDayFunc;
 
 pub fn register_udfs(
     registry: &mut dyn FunctionRegistry,
@@ -27,10 +29,10 @@ pub fn register_udfs(
         add_months::get_udf(),
         convert_timezone::get_udf(),
         date_add::get_udf(),
-        date_diff::get_udf(),
+        Arc::new(ScalarUDF::from(DateDiffFunc::new(session_params.clone()))),
         date_from_parts::get_udf(),
         dayname::get_udf(),
-        last_day::get_udf(),
+        Arc::new(ScalarUDF::from(LastDayFunc::new(session_params.clone()))),
         monthname::get_udf(),
         next_day::get_udf(),
         previous_day::get_udf(),

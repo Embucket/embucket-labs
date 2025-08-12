@@ -270,9 +270,9 @@ fn calculate_day_of_week(date: NaiveDate, week_start: usize) -> i32 {
     let current_weekday = date.weekday();
 
     // Calculate days from the start of week (0-6)
-    (current_weekday.num_days_from_monday() as i32 - start_weekday.num_days_from_monday() as i32
-        + 7)
-        % 7
+    ((current_weekday.num_days_from_monday() as i32 - start_weekday.num_days_from_monday() as i32
+        + 7) 
+        % 7) + 1 // Convert to 1-based index (1-7)
 }
 
 /// Calculate week number based on `week_of_year_policy`

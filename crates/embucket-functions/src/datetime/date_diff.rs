@@ -1,12 +1,16 @@
-use datafusion::arrow::array::Array;
-use datafusion::arrow::compute::{DatePart, date_part};
+use super::errors as dtime_errors;
+use crate::session_params::SessionParams;
+use arrow_schema::TimeUnit;
+use datafusion::arrow::array::{Array, ArrayRef, DurationNanosecondArray, Int32Array, Int64Array};
+use datafusion::arrow::compute::kernels::numeric::sub;
+use datafusion::arrow::compute::{DatePart, cast, date_part};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::datatypes::DataType::Int64;
 use datafusion::common::{Result, plan_err};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
+use datafusion_common::cast::{as_int32_array, as_int64_array};
 use datafusion_common::types::logical_date;
 use datafusion_common::{internal_err, types::logical_string};
 use datafusion_expr::Coercion;
@@ -14,22 +18,41 @@ use std::any::Any;
 use std::sync::Arc;
 use std::vec;
 
+const SECOND: i64 = 1_000_000_000;
+
+/// `DATEDIFF` SQL function
+///
+/// Calculates the difference between two date, time, or timestamp expressions based
+/// on the date or time part requested. The function returns the result of subtracting
+/// the second argument from the third argument.
+/// Syntax: `DATEDIFF( <date_or_time_part>, <date_or_time_expr1>, <date_or_time_expr2> )`
+///
+/// Arguments:
+/// - `date_or_time_part`: The unit of time
+/// - `date_or_time_expr1` and `date_or_time_expr2`: The values to compare. Must be a date, a time,
+///   a timestamp, or an expression that can be evaluated to a date, a time, or a timestamp.
+///
+/// Example: `DATEDIFF(month, '2021-01-01'::DATE, '2021-02-28'::DATE)`
+///
+/// Returns:
+/// - This function returns a value of type DATE, even if `date_or_time_part` is a time.
 #[derive(Debug)]
 pub struct DateDiffFunc {
     signature: Signature,
     #[allow(dead_code)]
     aliases: Vec<String>,
+    session_params: Arc<SessionParams>,
 }
 
 impl Default for DateDiffFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(Arc::new(SessionParams::default()))
     }
 }
 
 impl DateDiffFunc {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(session_params: Arc<SessionParams>) -> Self {
         Self {
             //TODO: Fix signature, can we diffretite between two differnt types? (ex.: date32 - timestamp)
             signature: Signature::one_of(
@@ -59,47 +82,125 @@ impl DateDiffFunc {
                 String::from("timestampdiff"),
                 String::from("timestamp_diff"),
             ],
+            session_params,
         }
     }
+
+    #[must_use]
+    pub fn week_start(&self) -> i64 {
+        self.session_params
+            .get_property("week_start")
+            .unwrap_or_else(|| "0".to_string())
+            .parse::<i64>()
+            .unwrap_or(0)
+    }
+
     fn date_diff_func(
-        date_or_time_expr1: &Arc<dyn Array>,
-        date_or_time_expr2: &Arc<dyn Array>,
+        &self,
+        lhs: &Arc<dyn Array>,
+        rhs: &Arc<dyn Array>,
         unit_type: DatePart,
     ) -> Result<ColumnarValue> {
-        let unit2 = date_part(date_or_time_expr2, unit_type)?;
-        let unit1 = date_part(date_or_time_expr1, unit_type)?;
-        Ok(ColumnarValue::Scalar(
-            ScalarValue::try_from_array(&unit2, 0)?
-                .sub(ScalarValue::try_from_array(&unit1, 0)?)?
-                .cast_to(&Int64)?,
-        ))
+        let arr1 = cast(lhs, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+        let arr2 = cast(rhs, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+        let diff = sub(&arr2, &arr1)?;
+        let diff_arr = diff
+            .as_any()
+            .downcast_ref::<DurationNanosecondArray>()
+            .ok_or_else(|| dtime_errors::CantCastToSnafu { v: "duration_nsec" }.build())?;
+        match unit_type {
+            DatePart::Quarter | DatePart::Year | DatePart::YearISO => {
+                let arr1 = &date_part(lhs, unit_type)?;
+                let arr2 = &date_part(rhs, unit_type)?;
+                let diff = cast(&sub(&arr2, &arr1)?, &DataType::Int64)?;
+                Ok(ColumnarValue::Array(Arc::new(diff)))
+            }
+            DatePart::Month => {
+                let month1 = &date_part(lhs, unit_type)?;
+                let month2 = &date_part(rhs, unit_type)?;
+                let diff_month = sub(&month2, &month1)?;
+                let month_arr = as_int32_array(&diff_month)?;
+
+                let year1 = &date_part(lhs, DatePart::Year)?;
+                let year2 = &date_part(rhs, DatePart::Year)?;
+                let diff_year = sub(&year2, &year1)?;
+                let year_arr = as_int32_array(&diff_year)?;
+
+                let result = year_arr
+                    .iter()
+                    .zip(month_arr.iter())
+                    .map(|(y, m)| match (y, m) {
+                        (Some(y), Some(m)) => Some(y * 12 + m),
+                        _ => None,
+                    })
+                    .collect::<Int32Array>();
+                let result = cast(&result, &DataType::Int64)?;
+                Ok(ColumnarValue::Array(Arc::new(result)))
+            }
+            DatePart::Week | DatePart::WeekISO => Ok(self.weeks_diff(diff_arr)),
+            DatePart::Day | DatePart::DayOfYear => Ok(Self::diff(diff_arr, 86_400 * SECOND)),
+            DatePart::Hour => {
+                let nanos_in_hour: i64 = 3_600 * SECOND;
+                let arr1 = &date_part(lhs, unit_type)?;
+                let arr2 = &date_part(rhs, unit_type)?;
+                let hours_diff = cast(&sub(&arr2, &arr1)?, &DataType::Int64)?;
+                let hours_arr = as_int64_array(&hours_diff)?;
+
+                let result = diff_arr
+                    .iter()
+                    .zip(hours_arr.iter())
+                    .map(|(nanos, diff)| match (nanos, diff) {
+                        (Some(n), Some(hours_diff)) => {
+                            let res = n.div_euclid(nanos_in_hour);
+                            if hours_diff != 0 {
+                                Some(res + 1)
+                            } else {
+                                Some(res)
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect::<Int64Array>();
+                Ok(ColumnarValue::Array(Arc::new(result)))
+            }
+            DatePart::Minute => Ok(Self::diff(diff_arr, 60 * SECOND)),
+            DatePart::Second => Ok(Self::diff(diff_arr, SECOND)),
+            DatePart::Millisecond => Ok(Self::diff(diff_arr, 1_000_000)),
+            DatePart::Microsecond => Ok(Self::diff(diff_arr, 1_000)),
+            _ => Ok(Self::diff(diff_arr, 1)),
+        }
+    }
+
+    fn weeks_diff(&self, diff_arr: &DurationNanosecondArray) -> ColumnarValue {
+        let week_start = self.week_start();
+        let nanos_in_day: i64 = 86_400_000_000_000;
+
+        let diff: Int64Array = diff_arr.unary(|ns| {
+            let days = ns.div_euclid(nanos_in_day);
+            if days < 0 {
+                0
+            } else {
+                let weeks = days.div_euclid(7);
+                let remainder = days.rem_euclid(7);
+                if remainder > week_start {
+                    weeks + 1
+                } else {
+                    weeks
+                }
+            }
+        });
+        ColumnarValue::Array(Arc::new(diff))
+    }
+
+    fn diff(diff_arr: &DurationNanosecondArray, coef: i64) -> ColumnarValue {
+        let diff_arr: Int64Array = diff_arr.unary(|x| {
+            let div = x / coef;
+            if x % coef == 0 { div } else { div + 1 }
+        });
+        ColumnarValue::Array(Arc::new(diff_arr))
     }
 }
-//TODO: FIX docs
-// date_diff SQL function
-// Syntax: `DATEADD(<date_or_time_part>, <value>, <date_or_time_expr>)`
-// - <date_or_time_part>: This indicates the units of time that you want to add.
-// For example if you want to add two days, then specify day. This unit of measure must be one of the values listed in Supported date and time parts.
-// - <value>: This is the number of units of time that you want to add.
-// For example, if the units of time is day, and you want to add two days, specify 2. If you want to subtract two days, specify -2.
-// - <date_or_time_expr>: Must evaluate to a date, time, or timestamp.
-// This is the date, time, or timestamp to which you want to add.
-// For example, if you want to add two days to August 1, 2024, then specify '2024-08-01'::DATE.
-// If the data type is TIME, then the date_or_time_part must be in units of hours or smaller, not days or bigger.
-// If the input data type is DATE, and the date_or_time_part is hours or smaller, the input value will not be rejected,
-// but instead will be treated as a TIMESTAMP with hours, minutes, seconds, and fractions of a second all initially set to 0 (e.g. midnight on the specified date).
-//
-// Note: `dateadd` returns
-// If date_or_time_expr is a time, then the return data type is a time.
-// If date_or_time_expr is a timestamp, then the return data type is a timestamp.
-// If date_or_time_expr is a date:
-// - If date_or_time_part is day or larger (for example, month, year), the function returns a DATE value.
-// - If date_or_time_part is smaller than a day (for example, hour, minute, second), the function returns a TIMESTAMP_NTZ value, with 00:00:00.000 as the starting time for the date.
-// Usage notes:
-// - When date_or_time_part is year, quarter, or month (or any of their variations),
-// if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
-// Examples
-// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
+
 impl ScalarUDFImpl for DateDiffFunc {
     fn as_any(&self) -> &dyn Any {
         self
@@ -130,54 +231,54 @@ impl ScalarUDFImpl for DateDiffFunc {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
             _ => return plan_err!("Invalid unit type format"),
         };
-        let date_or_time_expr1 = match &args[1] {
-            ColumnarValue::Scalar(val) => val.to_array()?,
-            ColumnarValue::Array(array) => array.clone(),
+        let len = match (&args[1], &args[2]) {
+            (ColumnarValue::Array(arr1), _) => arr1.len(),
+            (_, ColumnarValue::Array(arr2)) => arr2.len(),
+            _ => 1,
         };
-        let date_or_time_expr2 = match &args[2] {
-            ColumnarValue::Scalar(val) => val.to_array()?,
-            ColumnarValue::Array(array) => array.clone(),
-        };
+        let date_or_time_expr1 = broadcast_to_len(&args[1], len)?;
+        let date_or_time_expr2 = broadcast_to_len(&args[2], len)?;
+
         match date_or_time_part.as_str() {
             //should consider leap year (365-366 days)
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Year)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Year)
             }
             //should consider months 28-31 days
             "month" | "mm" | "mon" | "mons" | "months" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Month)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Month)
             }
             "day" | "d" | "dd" | "days" | "dayofmonth" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Day)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Day)
             }
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Week)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Week)
             }
             //should consider months 28-31 days
             "quarter" | "q" | "qtr" | "qtrs" | "quarters" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Quarter)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Quarter)
             }
             "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Hour)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Hour)
             }
             "minute" | "m" | "mi" | "min" | "minutes" | "mins" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Minute)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Minute)
             }
             "second" | "s" | "sec" | "seconds" | "secs" => {
-                Self::date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Second)
+                self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Second)
             }
-            "millisecond" | "ms" | "msec" | "milliseconds" => Self::date_diff_func(
+            "millisecond" | "ms" | "msec" | "milliseconds" => self.date_diff_func(
                 &date_or_time_expr1,
                 &date_or_time_expr2,
                 DatePart::Millisecond,
             ),
-            "microsecond" | "us" | "usec" | "microseconds" => Self::date_diff_func(
+            "microsecond" | "us" | "usec" | "microseconds" => self.date_diff_func(
                 &date_or_time_expr1,
                 &date_or_time_expr2,
                 DatePart::Microsecond,
             ),
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs" => {
-                Self::date_diff_func(
+                self.date_diff_func(
                     &date_or_time_expr1,
                     &date_or_time_expr2,
                     DatePart::Nanosecond,
@@ -191,4 +292,9 @@ impl ScalarUDFImpl for DateDiffFunc {
     }
 }
 
-crate::macros::make_udf_function!(DateDiffFunc);
+fn broadcast_to_len(val: &ColumnarValue, len: usize) -> Result<ArrayRef> {
+    match val {
+        ColumnarValue::Array(arr) => Ok(arr.clone()),
+        ColumnarValue::Scalar(scalar) => Ok(scalar.to_array_of_size(len)?),
+    }
+}
