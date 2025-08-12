@@ -130,6 +130,7 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT to_char(col::DATE, 'YYYY/MM/DD HH24')",
             "SELECT to_char(col::DATE, '%Y/%m/%d %H')",
         ),
+        ("SELECT grouping_id(a)", "SELECT grouping(a)"),
     ];
 
     for (input, expected) in cases {

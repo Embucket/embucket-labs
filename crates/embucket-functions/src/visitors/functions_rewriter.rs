@@ -30,6 +30,7 @@ impl VisitorMut for FunctionsRewriter {
                 }
                 "variance" | "variance_samp" => "var_samp",
                 "variance_pop" => "var_pop",
+                "grouping_id" => "grouping",
                 "to_char" => {
                     rewrite_date_format(args);
                     func_name

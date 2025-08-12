@@ -145,12 +145,6 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/count_if")
     ),
-    ("GROUPING_ID", FunctionInfo::new(
-        "GROUPING_ID",
-        "Describes which of a list of expressions are grouped in a row produced by a GROUP BY query."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/grouping_id")
-    ),
     ("HASH_AGG", FunctionInfo::new(
         "HASH_AGG",
         "Returns an aggregate signed 64-bit hash value over the (unordered) set of input rows."
