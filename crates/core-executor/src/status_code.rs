@@ -52,23 +52,22 @@ fn status_code_metastore(error: &MetastoreError) -> StatusCode {
 impl IntoStatusCode for Error {
     #[allow(clippy::match_wildcard_for_single_variants)]
     #[allow(clippy::collapsible_match)]
+    #[allow(clippy::if_same_then_else)]
     fn status_code(&self) -> StatusCode {
         match self {
-            Error::CreateDatabase { source, .. } => {
+            Self::CreateDatabase { source, .. } => {
                 let source = source.as_ref();
                 match source {
                     CatalogError::Metastore { source, .. } => status_code_metastore(source),
                     _ => StatusCode::Ok,
                 }
             } 
-            Error::Iceberg { error, .. } => {
+            Self::Iceberg { error, .. } => {
                 let error = error.as_ref();
                 match error {
                     IcebergError::External(err) => {
                         // match volume communication errors 
                         if err.downcast_ref::<object_store::Error>().is_some() {
-                            StatusCode::ServiceUnavailable
-                        } else if err.downcast_ref::<slatedb::SlateDBError>().is_some() {
                             StatusCode::ServiceUnavailable
                         } else if let Some(error) = err.downcast_ref::<MetastoreError>() {
                             status_code_metastore(error)
@@ -79,18 +78,18 @@ impl IntoStatusCode for Error {
                     _ => StatusCode::InternalServerError,
                 }
             },
-            Error::Arrow { .. }
-            | Error::SerdeParse { .. }
-            | Error::CatalogListDowncast { .. }
-            | Error::CatalogDownCast { .. }
-            | Error::DataFusionLogicalPlanMergeTarget { .. }
-            | Error::DataFusionLogicalPlanMergeSource { .. }
-            | Error::DataFusionLogicalPlanMergeJoin { .. }
-            | Error::LogicalExtensionChildCount { .. }
-            | Error::MergeFilterStreamNotMatching { .. }
-            | Error::MatchingFilesAlreadyConsumed { .. }
-            | Error::MissingFilterPredicates { .. }
-            | Error::RegisterCatalog { .. } => StatusCode::InternalServerError,
+            Self::Arrow { .. }
+            | Self::SerdeParse { .. }
+            | Self::CatalogListDowncast { .. }
+            | Self::CatalogDownCast { .. }
+            | Self::DataFusionLogicalPlanMergeTarget { .. }
+            | Self::DataFusionLogicalPlanMergeSource { .. }
+            | Self::DataFusionLogicalPlanMergeJoin { .. }
+            | Self::LogicalExtensionChildCount { .. }
+            | Self::MergeFilterStreamNotMatching { .. }
+            | Self::MatchingFilesAlreadyConsumed { .. }
+            | Self::MissingFilterPredicates { .. }
+            | Self::RegisterCatalog { .. } => StatusCode::InternalServerError,
             // => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::Ok,
         }

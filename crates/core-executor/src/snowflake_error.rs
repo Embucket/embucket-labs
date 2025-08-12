@@ -17,6 +17,7 @@ use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
 
 #[derive(Debug, Eq, PartialEq)]
+#[repr(u16)]
 pub enum StatusCode {
     Ok = 200,
     BadRequest = 400,
@@ -24,15 +25,10 @@ pub enum StatusCode {
     ServiceUnavailable = 503,
 }
 
-impl StatusCode {
-    pub fn u16(self) -> u16 {
-        self as u16
-    }
-}
-
-impl Into<u16> for StatusCode {
-    fn into(self) -> u16 {
-        self as u16
+impl From<StatusCode> for u16 {
+    #[allow(clippy::as_conversions)]
+    fn from(val: StatusCode) -> Self {
+        val as Self
     }
 }
 
@@ -123,7 +119,7 @@ impl SnowflakeError {
             Error::RefreshCatalogList { source, .. }
             | Error::RegisterCatalog { source, .. }
             | Error::DropDatabase { source, .. }
-            | Error::CreateDatabase { source, .. } => catalog_error(&source, &[]),
+            | Error::CreateDatabase { source, .. } => catalog_error(source, &[]),
             _ => CustomSnafu { message }.build(),
         }
     }
@@ -132,13 +128,13 @@ impl SnowflakeError {
 fn format_message(subtext: &[&str], error: String) -> String {
     let subtext = subtext.iter()
         .filter(|s| !s.is_empty())
-        .cloned()
+        .copied()
         .collect::<Vec<_>>()
         .join(" ");
-    if !subtext.is_empty() {
-        format!("{}: {}", subtext, error)
-    } else {
+    if subtext.is_empty() {
         error
+    } else {
+        format!("{subtext}: {error}")
     }
 }
 
@@ -173,7 +169,7 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
     match error {
         MetastoreError::ObjectStore { error, .. } => object_store_error(error, &subtext),
         MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
-        _ => CustomSnafu { message: format_message(&subtext, message.clone()) }.build(),
+        _ => CustomSnafu { message: format_message(&subtext, message) }.build(),
     }
 }
 

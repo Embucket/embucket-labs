@@ -263,11 +263,8 @@ async fn template_s3_connections_test2(
 
     let test_suffix = test_suffix();
     let database_name: &'static str = Box::leak(
-        format!("{}", "database".repeat(2000))
+        "database".repeat(2000)
         .into_boxed_str());
-    // let schema_name: &'static str = Box::leak(
-    //     format!("{}", "schema".repeat(3000))
-    //     .into_boxed_str());    
     let executor = create_executor_with_early_volumes_creation(
         ObjectStoreType::S3(
             test_suffix.clone(),
@@ -299,8 +296,7 @@ async fn template_s3_connections_test2(
             err_callback,
         }]),
     ];
-    let res = exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await;
-    res
+    exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
 
 
@@ -315,7 +311,7 @@ async fn template_s3_connections_test3(
 
     let test_suffix = test_suffix();
     let schema_name: &'static str = Box::leak(
-        format!("{}", "schema".repeat(3000))
+        "schema".repeat(3000)
         .into_boxed_str());
     let executor = create_executor_with_early_volumes_creation(
         ObjectStoreType::S3(
@@ -348,8 +344,7 @@ async fn template_s3_connections_test3(
             err_callback,
         }]),
     ];
-    let res = exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await;
-    res
+    exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
 
 async fn template_s3_connections_test(

@@ -120,7 +120,7 @@ impl IntoResponse for Error {
             Self::Execution { source } => {
                 // use status code defined in core executor
                 http::StatusCode::from_u16(source.status_code_u16()).unwrap_or_else(|e| {
-                    tracing::error!("Invalid status code: {e}");
+                    tracing::error!("api_snowflake_rest::Error::into_response: Invalid status code: {e}");
                     http::StatusCode::INTERNAL_SERVER_ERROR
                 })
             },
