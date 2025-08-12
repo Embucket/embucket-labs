@@ -68,6 +68,7 @@ These technology choices differ structurally:
 - **Limited VARIANT support**: Embucket stores VARIANT as JSON-serialized `TEXT` because Parquet, Iceberg, and Arrow don't support VARIANT natively
 - **Numeric type differences**: Embucket uses different numeric types than Snowflake for type coercion
 - **Timestamp precision**: Fixed nanosecond precision differs from Snowflake's variable precision
+- **No collation/charset support**: All text data uses UTF-8 encoding. Locale-aware collations and custom character sets are not currently supported.
 
 ### Error handling
 
