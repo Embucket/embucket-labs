@@ -1,20 +1,82 @@
 # DBT Run Summary
-PASS: 1145
+PASS: 1229
 WARN: 0
-ERROR: 343
-SKIP: 208
+ERROR: 277
+SKIP: 190
 TOTAL: 1696
 
-# Total top 10 errors
-     26 Optimizer rule 'optimize_projections' failed
-     18 Error during planning: Inserting query must have the same schema with the table.
+
+# Errors grouped by high-level categories
+     53 Optimizer rule
+     50 Error during planning
+     32 SQL compilation error
+     17 Schema error
+     14 SQL error
+      9 External error
+      3 Type coercion error
+      3 Other error
+      3 Feature not implemented
+      3 Arrow error
+      2 Threaded Job error
+      2 Invalid datatype
+
+# Errors grouped by type (comprehensive analysis)
+     32 Optimizer rule: optimize_projections
+     28 Error during planning: schema mismatch
+     17 Schema error: field not found
+     15 SQL compilation error: column not found
+     15 Error during planning: internal error
+     11 SQL error: ParserError - literal string
+     11 Optimizer rule: common_sub_expression_eliminate
+     10 Optimizer rule: eliminate_cross_join
+      9 SQL compilation error: unsupported feature
+      8 External error: Arrow datatype
+      6 SQL compilation error: table not found
+      3 Type coercion error
+      3 SQL error: ParserError - CREATE statement
+      3 Feature not implemented
+      3 Error during planning: other
+      3 Error during planning: argument error
+      3 Arrow error: cast error
+      2 Threaded Job error
+      2 SQL compilation error: syntax error
+      2 Invalid datatype
+      2 Arrow error: incompatible type
+
+# Non-000200 errors analysis
+     43 Error during planning: function signature mismatch
+     10 Error during planning: window schema mismatch
+
+# Total top 10 errors (full messages)
+     32 Optimizer rule 'optimize_projections' failed
+     28 Error during planning: Inserting query must have the same schema with the table.
      11 Optimizer rule 'common_sub_expression_eliminate' failed
-     10 SQL compilation error: error line 7 at position 8
      10 Optimizer rule 'eliminate_cross_join' failed
-      4 External error: Feature Arrow datatype Null is not supported. is not supported.
+      5 External error: Feature Arrow datatype Null is not supported. is not supported.
       3 type_coercion
       3 This feature is not implemented: ANY in LIKE expression
       3 SQL error: ParserError("Expected: [EXTERNAL] TABLE or [MATERIALIZED] VIEW or FUNCTION after CREATE OR REPLACE, found: secure at Line: 2, Column: 19")
       3 SQL compilation error: column 'metric_value' not found
+      3 SQL compilation error: column 'DEFAULT' not found
 
-# Top function errors
+# Total top 10 errors (truncated to 50 chars)
+     32 Optimizer rule 'optimize_projections' failed
+     28 Error during planning: Inserting query must have t
+     11 Schema error: No field named "DBT_VALID_FROM". Val
+     11 SQL error: ParserError("Expected: literal string, 
+     11 Optimizer rule 'common_sub_expression_eliminate' f
+     10 Optimizer rule 'eliminate_cross_join' failed
+      7 Error during planning: Internal error: Function 'd
+      5 SQL compilation error: unsupported feature: Functi
+      5 External error: Feature Arrow datatype Null is not
+      3 type_coercion
+
+# Error categorization summary
+DBT total errors: 277
+000200: errors analyzed: 191
+Non-000200 errors analyzed: 54
+Other DBT errors (not analyzed): 32
+Categorized 000200 errors: 191
+Uncategorized 000200 errors: 0
+Categorized non-000200 errors: 54
+Uncategorized non-000200 errors: 0
