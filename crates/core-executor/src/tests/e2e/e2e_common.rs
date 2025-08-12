@@ -274,11 +274,16 @@ pub type TestPlan = Vec<ParallelTest>;
 
 pub struct ParallelTest(pub Vec<TestQuery>);
 
+pub trait TestQueryCallback {
+    fn err_callback(&self, err: &crate::Error);
+}
+
 pub struct TestQuery {
     pub sqls: Vec<&'static str>,
     pub executor: Arc<ExecutorWithObjectStore>,
     pub session_id: &'static str,
     pub expected_res: bool,
+    pub err_callback: Option<Box<dyn TestQueryCallback>>,
 }
 
 pub struct S3TableStore {
@@ -814,6 +819,7 @@ pub async fn exec_parallel_test_plan(
                 // let res = result.context(SnowflakeExecutionSnafu { query: sql.clone() });
                 let res_is_ok = res.is_ok();
                 let TestQuery {
+                    err_callback,
                     expected_res,
                     session_id,
                     ..
@@ -836,6 +842,10 @@ pub async fn exec_parallel_test_plan(
                         let snowflake_error = error.to_snowflake_error();
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
+                        // callback can fail on user's assertion
+                        if let Some(err_callback) = err_callback {
+                            err_callback.err_callback(&error);
+                        }                        
                     }
                 }
 

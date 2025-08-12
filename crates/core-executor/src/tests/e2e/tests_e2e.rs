@@ -6,16 +6,13 @@ use super::e2e_toxiproxy::{
 };
 use crate::service::ExecutionService;
 use crate::tests::e2e::e2e_common::{
-    AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, Error,
-    MINIO_OBJECT_STORE_PREFIX, ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1,
-    TEST_SESSION_ID2, TEST_SESSION_ID3, TestQuery, TestVolumeType, VolumeConfig,
-    copy_env_to_new_prefix, create_executor, create_executor_with_early_volumes_creation,
-    create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix,
+    copy_env_to_new_prefix, create_executor, create_executor_with_early_volumes_creation, create_s3tables_client, exec_parallel_test_plan, s3_tables_volume, test_suffix, Error, ObjectStoreType, ParallelTest, S3ObjectStore, TestQuery, TestQueryCallback, TestVolumeType, VolumeConfig, AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, MINIO_OBJECT_STORE_PREFIX, TEST_SESSION_ID1, TEST_SESSION_ID2, TEST_SESSION_ID3
 };
 use crate::tests::e2e::e2e_s3tables_aws::{
     delete_s3tables_bucket_table, delete_s3tables_bucket_table_policy,
     get_s3tables_tables_arns_map, set_s3table_bucket_table_policy, set_table_bucket_policy,
 };
+use crate::IntoStatusCode;
 use dotenv::dotenv;
 use snafu::ResultExt;
 use std::env;
@@ -97,6 +94,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         executor: file_exec1.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
@@ -117,6 +115,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
         executor: file_exec2.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, volumes).await?);
 
@@ -135,6 +134,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
             executor: file_exec1.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
         TestQuery {
             // After being fenced:
@@ -146,6 +146,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
             executor: file_exec1.clone(),
             session_id: TEST_SESSION_ID2,
             expected_res: false,
+            err_callback: None,
         },
         TestQuery {
             // After being fenced:
@@ -156,6 +157,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
             executor: file_exec1,
             session_id: TEST_SESSION_ID3,
             expected_res: true,
+            err_callback: None,
         },
         TestQuery {
             sqls: vec![
@@ -165,6 +167,7 @@ async fn template_test_two_executors_file_object_store_one_writer_fences_another
             executor: file_exec2,
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
     ])];
     assert!(exec_parallel_test_plan(test_plan, volumes).await?);
@@ -195,6 +198,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(prerequisite_test, volumes).await?);
 
@@ -212,6 +216,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
         TestQuery {
             sqls: vec![
@@ -228,6 +233,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
             executor,
             session_id: newly_created_session,
             expected_res: true,
+            err_callback: None,
         },
     ])];
 
@@ -246,11 +252,64 @@ fn toxiproxy_name_and_payload (some_id: usize, port: usize) -> (String, String) 
     (minio_proxy_name, toxic_minio_proxy_payload)
 }
 
+
+async fn template_s3_connections_test2(
+    metastore_env_prefix: String,
+    volume_env_prefix: String,
+    create_executor_expected_res: bool,
+    sql_expected_res: bool,
+    err_callback: Option<Box<dyn TestQueryCallback>>,
+) -> Result<bool, Error> {
+    let volume_env_prefix: &'static str = Box::leak(volume_env_prefix.into_boxed_str());
+
+    let test_suffix = test_suffix();
+    let database_name: &'static str = Box::leak(
+        format!("{}", "database".repeat(2000))
+        .into_boxed_str());
+    // let schema_name: &'static str = Box::leak(
+    //     format!("{}", "schema".repeat(3000))
+    //     .into_boxed_str());    
+    let executor = create_executor_with_early_volumes_creation(
+        ObjectStoreType::S3(
+            test_suffix.clone(),
+            S3ObjectStore::from_env(&metastore_env_prefix)?,
+        ),
+        "s3 executor",
+        vec![VolumeConfig {
+            prefix: Some(&volume_env_prefix),
+            volume_type: TestVolumeType::S3,
+            volume: "s3_volume_with_toxic",
+            database: database_name,
+            schema: "schema", // schema_name,
+        }],
+    )
+    .await;
+    assert_eq!(create_executor_expected_res, executor.is_ok());
+
+    let executor = Arc::new(executor?);
+
+    let test_plan = vec![
+        ParallelTest(vec![TestQuery {
+            sqls: vec![
+                "CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__",
+                // "CREATE SCHEMA __DATABASE__.__SCHEMA__",
+            ],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: sql_expected_res,
+            err_callback,
+        }]),
+    ];
+    let res = exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await;
+    res
+}
+
 async fn template_s3_connections_test(
     metastore_env_prefix: String,
     volume_env_prefix: String,
     create_executor_expected_res: bool,
     sql_expected_res: bool,
+    err_callback: Option<Box<dyn TestQueryCallback>>,
 ) -> Result<bool, Error> {
     let volume_env_prefix: &'static str = Box::leak(volume_env_prefix.into_boxed_str());
 
@@ -264,7 +323,7 @@ async fn template_s3_connections_test(
         ),
         "s3 executor",
         vec![VolumeConfig {
-            prefix: Some(&volume_env_prefix),
+            prefix: Some(volume_env_prefix),
             volume_type: TestVolumeType::S3,
             volume: "s3_volume_with_toxic",
             database: database_name,
@@ -291,10 +350,10 @@ async fn template_s3_connections_test(
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: sql_expected_res,
+            err_callback,
         }]),
     ];
-    let res = exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await;
-    res
+    exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await
 }
 
 #[tokio::test]
@@ -363,6 +422,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
         executor: exec.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
@@ -406,6 +466,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
             executor: exec.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         }]),
         ParallelTest(vec![
             TestQuery {
@@ -417,6 +478,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
                 executor: exec.clone(),
                 session_id: TEST_SESSION_ID1,
                 expected_res: false,
+                err_callback: None,
             },
             TestQuery {
                 sqls: vec![
@@ -426,6 +488,7 @@ async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
                 executor: exec,
                 session_id: TEST_SESSION_ID2,
                 expected_res: false,
+                err_callback: None,
             },
         ]),
     ];
@@ -492,6 +555,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
         executor: exec.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
@@ -523,6 +587,7 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
         executor: exec,
         session_id: TEST_SESSION_ID2,
         expected_res: false,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
@@ -603,6 +668,7 @@ async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() 
         executor: exec.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: false,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3Tables]).await?);
 
@@ -670,6 +736,7 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
             executor: file_exec1,
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
         TestQuery {
             sqls: vec![
@@ -687,6 +754,7 @@ async fn test_e2e_file_store_two_executors_unrelated_inserts_ok() -> Result<(), 
             executor: file_exec2,
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
     ])];
 
@@ -737,6 +805,7 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
             executor: s3_exec.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         }]),
         ParallelTest(vec![
             TestQuery {
@@ -751,12 +820,14 @@ async fn test_e2e_s3_store_s3volume_single_executor_two_sessions_one_session_ins
                 executor: s3_exec.clone(),
                 session_id: TEST_SESSION_ID2,
                 expected_res: true,
+                err_callback: None,
             },
             TestQuery {
                 sqls: vec!["SELECT * FROM __DATABASE__.__SCHEMA__.hello"],
                 executor: s3_exec,
                 session_id: TEST_SESSION_ID2,
                 expected_res: true,
+                err_callback: None,
             },
         ]),
     ];
@@ -796,6 +867,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
@@ -810,6 +882,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: false,
+        err_callback: None,
     }])];
 
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
@@ -882,6 +955,7 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: true,
+            err_callback: None,
         },
         TestQuery {
             sqls: vec![
@@ -891,6 +965,7 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
             executor: executor.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: false,
+            err_callback: None,
         },
     ])];
 
@@ -930,6 +1005,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_not_permitt
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
@@ -941,6 +1017,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_not_permitt
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: false,
+        err_callback: None,
     }])];
 
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
@@ -978,6 +1055,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
         executor: executor.clone(),
         session_id: TEST_SESSION_ID1,
         expected_res: true,
+        err_callback: None,
     }])];
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
@@ -998,6 +1076,7 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_select_fail
         executor,
         session_id: TEST_SESSION_ID1,
         expected_res: false,
+        err_callback: None,
     }])];
 
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
@@ -1050,6 +1129,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
                 executor: executor.clone(),
                 session_id: TEST_SESSION_ID1,
                 expected_res: true,
+                err_callback: None,
             }]),
             ParallelTest(vec![
                 TestQuery {
@@ -1059,6 +1139,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
                     executor: executor.clone(),
                     session_id: TEST_SESSION_ID1,
                     expected_res: true,
+                    err_callback: None,
                 },
                 TestQuery {
                     sqls: vec![
@@ -1073,6 +1154,7 @@ async fn test_e2e_all_stores_single_executor_two_sessions_different_tables_inser
                     executor,
                     session_id: TEST_SESSION_ID2, // reuse template for either two sessions or two executors
                     expected_res: true,
+                    err_callback: None,
                 },
             ]),
         ];
@@ -1155,6 +1237,7 @@ async fn test_e2e_same_file_object_store_two_executors_first_reads_second_writes
         executor: Arc::new(file_exec1),
         session_id: TEST_SESSION_ID1,
         expected_res: false,
+        err_callback: None,
     }])];
 
     assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
@@ -1257,6 +1340,7 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
             executor: s3_exec.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: false,
+            err_callback: None,
         }]),
         ParallelTest(vec![TestQuery {
             sqls: vec![
@@ -1270,6 +1354,7 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
             executor: s3_exec.clone(),
             session_id: TEST_SESSION_ID1,
             expected_res: false,
+            err_callback: None,
         }]),
     ];
 
@@ -1278,6 +1363,68 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     Ok(())
 }
 
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_fails2() -> Result<(), Error> {
+    struct ErrCallback;
+    impl TestQueryCallback for ErrCallback {
+        fn err_callback(&self, err: &crate::Error) {
+            assert_eq!(err.status_code_u16(), 503);
+            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Db Object store: Generic S3 error:"));
+        }
+    }
+
+    let some_id = 2;
+    let port = 9996;
+    // this is fragile method, but following is reasnable too:
+    // 1. when it triggers limit on adding query to history - error is only will send to logs and won't affect result
+    // 2. when we create huge table which SQL already bigger than connection limit set with toxic
+    // But in overal conection won't break, for unknown reason. Though sometimes it does.
+    let bytes_limit = 10_000;
+    let expected_res = false;
+
+    eprintln!(
+        "This spawns a test server with id={some_id} and emulates running queries in environment with unstable network. \
+        It injects communication failure limit={bytes_limit} for executor writing/reading s3 on http://localhost:{port} \
+        remote metadata read/write should fail as of ObjectStore error."
+    );
+    dotenv().ok();
+
+    // prepare envs for object store
+    let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
+    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
+    unsafe {
+        std::env::set_var(
+            format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
+            format!("http://localhost:{port}"),
+        );
+    }
+
+    let (minio_proxy_name, toxic_minio_proxy_payload) = toxiproxy_name_and_payload(some_id, port);
+    let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
+    let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
+    let create_proxy_res = create_toxiproxy(&toxic_minio_proxy_payload).await?;
+    eprintln!("create_proxy_res: {create_proxy_res:?}");
+    let create_toxic_res = create_toxic_conn_limit(&minio_proxy_name, bytes_limit).await?;
+    eprintln!("create_toxic_res: {create_toxic_res:?}");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // inject error when creating schema - as it is relatively small data, it should overpass creating executor
+    // but fail in creating schema
+    let res = template_s3_connections_test2(
+        minio_object_store_toxic_prefix, // metastore conn is poisoned
+        E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
+        true, expected_res, Some(Box::new(ErrCallback)))
+        .await;
+
+    let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
+    let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
+
+    assert!(res?);
+
+    Ok(())
+}
 
 #[tokio::test]
 #[ignore = "e2e test"]
@@ -1318,7 +1465,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
     let res = template_s3_connections_test(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        expected_res, expected_res)
+        expected_res, expected_res, None)
         .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
@@ -1340,6 +1487,14 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metastore_fails() -> Result<(), Error> {
+    struct ErrCallback;
+    impl TestQueryCallback for ErrCallback {
+        fn err_callback(&self, err: &crate::Error) {
+            assert_eq!(err.status_code_u16(), 503);
+            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Db Object store: Generic S3 error:"));
+        }
+    }
+
     let some_id = 2;
     let port = 9996;
     // this is fragile method, but following is reasnable too:
@@ -1380,14 +1535,14 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     let res = template_s3_connections_test(
         minio_object_store_toxic_prefix, // metastore conn is poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, expected_res)
+        true, expected_res, Some(Box::new(ErrCallback)))
         .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
 
     assert!(res?);
-  
+
     Ok(())
 }
 
@@ -1395,7 +1550,16 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_fails() -> Result<(), Error> {
-    const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";    
+    const E2E_S3VOLUME_TOXIC_PREFIX: &str = "E2E_S3VOLUME_TOXIC_";
+
+    struct ErrCallback;
+    impl TestQueryCallback for ErrCallback {
+        fn err_callback(&self, err: &crate::Error) {
+            assert_eq!(err.status_code_u16(), 503);
+            assert!(err.to_snowflake_error().to_string().starts_with("Iceberg Metastore Object store: Generic S3 error:"));
+        }
+    }
+
     let some_id = 3;
     let port = 9997;
     let bytes_limit = 100;
@@ -1428,16 +1592,18 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     let create_toxic_res = create_toxic_conn_limit(&minio_proxy_name, bytes_limit).await?;
     eprintln!("create_toxic_res: {create_toxic_res:?}");
     tokio::time::sleep(Duration::from_secs(1)).await;
-    
+
     // inject error on data insert into s3 volume
     let res = template_s3_connections_test(
         MINIO_OBJECT_STORE_PREFIX.to_string(), // metastore conn is not poisoned
         E2E_S3VOLUME_TOXIC_PREFIX.to_string(), // s3 volume conn is poisoned
-        create_executor_res, sql_res)
+        create_executor_res, sql_res, Some(Box::new(ErrCallback)))
         .await;
 
     let _ = delete_toxic_conn_limit(&minio_proxy_name).await; // ignore deletion errors
     let _ = delete_toxiproxy(&minio_proxy_name).await; // ignore deletion errors
+
+    assert!(res?);
 
     Ok(())
 }
@@ -1456,7 +1622,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_false_positive_c
     template_s3_connections_test(
         MINIO_OBJECT_STORE_PREFIX.to_string(), // metastore conn is not poisoned
         E2E_S3VOLUME_PREFIX.to_string(), // s3 volume conn is not poisoned
-        true, true)
+        true, true, None)
         .await?;
     Ok(())
 }

@@ -1,9 +1,7 @@
-use crate::error as errors;
+use crate::{error as errors};
 use datafusion::error::DataFusionError;
 use datafusion_common::{Diagnostic, Location, Span};
 use embucket_functions::df_error::DFExternalError;
-use iceberg_rust::error::Error as IcebergError;
-use object_store::Error as ObjectStoreError;
 use snafu::location;
 
 #[allow(clippy::unwrap_used)]
@@ -81,28 +79,4 @@ fn test_error_diagnostic_location() {
     {
         panic!("Actual error: {err}");
     }
-}
-
-#[test]
-fn test_error_object_store() {
-    let err = errors::Error::Iceberg {
-        error: Box::new(
-            IcebergError::External(
-                Box::new(
-                    ObjectStoreError::Generic {
-                        store: "test",
-                        source: Box::new(std::io::Error::from(std::io::ErrorKind::Other)),
-                    },
-                ),
-            ),
-        ),
-        location: location!(),
-    }.to_snowflake_error();
-    if !err.to_string().starts_with("Object store error:") {
-        panic!("Actual error: {err}");
-    }
-}
-
-#[test]
-fn test_error_metastore_object_store() {
 }

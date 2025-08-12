@@ -1,6 +1,6 @@
 use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
-use core_executor::SnowflakeError;
+use core_executor::IntoStatusCode;
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorExt;
 use error_stack_trace;
@@ -117,22 +117,12 @@ impl IntoResponse for Error {
         tracing::Span::current().record("error_stack_trace", self.output_msg());
 
         let status_code = match &self {
-            Self::Execution { source } => match source {
-                core_executor::Error::Arrow { .. }
-                | core_executor::Error::SerdeParse { .. }
-                | core_executor::Error::CatalogListDowncast { .. }
-                | core_executor::Error::CatalogDownCast { .. }
-                | core_executor::Error::DataFusionLogicalPlanMergeTarget { .. }
-                | core_executor::Error::DataFusionLogicalPlanMergeSource { .. }
-                | core_executor::Error::DataFusionLogicalPlanMergeJoin { .. }
-                | core_executor::Error::LogicalExtensionChildCount { .. }
-                | core_executor::Error::MergeFilterStreamNotMatching { .. }
-                | core_executor::Error::MatchingFilesAlreadyConsumed { .. }
-                | core_executor::Error::MissingFilterPredicates { .. }
-                | core_executor::Error::RegisterCatalog { .. } => {
+            Self::Execution { source } => {
+                // use status code defined in core executor
+                http::StatusCode::from_u16(source.status_code_u16()).unwrap_or_else(|e| {
+                    tracing::error!("Invalid status code: {e}");
                     http::StatusCode::INTERNAL_SERVER_ERROR
-                }
-                _ => http::StatusCode::OK,
+                })
             },
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
@@ -148,10 +138,11 @@ impl IntoResponse for Error {
             | Self::NotImplemented { .. } => http::StatusCode::OK,
         };
 
-        let (mut display_error, debug_error) = self.display_debug_error_messages();
-        if status_code == http::StatusCode::INTERNAL_SERVER_ERROR {
-            display_error = "Internal server error".to_string();
-        }
+        let (display_error, debug_error) = self.display_debug_error_messages();
+        // Give more context to user, not just "Internal server error"
+        // if status_code == http::StatusCode::INTERNAL_SERVER_ERROR {
+        //     display_error = "Internal server error".to_string();
+        // }
 
         // Record the result as part of the current span.
         tracing::Span::current()
@@ -175,7 +166,7 @@ impl Error {
     pub fn display_debug_error_messages(self) -> (String, String) {
         // acquire error str as later it will be moved
         if let Self::Execution { source, .. } = self {
-            SnowflakeError::from_executor_error(&source).display_debug_error_messages()
+            source.to_snowflake_error().display_debug_error_messages()
         } else {
             (self.to_string(), format!("{self:?}"))
         }

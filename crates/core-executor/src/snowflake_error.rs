@@ -15,6 +15,26 @@ use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum StatusCode {
+    Ok = 200,
+    BadRequest = 400,
+    InternalServerError = 500,
+    ServiceUnavailable = 503,
+}
+
+impl StatusCode {
+    pub fn u16(self) -> u16 {
+        self as u16
+    }
+}
+
+impl Into<u16> for StatusCode {
+    fn into(self) -> u16 {
+        self as u16
+    }
+}
+
 #[derive(Snafu, Debug)]
 pub enum SnowflakeError {
     #[snafu(display("SQL compilation error: {error}"))]
@@ -96,39 +116,71 @@ impl SnowflakeError {
             | Error::DataFusionLogicalPlanMergeTarget { error, .. }
             | Error::DataFusionLogicalPlanMergeSource { error, .. }
             | Error::DataFusionLogicalPlanMergeJoin { error, .. }
-            | Error::DataFusion { error, .. } => datafusion_error(error),
-            Error::Metastore { source, .. } => metastore_error(source),
-            Error::Iceberg { error, .. } => iceberg_error(error),
+            | Error::DataFusion { error, .. } => datafusion_error(error, &[]),
+            Error::Metastore { source, .. } => metastore_error(source, &[]),
+            Error::Iceberg { error, .. } => iceberg_error(error, &[]),
             _ => CustomSnafu { message }.build(),
         }
     }
 }
 
-fn metastore_error(error: &MetastoreError) -> SnowflakeError {
+fn format_message(subtext: &[&str], error: String) -> String {
+    let subtext = subtext.iter()
+        .filter(|s| !s.is_empty())
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !subtext.is_empty() {
+        format!("{}: {}", subtext, error)
+    } else {
+        error
+    }
+}
+
+fn core_utils_error(error: &core_utils::Error, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["Db"]].concat();
+    match error {
+        DbError::Database { error, .. } 
+        | DbError::KeyGet { error, .. }
+        | DbError::KeyDelete { error, .. }
+        | DbError::KeyPut { error, .. }
+        | DbError::ScanFailed { error, .. } => match error {
+            SlateDBError::ObjectStoreError(obj_store_error) => {
+                object_store_error(obj_store_error, &subtext)
+            },
+            _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+        },
+        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
+    }
+}
+
+fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["Metastore"]].concat();
     let message = error.to_string();
     match error {
-        MetastoreError::ObjectStore { error, .. } => object_store_error(error),
-        _ => CustomSnafu { message }.build(),
+        MetastoreError::ObjectStore { error, .. } => object_store_error(error, &subtext),
+        MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
+        _ => CustomSnafu { message: format_message(&subtext, message.clone()) }.build(),
     }
 }
 
-fn object_store_error(error: &object_store::Error) -> SnowflakeError {
-    CustomSnafu {
-        message: format!("Object store error: {}", error.to_string()),
-    }
-    .build()
+fn object_store_error(error: &object_store::Error, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["Object store"]].concat();
+    CustomSnafu { message: format_message(&subtext, error.to_string()) }.build()
 }
 
-fn iceberg_error(error: &IcebergError) -> SnowflakeError {
+fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["Iceberg"]].concat();
     match error {
-        IcebergError::Iceberg(_) => CustomSnafu { message: error.to_string() }.build(),
-        IcebergError::ObjectStore(error) => object_store_error(error),
+        IcebergError::ObjectStore(error) => object_store_error(error, &subtext),
         IcebergError::External(err) => {
             if let Some(e) = err.downcast_ref::<MetastoreError>() {
-                metastore_error(e)
-            } else if let Some(e) = err.downcast_ref::<object_store::Error>() {
-                object_store_error(e)
-            } else {
+                metastore_error(e, &subtext)
+            } 
+            else if let Some(e) = err.downcast_ref::<object_store::Error>() {
+                object_store_error(e, &subtext)
+            } 
+            else {
                 // Accidently CustomSnafu can't see internal field, so create error manually!
                 SnowflakeError::Custom {
                     message: err.to_string(),
@@ -139,12 +191,13 @@ fn iceberg_error(error: &IcebergError) -> SnowflakeError {
             }
         }
         IcebergError::NotFound(message) => CustomSnafu { message }.build(),
-        _ => CustomSnafu { message: error.to_string() }.build(),
+        _ => CustomSnafu { message: format_message(&subtext, error.to_string()) }.build(),
     }
 }
 
 #[allow(clippy::too_many_lines)]
-fn datafusion_error(df_error: &DataFusionError) -> SnowflakeError {
+fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeError {
+    let subtext = [subtext, &["DataFusion"]].concat();
     let message = df_error.to_string();
     match df_error {
         DataFusionError::ArrowError(arrow_error, ..) => {
@@ -217,27 +270,15 @@ fn datafusion_error(df_error: &DataFusionError) -> SnowflakeError {
         DataFusionError::Internal(_internal_error) => CustomSnafu { message }.build(),
         DataFusionError::External(err) => {
             if let Some(e) = err.downcast_ref::<DataFusionError>() {
-                datafusion_error(e)
+                datafusion_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<Error>() {
                 CustomSnafu { message: e.to_string() }.build()
             } else if let Some(e) = err.downcast_ref::<object_store::Error>() {
                 CustomSnafu { message: e.to_string() }.build()
             } else if let Some(e) = err.downcast_ref::<iceberg_rust::error::Error>() {
-                iceberg_error(e)
+                iceberg_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<DbError>() {
-                    match e {
-                        DbError::Database { error, .. } 
-                        | DbError::KeyGet { error, .. }
-                        | DbError::KeyDelete { error, .. }
-                        | DbError::KeyPut { error, .. }
-                        | DbError::ScanFailed { error, .. } => match error {
-                            // SlateDBError::ObjectStoreError(obj_store_error) => {
-                            //     object_store_error(obj_store_error)
-                            // },
-                            _ => CustomSnafu { message }.build(),
-                        },
-                        _ => CustomSnafu { message }.build(),
-                    }
+                core_utils_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<EmubucketFunctionsExternalDFError>() {
                 let message = e.to_string();
                 match e {

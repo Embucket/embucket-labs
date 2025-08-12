@@ -41,11 +41,13 @@ pub async fn create_toxic_conn_limit(
     proxy_name: &str,
     bytes_count: usize,
 ) -> Result<reqwest::Response, Error> {
+    // use upstream as downstream limit doesn't work properly with minio
+    // probably as of retries object store is doing
     let payload = format!(
         r#"{{
         "name": "close_connection_on_limit",
         "type": "limit_data",
-        "stream": "downstream",
+        "stream": "upstream",
         "attributes": {{
             "bytes": {bytes_count}
         }}
