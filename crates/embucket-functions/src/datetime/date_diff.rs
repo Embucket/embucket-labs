@@ -95,9 +95,7 @@ impl DateDiffFunc {
     pub fn week_start(&self) -> i64 {
         self.session_params
             .get_property("week_start")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<i64>()
-            .unwrap_or(0)
+            .map_or_else(|| 0, |v| v.parse::<i64>().unwrap_or(0))
     }
 
     fn date_diff_func(

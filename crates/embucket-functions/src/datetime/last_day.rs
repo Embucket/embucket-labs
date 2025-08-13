@@ -1,3 +1,4 @@
+use crate::datetime::errors::CantCastToSnafu;
 use crate::session_params::SessionParams;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::Date64Builder;
@@ -10,6 +11,7 @@ use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::types::logical_string;
 use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
+use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -65,21 +67,17 @@ impl LastDayFunc {
     pub fn week_start(&self) -> u32 {
         self.session_params
             .get_property("week_start")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<u32>()
-            .unwrap_or(0)
+            .map_or_else(|| 0, |v| v.parse::<u32>().unwrap_or(0))
     }
 
-    #[allow(
-        clippy::unwrap_used,
-        clippy::as_conversions,
-        clippy::cast_possible_truncation
-    )]
+    #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
     fn last_day(&self, date: &NaiveDateTime, date_part: &str) -> DFResult<NaiveDateTime> {
         let date = date.date();
 
         let new_date = match date_part.to_lowercase().as_str() {
-            "day" => date.and_hms_opt(0, 0, 0).unwrap(),
+            "day" => date.and_hms_opt(0, 0, 0).context(CantCastToSnafu {
+                v: "native_datetime",
+            })?,
             "week" => {
                 let week_start = self.week_start();
                 // 0 means legacy Snowflake behavior (ISO-like semantics)
@@ -93,7 +91,11 @@ impl LastDayFunc {
 
                 let days_until_week_end = (last_day_num + 7 - weekday_num) % 7;
                 let last_day_of_week = date + Duration::days(days_until_week_end.into());
-                last_day_of_week.and_hms_opt(0, 0, 0).unwrap()
+                last_day_of_week
+                    .and_hms_opt(0, 0, 0)
+                    .context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?
             }
             "month" => {
                 let year = date.year();
@@ -106,18 +108,28 @@ impl LastDayFunc {
                 };
 
                 let last_day = NaiveDate::from_ymd_opt(next_year, next_month, 1)
-                    .unwrap()
+                    .context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?
                     .pred_opt()
-                    .unwrap();
+                    .context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?;
 
-                last_day.and_hms_opt(0, 0, 0).unwrap()
+                last_day.and_hms_opt(0, 0, 0).context(CantCastToSnafu {
+                    v: "native_datetime",
+                })?
             }
             "year" => {
                 let year = date.year();
                 NaiveDate::from_ymd_opt(year, 12, 31)
-                    .unwrap()
+                    .context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?
                     .and_hms_opt(0, 0, 0)
-                    .unwrap()
+                    .context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?
             }
             _ => return exec_err!("Unsupported date part: {}", date_part),
         };

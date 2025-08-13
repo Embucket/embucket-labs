@@ -1,3 +1,4 @@
+use crate::datetime::errors::CantCastToSnafu;
 use crate::session_params::SessionParams;
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc, Weekday};
 use datafusion::arrow::array::{Array, Int64Builder};
@@ -10,6 +11,7 @@ use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, Volatility};
+use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
@@ -84,18 +86,14 @@ impl DatePartExtractFunc {
     pub fn week_start(&self) -> usize {
         self.session_params
             .get_property("week_start")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<usize>()
-            .unwrap_or(0)
+            .map_or_else(|| 0, |v| v.parse::<usize>().unwrap_or(0))
     }
 
     #[must_use]
     pub fn week_of_year_policy(&self) -> usize {
         self.session_params
             .get_property("week_of_year_policy")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<usize>()
-            .unwrap_or(0)
+            .map_or_else(|| 0, |v| v.parse::<usize>().unwrap_or(0))
     }
 }
 
@@ -134,7 +132,6 @@ impl ScalarUDFImpl for DatePartExtractFunc {
     }
 
     #[allow(
-        clippy::unwrap_used,
         clippy::as_conversions,
         clippy::cast_possible_truncation,
         clippy::cast_possible_wrap,
@@ -174,7 +171,7 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                                 date,
                                 self.week_start(),
                                 self.week_of_year_policy(),
-                            )
+                            )?
                         }
                         Interval::Day | Interval::DayOfMonth => date.day() as i32,
                         Interval::DayOfWeek => {
@@ -192,7 +189,7 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                                 date,
                                 self.week_start(),
                                 self.week_of_year_policy(),
-                            )
+                            )?
                         }
                         Interval::WeekOfYear => {
                             // Use session settings for week of year calculation
@@ -200,7 +197,7 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                                 date,
                                 self.week_start(),
                                 self.week_of_year_policy(),
-                            )
+                            )?
                         }
                         Interval::WeekIso => {
                             // Always use ISO week regardless of session settings
@@ -287,12 +284,15 @@ fn calculate_day_of_week(date: NaiveDate, week_start: usize) -> i32 {
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
-    clippy::unwrap_used,
     clippy::as_conversions,
     clippy::cast_lossless
 )]
-fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
-    match week_of_year_policy {
+fn calculate_week_of_year(
+    date: NaiveDate,
+    week_start: usize,
+    week_of_year_policy: usize,
+) -> DFResult<i32> {
+    let res = match week_of_year_policy {
         0 => {
             // ISO semantics: week belongs to a year if at least 4 days are in that year
             let start_weekday = week_start_to_weekday(week_start);
@@ -302,12 +302,16 @@ fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_polic
                 date.iso_week().week() as i32
             } else {
                 // Calculate ISO-like week for other week starts
-                let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap();
+                let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).context(CantCastToSnafu {
+                    v: "native_datetime",
+                })?;
 
                 // Find the first occurrence of the week start day in the year
                 let mut first_week_start = jan1;
                 while first_week_start.weekday() != start_weekday {
-                    first_week_start = first_week_start.succ_opt().unwrap();
+                    first_week_start = first_week_start.succ_opt().context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?;
                 }
 
                 // If January 1st is more than 3 days before the first week start,
@@ -319,8 +323,13 @@ fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_polic
 
                 if date < first_week_start {
                     // This date is in the last week of the previous year
-                    let prev_dec31 = NaiveDate::from_ymd_opt(date.year() - 1, 12, 31).unwrap();
-                    calculate_week_of_year(prev_dec31, week_start, week_of_year_policy)
+                    let prev_dec31 = NaiveDate::from_ymd_opt(date.year() - 1, 12, 31).context(
+                        CantCastToSnafu {
+                            v: "native_datetime",
+                        },
+                    )?;
+
+                    calculate_week_of_year(prev_dec31, week_start, week_of_year_policy)?
                 } else {
                     let weeks_since_start = (date - first_week_start).num_weeks();
                     weeks_since_start as i32 + 1
@@ -329,7 +338,9 @@ fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_polic
         }
         1 => {
             // January 1 is in first week, December 31 is in last week
-            let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap();
+            let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).context(CantCastToSnafu {
+                v: "native_datetime",
+            })?;
             let start_weekday = week_start_to_weekday(week_start);
 
             // Find the first occurrence of the week start day on or after January 1
@@ -337,7 +348,9 @@ fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_polic
             while first_week_start.weekday() != start_weekday
                 && first_week_start > jan1 - chrono::Duration::days(7)
             {
-                first_week_start = first_week_start.pred_opt().unwrap();
+                first_week_start = first_week_start.pred_opt().context(CantCastToSnafu {
+                    v: "native_datetime",
+                })?;
             }
 
             // If January 1 is not on the week start day, find the previous week start
@@ -358,13 +371,17 @@ fn calculate_week_of_year(date: NaiveDate, week_start: usize, week_of_year_polic
             // Default to ISO week
             date.iso_week().week() as i32
         }
-    }
+    };
+    Ok(res)
 }
 
 /// Calculate year of week based on `week_of_year_policy`
-#[allow(clippy::unwrap_used)]
-fn calculate_year_of_week(date: NaiveDate, week_start: usize, week_of_year_policy: usize) -> i32 {
-    match week_of_year_policy {
+fn calculate_year_of_week(
+    date: NaiveDate,
+    week_start: usize,
+    week_of_year_policy: usize,
+) -> DFResult<i32> {
+    let res = match week_of_year_policy {
         0 => {
             // ISO semantics: return the year that contains the majority of the week
             let start_weekday = week_start_to_weekday(week_start);
@@ -374,12 +391,16 @@ fn calculate_year_of_week(date: NaiveDate, week_start: usize, week_of_year_polic
                 date.iso_week().year()
             } else {
                 // Calculate ISO-like year for other week starts
-                let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap();
+                let jan1 = NaiveDate::from_ymd_opt(date.year(), 1, 1).context(CantCastToSnafu {
+                    v: "native_datetime",
+                })?;
 
                 // Find the first occurrence of the week start day in the year
                 let mut first_week_start = jan1;
                 while first_week_start.weekday() != start_weekday {
-                    first_week_start = first_week_start.succ_opt().unwrap();
+                    first_week_start = first_week_start.succ_opt().context(CantCastToSnafu {
+                        v: "native_datetime",
+                    })?;
                 }
 
                 // If January 1st is more than 3 days before the first week start,
@@ -405,7 +426,8 @@ fn calculate_year_of_week(date: NaiveDate, week_start: usize, week_of_year_polic
             // Default to ISO year
             date.iso_week().year()
         }
-    }
+    };
+    Ok(res)
 }
 
 #[cfg(test)]

@@ -68,11 +68,7 @@ impl ScalarUDFImpl for MonthNameFunc {
         Ok(DataType::Utf8)
     }
 
-    #[allow(
-        clippy::unwrap_used,
-        clippy::as_conversions,
-        clippy::cast_possible_truncation
-    )]
+    #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
         let arr = match args[0].clone() {
