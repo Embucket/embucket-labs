@@ -2,6 +2,7 @@ use crate::datetime_errors::Result;
 use crate::datetime_errors::{
     CantGetNanosecondsSnafu, CantParseTimezoneSnafu, InvalidDatetimeSnafu, InvalidTimestampSnafu,
 };
+use crate::session_params::SessionParams;
 use arrow_schema::DataType::{Timestamp, Utf8};
 use arrow_schema::{DataType, TimeUnit};
 use chrono::{DateTime, TimeZone, Utc};
@@ -49,18 +50,18 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
-    tz: String,
+    session_params: Arc<SessionParams>,
 }
 
 impl Default for ConvertTimezoneFunc {
     fn default() -> Self {
-        Self::new("America/Los_Angeles".to_string())
+        Self::new(Arc::new(SessionParams::default()))
     }
 }
 
 impl ConvertTimezoneFunc {
     #[must_use]
-    pub fn new(tz: String) -> Self {
+    pub fn new(session_params: Arc<SessionParams>) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
@@ -87,8 +88,15 @@ impl ConvertTimezoneFunc {
                 ],
                 Volatility::Immutable,
             ),
-            tz,
+            session_params,
         }
+    }
+
+    #[must_use]
+    pub fn timezone(&self) -> String {
+        self.session_params
+            .get_property("timezone")
+            .unwrap_or_else(|| "America/Los_Angeles".to_string())
     }
 }
 
@@ -195,7 +203,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
 
                     Ok(ColumnarValue::Array(arr))
                 }
-                Timestamp(_, None) => build_array(&arr, &self.tz, &target_tz),
+                Timestamp(_, None) => build_array(&arr, &self.timezone(), &target_tz),
                 _ => internal_err!("Invalid source_timestamp type"),
             },
             _ => internal_err!("Invalid arguments"),
