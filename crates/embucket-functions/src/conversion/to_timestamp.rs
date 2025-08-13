@@ -61,7 +61,7 @@ impl Default for ToTimestampFunc {
     fn default() -> Self {
         Self::new(
             false,
-            "to_timstamp".to_string(),
+            "to_timestamp".to_string(),
             Arc::new(SessionParams::default()),
         )
     }

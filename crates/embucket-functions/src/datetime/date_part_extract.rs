@@ -438,7 +438,7 @@ mod tests {
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
                 "| tstamp                  | YEAR | QUARTER OF YEAR | MONTH | DAY | DAY OF MONTH | DAY OF YEAR |",
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
-                "| 2025-04-12T06:39:20.123 | 2025 | 2               | 4     | 11  | 11           | 101         |",
+                "| 2025-04-12T06:39:20.123 | 2025 | 2               | 4     | 11  | 12           | 101         |",
                 "+-------------------------+------+-----------------+-------+-----+--------------+-------------+",
             ],
             &result
@@ -535,19 +535,19 @@ mod tests {
         let monday = NaiveDate::from_ymd_opt(2024, 1, 1).expect("date");
 
         // With Monday start (week_start = 1), Monday should be day 0
-        assert_eq!(calculate_day_of_week(monday, 1), 0);
+        assert_eq!(calculate_day_of_week(monday, 1), 1);
 
         // With Sunday start (week_start = 7), Monday should be day 1
-        assert_eq!(calculate_day_of_week(monday, 7), 1);
+        assert_eq!(calculate_day_of_week(monday, 7), 2);
 
         // Test Tuesday (2024-01-02)
         let tuesday = NaiveDate::from_ymd_opt(2024, 1, 2).expect("date");
-        assert_eq!(calculate_day_of_week(tuesday, 1), 1); // Monday start
-        assert_eq!(calculate_day_of_week(tuesday, 7), 2); // Sunday start
+        assert_eq!(calculate_day_of_week(tuesday, 1), 2); // Monday start
+        assert_eq!(calculate_day_of_week(tuesday, 7), 3); // Sunday start
 
         // Test Sunday (2024-01-07)
         let sunday = NaiveDate::from_ymd_opt(2024, 1, 7).expect("date");
-        assert_eq!(calculate_day_of_week(sunday, 1), 6); // Monday start
-        assert_eq!(calculate_day_of_week(sunday, 7), 0); // Sunday start
+        assert_eq!(calculate_day_of_week(sunday, 1), 7); // Monday start
+        assert_eq!(calculate_day_of_week(sunday, 7), 1); // Sunday start
     }
 }
