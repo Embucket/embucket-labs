@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::response::IntoResponse;
+use error_stack::ErrorChainExt;
 use error_stack::ErrorExt;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -97,13 +98,20 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api-ui::Error::into_response",
         level = "info",
-        fields(display_error, debug_error, error_stack_trace, status_code),
+        fields(
+            display_error,
+            debug_error,
+            error_stack_trace,
+            error_chain,
+            status_code
+        ),
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
         // Record the result as part of the current span.
         tracing::Span::current()
             .record("error_stack_trace", self.output_msg())
+            .record("error_chain", self.error_chain())
             .record("status_code", self.status_code().as_u16());
 
         let code = self.status_code();

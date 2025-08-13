@@ -2,6 +2,7 @@ use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
 use core_executor::status_code::{IntoStatusCode, StatusCode};
 use datafusion::arrow::error::ArrowError;
+use error_stack::ErrorChainExt;
 use error_stack::ErrorExt;
 use error_stack_trace;
 use snafu::Location;
@@ -108,13 +109,21 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api_snowflake_rest::Error::into_response",
         level = "info",
-        fields(display_error, debug_error, error_stack_trace, status_code),
+        fields(
+            display_error,
+            debug_error,
+            error_stack_trace,
+            error_chain,
+            status_code
+        ),
         skip(self)
     )]
     #[allow(clippy::too_many_lines)]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
         // Record the result as part of the current span.
-        tracing::Span::current().record("error_stack_trace", self.output_msg());
+        tracing::Span::current()
+            .record("error_stack_trace", self.output_msg())
+            .record("error_chain", self.error_chain());
 
         let status_code = match &self {
             Self::Execution { source } => match source.status_code() {

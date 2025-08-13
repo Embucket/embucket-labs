@@ -16,6 +16,7 @@ use core_metastore::models::volumes::AwsAccessKeyCredentials;
 use core_metastore::models::volumes::AwsCredentials;
 use core_metastore::{FileVolume, S3TablesVolume, S3Volume, VolumeType};
 use core_utils::Db;
+use error_stack::ErrorChainExt;
 use futures::future::join_all;
 use object_store::ObjectStore;
 use object_store::{
@@ -859,6 +860,7 @@ pub async fn exec_parallel_test_plan(
                     Ok(res) => eprintln!("res: {res:#?}"),
                     Err(error) => {
                         eprintln!("Debug error: {error:#?}");
+                        eprintln!("Chain error: {}", error.error_chain());
                         let snowflake_error = error.to_snowflake_error();
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
