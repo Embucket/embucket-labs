@@ -16,22 +16,6 @@ use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
 
-#[derive(Debug, Eq, PartialEq)]
-#[repr(u16)]
-pub enum StatusCode {
-    Ok = 200,
-    BadRequest = 400,
-    InternalServerError = 500,
-    ServiceUnavailable = 503,
-}
-
-impl From<StatusCode> for u16 {
-    #[allow(clippy::as_conversions)]
-    fn from(val: StatusCode) -> Self {
-        val as Self
-    }
-}
-
 #[derive(Snafu, Debug)]
 pub enum SnowflakeError {
     #[snafu(display("SQL compilation error: {error}"))]

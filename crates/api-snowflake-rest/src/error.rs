@@ -1,6 +1,6 @@
 use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
-use core_executor::IntoStatusCode;
+use core_executor::status_code::{IntoStatusCode, StatusCode};
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorExt;
 use error_stack_trace;
@@ -117,15 +117,11 @@ impl IntoResponse for Error {
         tracing::Span::current().record("error_stack_trace", self.output_msg());
 
         let status_code = match &self {
-            Self::Execution { source } => {
-                // use status code defined in core executor
-                http::StatusCode::from_u16(source.status_code_u16()).unwrap_or_else(|e| {
-                    tracing::error!(
-                        "api_snowflake_rest::Error::into_response: Invalid status code: {e}"
-                    );
-                    http::StatusCode::INTERNAL_SERVER_ERROR
-                })
-            }
+            Self::Execution { source } => match source.status_code() {
+                StatusCode::InternalError => http::StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::ObjectStoreError => http::StatusCode::SERVICE_UNAVAILABLE,
+                _ => http::StatusCode::OK,
+            },
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }

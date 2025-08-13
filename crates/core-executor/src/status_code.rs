@@ -1,4 +1,4 @@
-use super::snowflake_error::StatusCode;
+#![allow(clippy::match_same_arms)]
 use crate::Error;
 use core_metastore::error::Error as MetastoreError;
 use core_utils::Error as DbError;
@@ -6,11 +6,17 @@ use df_catalog::error::Error as CatalogError;
 use iceberg_rust::error::Error as IcebergError;
 use slatedb::SlateDBError;
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum StatusCode {
+    MetastoreError,
+    ObjectStoreError,
+    IcebergError,
+    InternalError,
+    OtherError,
+}
+
 pub trait IntoStatusCode {
     fn status_code(&self) -> StatusCode;
-    fn status_code_u16(&self) -> u16 {
-        self.status_code().into()
-    }
 }
 
 fn status_code_metastore(error: &MetastoreError) -> StatusCode {
@@ -23,28 +29,28 @@ fn status_code_metastore(error: &MetastoreError) -> StatusCode {
             | DbError::KeyPut { error, .. }
             | DbError::ScanFailed { error, .. } => {
                 if let SlateDBError::ObjectStoreError(_obj_store_error) = error {
-                    StatusCode::ServiceUnavailable
+                    StatusCode::ObjectStoreError
                 } else {
-                    StatusCode::InternalServerError
+                    StatusCode::MetastoreError
                 }
             }
-            _ => StatusCode::InternalServerError,
+            _ => StatusCode::MetastoreError,
         }
     } else if let MetastoreError::ObjectStore { .. } = error {
-        StatusCode::ServiceUnavailable
+        StatusCode::ObjectStoreError
     } else if let MetastoreError::Iceberg { error, .. } = error {
         let error = error.as_ref();
         if let IcebergError::External(err) = error {
             if err.downcast_ref::<object_store::Error>().is_some() {
-                StatusCode::ServiceUnavailable
+                StatusCode::ObjectStoreError
             } else {
-                StatusCode::InternalServerError
+                StatusCode::IcebergError
             }
         } else {
-            StatusCode::InternalServerError
+            StatusCode::IcebergError
         }
     } else {
-        StatusCode::InternalServerError
+        StatusCode::OtherError
     }
 }
 
@@ -59,7 +65,7 @@ impl IntoStatusCode for Error {
                 let source = source.as_ref();
                 match source {
                     CatalogError::Metastore { source, .. } => status_code_metastore(source),
-                    _ => StatusCode::Ok,
+                    _ => StatusCode::MetastoreError,
                 }
             }
             Self::Iceberg { error, .. } => {
@@ -68,14 +74,14 @@ impl IntoStatusCode for Error {
                     IcebergError::External(err) => {
                         // match volume communication errors
                         if err.downcast_ref::<object_store::Error>().is_some() {
-                            StatusCode::ServiceUnavailable
+                            StatusCode::ObjectStoreError
                         } else if let Some(error) = err.downcast_ref::<MetastoreError>() {
                             status_code_metastore(error)
                         } else {
-                            StatusCode::InternalServerError
+                            StatusCode::IcebergError
                         }
                     }
-                    _ => StatusCode::InternalServerError,
+                    _ => StatusCode::IcebergError,
                 }
             }
             Self::Arrow { .. }
@@ -89,9 +95,8 @@ impl IntoStatusCode for Error {
             | Self::MergeFilterStreamNotMatching { .. }
             | Self::MatchingFilesAlreadyConsumed { .. }
             | Self::MissingFilterPredicates { .. }
-            | Self::RegisterCatalog { .. } => StatusCode::InternalServerError,
-            // => StatusCode::UNPROCESSABLE_ENTITY,
-            _ => StatusCode::Ok,
+            | Self::RegisterCatalog { .. } => StatusCode::InternalError,
+            _ => StatusCode::OtherError,
         }
     }
 }

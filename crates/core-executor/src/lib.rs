@@ -17,7 +17,6 @@ pub mod tests;
 use crate::service::ExecutionService;
 pub use error::{Error, Result};
 pub use snowflake_error::SnowflakeError;
-pub use status_code::IntoStatusCode;
 
 pub trait ExecutionAppState {
     fn get_execution_svc(&self) -> Arc<dyn ExecutionService>;
