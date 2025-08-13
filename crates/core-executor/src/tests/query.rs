@@ -66,7 +66,7 @@ async fn test_update_all_table_names_visitor() {
     let mut params = HashMap::new();
     params.insert(
         "schema".to_string(),
-        SessionProperty::from_str_value("new_schema".to_string(), None),
+        SessionProperty::from_str_value("schema".to_string(), "new_schema".to_string(), None),
     );
     session.set_session_variable(true, params).unwrap();
     let query = session.query("", QueryContext::default());
@@ -504,6 +504,16 @@ test_query!(
                 SELECT 1 AS column1 UNION ALL SELECT 2 UNION ALL SELECT 3
             ) AS table1
         );"],
+    exclude_columns = ["created_on", "updated_on", "session_id"],
+    snapshot_path = "session"
+);
+test_query!(
+    set_variable_with_binary_op_placeholder,
+    "SELECT $max",
+    setup_queries = [
+        "SET (min, max) = (40, 70);",
+        "SET (min, max) = (50, 2 * $min)",
+    ],
     exclude_columns = ["created_on", "updated_on", "session_id"],
     snapshot_path = "session"
 );

@@ -46,6 +46,7 @@ pub struct SessionProperty {
     pub value: String,
     pub property_type: String,
     pub comment: Option<String>,
+    pub name: String,
 }
 
 impl SessionProperty {
@@ -63,11 +64,12 @@ impl SessionProperty {
                 KeyValueOptionType::NUMBER => "fixed".to_string(),
             },
             comment: None,
+            name: option.option_name.clone(),
         }
     }
 
     #[must_use]
-    pub fn from_value(option: &Value, session_id: String) -> Self {
+    pub fn from_value(name: String, option: &Value, session_id: String) -> Self {
         let now = Utc::now();
         Self {
             session_id: Some(session_id),
@@ -83,11 +85,12 @@ impl SessionProperty {
                 _ => "text".to_string(),
             },
             comment: None,
+            name,
         }
     }
 
     #[must_use]
-    pub fn from_scalar_value(value: &ScalarValue, session_id: String) -> Self {
+    pub fn from_scalar_value(name: String, value: &ScalarValue, session_id: String) -> Self {
         let now = Utc::now();
         let (property_type, value) = match value {
             ScalarValue::Boolean(Some(b)) => ("boolean".to_string(), b.to_string()),
@@ -102,11 +105,12 @@ impl SessionProperty {
             value,
             property_type,
             comment: None,
+            name,
         }
     }
 
     #[must_use]
-    pub fn from_str_value(value: String, session_id: Option<String>) -> Self {
+    pub fn from_str_value(name: String, value: String, session_id: Option<String>) -> Self {
         let now = Utc::now();
         Self {
             session_id,
@@ -115,6 +119,7 @@ impl SessionProperty {
             value,
             property_type: "text".to_string(),
             comment: None,
+            name,
         }
     }
 
@@ -180,7 +185,7 @@ impl ExtensionOptions for SessionParams {
     fn set(&mut self, key: &str, value: &str) -> DFResult<()> {
         self.properties.insert(
             key.to_owned(),
-            SessionProperty::from_str_value(value.to_owned(), None),
+            SessionProperty::from_str_value(key.to_string(), value.to_owned(), None),
         );
         Ok(())
     }

@@ -336,7 +336,11 @@ impl UserQuery {
                     }
                     let params = HashMap::from([(
                         variable.to_string(),
-                        SessionProperty::from_str_value(value, Some(self.session.ctx.session_id())),
+                        SessionProperty::from_str_value(
+                            variable.to_string(),
+                            value,
+                            Some(self.session.ctx.session_id()),
+                        ),
                     )]);
                     self.session.set_session_variable(true, params)?;
                     return self.status_response();
@@ -495,40 +499,42 @@ impl UserQuery {
         variables: OneOrManyWithParens<ObjectName>,
         values: Vec<Expr>,
     ) -> Result<QueryResult> {
-        let mut session_values = Vec::new();
-        for value in values {
+        let params = variables
+            .iter()
+            .map(ToString::to_string)
+            .zip(values.into_iter());
+
+        let mut session_params = HashMap::new();
+        for (name, value) in params {
             let session_value = match value {
                 Expr::Value(v) => Ok(SessionProperty::from_value(
+                    name.clone(),
                     &v.value,
                     self.session.ctx.session_id(),
                 )),
                 Expr::Subquery(query) => {
                     let query_str = query.to_string();
-                    let res = self.execute_with_custom_plan(&query_str).await?;
-                    if res.records.is_empty()
-                        || res.records[0].num_columns() < 1
-                        || res.records[0].num_rows() < 1
-                    {
-                        return ex_error::UnexpectedSubqueryResultForSetVariableSnafu.fail();
-                    }
-                    let column = res.records[0].column(0);
-                    let scalar = ScalarValue::try_from_array(column, 0)
-                        .context(ex_error::DataFusionSnafu)?;
+                    let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
+                        &scalar,
+                        self.session.ctx.session_id(),
+                    ))
+                }
+                Expr::BinaryOp { .. } => {
+                    let query_str = format!("SELECT {value}");
+                    let scalar = self.execute_scalar_query(&query_str).await?;
+                    Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
                 }
                 _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
             }?;
-            session_values.push(session_value);
+            session_params.insert(name, session_value);
         }
-        let params = variables
-            .iter()
-            .map(ToString::to_string)
-            .zip(session_values.into_iter())
-            .collect();
-        self.session.set_session_variable(true, params)?;
+        self.session.set_session_variable(true, session_params)?;
         self.status_response()
     }
 
@@ -1939,7 +1945,8 @@ impl UserQuery {
             .properties
             .iter()
             .filter_map(|entry| {
-                let (key, prop) = (entry.key().clone(), entry.value().clone());
+                // Use original parameter name as key
+                let (key, prop) = (entry.value().name.clone(), entry.value().clone());
                 prop.to_scalar_value().map(|scalar| (key, scalar))
             })
             .collect();
@@ -1962,6 +1969,19 @@ impl UserQuery {
             .with_param_values(session_params)
             .context(ex_error::DataFusionSnafu)?;
         self.execute_logical_plan(plan).await
+    }
+
+    async fn execute_scalar_query(&self, query_str: &str) -> Result<ScalarValue> {
+        let res = self.execute_with_custom_plan(query_str).await?;
+        if res.records.is_empty()
+            || res.records[0].num_columns() < 1
+            || res.records[0].num_rows() < 1
+        {
+            return ex_error::UnexpectedSubqueryResultSnafu.fail();
+        }
+
+        let column = res.records[0].column(0);
+        ScalarValue::try_from_array(column, 0).context(ex_error::DataFusionSnafu)
     }
 
     #[allow(clippy::unwrap_used)]

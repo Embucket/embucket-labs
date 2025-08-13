@@ -493,8 +493,8 @@ pub enum Error {
     },
 
 
-    #[snafu(display("Unexpected subquery result for set variable"))]
-    UnexpectedSubqueryResultForSetVariable {
+    #[snafu(display("Unexpected subquery result"))]
+    UnexpectedSubqueryResult {
         #[snafu(implicit)]
         location: Location,
     },
