@@ -932,6 +932,43 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_s3_store_single_executor_bad_metastore_aws_creds() -> Result<(), Error> {
+    const E2E_BAD_METASTORE_AWS_CREDS_PREFIX: &str = "E2E_BAD_METASTORE_AWS_CREDS_";
+    eprintln!("Test creates executor using bad credentials from Metastore.");
+    dotenv().ok();
+
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        E2E_BAD_METASTORE_AWS_CREDS_PREFIX,
+        &[],
+    );
+    unsafe {
+        std::env::set_var(
+            format!("{E2E_BAD_METASTORE_AWS_CREDS_PREFIX}AWS_ACCESS_KEY_ID"),
+            "1",
+        );
+        std::env::set_var(
+            format!("{E2E_BAD_METASTORE_AWS_CREDS_PREFIX}AWS_SECRET_ACCESS_KEY"),
+            "1",
+        );
+    }
+
+    let executor = create_executor(
+        ObjectStoreType::S3(
+            test_suffix(),
+            S3ObjectStore::from_env(E2E_BAD_METASTORE_AWS_CREDS_PREFIX)?,
+        ),
+        "s3_exec",
+    )
+    .await;
+    assert_eq!(executor.is_err(), true);
+
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_select_ok()
 -> Result<(), Error> {
     const E2E_READONLY_S3VOLUME_PREFIX: &str = "E2E_READONLY_S3VOLUME_";
