@@ -404,7 +404,11 @@ async fn template_s3_connections_test(
 async fn test_e2e_memory_store_s3_tables_volumes() -> Result<(), Error> {
     const TEST_SCHEMA_NAME: &str = "test1";
 
-    eprintln!("This test creates volumes ahead of executor as it is expected from s3tables");
+    eprintln!(
+        "This test creates volumes ahead of the executor as it is required by s3tables.\
+    Removes previously set restrictive policies, then creates test data and assigns those \
+    restrictive policies to table_ro, table_no_access and tests read, write, no access as expected."
+    );
     dotenv().ok();
 
     // this test uses separate tables policies so
@@ -547,9 +551,9 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
     const TEST_SCHEMA_NAME: &str = "test_non_permitted_selects";
 
     eprintln!(
-        "This test creates volumes ahead of executor as it s3tables volumes works only in this way. \
-    It creates a table, adds some data and assigns read/write deny policies to it. \
-    Then select query returns data but shouldn't. Occasionally select query fails as expected."
+        "This test creates volumes ahead of the executor as expected by s3tables volumes. \
+    Then it creates a table, adds some data and assigns read/write deny policies to it. \
+    Then select query returns data but shouldn't. This test passes now but left as a regression test."
     );
     dotenv().ok();
 
@@ -644,6 +648,12 @@ async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() 
     const TEST_SCHEMA_NAME: &str = "test_create_table_inconsistency_bug";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
+    eprintln!(
+        "This test assigns deny policy to s3tables bucket and runs create table sql, which fails as expected, \
+    but creates table artifact in bucket. So subsequent run of executor/Embucket fails."
+    );
+    dotenv().ok();
+
     // Set envs by copying envs from other prefix, restore some of them
     let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"))
         .unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
@@ -656,12 +666,6 @@ async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() 
         std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"), aws_arn2);
         std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE"), namespace2);
     }
-
-    eprintln!(
-        "This test assigns deny policy to s3tables bucket and runs create table sql, which fails as expected, \
-    but creates table artifact in bucket. So subsequent run of executor/Embucket fails."
-    );
-    dotenv().ok();
 
     let test_suffix = test_suffix();
     let client = create_s3tables_client(E2E_S3TABLESVOLUME2_PREFIX).await?;
