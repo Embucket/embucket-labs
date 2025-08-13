@@ -18,9 +18,9 @@ pub mod time_from_parts;
 pub mod timestamp_from_parts;
 use crate::datetime::date_diff::DateDiffFunc;
 use crate::datetime::last_day::LastDayFunc;
+use crate::datetime::convert_timezone::ConvertTimezoneFunc;
 use crate::session_params::SessionParams;
 pub use errors::Error;
-use crate::datetime::convert_timezone::ConvertTimezoneFunc;
 
 pub fn register_udfs(
     registry: &mut dyn FunctionRegistry,
@@ -44,6 +44,8 @@ pub fn register_udfs(
         registry.register_udf(func)?;
     }
     date_part_extract::register_udfs(registry, session_params)?;
-    registry.register_udf(Arc::new(ScalarUDF::from(ConvertTimezoneFunc::new(session_params.to_owned()))))?;
+    registry.register_udf(Arc::new(ScalarUDF::from(ConvertTimezoneFunc::new(
+        session_params.to_owned(),
+    ))))?;
     Ok(())
 }
