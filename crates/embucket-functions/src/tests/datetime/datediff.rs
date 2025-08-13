@@ -10,7 +10,7 @@ test_query!(
     hours,
     "SELECT DATEDIFF('hour',
                '2023-05-08T23:39:20.123-07:00'::TIMESTAMP,
-               DATEADD(year, 2, ('2023-05-08T23:39:20.123-07:00')::TIMESTAMP))
+               DATEADD('year', 2, ('2023-05-08T23:39:20.123-07:00')::TIMESTAMP))
     AS diff_hours;",
     snapshot_path = "datediff"
 );

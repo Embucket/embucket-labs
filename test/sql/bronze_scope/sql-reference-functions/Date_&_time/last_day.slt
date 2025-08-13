@@ -12,7 +12,7 @@ SELECT TO_DATE('2015-05-08T23:39:20.123-07:00') AS "DATE",
 
 query TT
 WITH week_examples(d) AS (
-  SELECT $1::DATE FROM VALUES
+  SELECT column1::DATE FROM VALUES
     ('2016-12-30'),
     ('2016-12-31'),
     ('2017-01-01'),

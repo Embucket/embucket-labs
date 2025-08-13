@@ -72,6 +72,11 @@ impl DateDiffFunc {
                         Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
                         Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
                     ]),
+                    Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                    ]),
                 ],
                 Volatility::Immutable,
             ),
@@ -110,19 +115,19 @@ impl DateDiffFunc {
             .ok_or_else(|| dtime_errors::CantCastToSnafu { v: "duration_nsec" }.build())?;
         match unit_type {
             DatePart::Quarter | DatePart::Year | DatePart::YearISO => {
-                let arr1 = &date_part(lhs, unit_type)?;
-                let arr2 = &date_part(rhs, unit_type)?;
+                let arr1 = &date_part(&arr1, unit_type)?;
+                let arr2 = &date_part(&arr2, unit_type)?;
                 let diff = cast(&sub(&arr2, &arr1)?, &DataType::Int64)?;
                 Ok(ColumnarValue::Array(Arc::new(diff)))
             }
             DatePart::Month => {
-                let month1 = &date_part(lhs, unit_type)?;
-                let month2 = &date_part(rhs, unit_type)?;
+                let month1 = &date_part(&arr1, unit_type)?;
+                let month2 = &date_part(&arr2, unit_type)?;
                 let diff_month = sub(&month2, &month1)?;
                 let month_arr = as_int32_array(&diff_month)?;
 
-                let year1 = &date_part(lhs, DatePart::Year)?;
-                let year2 = &date_part(rhs, DatePart::Year)?;
+                let year1 = &date_part(&arr1, DatePart::Year)?;
+                let year2 = &date_part(&arr2, DatePart::Year)?;
                 let diff_year = sub(&year2, &year1)?;
                 let year_arr = as_int32_array(&diff_year)?;
 
@@ -141,8 +146,8 @@ impl DateDiffFunc {
             DatePart::Day | DatePart::DayOfYear => Ok(Self::diff(diff_arr, 86_400 * SECOND)),
             DatePart::Hour => {
                 let nanos_in_hour: i64 = 3_600 * SECOND;
-                let arr1 = &date_part(lhs, unit_type)?;
-                let arr2 = &date_part(rhs, unit_type)?;
+                let arr1 = &date_part(&arr1, unit_type)?;
+                let arr2 = &date_part(&arr2, unit_type)?;
                 let hours_diff = cast(&sub(&arr2, &arr1)?, &DataType::Int64)?;
                 let hours_arr = as_int64_array(&hours_diff)?;
 
@@ -242,7 +247,7 @@ impl ScalarUDFImpl for DateDiffFunc {
         let date_or_time_expr1 = broadcast_to_len(&args[1], len)?;
         let date_or_time_expr2 = broadcast_to_len(&args[2], len)?;
 
-        match date_or_time_part.as_str() {
+        match date_or_time_part.to_ascii_lowercase().as_str() {
             //should consider leap year (365-366 days)
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
                 self.date_diff_func(&date_or_time_expr1, &date_or_time_expr2, DatePart::Year)

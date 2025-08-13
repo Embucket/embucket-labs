@@ -176,7 +176,7 @@ impl ScalarUDFImpl for DatePartExtractFunc {
                                 self.week_of_year_policy(),
                             )
                         }
-                        Interval::Day | Interval::DayOfMonth => date.day() as i32 - 1,
+                        Interval::Day | Interval::DayOfMonth => date.day() as i32,
                         Interval::DayOfWeek => {
                             // Use session week_start setting
                             calculate_day_of_week(date, self.week_start())
@@ -428,7 +428,7 @@ mod tests {
        YEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "YEAR",
        QUARTER('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "QUARTER OF YEAR",
        MONTH('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "MONTH",
-       DAY('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "DAY",
+       DAY('2025-04-11T23:39:20.123'::TIMESTAMP) AS "DAY",
        DAYOFMONTH('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF MONTH",
        DAYOFYEAR('2025-04-11T23:39:20.123-07:00'::TIMESTAMP) AS "DAY OF YEAR";"#;
         let result = ctx.sql(sql).await?.collect().await?;

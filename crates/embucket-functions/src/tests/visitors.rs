@@ -113,6 +113,10 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
+        (
+            "SELECT date_part(year, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('year', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
         // to_char format replacements
         (
             "SELECT to_char(col::DATE, 'YYYYMMDD')",
