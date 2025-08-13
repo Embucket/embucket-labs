@@ -1,10 +1,10 @@
 query TT
-WITH TEMP_TABLE AS (
+WITH temp AS (
     SELECT column1
     FROM (VALUES (0), (1), (-2), (3.5), (-4.5), (NULL)) AS TEMP(column1)
 )
 SELECT column1, abs(column1)
-FROM TEMP_TABLE;
+FROM temp;
 ----
 0.0	0.0
 1.0	1.0
