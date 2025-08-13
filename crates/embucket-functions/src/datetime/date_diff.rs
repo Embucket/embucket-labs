@@ -182,7 +182,10 @@ impl DateDiffFunc {
             } else {
                 let weeks = days.div_euclid(7);
                 let remainder = days.rem_euclid(7);
-                if remainder > week_start {
+                // 0 means legacy Snowflake behavior (ISO-like semantics)
+                if (week_start == 0 && remainder > 0)
+                    || (week_start != 0 && remainder >= week_start)
+                {
                     weeks + 1
                 } else {
                     weeks

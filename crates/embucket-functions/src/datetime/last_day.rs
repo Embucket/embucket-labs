@@ -1,17 +1,17 @@
+use crate::session_params::SessionParams;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Utc};
 use datafusion::arrow::array::Date64Builder;
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
+use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::types::logical_string;
 use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::arrow::compute::cast;
-use datafusion_common::cast::as_timestamp_nanosecond_array;
-use crate::session_params::SessionParams;
 
 /// `LAST_DAY` SQL function
 ///
@@ -57,7 +57,7 @@ impl LastDayFunc {
                 ],
                 Volatility::Immutable,
             ),
-            session_params
+            session_params,
         }
     }
 
@@ -69,7 +69,7 @@ impl LastDayFunc {
             .parse::<u32>()
             .unwrap_or(0)
     }
-    
+
     #[allow(
         clippy::unwrap_used,
         clippy::as_conversions,
@@ -82,17 +82,17 @@ impl LastDayFunc {
             "day" => date.and_hms_opt(0, 0, 0).unwrap(),
             "week" => {
                 let week_start = self.week_start();
-                let weekday_num = date.weekday().num_days_from_monday(); // 0..6
-                let week_start_norm = (week_start + 7 - 1) % 7;
-                let last_day_num = (week_start_norm + 6) % 7;
-
-                let days_to_last_day = if weekday_num <= last_day_num {
-                    last_day_num - weekday_num
+                // 0 means legacy Snowflake behavior (ISO-like semantics)
+                let week_start_norm = if week_start == 0 {
+                    0
                 } else {
-                    7 - (weekday_num - last_day_num)
+                    (week_start - 1) % 7
                 };
-                
-                let last_day_of_week = date + Duration::days(days_to_last_day.into());
+                let last_day_num = (week_start_norm + 6) % 7;
+                let weekday_num = date.weekday().num_days_from_monday();
+
+                let days_until_week_end = (last_day_num + 7 - weekday_num) % 7;
+                let last_day_of_week = date + Duration::days(days_until_week_end.into());
                 last_day_of_week.and_hms_opt(0, 0, 0).unwrap()
             }
             "month" => {
@@ -167,7 +167,7 @@ impl ScalarUDFImpl for LastDayFunc {
 
         let arr = cast(&arr, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
         let arr = as_timestamp_nanosecond_array(&arr)?;
-        
+
         let mut res = Date64Builder::with_capacity(arr.len());
         for row in arr {
             if let Some(ts) = row {
@@ -185,7 +185,6 @@ impl ScalarUDFImpl for LastDayFunc {
     }
 }
 
-
 crate::macros::make_udf_function!(LastDayFunc);
 #[cfg(test)]
 mod tests {
@@ -197,7 +196,9 @@ mod tests {
     #[tokio::test]
     async fn test_basic() -> DFResult<()> {
         let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(LastDayFunc::new(Arc::new(SessionParams::default()))));
+        ctx.register_udf(ScalarUDF::from(LastDayFunc::new(Arc::new(
+            SessionParams::default(),
+        ))));
 
         let sql = "SELECT last_day('2025-05-08T23:39:20.123-07:00'::date)::date AS value;";
         let result = ctx.sql(sql).await?.collect().await?;

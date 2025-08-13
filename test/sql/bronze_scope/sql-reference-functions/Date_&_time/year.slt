@@ -73,8 +73,8 @@ FROM
 ORDER BY
   d;
 ----
-'2016-12-30'	Fri	5   '2017-01-01'	Sun	0
-'2016-12-31'	Sat	6   '2017-01-01'	Sun	0
+'2016-12-30'	Fri	5	'2017-01-01'	Sun	0
+'2016-12-31'	Sat	6	'2017-01-01'	Sun	0
 '2017-01-01'	Sun	0	'2017-01-01'	Sun	0
 '2017-01-02'	Mon	1	'2017-01-08'	Sun	1
 '2017-01-03'	Tue	2	'2017-01-08'	Sun	1
@@ -134,7 +134,7 @@ exclude-from-coverage
 statement ok
 ALTER SESSION SET WEEK_START = 3;
 
-query TTTTTTTT
+query TTTTTT
 WITH week_examples AS (
   SELECT column1::DATE AS d FROM (VALUES
     ('2016-12-30'),

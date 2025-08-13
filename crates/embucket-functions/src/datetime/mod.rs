@@ -17,9 +17,9 @@ pub mod previous_day;
 pub mod time_from_parts;
 pub mod timestamp_from_parts;
 use crate::datetime::date_diff::DateDiffFunc;
+use crate::datetime::last_day::LastDayFunc;
 use crate::session_params::SessionParams;
 pub use errors::Error;
-use crate::datetime::last_day::LastDayFunc;
 
 pub fn register_udfs(
     registry: &mut dyn FunctionRegistry,

@@ -269,10 +269,15 @@ fn calculate_day_of_week(date: NaiveDate, week_start: usize) -> i32 {
     let start_weekday = week_start_to_weekday(week_start);
     let current_weekday = date.weekday();
 
-    // Calculate days from the start of week (0-6)
-    ((current_weekday.num_days_from_monday() as i32 - start_weekday.num_days_from_monday() as i32
-        + 7) 
-        % 7) + 1 // Convert to 1-based index (1-7)
+    let dow = (current_weekday.num_days_from_monday() as i32
+        - start_weekday.num_days_from_monday() as i32
+        + 7)
+        % 7;
+    if week_start == 0 && dow == 6 {
+        0 // 0 means legacy Snowflake behavior (ISO-like semantics)
+    } else {
+        dow + 1 // 1-based for other days
+    }
 }
 
 /// Calculate week number based on `week_of_year_policy`
