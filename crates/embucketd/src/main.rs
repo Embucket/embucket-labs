@@ -1,3 +1,6 @@
+// Set this clippy directive to suppress clippy::needless_for_each warnings
+// until following issue will be fixed https://github.com/juhaku/utoipa/issues/1420
+#![allow(clippy::needless_for_each)]
 pub(crate) mod cli;
 pub(crate) mod helpers;
 

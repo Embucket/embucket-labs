@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::dashboard::error::{HistorySnafu, MetastoreSnafu};
 use crate::dashboard::models::{Dashboard, DashboardResponse};
 use crate::error::{ErrorResponse, Result};

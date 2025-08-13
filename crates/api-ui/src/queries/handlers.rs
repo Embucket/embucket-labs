@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult, StoreSnafu};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
@@ -23,7 +24,6 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
-
 #[derive(OpenApi)]
 #[openapi(
     paths(query, queries, get_query),

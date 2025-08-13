@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::databases::handlers::ApiDoc as DatabasesApiDoc;
 use crate::databases::handlers::{
     create_database, delete_database, get_database, list_databases, update_database,
