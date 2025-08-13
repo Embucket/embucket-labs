@@ -11,12 +11,6 @@ def _get(key: str, default: Optional[str] = None) -> Optional[str]:
     return val if val is not None else default
 
 
-def _env_required(keys: List[str]) -> None:
-    missing = [k for k in keys if not os.getenv(k)]
-    if missing:
-        pytest.skip(f"Missing required env vars: {', '.join(missing)}")
-
-
 @pytest.fixture(scope="session")
 def test_run_id() -> str:
     return uuid.uuid4().hex[:8]
@@ -507,11 +501,20 @@ class EmbucketEngine:
     ) -> None:
         loader(self.table_fqn(dataset, table_name), dataset)
 
-    def sql(
-        self, dataset: DatasetConfig, table_name: str, sql_template: str
-    ) -> List[Tuple[Any, ...]]:
-        sql = _render_sql_with_table(sql_template, self.table_fqn(dataset, table_name))
+    def count(self, dataset: DatasetConfig, table_name: str) -> int:
+        sql = f"SELECT COUNT(*) FROM {self.table_fqn(dataset, table_name)}"
         rows = self._exec(sql) or []
+        return int(rows[0][0]) if rows else 0
+
+    def run_suite_query(
+        self, sql: str, alias_to_table: Dict[str, Tuple[DatasetConfig, str]]
+    ) -> List[Tuple[Any, ...]]:
+        alias_to_fqn = {
+            alias: self.table_fqn(ds, table)
+            for alias, (ds, table) in alias_to_table.items()
+        }
+        rendered_sql = render_sql_with_aliases(sql, alias_to_fqn)
+        rows = self._exec(rendered_sql) or []
         return _rows_to_tuples(rows)
 
 
@@ -554,11 +557,20 @@ class SparkEngine:
     ) -> None:
         loader(self.table_fqn(dataset, table_name), dataset)
 
-    def sql(
-        self, dataset: DatasetConfig, table_name: str, sql_template: str
-    ) -> List[Tuple[Any, ...]]:
-        sql = _render_sql_with_table(sql_template, self.table_fqn(dataset, table_name))
+    def count(self, dataset: DatasetConfig, table_name: str) -> int:
+        sql = f"SELECT COUNT(*) FROM {self.table_fqn(dataset, table_name)}"
         rows = self.spark.sql(sql).collect()
+        return int(rows[0][0]) if rows else 0
+
+    def run_suite_query(
+        self, sql: str, alias_to_table: Dict[str, Tuple[DatasetConfig, str]]
+    ) -> List[Tuple[Any, ...]]:
+        alias_to_fqn = {
+            alias: self.table_fqn(ds, table)
+            for alias, (ds, table) in alias_to_table.items()
+        }
+        rendered_sql = render_sql_with_aliases(sql, alias_to_fqn)
+        rows = self.spark.sql(rendered_sql).collect()
         return _rows_to_tuples(rows)
 
 
@@ -598,3 +610,64 @@ def reader_engine(request):
 def engine(request):
     # Generic engine indirection for single-engine parametrization
     return request.getfixturevalue(request.param)
+
+
+# Generic dataset loader fixture using indirect parametrization
+@pytest.fixture(scope="session")
+def dataset_loaded_by(datasets_by_name, test_run_id, request):
+    """Load a dataset with a specific engine. Use with indirect=True parametrization.
+
+    Parameter format: "{dataset_name}_loaded_by_{engine_name}"
+    """
+    # Parse the parameter to extract dataset name and engine
+    param = request.param
+    if not param.endswith(("_loaded_by_spark", "_loaded_by_embucket")):
+        raise ValueError(f"Invalid parameter format: {param}")
+
+    if param.endswith("_loaded_by_spark"):
+        dataset_name = param.replace("_loaded_by_spark", "")
+        engine_name = "spark"
+    else:  # ends with "_loaded_by_embucket"
+        dataset_name = param.replace("_loaded_by_embucket", "")
+        engine_name = "embucket"
+
+    # Get the dataset config
+    dataset = datasets_by_name.get(dataset_name)
+    if not dataset:
+        pytest.skip(f"Dataset '{dataset_name}' not found")
+
+    # Get the appropriate engine and loader
+    if engine_name == "spark":
+        engine = request.getfixturevalue("spark_engine")
+        loader = request.getfixturevalue("load_into_spark")
+    elif engine_name == "embucket":
+        engine = request.getfixturevalue("embucket_engine")
+        loader = request.getfixturevalue("load_into_embucket")
+    else:
+        raise ValueError(f"Unknown engine: {engine_name}")
+
+    # Create unique table name
+    table_name = f"{dataset.table}_{test_run_id}_{engine_name}"
+
+    # Create and load the table
+    engine.create_table(dataset, table_name)
+
+    try:
+        engine.load(dataset, table_name, loader)
+        return (dataset, table_name, engine)
+    except Exception as e:
+        # Return the error for failed loads (e.g., Embucket loading)
+        return (dataset, table_name, e)
+
+
+# Data reading fixtures - provide engines for reading data
+@pytest.fixture(scope="session")
+def spark_reader(spark_engine):
+    """Spark engine for reading data."""
+    return spark_engine
+
+
+@pytest.fixture(scope="session")
+def embucket_reader(embucket_engine):
+    """Embucket engine for reading data."""
+    return embucket_engine
