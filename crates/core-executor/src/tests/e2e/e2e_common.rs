@@ -182,28 +182,44 @@ pub fn test_suffix() -> String {
         .to_string()
 }
 
-pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str) {
+pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str, skip_envs: &[&str]) {
     unsafe {
-        std::env::set_var(
-            format!("{new_env_prefix}AWS_ACCESS_KEY_ID"),
-            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).unwrap_or_default(),
-        );
-        std::env::set_var(
-            format!("{new_env_prefix}AWS_SECRET_ACCESS_KEY"),
-            std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).unwrap_or_default(),
-        );
-        std::env::set_var(
-            format!("{new_env_prefix}AWS_REGION"),
-            std::env::var(format!("{env_prefix}AWS_REGION")).unwrap_or_default(),
-        );
-        std::env::set_var(
-            format!("{new_env_prefix}AWS_BUCKET"),
-            std::env::var(format!("{env_prefix}AWS_BUCKET")).unwrap_or_default(),
-        );
-        std::env::set_var(
-            format!("{new_env_prefix}AWS_ENDPOINT"),
-            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).unwrap_or_default(),
-        );
+        if !skip_envs.contains(&"AWS_ACCESS_KEY_ID") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ACCESS_KEY_ID"),
+                std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_SECRET_ACCESS_KEY") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_SECRET_ACCESS_KEY"),
+                std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_REGION") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_REGION"),
+                std::env::var(format!("{env_prefix}AWS_REGION")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_BUCKET") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_BUCKET"),
+                std::env::var(format!("{env_prefix}AWS_BUCKET")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_ENDPOINT") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ENDPOINT"),
+                std::env::var(format!("{env_prefix}AWS_ENDPOINT")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_ALLOW_HTTP") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ALLOW_HTTP"),
+                std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),
+            );
+        }
         std::env::set_var(
             format!("{new_env_prefix}AWS_ALLOW_HTTP"),
             std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),

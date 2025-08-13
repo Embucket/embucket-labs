@@ -643,29 +643,22 @@ async fn test_e2e_memory_store_s3_tables_volumes_not_permitted_select_returns_da
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_file_store_s3_tables_volumes_create_table_inconsistency_bug() -> Result<(), Error>
-{
+async fn test_e2e_file_store_s3_tables_volumes_deny_rw_create_table_inconsistency_bug()
+-> Result<(), Error> {
     const TEST_SCHEMA_NAME: &str = "test_create_table_inconsistency_bug";
     const E2E_S3TABLESVOLUME2_PREFIX: &str = "E2E_S3TABLESVOLUME2_";
 
     eprintln!(
         "This test assigns deny policy to s3tables bucket and runs create table sql, which fails as expected, \
-    but creates table artifact in bucket. So subsequent run of executor/Embucket fails."
+    but creates table artifact in bucket. So subsequent run of executor/Embucket fails. Issue #1422"
     );
     dotenv().ok();
 
-    // Set envs by copying envs from other prefix, restore some of them
-    let aws_arn2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"))
-        .unwrap_or_else(|_| panic!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN env variable wasn't set"));
-    let namespace2 = std::env::var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE"))
-        .unwrap_or_else(|_| {
-            panic!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE env variable wasn't set")
-        });
-    copy_env_to_new_prefix(E2E_S3TABLESVOLUME_PREFIX, E2E_S3TABLESVOLUME2_PREFIX);
-    unsafe {
-        std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}AWS_ARN"), aws_arn2);
-        std::env::set_var(format!("{E2E_S3TABLESVOLUME2_PREFIX}NAMESPACE"), namespace2);
-    }
+    copy_env_to_new_prefix(
+        E2E_S3TABLESVOLUME_PREFIX,
+        E2E_S3TABLESVOLUME2_PREFIX,
+        &["AWS_ARN", "NAMESPACE"],
+    );
 
     let test_suffix = test_suffix();
     let client = create_s3tables_client(E2E_S3TABLESVOLUME2_PREFIX).await?;
@@ -949,19 +942,11 @@ async fn test_e2e_file_store_single_executor_pure_aws_s3_volume_insert_fail_sele
     );
     dotenv().ok();
 
-    // Set envs by copying envs from other prefix, restore some of them
-    let aws_bucket = std::env::var(format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"))
-        .unwrap_or_else(|_| {
-            panic!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET env variable wasn't set")
-        });
-
-    copy_env_to_new_prefix(AWS_OBJECT_STORE_PREFIX, E2E_READONLY_S3VOLUME_PREFIX);
-    unsafe {
-        std::env::set_var(
-            format!("{E2E_READONLY_S3VOLUME_PREFIX}AWS_BUCKET"),
-            aws_bucket,
-        );
-    }
+    copy_env_to_new_prefix(
+        AWS_OBJECT_STORE_PREFIX,
+        E2E_READONLY_S3VOLUME_PREFIX,
+        &["AWS_BUCKET"],
+    );
 
     let executor = create_executor_with_early_volumes_creation(
         // use static suffix to reuse the same metastore every time for this test
@@ -1348,6 +1333,7 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     copy_env_to_new_prefix(
         MINIO_OBJECT_STORE_PREFIX,
         E2E_S3VOLUME_NON_EXISTING_BUCKET_PREFIX,
+        &[],
     );
     unsafe {
         std::env::set_var(
@@ -1429,7 +1415,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
 
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
-    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        &minio_object_store_toxic_prefix,
+        &[],
+    );
     unsafe {
         std::env::set_var(
             format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
@@ -1509,7 +1499,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
-    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        &minio_object_store_toxic_prefix,
+        &[],
+    );
     unsafe {
         std::env::set_var(
             format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
@@ -1578,7 +1572,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     dotenv().ok();
 
     // prepare envs for volumes
-    copy_env_to_new_prefix(E2E_S3VOLUME_PREFIX, E2E_S3VOLUME_TOXIC_PREFIX);
+    copy_env_to_new_prefix(E2E_S3VOLUME_PREFIX, E2E_S3VOLUME_TOXIC_PREFIX, &[]);
     unsafe {
         std::env::set_var(
             format!("{E2E_S3VOLUME_TOXIC_PREFIX}AWS_ENDPOINT"),
@@ -1648,7 +1642,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
-    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        &minio_object_store_toxic_prefix,
+        &[],
+    );
     unsafe {
         std::env::set_var(
             format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
@@ -1719,7 +1717,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
 
     // prepare envs for object store
     let minio_object_store_toxic_prefix = format!("MINIO_OBJECT_STORE_TOXIC{some_id}_");
-    copy_env_to_new_prefix(MINIO_OBJECT_STORE_PREFIX, &minio_object_store_toxic_prefix);
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        &minio_object_store_toxic_prefix,
+        &[],
+    );
     unsafe {
         std::env::set_var(
             format!("{minio_object_store_toxic_prefix}AWS_ENDPOINT"),
