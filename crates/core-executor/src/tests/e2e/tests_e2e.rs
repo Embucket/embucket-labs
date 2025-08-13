@@ -932,9 +932,9 @@ async fn test_e2e_file_store_single_executor_bad_aws_creds_s3_volume_insert_shou
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
-async fn test_e2e_s3_store_single_executor_bad_metastore_aws_creds() -> Result<(), Error> {
+async fn test_e2e_s3_store_single_executor_metastore_bad_aws_creds() -> Result<(), Error> {
     const E2E_BAD_METASTORE_AWS_CREDS_PREFIX: &str = "E2E_BAD_METASTORE_AWS_CREDS_";
-    eprintln!("Test creates executor using bad credentials from Metastore.");
+    eprintln!("Test creates executor using bad credentials from Metastore. It fails.");
     dotenv().ok();
 
     copy_env_to_new_prefix(
@@ -953,15 +953,79 @@ async fn test_e2e_s3_store_single_executor_bad_metastore_aws_creds() -> Result<(
         );
     }
 
-    let executor = create_executor(
+    let _ = create_executor(
         ObjectStoreType::S3(
             test_suffix(),
             S3ObjectStore::from_env(E2E_BAD_METASTORE_AWS_CREDS_PREFIX)?,
         ),
         "s3_exec",
     )
-    .await;
-    assert_eq!(executor.is_err(), true);
+    .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "e2e test"]
+#[allow(clippy::expect_used, clippy::too_many_lines)]
+async fn test_e2e_s3_store_single_executor_metastore_readonly_aws_creds() -> Result<(), Error> {
+    const E2E_METASTORE_READONLY_PREFIX: &str = "E2E_METASTORE_READONLY_";
+    eprintln!("Test creates executor using readonly credentials from Metastore. It fails.");
+    dotenv().ok();
+
+    copy_env_to_new_prefix(
+        MINIO_OBJECT_STORE_PREFIX,
+        E2E_METASTORE_READONLY_PREFIX,
+        &["AWS_BUCKET"],
+    );
+
+    /*
+    At this moment Deny Policies are:
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:PutObjectAcl",
+        "s3:AbortMultipartUpload"
+
+    Allow Policies are:
+        "s3:GetObject",
+        "s3:ListBucket"
+    */
+
+    let executor = create_executor(
+        ObjectStoreType::S3(
+            test_suffix(),
+            S3ObjectStore::from_env(E2E_METASTORE_READONLY_PREFIX)?,
+        ),
+        "s3_exec",
+    )
+    .await?;
+    let executor = Arc::new(executor);
+
+    let test_plan = vec![ParallelTest(vec![
+        TestQuery {
+            sqls: vec!["CREATE DATABASE __DATABASE__ EXTERNAL_VOLUME = __VOLUME__"],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+            err_callback: None,
+        },
+        TestQuery {
+            sqls: vec!["SHOW DATABASES"],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+            err_callback: None,
+        },
+        TestQuery {
+            sqls: vec!["SELECT 1"],
+            executor: executor.clone(),
+            session_id: TEST_SESSION_ID1,
+            expected_res: true,
+            err_callback: None,
+        },
+    ])];
+
+    assert!(exec_parallel_test_plan(test_plan, &[TestVolumeType::S3]).await?);
 
     Ok(())
 }
