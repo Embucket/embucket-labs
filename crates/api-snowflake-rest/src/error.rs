@@ -1,6 +1,6 @@
 use crate::schemas::JsonResponse;
 use axum::{Json, http, response::IntoResponse};
-use core_executor::status_code::{IntoStatusCode, StatusCode};
+use core_executor::status_code::StatusCode;
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorChainExt;
 use error_stack::ErrorExt;
@@ -126,9 +126,9 @@ impl IntoResponse for Error {
             .record("error_chain", self.error_chain());
 
         let status_code = match &self {
-            Self::Execution { source } => match source.status_code() {
-                StatusCode::InternalError => http::StatusCode::INTERNAL_SERVER_ERROR,
-                StatusCode::ObjectStoreError => http::StatusCode::SERVICE_UNAVAILABLE,
+            Self::Execution { source } => match source.to_snowflake_error().status_code() {
+                StatusCode::Internal => http::StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::ObjectStore => http::StatusCode::SERVICE_UNAVAILABLE,
                 _ => http::StatusCode::OK,
             },
             Self::GZipDecompress { .. }

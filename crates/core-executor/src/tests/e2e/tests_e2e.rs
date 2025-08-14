@@ -5,7 +5,6 @@ use super::e2e_toxiproxy::{
     create_toxic_conn_limit, create_toxiproxy, delete_toxic_conn_limit, delete_toxiproxy,
 };
 use crate::service::ExecutionService;
-use crate::status_code::IntoStatusCode;
 use crate::status_code::StatusCode;
 use crate::tests::e2e::e2e_common::{
     AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, Error,
@@ -1574,9 +1573,10 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
-            assert_eq!(err.status_code(), StatusCode::ObjectStoreError);
+            let snowflake_err = err.to_snowflake_error();
+            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
             assert!(
-                err.to_snowflake_error()
+                snowflake_err
                     .to_string()
                     .starts_with("Iceberg Metastore Db Object store: Generic S3 error:")
             );
@@ -1651,9 +1651,10 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
-            assert_eq!(err.status_code(), StatusCode::ObjectStoreError);
+            let snowflake_err = err.to_snowflake_error();
+            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
             assert!(
-                err.to_snowflake_error()
+                snowflake_err
                     .to_string()
                     .starts_with("Iceberg Metastore Object store: Generic S3 error:")
             );
@@ -1717,9 +1718,10 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
-            assert_eq!(err.status_code(), StatusCode::ObjectStoreError);
+            let snowflake_err = err.to_snowflake_error();
+            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
             assert!(
-                err.to_snowflake_error()
+                snowflake_err
                     .to_string()
                     .starts_with("Catalog Metastore Db Object store: Generic S3 error:")
             );
@@ -1792,9 +1794,10 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     struct ErrCallback;
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
-            assert_eq!(err.status_code(), StatusCode::ObjectStoreError);
+            let snowflake_err = err.to_snowflake_error();
+            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
             assert!(
-                err.to_snowflake_error()
+                snowflake_err
                     .to_string()
                     .starts_with("Iceberg Metastore Db Object store: Generic S3 error:")
             );
