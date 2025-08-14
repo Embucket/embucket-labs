@@ -120,7 +120,7 @@ jobs:
           echo "AWS_REGION=us-east-2" >> $GITHUB_ENV
 
       - name: Set up DuckDB
-        uses: opt-nc/setup-duckdb-action@v1.0.14
+        uses: opt-nc/setup-duckdb-action@v1.1.1
 
       - name: Download datasets
         working-directory: ./test/integration
