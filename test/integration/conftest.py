@@ -256,25 +256,27 @@ def render_sql_with_aliases(sql: str, alias_to_fqn: Dict[str, str]) -> str:
     return out
 
 
-def _load_dataset_fixture(dataset_name: str, engine, test_run_id: str, engine_name: str):
+def _load_dataset_fixture(
+    dataset_name: str, engine, test_run_id: str, engine_name: str
+):
     """Unified helper function to load datasets for fixtures.
-    
+
     Args:
         dataset_name: Name of dataset in datasets.yaml
         engine: Engine instance (spark_engine or embucket_engine)
         test_run_id: Unique test run identifier
         engine_name: Engine name for table naming ("spark" or "embucket")
-    
+
     Returns:
         Tuple of (dataset, table_name, engine)
     """
     import yaml
-    
+
     with open("datasets.yaml", "r") as f:
         cfg = yaml.safe_load(f)
     dataset_data = next(d for d in cfg["datasets"] if d["name"] == dataset_name)
     dataset = DatasetConfig.from_dict(dataset_data)
-    
+
     # Create unique table name
     table_name = f"{dataset.table}_{test_run_id}_{engine_name}"
     engine.create_table(dataset, table_name)
@@ -450,7 +452,9 @@ def spark_engine(spark) -> SparkEngine:
 # NYC Taxi Dataset Fixtures
 @pytest.fixture(scope="session")
 def embucket_nyc_taxi(embucket_engine, test_run_id):
-    return _load_dataset_fixture("nyc_taxi_yellow", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "nyc_taxi_yellow", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -461,12 +465,16 @@ def spark_nyc_taxi(spark_engine, test_run_id):
 # TPC-H Dataset Fixtures
 @pytest.fixture(scope="session")
 def embucket_tpch_lineitem(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_lineitem", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_lineitem", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
 def embucket_tpch_orders(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_orders", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_orders", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -491,7 +499,9 @@ def spark_tpch_part(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_supplier(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_supplier", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_supplier", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -501,7 +511,9 @@ def spark_tpch_supplier(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_customer(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_customer", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_customer", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -511,7 +523,9 @@ def spark_tpch_customer(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_nation(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_nation", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_nation", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -521,7 +535,9 @@ def spark_tpch_nation(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_region(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_region", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_region", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -531,7 +547,9 @@ def spark_tpch_region(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_partsupp(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_partsupp", embucket_engine, test_run_id, "embucket")
+    return _load_dataset_fixture(
+        "tpch_partsupp", embucket_engine, test_run_id, "embucket"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -541,14 +559,14 @@ def spark_tpch_partsupp(spark_engine, test_run_id):
 
 @pytest.fixture(scope="session")
 def embucket_tpch_full(
-    embucket_tpch_lineitem, 
+    embucket_tpch_lineitem,
     embucket_tpch_orders,
     embucket_tpch_part,
     embucket_tpch_supplier,
     embucket_tpch_customer,
     embucket_tpch_nation,
     embucket_tpch_region,
-    embucket_tpch_partsupp
+    embucket_tpch_partsupp,
 ):
     """Complete TPC-H dataset with all 8 tables for Embucket engine."""
     return {
@@ -559,7 +577,7 @@ def embucket_tpch_full(
         "customer": embucket_tpch_customer,
         "nation": embucket_tpch_nation,
         "region": embucket_tpch_region,
-        "partsupp": embucket_tpch_partsupp
+        "partsupp": embucket_tpch_partsupp,
     }
 
 
@@ -572,7 +590,7 @@ def spark_tpch_full(
     spark_tpch_customer,
     spark_tpch_nation,
     spark_tpch_region,
-    spark_tpch_partsupp
+    spark_tpch_partsupp,
 ):
     """Complete TPC-H dataset with all 8 tables for Spark engine."""
     return {
@@ -583,17 +601,5 @@ def spark_tpch_full(
         "customer": spark_tpch_customer,
         "nation": spark_tpch_nation,
         "region": spark_tpch_region,
-        "partsupp": spark_tpch_partsupp
+        "partsupp": spark_tpch_partsupp,
     }
-
-
-# Keep the old 2-table fixtures for backward compatibility
-@pytest.fixture(scope="session")
-def embucket_tpch(embucket_tpch_lineitem, embucket_tpch_orders):
-    return {"lineitem": embucket_tpch_lineitem, "orders": embucket_tpch_orders}
-
-
-@pytest.fixture(scope="session")
-def spark_tpch(spark_tpch_lineitem, spark_tpch_orders):
-    return {"lineitem": spark_tpch_lineitem, "orders": spark_tpch_orders}
-

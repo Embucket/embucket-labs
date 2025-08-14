@@ -3,50 +3,41 @@ from conftest import compare_result_sets
 
 
 def _run_cross_engine_test(
-    spark_loaded_dataset, embucket_loaded_dataset, query_id, query_sql
+    spark_engine, embucket_engine, loaded_dataset, query_id, query_sql
 ):
     """Common test logic for cross-engine compatibility testing."""
-    spark_dataset, spark_table_name, spark_engine = spark_loaded_dataset
-    embucket_dataset, embucket_table_name, embucket_engine = embucket_loaded_dataset
+    dataset, table_name, _ = loaded_dataset
 
-    # Set up table alias for query
-    spark_alias_to_table = {"table": (spark_dataset, spark_table_name)}
-    embucket_alias_to_table = {"table": (embucket_dataset, embucket_table_name)}
+    # Set up table alias for query - both engines read from the same loaded table
+    alias = {"table": (dataset, table_name)}
 
-    # Run query with both engines
-    spark_result = spark_engine.sql(query_sql, spark_alias_to_table)
-    embucket_result = embucket_engine.sql(query_sql, embucket_alias_to_table)
+    # Run query with both reader engines
+    spark_result = spark_engine.sql(query_sql, alias)
+    embucket_result = embucket_engine.sql(query_sql, alias)
 
     # Compare results between engines
     ok, msg = compare_result_sets(spark_result, embucket_result)
     assert (
         ok
-    ), f"Query {query_id} on {spark_dataset.name} mismatch between Spark and Embucket: {msg}"
+    ), f"Query {query_id} on {dataset.name} mismatch between Spark and Embucket: {msg}"
 
     # Basic sanity checks
     assert len(spark_result) > 0
     assert len(embucket_result) > 0
 
 
-def _run_multi_table_test(spark_tables, embucket_tables, query_id, query_sql):
+def _run_multi_table_test(
+    spark_engine, embucket_engine, loaded_tables, query_id, query_sql
+):
     """Common test logic for multi-table cross-engine compatibility testing."""
-    # Build alias_to_table mapping for Spark
-    spark_alias_to_table = {}
-    for alias, (dataset, table_name, engine) in spark_tables.items():
-        spark_alias_to_table[alias] = (dataset, table_name)
+    # Build alias_to_table mapping - both engines read from the same loaded tables
+    alias_to_table = {}
+    for alias, (dataset, table_name, _) in loaded_tables.items():
+        alias_to_table[alias] = (dataset, table_name)
 
-    # Build alias_to_table mapping for Embucket
-    embucket_alias_to_table = {}
-    for alias, (dataset, table_name, engine) in embucket_tables.items():
-        embucket_alias_to_table[alias] = (dataset, table_name)
-
-    # Extract engines (all should be same type within each group)
-    spark_engine = next(iter(spark_tables.values()))[2]
-    embucket_engine = next(iter(embucket_tables.values()))[2]
-
-    # Run query with both engines
-    spark_result = spark_engine.sql(query_sql, spark_alias_to_table)
-    embucket_result = embucket_engine.sql(query_sql, embucket_alias_to_table)
+    # Run query with both reader engines
+    spark_result = spark_engine.sql(query_sql, alias_to_table)
+    embucket_result = embucket_engine.sql(query_sql, alias_to_table)
 
     # Compare results between engines
     ok, msg = compare_result_sets(spark_result, embucket_result)
@@ -59,7 +50,6 @@ def _run_multi_table_test(spark_tables, embucket_tables, query_id, query_sql):
     assert len(embucket_result) > 0
 
 
-# NYC Taxi Tests - Explicit queries for taxi data
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
@@ -89,9 +79,17 @@ def _run_multi_table_test(spark_tables, embucket_tables, query_id, query_sql):
         "q_vendor_avg_distance",
     ],
 )
-def test_nyc_taxi(spark_nyc_taxi, embucket_nyc_taxi, query_id, query_sql):
+def test_nyc_taxi(
+    spark_engine,
+    embucket_engine,
+    spark_nyc_taxi,
+    query_id,
+    query_sql,
+):
     """Test NYC Taxi dataset with taxi-specific queries."""
-    _run_cross_engine_test(spark_nyc_taxi, embucket_nyc_taxi, query_id, query_sql)
+    _run_cross_engine_test(
+        spark_engine, embucket_engine, spark_nyc_taxi, query_id, query_sql
+    )
 
 
 # TPC-H Benchmark Tests - Real TPC-H queries using multiple tables
@@ -202,7 +200,9 @@ def test_nyc_taxi(spark_nyc_taxi, embucket_nyc_taxi, query_id, query_sql):
     ],
 )
 def test_tpch_benchmark_queries(
-    spark_tpch_full, embucket_tpch_full, query_id, query_sql
+    spark_engine, embucket_engine, spark_tpch_full, query_id, query_sql
 ):
     """Test actual TPC-H benchmark queries using complete dataset with all tables."""
-    _run_multi_table_test(spark_tpch_full, embucket_tpch_full, query_id, query_sql)
+    _run_multi_table_test(
+        spark_engine, embucket_engine, spark_tpch_full, query_id, query_sql
+    )
