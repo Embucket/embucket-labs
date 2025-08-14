@@ -13,6 +13,9 @@ on:
       - Dockerfile
       - .github/workflows/**
       - test/integration/**
+  pull_request:
+    paths:
+      - test/integration/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
