@@ -31,10 +31,10 @@ with prep as (
     e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:basisForProcessing::varchar as basis_for_processing,
     e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:consentUrl::varchar as consent_url,
     e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:consentVersion::varchar as consent_version,
-    e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:consentScopes as consent_scopes,
-    e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:domainsApplied as domains_applied,
+    e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:consentScopes::array as consent_scopes,
+    e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:domainsApplied::array as domains_applied,
     e.unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1:gdprApplies::boolean as gdpr_applies,
-    e.unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1:elapsedTime as cmp_load_time
+    e.unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1:elapsedTime::float as cmp_load_time
 
   from {{ ref("snowplow_web_base_events_this_run") }} as e
 
