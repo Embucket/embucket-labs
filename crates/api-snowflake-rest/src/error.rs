@@ -176,10 +176,14 @@ impl Error {
             String::new()
         }
     }
-    
+
     pub fn display_error_message(&self) -> String {
         if let Self::Execution { source, .. } = self {
-            format!("{}: {}", source.query_id(), source.to_snowflake_error().display_error_message())
+            format!(
+                "{}: {}",
+                source.query_id(),
+                source.to_snowflake_error().display_error_message()
+            )
         } else {
             self.to_string()
         }

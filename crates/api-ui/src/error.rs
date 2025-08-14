@@ -158,7 +158,11 @@ impl Error {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
-                } => format!("{}: {}", source.query_id(), source.to_snowflake_error().display_error_message()),
+                } => format!(
+                    "{}: {}",
+                    source.query_id(),
+                    source.to_snowflake_error().display_error_message()
+                ),
                 _ => error_str,
             },
             _ => error_str,

@@ -102,6 +102,7 @@ impl SnowflakeError {
     pub fn display_error_message(&self) -> String {
         self.to_string()
     }
+    #[must_use]
     pub fn debug_error_message(&self) -> String {
         format!("{self:?}")
     }
