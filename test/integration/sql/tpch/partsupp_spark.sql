@@ -1,8 +1,8 @@
 -- Spark SQL DDL for TPC-H PARTSUPP (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  PS_PARTKEY BIGINT,
-  PS_SUPPKEY BIGINT,
-  PS_AVAILQTY INT,
-  PS_SUPPLYCOST DOUBLE,
-  PS_COMMENT STRING
+  ps_partkey BIGINT,
+  ps_suppkey BIGINT,
+  ps_availqty INT,
+  ps_supplycost DOUBLE,
+  ps_comment STRING
 ) USING iceberg;

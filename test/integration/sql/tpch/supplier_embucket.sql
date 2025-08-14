@@ -1,10 +1,10 @@
 -- Snowflake-like DDL for TPC-H SUPPLIER
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  S_SUPPKEY BIGINT,
-  S_NAME VARCHAR(25),
-  S_ADDRESS VARCHAR(40),
-  S_NATIONKEY INT,
-  S_PHONE VARCHAR(15),
-  S_ACCTBAL DOUBLE,
-  S_COMMENT VARCHAR(101)
+  s_suppkey BIGINT,
+  s_name VARCHAR(25),
+  s_address VARCHAR(40),
+  s_nationkey INT,
+  s_phone VARCHAR(15),
+  s_acctbal DOUBLE,
+  s_comment VARCHAR(101)
 );

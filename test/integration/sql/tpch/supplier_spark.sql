@@ -1,10 +1,10 @@
 -- Spark SQL DDL for TPC-H SUPPLIER (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  S_SUPPKEY BIGINT,
-  S_NAME STRING,
-  S_ADDRESS STRING,
-  S_NATIONKEY INT,
-  S_PHONE STRING,
-  S_ACCTBAL DOUBLE,
-  S_COMMENT STRING
+  s_suppkey BIGINT,
+  s_name STRING,
+  s_address STRING,
+  s_nationkey INT,
+  s_phone STRING,
+  s_acctbal DOUBLE,
+  s_comment STRING
 ) USING iceberg;

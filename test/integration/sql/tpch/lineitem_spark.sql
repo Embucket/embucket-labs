@@ -1,20 +1,20 @@
 -- Spark SQL DDL for TPC-H LINEITEM (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  L_ORDERKEY BIGINT,
-  L_PARTKEY BIGINT,
-  L_SUPPKEY BIGINT,
-  L_LINENUMBER INT,
-  L_QUANTITY DOUBLE,
-  L_EXTENDEDPRICE DOUBLE,
-  L_DISCOUNT DOUBLE,
-  L_TAX DOUBLE,
-  L_RETURNFLAG STRING,
-  L_LINESTATUS STRING,
-  L_SHIPDATE DATE,
-  L_COMMITDATE DATE,
-  L_RECEIPTDATE DATE,
-  L_SHIPINSTRUCT STRING,
-  L_SHIPMODE STRING,
-  L_COMMENT STRING
+  l_orderkey BIGINT,
+  l_partkey BIGINT,
+  l_suppkey BIGINT,
+  l_linenumber INT,
+  l_quantity DOUBLE,
+  l_extendedprice DOUBLE,
+  l_discount DOUBLE,
+  l_tax DOUBLE,
+  l_returnflag STRING,
+  l_linestatus STRING,
+  l_shipdate DATE,
+  l_commitdate DATE,
+  l_receiptdate DATE,
+  l_shipinstruct STRING,
+  l_shipmode STRING,
+  l_comment STRING
 ) USING iceberg;
 

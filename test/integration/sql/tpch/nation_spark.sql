@@ -1,7 +1,7 @@
 -- Spark SQL DDL for TPC-H NATION (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  N_NATIONKEY INT,
-  N_NAME STRING,
-  N_REGIONKEY INT,
-  N_COMMENT STRING
+  n_nationkey INT,
+  n_name STRING,
+  n_regionkey INT,
+  n_comment STRING
 ) USING iceberg;

@@ -1,11 +1,11 @@
 -- Snowflake-like DDL for TPC-H CUSTOMER
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  C_CUSTKEY BIGINT,
-  C_NAME VARCHAR(25),
-  C_ADDRESS VARCHAR(40),
-  C_NATIONKEY INT,
-  C_PHONE VARCHAR(15),
-  C_ACCTBAL DOUBLE,
-  C_MKTSEGMENT VARCHAR(10),
-  C_COMMENT VARCHAR(117)
+  c_custkey BIGINT,
+  c_name VARCHAR(25),
+  c_address VARCHAR(40),
+  c_nationkey INT,
+  c_phone VARCHAR(15),
+  c_acctbal DOUBLE,
+  c_mktsegment VARCHAR(10),
+  c_comment VARCHAR(117)
 );

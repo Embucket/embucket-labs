@@ -1,20 +1,20 @@
 -- Snowflake-like DDL for TPC-H LINEITEM
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  L_ORDERKEY BIGINT,
-  L_PARTKEY BIGINT,
-  L_SUPPKEY BIGINT,
-  L_LINENUMBER INT,
-  L_QUANTITY DOUBLE,
-  L_EXTENDEDPRICE DOUBLE,
-  L_DISCOUNT DOUBLE,
-  L_TAX DOUBLE,
-  L_RETURNFLAG VARCHAR(1),
-  L_LINESTATUS VARCHAR(1),
-  L_SHIPDATE DATE,
-  L_COMMITDATE DATE,
-  L_RECEIPTDATE DATE,
-  L_SHIPINSTRUCT VARCHAR(25),
-  L_SHIPMODE VARCHAR(10),
-  L_COMMENT VARCHAR(44)
+  l_orderkey BIGINT,
+  l_partkey BIGINT,
+  l_suppkey BIGINT,
+  l_linenumber INT,
+  l_quantity DOUBLE,
+  l_extendedprice DOUBLE,
+  l_discount DOUBLE,
+  l_tax DOUBLE,
+  l_returnflag VARCHAR(1),
+  l_linestatus VARCHAR(1),
+  l_shipdate DATE,
+  l_commitdate DATE,
+  l_receiptdate DATE,
+  l_shipinstruct VARCHAR(25),
+  l_shipmode VARCHAR(10),
+  l_comment VARCHAR(44)
 );
 

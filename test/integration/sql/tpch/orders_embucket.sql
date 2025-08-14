@@ -1,13 +1,13 @@
 -- Snowflake-like DDL for TPC-H ORDERS
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  O_ORDERKEY BIGINT,
-  O_CUSTKEY BIGINT,
-  O_ORDERSTATUS VARCHAR(1),
-  O_TOTALPRICE DOUBLE,
-  O_ORDERDATE DATE,
-  O_ORDERPRIORITY VARCHAR(15),
-  O_CLERK VARCHAR(15),
-  O_SHIPPRIORITY INT,
-  O_COMMENT VARCHAR(79)
+  o_orderkey BIGINT,
+  o_custkey BIGINT,
+  o_orderstatus VARCHAR(1),
+  o_totalprice DOUBLE,
+  o_orderdate DATE,
+  o_orderpriority VARCHAR(15),
+  o_clerk VARCHAR(15),
+  o_shippriority INT,
+  o_comment VARCHAR(79)
 );
 

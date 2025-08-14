@@ -1,6 +1,6 @@
 -- Snowflake-like DDL for TPC-H REGION
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  R_REGIONKEY INT,
-  R_NAME VARCHAR(25),
-  R_COMMENT VARCHAR(152)
+  r_regionkey INT,
+  r_name VARCHAR(25),
+  r_comment VARCHAR(152)
 );

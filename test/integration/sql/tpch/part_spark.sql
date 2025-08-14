@@ -1,12 +1,12 @@
 -- Spark SQL DDL for TPC-H PART (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  P_PARTKEY BIGINT,
-  P_NAME STRING,
-  P_MFGR STRING,
-  P_BRAND STRING,
-  P_TYPE STRING,
-  P_SIZE INT,
-  P_CONTAINER STRING,
-  P_RETAILPRICE DOUBLE,
-  P_COMMENT STRING
+  p_partkey BIGINT,
+  p_name STRING,
+  p_mfgr STRING,
+  p_brand STRING,
+  p_type STRING,
+  p_size INT,
+  p_container STRING,
+  p_retailprice DOUBLE,
+  p_comment STRING
 ) USING iceberg;

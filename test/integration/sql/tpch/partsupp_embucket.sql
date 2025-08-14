@@ -1,8 +1,8 @@
 -- Snowflake-like DDL for TPC-H PARTSUPP
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  PS_PARTKEY BIGINT,
-  PS_SUPPKEY BIGINT,
-  PS_AVAILQTY INT,
-  PS_SUPPLYCOST DOUBLE,
-  PS_COMMENT VARCHAR(199)
+  ps_partkey BIGINT,
+  ps_suppkey BIGINT,
+  ps_availqty INT,
+  ps_supplycost DOUBLE,
+  ps_comment VARCHAR(199)
 );

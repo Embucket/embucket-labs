@@ -1,13 +1,13 @@
 -- Spark SQL DDL for TPC-H ORDERS (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  O_ORDERKEY BIGINT,
-  O_CUSTKEY BIGINT,
-  O_ORDERSTATUS STRING,
-  O_TOTALPRICE DOUBLE,
-  O_ORDERDATE DATE,
-  O_ORDERPRIORITY STRING,
-  O_CLERK STRING,
-  O_SHIPPRIORITY INT,
-  O_COMMENT STRING
+  o_orderkey BIGINT,
+  o_custkey BIGINT,
+  o_orderstatus STRING,
+  o_totalprice DOUBLE,
+  o_orderdate DATE,
+  o_orderpriority STRING,
+  o_clerk STRING,
+  o_shippriority INT,
+  o_comment STRING
 ) USING iceberg;
 
