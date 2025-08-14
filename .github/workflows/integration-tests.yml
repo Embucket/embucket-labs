@@ -77,10 +77,20 @@ jobs:
           docker run -d --rm \
             --name embucket-server \
             -p 3000:3000 \
+            -e OBJECT_STORE_BACKEND=file \
+            -e FILE_STORAGE_PATH=data/ \
+            -e DATA_FORMAT=json \
+            -e SLATEDB_PREFIX=sdb/ \
+            -e CORS_ENABLED=true \
+            -e CORS_ALLOW_ORIGIN="http://localhost:8080" \
+            -e JWT_SECRET=63f4945d921d599f27ae4fdf5bada3f1 \
+            -e CATALOG_URL=http://localhost:3000/catalog \
             -e S3_ENDPOINT=http://localhost:9000 \
-            -e S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE \
-            -e S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+            -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
+            -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+            -e AWS_REGION=us-east-2 \
             -e S3_BUCKET=embucket \
+            -e S3_ALLOW_HTTP=true \
             --network host \
             embucket/embucket
           echo "Starting Embucket server..."
@@ -104,18 +114,18 @@ jobs:
 
       - name: Set environment variables for integration tests
         run: |
+          echo "EMBUCKET_ICEBERG_REST_URI=http://localhost:3000/catalog" >> $GITHUB_ENV
+          echo "EMBUCKET_DATABASE=analytics" >> $GITHUB_ENV
+          echo "S3_ENDPOINT=http://localhost:9000" >> $GITHUB_ENV
+          echo "S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE" >> $GITHUB_ENV
+          echo "S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" >> $GITHUB_ENV
+          echo "S3_BUCKET=embucket" >> $GITHUB_ENV
           echo "EMBUCKET_SQL_HOST=localhost" >> $GITHUB_ENV
           echo "EMBUCKET_SQL_PORT=3000" >> $GITHUB_ENV
           echo "EMBUCKET_SQL_PROTOCOL=http" >> $GITHUB_ENV
           echo "EMBUCKET_USER=embucket" >> $GITHUB_ENV
           echo "EMBUCKET_PASSWORD=embucket" >> $GITHUB_ENV
-          echo "EMBUCKET_DATABASE=analytics" >> $GITHUB_ENV
           echo "EMBUCKET_SCHEMA=public" >> $GITHUB_ENV
-          echo "EMBUCKET_ICEBERG_REST_URI=http://localhost:3000/catalog" >> $GITHUB_ENV
-          echo "S3_ENDPOINT=http://localhost:9000" >> $GITHUB_ENV
-          echo "S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE" >> $GITHUB_ENV
-          echo "S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" >> $GITHUB_ENV
-          echo "S3_BUCKET=embucket" >> $GITHUB_ENV
 
       - name: Set up DuckDB
         uses: opt-nc/setup-duckdb-action@v1.0.14
