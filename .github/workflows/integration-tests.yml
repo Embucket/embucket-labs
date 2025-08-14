@@ -131,6 +131,7 @@ jobs:
         uses: opt-nc/setup-duckdb-action@v1.0.14
 
       - name: Download datasets
+        working-directory: ./test/integration
         run: |
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet
           curl -O https://blobs.duckdb.org/data/tpch-sf1.db
