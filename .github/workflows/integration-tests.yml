@@ -85,7 +85,7 @@ jobs:
             -e AWS_REGION=us-east-2 \
             -e S3_BUCKET=embucket \
             -e S3_ALLOW_HTTP=true \
-            -v $(pwd)/test/integration:/app/data \
+            -v ${{ github.workspace }}/test/integration:/app/data \
             --network host \
             embucket/embucket
           echo "Starting Embucket server..."
