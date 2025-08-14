@@ -85,7 +85,7 @@ jobs:
             -e AWS_REGION=us-east-2 \
             -e S3_BUCKET=embucket \
             -e S3_ALLOW_HTTP=true \
-            -v ${{ github.workspace }}/test/integration:/app/data \
+            -v ${{ github.workspace }}/test/integration:/app/datasets \
             --network host \
             embucket/embucket
           echo "Starting Embucket server..."
@@ -122,7 +122,7 @@ jobs:
           echo "EMBUCKET_PASSWORD=embucket" >> $GITHUB_ENV
           echo "EMBUCKET_SCHEMA=public" >> $GITHUB_ENV
           echo "AWS_REGION=us-east-2" >> $GITHUB_ENV
-          echo "LOCAL_BASE_PATH=/app/data" >> $GITHUB_ENV
+          echo "LOCAL_BASE_PATH=/app/datasets" >> $GITHUB_ENV
 
       - name: Set up DuckDB
         uses: opt-nc/setup-duckdb-action@v1.0.14
