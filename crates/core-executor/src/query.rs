@@ -74,8 +74,8 @@ use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, qualify_in_query, rlike_regexp_expr_rewriter, select_expr_aliases,
-    table_functions, table_functions_cte_relation, timestamp, top_limit,
+    qualify_in_query, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions,
+    table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -261,7 +261,6 @@ impl UserQuery {
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
         if let DFStatement::Statement(value) = statement {
-            json_element::visit(value);
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
             top_limit::visit(value);
