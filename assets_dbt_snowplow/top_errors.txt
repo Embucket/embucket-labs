@@ -6,6 +6,6 @@ SKIP: 0
 TOTAL: 24
 
 # Total top 10 errors
-      1 SQL compilation error: unsupported feature: Function 'grouping_id' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/grouping_id
+      1 SQL compilation error: unsupported feature: Conflicting ordering requirements in aggregate functions is not supported
 
 # Top function errors

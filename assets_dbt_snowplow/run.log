@@ -1,68 +1,78 @@
-[0m02:40:50  Running with dbt=1.9.8
-[0m02:40:51  Registered adapter: snowflake=1.9.1
-[0m02:40:52  Found 22 models, 108 data tests, 4 seeds, 2 operations, 8 sources, 768 macros
-[0m02:40:52  
-[0m02:40:52  Concurrency: 4 threads (target='embucket')
-[0m02:40:52  
-[0m02:40:52  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m02:40:52  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m02:40:52  
-[0m02:40:52  1 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m02:40:52  2 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m02:40:53  1 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 0.51s]
-[0m02:40:53  2 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 0.51s]
-[0m02:40:53  3 of 22 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
-[0m02:40:53  02:40:53 + Snowplow: New Snowplow incremental model. Backfilling
-[0m02:40:53  02:40:53 + Snowplow: Processing data between '2020-01-01 00:00:00' and '2020-01-31 00:00:00' (snowplow_web)
-[0m02:40:53  3 of 22 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.57s]
-[0m02:40:53  4 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
-[0m02:40:54  4 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[32mok 1[0m in 0.70s]
-[0m02:40:54  5 of 22 START sql table model public_scratch.snowplow_web_base_sessions_this_run  [RUN]
-[0m02:40:54  5 of 22 OK created sql table model public_scratch.snowplow_web_base_sessions_this_run  [[32mok 1[0m in 0.50s]
-[0m02:40:54  6 of 22 START sql table model public_scratch.snowplow_web_base_events_this_run . [RUN]
-[0m02:40:55  6 of 22 OK created sql table model public_scratch.snowplow_web_base_events_this_run  [[32mok 1[0m in 0.40s]
-[0m02:40:55  7 of 22 START sql table model public_scratch.snowplow_web_pv_engaged_time ...... [RUN]
-[0m02:40:55  8 of 22 START sql table model public_scratch.snowplow_web_pv_scroll_depth ...... [RUN]
-[0m02:40:55  9 of 22 START sql table model public_scratch.snowplow_web_sessions_this_run .... [RUN]
-[0m02:40:55  10 of 22 START sql incremental model public_derived.snowplow_web_user_mapping .. [RUN]
-[0m02:40:55  8 of 22 OK created sql table model public_scratch.snowplow_web_pv_scroll_depth . [[32mok 1[0m in 0.40s]
-[0m02:40:55  11 of 22 START sql table model public_scratch.snowplow_web_vital_events_this_run  [RUN]
-[0m02:40:55  7 of 22 OK created sql table model public_scratch.snowplow_web_pv_engaged_time . [[32mok 1[0m in 0.50s]
-[0m02:40:55  10 of 22 OK created sql incremental model public_derived.snowplow_web_user_mapping  [[32mok 1[0m in 0.50s]
-[0m02:40:55  9 of 22 OK created sql table model public_scratch.snowplow_web_sessions_this_run  [[32mok 1[0m in 0.50s]
-[0m02:40:55  12 of 22 START sql table model public_scratch.snowplow_web_page_views_this_run . [RUN]
-[0m02:40:55  13 of 22 START sql incremental model public_derived.snowplow_web_sessions ...... [RUN]
-[0m02:40:56  11 of 22 OK created sql table model public_scratch.snowplow_web_vital_events_this_run  [[32mok 1[0m in 0.29s]
-[0m02:40:56  14 of 22 START sql table model public_scratch.snowplow_web_vitals_this_run ..... [RUN]
-[0m02:40:56  12 of 22 OK created sql table model public_scratch.snowplow_web_page_views_this_run  [[32mok 1[0m in 0.29s]
-[0m02:40:56  15 of 22 START sql incremental model public_derived.snowplow_web_page_views .... [RUN]
-[0m02:40:56  14 of 22 OK created sql table model public_scratch.snowplow_web_vitals_this_run  [[32mok 1[0m in 0.31s]
-[0m02:40:56  16 of 22 START sql incremental model public_derived.snowplow_web_vitals ........ [RUN]
-[0m02:40:56  13 of 22 OK created sql incremental model public_derived.snowplow_web_sessions . [[32mok 1[0m in 0.57s]
-[0m02:40:56  17 of 22 START sql table model public_scratch.snowplow_web_users_sessions_this_run  [RUN]
-[0m02:40:56  15 of 22 OK created sql incremental model public_derived.snowplow_web_page_views  [[32mok 1[0m in 0.50s]
-[0m02:40:56  17 of 22 OK created sql table model public_scratch.snowplow_web_users_sessions_this_run  [[32mok 1[0m in 0.30s]
-[0m02:40:56  18 of 22 START sql table model public_scratch.snowplow_web_users_aggs .......... [RUN]
-[0m02:40:56  16 of 22 OK created sql incremental model public_derived.snowplow_web_vitals ... [[32mok 1[0m in 0.50s]
-[0m02:40:56  19 of 22 START sql table model public_derived.snowplow_web_vital_measurements .. [RUN]
-[0m02:40:57  18 of 22 OK created sql table model public_scratch.snowplow_web_users_aggs ..... [[32mok 1[0m in 0.29s]
-[0m02:40:57  20 of 22 START sql table model public_scratch.snowplow_web_users_lasts ......... [RUN]
-[0m02:40:57  19 of 22 ERROR creating sql table model public_derived.snowplow_web_vital_measurements  [[31mERROR[0m in 0.22s]
-[0m02:40:57  20 of 22 OK created sql table model public_scratch.snowplow_web_users_lasts .... [[32mok 1[0m in 0.30s]
-[0m02:40:57  21 of 22 START sql table model public_scratch.snowplow_web_users_this_run ...... [RUN]
-[0m02:40:57  21 of 22 OK created sql table model public_scratch.snowplow_web_users_this_run . [[32mok 1[0m in 0.30s]
-[0m02:40:57  22 of 22 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
-[0m02:40:58  22 of 22 OK created sql incremental model public_derived.snowplow_web_users .... [[32mok 1[0m in 0.50s]
-[0m02:40:58  
-[0m02:40:58  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m02:40:58  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.20s]
-[0m02:40:58  
-[0m02:40:58  Finished running 8 incremental models, 2 project hooks, 14 table models in 0 hours 0 minutes and 6.24 seconds (6.24s).
-[0m02:40:58  
-[0m02:40:58  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
-[0m02:40:58  
-[0m02:40:58    Database Error in model snowplow_web_vital_measurements (models/optional_modules/core_web_vitals/snowflake/snowplow_web_vital_measurements.sql)
-  000200: SQL compilation error: unsupported feature: Function 'grouping_id' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/grouping_id
+[0m02:41:13  Running with dbt=1.9.8
+[0m02:41:14  Registered adapter: snowflake=1.9.1
+[0m02:41:15  Found 22 models, 108 data tests, 4 seeds, 2 operations, 8 sources, 768 macros
+[0m02:41:15  
+[0m02:41:15  Concurrency: 4 threads (target='embucket')
+[0m02:41:15  
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72c456fef0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72c459c860>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72c459d100>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72c456eea0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72bc634a10>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72bc637380>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+[0m02:41:16  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+[0m02:41:16  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
+[0m02:41:16  
+[0m02:41:16  1 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
+[0m02:41:16  2 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
+[0m02:41:16  1 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 0.61s]
+[0m02:41:16  2 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 0.61s]
+[0m02:41:16  3 of 22 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72c6317230>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72bcd0de80>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+[0m02:41:17  02:41:17 + Snowplow: New Snowplow incremental model. Backfilling
+[0m02:41:17  02:41:17 + Snowplow: Processing data between '2020-01-01 00:00:00' and '2020-01-31 00:00:00' (snowplow_web)
+[0m02:41:17  3 of 22 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.77s]
+[0m02:41:17  4 of 22 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
+[0m02:41:18  4 of 22 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[32mok 1[0m in 0.71s]
+[0m02:41:18  5 of 22 START sql table model public_scratch.snowplow_web_base_sessions_this_run  [RUN]
+[0m02:41:18  5 of 22 OK created sql table model public_scratch.snowplow_web_base_sessions_this_run  [[32mok 1[0m in 0.50s]
+[0m02:41:18  6 of 22 START sql table model public_scratch.snowplow_web_base_events_this_run . [RUN]
+[0m02:41:19  6 of 22 OK created sql table model public_scratch.snowplow_web_base_events_this_run  [[32mok 1[0m in 0.40s]
+[0m02:41:19  7 of 22 START sql table model public_scratch.snowplow_web_pv_engaged_time ...... [RUN]
+[0m02:41:19  8 of 22 START sql table model public_scratch.snowplow_web_pv_scroll_depth ...... [RUN]
+[0m02:41:19  9 of 22 START sql table model public_scratch.snowplow_web_sessions_this_run .... [RUN]
+[0m02:41:19  10 of 22 START sql incremental model public_derived.snowplow_web_user_mapping .. [RUN]
+[0m02:41:19  7 of 22 OK created sql table model public_scratch.snowplow_web_pv_engaged_time . [[32mok 1[0m in 0.41s]
+[0m02:41:19  9 of 22 OK created sql table model public_scratch.snowplow_web_sessions_this_run  [[32mok 1[0m in 0.39s]
+[0m02:41:19  8 of 22 OK created sql table model public_scratch.snowplow_web_pv_scroll_depth . [[32mok 1[0m in 0.41s]
+[0m02:41:19  11 of 22 START sql table model public_scratch.snowplow_web_vital_events_this_run  [RUN]
+[0m02:41:19  12 of 22 START sql table model public_scratch.snowplow_web_page_views_this_run . [RUN]
+[0m02:41:19  10 of 22 OK created sql incremental model public_derived.snowplow_web_user_mapping  [[32mok 1[0m in 0.49s]
+[0m02:41:19  13 of 22 START sql incremental model public_derived.snowplow_web_sessions ...... [RUN]
+[0m02:41:19  12 of 22 OK created sql table model public_scratch.snowplow_web_page_views_this_run  [[32mok 1[0m in 0.28s]
+[0m02:41:19  11 of 22 OK created sql table model public_scratch.snowplow_web_vital_events_this_run  [[32mok 1[0m in 0.29s]
+[0m02:41:19  14 of 22 START sql incremental model public_derived.snowplow_web_page_views .... [RUN]
+[0m02:41:20  15 of 22 START sql table model public_scratch.snowplow_web_vitals_this_run ..... [RUN]
+[0m02:41:20  15 of 22 OK created sql table model public_scratch.snowplow_web_vitals_this_run  [[32mok 1[0m in 0.30s]
+[0m02:41:20  16 of 22 START sql incremental model public_derived.snowplow_web_vitals ........ [RUN]
+[0m02:41:20  13 of 22 OK created sql incremental model public_derived.snowplow_web_sessions . [[32mok 1[0m in 0.61s]
+[0m02:41:20  17 of 22 START sql table model public_scratch.snowplow_web_users_sessions_this_run  [RUN]
+[0m02:41:20  14 of 22 OK created sql incremental model public_derived.snowplow_web_page_views  [[32mok 1[0m in 0.50s]
+[0m02:41:20  17 of 22 OK created sql table model public_scratch.snowplow_web_users_sessions_this_run  [[32mok 1[0m in 0.29s]
+[0m02:41:20  18 of 22 START sql table model public_scratch.snowplow_web_users_aggs .......... [RUN]
+[0m02:41:20  16 of 22 OK created sql incremental model public_derived.snowplow_web_vitals ... [[32mok 1[0m in 0.49s]
+[0m02:41:20  19 of 22 START sql table model public_derived.snowplow_web_vital_measurements .. [RUN]
+[0m02:41:21  18 of 22 OK created sql table model public_scratch.snowplow_web_users_aggs ..... [[32mok 1[0m in 0.29s]
+[0m02:41:21  20 of 22 START sql table model public_scratch.snowplow_web_users_lasts ......... [RUN]
+[0m02:41:21  19 of 22 ERROR creating sql table model public_derived.snowplow_web_vital_measurements  [[31mERROR[0m in 0.30s]
+[0m02:41:21  20 of 22 OK created sql table model public_scratch.snowplow_web_users_lasts .... [[32mok 1[0m in 0.30s]
+[0m02:41:21  21 of 22 START sql table model public_scratch.snowplow_web_users_this_run ...... [RUN]
+[0m02:41:21  21 of 22 OK created sql table model public_scratch.snowplow_web_users_this_run . [[32mok 1[0m in 0.30s]
+[0m02:41:21  22 of 22 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
+[0m02:41:22  22 of 22 OK created sql incremental model public_derived.snowplow_web_users .... [[32mok 1[0m in 0.50s]
+[0m02:41:22  
+[0m02:41:22  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72bcfef9b0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f72bcfeeb70>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+[0m02:41:22  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.20s]
+[0m02:41:22  
+[0m02:41:22  Finished running 8 incremental models, 2 project hooks, 14 table models in 0 hours 0 minutes and 6.84 seconds (6.84s).
+[0m02:41:22  
+[0m02:41:22  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m02:41:22  
+[0m02:41:22    Database Error in model snowplow_web_vital_measurements (models/optional_modules/core_web_vitals/snowflake/snowplow_web_vital_measurements.sql)
+  000200: SQL compilation error: unsupported feature: Conflicting ordering requirements in aggregate functions is not supported
   compiled code at target/run/snowplow_web/models/optional_modules/core_web_vitals/snowflake/snowplow_web_vital_measurements.sql
-[0m02:40:58  
-[0m02:40:58  Done. PASS=23 WARN=0 ERROR=1 SKIP=0 TOTAL=24
+[0m02:41:22  
+[0m02:41:22  Done. PASS=23 WARN=0 ERROR=1 SKIP=0 TOTAL=24
