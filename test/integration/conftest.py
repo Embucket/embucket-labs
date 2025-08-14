@@ -137,6 +137,13 @@ def embucket_bootstrap(embucket_exec):
         f"""CREATE EXTERNAL VOLUME IF NOT EXISTS {vol} STORAGE_LOCATIONS = ((NAME = '{vol}' STORAGE_PROVIDER = 's3' STORAGE_ENDPOINT = '{endpoint}' STORAGE_BASE_URL = '{bucket}' CREDENTIALS = (AWS_KEY_ID='{ak}' AWS_SECRET_KEY='{sk}' REGION='us-east-1')));
 """
     )
+    # Create local volume to enable COPY INTO for embucket
+    # create external volume if not exists local STORAGE_LOCATIONS = (( NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '/Users/ramp/vcs/embucket/test
+    #    /integration' ));
+    embucket_exec(
+        f"""CREATE EXTERNAL VOLUME IF NOT EXISTS local STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}'));
+"""
+    )
     embucket_exec(f"CREATE DATABASE IF NOT EXISTS {db} EXTERNAL_VOLUME = '{vol}'")
     embucket_exec(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}")
 
@@ -372,7 +379,7 @@ class EmbucketEngine:
         ff = ", ".join(ff_parts)
 
         for uri in dataset.sources:
-            sql = f"COPY INTO {table_fqn} FROM '{uri}' FILE_FORMAT = ({ff})"
+            sql = f"COPY INTO {table_fqn} FROM 'file://{os.getcwd()}/{uri}' STORAGE_INTEGRATION = local FILE_FORMAT = ({ff})"
             self._exec(sql)
 
     def sql(
