@@ -90,7 +90,7 @@ pub enum SqlCompilationError {
     },
 
     #[snafu(display("{error}"))]
-    CompilationUnknown {
+    CompilationGeneric {
         error: String,
         #[snafu(implicit)]
         location: Location,
@@ -211,6 +211,13 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
         MetastoreError::ObjectStore { error, .. } => object_store_error(error, &subtext),
         MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
         MetastoreError::Iceberg { error, .. } => iceberg_error(error, &subtext),
+        MetastoreError::SchemaNotFound { schema, db, .. } => SnowflakeError::SqlCompilation {
+            error: CompilationGenericSnafu {
+                error: format!("Schema '{schema}.{db}' does not exist or not authorized."),
+            }
+            .build(),
+            status_code: StatusCode::MetastoreSchemaNotFound,
+        },
         _ => CustomSnafu {
             message: format_message(&subtext, message),
             status_code: StatusCode::Metastore,
@@ -319,7 +326,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             }
         }
         DataFusionError::Execution(error) => SnowflakeError::SqlCompilation {
-            error: CompilationUnknownSnafu { error }.build(),
+            error: CompilationGenericSnafu { error }.build(),
             status_code: StatusCode::Datafusion,
         },
         DataFusionError::IoError(_io_error) => CustomSnafu {
@@ -359,7 +366,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             // since parse error is just a text and not a structure
             {
                 SnowflakeError::SqlCompilation {
-                    error: CompilationUnknownSnafu { error }.build(),
+                    error: CompilationGenericSnafu { error }.build(),
                     status_code: StatusCode::DataFusionSql,
                 }
             }

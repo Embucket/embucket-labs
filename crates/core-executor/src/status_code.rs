@@ -2,6 +2,7 @@
 pub enum StatusCode {
     Db,
     Metastore = 101,
+    MetastoreSchemaNotFound,
     ObjectStore = 201,
     Datafusion = 301,
     DataFusionSql = 401,
