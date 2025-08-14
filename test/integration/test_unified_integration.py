@@ -94,6 +94,7 @@ def test_nyc_taxi(
 
 
 # TPC-H Benchmark Tests - Real TPC-H queries using multiple tables
+@pytest.mark.parametrize('tpch_full', ['spark', 'embucket'], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
@@ -201,9 +202,9 @@ def test_nyc_taxi(
     ],
 )
 def test_tpch_benchmark_queries(
-    spark_engine, embucket_engine, spark_tpch_full, query_id, query_sql
+    spark_engine, embucket_engine, tpch_full, query_id, query_sql
 ):
-    """Test actual TPC-H benchmark queries using complete dataset with all tables."""
+    """Test actual TPC-H benchmark queries using complete dataset with all tables and different loaders."""
     _run_multi_table_test(
-        spark_engine, embucket_engine, spark_tpch_full, query_id, query_sql
+        spark_engine, embucket_engine, tpch_full, query_id, query_sql
     )
