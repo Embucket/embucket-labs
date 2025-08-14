@@ -31,6 +31,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct LengthFunc {
     signature: Signature,
+    aliases: Vec<String>,
 }
 
 impl Default for LengthFunc {
@@ -54,6 +55,7 @@ impl LengthFunc {
                 ],
                 Volatility::Immutable,
             ),
+            aliases: vec![String::from("len")],
         }
     }
 }
@@ -145,6 +147,10 @@ impl ScalarUDFImpl for LengthFunc {
         };
 
         Ok(ColumnarValue::Array(result))
+    }
+
+    fn aliases(&self) -> &[String] {
+        &self.aliases
     }
 }
 

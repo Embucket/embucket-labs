@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/length.rs
+description: "\"SELECT LEN('hello'), LEN(''), LEN(NULL)\""
+---
+Ok(
+    [
+        "+--------------------+---------------+-----------+",
+        "| len(Utf8(\"hello\")) | len(Utf8(\"\")) | len(NULL) |",
+        "+--------------------+---------------+-----------+",
+        "| 5                  | 0             |           |",
+        "+--------------------+---------------+-----------+",
+    ],
+)
