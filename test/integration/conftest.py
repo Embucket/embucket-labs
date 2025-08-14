@@ -460,64 +460,73 @@ def spark_engine(spark) -> SparkEngine:
 @pytest.fixture(scope="session")
 def nyc_taxi(request, test_run_id):
     """Parameterized NYC taxi fixture that accepts engine type.
-    
+
     Use with indirect=True parametrization:
     @pytest.mark.parametrize('nyc_taxi', ['spark', 'embucket'], indirect=True)
     """
     engine_type = request.param
-    if engine_type == 'spark':
-        spark_engine = request.getfixturevalue('spark_engine')
-        return _load_dataset_fixture("nyc_taxi_yellow", spark_engine, test_run_id, "spark")
-    elif engine_type == 'embucket':
-        embucket_engine = request.getfixturevalue('embucket_engine')
-        return _load_dataset_fixture("nyc_taxi_yellow", embucket_engine, test_run_id, "embucket")
-    else:
-        raise ValueError(f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'.")
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("nyc_taxi_yellow", engine, test_run_id, engine_type)
 
 
 # TPC-H Dataset Fixtures
 @pytest.fixture(scope="session")
 def tpch_table(request, test_run_id):
     """Parameterized TPC-H table fixture that accepts (table_name, engine_type) tuple.
-    
+
     Use with indirect=True parametrization:
     @pytest.mark.parametrize('tpch_table', [('lineitem', 'spark'), ('orders', 'embucket')], indirect=True)
     """
     table_name, engine_type = request.param
     dataset_name = f"tpch_{table_name}"
-    
-    if engine_type == 'spark':
-        spark_engine = request.getfixturevalue('spark_engine')
-        return _load_dataset_fixture(dataset_name, spark_engine, test_run_id, "spark")
-    elif engine_type == 'embucket':
-        embucket_engine = request.getfixturevalue('embucket_engine')
-        return _load_dataset_fixture(dataset_name, embucket_engine, test_run_id, "embucket")
-    else:
-        raise ValueError(f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'.")
+
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture(dataset_name, engine, test_run_id, engine_type)
 
 
 @pytest.fixture(scope="session")
 def tpch_full(request, test_run_id):
     """Parameterized TPC-H complete dataset fixture that accepts engine type.
-    
+
     Loads all 8 TPC-H tables with the specified engine and returns as dict.
     Use with indirect=True parametrization:
     @pytest.mark.parametrize('tpch_full', ['spark', 'embucket'], indirect=True)
     """
     engine_type = request.param
-    tables = ['lineitem', 'orders', 'part', 'supplier', 'customer', 'nation', 'region', 'partsupp']
-    
-    if engine_type == 'spark':
-        engine = request.getfixturevalue('spark_engine')
-    elif engine_type == 'embucket':
-        engine = request.getfixturevalue('embucket_engine')
-    else:
-        raise ValueError(f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'.")
-    
+    tables = [
+        "lineitem",
+        "orders",
+        "part",
+        "supplier",
+        "customer",
+        "nation",
+        "region",
+        "partsupp",
+    ]
+
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+
     # Load all tables with the specified engine
     loaded_tables = {}
     for table in tables:
         dataset_name = f"tpch_{table}"
-        loaded_tables[table] = _load_dataset_fixture(dataset_name, engine, test_run_id, engine_type)
-    
+        loaded_tables[table] = _load_dataset_fixture(
+            dataset_name, engine, test_run_id, engine_type
+        )
+
     return loaded_tables
