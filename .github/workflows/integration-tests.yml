@@ -126,6 +126,7 @@ jobs:
           echo "EMBUCKET_USER=embucket" >> $GITHUB_ENV
           echo "EMBUCKET_PASSWORD=embucket" >> $GITHUB_ENV
           echo "EMBUCKET_SCHEMA=public" >> $GITHUB_ENV
+          echo "AWS_REGION=us-east-2" >> $GITHUB_ENV
 
       - name: Set up DuckDB
         uses: opt-nc/setup-duckdb-action@v1.0.14
