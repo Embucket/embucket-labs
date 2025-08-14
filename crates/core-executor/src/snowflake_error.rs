@@ -17,6 +17,9 @@ use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
 
+// SnowflakeError have no query_id, it is inconvinient adding it here.
+// query_id should be taken from core_executor::Error::QueryExecution
+
 #[derive(Snafu, Debug)]
 pub enum SnowflakeError {
     #[snafu(display("SQL compilation error: {error}"))]
@@ -96,47 +99,18 @@ pub enum SqlCompilationError {
 
 impl SnowflakeError {
     #[must_use]
-    pub fn display_debug_error_messages(&self) -> (String, String) {
-        (self.to_string(), format!("{self:?}"))
+    pub fn display_error_message(&self) -> String {
+        self.to_string()
+    }
+    pub fn debug_error_message(&self) -> String {
+        format!("{self:?}")
     }
 }
 
 // Self { message: format!("SQL execution error: {}", message) }
 impl SnowflakeError {
     pub fn from_executor_error(value: &Error) -> Self {
-        let message = value.to_string();
-        match value {
-            Error::RegisterUDF { error, .. }
-            | Error::RegisterUDAF { error, .. }
-            | Error::DataFusionQuery { error, .. }
-            | Error::DataFusionLogicalPlanMergeTarget { error, .. }
-            | Error::DataFusionLogicalPlanMergeSource { error, .. }
-            | Error::DataFusionLogicalPlanMergeJoin { error, .. }
-            | Error::DataFusion { error, .. } => datafusion_error(error, &[]),
-            Error::Metastore { source, .. } => metastore_error(source, &[]),
-            Error::Iceberg { error, .. } => iceberg_error(error, &[]),
-            Error::RefreshCatalogList { source, .. }
-            | Error::RegisterCatalog { source, .. }
-            | Error::DropDatabase { source, .. }
-            | Error::CreateDatabase { source, .. } => catalog_error(source, &[]),
-            Error::Arrow { .. }
-            | Error::SerdeParse { .. }
-            | Error::CatalogListDowncast { .. }
-            | Error::CatalogDownCast { .. }
-            | Error::LogicalExtensionChildCount { .. }
-            | Error::MergeFilterStreamNotMatching { .. }
-            | Error::MatchingFilesAlreadyConsumed { .. }
-            | Error::MissingFilterPredicates { .. } => CustomSnafu {
-                message,
-                status_code: StatusCode::Internal,
-            }
-            .build(),
-            _ => CustomSnafu {
-                message,
-                status_code: StatusCode::Other,
-            }
-            .build(),
-        }
+        executor_error(value)
     }
 }
 
@@ -151,6 +125,43 @@ fn format_message(subtext: &[&str], error: String) -> String {
         error
     } else {
         format!("{subtext}: {error}")
+    }
+}
+
+pub fn executor_error(error: &Error) -> SnowflakeError {
+    let message = error.to_string();
+    match error {
+        Error::RegisterUDF { error, .. }
+        | Error::RegisterUDAF { error, .. }
+        | Error::DataFusionQuery { error, .. }
+        | Error::DataFusionLogicalPlanMergeTarget { error, .. }
+        | Error::DataFusionLogicalPlanMergeSource { error, .. }
+        | Error::DataFusionLogicalPlanMergeJoin { error, .. }
+        | Error::DataFusion { error, .. } => datafusion_error(error, &[]),
+        Error::Metastore { source, .. } => metastore_error(source, &[]),
+        Error::Iceberg { error, .. } => iceberg_error(error, &[]),
+        Error::RefreshCatalogList { source, .. }
+        | Error::RegisterCatalog { source, .. }
+        | Error::DropDatabase { source, .. }
+        | Error::CreateDatabase { source, .. } => catalog_error(source, &[]),
+        Error::QueryExecution { source, .. } => executor_error(source),
+        Error::Arrow { .. }
+        | Error::SerdeParse { .. }
+        | Error::CatalogListDowncast { .. }
+        | Error::CatalogDownCast { .. }
+        | Error::LogicalExtensionChildCount { .. }
+        | Error::MergeFilterStreamNotMatching { .. }
+        | Error::MatchingFilesAlreadyConsumed { .. }
+        | Error::MissingFilterPredicates { .. } => CustomSnafu {
+            message,
+            status_code: StatusCode::Internal,
+        }
+        .build(),
+        _ => CustomSnafu {
+            message,
+            status_code: StatusCode::Other,
+        }
+        .build(),
     }
 }
 

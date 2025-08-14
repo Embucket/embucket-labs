@@ -110,6 +110,7 @@ impl IntoResponse for Error {
         name = "api_snowflake_rest::Error::into_response",
         level = "info",
         fields(
+            query_id,
             display_error,
             debug_error,
             error_stack_trace,
@@ -120,11 +121,6 @@ impl IntoResponse for Error {
     )]
     #[allow(clippy::too_many_lines)]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        // Record the result as part of the current span.
-        tracing::Span::current()
-            .record("error_stack_trace", self.output_msg())
-            .record("error_chain", self.error_chain());
-
         let status_code = match &self {
             Self::Execution { source } => match source.to_snowflake_error().status_code() {
                 StatusCode::Internal => http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -145,7 +141,7 @@ impl IntoResponse for Error {
             | Self::NotImplemented { .. } => http::StatusCode::OK,
         };
 
-        let (display_error, debug_error) = self.display_debug_error_messages();
+        let display_error = self.display_error_message();
         // Give more context to user, not just "Internal server error"
         // if status_code == http::StatusCode::INTERNAL_SERVER_ERROR {
         //     display_error = "Internal server error".to_string();
@@ -153,9 +149,12 @@ impl IntoResponse for Error {
 
         // Record the result as part of the current span.
         tracing::Span::current()
+            .record("status_code", status_code.as_u16())
+            .record("query_id", self.query_id())
             .record("display_error", &display_error)
-            .record("debug_error", debug_error)
-            .record("status_code", status_code.as_u16());
+            .record("debug_error", self.debug_error_message())
+            .record("error_stack_trace", self.output_msg())
+            .record("error_chain", self.error_chain());
 
         let body = Json(JsonResponse {
             success: false,
@@ -170,12 +169,27 @@ impl IntoResponse for Error {
 }
 
 impl Error {
-    pub fn display_debug_error_messages(self) -> (String, String) {
-        // acquire error str as later it will be moved
+    pub fn query_id(&self) -> String {
         if let Self::Execution { source, .. } = self {
-            source.to_snowflake_error().display_debug_error_messages()
+            source.query_id()
         } else {
-            (self.to_string(), format!("{self:?}"))
+            String::new()
+        }
+    }
+    
+    pub fn display_error_message(&self) -> String {
+        if let Self::Execution { source, .. } = self {
+            format!("{}: {}", source.query_id(), source.to_snowflake_error().display_error_message())
+        } else {
+            self.to_string()
+        }
+    }
+
+    pub fn debug_error_message(&self) -> String {
+        if let Self::Execution { source, .. } = self {
+            source.to_snowflake_error().debug_error_message()
+        } else {
+            format!("{self:?}")
         }
     }
 }

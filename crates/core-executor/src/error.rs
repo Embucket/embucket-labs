@@ -512,9 +512,25 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("{query_id}: Query execution error: {source}"))]
+    QueryExecution {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<Error>,
+        query_id: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl Error {
+    pub fn query_id(&self) -> String {
+        if let Self::QueryExecution { query_id, .. } = self {
+            query_id.clone()
+        } else {
+            String::new()
+        }
+    }
     #[must_use]
     pub fn to_snowflake_error(&self) -> SnowflakeError {
         SnowflakeError::from_executor_error(self)

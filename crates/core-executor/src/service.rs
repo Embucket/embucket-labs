@@ -223,7 +223,13 @@ impl ExecutionService for CoreExecutionService {
         self.df_sessions.clone()
     }
 
-    #[tracing::instrument(name = "ExecutionService::query", level = "debug", skip(self), err)]
+    #[tracing::instrument(
+        name = "ExecutionService::query",
+        level = "debug",
+        skip(self),
+        fields(query_id),
+        err
+    )]
     #[allow(clippy::large_futures)]
     async fn query(
         &self,
@@ -258,6 +264,10 @@ impl ExecutionService for CoreExecutionService {
         let mut history_record = self
             .history_store
             .query_record(query, query_context.worksheet_id);
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("query_id", history_record.query_id().to_string());
+
         // Attach the generated query ID to the query context before execution.
         // This ensures consistent tracking and logging of the query across all layers.
         let mut query_obj = user_session.query(
@@ -285,7 +295,9 @@ impl ExecutionService for CoreExecutionService {
         self.history_store
             .save_query_record(&mut history_record, query_result_to_history(&query_result))
             .await;
-        query_result
+        Ok(query_result.context(ex_error::QueryExecutionSnafu {
+            query_id: history_record.query_id().to_string(),
+        })?)
     }
 
     #[tracing::instrument(
