@@ -131,6 +131,7 @@ def embucket_bootstrap(embucket_exec):
     ak = _get("S3_ACCESS_KEY", "AKIAIOSFODNN7EXAMPLE")
     sk = _get("S3_SECRET_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     bucket = _get("S3_BUCKET", "embucket")
+    local_base_path = _get("LOCAL_BASE_PATH", os.getcwd())
 
     # Create external volume if we have enough info
     embucket_exec(
@@ -141,7 +142,7 @@ def embucket_bootstrap(embucket_exec):
     # create external volume if not exists local STORAGE_LOCATIONS = (( NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '/Users/ramp/vcs/embucket/test
     #    /integration' ));
     embucket_exec(
-        f"""CREATE EXTERNAL VOLUME IF NOT EXISTS local STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{os.getcwd()}'));
+        f"""CREATE EXTERNAL VOLUME IF NOT EXISTS local STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{local_base_path}'));
 """
     )
     embucket_exec(f"CREATE DATABASE IF NOT EXISTS {db} EXTERNAL_VOLUME = '{vol}'")
@@ -379,7 +380,8 @@ class EmbucketEngine:
         ff = ", ".join(ff_parts)
 
         for uri in dataset.sources:
-            sql = f"COPY INTO {table_fqn} FROM 'file://{os.getcwd()}/{uri}' STORAGE_INTEGRATION = local FILE_FORMAT = ({ff})"
+            local_base_path = _get("LOCAL_BASE_PATH", os.getcwd())
+            sql = f"COPY INTO {table_fqn} FROM 'file://{local_base_path}/{uri}' STORAGE_INTEGRATION = local FILE_FORMAT = ({ff})"
             self._exec(sql)
 
     def sql(
