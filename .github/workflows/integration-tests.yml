@@ -131,6 +131,8 @@ jobs:
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet
           curl -O https://blobs.duckdb.org/data/tpch-sf1.db
           duckdb tpch-sf1.db -c "COPY customer TO customer.parquet (FORMAT 'PARQUET');COPY lineitem TO lineitem.parquet (FORMAT 'PARQUET');COPY nation TO nation.parquet (FORMAT 'PARQUET');COPY orders TO orders.parquet (FORMAT 'PARQUET');COPY part TO part.parquet (FORMAT 'PARQUET');COPY partsupp TO partsupp.parquet (FORMAT 'PARQUET');COPY region TO region.parquet (FORMAT 'PARQUET');COPY supplier TO supplier.parquet (FORMAT 'PARQUET');"
+          echo $PWD
+          ls -l
 
       - name: Run integration tests
         working-directory: ./test/integration
