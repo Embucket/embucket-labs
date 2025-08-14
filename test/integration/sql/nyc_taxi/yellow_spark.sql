@@ -1,11 +1,11 @@
 -- Spark SQL DDL for NYC Taxi Yellow Trips (Iceberg table)
 CREATE TABLE {{TABLE_FQN}} (
-  vendor_id INT,
+  vendorid INT,
   tpep_pickup_datetime TIMESTAMP,
   tpep_dropoff_datetime TIMESTAMP,
   passenger_count INT,
   trip_distance DOUBLE,
-  ratecode_id INT,
+  ratecodeid INT,
   store_and_fwd_flag STRING,
   pulocationid INT,
   dolocationid INT,

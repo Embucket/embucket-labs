@@ -50,13 +50,14 @@ def _run_multi_table_test(
     assert len(embucket_result) > 0
 
 
+@pytest.mark.parametrize('nyc_taxi', ['spark', 'embucket'], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
         ("q_count", "SELECT COUNT(*) FROM {{TABLE:table}}"),
         (
             "q_vendor_counts",
-            "SELECT vendor_id, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY vendor_id",
+            "SELECT vendorid, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY vendorid",
         ),
         (
             "q_payment_amounts",
@@ -68,7 +69,7 @@ def _run_multi_table_test(
         ),
         (
             "q_vendor_avg_distance",
-            "SELECT vendor_id, AVG(trip_distance) AS avg_dist FROM {{TABLE:table}} GROUP BY vendor_id",
+            "SELECT vendorid, AVG(trip_distance) AS avg_dist FROM {{TABLE:table}} GROUP BY vendorid",
         ),
     ],
     ids=[
@@ -82,13 +83,13 @@ def _run_multi_table_test(
 def test_nyc_taxi(
     spark_engine,
     embucket_engine,
-    spark_nyc_taxi,
+    nyc_taxi,
     query_id,
     query_sql,
 ):
-    """Test NYC Taxi dataset with taxi-specific queries."""
+    """Test NYC Taxi dataset with taxi-specific queries using different loaders."""
     _run_cross_engine_test(
-        spark_engine, embucket_engine, spark_nyc_taxi, query_id, query_sql
+        spark_engine, embucket_engine, nyc_taxi, query_id, query_sql
     )
 
 

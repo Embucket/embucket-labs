@@ -458,15 +458,21 @@ def spark_engine(spark) -> SparkEngine:
 
 # NYC Taxi Dataset Fixtures
 @pytest.fixture(scope="session")
-def embucket_nyc_taxi(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "nyc_taxi_yellow", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_nyc_taxi(spark_engine, test_run_id):
-    return _load_dataset_fixture("nyc_taxi_yellow", spark_engine, test_run_id, "spark")
+def nyc_taxi(request, test_run_id):
+    """Parameterized NYC taxi fixture that accepts engine type.
+    
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type == 'spark':
+        spark_engine = request.getfixturevalue('spark_engine')
+        return _load_dataset_fixture("nyc_taxi_yellow", spark_engine, test_run_id, "spark")
+    elif engine_type == 'embucket':
+        embucket_engine = request.getfixturevalue('embucket_engine')
+        return _load_dataset_fixture("nyc_taxi_yellow", embucket_engine, test_run_id, "embucket")
+    else:
+        raise ValueError(f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'.")
 
 
 # TPC-H Dataset Fixtures

@@ -1,11 +1,11 @@
 -- Snowflake-like DDL for NYC Taxi Yellow Trips (2019-era schema)
 CREATE OR REPLACE TABLE {{TABLE_FQN}} (
-  vendor_id INT,
+  vendorid INT,
   tpep_pickup_datetime TIMESTAMP,
   tpep_dropoff_datetime TIMESTAMP,
   passenger_count INT,
   trip_distance DOUBLE,
-  ratecode_id INT,
+  ratecodeid INT,
   store_and_fwd_flag VARCHAR(1),
   pulocationid INT,
   dolocationid INT,
