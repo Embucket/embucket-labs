@@ -91,9 +91,9 @@ use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
-use object_store::ObjectStore;
-use object_store::aws::AmazonS3Builder;
+use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
 use object_store::local::LocalFileSystem;
+use object_store::{ClientOptions, ObjectStore};
 use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
@@ -2533,9 +2533,17 @@ impl UserQuery {
             match url.scheme() {
                 "s3" => {
                     let object_store = url.object_store();
-                    let bucket = object_store.as_str().trim_start_matches("s3://");
+                    let bucket = object_store
+                        .as_str()
+                        .trim_start_matches("s3://")
+                        .trim_end_matches('/');
+                    let region = resolve_bucket_region(bucket, &ClientOptions::default())
+                        .await
+                        .context(ex_error::ObjectStoreSnafu)?;
                     let s3 = AmazonS3Builder::new()
                         .with_bucket_name(bucket)
+                        .with_region(region)
+                        .with_skip_signature(true)
                         .build()
                         .map_err(|_| {
                             ex_error::InvalidBucketIdentifierSnafu {
