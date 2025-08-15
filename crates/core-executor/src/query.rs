@@ -2540,17 +2540,23 @@ impl UserQuery {
                     let region = resolve_bucket_region(bucket, &ClientOptions::default())
                         .await
                         .context(ex_error::ObjectStoreSnafu)?;
-                    let s3 = AmazonS3Builder::new()
+                    let builder = AmazonS3Builder::new()
                         .with_bucket_name(bucket)
                         .with_region(region)
-                        .with_skip_signature(true)
+                        .with_skip_signature(true);
+
+                    let builder = if let Some(endpoint) = stage_params.endpoint {
+                        builder.with_endpoint(endpoint)
+                    } else {
+                        builder
+                    };
+
+                    let s3 = builder.build().map_err(|_| {
+                        ex_error::InvalidBucketIdentifierSnafu {
+                            ident: bucket.to_string(),
+                        }
                         .build()
-                        .map_err(|_| {
-                            ex_error::InvalidBucketIdentifierSnafu {
-                                ident: bucket.to_string(),
-                            }
-                            .build()
-                        })?;
+                    })?;
                     Ok(Arc::new(s3))
                 }
                 "file" => {
