@@ -101,6 +101,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Unsupported URL scheme '{scheme}' in URL: {url}"))]
+    UnsupportedUrlScheme {
+        scheme: String,
+        url: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Arrow error: {error}"))]
     Arrow {
         #[snafu(source)]
