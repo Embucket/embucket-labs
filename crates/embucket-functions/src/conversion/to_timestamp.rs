@@ -662,6 +662,8 @@ pub fn convert_snowflake_format_to_chrono(snowflake_format: &str) -> String {
 
     chrono_format = chrono_format.replace("tzh:tzm", "%z");
     chrono_format = chrono_format.replace("tzhtzm", "%Z");
+    // T, Z, and UTC are parsed case-insensitively.
+    chrono_format = chrono_format.replace('t', "T");
 
     chrono_format
 }
@@ -963,17 +965,18 @@ mod tests {
 
         let sql = r#"SELECT
        TO_TIMESTAMP('04/05/2024 01:02:03', 'mm/dd/yyyy hh24:mi:ss') as "a",
-       TO_TIMESTAMP('04/05/2024 01:02:03') as "b"
+       TO_TIMESTAMP('04/05/2024T01:02:03', 'mm/dd/yyyyThh24:mi:ss') as "b",
+       TO_TIMESTAMP('04/05/2024 01:02:03') as "c"
        "#;
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
-                "+---------------------+---------------------+",
-                "| a                   | b                   |",
-                "+---------------------+---------------------+",
-                "| 2024-04-05T01:02:03 | 2024-04-05T01:02:03 |",
-                "+---------------------+---------------------+",
+                "+---------------------+---------------------+---------------------+",
+                "| a                   | b                   | c                   |",
+                "+---------------------+---------------------+---------------------+",
+                "| 2024-04-05T01:02:03 | 2024-04-05T01:02:03 | 2024-04-05T01:02:03 |",
+                "+---------------------+---------------------+---------------------+",
             ],
             &result
         );
