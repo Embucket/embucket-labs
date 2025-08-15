@@ -1144,7 +1144,7 @@ mod tests {
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
         assert_eq!(column_infos[1].name, "ts_col");
-        assert_eq!(column_infos[1].r#type, "timestamp_ntz");
+        assert_eq!(column_infos[1].r#type, "timestamp_tz");
         assert_eq!(column_infos[2].name, "binary_view");
         assert_eq!(column_infos[2].r#type, "binary");
 
