@@ -2551,12 +2551,12 @@ impl UserQuery {
                         builder
                     };
 
-                    let s3 = builder.build().map_err(|_| {
-                        ex_error::InvalidBucketIdentifierSnafu {
+                    let Ok(s3) = builder.build() else {
+                        return ex_error::InvalidBucketIdentifierSnafu {
                             ident: bucket.to_string(),
                         }
-                        .build()
-                    })?;
+                        .fail();
+                    };
                     Ok(Arc::new(s3))
                 }
                 "file" => {
