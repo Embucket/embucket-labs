@@ -18,7 +18,8 @@ impl VisitorMut for FunctionsRewriter {
             let func_name = func_name_string.as_str();
             let args = &mut func.args;
             let name = match func_name {
-                "dateadd" | "date_add" | "datediff" | "date_diff" | "date_part" => {
+                "dateadd" | "date_add" | "datediff" | "date_diff" | "date_part"
+                | "timestampdiff" | "timestamp_diff" | "time_diff" | "timediff" => {
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
                         && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
                             args.iter_mut().next()

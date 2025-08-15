@@ -94,7 +94,7 @@ impl ToTimestampFunc {
 
         match self.name.as_str() {
             "to_timestamp_ntz" | "try_to_timestamp_ntz" => None,
-            "to_timestamp" => {
+            "to_timestamp" | "try_to_timestamp" => {
                 if self
                     .session_params
                     .get_property("timestamp_input_mapping")
@@ -226,7 +226,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
             } else {
                 ColumnarValue::Array(Arc::new(arr))
             })
-        } else if arr.data_type().is_integer() {
+        } else if arr.data_type().is_integer() || arr.data_type().is_floating() {
             let arr =
                 kernels::cast::cast_with_options(&arr, &DataType::Int64, &DEFAULT_CAST_OPTIONS)?;
 
@@ -513,6 +513,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
     clippy::cast_possible_wrap,
     clippy::as_conversions,
     clippy::cast_lossless,
+    clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
     clippy::needless_pass_by_value
 )]
@@ -522,7 +523,7 @@ fn parse_decimal(
     timezone: Option<Arc<str>>,
     s: i8,
 ) -> DFResult<ColumnarValue> {
-    let s = i128::from(s).pow(10);
+    let s = 10_i128.pow(s as u32);
     let scale = if args.len() == 1 {
         0
     } else if let ColumnarValue::Scalar(v) = &args[1] {

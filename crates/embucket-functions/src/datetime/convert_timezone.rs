@@ -1,116 +1,147 @@
-use datafusion::arrow::array::timezone::Tz;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
-use datafusion::arrow::datatypes::TimeUnit::{self, Microsecond, Millisecond, Nanosecond, Second};
-use datafusion::common::{Result, internal_err, plan_err};
-use datafusion::logical_expr::TypeSignature::Exact;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TIMEZONE_WILDCARD, Volatility,
+use crate::datetime_errors::Result;
+use crate::datetime_errors::{
+    CantGetNanosecondsSnafu, CantParseTimezoneSnafu, InvalidDatetimeSnafu, InvalidTimestampSnafu,
 };
-use datafusion::scalar::ScalarValue;
-use datafusion_expr::{ReturnInfo, ReturnTypeArgs};
+use crate::session_params::SessionParams;
+use arrow_schema::DataType::{Timestamp, Utf8};
+use arrow_schema::{DataType, TimeUnit};
+use chrono::{DateTime, TimeZone, Utc};
+use chrono_tz::Tz;
+use datafusion::arrow::array::{ArrayRef, TimestampNanosecondBuilder};
+use datafusion::arrow::compute::cast_with_options;
+use datafusion::error::Result as DFResult;
+use datafusion::logical_expr::TypeSignature::Exact;
+use datafusion::logical_expr::{ColumnarValue, Signature, TIMEZONE_WILDCARD, Volatility};
+use datafusion_common::cast::as_timestamp_nanosecond_array;
+use datafusion_common::format::DEFAULT_CAST_OPTIONS;
+use datafusion_common::{ScalarValue, internal_err};
+use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::sync::Arc;
 
+/// `CONVERT_TIMEZONE` SQL function
+///
+/// Converts a timestamp from one timezone to another.
+///
+/// Syntax: `CONVERT_TIMEZONE(<target_timezone>, <source_timezone>, <source_timestamp_ntz>)`
+/// Syntax: `CONVERT_TIMEZONE(<target_timezone>, <source_timestamp_tz>)`
+///
+/// Arguments:
+/// - `<target_timezone>`: A string representing the target timezone (e.g. `America/Los_Angeles`).
+/// - `<source_timezone>`: A string representing the source timezone (e.g. `America/Los_Angeles`).
+/// - `<source_timestamp_ntz>`: A timestamp without timezone to convert.
+/// - `<source_timestamp_tz>`: A timestamp with timezone to convert.
+///
+/// Example: `SELECT CONVERT_TIMEZONE('America/Los_Angeles', 'America/New_York', '2024-01-01 14:00:00'::TIMESTAMP) AS conv;`
+///
+/// Returns:
+/// - For the 3-argument version, returns a value of type `TIMESTAMP_NTZ`.
+/// - For the 2-argument version, returns a value of type `TIMESTAMP_TZ`.
+///
+/// Usage notes:
+/// For the 3-argument version, the “wallclock” time in the result represents the same moment in time
+/// as the input “wallclock” in the input time zone, but in the target time zone.
+///
+/// For the 2-argument version, the `source_timestamp` argument typically includes the time zone.
+/// If the value is of type `TIMESTAMP_TZ`, the time zone is taken from its value. Otherwise, the current session time zone is used.
+///
+///
 #[derive(Debug)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
+    session_params: Arc<SessionParams>,
 }
 
 impl Default for ConvertTimezoneFunc {
     fn default() -> Self {
-        Self::new()
+        Self::new(Arc::new(SessionParams::default()))
     }
 }
 
 impl ConvertTimezoneFunc {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(session_params: Arc<SessionParams>) -> Self {
         Self {
             signature: Signature::one_of(
                 vec![
                     Exact(vec![
                         Utf8,
-                        Timestamp(Second, Some(TIMEZONE_WILDCARD.into())),
+                        Timestamp(TimeUnit::Second, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Timestamp(Millisecond, Some(TIMEZONE_WILDCARD.into())),
+                        Timestamp(TimeUnit::Millisecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Timestamp(Microsecond, Some(TIMEZONE_WILDCARD.into())),
+                        Timestamp(TimeUnit::Microsecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
                     Exact(vec![
                         Utf8,
-                        Timestamp(Nanosecond, Some(TIMEZONE_WILDCARD.into())),
+                        Timestamp(TimeUnit::Nanosecond, Some(TIMEZONE_WILDCARD.into())),
                     ]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Second, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Millisecond, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Microsecond, None)]),
-                    Exact(vec![Utf8, Utf8, Timestamp(Nanosecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(TimeUnit::Second, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(TimeUnit::Millisecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(TimeUnit::Microsecond, None)]),
+                    Exact(vec![Utf8, Utf8, Timestamp(TimeUnit::Nanosecond, None)]),
                 ],
                 Volatility::Immutable,
             ),
+            session_params,
         }
     }
+
+    #[must_use]
+    pub fn timezone(&self) -> String {
+        self.session_params
+            .get_property("timezone")
+            .unwrap_or_else(|| "America/Los_Angeles".to_string())
+    }
 }
-//TODO: FIX docs
-// convert_timezone SQL function
-// Syntax: `DATEADD(<date_or_time_part>, <value>, <date_or_time_expr>)`
-// - <date_or_time_part>: This indicates the units of time that you want to add.
-// For example if you want to add two days, then specify day. This unit of measure must be one of the values listed in Supported date and time parts.
-// - <value>: This is the number of units of time that you want to add.
-// For example, if the units of time is day, and you want to add two days, specify 2. If you want to subtract two days, specify -2.
-// - <date_or_time_expr>: Must evaluate to a date, time, or timestamp.
-// This is the date, time, or timestamp to which you want to add.
-// For example, if you want to add two days to August 1, 2024, then specify '2024-08-01'::DATE.
-// If the data type is TIME, then the date_or_time_part must be in units of hours or smaller, not days or bigger.
-// If the input data type is DATE, and the date_or_time_part is hours or smaller, the input value will not be rejected,
-// but instead will be treated as a TIMESTAMP with hours, minutes, seconds, and fractions of a second all initially set to 0 (e.g. midnight on the specified date).
-//
-// Note: `dateadd` returns
-// If date_or_time_expr is a time, then the return data type is a time.
-// If date_or_time_expr is a timestamp, then the return data type is a timestamp.
-// If date_or_time_expr is a date:
-// - If date_or_time_part is day or larger (for example, month, year), the function returns a DATE value.
-// - If date_or_time_part is smaller than a day (for example, hour, minute, second), the function returns a TIMESTAMP_NTZ value, with 00:00:00.000 as the starting time for the date.
-// Usage notes:
-// - When date_or_time_part is year, quarter, or month (or any of their variations),
-// if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
-// Examples
-// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
+
 impl ScalarUDFImpl for ConvertTimezoneFunc {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
     fn name(&self) -> &'static str {
         "convert_timezone"
     }
+
     fn signature(&self) -> &Signature {
         &self.signature
     }
-    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
         internal_err!("return_type_from_args should be called")
     }
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
+
+    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
         match args.arg_types.len() {
             2 => {
                 let tz = match &args.scalar_arguments[0] {
-                    Some(ScalarValue::Utf8(Some(part))) => part.clone(),
+                    Some(
+                        ScalarValue::Utf8(Some(part))
+                        | ScalarValue::Utf8View(Some(part))
+                        | ScalarValue::LargeUtf8(Some(part)),
+                    ) => part.clone(),
                     _ => return internal_err!("Invalid target_tz type"),
                 };
 
                 match &args.arg_types[1] {
-                    Timestamp(tu, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
-                        *tu,
+                    Timestamp(_, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
+                        TimeUnit::Nanosecond,
                         Some(Arc::from(tz.into_boxed_str())),
                     ))),
                     _ => internal_err!("Invalid source_timestamp_tz type"),
                 }
             }
             3 => match &args.arg_types[2] {
-                Timestamp(tu, None) => Ok(ReturnInfo::new_non_nullable(Timestamp(*tu, None))),
+                Timestamp(_, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
+                    TimeUnit::Nanosecond,
+                    None,
+                ))),
                 _ => internal_err!("Invalid source_timestamp_ntz type"),
             },
             other => {
@@ -121,292 +152,170 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
             }
         }
     }
-    //TODO: select convert_timezone('UTC', v3) with v3 a timestamp with value = '2025-01-06 08:00:00',
-    //should use local session time
-    //TODO: select convert_timezone('America/New_York, 'UTC', v3) with v3 a timestamp with value = '2025-01-06 08:00:00 America/New_York',
-    //should be parsed as the timezone None variant timestamp
-    #[allow(clippy::too_many_lines)]
-    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
-        let args = &args.args;
 
-        match args.len() {
-            2 => {
-                let target_tz = match &args[0] {
-                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid target_tz type format"),
-                };
-                let source_timestamp_tz = match &args[1] {
-                    ColumnarValue::Scalar(val) => val.clone(),
-                    ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
-                };
-                //TODO: is it compliant with clippy in main branch?
-                if target_tz.parse::<Tz>().is_err() {
-                    return plan_err!("No such target_tz timezone");
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        let ScalarFunctionArgs { args, .. } = args;
+
+        let (source_tz, target_tz, arr) = if args.len() == 2 {
+            match &args[0] {
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(tz))) => {
+                    let arr = match &args[1] {
+                        ColumnarValue::Array(arr) => arr.to_owned(),
+                        ColumnarValue::Scalar(v) => v.to_array()?,
+                    };
+                    (None, Some(tz.clone()), arr)
                 }
-                //TODO: always takes the None timezoned variant, if you remove the logic for None,
-                //it will throw our generic error
-                // if you remove the logic for None and the signuture for none,
-                //it will take the Some variant but with "+00" str
-                match &source_timestamp_tz {
-                    ScalarValue::TimestampSecond(Some(ts), Some(_)) => {
-                        let modified_timestamp = ScalarValue::TimestampSecond(
-                            Some(*ts),
-                            Some(Arc::from(target_tz.clone().into_boxed_str())),
-                        )
-                        .cast_to(&Utf8)?
-                        .cast_to(&Timestamp(
-                            TimeUnit::Second,
-                            Some(Arc::from(target_tz.into_boxed_str())),
-                        ))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampMillisecond(Some(ts), Some(_)) => {
-                        let modified_timestamp = ScalarValue::TimestampMillisecond(
-                            Some(*ts),
-                            Some(Arc::from(target_tz.clone().into_boxed_str())),
-                        )
-                        .cast_to(&Utf8)?
-                        .cast_to(&Timestamp(
-                            TimeUnit::Millisecond,
-                            Some(Arc::from(target_tz.into_boxed_str())),
-                        ))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampMicrosecond(Some(ts), Some(_)) => {
-                        let modified_timestamp = ScalarValue::TimestampMicrosecond(
-                            Some(*ts),
-                            Some(Arc::from(target_tz.clone().into_boxed_str())),
-                        )
-                        .cast_to(&Utf8)?
-                        .cast_to(&Timestamp(
-                            TimeUnit::Microsecond,
-                            Some(Arc::from(target_tz.into_boxed_str())),
-                        ))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampNanosecond(Some(ts), Some(_)) => {
-                        let modified_timestamp = ScalarValue::TimestampNanosecond(
-                            Some(*ts),
-                            Some(Arc::from(target_tz.clone().into_boxed_str())),
-                        )
-                        .cast_to(&Utf8)?
-                        .cast_to(&Timestamp(
+                _ => return internal_err!("Invalid source_tz type format"),
+            }
+        } else if args.len() == 3 {
+            let source_tz = match &args[0] {
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => Some(part.clone()),
+                _ => return internal_err!("Invalid source_tz type format"),
+            };
+
+            let target_tz = match &args[1] {
+                ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => Some(part.clone()),
+                _ => return internal_err!("Invalid target_tz type format"),
+            };
+
+            let arr = match &args[2] {
+                ColumnarValue::Array(arr) => arr.to_owned(),
+                ColumnarValue::Scalar(v) => v.to_array()?,
+            };
+
+            (source_tz, target_tz, arr)
+        } else {
+            return internal_err!("Invalid number of arguments");
+        };
+
+        match (source_tz, target_tz, arr) {
+            (Some(source_tz), Some(target_tz), arr) => build_array(&arr, &source_tz, &target_tz),
+            (None, Some(target_tz), arr) => match arr.data_type() {
+                Timestamp(_, Some(_)) => {
+                    let arr = cast_with_options(
+                        &arr,
+                        &Timestamp(
                             TimeUnit::Nanosecond,
                             Some(Arc::from(target_tz.into_boxed_str())),
-                        ))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    _ => plan_err!("Invalid source_timestamp_tz type format"),
+                        ),
+                        &DEFAULT_CAST_OPTIONS,
+                    )?;
+
+                    Ok(ColumnarValue::Array(arr))
                 }
-            }
-            3 => {
-                let source_tz = match &args[0] {
-                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid source_tz type format"),
-                };
-                let target_tz = match &args[1] {
-                    ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-                    _ => return plan_err!("Invalid target_tz type format"),
-                };
-                let source_timestamp_ntz = match &args[2] {
-                    ColumnarValue::Scalar(val) => val.clone(),
-                    ColumnarValue::Array(array) => ScalarValue::try_from_array(&array, 0)?,
-                };
-                //TODO: is it compliant with clippy in main branch?
-                if source_tz.parse::<Tz>().is_err() {
-                    return plan_err!("No such source_tz timezone");
-                }
-                //TODO: is it compliant with clippy in main branch?
-                if target_tz.parse::<Tz>().is_err() {
-                    return plan_err!("No such target_tz timezone");
-                }
-                //TODO: passes throught a timezoned timestamp as non timezoned with added time ton the i64
-                match &source_timestamp_ntz {
-                    ScalarValue::TimestampSecond(Some(ts), None) => {
-                        let modified_timestamp = ScalarValue::TimestampSecond(Some(*ts), None)
-                            .cast_to(&Timestamp(
-                                TimeUnit::Second,
-                                Some(Arc::from(source_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(
-                                TimeUnit::Second,
-                                Some(Arc::from(target_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(TimeUnit::Second, None))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampMillisecond(Some(ts), None) => {
-                        let modified_timestamp = ScalarValue::TimestampMillisecond(Some(*ts), None)
-                            .cast_to(&Timestamp(
-                                TimeUnit::Millisecond,
-                                Some(Arc::from(source_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(
-                                TimeUnit::Millisecond,
-                                Some(Arc::from(target_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(TimeUnit::Millisecond, None))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampMicrosecond(Some(ts), None) => {
-                        let modified_timestamp = ScalarValue::TimestampMicrosecond(Some(*ts), None)
-                            .cast_to(&Timestamp(
-                                TimeUnit::Microsecond,
-                                Some(Arc::from(source_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(
-                                TimeUnit::Microsecond,
-                                Some(Arc::from(target_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(TimeUnit::Microsecond, None))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    ScalarValue::TimestampNanosecond(Some(ts), None) => {
-                        let modified_timestamp = ScalarValue::TimestampNanosecond(Some(*ts), None)
-                            .cast_to(&Timestamp(
-                                TimeUnit::Nanosecond,
-                                Some(Arc::from(source_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(
-                                TimeUnit::Nanosecond,
-                                Some(Arc::from(target_tz.into_boxed_str())),
-                            ))?
-                            .cast_to(&Utf8)?
-                            .cast_to(&Timestamp(TimeUnit::Nanosecond, None))?;
-                        Ok(ColumnarValue::Scalar(modified_timestamp))
-                    }
-                    _ => plan_err!("Invalid source_timestamp_tz type format"),
-                }
-            }
-            _ => {
-                plan_err!(
-                    "This function can only take two or three arguments, got {}",
-                    args.len()
-                )
-            }
+                Timestamp(_, None) => build_array(&arr, &self.timezone(), &target_tz),
+                _ => internal_err!("Invalid source_timestamp type"),
+            },
+            _ => internal_err!("Invalid arguments"),
         }
     }
 }
 
-crate::macros::make_udf_function!(ConvertTimezoneFunc);
-#[cfg(test)]
-#[allow(clippy::unwrap_in_result)]
-mod tests {
-    use super::ConvertTimezoneFunc;
-    use datafusion::arrow::datatypes::{DataType, TimeUnit};
-    use datafusion_common::ScalarValue;
-    use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
-    use std::sync::Arc;
+fn build_array(arr: &ArrayRef, source_tz: &str, target_tz: &str) -> DFResult<ColumnarValue> {
+    let source_tz = source_tz.parse::<Tz>().context(CantParseTimezoneSnafu)?;
+    let target_tz = target_tz.parse::<Tz>().context(CantParseTimezoneSnafu)?;
 
-    #[test]
-    fn test_convert_timezone_2_arg_correct() {
-        let target_tz = String::from("UTC");
-        let source_timestamp_tz_value = 1_736_168_400_000_000_i64;
-        let source_timestamp_tz_timezone = String::from("+00");
-        //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
-        let source_timestamp_tz = ScalarValue::TimestampMicrosecond(
-            Some(source_timestamp_tz_value),
-            Some(Arc::from(source_timestamp_tz_timezone.into_boxed_str())),
+    let arr = as_timestamp_nanosecond_array(&arr)?;
+    let mut b = TimestampNanosecondBuilder::with_capacity(arr.len());
+    for v in arr {
+        match v {
+            Some(v) => {
+                let v = convert_timezone(source_tz, target_tz, v)?;
+                b.append_value(v);
+            }
+            None => b.append_null(),
+        }
+    }
+
+    Ok(ColumnarValue::Array(Arc::new(b.finish())))
+}
+#[allow(clippy::cast_sign_loss, clippy::as_conversions)]
+fn convert_timezone(
+    source_timezone: Tz,
+    target_timezone: Tz,
+    source_timestamp_ntz: i64,
+) -> Result<i64> {
+    // Convert nanoseconds to seconds and nanoseconds remainder
+    let secs = source_timestamp_ntz / 1_000_000_000;
+    let nanos = (source_timestamp_ntz % 1_000_000_000) as u32;
+
+    // Create a naive datetime from the timestamp (treating it as epoch time but interpreting as naive)
+    let naive_dt = DateTime::from_timestamp(secs, nanos)
+        .context(InvalidTimestampSnafu)?
+        .naive_utc(); // Get the naive representation
+
+    // Interpret this naive datetime as being in the source timezone
+    let source_dt = source_timezone
+        .from_local_datetime(&naive_dt)
+        .single()
+        .context(InvalidDatetimeSnafu)?;
+
+    // Convert to target timezone
+    let target_dt = source_dt.with_timezone(&target_timezone);
+
+    // Get the naive local time in the target timezone
+    let target_naive = target_dt.naive_local();
+
+    // Convert back to UTC nanoseconds (treating the target naive time as if it were UTC)
+    let target_utc = Utc
+        .from_local_datetime(&target_naive)
+        .single()
+        .context(InvalidDatetimeSnafu)?;
+
+    // Return as nanoseconds
+    target_utc
+        .timestamp_nanos_opt()
+        .context(CantGetNanosecondsSnafu)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::prelude::SessionContext;
+    use datafusion_common::assert_batches_eq;
+    use datafusion_expr::ScalarUDF;
+
+    #[tokio::test]
+    async fn test_ntz() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::default()));
+
+        let sql = "SELECT CONVERT_TIMEZONE('America/Los_Angeles','America/New_York','2024-01-01 14:00:00'::TIMESTAMP) AS conv;";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------+",
+                "| conv                |",
+                "+---------------------+",
+                "| 2024-01-01T17:00:00 |",
+                "+---------------------+",
+            ],
+            &result
         );
-        #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
-            args: vec![
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-                ColumnarValue::Scalar(source_timestamp_tz.clone()),
-            ],
-            number_rows: 1,
-            return_type: &DataType::Timestamp(
-                TimeUnit::Microsecond,
-                Some(Arc::from(target_tz.clone().into_boxed_str())),
-            ),
-        });
-        match result_wrapped {
-            Ok(ColumnarValue::Scalar(result)) => {
-                let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1_736_168_400_000_000_i64),
-                    Some(Arc::from(target_tz.into_boxed_str())),
-                );
-                assert_eq!(
-                    result, expected,
-                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
-                );
-            }
-            _ => panic!("Conversion of {source_timestamp_tz} failed"),
-        }
+
+        Ok(())
     }
-    #[test]
-    fn test_convert_timezone_3_arg_correct() {
-        let source_tz = String::from("America/New_York");
-        let target_tz = String::from("UTC");
-        //2025-01-06 08:00:00 in UTC
-        let source_timestamp_tz_value = 1_736_150_400_000_000_i64;
-        #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
-            args: vec![
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-                ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                    Some(source_timestamp_tz_value),
-                    None,
-                )),
+
+    #[tokio::test]
+    async fn test_tz() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ConvertTimezoneFunc::default()));
+
+        let sql = "SELECT CONVERT_TIMEZONE('America/Los_Angeles','2024-01-01 14:00:00 -07:00'::TIMESTAMP) AS conv;";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------------------+",
+                "| conv                      |",
+                "+---------------------------+",
+                "| 2024-01-01T13:00:00-08:00 |",
+                "+---------------------------+",
             ],
-            number_rows: 1,
-            return_type: &DataType::Timestamp(TimeUnit::Microsecond, None),
-        });
-        match result_wrapped {
-            Ok(ColumnarValue::Scalar(result)) => {
-                let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1_736_168_400_000_000_i64),
-                    Some(Arc::from(target_tz.into_boxed_str())),
-                );
-                assert_eq!(
-                    result, expected,
-                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
-                );
-            }
-            _ => panic!("Conversion of {source_timestamp_tz_value} failed"),
-        }
-    }
-    #[test]
-    fn test_convert_timezone_3_arg_incorrect() {
-        let source_tz = String::from("America/New_York");
-        let target_tz = String::from("UTC");
-        //2025-01-06 08:00:00 America/New_York, because it automaticly converts to 2025-01-06 13:00:00 in UTC
-        //shouldn't even consider this value returns 2025-01-06 18:00:00 America/New_York, essentially,
-        //beacuse of teh internal conversion it adds the America/New_York offset twice in this example
-        let source_timestamp_tz_value = 1_736_168_400_000_000_i64;
-        #[allow(deprecated)]
-        let result_wrapped = ConvertTimezoneFunc::new().invoke_with_args(ScalarFunctionArgs {
-            args: vec![
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(source_tz))),
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(target_tz.clone()))),
-                ColumnarValue::Scalar(ScalarValue::TimestampMicrosecond(
-                    Some(source_timestamp_tz_value),
-                    None,
-                )),
-            ],
-            number_rows: 1,
-            return_type: &DataType::Timestamp(TimeUnit::Microsecond, None),
-        });
-        match result_wrapped {
-            Ok(ColumnarValue::Scalar(result)) => {
-                let expected = ScalarValue::TimestampMicrosecond(
-                    Some(1_736_168_400_000_000_i64),
-                    Some(Arc::from(target_tz.into_boxed_str())),
-                );
-                assert_ne!(
-                    result, expected,
-                    "convert_timezone created wrong value for {source_timestamp_tz_value}"
-                );
-            }
-            _ => panic!("Conversion of {source_timestamp_tz_value} failed"),
-        }
+            &result
+        );
+
+        Ok(())
     }
 }

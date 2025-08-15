@@ -520,11 +520,18 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Can't cast to {v}"))]
+    CantCastTo {
+        v: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("{query_id}: Query execution error: {source}"))]
     QueryExecution {
+        query_id: String,
         #[snafu(source(from(Error, Box::new)))]
         source: Box<Error>,
-        query_id: String,
         #[snafu(implicit)]
         location: Location,
     },

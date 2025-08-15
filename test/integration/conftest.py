@@ -131,10 +131,18 @@ def embucket_bootstrap(embucket_exec):
     ak = _get("S3_ACCESS_KEY", "AKIAIOSFODNN7EXAMPLE")
     sk = _get("S3_SECRET_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     bucket = _get("S3_BUCKET", "embucket")
+    local_base_path = _get("LOCAL_BASE_PATH", os.getcwd())
 
     # Create external volume if we have enough info
     embucket_exec(
         f"""CREATE EXTERNAL VOLUME IF NOT EXISTS {vol} STORAGE_LOCATIONS = ((NAME = '{vol}' STORAGE_PROVIDER = 's3' STORAGE_ENDPOINT = '{endpoint}' STORAGE_BASE_URL = '{bucket}' CREDENTIALS = (AWS_KEY_ID='{ak}' AWS_SECRET_KEY='{sk}' REGION='us-east-1')));
+"""
+    )
+    # Create local volume to enable COPY INTO for embucket
+    # create external volume if not exists local STORAGE_LOCATIONS = (( NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '/Users/ramp/vcs/embucket/test
+    #    /integration' ));
+    embucket_exec(
+        f"""CREATE EXTERNAL VOLUME IF NOT EXISTS local STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{local_base_path}'));
 """
     )
     embucket_exec(f"CREATE DATABASE IF NOT EXISTS {db} EXTERNAL_VOLUME = '{vol}'")
@@ -372,7 +380,8 @@ class EmbucketEngine:
         ff = ", ".join(ff_parts)
 
         for uri in dataset.sources:
-            sql = f"COPY INTO {table_fqn} FROM '{uri}' FILE_FORMAT = ({ff})"
+            local_base_path = _get("LOCAL_BASE_PATH", os.getcwd())
+            sql = f"COPY INTO {table_fqn} FROM 'file://{local_base_path}/{uri}' STORAGE_INTEGRATION = local FILE_FORMAT = ({ff})"
             self._exec(sql)
 
     def sql(
@@ -451,155 +460,75 @@ def spark_engine(spark) -> SparkEngine:
 
 # NYC Taxi Dataset Fixtures
 @pytest.fixture(scope="session")
-def embucket_nyc_taxi(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "nyc_taxi_yellow", embucket_engine, test_run_id, "embucket"
-    )
+def nyc_taxi(request, test_run_id):
+    """Parameterized NYC taxi fixture that accepts engine type.
 
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
 
-@pytest.fixture(scope="session")
-def spark_nyc_taxi(spark_engine, test_run_id):
-    return _load_dataset_fixture("nyc_taxi_yellow", spark_engine, test_run_id, "spark")
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("nyc_taxi_yellow", engine, test_run_id, engine_type)
 
 
 # TPC-H Dataset Fixtures
 @pytest.fixture(scope="session")
-def embucket_tpch_lineitem(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_lineitem", embucket_engine, test_run_id, "embucket"
-    )
+def tpch_table(request, test_run_id):
+    """Parameterized TPC-H table fixture that accepts (table_name, engine_type) tuple.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('tpch_table', [('lineitem', 'spark'), ('orders', 'embucket')], indirect=True)
+    """
+    table_name, engine_type = request.param
+    dataset_name = f"tpch_{table_name}"
+
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture(dataset_name, engine, test_run_id, engine_type)
 
 
 @pytest.fixture(scope="session")
-def embucket_tpch_orders(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_orders", embucket_engine, test_run_id, "embucket"
-    )
+def tpch_full(request, test_run_id):
+    """Parameterized TPC-H complete dataset fixture that accepts engine type.
 
+    Loads all 8 TPC-H tables with the specified engine and returns as dict.
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('tpch_full', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    tables = [
+        "lineitem",
+        "orders",
+        "part",
+        "supplier",
+        "customer",
+        "nation",
+        "region",
+        "partsupp",
+    ]
 
-@pytest.fixture(scope="session")
-def spark_tpch_lineitem(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_lineitem", spark_engine, test_run_id, "spark")
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
 
+    engine = request.getfixturevalue(f"{engine_type}_engine")
 
-@pytest.fixture(scope="session")
-def spark_tpch_orders(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_orders", spark_engine, test_run_id, "spark")
+    # Load all tables with the specified engine
+    loaded_tables = {}
+    for table in tables:
+        dataset_name = f"tpch_{table}"
+        loaded_tables[table] = _load_dataset_fixture(
+            dataset_name, engine, test_run_id, engine_type
+        )
 
-
-@pytest.fixture(scope="session")
-def embucket_tpch_part(embucket_engine, test_run_id):
-    return _load_dataset_fixture("tpch_part", embucket_engine, test_run_id, "embucket")
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_part(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_part", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_supplier(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_supplier", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_supplier(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_supplier", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_customer(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_customer", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_customer(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_customer", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_nation(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_nation", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_nation(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_nation", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_region(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_region", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_region(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_region", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_partsupp(embucket_engine, test_run_id):
-    return _load_dataset_fixture(
-        "tpch_partsupp", embucket_engine, test_run_id, "embucket"
-    )
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_partsupp(spark_engine, test_run_id):
-    return _load_dataset_fixture("tpch_partsupp", spark_engine, test_run_id, "spark")
-
-
-@pytest.fixture(scope="session")
-def embucket_tpch_full(
-    embucket_tpch_lineitem,
-    embucket_tpch_orders,
-    embucket_tpch_part,
-    embucket_tpch_supplier,
-    embucket_tpch_customer,
-    embucket_tpch_nation,
-    embucket_tpch_region,
-    embucket_tpch_partsupp,
-):
-    """Complete TPC-H dataset with all 8 tables for Embucket engine."""
-    return {
-        "lineitem": embucket_tpch_lineitem,
-        "orders": embucket_tpch_orders,
-        "part": embucket_tpch_part,
-        "supplier": embucket_tpch_supplier,
-        "customer": embucket_tpch_customer,
-        "nation": embucket_tpch_nation,
-        "region": embucket_tpch_region,
-        "partsupp": embucket_tpch_partsupp,
-    }
-
-
-@pytest.fixture(scope="session")
-def spark_tpch_full(
-    spark_tpch_lineitem,
-    spark_tpch_orders,
-    spark_tpch_part,
-    spark_tpch_supplier,
-    spark_tpch_customer,
-    spark_tpch_nation,
-    spark_tpch_region,
-    spark_tpch_partsupp,
-):
-    """Complete TPC-H dataset with all 8 tables for Spark engine."""
-    return {
-        "lineitem": spark_tpch_lineitem,
-        "orders": spark_tpch_orders,
-        "part": spark_tpch_part,
-        "supplier": spark_tpch_supplier,
-        "customer": spark_tpch_customer,
-        "nation": spark_tpch_nation,
-        "region": spark_tpch_region,
-        "partsupp": spark_tpch_partsupp,
-    }
+    return loaded_tables

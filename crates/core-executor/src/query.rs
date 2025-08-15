@@ -76,7 +76,7 @@ use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    qualify_in_query, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions,
+    json_element, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions,
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
@@ -272,7 +272,6 @@ impl UserQuery {
             inline_aliases_in_query::visit(value);
             fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
-            qualify_in_query::visit(value);
             timestamp::visit(value);
             table_functions_cte_relation::visit(value);
             visit_all(value);

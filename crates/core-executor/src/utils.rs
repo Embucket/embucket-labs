@@ -1,17 +1,19 @@
 use super::models::QueryResult;
-use crate::error::{ArrowSnafu, Result, SerdeParseSnafu, Utf8Snafu};
+use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use arrow_schema::ArrowError;
-use chrono::DateTime;
+use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
 use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
+use datafusion::arrow::array::timezone::Tz;
 use datafusion::arrow::array::{
     Array, Decimal128Array, Int16Array, Int32Array, Int64Array, StringArray, StringBuilder,
-    Time32MillisecondArray, Time32SecondArray, Time64MicrosecondArray, Time64NanosecondArray,
-    TimestampMicrosecondArray, TimestampMillisecondArray, TimestampNanosecondArray,
-    TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array, UnionArray,
+    StructArray, Time32MillisecondArray, Time32SecondArray, Time64MicrosecondArray,
+    Time64NanosecondArray, TimestampMicrosecondArray, TimestampMillisecondArray,
+    TimestampNanosecondArray, TimestampSecondArray, UInt8Array, UInt16Array, UInt32Array,
+    UInt64Array, UnionArray,
 };
 use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
@@ -25,7 +27,7 @@ use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
 use indexmap::IndexMap;
 use serde_json::Value;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -220,7 +222,7 @@ pub fn convert_record_batches(
                 }
                 DataType::Timestamp(unit, _) => {
                     convert_and_push(column, &field, metadata, &mut fields, |col| {
-                        Ok(convert_timestamp_to_struct(col, *unit, data_format))
+                        Ok(convert_timestamp(col, *unit, data_format))
                     })?
                 }
                 DataType::Date32 | DataType::Date64 => {
@@ -314,27 +316,13 @@ macro_rules! downcast_and_iter {
 }
 
 #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
-fn convert_timestamp_to_struct(
+fn convert_timestamp(
     column: &ArrayRef,
     unit: TimeUnit,
     data_format: DataSerializationFormat,
 ) -> ArrayRef {
     match data_format {
-        DataSerializationFormat::Arrow => {
-            let timestamps: Vec<_> = match unit {
-                TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
-                TimeUnit::Millisecond => {
-                    downcast_and_iter!(column, TimestampMillisecondArray).collect()
-                }
-                TimeUnit::Microsecond => {
-                    downcast_and_iter!(column, TimestampMicrosecondArray).collect()
-                }
-                TimeUnit::Nanosecond => {
-                    downcast_and_iter!(column, TimestampNanosecondArray).collect()
-                }
-            };
-            Arc::new(Int64Array::from(timestamps)) as ArrayRef
-        }
+        DataSerializationFormat::Arrow => convert_timestamp_to_struct(column, unit),
         DataSerializationFormat::Json => {
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
@@ -372,6 +360,172 @@ fn convert_timestamp_to_struct(
             };
             Arc::new(StringArray::from(timestamps)) as ArrayRef
         }
+    }
+}
+
+#[allow(clippy::as_conversions)]
+pub fn convert_struct_to_timestamp(records: Vec<RecordBatch>) -> Result<Vec<RecordBatch>> {
+    let mut converted_batches = Vec::new();
+
+    for batch in records {
+        let mut columns = Vec::new();
+        let mut fields = Vec::new();
+        for (i, column) in batch.columns().iter().enumerate() {
+            let field = batch.schema().field(i).clone();
+
+            let (field, column) = if let DataType::Struct(fields_in_struct) = field.data_type() {
+                let has_epoch = fields_in_struct.iter().any(|f| f.name() == "epoch");
+                let has_fraction = fields_in_struct.iter().any(|f| f.name() == "fraction");
+
+                if has_epoch && has_fraction {
+                    let struct_array = column
+                        .as_any()
+                        .downcast_ref::<StructArray>()
+                        .context(CantCastToSnafu { v: "struct_array" })?;
+                    let epoch_col = struct_array
+                        .column_by_name("epoch")
+                        .and_then(|c| c.as_any().downcast_ref::<Int64Array>())
+                        .context(CantCastToSnafu { v: "int64_array" })?;
+                    let fraction_col = struct_array
+                        .column_by_name("fraction")
+                        .and_then(|c| c.as_any().downcast_ref::<Int32Array>())
+                        .context(CantCastToSnafu { v: "int32_array" })?;
+                    let tz_col = struct_array
+                        .column_by_name("timezone")
+                        .and_then(|c| c.as_any().downcast_ref::<Int32Array>());
+                    let ts_string_col = build_timestamp_strings(epoch_col, fraction_col, tz_col)?;
+                    let ts_field = Field::new(field.name(), DataType::Utf8, true);
+                    let column = Arc::new(ts_string_col) as ArrayRef;
+                    (ts_field, column)
+                } else {
+                    (field.clone(), Arc::clone(column))
+                }
+            } else {
+                (field.clone(), Arc::clone(column))
+            };
+            fields.push(field);
+            columns.push(column);
+        }
+        let new_schema = Arc::new(Schema::new(fields));
+        let converted_batch = RecordBatch::try_new(new_schema, columns).context(ArrowSnafu)?;
+        converted_batches.push(converted_batch);
+    }
+    Ok(converted_batches)
+}
+
+#[allow(clippy::as_conversions)]
+fn build_timestamp_strings(
+    epochs: &Int64Array,
+    fractions: &Int32Array,
+    tz_col: Option<&Int32Array>,
+) -> Result<StringArray> {
+    let mut builder = StringBuilder::new();
+
+    for i in 0..epochs.len() {
+        if epochs.is_null(i) || fractions.is_null(i) {
+            builder.append_null();
+            continue;
+        }
+
+        let epoch = epochs.value(i);
+        let fraction = i64::from(fractions.value(i));
+        let dt = DateTime::from_timestamp_nanos(epoch * 1_000_000_000 + fraction);
+        let dt_str = if let Some(tz) = tz_col {
+            let offset_minutes = tz.value(i);
+            let offset = FixedOffset::east_opt((offset_minutes - 1440) * 60)
+                .or_else(|| FixedOffset::east_opt(0)) // 0 fallback for invalid offsets
+                .context(CantCastToSnafu { v: "fixed_offset" })?;
+            dt.with_timezone(&offset).to_rfc3339()
+        } else {
+            dt.to_rfc3339()
+        };
+        builder.append_value(dt_str);
+    }
+    Ok(builder.finish())
+}
+
+#[allow(clippy::as_conversions, clippy::cast_sign_loss)]
+fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
+    // For non-empty timezone we should return a struct with epoch, fraction and timezone.
+    // For empty timezone we should return int64 timestamp array in units.
+    let DataType::Timestamp(_, Some(tz)) = column.data_type() else {
+        let timestamps: Vec<_> = match unit {
+            TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
+            TimeUnit::Millisecond => {
+                downcast_and_iter!(column, TimestampMillisecondArray).collect()
+            }
+            TimeUnit::Microsecond => {
+                downcast_and_iter!(column, TimestampMicrosecondArray).collect()
+            }
+            TimeUnit::Nanosecond => downcast_and_iter!(column, TimestampNanosecondArray).collect(),
+        };
+        return Arc::new(Int64Array::from(timestamps)) as ArrayRef;
+    };
+    let ts_array = to_nanoseconds(column, unit);
+    let epochs: Int64Array = ts_array
+        .iter()
+        .map(|opt_nanos| opt_nanos.map(|nanos| nanos / 1_000_000_000))
+        .collect();
+    let fractions: Int32Array = ts_array
+        .iter()
+        .map(|opt_nanos| opt_nanos.map(|nanos| (nanos % 1_000_000_000) as i32))
+        .collect();
+    let tz_arr: Int32Array = ts_array
+        .iter()
+        .map(|opt_nanos| opt_nanos.map(|nanos| tz_to_i32(tz, nanos)))
+        .collect();
+    let struct_fields: Vec<(Arc<Field>, ArrayRef)> = vec![
+        (
+            Arc::new(Field::new("epoch", DataType::Int64, true)),
+            Arc::new(epochs) as ArrayRef,
+        ),
+        (
+            Arc::new(Field::new("fraction", DataType::Int32, true)),
+            Arc::new(fractions) as ArrayRef,
+        ),
+        (
+            Arc::new(Field::new("timezone", DataType::Int32, true)),
+            Arc::new(tz_arr) as ArrayRef,
+        ),
+    ];
+    let struct_array = StructArray::from(struct_fields);
+    Arc::new(struct_array)
+}
+
+fn tz_to_i32(tz_str: &str, nanos: i64) -> i32 {
+    if nanos == 0 {
+        return 1440;
+    }
+    let secs = nanos / 1_000_000_000;
+    let nanos = u32::try_from(nanos % 1_000_000_000).unwrap_or(0); // Handle overflow gracefully, default to 0
+
+    let Some(dt) = DateTime::from_timestamp(secs, nanos) else {
+        return 1440;
+    };
+    tz_str.parse::<Tz>().map_or_else(
+        |_| 1440,
+        |tz| {
+            tz.offset_from_utc_datetime(&dt.naive_utc())
+                .fix()
+                .local_minus_utc()
+                / 60
+                + 1440
+        },
+    )
+}
+
+fn to_nanoseconds(column: &ArrayRef, unit: TimeUnit) -> TimestampNanosecondArray {
+    match unit {
+        TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
+            .map(|opt| opt.map(|v| v * 1_000_000_000))
+            .collect(),
+        TimeUnit::Millisecond => downcast_and_iter!(column, TimestampMillisecondArray)
+            .map(|opt| opt.map(|v| v * 1_000_000))
+            .collect(),
+        TimeUnit::Microsecond => downcast_and_iter!(column, TimestampMicrosecondArray)
+            .map(|opt| opt.map(|v| v * 1_000))
+            .collect(),
+        TimeUnit::Nanosecond => downcast_and_iter!(column, TimestampNanosecondArray).collect(),
     }
 }
 
@@ -656,7 +810,9 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSe
     // Convert the QueryResult to RecordBatches using the specified serialization format
     // Add columns dbt metadata to each field
     // Since we have to store already converted data to history
-    let record_batches = convert_record_batches(query_result.clone(), data_format)?;
+    let mut record_batches = convert_record_batches(query_result.clone(), data_format)?;
+    // Convert struct timestamp columns to string representation
+    record_batches = convert_struct_to_timestamp(record_batches)?;
     let record_refs: Vec<&RecordBatch> = record_batches.iter().collect();
 
     // Serialize the RecordBatches into a JSON string using Arrow's Writer
@@ -740,62 +896,90 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_timestamp_to_struct() {
+    fn test_convert_timestamp() {
         let cases = [
             (
                 TimeUnit::Second,
                 Some(1_627_846_261),
                 "1627846261",
-                1_627_846_261,
+                None,
+                (1_627_846_261, 0, 1_627_846_261),
             ),
             (
                 TimeUnit::Millisecond,
                 Some(1_627_846_261_233),
                 "1627846261.233",
-                1_627_846_261_233,
+                None,
+                (1_627_846_261, 233_000_000, 1_627_846_261_233),
             ),
             (
                 TimeUnit::Microsecond,
                 Some(1_627_846_261_233_222),
                 "1627846261.233222",
-                1_627_846_261_233_222,
+                None,
+                (1_627_846_261, 233_222_000, 1_627_846_261_233_222),
             ),
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
                 "1627846261.233222111",
-                1_627_846_261_233_222_111,
+                Some("America/Los_Angeles".to_string()),
+                (1_627_846_261, 233_222_111, 1_627_846_261_233_222_111),
             ),
         ];
-        for (unit, timestamp, expected_json, expected_arrow) in &cases {
+        for (unit, timestamp, expected_json, tz, (epoch, fraction, ar)) in &cases {
             let values = vec![*timestamp, None];
-            let timestamp_array = match unit {
-                TimeUnit::Second => Arc::new(TimestampSecondArray::from(values)) as ArrayRef,
-                TimeUnit::Millisecond => {
-                    Arc::new(TimestampMillisecondArray::from(values)) as ArrayRef
-                }
-                TimeUnit::Microsecond => {
-                    Arc::new(TimestampMicrosecondArray::from(values)) as ArrayRef
-                }
-                TimeUnit::Nanosecond => {
-                    Arc::new(TimestampNanosecondArray::from(values)) as ArrayRef
-                }
-            };
-            let result =
-                convert_timestamp_to_struct(&timestamp_array, *unit, DataSerializationFormat::Json);
+            let timestamp_array =
+                match unit {
+                    TimeUnit::Second => {
+                        Arc::new(TimestampSecondArray::from(values).with_timezone_opt(tz.clone()))
+                            as ArrayRef
+                    }
+                    TimeUnit::Millisecond => Arc::new(
+                        TimestampMillisecondArray::from(values).with_timezone_opt(tz.clone()),
+                    ) as ArrayRef,
+                    TimeUnit::Microsecond => Arc::new(
+                        TimestampMicrosecondArray::from(values).with_timezone_opt(tz.clone()),
+                    ) as ArrayRef,
+                    TimeUnit::Nanosecond => Arc::new(
+                        TimestampNanosecondArray::from(values).with_timezone_opt(tz.clone()),
+                    ) as ArrayRef,
+                };
+            let result = convert_timestamp(&timestamp_array, *unit, DataSerializationFormat::Json);
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected_json);
             assert!(string_array.is_null(1));
-            let result = convert_timestamp_to_struct(
-                &timestamp_array,
-                *unit,
-                DataSerializationFormat::Arrow,
-            );
-            let string_array = result.as_any().downcast_ref::<Int64Array>().unwrap();
-            assert_eq!(string_array.len(), 2);
-            assert_eq!(string_array.value(0), *expected_arrow);
-            assert!(string_array.is_null(1));
+
+            let result = convert_timestamp(&timestamp_array, *unit, DataSerializationFormat::Arrow);
+            if tz.is_some() {
+                let struct_array = result.as_any().downcast_ref::<StructArray>().unwrap();
+                let epoch_array = struct_array
+                    .column_by_name("epoch")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<Int64Array>()
+                    .unwrap();
+
+                assert_eq!(epoch_array.len(), 2);
+                assert_eq!(epoch_array.value(0), *epoch);
+                assert!(epoch_array.is_null(1));
+
+                let fraction_array = struct_array
+                    .column_by_name("fraction")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<Int32Array>()
+                    .unwrap();
+                assert_eq!(fraction_array.len(), 2);
+                assert_eq!(fraction_array.value(0), *fraction);
+                assert!(fraction_array.is_null(1));
+            } else {
+                let string_array = result.as_any().downcast_ref::<Int64Array>().unwrap();
+                assert_eq!(string_array.len(), 2);
+                assert_eq!(string_array.value(0), *ar);
+                assert!(string_array.is_null(1));
+            }
         }
     }
 
@@ -886,17 +1070,20 @@ mod tests {
 
         let schema = Arc::new(Schema::new(vec![
             Field::new("int_col", DataType::Int32, false),
-            Field::new("ts_col", DataType::Timestamp(TimeUnit::Second, None), true),
+            Field::new(
+                "ts_col",
+                DataType::Timestamp(TimeUnit::Second, Some(Arc::from("America/Los_Angeles"))),
+                true,
+            ),
             Field::new("binary_view", DataType::BinaryView, true),
             Field::new("binary_view", DataType::Utf8View, true),
             Field::new("boolean", DataType::Boolean, true),
         ]));
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
-        let timestamp_array = Arc::new(TimestampSecondArray::from(vec![
-            Some(1_627_846_261),
-            None,
-            Some(1_627_846_262),
-        ])) as ArrayRef;
+        let timestamp_array = Arc::new(
+            TimestampSecondArray::from(vec![Some(1_627_846_261), None, Some(1_627_846_262)])
+                .with_timezone("America/Los_Angeles"),
+        ) as ArrayRef;
         let binary_view_array = Arc::new(BinaryViewArray::from_iter_values(vec![
             b"hello" as &[u8],
             b"world",
@@ -957,7 +1144,7 @@ mod tests {
         assert_eq!(column_infos[0].name, "int_col");
         assert_eq!(column_infos[0].r#type, "fixed");
         assert_eq!(column_infos[1].name, "ts_col");
-        assert_eq!(column_infos[1].r#type, "timestamp_ntz");
+        assert_eq!(column_infos[1].r#type, "timestamp_tz");
         assert_eq!(column_infos[2].name, "binary_view");
         assert_eq!(column_infos[2].r#type, "binary");
 
@@ -965,14 +1152,21 @@ mod tests {
         let converted_batches =
             convert_record_batches(result, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
+
         let arr = converted_batch
             .column(1)
             .as_any()
+            .downcast_ref::<StructArray>()
+            .unwrap();
+        let epoch_array = arr
+            .column_by_name("epoch")
+            .unwrap()
+            .as_any()
             .downcast_ref::<Int64Array>()
             .unwrap();
-        assert_eq!(arr.value(0), 1_627_846_261);
-        assert!(arr.is_null(1));
-        assert_eq!(arr.value(2), 1_627_846_262);
+        assert_eq!(epoch_array.value(0), 1_627_846_261);
+        assert!(epoch_array.is_null(1));
+        assert_eq!(epoch_array.value(2), 1_627_846_262);
     }
 
     #[allow(

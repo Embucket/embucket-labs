@@ -163,4 +163,7 @@ seeds:
         contexts_com_snowplowanalytics_snowplow_web_page_1: TEXT
         contexts_com_iab_snowplow_spiders_and_robots_1: TEXT
         contexts_nl_basjes_yauaa_context_1: TEXT
+        unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1: TEXT
+        unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1: TEXT
+
   

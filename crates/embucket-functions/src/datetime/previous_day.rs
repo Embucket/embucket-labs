@@ -1,9 +1,11 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDateTime, Utc, Weekday};
-use datafusion::arrow::array::{Array, Date64Builder};
+use datafusion::arrow::array::Date64Builder;
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::{Coercible, Exact};
 use datafusion::logical_expr::{Coercion, ColumnarValue, TypeSignatureClass};
+use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::types::logical_string;
 use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
@@ -68,7 +70,7 @@ impl ScalarUDFImpl for PreviousDayFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Date64)
+        Ok(DataType::Date32)
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -83,25 +85,23 @@ impl ScalarUDFImpl for PreviousDayFunc {
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
 
-        let mut res = Date64Builder::with_capacity(arr.len());
-        for i in 0..arr.len() {
-            let v = ScalarValue::try_from_array(&arr, i)?
-                .cast_to(&DataType::Timestamp(TimeUnit::Nanosecond, None))?;
-            let ScalarValue::TimestampNanosecond(Some(ts), None) = v else {
-                return exec_err!("First argument must be a timestamp with nanosecond precision");
-            };
-            let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
-            let prev_day = prev_day(&naive, &day.to_lowercase())?;
+        let arr = cast(&arr, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
+        let arr = as_timestamp_nanosecond_array(&arr)?;
 
-            res.append_value(prev_day.and_utc().timestamp_millis());
+        let mut res = Date64Builder::with_capacity(arr.len());
+        for row in arr {
+            if let Some(ts) = row {
+                let naive = DateTime::<Utc>::from_timestamp_nanos(ts).naive_utc();
+                let prev_day = prev_day(&naive, &day.to_lowercase())?;
+                res.append_value(prev_day.and_utc().timestamp_millis());
+            } else {
+                res.append_null();
+            }
         }
 
         let res = res.finish();
-        Ok(if res.len() == 1 {
-            ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?)
-        } else {
-            ColumnarValue::Array(Arc::new(res))
-        })
+        let arr = cast(&res, &DataType::Date32)?;
+        Ok(ColumnarValue::Array(Arc::new(arr)))
     }
 }
 
