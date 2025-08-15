@@ -94,7 +94,7 @@ impl ToTimestampFunc {
 
         match self.name.as_str() {
             "to_timestamp_ntz" | "try_to_timestamp_ntz" => None,
-            "to_timestamp" => {
+            "to_timestamp" | "try_to_timestamp" => {
                 if self
                     .session_params
                     .get_property("timestamp_input_mapping")
