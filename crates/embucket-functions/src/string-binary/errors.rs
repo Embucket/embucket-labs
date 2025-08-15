@@ -116,6 +116,27 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Numeric value '{value}' is not recognized"))]
+    NumericValueNotRecognized {
+        value: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid parameter value: {value}. Reason: {reason}."))]
+    InvalidParameterValue {
+        value: i64,
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Input arrays must have the same length"))]
+    ArrayLengthMismatch {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
