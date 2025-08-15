@@ -511,6 +511,7 @@ fn tz_to_i32(tz_str: &str, nanos: i64) -> i32 {
                 .fix()
                 .local_minus_utc()
                 / 60
+                + 1440
         })
         .unwrap_or(1440)
 }
