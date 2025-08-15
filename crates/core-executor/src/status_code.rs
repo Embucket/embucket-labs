@@ -21,4 +21,5 @@ pub enum StatusCode {
     Iceberg = 801,
     Internal = 901,
     Other = 10001,
+    UnsupportedFeature,
 }

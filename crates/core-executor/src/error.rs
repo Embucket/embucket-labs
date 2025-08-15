@@ -494,6 +494,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Not supported statement: {statement}"))]
+    NotSupportedStatement {
+        statement: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Unexpected subquery result"))]
     UnexpectedSubqueryResult {

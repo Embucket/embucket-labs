@@ -158,6 +158,10 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
             error: SchemaDoesntExistSnafu { db, schema }.build(),
             status_code: StatusCode::MetastoreSchemaNotFound,
         },
+        Error::NotSupportedStatement { statement, .. } => SnowflakeError::SqlCompilation {
+            error: CompilationUnsupportedFeatureSnafu { error: statement }.build(),
+            status_code: StatusCode::UnsupportedFeature,
+        },
         Error::Arrow { .. }
         | Error::SerdeParse { .. }
         | Error::CatalogListDowncast { .. }

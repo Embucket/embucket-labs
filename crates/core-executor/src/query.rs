@@ -15,7 +15,9 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
+use crate::error::{
+    InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu, NotSupportedStatementSnafu,
+};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -381,8 +383,14 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. }
-                | Statement::StartTransaction { .. }
+                Statement::AlterTable { .. } => {
+                    NotSupportedStatementSnafu {
+                        statement: "ALTER TABLE".to_string(),
+                    }
+                    .fail()?;
+                    return self.status_response();
+                }
+                Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
                 | Statement::Update { .. } => return self.status_response(),
