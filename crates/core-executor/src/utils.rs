@@ -448,9 +448,7 @@ fn build_timestamp_strings(
 fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
     // For non-empty timezone we should return a struct with epoch, fraction and timezone.
     // For empty timezone we should return int64 timestamp array in units.
-    let tz = if let DataType::Timestamp(_, Some(tz)) = column.data_type() {
-        tz.clone()
-    } else {
+    let DataType::Timestamp(_, Some(tz)) = column.data_type() else {
         let timestamps: Vec<_> = match unit {
             TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray).collect(),
             TimeUnit::Millisecond => {
@@ -474,7 +472,7 @@ fn convert_timestamp_to_struct(column: &ArrayRef, unit: TimeUnit) -> ArrayRef {
         .collect();
     let tz_arr: Int32Array = ts_array
         .iter()
-        .map(|opt_nanos| opt_nanos.map(|nanos| tz_to_i32(&tz, nanos)))
+        .map(|opt_nanos| opt_nanos.map(|nanos| tz_to_i32(tz, nanos)))
         .collect();
     let struct_fields: Vec<(Arc<Field>, ArrayRef)> = vec![
         (
@@ -504,16 +502,16 @@ fn tz_to_i32(tz_str: &str, nanos: i64) -> i32 {
     let Some(dt) = DateTime::from_timestamp(secs, nanos) else {
         return 1440;
     };
-    tz_str
-        .parse::<Tz>()
-        .map(|tz| {
+    tz_str.parse::<Tz>().map_or_else(
+        |_| 1440,
+        |tz| {
             tz.offset_from_utc_datetime(&dt.naive_utc())
                 .fix()
                 .local_minus_utc()
                 / 60
                 + 1440
-        })
-        .unwrap_or(1440)
+        },
+    )
 }
 
 fn to_nanoseconds(column: &ArrayRef, unit: TimeUnit) -> TimestampNanosecondArray {
@@ -1072,17 +1070,20 @@ mod tests {
 
         let schema = Arc::new(Schema::new(vec![
             Field::new("int_col", DataType::Int32, false),
-            Field::new("ts_col", DataType::Timestamp(TimeUnit::Second, None), true),
+            Field::new(
+                "ts_col",
+                DataType::Timestamp(TimeUnit::Second, Some(Arc::from("America/Los_Angeles"))),
+                true,
+            ),
             Field::new("binary_view", DataType::BinaryView, true),
             Field::new("binary_view", DataType::Utf8View, true),
             Field::new("boolean", DataType::Boolean, true),
         ]));
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
-        let timestamp_array = Arc::new(TimestampSecondArray::from(vec![
-            Some(1_627_846_261),
-            None,
-            Some(1_627_846_262),
-        ])) as ArrayRef;
+        let timestamp_array = Arc::new(
+            TimestampSecondArray::from(vec![Some(1_627_846_261), None, Some(1_627_846_262)])
+                .with_timezone("America/Los_Angeles"),
+        ) as ArrayRef;
         let binary_view_array = Arc::new(BinaryViewArray::from_iter_values(vec![
             b"hello" as &[u8],
             b"world",
