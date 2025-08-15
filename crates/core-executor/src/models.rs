@@ -172,8 +172,12 @@ impl ColumnInfo {
             DataType::Date32 | DataType::Date64 => {
                 column_info.r#type = "date".to_string();
             }
-            DataType::Timestamp(unit, _) => {
-                column_info.r#type = "timestamp_ntz".to_string();
+            DataType::Timestamp(unit, tz) => {
+                if let Some(_tz) = tz {
+                    column_info.r#type = "timestamp_tz".to_string();
+                } else {
+                    column_info.r#type = "timestamp_ntz".to_string();
+                }
                 column_info.precision = Some(0);
                 let scale = match unit {
                     TimeUnit::Second => 0,

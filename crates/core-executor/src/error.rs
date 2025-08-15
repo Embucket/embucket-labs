@@ -512,6 +512,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Can't cast to {v}"))]
+    CantCastTo {
+        v: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl Error {
