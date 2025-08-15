@@ -538,6 +538,7 @@ impl UserQuery {
     }
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
+    #[allow(clippy::too_many_lines)]
     pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Drop {
             object_type,
@@ -595,7 +596,8 @@ impl UserQuery {
 
         match object_type {
             ObjectType::Table | ObjectType::View => {
-                if iceberg_catalog.clone().load_tabular(&ident).await.is_ok() {
+                let table = iceberg_catalog.clone().load_tabular(&ident).await;
+                if table.is_ok() {
                     iceberg_catalog
                         .drop_table(&ident)
                         .await
@@ -606,6 +608,17 @@ impl UserQuery {
                         table: ident.name().to_string(),
                     }))
                     .await?;
+                } else {
+                    // Iceberg error doesn't containt enough information, raise schema error
+                    let _ = catalog.schema(&schema_name).ok_or_else(|| {
+                        ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema_name,
+                            db: catalog_name.to_string(),
+                        }
+                        .build()
+                    })?;
+                    // return original error, since schema is exists
+                    table.context(ex_error::IcebergSnafu)?;
                 }
                 self.status_response()
             }
@@ -672,11 +685,12 @@ impl UserQuery {
             .get_custom_logical_plan(&create_table_statement.to_string())
             .await?;
         let ident: MetastoreTableIdent = new_table_ident.into();
+        let catalog_name = ident.database.clone();
 
-        let catalog = self.get_catalog(ident.database.as_str())?;
+        let catalog = self.get_catalog(&catalog_name)?;
         self.create_iceberg_table(
             catalog.clone(),
-            ident.database.clone(),
+            catalog_name.clone(),
             table_location,
             ident.clone(),
             create_table_statement,
@@ -710,8 +724,9 @@ impl UserQuery {
             let target_table = catalog
                 .schema(schema_name)
                 .ok_or_else(|| {
-                    ex_error::SchemaNotFoundSnafu {
+                    ex_error::SchemaNotFoundInDatabaseSnafu {
                         schema: schema_name.to_string(),
+                        db: &catalog_name,
                     }
                     .build()
                 })?

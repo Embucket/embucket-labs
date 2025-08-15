@@ -75,7 +75,7 @@ impl CatalogProvider for EmbucketCatalog {
                 .get_schema(&SchemaIdent::new(database.clone(), schema_name.clone()))
                 .await
             {
-                Ok(_) => {
+                Ok(Some(_)) => {
                     let schema = EmbucketSchema {
                         database,
                         schema: schema_name,
@@ -85,7 +85,7 @@ impl CatalogProvider for EmbucketCatalog {
                     let arc: Arc<dyn SchemaProvider> = Arc::new(schema);
                     Some(arc)
                 }
-                Err(_) => None,
+                _ => None,
             }
         })
         .unwrap_or(None)

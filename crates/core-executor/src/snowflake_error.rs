@@ -89,6 +89,14 @@ pub enum SqlCompilationError {
         location: Location,
     },
 
+    #[snafu(display("Schema '{db}.{schema}' does not exist or not authorized"))]
+    SchemaDoesntExist {
+        db: String,
+        schema: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("{error}"))]
     CompilationGeneric {
         error: String,
@@ -146,6 +154,10 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
         | Error::DropDatabase { source, .. }
         | Error::CreateDatabase { source, .. } => catalog_error(source, &[]),
         Error::QueryExecution { source, .. } => executor_error(source),
+        Error::SchemaNotFoundInDatabase { schema, db, .. } => SnowflakeError::SqlCompilation {
+            error: SchemaDoesntExistSnafu { db, schema }.build(),
+            status_code: StatusCode::MetastoreSchemaNotFound,
+        },
         Error::Arrow { .. }
         | Error::SerdeParse { .. }
         | Error::CatalogListDowncast { .. }
@@ -212,10 +224,7 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
         MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
         MetastoreError::Iceberg { error, .. } => iceberg_error(error, &subtext),
         MetastoreError::SchemaNotFound { schema, db, .. } => SnowflakeError::SqlCompilation {
-            error: CompilationGenericSnafu {
-                error: format!("Schema '{schema}.{db}' does not exist or not authorized."),
-            }
-            .build(),
+            error: SchemaDoesntExistSnafu { db, schema }.build(),
             status_code: StatusCode::MetastoreSchemaNotFound,
         },
         _ => CustomSnafu {

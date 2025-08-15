@@ -186,9 +186,10 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Schema {schema} not found"))]
-    SchemaNotFound {
+    #[snafu(display("Schema {schema} not found in database {db}"))]
+    SchemaNotFoundInDatabase {
         schema: String,
+        db: String,
         #[snafu(implicit)]
         location: Location,
     },
