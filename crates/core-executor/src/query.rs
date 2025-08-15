@@ -383,13 +383,10 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. } => {
-                    NotSupportedStatementSnafu {
-                        statement: "ALTER TABLE".to_string(),
-                    }
-                    .fail()?;
-                    return self.status_response();
+                Statement::AlterTable { .. } => NotSupportedStatementSnafu {
+                    statement: "ALTER TABLE".to_string(),
                 }
+                .fail()?,
                 Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
@@ -618,13 +615,12 @@ impl UserQuery {
                     .await?;
                 } else {
                     // Iceberg error doesn't containt enough information, raise schema error
-                    let _ = catalog.schema(&schema_name).ok_or_else(|| {
+                    catalog.schema(&schema_name).context(
                         ex_error::SchemaNotFoundInDatabaseSnafu {
                             schema: schema_name,
                             db: catalog_name.to_string(),
-                        }
-                        .build()
-                    })?;
+                        },
+                    )?;
                     // return original error, since schema is exists
                     table.context(ex_error::IcebergSnafu)?;
                 }
@@ -731,21 +727,15 @@ impl UserQuery {
 
             let target_table = catalog
                 .schema(schema_name)
-                .ok_or_else(|| {
-                    ex_error::SchemaNotFoundInDatabaseSnafu {
-                        schema: schema_name.to_string(),
-                        db: &catalog_name,
-                    }
-                    .build()
+                .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: schema_name.to_string(),
+                    db: &catalog_name,
                 })?
                 .table(name.table())
                 .await
                 .context(ex_error::DataFusionSnafu)?
-                .ok_or_else(|| {
-                    ex_error::TableProviderNotFoundSnafu {
-                        table_name: name.table().to_string(),
-                    }
-                    .build()
+                .context(ex_error::TableProviderNotFoundSnafu {
+                    table_name: name.table().to_string(),
                 })?;
             let schema = target_table.schema();
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
