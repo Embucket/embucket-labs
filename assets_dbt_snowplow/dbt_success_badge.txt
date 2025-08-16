@@ -1,1 +1,1 @@
-DBT Snowplow Web Success Rate: 95.8%
+DBT Snowplow Web Success Rate: 74.2%

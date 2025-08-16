@@ -1,11 +1,12 @@
 # DBT Run Summary
 PASS: 23
 WARN: 0
-ERROR: 1
-SKIP: 0
-TOTAL: 24
+ERROR: 2
+SKIP: 6
+TOTAL: 31
 
 # Total top 10 errors
       1 SQL compilation error: unsupported feature: Conflicting ordering requirements in aggregate functions is not supported
+      1 Error during planning: Function 'array_to_string' expects NativeType::String but received NativeType::List(LogicalField { name: "item", logical_type: LogicalType(Native(String), String), nullable: true }) No function matches the given name and argument types 'array_to_string(List(Field { name: "item", data_type: Utf8, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} }), Utf8)'. You might need to add explicit type casts.
 
 # Top function errors
