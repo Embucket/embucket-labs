@@ -43,7 +43,7 @@ vars:
 
     # OPERATION & LOGIC
     snowplow__allow_refresh: false
-    snowplow__backfill_limit_days: 30
+    snowplow__backfill_limit_days: 60
     # snowplow__conversion_events: [{'name': 'view_page', 'condition': "event_name = 'page_view'", "list_events": true},
     #                               {'name': 'sign_up', 'condition': "event_name = 'sign_up'", 'value': 5}
     #                             ]
@@ -60,9 +60,9 @@ vars:
     snowplow__session_stitching: true
     snowplow__page_view_stitching: false
     snowplow__session_timestamp: collector_tstamp
-    snowplow__start_date: '2020-01-01'
+    snowplow__start_date: '2025-07-01'
     # snowplow__total_all_conversions: false
-    snowplow__upsert_lookback_days: 30
+    snowplow__upsert_lookback_days: 60
     snowplow__user_identifiers: [{"schema": "atomic", "field" : "domain_userid"}]
     # snowplow__user_sql: 'e.domain_userid'
     snowplow__user_stitching_id: user_id
