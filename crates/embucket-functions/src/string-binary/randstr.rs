@@ -2,14 +2,14 @@ use datafusion::arrow::array::{Array, ArrayRef, StringBuilder};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
-use datafusion_common::cast::{as_int64_array, as_large_string_array, as_string_array, as_string_view_array};
- 
-use datafusion_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
+use datafusion_common::cast::{
+    as_int64_array, as_large_string_array, as_string_array, as_string_view_array,
 };
+
+use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
+use rand::SeedableRng;
 use rand::distributions::{Alphanumeric, DistString};
 use rand::rngs::StdRng;
-use rand::SeedableRng;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -48,7 +48,9 @@ impl Default for RandStrFunc {
 impl RandStrFunc {
     #[must_use]
     pub fn new() -> Self {
-        Self { signature: Signature::user_defined(Volatility::Immutable) }
+        Self {
+            signature: Signature::user_defined(Volatility::Immutable),
+        }
     }
 }
 
@@ -116,18 +118,8 @@ impl ScalarUDFImpl for RandStrFunc {
         Ok(coerced)
     }
 
-    #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let ScalarFunctionArgs { args, .. } = args;
-
-        if args.len() != 2 {
-            InvalidArgumentCountSnafu {
-                function_name: "RANDSTR".to_string(),
-                expected: "2".to_string(),
-                actual: args.len(),
-            }
-            .fail()?;
-        }
 
         let len_arr = match &args[0] {
             ColumnarValue::Array(a) => Arc::clone(a),
@@ -165,14 +157,20 @@ impl ScalarUDFImpl for RandStrFunc {
                 .fail()?;
             }
 
-            let target_len: usize = len_val.try_into().unwrap();
+            let target_len: usize = match usize::try_from(len_val) {
+                Ok(v) => v,
+                Err(_) => InvalidParameterValueSnafu {
+                    value: len_val,
+                    reason: "length is out of supported range".to_string(),
+                }
+                .fail()?,
+            };
             let mut rng = StdRng::seed_from_u64(seeds.value(i) as u64);
             let s = Alphanumeric.sample_string(&mut rng, target_len);
             builder.append_value(&s);
         }
 
-        let res: ArrayRef = Arc::new(builder.finish());
-        Ok(ColumnarValue::Array(res))
+        Ok(ColumnarValue::Array(Arc::new(builder.finish())))
     }
 }
 
@@ -185,33 +183,46 @@ fn cast_to_i64_with_numeric_error(arr: &ArrayRef) -> DFResult<ArrayRef> {
             DataType::Utf8 => {
                 let s = as_string_array(arr)?;
                 if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu { value: s.value(0).to_string() }.fail()?;
+                    NumericValueNotRecognizedSnafu {
+                        value: s.value(0).to_string(),
+                    }
+                    .fail()?
                 }
-                NumericValueNotRecognizedSnafu { value: "".to_string() }.fail()?;
-                unreachable!()
+                NumericValueNotRecognizedSnafu {
+                    value: "".to_string(),
+                }
+                .fail()?
             }
             DataType::Utf8View => {
                 let s = as_string_view_array(arr)?;
                 if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu { value: s.value(0).to_string() }.fail()?;
+                    NumericValueNotRecognizedSnafu {
+                        value: s.value(0).to_string(),
+                    }
+                    .fail()?
                 }
-                NumericValueNotRecognizedSnafu { value: "".to_string() }.fail()?;
-                unreachable!()
+                NumericValueNotRecognizedSnafu {
+                    value: "".to_string(),
+                }
+                .fail()?
             }
             DataType::LargeUtf8 => {
                 let s = as_large_string_array(arr)?;
                 if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu { value: s.value(0).to_string() }.fail()?;
+                    NumericValueNotRecognizedSnafu {
+                        value: s.value(0).to_string(),
+                    }
+                    .fail()?
                 }
-                NumericValueNotRecognizedSnafu { value: "".to_string() }.fail()?;
-                unreachable!()
+                NumericValueNotRecognizedSnafu {
+                    value: "".to_string(),
+                }
+                .fail()?
             }
-            _ => {
-                NumericValueNotRecognizedSnafu { value: "".to_string() }.fail()?;
-                unreachable!()
+            _ => NumericValueNotRecognizedSnafu {
+                value: "".to_string(),
             }
+            .fail()?,
         },
     }
 }
-
-

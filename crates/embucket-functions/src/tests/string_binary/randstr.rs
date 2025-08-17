@@ -34,5 +34,3 @@ test_query!(
     "SELECT RANDSTR('lala', 12)",
     snapshot_path = "randstr"
 );
-
-
