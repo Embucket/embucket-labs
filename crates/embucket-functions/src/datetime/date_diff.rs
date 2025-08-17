@@ -6,14 +6,10 @@ use datafusion::arrow::compute::kernels::numeric::sub;
 use datafusion::arrow::compute::{DatePart, cast, date_part};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Result, plan_err};
-use datafusion::logical_expr::TypeSignature::Coercible;
-use datafusion::logical_expr::TypeSignatureClass;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::cast::{as_int32_array, as_int64_array};
-use datafusion_common::types::logical_date;
-use datafusion_common::{internal_err, types::logical_string};
-use datafusion_expr::Coercion;
+use datafusion_common::internal_err;
 use std::any::Any;
 use std::sync::Arc;
 use std::vec;
@@ -54,32 +50,7 @@ impl DateDiffFunc {
     #[must_use]
     pub fn new(session_params: Arc<SessionParams>) -> Self {
         Self {
-            //TODO: Fix signature, can we diffretite between two differnt types? (ex.: date32 - timestamp)
-            signature: Signature::one_of(
-                vec![
-                    Coercible(vec![
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Timestamp),
-                        Coercion::new_exact(TypeSignatureClass::Timestamp),
-                    ]),
-                    Coercible(vec![
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Time),
-                        Coercion::new_exact(TypeSignatureClass::Time),
-                    ]),
-                    Coercible(vec![
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                    ]),
-                    Coercible(vec![
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                    ]),
-                ],
-                Volatility::Immutable,
-            ),
+            signature: Signature::user_defined(Volatility::Immutable),
             aliases: vec![
                 String::from("date_diff"),
                 String::from("timediff"),
@@ -218,6 +189,47 @@ impl ScalarUDFImpl for DateDiffFunc {
 
     fn signature(&self) -> &Signature {
         &self.signature
+    }
+
+    fn coerce_types(&self, arg_types: &[DataType]) -> Result<Vec<DataType>> {
+        if arg_types.len() != 3 {
+            return plan_err!("function requires three arguments");
+        }
+
+        let part_type = &arg_types[0];
+        let arg1 = &arg_types[1];
+        let arg2 = &arg_types[2];
+
+        let coerced0 = match part_type {
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Null => DataType::Utf8,
+            other => {
+                return plan_err!("First argument must be a string, but found {:?}", other);
+            }
+        };
+
+        fn is_datetime_like(dt: &DataType) -> bool {
+            matches!(
+                dt,
+                DataType::Timestamp(_, _)
+                    | DataType::Date32
+                    | DataType::Date64
+                    | DataType::Time32(_)
+                    | DataType::Time64(_)
+                    | DataType::Utf8
+                    | DataType::LargeUtf8
+                    | DataType::Null
+            )
+        }
+
+        if !is_datetime_like(arg1) || !is_datetime_like(arg2) {
+            return plan_err!("Second and third arguments must be date, time, timestamp or string");
+        }
+
+        Ok(vec![
+            coerced0,
+            DataType::Timestamp(TimeUnit::Nanosecond, None),
+            DataType::Timestamp(TimeUnit::Nanosecond, None),
+        ])
     }
 
     fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
