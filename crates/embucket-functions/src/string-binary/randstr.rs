@@ -165,7 +165,8 @@ impl ScalarUDFImpl for RandStrFunc {
                 }
                 .fail()?,
             };
-            let mut rng = StdRng::seed_from_u64(seeds.value(i) as u64);
+            let seed_bits = u64::from_ne_bytes(seeds.value(i).to_ne_bytes());
+            let mut rng = StdRng::seed_from_u64(seed_bits);
             let s = Alphanumeric.sample_string(&mut rng, target_len);
             builder.append_value(&s);
         }
@@ -182,45 +183,39 @@ fn cast_to_i64_with_numeric_error(arr: &ArrayRef) -> DFResult<ArrayRef> {
         Err(_) => match arr.data_type() {
             DataType::Utf8 => {
                 let s = as_string_array(arr)?;
-                if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu {
-                        value: s.value(0).to_string(),
-                    }
-                    .fail()?
-                }
                 NumericValueNotRecognizedSnafu {
-                    value: "".to_string(),
+                    value: if s.len() > 0 && !s.is_null(0) {
+                        s.value(0).to_string()
+                    } else {
+                        String::new()
+                    },
                 }
                 .fail()?
             }
             DataType::Utf8View => {
                 let s = as_string_view_array(arr)?;
-                if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu {
-                        value: s.value(0).to_string(),
-                    }
-                    .fail()?
-                }
                 NumericValueNotRecognizedSnafu {
-                    value: "".to_string(),
+                    value: if s.len() > 0 && !s.is_null(0) {
+                        s.value(0).to_string()
+                    } else {
+                        String::new()
+                    },
                 }
                 .fail()?
             }
             DataType::LargeUtf8 => {
                 let s = as_large_string_array(arr)?;
-                if s.len() > 0 && !s.is_null(0) {
-                    NumericValueNotRecognizedSnafu {
-                        value: s.value(0).to_string(),
-                    }
-                    .fail()?
-                }
                 NumericValueNotRecognizedSnafu {
-                    value: "".to_string(),
+                    value: if s.len() > 0 && !s.is_null(0) {
+                        s.value(0).to_string()
+                    } else {
+                        String::new()
+                    },
                 }
                 .fail()?
             }
             _ => NumericValueNotRecognizedSnafu {
-                value: "".to_string(),
+                value: String::new(),
             }
             .fail()?,
         },
