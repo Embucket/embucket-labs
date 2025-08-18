@@ -548,6 +548,7 @@ impl UserQuery {
             object_type,
             names,
             cascade,
+            if_exists,
             ..
         } = statement.clone()
         else {
@@ -600,8 +601,8 @@ impl UserQuery {
 
         match object_type {
             ObjectType::Table | ObjectType::View => {
-                let table = iceberg_catalog.clone().load_tabular(&ident).await;
-                if table.is_ok() {
+                let table_resp = iceberg_catalog.clone().load_tabular(&ident).await;
+                if table_resp.is_ok() {
                     iceberg_catalog
                         .drop_table(&ident)
                         .await
@@ -612,16 +613,14 @@ impl UserQuery {
                         table: ident.name().to_string(),
                     }))
                     .await?;
-                } else {
-                    // Iceberg error doesn't containt enough information, raise schema error
-                    catalog.schema(&schema_name).context(
-                        ex_error::SchemaNotFoundInDatabaseSnafu {
-                            schema: schema_name,
-                            db: catalog_name.to_string(),
-                        },
-                    )?;
-                    // return original error, since schema is exists
-                    table.context(ex_error::IcebergSnafu)?;
+                } else if !if_exists {
+                    // Check if the schema exists first
+                    iceberg_catalog
+                        .load_namespace(ident.namespace())
+                        .await
+                        .context(ex_error::IcebergSnafu)?;
+                    // return original error, since schema exists
+                    table_resp.context(ex_error::IcebergSnafu)?;
                 }
                 self.status_response()
             }
