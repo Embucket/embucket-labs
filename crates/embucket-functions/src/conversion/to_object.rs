@@ -4,12 +4,9 @@ use crate::macros::make_udf_function;
 use arrow_schema::DataType;
 use datafusion::arrow::array::{Array, StringArray, StringBuilder};
 use datafusion::error::Result as DFResult;
-use datafusion::logical_expr::{
-    Coercion, ColumnarValue, Signature, TypeSignature, TypeSignatureClass, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_generic_string_array;
-use datafusion_common::types::logical_string;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use snafu::ResultExt;
@@ -42,12 +39,7 @@ impl ToObjectFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::one_of(
-                vec![TypeSignature::Coercible(vec![Coercion::new_exact(
-                    TypeSignatureClass::Native(logical_string()),
-                )])],
-                Volatility::Immutable,
-            ),
+            signature: Signature::any(1, Volatility::Immutable),
         }
     }
 }
@@ -78,19 +70,30 @@ impl ScalarUDFImpl for ToObjectFunc {
 
         let mut b = StringBuilder::with_capacity(arr.len(), 1024);
 
-        let arr: &StringArray = as_generic_string_array(&arr)?;
-
-        for v in arr {
-            if let Some(v) = v {
-                let v: Value = serde_json::from_str(v).context(FailedToDeserializeJsonSnafu)?;
-                if let Value::Object(_) = v {
-                    b.append_value(v.to_string());
-                } else {
-                    return InvalidTypeSnafu.fail()?;
+        match arr.data_type() {
+            DataType::Null => {
+                for _ in 0..arr.len() {
+                    b.append_null();
                 }
-            } else {
-                b.append_null();
             }
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+                let arr: &StringArray = as_generic_string_array(&arr)?;
+
+                for v in arr {
+                    if let Some(v) = v {
+                        let v: Value =
+                            serde_json::from_str(v).context(FailedToDeserializeJsonSnafu)?;
+                        if let Value::Object(_) = v {
+                            b.append_value(v.to_string());
+                        } else {
+                            return InvalidTypeSnafu.fail()?;
+                        }
+                    } else {
+                        b.append_null();
+                    }
+                }
+            }
+            _ => return InvalidTypeSnafu.fail()?,
         }
 
         Ok(if arr.len() == 1 {

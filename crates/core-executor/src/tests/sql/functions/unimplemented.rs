@@ -35,13 +35,6 @@ test_query!(
     snapshot_path = "unimplemented"
 );
 
-// CONVERSION_FUNCTIONS
-test_query!(
-    unimplemented_conversion_function,
-    "SELECT TO_OBJECT(123)",
-    snapshot_path = "unimplemented"
-);
-
 // DATA_METRIC_FUNCTIONS
 // TODO: Pass real functions names
 test_query!(
