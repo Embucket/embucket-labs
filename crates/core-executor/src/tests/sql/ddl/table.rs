@@ -69,3 +69,15 @@ test_query!(
     ],
     snapshot_path = "table"
 );
+
+test_query!(
+    drop_table_missing_schema,
+    "DROP TABLE embucket.missing.table",
+    snapshot_path = "table"
+);
+
+test_query!(
+    drop_table_missing,
+    "DROP TABLE embucket.public.missing",
+    snapshot_path = "table"
+);

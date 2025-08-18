@@ -1,0 +1,7 @@
+---
+source: crates/core-executor/src/tests/sql/ddl/table.rs
+description: "\"DROP TABLE embucket.public.missing\""
+---
+Err(
+    "Error: Iceberg error: Table missing not found.",
+)
