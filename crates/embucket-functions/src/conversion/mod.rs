@@ -7,6 +7,7 @@ pub mod to_array;
 pub mod to_binary;
 pub mod to_date;
 pub mod to_decimal;
+mod to_object;
 pub mod to_timestamp;
 pub mod to_variant;
 
@@ -42,6 +43,7 @@ pub fn register_udfs(
         Arc::new(ScalarUDF::from(ToDateFunc::new(true))),
         Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
         Arc::new(ScalarUDF::from(ToVarcharFunc::new(true))),
+        to_object::get_udf(),
     ];
 
     // Add timestamp functions

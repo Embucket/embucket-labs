@@ -399,6 +399,7 @@ to_hex
 to_local_time
 to_number
 to_numeric
+to_object
 to_time
 to_timestamp
 to_timestamp_ltz

@@ -160,6 +160,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid type"))]
+    InvalidType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Unsupported format: {format}. Valid formats are {expected}."))]
     UnsupportedFormat {
         format: String,
