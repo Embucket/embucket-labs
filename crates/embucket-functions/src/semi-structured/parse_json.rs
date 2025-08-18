@@ -1,6 +1,7 @@
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors::FailedToDeserializeJsonSnafu;
 use datafusion::arrow::array::{StringBuilder, as_string_array};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
@@ -27,7 +28,7 @@ impl ParseJsonFunc {
     #[must_use]
     pub fn new(try_mode: bool) -> Self {
         Self {
-            signature: Signature::one_of(vec![TypeSignature::String(1)], Volatility::Immutable),
+            signature: Signature::one_of(vec![TypeSignature::Any(1)], Volatility::Immutable),
             try_mode,
         }
     }
@@ -63,7 +64,8 @@ impl ScalarUDFImpl for ParseJsonFunc {
         };
 
         let mut b = StringBuilder::with_capacity(arr.len(), 1024);
-        let input = as_string_array(&arr);
+        let casted = cast(&arr, &DataType::Utf8)?;
+        let input = as_string_array(&casted);
 
         for v in input {
             if let Some(v) = v {
@@ -156,15 +158,15 @@ mod tests {
         let sql = "SELECT parse_json('{\"invalid\": \"json\"') AS parsed_json";
         assert!(ctx.sql(sql).await?.collect().await.is_err());
 
-        let sql = r"SELECT parse_json('[-1, 12, 289, 2188, false,]') AS parsed_json";
+        let sql = r"SELECT parse_json('[-1, 12, 289, 2188, false,]') AS p1, parse_json(1) as p2";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
-                "+-----------------------------+",
-                "| parsed_json                 |",
-                "+-----------------------------+",
-                "| [-1,12,289,2188,false,null] |",
-                "+-----------------------------+",
+                "+-----------------------------+----+",
+                "| p1                          | p2 |",
+                "+-----------------------------+----+",
+                "| [-1,12,289,2188,false,null] | 1  |",
+                "+-----------------------------+----+",
             ],
             &result
         );
