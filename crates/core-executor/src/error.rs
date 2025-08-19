@@ -179,7 +179,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Table {table} not found in {schema}"))]
+    #[snafu(display("Table {table} not found in schema {schema}"))]
     TableNotFound {
         schema: String,
         table: String,

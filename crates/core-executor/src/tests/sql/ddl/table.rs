@@ -89,10 +89,21 @@ test_query!(
     snapshot_path = "table"
 );
 
-// Empty plan
 test_query!(
     alter_iceberg_table,
     "ALTER ICEBERG TABLE test ADD col INT;",
     setup_queries = ["CREATE TABLE embucket.public.test (id INT) as VALUES (1), (2)",],
+    snapshot_path = "table"
+);
+
+test_query!(
+    alter_missing_schema,
+    "ALTER TABLE embucket.missing.table ADD COLUMN new_col INT",
+    snapshot_path = "table"
+);
+
+test_query!(
+    alter_missing_table,
+    "ALTER TABLE embucket.public.missing ADD COLUMN new_col INT",
     snapshot_path = "table"
 );

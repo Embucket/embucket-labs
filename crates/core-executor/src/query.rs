@@ -561,14 +561,17 @@ impl UserQuery {
                     schema: &resolved.schema.to_string(),
                     db: &resolved.catalog.to_string(),
                 })?;
-        schema
-            .table(&resolved.table)
-            .await
-            .context(ex_error::DataFusionSnafu)?
-            .context(ex_error::TableNotFoundSnafu {
-                table: &resolved.table.to_string(),
-                schema: &resolved.schema.to_string(),
-            })?;
+        println!("schema: {schema:?}");
+        if !if_exists {
+            schema
+                .table(&resolved.table)
+                .await
+                .context(ex_error::DataFusionSnafu)?
+                .context(ex_error::TableNotFoundSnafu {
+                    table: &resolved.table.to_string(),
+                    schema: &resolved.schema.to_string(),
+                })?;
+        }
         self.status_response()
     }
 

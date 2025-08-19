@@ -71,19 +71,22 @@ impl CatalogProvider for EmbucketCatalog {
         let schema_name = name.to_string();
 
         block_in_new_runtime(async move {
-            metastore
+            if metastore
                 .get_schema(&SchemaIdent::new(database.clone(), schema_name.clone()))
                 .await
-                .map(|_| {
-                    let schema: Arc<dyn SchemaProvider> = Arc::new(EmbucketSchema {
-                        database,
-                        schema: schema_name,
-                        metastore,
-                        iceberg_catalog,
-                    });
-                    schema
-                })
-                .ok()
+                .ok()?
+                .is_some()
+            {
+                let schema: Arc<dyn SchemaProvider> = Arc::new(EmbucketSchema {
+                    database,
+                    schema: schema_name,
+                    metastore,
+                    iceberg_catalog,
+                });
+                Some(schema)
+            } else {
+                None
+            }
         })
         .unwrap_or(None)
     }
