@@ -2521,7 +2521,29 @@ impl UserQuery {
                 if credentials.options.is_empty() {
                     None
                 } else {
-                    todo!()
+                    // Create object store from credentials
+                    let access_key_id = get_kv_option(&credentials, "AWS_KEY_ID");
+                    let secret_access_key = get_kv_option(&credentials, "AWS_SECRET_KEY");
+                    let session_token = get_kv_option(&credentials, "AWS_SESSION_TOKEN");
+                    
+                    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
+                        let object_store_url = url.object_store();
+                        let bucket = object_store_url
+                            .as_str()
+                            .trim_start_matches("s3://")
+                            .trim_end_matches('/');
+                            
+                        let store = create_s3_object_store(
+                            bucket,
+                            stage_params.endpoint.clone(),
+                            Some(access_key),
+                            Some(secret_key),
+                            session_token,
+                        ).await?;
+                        Some(store)
+                    } else {
+                        None
+                    }
                 }
             }
         };
@@ -2532,32 +2554,13 @@ impl UserQuery {
         } else {
             match url.scheme() {
                 "s3" => {
-                    let object_store = url.object_store();
-                    let bucket = object_store
+                    let object_store_url = url.object_store();
+                    let bucket = object_store_url
                         .as_str()
                         .trim_start_matches("s3://")
                         .trim_end_matches('/');
-                    let region = resolve_bucket_region(bucket, &ClientOptions::default())
-                        .await
-                        .context(ex_error::ObjectStoreSnafu)?;
-                    let builder = AmazonS3Builder::new()
-                        .with_bucket_name(bucket)
-                        .with_region(region)
-                        .with_skip_signature(true);
-
-                    let builder = if let Some(endpoint) = stage_params.endpoint {
-                        builder.with_endpoint(endpoint)
-                    } else {
-                        builder
-                    };
-
-                    let Ok(s3) = builder.build() else {
-                        return ex_error::InvalidBucketIdentifierSnafu {
-                            ident: bucket.to_string(),
-                        }
-                        .fail();
-                    };
-                    Ok(Arc::new(s3))
+                    
+                    create_s3_object_store(bucket, stage_params.endpoint, None, None, None).await
                 }
                 "file" => {
                     let local_fs = LocalFileSystem::new();
@@ -3146,6 +3149,48 @@ pub fn get_kv_option<'a>(options: &'a KeyValueOptions, key: &str) -> Option<&'a 
         .iter()
         .find(|opt| opt.option_name.eq_ignore_ascii_case(key))
         .map(|opt| opt.value.as_str())
+}
+
+async fn create_s3_object_store(
+    bucket: &str,
+    endpoint: Option<String>,
+    access_key_id: Option<&str>,
+    secret_access_key: Option<&str>,
+    session_token: Option<&str>,
+) -> Result<Arc<dyn ObjectStore + 'static>> {
+    let region = resolve_bucket_region(bucket, &ClientOptions::default())
+        .await
+        .context(ex_error::ObjectStoreSnafu)?;
+
+    let mut builder = AmazonS3Builder::new()
+        .with_bucket_name(bucket)
+        .with_region(region);
+
+    // Add credentials if provided, otherwise use skip_signature for public access
+    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
+        builder = builder
+            .with_access_key_id(access_key)
+            .with_secret_access_key(secret_key);
+        
+        if let Some(token) = session_token {
+            builder = builder.with_token(token);
+        }
+    } else {
+        builder = builder.with_skip_signature(true);
+    }
+
+    if let Some(endpoint) = endpoint {
+        builder = builder.with_endpoint(endpoint);
+    }
+
+    let Ok(s3) = builder.build() else {
+        return ex_error::InvalidBucketIdentifierSnafu {
+            ident: bucket.to_string(),
+        }
+        .fail();
+    };
+
+    Ok(Arc::new(s3))
 }
 
 fn create_file_format(
