@@ -686,7 +686,8 @@ impl UserQuery {
         let mut plan = self
             .get_custom_logical_plan(&create_table_statement.to_string())
             .await?;
-        // Apply analyzer rules to have a correct schema in case we have CTE to insert data
+        // Run analyzer rules to ensure the logical plan has the correct schema,
+        // especially when handling CTEs used as sources for INSERT statements.
         plan = self
             .session
             .ctx
