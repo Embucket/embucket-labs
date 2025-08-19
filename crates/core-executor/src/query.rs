@@ -580,20 +580,28 @@ impl UserQuery {
             .resolve_iceberg_catalog(catalog, catalog_name.to_string())
             .await;
 
-        // Alter table is not supported yet, but it returns success
-
         if let IcebergCatalogResult::Catalog(iceberg_catalog) = iceberg_catalog {
-            // Check if the schema exists first
-            if iceberg_catalog
-                .load_namespace(ident.namespace())
-                .await
-                .is_err()
-            {
-                ex_error::SchemaNotFoundInDatabaseSnafu {
-                    schema: schema_name,
-                    db: catalog_name.to_string(),
+            let table_resp = iceberg_catalog.clone().load_tabular(&ident).await;
+            if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
+                // Check if the schema exists first
+                if iceberg_catalog
+                    .load_namespace(ident.namespace())
+                    .await
+                    .is_err()
+                {
+                    ex_error::SchemaNotFoundInDatabaseSnafu {
+                        schema: schema_name,
+                        db: catalog_name.to_string(),
+                    }
+                    .fail()?;
+                } else {
+                    ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                        table: ident.name().to_string(),
+                        schema: schema_name,
+                        db: catalog_name.to_string(),
+                    }
+                    .fail()?;
                 }
-                .fail()?;
             }
         } else {
             return ex_error::CatalogNotFoundSnafu {
@@ -602,6 +610,7 @@ impl UserQuery {
             .fail();
         }
 
+        // Alter table is not supported yet, but it returns success
         self.status_response()
     }
 

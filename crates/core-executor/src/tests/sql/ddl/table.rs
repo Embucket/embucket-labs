@@ -107,3 +107,10 @@ test_query!(
     snapshot_path = "snowflake_error",
     snowflake_error = true
 );
+
+test_query!(
+    alter_table_missing_table_snowflake_error,
+    "ALTER TABLE embucket.public.missing_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
