@@ -7,6 +7,7 @@ use super::error::{self as ex_error, Result};
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
 use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -83,6 +84,7 @@ impl UserSession {
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
+            .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();
