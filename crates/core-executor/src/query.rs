@@ -15,9 +15,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::{
-    InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu, NotSupportedStatementSnafu,
-};
+use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -382,10 +380,7 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. } => NotSupportedStatementSnafu {
-                    statement: "ALTER TABLE".to_string(),
-                }
-                .fail()?,
+                Statement::AlterTable { .. } => return self.alter_table_query(*s).await,
                 Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
@@ -444,6 +439,20 @@ impl UserQuery {
         Some(iceberg_catalog.mirror())
     }
 
+    #[instrument(
+        name = "UserQuery::resolve_iceberg_catalog",
+        level = "trace",
+        skip(self, catalog)
+    )]
+    pub async fn resolve_iceberg_catalog(
+        &self,
+        catalog: Arc<dyn CatalogProvider>,
+        catalog_name: String,
+    ) -> IcebergCatalogResult {
+        self.resolve_iceberg_catalog_or_execute(catalog, catalog_name, None)
+            .await
+    }
+
     /// The code below relies on [`Catalog`] trait for different iceberg catalog
     /// implementations (REST, S3 table buckets, or anything else).
     /// In case this is built-in datafusion's [`MemoryCatalogProvider`] we shortcut and rely on its implementation
@@ -459,7 +468,7 @@ impl UserQuery {
         &self,
         catalog: Arc<dyn CatalogProvider>,
         catalog_name: String,
-        plan: LogicalPlan,
+        plan: Option<LogicalPlan>,
     ) -> IcebergCatalogResult {
         // Try to downcast to CachingCatalog first since all catalogs are registered as CachingCatalog
         let catalog =
@@ -479,10 +488,11 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
         } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<EmbucketCatalog>() {
             IcebergCatalogResult::Catalog(embucket_catalog.catalog())
-        } else if catalog
-            .as_any()
-            .downcast_ref::<MemoryCatalogProvider>()
-            .is_some()
+        } else if let Some(plan) = plan
+            && catalog
+                .as_any()
+                .downcast_ref::<MemoryCatalogProvider>()
+                .is_some()
         {
             let result = self.execute_logical_plan(plan).await;
             IcebergCatalogResult::Result(result)
@@ -541,6 +551,60 @@ impl UserQuery {
         self.status_response()
     }
 
+    #[instrument(
+        name = "UserQuery::alter_table_query",
+        level = "trace",
+        skip(self),
+        err
+    )]
+    #[allow(clippy::too_many_lines)]
+    pub async fn alter_table_query(&self, statement: Statement) -> Result<QueryResult> {
+        let Statement::AlterTable { name, .. } = statement.clone() else {
+            return ex_error::NotSupportedStatementSnafu {
+                statement: "ALTER".to_string(),
+            }
+            .fail();
+        };
+
+        let table_ident = self.resolve_table_object_name(name.0)?;
+        let table_ref = self.resolve_table_ref(&table_ident);
+
+        let catalog_name = table_ref.catalog.to_string();
+        let schema_name = table_ref.schema.to_string();
+
+        let ident = Identifier::new(std::slice::from_ref(&schema_name), table_ref.table.as_ref());
+
+        let catalog = self.get_catalog(&catalog_name)?;
+
+        let iceberg_catalog = self
+            .resolve_iceberg_catalog(catalog, catalog_name.to_string())
+            .await;
+
+        // Alter table is not supported yet, but it returns success
+
+        if let IcebergCatalogResult::Catalog(iceberg_catalog) = iceberg_catalog {
+            // Check if the schema exists first
+            if iceberg_catalog
+                .load_namespace(ident.namespace())
+                .await
+                .is_err()
+            {
+                ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: schema_name,
+                    db: catalog_name.to_string(),
+                }
+                .fail()?;
+            }
+        } else {
+            return ex_error::CatalogNotFoundSnafu {
+                catalog: catalog_name.clone(),
+            }
+            .fail();
+        }
+
+        self.status_response()
+    }
+
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
     #[allow(clippy::too_many_lines)]
     pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
@@ -590,7 +654,11 @@ impl UserQuery {
 
         let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog.clone(), catalog_name.to_string(), plan)
+            .resolve_iceberg_catalog_or_execute(
+                catalog.clone(),
+                catalog_name.to_string(),
+                Some(plan),
+            )
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -614,13 +682,30 @@ impl UserQuery {
                     }))
                     .await?;
                 } else if !if_exists {
-                    // Check if the schema exists first
-                    iceberg_catalog
-                        .load_namespace(ident.namespace())
-                        .await
-                        .context(ex_error::IcebergSnafu)?;
-                    // return original error, since schema exists
-                    table_resp.context(ex_error::IcebergSnafu)?;
+                    if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
+                        // Check if the schema exists first
+                        if iceberg_catalog
+                            .load_namespace(ident.namespace())
+                            .await
+                            .is_err()
+                        {
+                            ex_error::SchemaNotFoundInDatabaseSnafu {
+                                schema: schema_name,
+                                db: catalog_name.to_string(),
+                            }
+                            .fail()?;
+                        } else {
+                            ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                                table: ident.name().to_string(),
+                                schema: schema_name,
+                                db: catalog_name.to_string(),
+                            }
+                            .fail()?;
+                        }
+                    } else {
+                        // return original error, since schema exists
+                        table_resp.context(ex_error::IcebergSnafu)?;
+                    }
                 }
                 self.status_response()
             }
@@ -764,7 +849,7 @@ impl UserQuery {
         plan: LogicalPlan,
     ) -> Result<QueryResult> {
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, catalog_name, plan.clone())
+            .resolve_iceberg_catalog_or_execute(catalog, catalog_name, Some(plan.clone()))
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -1459,7 +1544,7 @@ impl UserQuery {
         self.created_entity_response()
     }
 
-    #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
+    #[instrument(name = "UserQuery::create_view", level = "trace", skip(self), err)]
     pub async fn create_view(&self, statement: Statement) -> Result<QueryResult> {
         let mut plan = self.sql_statement_to_plan(statement).await?;
         match &mut plan {
@@ -1490,7 +1575,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&ident.database)?;
 
         let downcast_result = self
-            .resolve_iceberg_catalog_or_execute(catalog.clone(), ident.database.clone(), plan)
+            .resolve_iceberg_catalog_or_execute(catalog.clone(), ident.database.clone(), Some(plan))
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,

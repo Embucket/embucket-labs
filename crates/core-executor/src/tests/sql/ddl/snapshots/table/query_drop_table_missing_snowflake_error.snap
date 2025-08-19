@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"DROP TABLE embucket.public.missing\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Table 'embucket.public.missing' does not exist or not authorized",
-)
