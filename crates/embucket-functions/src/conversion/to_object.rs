@@ -68,7 +68,7 @@ impl ScalarUDFImpl for ToObjectFunc {
         let arr = args[0].clone().into_array(number_rows)?;
 
         let arr = match arr.data_type() {
-            DataType::Null => ScalarValue::Null.to_array_of_size(arr.len())?,
+            DataType::Null => ScalarValue::Utf8(None).to_array_of_size(arr.len())?,
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let arr: &StringArray = as_generic_string_array(&arr)?;
                 let mut b = StringBuilder::with_capacity(arr.len(), 1024);
@@ -121,6 +121,21 @@ mod tests {
                 "| {\"a\":1,\"b\":2} |",
                 "+---------------+",
             ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_null() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
+        let q = "SELECT TO_OBJECT(null) as obj;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            ["+-----+", "| obj |", "+-----+", "|     |", "+-----+",],
             &result
         );
 
