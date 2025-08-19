@@ -2525,21 +2525,23 @@ impl UserQuery {
                     let access_key_id = get_kv_option(&credentials, "AWS_KEY_ID");
                     let secret_access_key = get_kv_option(&credentials, "AWS_SECRET_KEY");
                     let session_token = get_kv_option(&credentials, "AWS_SESSION_TOKEN");
-                    
-                    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
+
+                    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key)
+                    {
                         let object_store_url = url.object_store();
                         let bucket = object_store_url
                             .as_str()
                             .trim_start_matches("s3://")
                             .trim_end_matches('/');
-                            
+
                         let store = create_s3_object_store(
                             bucket,
                             stage_params.endpoint.clone(),
                             Some(access_key),
                             Some(secret_key),
                             session_token,
-                        ).await?;
+                        )
+                        .await?;
                         Some(store)
                     } else {
                         None
@@ -2559,7 +2561,7 @@ impl UserQuery {
                         .as_str()
                         .trim_start_matches("s3://")
                         .trim_end_matches('/');
-                    
+
                     create_s3_object_store(bucket, stage_params.endpoint, None, None, None).await
                 }
                 "file" => {
@@ -3171,7 +3173,7 @@ async fn create_s3_object_store(
         builder = builder
             .with_access_key_id(access_key)
             .with_secret_access_key(secret_key);
-        
+
         if let Some(token) = session_token {
             builder = builder.with_token(token);
         }
