@@ -77,7 +77,7 @@ These technology choices differ structurally:
 ### Backslash escaping
 
 - **Backslash escaping differentiates**: Snowflake doesn't support backslash escaping for special characters in string literals by using `\` as an escape character (broken symbols). Embucket supports backslash escaping for special characters in string literals by using `\` as an escape character (but the symbols are not shown), also it supports `\\` as an escape character for other symbols.
-- **Backslash reception number differentiates**: In Snowflake to get `\b` you need to write `\\b`. In Embucket to get `\b` you need to write `\\\\b`.
+- **Backslash repetition number differentiates**: In Snowflake to get `\b` you need to write `\\b`. In Embucket to get `\b` you need to write `\\\\b`.
 
 | Example                            | Embucket                                                | Snowflake                           |
 |------------------------------------|---------------------------------------------------------|-------------------------------------|
