@@ -1,0 +1,7 @@
+---
+source: crates/core-executor/src/tests/sql/ddl/table.rs
+description: "\"ALTER ICEBERG TABLE test ADD col INT;\""
+---
+Err(
+    "Error: Table test not found in public",
+)

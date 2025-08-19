@@ -6,7 +6,8 @@ use super::catalog::{
 };
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{
-    self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
+    self as ex_error, Error, InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu,
+    ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
@@ -15,9 +16,6 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::{
-    InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu, NotSupportedStatementSnafu,
-};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -99,10 +97,10 @@ use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
-    AssignmentTarget, CloudProviderParams, MergeAction, MergeClause, MergeClauseKind,
-    MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens, PivotValueSource,
-    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
-    visit_relations_mut,
+    AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
+    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use,
+    Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -382,10 +380,14 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. } => NotSupportedStatementSnafu {
-                    statement: "ALTER TABLE".to_string(),
+                Statement::AlterTable {
+                    name,
+                    operations,
+                    if_exists,
+                    ..
+                } => {
+                    return Box::pin(self.alter_table(name, operations, if_exists)).await;
                 }
-                .fail()?,
                 Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
@@ -538,6 +540,35 @@ impl UserQuery {
             session_params.insert(name, session_value);
         }
         self.session.set_session_variable(true, session_params)?;
+        self.status_response()
+    }
+
+    #[instrument(name = "UserQuery::alter_table", level = "trace", skip(self), err)]
+    #[allow(clippy::too_many_lines)]
+    pub async fn alter_table(
+        &self,
+        name: ObjectName,
+        operations: Vec<AlterTableOperation>,
+        if_exists: bool,
+    ) -> Result<QueryResult> {
+        let ident = &self.resolve_table_object_name(name.0.clone())?;
+        let resolved = self.resolve_table_ref(ident);
+        let catalog = self.get_catalog(&resolved.catalog)?;
+        let schema =
+            catalog
+                .schema(&resolved.schema)
+                .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: &resolved.schema.to_string(),
+                    db: &resolved.catalog.to_string(),
+                })?;
+        schema
+            .table(&resolved.table)
+            .await
+            .context(ex_error::DataFusionSnafu)?
+            .context(ex_error::TableNotFoundSnafu {
+                table: &resolved.table.to_string(),
+                schema: &resolved.schema.to_string(),
+            })?;
         self.status_response()
     }
 

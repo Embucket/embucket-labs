@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/query.rs
-description: "\"ALTER ICEBERG TABLE test ADD col INT;\""
----
-Err(
-    "Error: Not supported statement: ALTER TABLE",
-)
