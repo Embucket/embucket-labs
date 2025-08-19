@@ -199,7 +199,15 @@ macro_rules! test_query {
 
                 let setup: Vec<&str> = vec![$($($setup_queries),*)?];
                 if !setup.is_empty() {
-                    settings.set_info(&format!("Setup queries: {}", setup.join("; ")));
+                    settings.set_info(
+                        &format!(
+                            "{}Setup queries: {}",
+                            if snowflake_error { "Tests Snowflake Error; " } else { "" },
+                            setup.join("; "),
+                        ),
+                    );
+                } else if snowflake_error {
+                    settings.set_info(&format!("Tests Snowflake Error"));
                 }
                 settings.bind(|| {
                     let df = match res {

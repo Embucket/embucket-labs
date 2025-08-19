@@ -71,48 +71,15 @@ test_query!(
 );
 
 test_query!(
-    alter_table_stub,
-    "ALTER TABLE embucket.test.some_table add column c5 VARCHAR",
-    setup_queries = [
-        "CREATE SCHEMA embucket.test",
-        "CREATE TABLE embucket.test.some_table (id INT)",
-    ],
+    drop_table_missing_schema,
+    "DROP TABLE embucket.missing.table",
     snapshot_path = "table"
 );
 
 test_query!(
-    drop_table_missing_schema_snowflake_error,
-    "DROP TABLE embucket.missing.table",
-    snapshot_path = "snowflake_error",
-    snowflake_error = true
-);
-
-test_query!(
-    drop_table_missing_snowflake_error,
+    drop_table_missing,
     "DROP TABLE embucket.public.missing",
-    snapshot_path = "snowflake_error",
-    snowflake_error = true
-);
-
-test_query!(
-    alter_table_missing_catalog_snowflake_error,
-    "ALTER TABLE missing_catalog.public.hello add column c5 VARCHAR",
-    snapshot_path = "snowflake_error",
-    snowflake_error = true
-);
-
-test_query!(
-    alter_table_missing_schema_snowflake_error,
-    "ALTER TABLE embucket.missing_schema.hello add column c5 VARCHAR",
-    snapshot_path = "snowflake_error",
-    snowflake_error = true
-);
-
-test_query!(
-    alter_table_missing_table_snowflake_error,
-    "ALTER TABLE embucket.public.missing_table add column c5 VARCHAR",
-    snapshot_path = "snowflake_error",
-    snowflake_error = true
+    snapshot_path = "table"
 );
 
 test_query!(
@@ -138,5 +105,117 @@ test_query!(
 test_query!(
     alter_missing_table,
     "ALTER TABLE embucket.public.missing ADD COLUMN new_col INT",
+    snapshot_path = "table"
+);
+
+test_query!(
+    alter_table_stub_should_pass,
+    "ALTER TABLE embucket.test.some_table add column c5 VARCHAR",
+    setup_queries = [
+        "CREATE SCHEMA embucket.test",
+        "CREATE TABLE embucket.test.some_table (id INT)",
+    ],
+    snapshot_path = "table"
+);
+
+test_query!(
+    alter_table_if_exists_stub_should_pass,
+    "ALTER TABLE IF EXISTS embucket.test.some_table add column c5 VARCHAR",
+    setup_queries = [
+        "CREATE SCHEMA embucket.test",
+        "CREATE TABLE embucket.test.some_table (id INT)",
+    ],
+    snapshot_path = "table"
+);
+
+test_query!(
+    alter_table_missing_catalog_snowflake_error,
+    "ALTER TABLE missing_catalog.public.some_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_if_exists_missing_catalog_snowflake_error,
+    "ALTER TABLE IF EXISTS missing_catalog.public.some_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_missing_schema_snowflake_error,
+    "ALTER TABLE embucket.missing_schema.some_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_if_exists_missing_schema_snowflake_error,
+    "ALTER TABLE IF EXISTS embucket.missing_schema.some_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_missing_table_snowflake_error,
+    "ALTER TABLE embucket.public.missing_table add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_if_exists_missing_table_should_pass,
+    "ALTER TABLE IF EXISTS embucket.public.missing_table add column c5 VARCHAR",
+    snapshot_path = "table"
+);
+
+test_query!(
+    drop_table_missing_catalog_snowflake_error,
+    "DROP TABLE missing_catalog.public.some_table",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_if_exists_missing_catalog_snowflake_error,
+    "DROP TABLE IF EXISTS missing_catalog.public.some_table",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_missing_schema_snowflake_error,
+    "DROP TABLE embucket.missing_schema.some_table",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_if_exists_missing_schema_snowflake_error,
+    "DROP TABLE IF EXISTS embucket.missing_schema.some_table",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_missing_table_snowflake_error,
+    "DROP TABLE embucket.public.missing",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_if_exists_missing_table_should_pass,
+    "DROP TABLE IF EXISTS embucket.public.missing",
+    snapshot_path = "table"
+);
+
+test_query!(
+    drop_table_stub_should_pass,
+    "DROP TABLE embucket.test.some_table",
+    setup_queries = [
+        "CREATE SCHEMA embucket.test",
+        "CREATE TABLE embucket.test.some_table (id INT)",
+    ],
     snapshot_path = "table"
 );

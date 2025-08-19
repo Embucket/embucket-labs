@@ -647,7 +647,7 @@ impl UserQuery {
                         table: ident.name().to_string(),
                     }))
                     .await?;
-                } else if !if_exists {
+                } else {
                     if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
                         // Check if the schema exists first
                         if iceberg_catalog
@@ -660,7 +660,7 @@ impl UserQuery {
                                 db: catalog_name.to_string(),
                             }
                             .fail()?;
-                        } else {
+                        } else if !if_exists {
                             ex_error::TableNotFoundInSchemaInDatabaseSnafu {
                                 table: ident.name().to_string(),
                                 schema: schema_name,
