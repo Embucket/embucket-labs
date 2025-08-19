@@ -446,20 +446,6 @@ impl UserQuery {
         Some(iceberg_catalog.mirror())
     }
 
-    #[instrument(
-        name = "UserQuery::resolve_iceberg_catalog",
-        level = "trace",
-        skip(self, catalog)
-    )]
-    pub async fn resolve_iceberg_catalog(
-        &self,
-        catalog: Arc<dyn CatalogProvider>,
-        catalog_name: String,
-    ) -> IcebergCatalogResult {
-        self.resolve_iceberg_catalog_or_execute(catalog, catalog_name, None)
-            .await
-    }
-
     /// The code below relies on [`Catalog`] trait for different iceberg catalog
     /// implementations (REST, S3 table buckets, or anything else).
     /// In case this is built-in datafusion's [`MemoryCatalogProvider`] we shortcut and rely on its implementation
@@ -475,7 +461,7 @@ impl UserQuery {
         &self,
         catalog: Arc<dyn CatalogProvider>,
         catalog_name: String,
-        plan: Option<LogicalPlan>,
+        plan: LogicalPlan,
     ) -> IcebergCatalogResult {
         // Try to downcast to CachingCatalog first since all catalogs are registered as CachingCatalog
         let catalog =
@@ -495,11 +481,10 @@ impl UserQuery {
             IcebergCatalogResult::Catalog(iceberg_catalog.catalog())
         } else if let Some(embucket_catalog) = catalog.as_any().downcast_ref::<EmbucketCatalog>() {
             IcebergCatalogResult::Catalog(embucket_catalog.catalog())
-        } else if let Some(plan) = plan
-            && catalog
-                .as_any()
-                .downcast_ref::<MemoryCatalogProvider>()
-                .is_some()
+        } else if catalog
+            .as_any()
+            .downcast_ref::<MemoryCatalogProvider>()
+            .is_some()
         {
             let result = self.execute_logical_plan(plan).await;
             IcebergCatalogResult::Result(result)
@@ -639,11 +624,7 @@ impl UserQuery {
 
         let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(
-                catalog.clone(),
-                catalog_name.to_string(),
-                Some(plan),
-            )
+            .resolve_iceberg_catalog_or_execute(catalog.clone(), catalog_name.to_string(), plan)
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -844,7 +825,7 @@ impl UserQuery {
         plan: LogicalPlan,
     ) -> Result<QueryResult> {
         let iceberg_catalog = match self
-            .resolve_iceberg_catalog_or_execute(catalog, catalog_name, Some(plan.clone()))
+            .resolve_iceberg_catalog_or_execute(catalog, catalog_name, plan.clone())
             .await
         {
             IcebergCatalogResult::Catalog(catalog) => catalog,
@@ -1570,7 +1551,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&ident.database)?;
 
         let downcast_result = self
-            .resolve_iceberg_catalog_or_execute(catalog.clone(), ident.database.clone(), Some(plan))
+            .resolve_iceberg_catalog_or_execute(catalog.clone(), ident.database.clone(), plan)
             .await;
         let iceberg_catalog = match downcast_result {
             IcebergCatalogResult::Catalog(catalog) => catalog,
