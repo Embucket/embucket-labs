@@ -561,7 +561,6 @@ impl UserQuery {
                     schema: &resolved.schema.to_string(),
                     db: &resolved.catalog.to_string(),
                 })?;
-        println!("schema: {schema:?}");
         if !if_exists {
             schema
                 .table(&resolved.table)
