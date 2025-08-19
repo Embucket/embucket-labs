@@ -45,7 +45,7 @@ test_query!(
         (1, 30,  80), \
         (2,  5,  50) \
      ) AS t(a, c, d) \
-     GROUP BY a",
+     GROUP BY a ORDER BY a",
     snapshot_path = "split_ordered_aggregates"
 );
 
