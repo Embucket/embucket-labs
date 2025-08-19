@@ -87,12 +87,14 @@ Embucket handles backslash escaping in string literals differently than Snowflak
 #### Getting literal backslashes
 
 **Snowflake:**
+
 ```sql
 SELECT * FROM VALUES ('\\b');
 -- Returns: \b
 ```
 
 **Embucket:**
+
 ```sql
 SELECT * FROM VALUES ('\\\\b');
 -- Returns: \b
@@ -101,12 +103,14 @@ SELECT * FROM VALUES ('\\\\b');
 #### Handling special characters
 
 **Snowflake:**
+
 ```sql
 SELECT * FROM VALUES ('\b');
 -- Returns: \x08 (backspace character, may appear as broken symbol)
 ```
 
 **Embucket:**
+
 ```sql
 SELECT * FROM VALUES ('\b');
 -- Returns: \x08 (backspace character, may not display in UI)
@@ -115,17 +119,18 @@ SELECT * FROM VALUES ('\b');
 #### Single trailing backslash
 
 **Snowflake:**
+
 ```sql
 SELECT * FROM VALUES ('\\');
 -- Returns: \
 ```
 
 **Embucket:**
+
 ```sql
 SELECT * FROM VALUES ('\\');
 -- Error: Unterminated string literal
 ```
-
 
 ## VARIANT data type support
 
