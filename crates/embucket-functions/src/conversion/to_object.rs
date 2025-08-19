@@ -62,22 +62,16 @@ impl ScalarUDFImpl for ToObjectFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
-        let arr = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
+        let arr = args[0].clone().into_array(number_rows)?;
 
-        let mut b = StringBuilder::with_capacity(arr.len(), 1024);
-
-        match arr.data_type() {
-            DataType::Null => {
-                for _ in 0..arr.len() {
-                    b.append_null();
-                }
-            }
+        let arr = match arr.data_type() {
+            DataType::Null => ScalarValue::Null.to_array_of_size(arr.len())?,
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
                 let arr: &StringArray = as_generic_string_array(&arr)?;
+                let mut b = StringBuilder::with_capacity(arr.len(), 1024);
 
                 for v in arr {
                     if let Some(v) = v {
@@ -92,18 +86,13 @@ impl ScalarUDFImpl for ToObjectFunc {
                         b.append_null();
                     }
                 }
+
+                Arc::new(b.finish())
             }
             _ => return InvalidTypeSnafu.fail()?,
-        }
+        };
 
-        Ok(if arr.len() == 1 {
-            return Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(
-                &b.finish(),
-                0,
-            )?));
-        } else {
-            ColumnarValue::Array(Arc::new(b.finish()))
-        })
+        Ok(ColumnarValue::Array(Arc::new(arr)))
     }
 }
 
