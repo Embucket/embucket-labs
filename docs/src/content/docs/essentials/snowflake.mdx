@@ -80,7 +80,7 @@ These technology choices differ structurally:
 - **Backslash repetition number differentiates**: In Snowflake to get `\b` you need to write `\\b`. In Embucket to get `\b` you need to write `\\\\b`.
 
 | Example                               | Embucket                                             | Snowflake                           |
-|---------------------------------------|------------------------------------------------------|-------------------------------------|
+| ------------------------------------- | ---------------------------------------------------- | ----------------------------------- |
 | **`SELECT \* FROM VALUES ('\b')`**    | **`\x08`** (nothing shows or a broken symbol in UI)  | **`\x08`** (broken symbol)          |
 | **`SELECT \* FROM VALUES ('\\b')`**   | **`\u{8}`** (nothing shows or a broken symbol in UI) | **`\b`**                            |
 | **`SELECT \* FROM VALUES ('\\\b')`**  | **`\u{8}`** (nothing shows or a broken symbol in UI) | **`\\x08`** (slash + broken symbol) |
