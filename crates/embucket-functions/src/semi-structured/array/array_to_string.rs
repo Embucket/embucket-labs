@@ -1,3 +1,4 @@
+use crate::json;
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors;
 use datafusion::arrow::array::as_string_array;
@@ -5,33 +6,31 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::arrow::array::StringBuilder;
-use datafusion_common::{ScalarValue, exec_err, internal_err};
+use datafusion_common::internal_err;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
-// array_to_string SQL function
-// Converts the input array to a string by first casting each element to a string,
-// then concatenating them into a single string with the elements separated by_
-//
-// Syntax: ARRAY_TO_STRING( <array> , <separator_string> )
-//
-// Arguments:
-// - <array>
-// The array of elements to convert to a string.
-// - <separator_string>
-// The string to use as a separator between elements in the resulting string.
-//
-// Returns:
-// This function returns a result of type STRING.
-//
-// Usage notes:
-// - If any argument is NULL, the function returns NULL.
-// - NULL elements within the array are converted to empty strings in the result.
-// - To include a space between values, make sure to include the space in the separator itself
-//   (e.g., ', '). See the examples below.
+/// `array_to_string` SQL function
+/// Converts the input array to a string by first casting each element to a string,
+/// then concatenating them into a single string with the elements separated by_
+///
+/// Syntax: `ARRAY_TO_STRING`( <`array`> , <`separator_string`> )
+///
+/// Arguments:
+/// - <`array`> The array of elements to convert to a string.
+/// - <`separator_string`> The string to use as a separator between elements in the resulting string.
+///
+/// Returns:
+/// This function returns a result of type STRING.
+///
+/// Usage notes:
+/// - If any argument is NULL, the function returns NULL.
+/// - NULL elements within the array are converted to empty strings in the result.
+/// - To include a space between values, make sure to include the space in the separator itself
+///   (e.g., ', '). See the examples below.
 #[derive(Debug)]
 pub struct ArrayToStringFunc {
     signature: Signature,
@@ -71,38 +70,31 @@ impl ScalarUDFImpl for ArrayToStringFunc {
 
     #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
 
-        match (&args[0], &args[1]) {
-            (ColumnarValue::Array(arr), ColumnarValue::Scalar(ScalarValue::Utf8(Some(sep)))) => {
-                let mut res = StringBuilder::with_capacity(arr.len(), 1024);
-                let arr = as_string_array(arr);
-                for v in arr {
-                    if let Some(v) = v {
-                        let json: Value = serde_json::from_str(v)
-                            .context(errors::FailedToDeserializeJsonSnafu)?;
-                        res.append_value(to_string(&json, sep)?);
-                    } else {
-                        res.append_null();
-                    }
-                }
-                Ok(ColumnarValue::Array(Arc::new(res.finish())))
-            }
-            (
-                ColumnarValue::Scalar(ScalarValue::Utf8(v)),
-                ColumnarValue::Scalar(ScalarValue::Utf8(Some(sep))),
-            ) => {
-                if let Some(v) = v {
-                    let json: Value =
-                        serde_json::from_str(v).context(errors::FailedToDeserializeJsonSnafu)?;
-                    let res = to_string(&json, sep)?;
-                    Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(res))))
-                } else {
-                    Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)))
+        let arrays: Vec<_> = args
+            .into_iter()
+            .map(|arg| arg.into_array(number_rows))
+            .collect::<Result<_, _>>()?;
+        let json_array = json::encode_array(arrays[0].clone())?;
+        let sep_array = as_string_array(&arrays[1]);
+
+        let mut res = StringBuilder::with_capacity(arrays[0].len(), 1024);
+        if let Value::Array(v) = &json_array {
+            for (row_index, row) in v.iter().enumerate() {
+                let sep = sep_array.value(row_index);
+                match &row {
+                    Value::Null => res.append_null(),
+                    _ => res.append_value(to_string(row, sep)?),
                 }
             }
-            _ => internal_err!("wrong arguments"),
+        } else {
+            return internal_err!("wrong arguments");
         }
+
+        Ok(ColumnarValue::Array(Arc::new(res.finish())))
     }
 }
 
@@ -110,28 +102,32 @@ fn to_string(v: &Value, sep: &str) -> DFResult<String> {
     let mut res = vec![];
     match v {
         Value::Array(arr) => {
-            for v in arr {
-                match v {
-                    Value::Bool(v) => res.push(v.to_string()),
-                    Value::Number(v) => res.push(v.to_string()),
-                    Value::String(v) => res.push(v.to_owned()),
-                    Value::Array(v) => {
-                        let r = serde_json::to_string(&v)
-                            .context(errors::FailedToSerializeValueSnafu)?;
-                        res.push(r);
+            for av in arr {
+                match av {
+                    Value::Array(_) | Value::Object(_) => {
+                        res.push(
+                            serde_json::to_string(av)
+                                .context(errors::FailedToSerializeValueSnafu)?,
+                        );
                     }
-                    Value::Object(v) => {
-                        let r = serde_json::to_string(&v)
-                            .context(errors::FailedToSerializeValueSnafu)?;
-                        res.push(r);
-                    }
-                    Value::Null => res.push(String::new()),
+                    _ => res.push(to_string(av, sep)?),
                 }
             }
         }
-        _ => return exec_err!("array_to_string expected a array"),
+        Value::Object(v) => {
+            res.push(serde_json::to_string(&v).context(errors::FailedToSerializeValueSnafu)?);
+        }
+        Value::Null => res.push(String::new()),
+        Value::Bool(v) => res.push(v.to_string()),
+        Value::Number(v) => res.push(v.to_string()),
+        Value::String(v) => {
+            if let Ok(json) = serde_json::from_str::<Value>(v) {
+                res.push(to_string(&json, sep)?);
+            } else {
+                res.push(v.to_owned());
+            }
+        }
     }
-
     Ok(res.join(sep))
 }
 
