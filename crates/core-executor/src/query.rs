@@ -647,31 +647,29 @@ impl UserQuery {
                         table: ident.name().to_string(),
                     }))
                     .await?;
-                } else {
-                    if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
-                        // Check if the schema exists first
-                        if iceberg_catalog
-                            .load_namespace(ident.namespace())
-                            .await
-                            .is_err()
-                        {
-                            ex_error::SchemaNotFoundInDatabaseSnafu {
-                                schema: schema_name,
-                                db: catalog_name.to_string(),
-                            }
-                            .fail()?;
-                        } else if !if_exists {
-                            ex_error::TableNotFoundInSchemaInDatabaseSnafu {
-                                table: ident.name().to_string(),
-                                schema: schema_name,
-                                db: catalog_name.to_string(),
-                            }
-                            .fail()?;
+                } else if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
+                    // Check if the schema exists first
+                    if iceberg_catalog
+                        .load_namespace(ident.namespace())
+                        .await
+                        .is_err()
+                    {
+                        ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema_name,
+                            db: catalog_name.to_string(),
                         }
-                    } else {
-                        // return original error, since schema exists
-                        table_resp.context(ex_error::IcebergSnafu)?;
+                        .fail()?;
+                    } else if !if_exists {
+                        ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                            table: ident.name().to_string(),
+                            schema: schema_name,
+                            db: catalog_name.to_string(),
+                        }
+                        .fail()?;
                     }
+                } else {
+                    // return original error, since schema exists
+                    table_resp.context(ex_error::IcebergSnafu)?;
                 }
                 self.status_response()
             }
