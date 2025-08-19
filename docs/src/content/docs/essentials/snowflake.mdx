@@ -78,6 +78,7 @@ These technology choices differ structurally:
 
 - **Backslash escaping differentiates**: Snowflake doesn't support backslash escaping for special characters in string literals by using `\` as an escape character (broken symbols). Embucket supports backslash escaping for special characters in string literals by using `\` as an escape character (but the symbols don't show), also it supports `\\` as an escape character for other symbols.
 - **Backslash repetition number differentiates**: In Snowflake to get `\b` you need to write `\\b`. In Embucket to get `\b` you need to write `\\\\b`.
+- **The limitation cause**: DataFusion `SqlParser` `tokenizer` works with escaping, although on per dialect bases, it's still rather inflexible in itself.
 
 | Example                               | Embucket                                             | Snowflake                           |
 | ------------------------------------- | ---------------------------------------------------- | ----------------------------------- |
