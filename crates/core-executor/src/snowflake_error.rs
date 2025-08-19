@@ -16,6 +16,7 @@ use slatedb::SlateDBError;
 use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
+use strum_macros::{Display, EnumString};
 
 // SnowflakeError have no query_id, it is inconvinient adding it here.
 // query_id should be taken from core_executor::Error::QueryExecution
@@ -46,6 +47,13 @@ impl SnowflakeError {
             Self::Custom { status_code, .. } => *status_code,
         }
     }
+    #[must_use]
+    pub fn unhandled_location(&self) -> String {
+        match self {
+            Self::Custom { location, .. } => location.to_string(),
+            Self::SqlCompilation { .. } => String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +66,13 @@ impl GenerateImplicitData for InternalMessage {
     fn generate() -> Self {
         Self(String::new())
     }
+}
+
+#[derive(EnumString, Display, Debug)]
+pub enum Entity {
+    Database,
+    Schema,
+    Table,
 }
 
 #[derive(Snafu, Debug)]
@@ -89,10 +104,10 @@ pub enum SqlCompilationError {
         location: Location,
     },
 
-    #[snafu(display("Schema '{db}.{schema}' does not exist or not authorized"))]
-    SchemaDoesntExist {
-        db: String,
-        schema: String,
+    #[snafu(display("{entity_type} '{entity_name}' does not exist or not authorized"))]
+    EntityDoesntExist {
+        entity_name: String,
+        entity_type: Entity,
         #[snafu(implicit)]
         location: Location,
     },
@@ -154,10 +169,34 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
         | Error::DropDatabase { source, .. }
         | Error::CreateDatabase { source, .. } => catalog_error(source, &[]),
         Error::QueryExecution { source, .. } => executor_error(source),
-        Error::SchemaNotFoundInDatabase { schema, db, .. } => SnowflakeError::SqlCompilation {
-            error: SchemaDoesntExistSnafu { db, schema }.build(),
-            status_code: StatusCode::MetastoreSchemaNotFound,
+        Error::TableNotFoundInSchemaInDatabase {
+            table, schema, db, ..
+        } => SnowflakeError::SqlCompilation {
+            error: EntityDoesntExistSnafu {
+                entity_name: format!("{db}.{schema}.{table}"),
+                entity_type: Entity::Table,
+            }
+            .build(),
+            status_code: StatusCode::TableNotFound,
         },
+        Error::SchemaNotFoundInDatabase { schema, db, .. } => SnowflakeError::SqlCompilation {
+            error: EntityDoesntExistSnafu {
+                entity_name: format!("{db}.{schema}"),
+                entity_type: Entity::Schema,
+            }
+            .build(),
+            status_code: StatusCode::SchemaNotFound,
+        },
+        Error::DatabaseNotFound { db: catalog, .. } | Error::CatalogNotFound { catalog, .. } => {
+            SnowflakeError::SqlCompilation {
+                error: EntityDoesntExistSnafu {
+                    entity_name: catalog,
+                    entity_type: Entity::Database,
+                }
+                .build(),
+                status_code: StatusCode::DatabaseNotFound,
+            }
+        }
         Error::NotSupportedStatement { statement, .. } => SnowflakeError::SqlCompilation {
             error: CompilationUnsupportedFeatureSnafu { error: statement }.build(),
             status_code: StatusCode::UnsupportedFeature,
@@ -228,8 +267,12 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
         MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
         MetastoreError::Iceberg { error, .. } => iceberg_error(error, &subtext),
         MetastoreError::SchemaNotFound { schema, db, .. } => SnowflakeError::SqlCompilation {
-            error: SchemaDoesntExistSnafu { db, schema }.build(),
-            status_code: StatusCode::MetastoreSchemaNotFound,
+            error: EntityDoesntExistSnafu {
+                entity_name: format!("{db}.{schema}"),
+                entity_type: Entity::Schema,
+            }
+            .build(),
+            status_code: StatusCode::SchemaNotFound,
         },
         _ => CustomSnafu {
             message: format_message(&subtext, message),

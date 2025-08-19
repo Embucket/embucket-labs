@@ -167,6 +167,7 @@ macro_rules! test_query {
         $(, sort_all = $sort_all:expr)?
         $(, exclude_columns = [$($excluded:expr),* $(,)?])?
         $(, snapshot_path = $user_snapshot_path:expr)?
+        $(, snowflake_error = $snowflake_error:expr)?
     ) => {
         paste::paste! {
             #[tokio::test]
@@ -189,6 +190,7 @@ macro_rules! test_query {
                 let excluded_columns: std::collections::HashSet<&str> = std::collections::HashSet::from([
                     $($($excluded),*)?
                 ]);
+                let snowflake_error = false $(|| $snowflake_error)?;
                 let mut settings = insta::Settings::new();
                 settings.set_description(stringify!($query));
                 settings.set_omit_expression(true);
@@ -214,7 +216,25 @@ macro_rules! test_query {
                             }
                             Ok(datafusion::arrow::util::pretty::pretty_format_batches(&batches).unwrap().to_string())
                         },
-                        Err(e) => Err(format!("Error: {e}"))
+                        Err(e) => {
+                            if snowflake_error {
+                                // Do not convert to QueryExecution error before turning to snowflake error
+                                // since we don't need query_id here
+                                let e = e.to_snowflake_error();
+
+                                // location is only available for debug purposes for not handled errors.
+                                // it should not be saved to the snapshot, if location bothers you then
+                                // remove snowflake_error macros arg or set to false.
+                                let mut location = e.unhandled_location();
+                                if !location.is_empty() {
+                                    location = format!("; location: {}", location);
+                                }
+
+                                Err(format!("Snowflake Error: {e}{location}"))
+                            } else {
+                                Err(format!("Error: {e}"))
+                            }
+                        }
                     };
 
                     let df = df.map(|df| df.split('\n').map(|s| s.to_string()).collect::<Vec<String>>());

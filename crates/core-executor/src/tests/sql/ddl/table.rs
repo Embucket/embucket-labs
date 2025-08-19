@@ -71,13 +71,39 @@ test_query!(
 );
 
 test_query!(
-    drop_table_missing_schema,
-    "DROP TABLE embucket.missing.table",
+    alter_table_stub,
+    "ALTER TABLE embucket.test.some_table add column c5 VARCHAR",
+    setup_queries = [
+        "CREATE SCHEMA embucket.test",
+        "CREATE TABLE embucket.test.some_table (id INT)",
+    ],
     snapshot_path = "table"
 );
 
 test_query!(
-    drop_table_missing,
+    drop_table_missing_schema_snowflake_error,
+    "DROP TABLE embucket.missing.table",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    drop_table_missing_snowflake_error,
     "DROP TABLE embucket.public.missing",
-    snapshot_path = "table"
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_missing_catalog_snowflake_error,
+    "ALTER TABLE missing_catalog.public.hello add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
+);
+
+test_query!(
+    alter_table_missing_schema_snowflake_error,
+    "ALTER TABLE embucket.missing_schema.hello add column c5 VARCHAR",
+    snapshot_path = "snowflake_error",
+    snowflake_error = true
 );
