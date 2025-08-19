@@ -683,9 +683,18 @@ impl UserQuery {
         create_table_statement.storage_serialization_policy = None;
         create_table_statement.cluster_by = None;
 
-        let plan = self
+        let mut plan = self
             .get_custom_logical_plan(&create_table_statement.to_string())
             .await?;
+        // Apply analyzer rules to have a correct schema in case we have CTE to insert data
+        plan = self
+            .session
+            .ctx
+            .state()
+            .analyzer()
+            .execute_and_check(plan, self.session.ctx.state().config_options(), |_, _| ())
+            .context(ex_error::DataFusionSnafu)?;
+
         let ident: MetastoreTableIdent = new_table_ident.into();
         let catalog_name = ident.database.clone();
 
