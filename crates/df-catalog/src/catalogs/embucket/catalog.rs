@@ -74,6 +74,8 @@ impl CatalogProvider for EmbucketCatalog {
             metastore
                 .get_schema(&SchemaIdent::new(database.clone(), schema_name.clone()))
                 .await
+                .ok()
+                .flatten()
                 .map(|_| {
                     let schema: Arc<dyn SchemaProvider> = Arc::new(EmbucketSchema {
                         database,
@@ -83,8 +85,7 @@ impl CatalogProvider for EmbucketCatalog {
                     });
                     schema
                 })
-                .ok()
         })
-        .unwrap_or(None)
+        .unwrap_or_default()
     }
 }

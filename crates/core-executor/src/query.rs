@@ -6,7 +6,8 @@ use super::catalog::{
 };
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{
-    self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
+    self as ex_error, Error, InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu,
+    ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
@@ -15,7 +16,6 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -97,10 +97,10 @@ use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
-    AssignmentTarget, CloudProviderParams, MergeAction, MergeClause, MergeClauseKind,
-    MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens, PivotValueSource,
-    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
-    visit_relations_mut,
+    AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
+    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use,
+    Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -380,7 +380,14 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. } => return self.alter_table_query(*s).await,
+                Statement::AlterTable {
+                    name,
+                    operations,
+                    if_exists,
+                    ..
+                } => {
+                    return Box::pin(self.alter_table(name, operations, if_exists)).await;
+                }
                 Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
@@ -551,66 +558,35 @@ impl UserQuery {
         self.status_response()
     }
 
-    #[instrument(
-        name = "UserQuery::alter_table_query",
-        level = "trace",
-        skip(self),
-        err
-    )]
+    #[instrument(name = "UserQuery::alter_table", level = "trace", skip(self), err)]
     #[allow(clippy::too_many_lines)]
-    pub async fn alter_table_query(&self, statement: Statement) -> Result<QueryResult> {
-        let Statement::AlterTable { name, .. } = statement.clone() else {
-            return ex_error::NotSupportedStatementSnafu {
-                statement: "ALTER".to_string(),
-            }
-            .fail();
-        };
-
-        let table_ident = self.resolve_table_object_name(name.0)?;
-        let table_ref = self.resolve_table_ref(&table_ident);
-
-        let catalog_name = table_ref.catalog.to_string();
-        let schema_name = table_ref.schema.to_string();
-
-        let ident = Identifier::new(std::slice::from_ref(&schema_name), table_ref.table.as_ref());
-
-        let catalog = self.get_catalog(&catalog_name)?;
-
-        let iceberg_catalog = self
-            .resolve_iceberg_catalog(catalog, catalog_name.to_string())
-            .await;
-
-        if let IcebergCatalogResult::Catalog(iceberg_catalog) = iceberg_catalog {
-            let table_resp = iceberg_catalog.clone().load_tabular(&ident).await;
-            if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
-                // Check if the schema exists first
-                if iceberg_catalog
-                    .load_namespace(ident.namespace())
-                    .await
-                    .is_err()
-                {
-                    ex_error::SchemaNotFoundInDatabaseSnafu {
-                        schema: schema_name,
-                        db: catalog_name.to_string(),
-                    }
-                    .fail()?;
-                } else {
-                    ex_error::TableNotFoundInSchemaInDatabaseSnafu {
-                        table: ident.name().to_string(),
-                        schema: schema_name,
-                        db: catalog_name.to_string(),
-                    }
-                    .fail()?;
-                }
-            }
-        } else {
-            return ex_error::CatalogNotFoundSnafu {
-                catalog: catalog_name.clone(),
-            }
-            .fail();
+    pub async fn alter_table(
+        &self,
+        name: ObjectName,
+        operations: Vec<AlterTableOperation>,
+        if_exists: bool,
+    ) -> Result<QueryResult> {
+        let ident = &self.resolve_table_object_name(name.0.clone())?;
+        let resolved = self.resolve_table_ref(ident);
+        let catalog = self.get_catalog(&resolved.catalog)?;
+        let schema =
+            catalog
+                .schema(&resolved.schema)
+                .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: &resolved.schema.to_string(),
+                    db: &resolved.catalog.to_string(),
+                })?;
+        if !if_exists {
+            schema
+                .table(&resolved.table)
+                .await
+                .context(ex_error::DataFusionSnafu)?
+                .context(ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                    table: &resolved.table.to_string(),
+                    schema: &resolved.schema.to_string(),
+                    db: &resolved.catalog.to_string(),
+                })?;
         }
-
-        // Alter table is not supported yet, but it returns success
         self.status_response()
     }
 
@@ -777,9 +753,19 @@ impl UserQuery {
         create_table_statement.storage_serialization_policy = None;
         create_table_statement.cluster_by = None;
 
-        let plan = self
+        let mut plan = self
             .get_custom_logical_plan(&create_table_statement.to_string())
             .await?;
+        // Run analyzer rules to ensure the logical plan has the correct schema,
+        // especially when handling CTEs used as sources for INSERT statements.
+        plan = self
+            .session
+            .ctx
+            .state()
+            .analyzer()
+            .execute_and_check(plan, self.session.ctx.state().config_options(), |_, _| ())
+            .context(ex_error::DataFusionSnafu)?;
+
         let ident: MetastoreTableIdent = new_table_ident.into();
         let catalog_name = ident.database.clone();
 

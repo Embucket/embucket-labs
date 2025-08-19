@@ -1,13 +1,15 @@
 use crate::json;
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors;
-use datafusion::arrow::{array::AsArray, datatypes::DataType};
-use datafusion_common::{Result as DFResult, ScalarValue};
+use datafusion::arrow::array::StringArray;
+use datafusion::arrow::datatypes::DataType;
+use datafusion_common::Result as DFResult;
 use datafusion_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use serde_json::Value;
 use snafu::ResultExt;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ArrayConstructUDF {
@@ -62,46 +64,46 @@ impl ScalarUDFImpl for ArrayConstructUDF {
         let ScalarFunctionArgs {
             args, number_rows, ..
         } = args;
-        let mut results = Vec::new();
 
-        for arg in args {
-            let arg_array = arg.into_array(number_rows)?;
-            for i in 0..arg_array.len() {
-                if arg_array.is_null(i) {
-                    results.push(Value::Null);
-                } else if let Some(str_array) = arg_array.as_string_opt::<i32>() {
-                    for istr in str_array {
-                        match istr {
-                            Some(istr) => {
-                                if let Ok(json_obj) = serde_json::from_str(istr) {
-                                    results.push(json_obj);
-                                } else {
-                                    results.push(Value::String(istr.to_string()));
-                                }
+        let arrays: Vec<_> = args
+            .into_iter()
+            .map(|arg| arg.into_array(number_rows))
+            .collect::<Result<_, _>>()?;
+        let json_arrays: Vec<Value> = arrays
+            .into_iter()
+            .map(|array| json::encode_array(array.clone()))
+            .collect::<Result<_, _>>()?;
+
+        let mut rows: Vec<Value> = Vec::with_capacity(number_rows);
+        for row_index in 0..number_rows {
+            let mut row: Vec<Value> = Vec::with_capacity(json_arrays.len());
+            for arr in &json_arrays {
+                if let Value::Array(a) = arr {
+                    let mut elem = a[row_index].clone();
+                    match &elem {
+                        Value::String(s) => {
+                            if let Ok(parsed) = serde_json::from_str::<Value>(s) {
+                                elem = parsed;
                             }
-                            None => {
-                                results.push(Value::Null);
-                            }
+                            row.push(elem);
                         }
+                        Value::Null => row.push(Value::Null),
+                        _ => row.push(elem),
                     }
                 } else {
-                    let object = json::encode_array(arg_array.clone())?;
-                    results.push(object);
+                    row.push(Value::Null);
                 }
             }
+            rows.push(Value::Array(row));
         }
-
-        for result in &mut results {
-            if let Value::Array(arr) = result
-                && arr.len() == 1
-            {
-                *result = arr[0].clone();
-            }
+        let mut col_values: Vec<Option<String>> = Vec::with_capacity(number_rows);
+        for val in rows {
+            col_values.push(Some(
+                serde_json::to_string(&val).context(errors::FailedToSerializeValueSnafu)?,
+            ));
         }
-
-        let arr = serde_json::Value::Array(results);
-        let json_str = serde_json::to_string(&arr).context(errors::FailedToSerializeValueSnafu)?;
-        Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(json_str))))
+        let array: StringArray = StringArray::from(col_values);
+        Ok(ColumnarValue::Array(Arc::new(array)))
     }
 }
 

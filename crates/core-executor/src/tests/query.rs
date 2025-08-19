@@ -245,9 +245,6 @@ macro_rules! test_query {
     };
 }
 
-// Empty plan
-test_query!(alter_iceberg_table, "ALTER ICEBERG TABLE test ADD col INT;");
-
 // context name injection
 test_query!(
     context_name_injection,
