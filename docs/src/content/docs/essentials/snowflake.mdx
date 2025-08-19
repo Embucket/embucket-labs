@@ -76,17 +76,56 @@ These technology choices differ structurally:
 
 ### Backslash escaping
 
-- **Backslash escaping differentiates**: Snowflake doesn't support backslash escaping for special characters in string literals by using `\` as an escape character (broken symbols). Embucket supports backslash escaping for special characters in string literals by using `\` as an escape character (but the symbols don't show), also it supports `\\` as an escape character for other symbols.
-- **Backslash repetition number differentiates**: In Snowflake to get `\b` you need to write `\\b`. In Embucket to get `\b` you need to write `\\\\b`.
-- **The limitation cause**: DataFusion `SqlParser` `tokenizer` works with escaping, although on per dialect bases, it's still rather inflexible in itself.
+Embucket handles backslash escaping in string literals differently than Snowflake. This affects how you write queries that include backslashes or special characters in strings.
 
-| Example                               | Embucket                                             | Snowflake                           |
-| ------------------------------------- | ---------------------------------------------------- | ----------------------------------- |
-| **`SELECT \* FROM VALUES ('\b')`**    | **`\x08`** (nothing shows or a broken symbol in UI)  | **`\x08`** (broken symbol)          |
-| **`SELECT \* FROM VALUES ('\\b')`**   | **`\u{8}`** (nothing shows or a broken symbol in UI) | **`\b`**                            |
-| **`SELECT \* FROM VALUES ('\\\b')`**  | **`\u{8}`** (nothing shows or a broken symbol in UI) | **`\\x08`** (slash + broken symbol) |
-| **`SELECT \* FROM VALUES ('\\\\b')`** | **`\b`**                                             | **`\\b`**                           |
-| **`SELECT \* FROM VALUES ('\\')`**    | **`Error: ...`**                                     | **`\`**                             |
+**Key differences:**
+
+- **Escape character interpretation**: Snowflake treats single backslashes literally in most cases, while Embucket interprets them as escape characters
+- **Backslash repetition**: You need more backslashes in Embucket to achieve the same result as Snowflake
+- **Error handling**: Some backslash patterns that work in Snowflake cause errors in Embucket
+
+#### Getting literal backslashes
+
+**Snowflake:**
+```sql
+SELECT * FROM VALUES ('\\b');
+-- Returns: \b
+```
+
+**Embucket:**
+```sql
+SELECT * FROM VALUES ('\\\\b');
+-- Returns: \b
+```
+
+#### Handling special characters
+
+**Snowflake:**
+```sql
+SELECT * FROM VALUES ('\b');
+-- Returns: \x08 (backspace character, may appear as broken symbol)
+```
+
+**Embucket:**
+```sql
+SELECT * FROM VALUES ('\b');
+-- Returns: \x08 (backspace character, may not display in UI)
+```
+
+#### Single trailing backslash
+
+**Snowflake:**
+```sql
+SELECT * FROM VALUES ('\\');
+-- Returns: \
+```
+
+**Embucket:**
+```sql
+SELECT * FROM VALUES ('\\');
+-- Error: Unterminated string literal
+```
+
 
 ## VARIANT data type support
 
