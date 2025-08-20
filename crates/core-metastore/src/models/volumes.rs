@@ -1,5 +1,10 @@
 use crate::error::{self as metastore_error, Result};
-use object_store::{ObjectStore, aws::{AmazonS3Builder, resolve_bucket_region}, local::LocalFileSystem, path::Path, ClientOptions};
+use object_store::{
+    ClientOptions, ObjectStore,
+    aws::{AmazonS3Builder, resolve_bucket_region},
+    local::LocalFileSystem,
+    path::Path,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -312,11 +317,11 @@ impl Volume {
 
 /// Creates an ObjectStore from a URL string with optional endpoint.
 /// This utility function handles creating object stores for different URL schemes.
-/// 
+///
 /// # Arguments
 /// * `url_str` - The URL string (e.g., "s3://bucket/path", "file:///path")
 /// * `endpoint` - Optional custom endpoint for S3
-/// 
+///
 /// # Returns
 /// An `Arc<dyn ObjectStore>` that can be used for file operations
 pub async fn create_object_store_from_url(
@@ -324,7 +329,7 @@ pub async fn create_object_store_from_url(
     endpoint: Option<String>,
 ) -> Result<Arc<dyn ObjectStore + 'static>> {
     let url = url::Url::parse(url_str).context(metastore_error::UrlParseSnafu)?;
-    
+
     match url.scheme() {
         "s3" => {
             let bucket = url.host_str().unwrap_or_default();

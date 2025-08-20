@@ -2556,12 +2556,16 @@ impl UserQuery {
                     Ok(Arc::new(s3))
                 } else {
                     // Fall through to URL-based object store creation
-                    Ok(create_object_store_from_url(url.as_str(), stage_params.endpoint).await
-                        .context(ex_error::MetastoreSnafu)?)
+                    Ok(
+                        create_object_store_from_url(url.as_str(), stage_params.endpoint)
+                            .await
+                            .context(ex_error::MetastoreSnafu)?,
+                    )
                 }
             }
             // No stage params or credentials - create from URL
-            _ => create_object_store_from_url(url.as_str(), stage_params.endpoint).await
+            _ => create_object_store_from_url(url.as_str(), stage_params.endpoint)
+                .await
                 .context(ex_error::MetastoreSnafu),
         }
     }
@@ -2590,7 +2594,6 @@ impl UserQuery {
         Ok(config)
     }
 }
-
 
 /// Builds a target schema with metadata columns added.
 ///
