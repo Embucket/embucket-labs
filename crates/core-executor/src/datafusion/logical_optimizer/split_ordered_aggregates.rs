@@ -7,7 +7,6 @@ use datafusion_expr::expr::Sort as ExprSort;
 use datafusion_expr::logical_plan::Projection;
 use datafusion_expr::{Expr, LogicalPlan, LogicalPlanBuilder, col};
 use std::sync::Arc;
-//
 
 // --- type aliases to keep function signatures simple ---
 type AggrIndex = usize;
@@ -58,7 +57,6 @@ impl OptimizerRule for SplitOrderedAggregates {
         if let Some((_sig, mut aggs0)) = class_iters.next() {
             aggs0.extend(unordered);
 
-            // Keep original group columns on the first branch to preserve qualifiers
             branches.push(build_branch(
                 (*agg.input).clone(),
                 &agg.group_expr,
@@ -137,17 +135,15 @@ fn build_branch(
     let group_fields_count = branch_lp.schema().fields().len() - aggs.len();
     let out_fields = branch_lp.schema().fields();
 
-    // Projection that optionally preserves original group columns, adds synthetic key aliases, and renames aggs
+    // Projection that optionally preserves original group columns
     let mut proj_exprs: Vec<Expr> =
         Vec::with_capacity(branch_lp.schema().fields().len() + group_fields_count);
-    // keep original group columns with their original names only on the leftmost branch
     if keep_group_cols {
         for i in 0..group_fields_count {
             let name = out_fields[i].name();
             proj_exprs.push(col(name));
         }
     }
-    // add stable synthetic group key aliases used for joining
     let mut key_names: GroupKeys = Vec::with_capacity(group_fields_count);
     for i in 0..group_fields_count {
         let name = out_fields[i].name();
