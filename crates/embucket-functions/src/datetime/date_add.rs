@@ -1,6 +1,7 @@
-use crate::datetime_errors::InvalidArgumentSnafu;
+use crate::datetime_errors::{InvalidArgumentSnafu, ReturnTypeFromArgsShouldBeCalledSnafu};
 use arrow_schema::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef, Int64Array, Int64Builder};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result;
@@ -9,7 +10,7 @@ use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::cast::{as_float64_array, as_int64_array};
 use datafusion_common::utils::take_function_args;
-use datafusion_expr::ScalarFunctionArgs;
+use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs};
 use rust_decimal::prelude::ToPrimitive;
 use std::any::Any;
 use std::sync::Arc;
@@ -101,6 +102,20 @@ impl DateAddFunc {
             ColumnarValue::Array(ScalarValue::iter_to_array(intervals)?).to_array(dates.len())?;
         Ok(add_wrapping(dates, &interval_array)?)
     }
+
+    fn check_return_type(unit: &str, expr_type: &DataType) -> DataType {
+        let mut return_type = expr_type.clone();
+        let part = unit.to_lowercase();
+        if matches!(expr_type, DataType::Date32 | DataType::Date64) {
+            match part.as_str() {
+                "hour" | "minute" | "second" => {
+                    return_type = DataType::Timestamp(TimeUnit::Nanosecond, None);
+                }
+                _ => {}
+            }
+        }
+        return_type
+    }
 }
 
 /// dateadd SQL function
@@ -142,14 +157,24 @@ impl ScalarUDFImpl for DateAddFunc {
         &self.signature
     }
 
-    fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
-        if arg_types.len() != 3 {
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        ReturnTypeFromArgsShouldBeCalledSnafu.fail()?
+    }
+
+    fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
+        if args.arg_types.len() != 3 {
             return InvalidArgumentSnafu {
                 description: "function requires three arguments",
             }
             .fail()?;
         }
-        Ok(arg_types[2].clone())
+        let base_type = &args.arg_types[2];
+        let mut return_type = base_type.clone();
+
+        if let Some(Some(ScalarValue::Utf8(Some(part_str)))) = args.scalar_arguments.first() {
+            return_type = Self::check_return_type(part_str.as_str(), base_type);
+        }
+        Ok(ReturnInfo::new_nullable(return_type))
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> Result<Vec<DataType>> {
@@ -235,7 +260,15 @@ impl ScalarUDFImpl for DateAddFunc {
                 .fail()?;
             }
         };
-        let date_or_time_expr = args[2].clone().into_array(number_rows)?;
+        let mut date_or_time_expr = args[2].clone().into_array(number_rows)?;
+
+        // If the input data type is DATE, and the `date_or_time_part` is hours or smaller,
+        // the input value will be treated as a TIMESTAMP
+        let checked_type =
+            Self::check_return_type(&date_or_time_part, date_or_time_expr.data_type());
+        if checked_type != *date_or_time_expr.data_type() {
+            date_or_time_expr = cast(&date_or_time_expr, &checked_type)?;
+        }
 
         // there shouldn't be overflows
         let result = match date_or_time_part.as_str() {
@@ -281,6 +314,7 @@ impl ScalarUDFImpl for DateAddFunc {
         };
         result.map(ColumnarValue::Array)
     }
+
     fn aliases(&self) -> &[String] {
         &self.aliases
     }
@@ -297,7 +331,7 @@ mod tests {
     use datafusion_expr::ScalarUDF;
 
     #[tokio::test]
-    async fn test_date_add_days_timestamp() -> DFResult<()> {
+    async fn test_date_add() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
         let sql = "SELECT DATEADD('days', 5, 1735678800::TIMESTAMP) as res";
@@ -314,8 +348,6 @@ mod tests {
             &result
         );
 
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
         let sql = "WITH vals AS (SELECT * FROM VALUES (1735678800),(1735678800) AS t(num))
             SELECT 
                 DATEADD('days', 5, num::TIMESTAMP) as c1,
@@ -334,6 +366,26 @@ mod tests {
             ],
             &result
         );
+
+        // Check updated return type for date and time related parts
+        let sql = "WITH datetest AS (SELECT TO_DATE('2022-04-05') AS d)
+            SELECT d AS original_date,
+                   DATEADD('year', 2, d) AS date_plus_two_years,
+                   DATEADD('hour', 2, d) AS timestamp_plus_two_hours
+            FROM datetest; ";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+---------------+---------------------+--------------------------+",
+                "| original_date | date_plus_two_years | timestamp_plus_two_hours |",
+                "+---------------+---------------------+--------------------------+",
+                "| 2022-04-05    | 2024-04-05          | 2022-04-05T02:00:00      |",
+                "+---------------+---------------------+--------------------------+",
+            ],
+            &result
+        );
+
         Ok(())
     }
 }

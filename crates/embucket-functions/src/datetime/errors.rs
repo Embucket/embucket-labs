@@ -53,6 +53,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("return_type_from_args should be called"))]
+    ReturnTypeFromArgsShouldBeCalled {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
