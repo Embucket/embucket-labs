@@ -1,11 +1,12 @@
 use arrow_schema::TimeUnit;
-use datafusion::arrow::array::{Array, ArrayRef, Float64Array, Int64Array};
+use datafusion::arrow::array::{Array, ArrayRef, Int64Array, Int64Builder};
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Result, plan_err};
 use datafusion::logical_expr::Volatility::Immutable;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature};
 use datafusion::scalar::ScalarValue;
+use datafusion_common::cast::{as_float64_array, as_int64_array};
 use datafusion_common::utils::take_function_args;
 use datafusion_expr::ScalarFunctionArgs;
 use rust_decimal::prelude::ToPrimitive;
@@ -188,59 +189,58 @@ impl ScalarUDFImpl for DateAddFunc {
             _ => return plan_err!("Invalid unit type format"),
         };
 
-        let float_array = args[1].clone().into_array(number_rows)?;
-        let float_array = float_array
-            .as_any()
-            .downcast_ref::<Float64Array>()
-            .map_or_else(|| plan_err!("Second argument must be numeric"), Ok)?;
-        let mut values_array = Vec::with_capacity(float_array.len());
-        for f in float_array.values() {
-            let v = f
-                .round()
-                .to_i64()
-                .map_or_else(|| plan_err!("Value out of range"), Ok)?;
-            values_array.push(v);
-        }
-        let values = Int64Array::from(values_array);
+        let values_array = args[1].clone().into_array(number_rows)?;
+        let values = match values_array.data_type() {
+            DataType::Int64 => as_int64_array(&values_array)?,
+            DataType::Float64 => {
+                let float_array = as_float64_array(&values_array)?;
+                let mut builder = Int64Builder::with_capacity(float_array.len());
+                for f in float_array.values() {
+                    builder.append_option(f.round().to_i64());
+                }
+                &builder.finish()
+            }
+            _ => return plan_err!("Second argument must be numeric"),
+        };
         let date_or_time_expr = args[2].clone().into_array(number_rows)?;
 
-        //there shouldn't be overflows
+        // there shouldn't be overflows
         let result = match date_or_time_part.as_str() {
             //should consider leap year (365-366 days)
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
-                Self::add_years(&date_or_time_expr, &values)
+                Self::add_years(&date_or_time_expr, values)
             }
             //should consider months 28-31 days
             "month" | "mm" | "mon" | "mons" | "months" => {
-                Self::add_months(&date_or_time_expr, &values, 1)
+                Self::add_months(&date_or_time_expr, values, 1)
             }
             "day" | "d" | "dd" | "days" | "dayofmonth" => {
-                Self::add_days(&date_or_time_expr, &values, 1)
+                Self::add_days(&date_or_time_expr, values, 1)
             }
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
-                Self::add_days(&date_or_time_expr, &values, 7)
+                Self::add_days(&date_or_time_expr, values, 7)
             }
             //should consider months 28-31 days
             "quarter" | "q" | "qtr" | "qtrs" | "quarters" => {
-                Self::add_months(&date_or_time_expr, &values, 3)
+                Self::add_months(&date_or_time_expr, values, 3)
             }
             "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => {
-                Self::add_nanoseconds(&date_or_time_expr, &values, 3_600_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, values, 3_600_000_000_000)
             }
             "minute" | "m" | "mi" | "min" | "minutes" | "mins" => {
-                Self::add_nanoseconds(&date_or_time_expr, &values, 60_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, values, 60_000_000_000)
             }
             "second" | "s" | "sec" | "seconds" | "secs" => {
-                Self::add_nanoseconds(&date_or_time_expr, &values, 1_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, values, 1_000_000_000)
             }
             "millisecond" | "ms" | "msec" | "milliseconds" => {
-                Self::add_nanoseconds(&date_or_time_expr, &values, 1_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, values, 1_000_000)
             }
             "microsecond" | "us" | "usec" | "microseconds" => {
-                Self::add_nanoseconds(&date_or_time_expr, &values, 1000)
+                Self::add_nanoseconds(&date_or_time_expr, values, 1000)
             }
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs"
-            | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, &values, 1),
+            | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, values, 1),
             _ => plan_err!("Invalid date_or_time_part type"),
         };
         result.map(ColumnarValue::Array)
@@ -264,7 +264,7 @@ mod tests {
     async fn test_date_add_days_timestamp() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
-        let sql = r#"SELECT DATEADD('days', 5, 1735678800::TIMESTAMP) as res"#;
+        let sql = "SELECT DATEADD('days', 5, 1735678800::TIMESTAMP) as res";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
@@ -280,8 +280,7 @@ mod tests {
 
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(DateAddFunc::new()));
-        let sql = r"
-            WITH vals AS (SELECT * FROM VALUES (1735678800),(1735678800) AS t(num))
+        let sql = "WITH vals AS (SELECT * FROM VALUES (1735678800),(1735678800) AS t(num))
             SELECT 
                 DATEADD('days', 5, num::TIMESTAMP) as c1,
                 DATEADD('days', 5.6, num::TIMESTAMP) as c2
