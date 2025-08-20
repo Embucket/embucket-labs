@@ -1105,7 +1105,9 @@ impl UserQuery {
 
             let url = ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
 
-            let object_store = self.get_object_store(stage_params, &url).await?;
+            let object_store = self
+                .get_object_store_from_stage_params(stage_params, &url)
+                .await?;
 
             self.session
                 .ctx
@@ -2497,7 +2499,7 @@ impl UserQuery {
         })
     }
 
-    async fn get_object_store(
+    async fn get_object_store_from_stage_params(
         &self,
         stage_params: StageParamsObject,
         url: &ListingTableUrl,
@@ -2554,11 +2556,11 @@ impl UserQuery {
                     Ok(Arc::new(s3))
                 } else {
                     // Fall through to URL-based object store creation
-                    create_object_store_from_url(stage_params, url).await
+                    create_object_store_from_url(url, stage_params.endpoint).await
                 }
             }
             // No stage params or credentials - create from URL
-            _ => create_object_store_from_url(stage_params, url).await,
+            _ => create_object_store_from_url(url, stage_params.endpoint).await,
         }
     }
 
@@ -2588,8 +2590,8 @@ impl UserQuery {
 }
 
 async fn create_object_store_from_url(
-    stage_params: StageParamsObject,
     url: &ListingTableUrl,
+    endpoint: Option<String>,
 ) -> Result<Arc<dyn ObjectStore + 'static>> {
     match url.scheme() {
         "s3" => {
@@ -2606,7 +2608,7 @@ async fn create_object_store_from_url(
             let s3_volume = S3Volume {
                 region: Some(region),
                 bucket: Some(bucket.to_string()),
-                endpoint: stage_params.endpoint.clone(),
+                endpoint,
                 credentials: None,
             };
 
