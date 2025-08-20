@@ -1,5 +1,5 @@
 use arrow_schema::TimeUnit;
-use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::arrow::array::{Array, ArrayRef, Float64Array, Int64Array};
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Result, plan_err};
@@ -7,6 +7,7 @@ use datafusion::logical_expr::Volatility::Immutable;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::utils::take_function_args;
+use datafusion_expr::ScalarFunctionArgs;
 use rust_decimal::prelude::ToPrimitive;
 use std::any::Any;
 use std::sync::Arc;
@@ -39,35 +40,64 @@ impl DateAddFunc {
         }
     }
 
-    fn add_years(val: &Arc<dyn Array>, years: i64) -> Result<ArrayRef> {
-        let years = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
-            i32::try_from(years).unwrap_or(0),
-            0,
-        ))
-        .to_array(val.len())?;
-        Ok(add_wrapping(&val, &years)?)
-    }
-    fn add_months(val: &Arc<dyn Array>, months: i64) -> Result<ArrayRef> {
-        let months = ColumnarValue::Scalar(ScalarValue::new_interval_ym(
-            0,
-            i32::try_from(months).unwrap_or(0),
-        ))
-        .to_array(val.len())?;
-        Ok(add_wrapping(&val, &months)?)
-    }
-    fn add_days(val: &Arc<dyn Array>, days: i64) -> Result<ArrayRef> {
-        let days = ColumnarValue::Scalar(ScalarValue::new_interval_dt(
-            i32::try_from(days).unwrap_or(0),
-            0,
-        ))
-        .to_array(val.len())?;
-        Ok(add_wrapping(&val, &days)?)
+    fn add_years(dates: &Arc<dyn Array>, years: &Int64Array) -> Result<ArrayRef> {
+        let intervals: Vec<ScalarValue> = years
+            .iter()
+            .map(|opt_y| {
+                ScalarValue::new_interval_ym(i32::try_from(opt_y.unwrap_or(0)).unwrap_or(0), 0)
+            })
+            .collect();
+        let interval_array =
+            ColumnarValue::Array(ScalarValue::iter_to_array(intervals)?).to_array(dates.len())?;
+        Ok(add_wrapping(dates, &interval_array)?)
     }
 
-    fn add_nanoseconds(val: &Arc<dyn Array>, nanoseconds: i64) -> Result<ArrayRef> {
-        let nanoseconds = ColumnarValue::Scalar(ScalarValue::new_interval_mdn(0, 0, nanoseconds))
-            .to_array(val.len())?;
-        Ok(add_wrapping(&val, &nanoseconds)?)
+    fn add_months(
+        dates: &Arc<dyn Array>,
+        months: &Int64Array,
+        multiplier: i64,
+    ) -> Result<ArrayRef> {
+        let intervals: Vec<ScalarValue> = months
+            .iter()
+            .map(|m| {
+                ScalarValue::new_interval_ym(
+                    0,
+                    i32::try_from(m.unwrap_or(0) * multiplier).unwrap_or(0),
+                )
+            })
+            .collect();
+        let interval_array =
+            ColumnarValue::Array(ScalarValue::iter_to_array(intervals)?).to_array(dates.len())?;
+        Ok(add_wrapping(dates, &interval_array)?)
+    }
+
+    fn add_days(dates: &Arc<dyn Array>, days: &Int64Array, multiplier: i64) -> Result<ArrayRef> {
+        let intervals: Vec<ScalarValue> = days
+            .iter()
+            .map(|opt_d| {
+                ScalarValue::new_interval_dt(
+                    i32::try_from(opt_d.unwrap_or(0) * multiplier).unwrap_or(0),
+                    0,
+                )
+            })
+            .collect();
+        let interval_array =
+            ColumnarValue::Array(ScalarValue::iter_to_array(intervals)?).to_array(dates.len())?;
+        Ok(add_wrapping(dates, &interval_array)?)
+    }
+
+    fn add_nanoseconds(
+        dates: &Arc<dyn Array>,
+        nanos: &Int64Array,
+        multiplier: i64,
+    ) -> Result<ArrayRef> {
+        let intervals: Vec<ScalarValue> = nanos
+            .iter()
+            .map(|opt_ns| ScalarValue::new_interval_mdn(0, 0, opt_ns.unwrap_or(0) * multiplier))
+            .collect();
+        let interval_array =
+            ColumnarValue::Array(ScalarValue::iter_to_array(intervals)?).to_array(dates.len())?;
+        Ok(add_wrapping(dates, &interval_array)?)
     }
 }
 
@@ -146,69 +176,73 @@ impl ScalarUDFImpl for DateAddFunc {
         Ok(vec![units, value, expr])
     }
 
-    fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {
-        let args = args.args;
-        if args.len() != 3 {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
+        if args.args.len() != 3 {
             return plan_err!("function requires three arguments");
         }
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
             _ => return plan_err!("Invalid unit type format"),
         };
 
-        let value = match &args[1] {
-            ColumnarValue::Scalar(ScalarValue::Int64(Some(val))) => *val,
-            ColumnarValue::Scalar(ScalarValue::Float64(Some(val))) => val
+        let float_array = args[1].clone().into_array(number_rows)?;
+        let float_array = float_array
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .map_or_else(|| plan_err!("Second argument must be numeric"), Ok)?;
+        let mut values_array = Vec::with_capacity(float_array.len());
+        for f in float_array.values() {
+            let v = f
                 .round()
                 .to_i64()
-                .map_or_else(|| plan_err!("Value out of range"), Ok)?,
-            _ => return plan_err!("Invalid value type"),
-        };
-        let (is_scalar, date_or_time_expr) = match &args[2] {
-            ColumnarValue::Scalar(val) => (true, val.to_array()?),
-            ColumnarValue::Array(array) => (false, array.clone()),
-        };
+                .map_or_else(|| plan_err!("Value out of range"), Ok)?;
+            values_array.push(v);
+        }
+        let values = Int64Array::from(values_array);
+        let date_or_time_expr = args[2].clone().into_array(number_rows)?;
+
         //there shouldn't be overflows
         let result = match date_or_time_part.as_str() {
             //should consider leap year (365-366 days)
             "year" | "y" | "yy" | "yyy" | "yyyy" | "yr" | "years" => {
-                Self::add_years(&date_or_time_expr, value)
+                Self::add_years(&date_or_time_expr, &values)
             }
             //should consider months 28-31 days
             "month" | "mm" | "mon" | "mons" | "months" => {
-                Self::add_months(&date_or_time_expr, value)
+                Self::add_months(&date_or_time_expr, &values, 1)
             }
-            "day" | "d" | "dd" | "days" | "dayofmonth" => Self::add_days(&date_or_time_expr, value),
+            "day" | "d" | "dd" | "days" | "dayofmonth" => {
+                Self::add_days(&date_or_time_expr, &values, 1)
+            }
             "week" | "w" | "wk" | "weekofyear" | "woy" | "wy" => {
-                Self::add_days(&date_or_time_expr, value * 7)
+                Self::add_days(&date_or_time_expr, &values, 7)
             }
             //should consider months 28-31 days
             "quarter" | "q" | "qtr" | "qtrs" | "quarters" => {
-                Self::add_months(&date_or_time_expr, value * 3)
+                Self::add_months(&date_or_time_expr, &values, 3)
             }
             "hour" | "h" | "hh" | "hr" | "hours" | "hrs" => {
-                Self::add_nanoseconds(&date_or_time_expr, value * 3_600_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, &values, 3_600_000_000_000)
             }
             "minute" | "m" | "mi" | "min" | "minutes" | "mins" => {
-                Self::add_nanoseconds(&date_or_time_expr, value * 60_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, &values, 60_000_000_000)
             }
             "second" | "s" | "sec" | "seconds" | "secs" => {
-                Self::add_nanoseconds(&date_or_time_expr, value * 1_000_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, &values, 1_000_000_000)
             }
             "millisecond" | "ms" | "msec" | "milliseconds" => {
-                Self::add_nanoseconds(&date_or_time_expr, value * 1_000_000)
+                Self::add_nanoseconds(&date_or_time_expr, &values, 1_000_000)
             }
             "microsecond" | "us" | "usec" | "microseconds" => {
-                Self::add_nanoseconds(&date_or_time_expr, value * 1000)
+                Self::add_nanoseconds(&date_or_time_expr, &values, 1000)
             }
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs"
-            | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, value),
+            | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, &values, 1),
             _ => plan_err!("Invalid date_or_time_part type"),
         };
-        if is_scalar {
-            let result = result.and_then(|array| ScalarValue::try_from_array(&array, 0));
-            return result.map(ColumnarValue::Scalar);
-        }
         result.map(ColumnarValue::Array)
     }
     fn aliases(&self) -> &[String] {
