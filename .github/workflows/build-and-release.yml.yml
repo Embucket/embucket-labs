@@ -26,8 +26,10 @@ jobs:
           - linux/arm64
         include:
           - platform: linux/amd64
+            triplet: x86_64-linux-gnu
             runner: ubuntu-latest
           - platform: linux/arm64
+            triplet: aarch64-linux-gnu
             runner: ubuntu-24.04-arm
     name: Build and Push Docker Image
     steps:
@@ -63,6 +65,7 @@ jobs:
         id: build
         with:
           context: .
+          build-args: TRIPLET=${{ matrix.triplet }}
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
