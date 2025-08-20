@@ -12,6 +12,7 @@ use serde_json::Value;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
+use snafu::OptionExt;
 
 /// `TO_OBJECT` function implementation
 ///
@@ -73,18 +74,11 @@ impl ScalarUDFImpl for ToObjectFunc {
                 let arr: &StringArray = as_generic_string_array(&arr)?;
                 let mut b = StringBuilder::with_capacity(arr.len(), 1024);
 
-                for v in arr {
-                    if let Some(v) = v {
-                        let v: Value =
-                            serde_json::from_str(v).context(FailedToDeserializeJsonSnafu)?;
-                        if let Value::Object(_) = v {
-                            b.append_value(v.to_string());
-                        } else {
-                            return InvalidTypeSnafu.fail()?;
-                        }
-                    } else {
-                        b.append_null();
-                    }
+                for opt in arr {
+                    b.append_option(opt.map_or_else(|| Ok(None), |str| match serde_json::from_str::<Value>(&str) {
+                        Ok(Value::Object(_)) => Ok(Some(str)),
+                        _ => InvalidTypeSnafu.fail(),
+                    })?);
                 }
 
                 Arc::new(b.finish())
