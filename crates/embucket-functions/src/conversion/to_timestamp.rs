@@ -38,7 +38,17 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
 
 const DATE_FORMATS: [&str; 2] = ["%d-%b-%Y", "%d-%B-%Y"];
 
-const TIMESTAMP_FORMATS: [&str; 8] = [
+const TIMESTAMP_FORMATS: [&str; 18] = [
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%dT%H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%dT%H:%M:%S.%f",
     "%d-%b-%Y %H:%M:%S",
     "%d-%b-%YT%H:%M:%S",
     "%d-%b-%Y %H:%M:%S.%f",
