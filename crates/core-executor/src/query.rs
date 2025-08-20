@@ -23,6 +23,7 @@ use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
     TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume, VolumeType,
+    models::volumes::create_object_store_from_url,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
@@ -92,7 +93,6 @@ use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
-use object_store::local::LocalFileSystem;
 use object_store::{ClientOptions, ObjectStore};
 use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
@@ -2556,11 +2556,13 @@ impl UserQuery {
                     Ok(Arc::new(s3))
                 } else {
                     // Fall through to URL-based object store creation
-                    create_object_store_from_url(url, stage_params.endpoint).await
+                    Ok(create_object_store_from_url(url.as_str(), stage_params.endpoint).await
+                        .context(ex_error::MetastoreSnafu)?)
                 }
             }
             // No stage params or credentials - create from URL
-            _ => create_object_store_from_url(url, stage_params.endpoint).await,
+            _ => create_object_store_from_url(url.as_str(), stage_params.endpoint).await
+                .context(ex_error::MetastoreSnafu),
         }
     }
 
@@ -2589,46 +2591,6 @@ impl UserQuery {
     }
 }
 
-async fn create_object_store_from_url(
-    url: &ListingTableUrl,
-    endpoint: Option<String>,
-) -> Result<Arc<dyn ObjectStore + 'static>> {
-    match url.scheme() {
-        "s3" => {
-            let object_store_url = url.object_store();
-            let bucket = object_store_url
-                .as_str()
-                .trim_start_matches("s3://")
-                .trim_end_matches('/');
-
-            let region = resolve_bucket_region(bucket, &ClientOptions::default())
-                .await
-                .context(ex_error::ObjectStoreSnafu)?;
-
-            let s3_volume = S3Volume {
-                region: Some(region),
-                bucket: Some(bucket.to_string()),
-                endpoint,
-                credentials: None,
-            };
-
-            let mut builder = s3_volume.get_s3_builder();
-            builder = builder.with_skip_signature(true);
-
-            let s3 = builder.build().context(ex_error::ObjectStoreSnafu)?;
-            Ok(Arc::new(s3))
-        }
-        "file" => {
-            let local_fs = LocalFileSystem::new();
-            Ok(Arc::new(local_fs))
-        }
-        _ => ex_error::UnsupportedUrlSchemeSnafu {
-            scheme: url.scheme().to_string(),
-            url: url.as_str().to_string(),
-        }
-        .fail(),
-    }
-}
 
 /// Builds a target schema with metadata columns added.
 ///
