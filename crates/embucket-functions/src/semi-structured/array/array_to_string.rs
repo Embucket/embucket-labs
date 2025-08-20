@@ -46,7 +46,7 @@ impl ArrayToStringFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::string(2, Volatility::Immutable),
+            signature: Signature::any(2, Volatility::Immutable),
         }
     }
 }
