@@ -2502,78 +2502,65 @@ impl UserQuery {
         stage_params: StageParamsObject,
         url: &ListingTableUrl,
     ) -> Result<Arc<dyn ObjectStore + 'static>> {
-        // First, try to get object store from stage parameters
-        let object_store = match (stage_params.storage_integration, stage_params.credentials) {
+        match (&stage_params.storage_integration, &stage_params.credentials) {
             (Some(volume), _) => {
                 let volume = self
                     .metastore
-                    .get_volume(&volume)
+                    .get_volume(volume)
                     .await
                     .context(ex_error::MetastoreSnafu)?
                     .context(ex_error::VolumeNotFoundSnafu { volume })?;
-                Some(
-                    volume
-                        .get_object_store()
-                        .context(ex_error::MetastoreSnafu)?,
-                )
+                Ok(volume
+                    .get_object_store()
+                    .context(ex_error::MetastoreSnafu)?)
             }
-            (None, credentials) => {
-                if credentials.options.is_empty() {
-                    None
-                } else {
-                    // Create object store from credentials
-                    let access_key_id = get_kv_option(&credentials, "AWS_KEY_ID");
-                    let secret_access_key = get_kv_option(&credentials, "AWS_SECRET_KEY");
-                    let session_token = get_kv_option(&credentials, "AWS_SESSION_TOKEN");
+            (None, credentials) if !credentials.options.is_empty() => {
+                // Create object store from credentials
+                let access_key_id = get_kv_option(credentials, "AWS_KEY_ID");
+                let secret_access_key = get_kv_option(credentials, "AWS_SECRET_KEY");
+                let session_token = get_kv_option(credentials, "AWS_SESSION_TOKEN");
 
-                    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key)
-                    {
-                        let object_store_url = url.object_store();
-                        let bucket = object_store_url
-                            .as_str()
-                            .trim_start_matches("s3://")
-                            .trim_end_matches('/');
-
-                        let store = create_s3_object_store(
-                            bucket,
-                            stage_params.endpoint.clone(),
-                            Some(access_key),
-                            Some(secret_key),
-                            session_token,
-                        )
-                        .await?;
-                        Some(store)
-                    } else {
-                        None
-                    }
-                }
-            }
-        };
-
-        // If no object store from stage params, create one from URL
-        if let Some(store) = object_store {
-            Ok(store)
-        } else {
-            match url.scheme() {
-                "s3" => {
+                if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
                     let object_store_url = url.object_store();
                     let bucket = object_store_url
                         .as_str()
                         .trim_start_matches("s3://")
                         .trim_end_matches('/');
 
-                    create_s3_object_store(bucket, stage_params.endpoint, None, None, None).await
+                    let region = resolve_bucket_region(bucket, &ClientOptions::default())
+                        .await
+                        .context(ex_error::ObjectStoreSnafu)?;
+
+                    let credentials = if let Some(token) = session_token {
+                        Some(AwsCredentials::Token(token.to_string()))
+                    } else {
+                        Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                            aws_access_key_id: access_key.to_string(),
+                            aws_secret_access_key: secret_key.to_string(),
+                        }))
+                    };
+
+                    let s3_volume = S3Volume {
+                        region: Some(region),
+                        bucket: Some(bucket.to_string()),
+                        endpoint: stage_params.endpoint.clone(),
+                        credentials,
+                    };
+
+                    let Ok(s3) = s3_volume.get_s3_builder().build() else {
+                        return ex_error::InvalidBucketIdentifierSnafu {
+                            ident: bucket.to_string(),
+                        }
+                        .fail();
+                    };
+                    Ok(Arc::new(s3))
+                } else {
+                    // Fall through to URL-based object store creation
+                    create_object_store_from_url(stage_params, url).await
                 }
-                "file" => {
-                    let local_fs = LocalFileSystem::new();
-                    Ok(Arc::new(local_fs))
-                }
-                _ => ex_error::UnsupportedUrlSchemeSnafu {
-                    scheme: url.scheme().to_string(),
-                    url: url.as_str().to_string(),
-                }
-                .fail(),
             }
+            // No stage params or credentials - create from URL
+            _ => create_object_store_from_url(stage_params, url).await,
         }
     }
 
@@ -2599,6 +2586,52 @@ impl UserQuery {
             config
         };
         Ok(config)
+    }
+}
+
+async fn create_object_store_from_url(
+    stage_params: StageParamsObject,
+    url: &ListingTableUrl,
+) -> Result<Arc<dyn ObjectStore + 'static>> {
+    match url.scheme() {
+        "s3" => {
+            let object_store_url = url.object_store();
+            let bucket = object_store_url
+                .as_str()
+                .trim_start_matches("s3://")
+                .trim_end_matches('/');
+
+            let region = resolve_bucket_region(bucket, &ClientOptions::default())
+                .await
+                .context(ex_error::ObjectStoreSnafu)?;
+
+            let s3_volume = S3Volume {
+                region: Some(region),
+                bucket: Some(bucket.to_string()),
+                endpoint: stage_params.endpoint.clone(),
+                credentials: None,
+            };
+
+            let mut builder = s3_volume.get_s3_builder();
+            builder = builder.with_skip_signature(true);
+
+            let Ok(s3) = builder.build() else {
+                return ex_error::InvalidBucketIdentifierSnafu {
+                    ident: bucket.to_string(),
+                }
+                .fail();
+            };
+            Ok(Arc::new(s3))
+        }
+        "file" => {
+            let local_fs = LocalFileSystem::new();
+            Ok(Arc::new(local_fs))
+        }
+        _ => ex_error::UnsupportedUrlSchemeSnafu {
+            scheme: url.scheme().to_string(),
+            url: url.as_str().to_string(),
+        }
+        .fail(),
     }
 }
 
@@ -3151,48 +3184,6 @@ pub fn get_kv_option<'a>(options: &'a KeyValueOptions, key: &str) -> Option<&'a 
         .iter()
         .find(|opt| opt.option_name.eq_ignore_ascii_case(key))
         .map(|opt| opt.value.as_str())
-}
-
-async fn create_s3_object_store(
-    bucket: &str,
-    endpoint: Option<String>,
-    access_key_id: Option<&str>,
-    secret_access_key: Option<&str>,
-    session_token: Option<&str>,
-) -> Result<Arc<dyn ObjectStore + 'static>> {
-    let region = resolve_bucket_region(bucket, &ClientOptions::default())
-        .await
-        .context(ex_error::ObjectStoreSnafu)?;
-
-    let mut builder = AmazonS3Builder::new()
-        .with_bucket_name(bucket)
-        .with_region(region);
-
-    // Add credentials if provided, otherwise use skip_signature for public access
-    if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
-        builder = builder
-            .with_access_key_id(access_key)
-            .with_secret_access_key(secret_key);
-
-        if let Some(token) = session_token {
-            builder = builder.with_token(token);
-        }
-    } else {
-        builder = builder.with_skip_signature(true);
-    }
-
-    if let Some(endpoint) = endpoint {
-        builder = builder.with_endpoint(endpoint);
-    }
-
-    let Ok(s3) = builder.build() else {
-        return ex_error::InvalidBucketIdentifierSnafu {
-            ident: bucket.to_string(),
-        }
-        .fail();
-    };
-
-    Ok(Arc::new(s3))
 }
 
 fn create_file_format(
