@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
-use datafusion_common::Column;
 use datafusion_common::Result;
 use datafusion_common::tree_node::Transformed;
 use datafusion_expr::expr::Sort as ExprSort;
+use datafusion_expr::logical_plan::Projection;
 use datafusion_expr::{Expr, LogicalPlan, LogicalPlanBuilder, col};
+use std::sync::Arc;
+//
 
 // --- type aliases to keep function signatures simple ---
 type AggrIndex = usize;
@@ -13,8 +15,8 @@ type OrderedClasses = HashMap<String, Vec<(AggrIndex, Expr)>>;
 type UnorderedList = Vec<(AggrIndex, Expr)>;
 type NameMap = Vec<(usize, String)>;
 type GroupKeys = Vec<String>;
-type Branch = (LogicalPlan, NameMap);
-type MergeResult = (LogicalPlan, NameMap, GroupKeys);
+type Branch = (LogicalPlan, NameMap, GroupKeys);
+type MergeResult = (LogicalPlan, NameMap);
 
 #[derive(Debug, Default)]
 pub struct SplitOrderedAggregates {}
@@ -52,21 +54,33 @@ impl OptimizerRule for SplitOrderedAggregates {
 
         // Build per-signature aggregate branches
         let mut class_iters = ordered_classes.into_iter();
-        let mut branches: Vec<(LogicalPlan, Vec<(usize, String)>)> = Vec::new();
+        let mut branches: Vec<Branch> = Vec::new();
         if let Some((_sig, mut aggs0)) = class_iters.next() {
             aggs0.extend(unordered);
-            branches.push(build_branch((*agg.input).clone(), &agg.group_expr, &aggs0)?);
+
+            // Keep original group columns on the first branch to preserve qualifiers
+            branches.push(build_branch(
+                (*agg.input).clone(),
+                &agg.group_expr,
+                &aggs0,
+                "gk",
+                true,
+            )?);
         }
-        for (_sig, aggs_i) in class_iters {
+        for (branch_idx, (_sig, aggs_i)) in class_iters.enumerate() {
+            // On subsequent branches, drop original group columns to avoid duplicate qualified names
+            let prefix = format!("rgk{branch_idx}_");
             branches.push(build_branch(
                 (*agg.input).clone(),
                 &agg.group_expr,
                 &aggs_i,
+                &prefix,
+                false,
             )?);
         }
 
         // Merge branches (join on synthesized group keys)
-        let (acc_plan, name_map, group_keys) = merge_branches(branches)?;
+        let (acc_plan, name_map) = merge_branches(branches)?;
 
         // Final projection with original column names
         let original_field_names: Vec<String> = agg
@@ -80,11 +94,15 @@ impl OptimizerRule for SplitOrderedAggregates {
             acc_plan,
             &original_field_names,
             original_group_count,
-            &group_keys,
             name_map,
         )?;
+        // Restore the exact original schema (including qualifiers)
+        let restored = LogicalPlan::Projection(Projection::new_from_schema(
+            Arc::new(rewritten),
+            Arc::clone(&agg.schema),
+        ));
 
-        Ok(Transformed::yes(rewritten))
+        Ok(Transformed::yes(restored))
     }
 }
 
@@ -106,6 +124,8 @@ fn build_branch(
     input: LogicalPlan,
     group_expr: &[Expr],
     aggs: &[(AggrIndex, Expr)],
+    key_prefix: &str,
+    keep_group_cols: bool,
 ) -> Result<Branch> {
     let branch_lp = LogicalPlanBuilder::from(input)
         .aggregate(
@@ -117,11 +137,23 @@ fn build_branch(
     let group_fields_count = branch_lp.schema().fields().len() - aggs.len();
     let out_fields = branch_lp.schema().fields();
 
-    // Project to stable group key names gk{idx} and unique aggregate names agg_{orig_idx}
-    let mut proj_exprs: Vec<Expr> = Vec::with_capacity(branch_lp.schema().fields().len());
+    // Projection that optionally preserves original group columns, adds synthetic key aliases, and renames aggs
+    let mut proj_exprs: Vec<Expr> =
+        Vec::with_capacity(branch_lp.schema().fields().len() + group_fields_count);
+    // keep original group columns with their original names only on the leftmost branch
+    if keep_group_cols {
+        for i in 0..group_fields_count {
+            let name = out_fields[i].name();
+            proj_exprs.push(col(name));
+        }
+    }
+    // add stable synthetic group key aliases used for joining
+    let mut key_names: GroupKeys = Vec::with_capacity(group_fields_count);
     for i in 0..group_fields_count {
         let name = out_fields[i].name();
-        proj_exprs.push(col(name).alias(format!("gk{i}")));
+        let alias = format!("{key_prefix}{i}");
+        proj_exprs.push(col(name).alias(alias.clone()));
+        key_names.push(alias);
     }
     let mut out_names: NameMap = Vec::with_capacity(aggs.len());
     for (k, (orig_idx, _)) in aggs.iter().enumerate() {
@@ -134,70 +166,42 @@ fn build_branch(
     let projected = LogicalPlanBuilder::from(branch_lp)
         .project(proj_exprs)?
         .build()?;
-    Ok((projected, out_names))
-}
-
-fn compute_group_keys(acc_plan: &LogicalPlan, agg_count: usize) -> GroupKeys {
-    let total_fields = acc_plan.schema().fields().len();
-    let group_fields_count = total_fields - agg_count;
-    (0..group_fields_count).map(|i| format!("gk{i}")).collect()
+    Ok((projected, out_names, key_names))
 }
 
 fn merge_branches(mut branches: Vec<Branch>) -> Result<MergeResult> {
-    let (mut acc_plan, mut name_map) = branches.remove(0);
-    let group_keys = compute_group_keys(&acc_plan, name_map.len());
-    for (lp, out) in branches {
-        let left_schema = acc_plan.schema();
-        let right_schema = lp.schema();
-        let left_has_all = group_keys
-            .iter()
-            .all(|k| left_schema.has_column(&Column::from_name(k.clone())));
-        let right_has_all = group_keys
-            .iter()
-            .all(|k| right_schema.has_column(&Column::from_name(k.clone())));
-
-        acc_plan = if group_keys.is_empty() || !left_has_all || !right_has_all {
-            LogicalPlanBuilder::from(acc_plan).cross_join(lp)?.build()?
+    let (mut acc_plan, mut name_map, left_keys) = branches.remove(0);
+    for (right_plan, out, right_keys) in branches {
+        acc_plan = if left_keys.is_empty() {
+            LogicalPlanBuilder::from(acc_plan)
+                .cross_join(right_plan)?
+                .build()?
         } else {
-            let right_for_join = lp.clone();
-            let right_for_cross = lp;
-            match LogicalPlanBuilder::from(acc_plan.clone()).join_using(
-                right_for_join,
-                datafusion_common::JoinType::Inner,
-                group_keys.clone(),
-            ) {
-                Ok(b) => match b.build() {
-                    Ok(p) => p,
-                    Err(_) => LogicalPlanBuilder::from(acc_plan)
-                        .cross_join(right_for_cross)?
-                        .build()?,
-                },
-                Err(_) => LogicalPlanBuilder::from(acc_plan)
-                    .cross_join(right_for_cross)?
-                    .build()?,
-            }
+            let on_exprs = left_keys
+                .iter()
+                .zip(right_keys.iter())
+                .map(|(l, r)| col(l).eq(col(r)))
+                .collect::<Vec<_>>();
+            let builder = LogicalPlanBuilder::from(acc_plan);
+            builder
+                .join_on(right_plan, datafusion_common::JoinType::Inner, on_exprs)?
+                .build()?
         };
-
         name_map.extend(out.into_iter());
     }
-    Ok((acc_plan, name_map, group_keys))
+    Ok((acc_plan, name_map))
 }
 
 fn build_final_projection(
     acc_plan: LogicalPlan,
     original_field_names: &[String],
     original_group_count: usize,
-    group_keys: &GroupKeys,
     mut name_map: NameMap,
 ) -> Result<LogicalPlan> {
     let mut proj_exprs: Vec<Expr> = Vec::with_capacity(original_field_names.len());
 
-    for (i, f_name) in original_field_names
-        .iter()
-        .take(original_group_count)
-        .enumerate()
-    {
-        proj_exprs.push(col(&group_keys[i]).alias(f_name));
+    for f_name in original_field_names.iter().take(original_group_count) {
+        proj_exprs.push(col(f_name));
     }
 
     name_map.sort_by_key(|(idx, _)| *idx);

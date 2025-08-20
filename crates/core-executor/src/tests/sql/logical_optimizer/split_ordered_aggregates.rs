@@ -10,6 +10,45 @@ test_query!(
     snapshot_path = "split_ordered_aggregates"
 );
 
+// Repro with GROUPING SETS and multiple ordered percentiles (Snowplow-like)
+test_query!(
+    split_ordered_grouping_sets_repro,
+    "WITH src(page_url, device_class, lcp, fid) AS ( \
+        SELECT '/u1', 'mobile', 120, 220 UNION ALL \
+        SELECT '/u1', 'desktop', 110, 210 UNION ALL \
+        SELECT '/u2', 'mobile', 130, 230 \
+     ) \
+     SELECT \
+        page_url, \
+        device_class, \
+        GROUPING_ID(page_url, device_class) AS id_url_and_device, \
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lcp) AS p_lcp, \
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fid) AS p_fid \
+     FROM src \
+     GROUP BY GROUPING SETS ((), (page_url, device_class), (device_class)) ORDER BY page_url, device_class",
+    snapshot_path = "split_ordered_aggregates"
+);
+
+// Repro with GROUPING SETS and three ordered percentiles (to expose ambiguous key issue)
+test_query!(
+    split_ordered_grouping_sets_three_percentiles,
+    "WITH src(page_url, device_class, lcp, fid, cls) AS ( \
+        SELECT '/u1', 'mobile', 120, 220, 0.10 UNION ALL \
+        SELECT '/u1', 'desktop', 110, 210, 0.20 UNION ALL \
+        SELECT '/u2', 'mobile', 130, 230, 0.15 \
+     ) \
+     SELECT \
+        page_url, \
+        device_class, \
+        GROUPING_ID(page_url, device_class) AS id_url_and_device, \
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lcp) AS p_lcp, \
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fid) AS p_fid, \
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cls) AS p_cls \
+     FROM src \
+     GROUP BY GROUPING SETS ((), (page_url, device_class), (device_class)) ORDER BY page_url, device_class",
+    snapshot_path = "split_ordered_aggregates"
+);
+
 // Conflicting ARRAY_AGG with more than two aggregates (no WITHIN GROUP)
 test_query!(
     split_ordered_array_agg_conflicts,
