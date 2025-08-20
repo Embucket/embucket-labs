@@ -108,7 +108,11 @@ impl DateAddFunc {
         let part = unit.to_lowercase();
         if matches!(expr_type, DataType::Date32 | DataType::Date64) {
             match part.as_str() {
-                "hour" | "minute" | "second" => {
+                "hour" | "h" | "hh" | "hr" | "hours" | "hrs" | "minute" | "m" | "mi" | "min"
+                | "minutes" | "mins" | "second" | "s" | "sec" | "seconds" | "secs"
+                | "millisecond" | "ms" | "msec" | "milliseconds" | "microsecond" | "us"
+                | "usec" | "microseconds" | "nanosecond" | "ns" | "nsec" | "nanosec"
+                | "nsecond" | "nanoseconds" | "nanosecs" | "nseconds" => {
                     return_type = DataType::Timestamp(TimeUnit::Nanosecond, None);
                 }
                 _ => {}
