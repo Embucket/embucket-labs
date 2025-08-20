@@ -1,8 +1,9 @@
+use crate::datetime_errors::InvalidArgumentSnafu;
 use arrow_schema::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef, Int64Array, Int64Builder};
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{Result, plan_err};
+use datafusion::common::Result;
 use datafusion::logical_expr::Volatility::Immutable;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature};
 use datafusion::scalar::ScalarValue;
@@ -121,10 +122,12 @@ impl DateAddFunc {
 /// - If `date_or_time_expr` is a date:
 /// - If `date_or_time_part` is day or larger (for example, month, year), the function returns a DATE value.
 /// - If `date_or_time_part` is smaller than a day (for example, hour, minute, second), the function returns a `TIMESTAMP_NTZ` value, with 00:00:00.000 as the starting time for the date.
-///   Usage notes:
+///
+/// Usage notes:
 /// - When `date_or_time_part` is year, quarter, or month (or any of their variations),
 ///   if the result month has fewer days than the original day of the month, the result day of the month might be different from the original day.
-///   Examples
+///
+/// Examples
 /// - dateadd(day, 30, CAST('2024-12-26' AS TIMESTAMP))
 impl ScalarUDFImpl for DateAddFunc {
     fn as_any(&self) -> &dyn Any {
@@ -141,7 +144,10 @@ impl ScalarUDFImpl for DateAddFunc {
 
     fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
         if arg_types.len() != 3 {
-            return plan_err!("function requires three arguments");
+            return InvalidArgumentSnafu {
+                description: "function requires three arguments",
+            }
+            .fail()?;
         }
         Ok(arg_types[2].clone())
     }
@@ -149,9 +155,14 @@ impl ScalarUDFImpl for DateAddFunc {
     fn coerce_types(&self, arg_types: &[DataType]) -> Result<Vec<DataType>> {
         let [units, value, expr] = take_function_args(self.name(), arg_types)?;
         let units = match units {
-            DataType::Utf8 | DataType::LargeUtf8 | DataType::Null => DataType::Utf8,
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View | DataType::Null => {
+                DataType::Utf8
+            }
             other => {
-                return plan_err!("First argument must be a string, but found {:?}", other);
+                return InvalidArgumentSnafu {
+                    description: format!("First argument must be a string, but found {other:?}"),
+                }
+                .fail()?;
             }
         };
 
@@ -159,17 +170,26 @@ impl ScalarUDFImpl for DateAddFunc {
             v if v.is_integer() => DataType::Int64,
             v if v.is_numeric() => DataType::Float64,
             other => {
-                return plan_err!("Second argument must be a number, but found {:?}", other);
+                return InvalidArgumentSnafu {
+                    description: format!("Second argument must be a number, but found {other:?}"),
+                }
+                .fail()?;
             }
         };
 
-        let expr = match expr {
-            v if v.is_temporal() => v.clone(),
-            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View | DataType::Null => {
-                DataType::Timestamp(TimeUnit::Nanosecond, None)
-            }
-            _ => return plan_err!("third arguments must be date, time, timestamp or string"),
-        };
+        let expr =
+            match expr {
+                v if v.is_temporal() => v.clone(),
+                DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View | DataType::Null => {
+                    DataType::Timestamp(TimeUnit::Nanosecond, None)
+                }
+                _ => return InvalidArgumentSnafu {
+                    description: format!(
+                        "Third argument must be date, time, timestamp or string, but found {expr:?}"
+                    ),
+                }
+                .fail()?,
+            };
 
         // `value` is the number of units of time that you want to add.
         // For example, if the units of time is day, and you want to add two days, specify 2.
@@ -179,14 +199,22 @@ impl ScalarUDFImpl for DateAddFunc {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
         if args.args.len() != 3 {
-            return plan_err!("function requires three arguments");
+            return InvalidArgumentSnafu {
+                description: "function requires three arguments",
+            }
+            .fail()?;
         }
         let ScalarFunctionArgs {
             args, number_rows, ..
         } = args;
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-            _ => return plan_err!("Invalid unit type format"),
+            _ => {
+                return InvalidArgumentSnafu {
+                    description: "Invalid unit type format",
+                }
+                .fail()?;
+            }
         };
 
         let values_array = args[1].clone().into_array(number_rows)?;
@@ -200,7 +228,12 @@ impl ScalarUDFImpl for DateAddFunc {
                 }
                 &builder.finish()
             }
-            _ => return plan_err!("Second argument must be numeric"),
+            _ => {
+                return InvalidArgumentSnafu {
+                    description: "Second argument must be numeric",
+                }
+                .fail()?;
+            }
         };
         let date_or_time_expr = args[2].clone().into_array(number_rows)?;
 
@@ -241,7 +274,10 @@ impl ScalarUDFImpl for DateAddFunc {
             }
             "nanosecond" | "ns" | "nsec" | "nanosec" | "nsecond" | "nanoseconds" | "nanosecs"
             | "nseconds" => Self::add_nanoseconds(&date_or_time_expr, values, 1),
-            _ => plan_err!("Invalid date_or_time_part type"),
+            _ => InvalidArgumentSnafu {
+                description: "Invalid date_or_time_part type",
+            }
+            .fail()?,
         };
         result.map(ColumnarValue::Array)
     }
