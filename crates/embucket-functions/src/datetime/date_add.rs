@@ -1,4 +1,4 @@
-use crate::datetime::is_datetime_like;
+use arrow_schema::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
 use datafusion::arrow::datatypes::DataType;
@@ -123,9 +123,6 @@ impl ScalarUDFImpl for DateAddFunc {
                 return plan_err!("First argument must be a string, but found {:?}", other);
             }
         };
-        if !is_datetime_like(expr) {
-            return plan_err!("third arguments must be date, time, timestamp or string");
-        }
 
         let value = match value.clone() {
             v if v.is_integer() => DataType::Int64,
@@ -135,10 +132,18 @@ impl ScalarUDFImpl for DateAddFunc {
             }
         };
 
+        let expr = match expr {
+            v if v.is_temporal() => v.clone(),
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View | DataType::Null => {
+                DataType::Timestamp(TimeUnit::Nanosecond, None)
+            }
+            _ => return plan_err!("third arguments must be date, time, timestamp or string"),
+        };
+
         // `value` is the number of units of time that you want to add.
         // For example, if the units of time is day, and you want to add two days, specify 2.
         // If you want to subtract two days, specify -2. It should be an integer.
-        Ok(vec![units, value, expr.clone()])
+        Ok(vec![units, value, expr])
     }
 
     fn invoke_with_args(&self, args: datafusion_expr::ScalarFunctionArgs) -> Result<ColumnarValue> {

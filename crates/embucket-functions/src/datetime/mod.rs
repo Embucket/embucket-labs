@@ -1,4 +1,3 @@
-use arrow_schema::DataType;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
@@ -49,18 +48,4 @@ pub fn register_udfs(
         session_params.to_owned(),
     ))))?;
     Ok(())
-}
-
-const fn is_datetime_like(dt: &DataType) -> bool {
-    matches!(
-        dt,
-        DataType::Timestamp(_, _)
-            | DataType::Date32
-            | DataType::Date64
-            | DataType::Time32(_)
-            | DataType::Time64(_)
-            | DataType::Utf8
-            | DataType::LargeUtf8
-            | DataType::Null
-    )
 }
