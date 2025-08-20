@@ -1,27 +1,14 @@
-# DBT Run Summary
-PASS: 1378
-WARN: 0
-ERROR: 194
-SKIP: 124
-TOTAL: 1696
-
 
 # Errors grouped by high-level categories
+      1 Other error
 
 # Errors grouped by type (comprehensive analysis)
-
-# Non-000200 errors analysis
 
 # Total top 10 errors (full messages)
 
 # Total top 10 errors (truncated to 50 chars)
 
 # Error categorization summary
-DBT total errors: 194
-000200: errors analyzed: 0
-Non-000200 errors analyzed: 1
-Other DBT errors (not analyzed): 193
-Categorized 000200 errors: 
-Uncategorized 000200 errors: 0
-Categorized non-000200 errors: 1
-Uncategorized non-000200 errors: 0
+DBT total errors: 
+Total error lines analyzed: 1
+Coverage: 1 out of  error lines captured
