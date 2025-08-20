@@ -6,7 +6,6 @@ on:
     - cron: '0 2 * * *'
   # Allow manual runs from the Actions tab
   workflow_dispatch:
-
   # Run when a new release is created on GitHub
   release:
     types: [created]

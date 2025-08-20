@@ -19,7 +19,6 @@ RUN cargo build --release --bin embucketd
 
 # Stage 4: Final runtime image
 FROM gcr.io/distroless/cc-debian12 AS runtime
-ARG TRIPLET
 
 # Set working directory
 USER nonroot:nonroot
