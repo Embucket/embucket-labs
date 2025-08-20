@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile optimized for caching and minimal final image size
-FROM rust:latest AS builder
+FROM rust:bookworm AS builder
 
 WORKDIR /app
 
@@ -24,9 +24,6 @@ ARG TRIPLET
 # Set working directory
 USER nonroot:nonroot
 WORKDIR /app
-
-# COPY over libbz2 until we upgrade to 0.6.0 version that allows rust only implementation
-COPY --from=builder /usr/lib/${TRIPLET}/libbz2.so* /usr/lib/${TRIPLET}/
 
 # Copy the binary and required files
 COPY --from=builder /app/target/release/embucketd ./embucketd

@@ -6,11 +6,6 @@ on:
     - cron: '0 2 * * *'
   # Allow manual runs from the Actions tab
   workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'Pull Request Number'
-        required: false
-        type: number
 
   # Run when a new release is created on GitHub
   release:
@@ -32,10 +27,8 @@ jobs:
           - linux/arm64
         include:
           - platform: linux/amd64
-            triplet: x86_64-linux-gnu
             runner: ubuntu-latest
           - platform: linux/arm64
-            triplet: aarch64-linux-gnu
             runner: ubuntu-24.04-arm
     name: Build and Push Docker Image
     steps:
@@ -71,7 +64,6 @@ jobs:
         id: build
         with:
           context: .
-          build-args: TRIPLET=${{ matrix.triplet }}
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
