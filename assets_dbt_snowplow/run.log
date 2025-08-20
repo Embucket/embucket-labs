@@ -1,63 +1,65 @@
-[0m02:37:50  Running with dbt=1.9.8
-[0m02:37:51  Registered adapter: snowflake=1.9.1
-[0m02:37:51  Found 29 models, 120 data tests, 4 seeds, 2 operations, 8 sources, 768 macros
-[0m02:37:51  
-[0m02:37:51  Concurrency: 4 threads (target='embucket')
-[0m02:37:51  
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e0ce4cb0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e0ce5730>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e0cbf080>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e050f3b0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e059d4c0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
-WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f56e059ccb0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
-[0m02:37:52  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m02:37:52  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m02:37:52  
-[0m02:37:52  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m02:37:52  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m02:37:53  2 of 29 ERROR creating sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[31mERROR[0m in 0.48s]
-[0m02:37:53  1 of 29 ERROR creating sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[31mERROR[0m in 0.49s]
-[0m02:37:53  3 of 29 SKIP relation public_scratch.snowplow_web_base_new_event_limits ........ [[33mSKIP[0m]
-[0m02:37:53  4 of 29 SKIP relation public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[33mSKIP[0m]
-[0m02:37:53  5 of 29 SKIP relation public_scratch.snowplow_web_base_sessions_this_run ....... [[33mSKIP[0m]
-[0m02:37:53  6 of 29 SKIP relation public_scratch.snowplow_web_base_events_this_run ......... [[33mSKIP[0m]
-[0m02:37:53  7 of 29 SKIP relation public_scratch.snowplow_web_consent_events_this_run ...... [[33mSKIP[0m]
-[0m02:37:53  8 of 29 SKIP relation public_scratch.snowplow_web_pv_engaged_time .............. [[33mSKIP[0m]
-[0m02:37:53  9 of 29 SKIP relation public_scratch.snowplow_web_pv_scroll_depth .............. [[33mSKIP[0m]
-[0m02:37:53  10 of 29 SKIP relation public_scratch.snowplow_web_sessions_this_run ........... [[33mSKIP[0m]
-[0m02:37:53  11 of 29 SKIP relation public_derived.snowplow_web_user_mapping ................ [[33mSKIP[0m]
-[0m02:37:53  12 of 29 SKIP relation public_scratch.snowplow_web_vital_events_this_run ....... [[33mSKIP[0m]
-[0m02:37:53  13 of 29 SKIP relation public_derived.snowplow_web_consent_log ................. [[33mSKIP[0m]
-[0m02:37:53  14 of 29 SKIP relation public_scratch.snowplow_web_page_views_this_run ......... [[33mSKIP[0m]
-[0m02:37:53  15 of 29 SKIP relation public_derived.snowplow_web_sessions .................... [[33mSKIP[0m]
-[0m02:37:53  16 of 29 SKIP relation public_scratch.snowplow_web_vitals_this_run ............. [[33mSKIP[0m]
-[0m02:37:53  17 of 29 SKIP relation public_derived.snowplow_web_consent_cmp_stats ........... [[33mSKIP[0m]
-[0m02:37:53  18 of 29 SKIP relation public_derived.snowplow_web_consent_versions ............ [[33mSKIP[0m]
-[0m02:37:53  19 of 29 SKIP relation public_derived.snowplow_web_page_views .................. [[33mSKIP[0m]
-[0m02:37:53  20 of 29 SKIP relation public_scratch.snowplow_web_users_sessions_this_run ..... [[33mSKIP[0m]
-[0m02:37:53  21 of 29 SKIP relation public_derived.snowplow_web_vitals ...................... [[33mSKIP[0m]
-[0m02:37:53  22 of 29 SKIP relation public_derived.snowplow_web_consent_users ............... [[33mSKIP[0m]
-[0m02:37:53  23 of 29 SKIP relation public_scratch.snowplow_web_users_aggs .................. [[33mSKIP[0m]
-[0m02:37:53  24 of 29 SKIP relation public_derived.snowplow_web_vital_measurements .......... [[33mSKIP[0m]
-[0m02:37:53  25 of 29 SKIP relation public_derived.snowplow_web_consent_scope_status ........ [[33mSKIP[0m]
-[0m02:37:53  26 of 29 SKIP relation public_derived.snowplow_web_consent_totals .............. [[33mSKIP[0m]
-[0m02:37:53  27 of 29 SKIP relation public_scratch.snowplow_web_users_lasts ................. [[33mSKIP[0m]
-[0m02:37:53  28 of 29 SKIP relation public_scratch.snowplow_web_users_this_run .............. [[33mSKIP[0m]
-[0m02:37:53  29 of 29 SKIP relation public_derived.snowplow_web_users ....................... [[33mSKIP[0m]
-[0m02:37:53  
-[0m02:37:53  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m02:37:53  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.03s]
-[0m02:37:53  
-[0m02:37:53  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 1.38 seconds (1.38s).
-[0m02:37:53  
-[0m02:37:53  [31mCompleted with 2 errors, 0 partial successes, and 0 warnings:[0m
-[0m02:37:53  
-[0m02:37:53    Database Error in model snowplow_web_incremental_manifest (models/base/manifest/snowplow_web_incremental_manifest.sql)
-  8244428926963: Iceberg: Table snowplow_web_incremental_manifest__dbt_tmp not found.
-  compiled code at target/run/snowplow_web/models/base/manifest/snowplow_web_incremental_manifest.sql
-[0m02:37:53  
-[0m02:37:53    Database Error in model snowplow_web_base_quarantined_sessions (models/base/manifest/snowplow_web_base_quarantined_sessions.sql)
-  8244428926964: Iceberg: Table snowplow_web_base_quarantined_sessions__dbt_tmp not found.
-  compiled code at target/run/snowplow_web/models/base/manifest/snowplow_web_base_quarantined_sessions.sql
-[0m02:37:53  
-[0m02:37:53  Done. PASS=2 WARN=0 ERROR=2 SKIP=27 TOTAL=31
+[0m02:37:19  Running with dbt=1.9.8
+[0m02:37:20  Registered adapter: snowflake=1.9.1
+[0m02:37:21  Found 29 models, 120 data tests, 4 seeds, 2 operations, 8 sources, 768 macros
+[0m02:37:21  
+[0m02:37:21  Concurrency: 4 threads (target='embucket')
+[0m02:37:21  
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f746d0e8d40>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f746d0e9850>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f746d1afb60>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f746d0ea1e0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f745c21b980>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f745c21b140>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+[0m02:37:22  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+[0m02:37:22  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.03s]
+[0m02:37:22  
+[0m02:37:22  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
+[0m02:37:22  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
+[0m02:37:22  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 0.60s]
+[0m02:37:22  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 0.60s]
+[0m02:37:22  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f745c92c560>: Failed to establish a new connection: [Errno -2] Name or service not known')': /
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f745c92e4e0>: Failed to establish a new connection: [Errno -2] Name or service not known')': /computeMetadata/v1/instance/service-accounts/default/email
+[0m02:37:23  02:37:23 + Snowplow: New Snowplow incremental model. Backfilling
+[0m02:37:23  02:37:23 + Snowplow: Processing data between '2025-07-01 00:00:00' and '2025-08-30 00:00:00' (snowplow_web)
+[0m02:37:23  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.77s]
+[0m02:37:23  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
+[0m02:37:24  4 of 29 ERROR creating sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[31mERROR[0m in 0.71s]
+[0m02:37:24  5 of 29 SKIP relation public_scratch.snowplow_web_base_sessions_this_run ....... [[33mSKIP[0m]
+[0m02:37:24  6 of 29 SKIP relation public_scratch.snowplow_web_base_events_this_run ......... [[33mSKIP[0m]
+[0m02:37:24  7 of 29 SKIP relation public_scratch.snowplow_web_consent_events_this_run ...... [[33mSKIP[0m]
+[0m02:37:24  8 of 29 SKIP relation public_scratch.snowplow_web_pv_engaged_time .............. [[33mSKIP[0m]
+[0m02:37:24  9 of 29 SKIP relation public_scratch.snowplow_web_pv_scroll_depth .............. [[33mSKIP[0m]
+[0m02:37:24  10 of 29 SKIP relation public_scratch.snowplow_web_sessions_this_run ........... [[33mSKIP[0m]
+[0m02:37:24  11 of 29 SKIP relation public_derived.snowplow_web_user_mapping ................ [[33mSKIP[0m]
+[0m02:37:24  12 of 29 SKIP relation public_scratch.snowplow_web_vital_events_this_run ....... [[33mSKIP[0m]
+[0m02:37:24  13 of 29 SKIP relation public_derived.snowplow_web_consent_log ................. [[33mSKIP[0m]
+[0m02:37:24  14 of 29 SKIP relation public_scratch.snowplow_web_page_views_this_run ......... [[33mSKIP[0m]
+[0m02:37:24  15 of 29 SKIP relation public_derived.snowplow_web_sessions .................... [[33mSKIP[0m]
+[0m02:37:24  16 of 29 SKIP relation public_scratch.snowplow_web_vitals_this_run ............. [[33mSKIP[0m]
+[0m02:37:24  17 of 29 SKIP relation public_derived.snowplow_web_consent_cmp_stats ........... [[33mSKIP[0m]
+[0m02:37:24  18 of 29 SKIP relation public_derived.snowplow_web_consent_versions ............ [[33mSKIP[0m]
+[0m02:37:24  19 of 29 SKIP relation public_derived.snowplow_web_page_views .................. [[33mSKIP[0m]
+[0m02:37:24  20 of 29 SKIP relation public_scratch.snowplow_web_users_sessions_this_run ..... [[33mSKIP[0m]
+[0m02:37:24  21 of 29 SKIP relation public_derived.snowplow_web_vitals ...................... [[33mSKIP[0m]
+[0m02:37:24  22 of 29 SKIP relation public_derived.snowplow_web_consent_users ............... [[33mSKIP[0m]
+[0m02:37:24  23 of 29 SKIP relation public_scratch.snowplow_web_users_aggs .................. [[33mSKIP[0m]
+[0m02:37:24  24 of 29 SKIP relation public_derived.snowplow_web_vital_measurements .......... [[33mSKIP[0m]
+[0m02:37:24  25 of 29 SKIP relation public_derived.snowplow_web_consent_scope_status ........ [[33mSKIP[0m]
+[0m02:37:24  26 of 29 SKIP relation public_derived.snowplow_web_consent_totals .............. [[33mSKIP[0m]
+[0m02:37:24  27 of 29 SKIP relation public_scratch.snowplow_web_users_lasts ................. [[33mSKIP[0m]
+[0m02:37:24  28 of 29 SKIP relation public_scratch.snowplow_web_users_this_run .............. [[33mSKIP[0m]
+[0m02:37:24  29 of 29 SKIP relation public_derived.snowplow_web_users ....................... [[33mSKIP[0m]
+[0m02:37:24  
+[0m02:37:24  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+[0m02:37:24  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.02s]
+[0m02:37:24  
+[0m02:37:24  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 3.02 seconds (3.02s).
+[0m02:37:24  
+[0m02:37:24  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m02:37:24  
+[0m02:37:24    Database Error in model snowplow_web_base_sessions_lifecycle_manifest (models/base/manifest/snowplow_web_base_sessions_lifecycle_manifest.sql)
+  8244342555747: SQL compilation error: unsupported feature: ALTER TABLE
+  compiled code at target/run/snowplow_web/models/base/manifest/snowplow_web_base_sessions_lifecycle_manifest.sql
+[0m02:37:24  
+[0m02:37:24  Done. PASS=5 WARN=0 ERROR=1 SKIP=25 TOTAL=31
