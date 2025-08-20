@@ -181,14 +181,23 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                     })?
                 };
 
-                if !datafiles.is_empty() && !matching_files.is_empty() {
+                if !datafiles.is_empty() {
                     // Commit transaction on Iceberg table
-                    table
-                        .new_transaction(branch.as_deref())
-                        .overwrite(datafiles, matching_files)
-                        .commit()
-                        .await
-                        .map_err(DataFusionIcebergError::from)?;
+                    if matching_files.is_empty() {
+                        table
+                            .new_transaction(branch.as_deref())
+                            .append_data(datafiles)
+                            .commit()
+                            .await
+                            .map_err(DataFusionIcebergError::from)?;
+                    } else {
+                        table
+                            .new_transaction(branch.as_deref())
+                            .overwrite(datafiles, matching_files)
+                            .commit()
+                            .await
+                            .map_err(DataFusionIcebergError::from)?;
+                    }
                 }
 
                 Ok(RecordBatch::new_empty(schema))
@@ -414,7 +423,7 @@ impl Stream for MergeCOWFilterStream {
                 }
 
                 if matching_data_and_manifest_files.is_empty() {
-                    Poll::Pending
+                    Poll::Ready(Some(Ok(batch)))
                 } else {
                     let file_predicate = matching_data_files
                         .iter()
@@ -583,14 +592,20 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
 
     let strings = downcast_array::<StringArray>(&unique);
 
-    let result = strings
-        .iter()
-        .fold(HashSet::from_iter([first]), |mut acc, x| {
-            if let Some(x) = x {
-                acc.insert(x.to_owned());
-            }
-            acc
-        });
+    let init = if first.is_empty() {
+        HashSet::new()
+    } else {
+        HashSet::from_iter([first])
+    };
+
+    let result = strings.iter().fold(init, |mut acc, x| {
+        if let Some(x) = x
+            && !x.is_empty()
+        {
+            acc.insert(x.to_owned());
+        }
+        acc
+    });
 
     Ok(result)
 }
@@ -641,15 +656,24 @@ fn unique_files_and_manifests(
     let file_strings = downcast_array::<StringArray>(&unique_files);
     let manifest_strings = downcast_array::<StringArray>(&unique_manifests);
 
-    let result = manifest_strings.iter().zip(file_strings.iter()).fold(
-        HashMap::from_iter([(first_file, first_manifest)]),
-        |mut acc, (manifest, file)| {
-            if let (Some(manifest), Some(file)) = (manifest, file) {
-                acc.insert(file.to_owned(), manifest.to_owned());
-            }
-            acc
-        },
-    );
+    let init = if first_file.is_empty() {
+        HashMap::new()
+    } else {
+        HashMap::from_iter([(first_file, first_manifest)])
+    };
+
+    let result =
+        manifest_strings
+            .iter()
+            .zip(file_strings.iter())
+            .fold(init, |mut acc, (manifest, file)| {
+                if let (Some(manifest), Some(file)) = (manifest, file)
+                    && !file.is_empty()
+                {
+                    acc.insert(file.to_owned(), manifest.to_owned());
+                }
+                acc
+            });
 
     Ok(result)
 }
