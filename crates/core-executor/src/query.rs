@@ -2547,12 +2547,10 @@ impl UserQuery {
                         credentials,
                     };
 
-                    let Ok(s3) = s3_volume.get_s3_builder().build() else {
-                        return ex_error::InvalidBucketIdentifierSnafu {
-                            ident: bucket.to_string(),
-                        }
-                        .fail();
-                    };
+                    let s3 = s3_volume
+                        .get_s3_builder()
+                        .build()
+                        .context(ex_error::ObjectStoreSnafu)?;
                     Ok(Arc::new(s3))
                 } else {
                     // Fall through to URL-based object store creation
@@ -2615,12 +2613,7 @@ async fn create_object_store_from_url(
             let mut builder = s3_volume.get_s3_builder();
             builder = builder.with_skip_signature(true);
 
-            let Ok(s3) = builder.build() else {
-                return ex_error::InvalidBucketIdentifierSnafu {
-                    ident: bucket.to_string(),
-                }
-                .fail();
-            };
+            let s3 = builder.build().context(ex_error::ObjectStoreSnafu)?;
             Ok(Arc::new(s3))
         }
         "file" => {
