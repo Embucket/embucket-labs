@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_to_object_object_in_object() -> DFResult<()> {
+    async fn test_object_in_object() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
         let q = "SELECT TO_OBJECT('{\"a\": 1, \"b\": {\"a\": 25}}') as obj;";
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_to_object_parse_json() -> DFResult<()> {
+    async fn test_object_parse_json() -> DFResult<()> {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
         ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new(false)));
