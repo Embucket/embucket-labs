@@ -241,7 +241,9 @@ mod tests {
             &result
         );
 
-        let sql = "SELECT last_day('2024-05-08T23:39:20.123-07:00'::date,'year')::date AS value;";
+        let sql = "SELECT 
+            last_day('2024-05-08T23:39:20.123-07:00'::date,'year')::date AS v1,
+            last_day('2024-05-08T23:39:20.123-07:00'::date,'y')::date AS v2;";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
