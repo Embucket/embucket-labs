@@ -1811,34 +1811,9 @@ impl UserQuery {
     }
 
     pub async fn describe_table_query(&self, table_name: ObjectName) -> Result<QueryResult> {
-        // Convert ObjectName to string for processing
-        let table_name_str = object_name_to_string(&table_name);
-
-        // Parse table name to handle qualified names like database.schema.table
-        let table_parts: Vec<&str> = table_name_str.split('.').collect();
-        let (catalog, schema, table) = match table_parts.len() {
-            1 => (
-                self.current_database(),
-                self.current_schema(),
-                table_parts[0].to_string(),
-            ),
-            2 => (
-                self.current_database(),
-                table_parts[0].to_string(),
-                table_parts[1].to_string(),
-            ),
-            3 => (
-                table_parts[0].to_string(),
-                table_parts[1].to_string(),
-                table_parts[2].to_string(),
-            ),
-            _ => {
-                return ex_error::InvalidTableIdentifierSnafu {
-                    ident: table_name_str,
-                }
-                .fail();
-            }
-        };
+        // Use existing table name resolution logic
+        let resolved_ident = self.resolve_table_object_name(table_name.0)?;
+        let table_ident: MetastoreTableIdent = resolved_ident.into();
 
         // Build custom SQL query with renamed columns
         let query = format!(
@@ -1846,11 +1821,12 @@ impl UserQuery {
                 column_name as name,
                 data_type as type,
                 is_nullable as 'null?'
-            FROM {catalog}.information_schema.columns
-            WHERE table_catalog = '{catalog}' 
-              AND table_schema = '{schema}' 
-              AND table_name = '{table}'
-            ORDER BY ordinal_position"
+            FROM {}.information_schema.columns
+            WHERE table_catalog = '{}' 
+              AND table_schema = '{}' 
+              AND table_name = '{}'
+            ORDER BY ordinal_position",
+            table_ident.database, table_ident.database, table_ident.schema, table_ident.table
         );
 
         Box::pin(self.execute_with_custom_plan(&query)).await
