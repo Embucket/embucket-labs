@@ -190,6 +190,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("invalid type [{parameter}({value})] for parameter '{parameter}'"))]
+    InvalidTypeForParameter {
+        value: String,
+        parameter: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
