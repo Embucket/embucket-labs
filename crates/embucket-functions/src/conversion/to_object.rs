@@ -1,5 +1,4 @@
-use crate::conversion_errors::InvalidTypeSnafu;
-use crate::errors::FailedToDeserializeJsonSnafu;
+use super::errors as conv_errors;
 use crate::macros::make_udf_function;
 use arrow_schema::DataType;
 use datafusion::arrow::array::{Array, StringArray, StringBuilder};
@@ -66,27 +65,39 @@ impl ScalarUDFImpl for ToObjectFunc {
         let ScalarFunctionArgs {
             args, number_rows, ..
         } = args;
-        let arr = args[0].clone().into_array(number_rows)?;
+        let array = args
+            .get(0)
+            .context(conv_errors::NotEnoughArgumentsSnafu {
+                got: 0usize,
+                at_least: 1usize })?
+            .clone()
+            .into_array(number_rows)?;
 
-        let arr = match arr.data_type() {
-            DataType::Null => ScalarValue::Utf8(None).to_array_of_size(arr.len())?,
+        let array = match array.data_type() {
+            DataType::Null => ScalarValue::Utf8(None).to_array_of_size(array.len())?,
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let arr: &StringArray = as_generic_string_array(&arr)?;
-                let mut b = StringBuilder::with_capacity(arr.len(), 1024);
+                let arr: &StringArray = as_generic_string_array(&array)?;
+                let mut result = StringBuilder::with_capacity(arr.len(), 1024);
 
                 for opt in arr {
-                    b.append_option(opt.map_or_else(|| Ok(None), |str| match serde_json::from_str::<Value>(&str) {
+                    result.append_option(opt.map_or_else(|| Ok(None), |str| match serde_json::from_str::<Value>(&str) {
                         Ok(Value::Object(_)) => Ok(Some(str)),
-                        _ => InvalidTypeSnafu.fail(),
+                        _ => conv_errors::InvalidTypeForParameterSnafu {
+                            value: format!("'{str}'"),
+                            parameter: "TO_OBJECT".to_string(),
+                        }.fail(),
                     })?);
                 }
 
-                Arc::new(b.finish())
+                Arc::new(result.finish())
             }
-            _ => return InvalidTypeSnafu.fail()?,
+            other => return conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                data_type: other.clone(),
+                position: 1usize,
+            }.fail()?,
         };
 
-        Ok(ColumnarValue::Array(Arc::new(arr)))
+        Ok(ColumnarValue::Array(array))
     }
 }
 
