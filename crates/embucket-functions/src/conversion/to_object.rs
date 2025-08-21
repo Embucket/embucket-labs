@@ -8,7 +8,6 @@ use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
-use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 use snafu::OptionExt;
