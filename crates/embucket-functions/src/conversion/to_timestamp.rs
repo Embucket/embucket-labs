@@ -373,18 +373,24 @@ impl ScalarUDFImpl for ToTimestampFunc {
                     }
                     Some(s) => {
                         let s = remove_timezone(s);
-                        let parsed = if format.eq_ignore_ascii_case("auto") {
+                        let parsed_opt = if format.eq_ignore_ascii_case("auto") {
                             try_parse_with_auto(&s, self.try_mode)?
                         } else {
                             try_parse_with_format(&s, &format, self.try_mode)?
                         };
-
-                        let t = if let Some(tz) = &self.timezone() {
-                            apply_timezone(parsed, tz, self.try_mode)?
-                        } else {
-                            parsed
-                        };
-                        builder.append_value(t);
+                        match parsed_opt {
+                            Some(parsed) => {
+                                let t = if let Some(tz) = &self.timezone() {
+                                    apply_timezone(parsed, tz, self.try_mode)?
+                                } else {
+                                    parsed
+                                };
+                                builder.append_value(t);
+                            }
+                            None => {
+                                builder.append_null();
+                            }
+                        }
                     }
                 }
             }
@@ -395,42 +401,37 @@ impl ScalarUDFImpl for ToTimestampFunc {
     }
 }
 
-fn try_parse_with_auto(s: &str, try_mode: bool) -> DFResult<i64> {
+fn try_parse_with_auto(s: &str, try_mode: bool) -> DFResult<Option<i64>> {
     if let Ok(v) = string_to_timestamp_nanos(s) {
-        return Ok(v);
+        return Ok(Some(v));
     }
     for f in TIMESTAMP_FORMATS {
         if let Ok(v) = NaiveDateTime::parse_from_str(s, f)
             && let Some(ts) = v.and_utc().timestamp_nanos_opt()
         {
-            return Ok(ts);
+            return Ok(Some(ts));
         }
     }
     for f in DATE_FORMATS {
         if let Ok(v) = NaiveDate::parse_from_str(s, f)
             && let Some(ts) = v
                 .and_hms_nano_opt(0, 0, 0, 0)
-                .ok_or_else(|| CantParseTimestampSnafu.build())?
-                .and_utc()
-                .timestamp_nanos_opt()
+                .and_then(|dt| dt.and_utc().timestamp_nanos_opt())
         {
-            return Ok(ts);
+            return Ok(Some(ts));
         }
     }
     if try_mode {
-        Ok(0)
+        Ok(None)
     } else {
         CantGetTimestampSnafu.fail()?
     }
 }
 
-fn try_parse_with_format(s: &str, format: &str, try_mode: bool) -> DFResult<i64> {
+fn try_parse_with_format(s: &str, format: &str, try_mode: bool) -> DFResult<Option<i64>> {
     match NaiveDateTime::parse_from_str(s, format) {
-        Ok(v) => Ok(v
-            .and_utc()
-            .timestamp_nanos_opt()
-            .ok_or_else(|| CantGetTimestampSnafu.build())?),
-        Err(_) if try_mode => Ok(0),
+        Ok(v) => Ok(v.and_utc().timestamp_nanos_opt()),
+        Err(_) if try_mode => Ok(None),
         Err(_) => CantGetTimestampSnafu.fail()?,
     }
 }
