@@ -27,6 +27,7 @@ use iceberg_rust::{
 };
 use lru::LruCache;
 use pin_project_lite::pin_project;
+use snafu::ResultExt;
 use std::{
     collections::{HashMap, HashSet},
     num::NonZeroUsize,
@@ -189,14 +190,14 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                             .append_data(datafiles)
                             .commit()
                             .await
-                            .map_err(DataFusionIcebergError::from)?;
+                            .context(error::IcebergSnafu)?;
                     } else {
                         table
                             .new_transaction(branch.as_deref())
                             .overwrite(datafiles, matching_files)
                             .commit()
                             .await
-                            .map_err(DataFusionIcebergError::from)?;
+                            .context(error::IcebergSnafu)?;
                     }
                 }
 

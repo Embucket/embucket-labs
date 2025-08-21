@@ -587,3 +587,9 @@ impl Display for ObjectType {
         }
     }
 }
+
+impl From<Error> for datafusion_common::DataFusionError {
+    fn from(value: Error) -> Self {
+        Self::External(Box::new(value))
+    }
+}
