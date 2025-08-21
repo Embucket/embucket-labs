@@ -8,9 +8,9 @@ use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
-use snafu::OptionExt;
 
 /// `TO_OBJECT` function implementation
 ///
@@ -65,10 +65,11 @@ impl ScalarUDFImpl for ToObjectFunc {
             args, number_rows, ..
         } = args;
         let array = args
-            .get(0)
+            .first()
             .context(conv_errors::NotEnoughArgumentsSnafu {
                 got: 0usize,
-                at_least: 1usize })?
+                at_least: 1usize,
+            })?
             .clone()
             .into_array(number_rows)?;
 
@@ -79,21 +80,30 @@ impl ScalarUDFImpl for ToObjectFunc {
                 let mut result = StringBuilder::with_capacity(arr.len(), 1024);
 
                 for opt in arr {
-                    result.append_option(opt.map_or_else(|| Ok(None), |str| match serde_json::from_str::<Value>(&str) {
-                        Ok(Value::Object(_)) => Ok(Some(str)),
-                        _ => conv_errors::InvalidTypeForParameterSnafu {
-                            value: format!("'{str}'"),
-                            parameter: "TO_OBJECT".to_string(),
-                        }.fail(),
-                    })?);
+                    result.append_option(opt.map_or_else(
+                        || Ok(None),
+                        |str| {
+                            match serde_json::from_str::<Value>(str) {
+                                Ok(Value::Object(_)) => Ok(Some(str)),
+                                _ => conv_errors::InvalidTypeForParameterSnafu {
+                                    value: format!("'{str}'"),
+                                    parameter: "TO_OBJECT".to_string(),
+                                }
+                                .fail(),
+                            }
+                        },
+                    )?);
                 }
 
                 Arc::new(result.finish())
             }
-            other => return conv_errors::UnsupportedInputTypeWithPositionSnafu {
-                data_type: other.clone(),
-                position: 1usize,
-            }.fail()?,
+            other => {
+                return conv_errors::UnsupportedInputTypeWithPositionSnafu {
+                    data_type: other.clone(),
+                    position: 1usize,
+                }
+                .fail()?;
+            }
         };
 
         Ok(ColumnarValue::Array(array))
@@ -106,6 +116,7 @@ make_udf_function!(ToObjectFunc);
 mod tests {
     use super::*;
     use crate::conversion::to_object::ToObjectFunc;
+    use crate::semi_structured::parse_json::ParseJsonFunc;
     use datafusion::prelude::SessionContext;
     use datafusion_common::assert_batches_eq;
     use datafusion_expr::ScalarUDF;
@@ -152,6 +163,49 @@ mod tests {
         ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
         let q = "SELECT TO_OBJECT('23') as obj;";
         assert!(ctx.sql(q).await?.collect().await.is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_to_object_object_in_object() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
+        let q = "SELECT TO_OBJECT('{\"a\": 1, \"b\": {\"a\": 25}}') as obj;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+---------------+",
+                "| obj           |",
+                "+---------------+",
+                "| {\"a\": 1, \"b\": {\"a\": 25}} |",
+                "+---------------+",
+            ],
+            &result
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_to_object_parse_json() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(ToObjectFunc::new()));
+        ctx.register_udf(ScalarUDF::from(ParseJsonFunc::new(false)));
+        let q = "SELECT TO_OBJECT(PARSE_JSON('{\"a\": 1, \"b\": {\"a\": 25}}')) as obj;";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            [
+                "+---------------+",
+                "| obj           |",
+                "+---------------+",
+                "| {\"a\": 1, \"b\": {\"a\": 25}} |",
+                "+---------------+",
+            ],
+            &result
+        );
 
         Ok(())
     }
