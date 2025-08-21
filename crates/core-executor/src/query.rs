@@ -100,8 +100,8 @@ use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
     AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
     MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
-    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use,
-    Value, visit_relations_mut,
+    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
+    ShowStatementInParentType as ShowType, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -1622,7 +1622,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowSchemas { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Database)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1644,7 +1645,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowTables { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1669,7 +1671,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowViews { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1694,7 +1697,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowObjects(ShowObjects { show_options, .. }) => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1721,7 +1725,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowColumns { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in.clone(), true);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in.clone(), ShowType::Table)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1830,26 +1835,107 @@ impl UserQuery {
         res
     }
 
-    #[must_use]
     pub fn resolve_show_in_name(
         &self,
         show_in: Option<ShowStatementIn>,
-        table: bool,
-    ) -> TableReference {
-        let parts: Vec<String> = show_in
-            .and_then(|in_clause| in_clause.parent_name)
-            .map(|obj| obj.0.into_iter().map(|ident| ident.to_string()).collect())
-            .unwrap_or_default();
+        default_show_type: ShowType,
+    ) -> Result<TableReference> {
+        if show_in.is_none() {
+            return Ok(TableReference::full(
+                self.current_database(),
+                self.current_schema(),
+                String::new(),
+            ));
+        }
 
-        let (catalog, schema, table_name) = match parts.as_slice() {
-            [one] if table => (self.current_database(), self.current_schema(), one.clone()),
-            [one] => (self.current_database(), one.clone(), String::new()),
-            [s, t] if table => (self.current_database(), s.clone(), t.clone()),
-            [d, s] => (d.clone(), s.clone(), String::new()),
-            [d, s, t] => (d.clone(), s.clone(), t.clone()),
-            _ => (self.current_database(), String::new(), String::new()),
+        let parts: Vec<String> = show_in
+            .as_ref()
+            .and_then(|in_clause| in_clause.parent_name.clone())
+            .map(|obj| {
+                obj.0
+                    .into_iter()
+                    .map(|ident| match ident {
+                        ObjectNamePart::Identifier(ident) => {
+                            self.normalize_ident(ident).to_string()
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let parent_type = show_in
+            .and_then(|in_clause| in_clause.parent_type)
+            .unwrap_or(default_show_type);
+
+        let table_ref = match parent_type {
+            ShowType::Account | ShowType::Database => {
+                let database = parts.join("");
+                self.get_catalog(&database).map_err(|_| {
+                    ex_error::DatabaseNotFoundSnafu {
+                        db: database.clone(),
+                    }
+                    .build()
+                })?;
+                TableReference::full(database, String::new(), String::new())
+            }
+            ShowType::Schema => {
+                let (database, schema) = match parts.as_slice() {
+                    [s] => (self.current_database(), s.clone()),
+                    [d, s] => (d.clone(), s.clone()),
+                    _ => (String::new(), String::new()),
+                };
+                let catalog = self.get_catalog(&database).map_err(|_| {
+                    ex_error::DatabaseNotFoundSnafu {
+                        db: database.clone(),
+                    }
+                    .build()
+                })?;
+                // Information schema is not registered in catalog
+                if schema != INFORMATION_SCHEMA {
+                    catalog
+                        .schema(&schema)
+                        .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema.clone(),
+                            db: database.clone(),
+                        })?;
+                }
+                TableReference::full(database, schema, String::new())
+            }
+            ShowType::Table | ShowType::View => {
+                let (database, schema, table) = match parts.as_slice() {
+                    [t] => (self.current_database(), self.current_schema(), t.clone()),
+                    [s, t] => (self.current_database(), s.clone(), t.clone()),
+                    [d, s, t] => (d.clone(), s.clone(), t.clone()),
+                    _ => (
+                        self.current_database(),
+                        self.current_schema(),
+                        String::new(),
+                    ),
+                };
+                let catalog = self.get_catalog(&database).map_err(|_| {
+                    ex_error::DatabaseNotFoundSnafu {
+                        db: database.clone(),
+                    }
+                    .build()
+                })?;
+                let schema_prov =
+                    catalog
+                        .schema(&schema)
+                        .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema.clone(),
+                            db: database.clone(),
+                        })?;
+                if !schema_prov.table_exist(&table) {
+                    return ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                        table,
+                        schema: schema.clone(),
+                        db: database,
+                    }
+                    .fail()?;
+                }
+                TableReference::full(database, schema, table)
+            }
         };
-        TableReference::full(catalog, schema, table_name)
+        Ok(table_ref)
     }
 
     #[instrument(

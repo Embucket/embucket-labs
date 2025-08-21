@@ -1,7 +1,6 @@
 ---
 source: crates/core-executor/src/tests/query.rs
 description: "\"SELECT CURRENT_IP_ADDRESS()\""
-snapshot_kind: text
 ---
 Ok(
     [

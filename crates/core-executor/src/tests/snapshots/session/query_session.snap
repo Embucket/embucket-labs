@@ -1,7 +1,6 @@
 ---
 source: crates/core-executor/src/tests/query.rs
 description: "\"SELECT CURRENT_ROLE_TYPE(), CURRENT_ROLE()\""
-snapshot_kind: text
 ---
 Ok(
     [

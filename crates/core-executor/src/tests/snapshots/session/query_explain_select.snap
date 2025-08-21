@@ -2,7 +2,6 @@
 source: crates/core-executor/src/tests/query.rs
 description: "\"EXPLAIN SELECT * FROM embucket.public.employee_table\""
 info: "Setup queries: SET datafusion.explain.logical_plan_only = true"
-snapshot_kind: text
 ---
 Ok(
     [

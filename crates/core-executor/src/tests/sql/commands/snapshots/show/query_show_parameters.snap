@@ -1,0 +1,10 @@
+---
+source: crates/core-executor/src/tests/sql/commands/show.rs
+description: "\"SHOW PARAMETERS\""
+---
+Ok(
+    [
+        "++",
+        "++",
+    ],
+)

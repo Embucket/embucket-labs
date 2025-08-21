@@ -1,7 +1,7 @@
 ---
-source: crates/core-executor/src/tests/query.rs
+source: crates/core-executor/src/tests/sql/commands/show.rs
 description: "\"SHOW VARIABLES\""
-info: "Setup queries: ALTER SESSION SET v1 = 'test'"
+info: "Setup queries: SET v1 = 'test'"
 ---
 Ok(
     [
