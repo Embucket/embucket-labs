@@ -47,8 +47,8 @@ use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::planner::ParserOptions;
 use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor,
+    CreateTable as CreateTableStatement, DescribeAlias, Expr, Ident, ObjectName, Query, SchemaName,
+    Statement, TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
@@ -414,6 +414,13 @@ impl UserQuery {
                 }
                 Statement::Drop { .. } => return Box::pin(self.drop_query(*s)).await,
                 Statement::Merge { .. } => return Box::pin(self.merge_query(*s)).await,
+                Statement::ExplainTable {
+                    describe_alias: DescribeAlias::Describe | DescribeAlias::Desc,
+                    table_name,
+                    ..
+                } => {
+                    return Box::pin(self.describe_table_query(table_name)).await;
+                }
                 _ => {}
             }
         } else if let DFStatement::CreateExternalTable(cetable) = statement {
@@ -1800,6 +1807,52 @@ impl UserQuery {
                 .fail();
             }
         };
+        Box::pin(self.execute_with_custom_plan(&query)).await
+    }
+
+    pub async fn describe_table_query(&self, table_name: ObjectName) -> Result<QueryResult> {
+        // Convert ObjectName to string for processing
+        let table_name_str = object_name_to_string(&table_name);
+
+        // Parse table name to handle qualified names like database.schema.table
+        let table_parts: Vec<&str> = table_name_str.split('.').collect();
+        let (catalog, schema, table) = match table_parts.len() {
+            1 => (
+                self.current_database(),
+                self.current_schema(),
+                table_parts[0].to_string(),
+            ),
+            2 => (
+                self.current_database(),
+                table_parts[0].to_string(),
+                table_parts[1].to_string(),
+            ),
+            3 => (
+                table_parts[0].to_string(),
+                table_parts[1].to_string(),
+                table_parts[2].to_string(),
+            ),
+            _ => {
+                return ex_error::InvalidTableIdentifierSnafu {
+                    ident: table_name_str,
+                }
+                .fail();
+            }
+        };
+
+        // Build custom SQL query with renamed columns
+        let query = format!(
+            "SELECT 
+                column_name as name,
+                data_type as type,
+                is_nullable as 'null?'
+            FROM {catalog}.information_schema.columns
+            WHERE table_catalog = '{catalog}' 
+              AND table_schema = '{schema}' 
+              AND table_name = '{table}'
+            ORDER BY ordinal_position"
+        );
+
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 

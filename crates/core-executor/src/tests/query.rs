@@ -275,6 +275,9 @@ test_query!(
     QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1;"
 );
 
+// DESCRIBE TABLE
+test_query!(describe_table, "DESCRIBE TABLE employee_table");
+
 // SESSION RELATED https://docs.snowflake.com/en/sql-reference/commands-session
 test_query!(
     alter_session_set,
