@@ -85,7 +85,12 @@ impl ScalarUDFImpl for ToObjectFunc {
                         |str| {
                             match serde_json::from_str::<Value>(str) {
                                 Ok(Value::Object(_)) => Ok(Some(str)),
-                                _ => conv_errors::InvalidTypeForParameterSnafu {
+                                Ok(_) => conv_errors::FailedToCastVariantSnafu {
+                                    value: str.to_string(),
+                                    real_type: "OBJECT".to_string(),
+                                }
+                                .fail(),
+                                Err(_) => conv_errors::InvalidTypeForParameterSnafu {
                                     value: format!("'{str}'"),
                                     parameter: "TO_OBJECT".to_string(),
                                 }

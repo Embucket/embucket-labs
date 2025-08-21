@@ -198,6 +198,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Failed to cast variant value {value} to {real_type}"))]
+    FailedToCastVariant {
+        value: String,
+        real_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError
