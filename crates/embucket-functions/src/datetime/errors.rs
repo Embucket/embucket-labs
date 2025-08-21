@@ -58,6 +58,55 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    // DATEDIFF-specific errors
+    #[snafu(display("function requires three arguments"))]
+    DateDiffThreeArgsRequired {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "Date/time component {found} for function DATEDIFF needs to be an identifier or a string literal."
+    ))]
+    DateDiffFirstArgNotString {
+        found: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Second and third arguments must be Date, Time or Timestamp"))]
+    DateDiffSecondAndThirdInvalidTypes {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DATEDIFF does not support mixing TIME with DATE/TIMESTAMP"))]
+    DateDiffTimeMixingUnsupported {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid unit type format"))]
+    DateDiffInvalidUnitFormat {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display(
+        "{component} is not a valid date/time component for function DATEDIFF and type TIME."
+    ))]
+    DateDiffInvalidComponentForTime {
+        component: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Invalid date_or_time_part type"))]
+    DateDiffInvalidPartType {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError

@@ -5,11 +5,11 @@ use datafusion::arrow::array::{Array, ArrayRef, DurationNanosecondArray, Int32Ar
 use datafusion::arrow::compute::kernels::numeric::sub;
 use datafusion::arrow::compute::{DatePart, cast, date_part};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{Result, plan_err};
+use datafusion::common::Result;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::cast::{as_int32_array, as_int64_array};
-use datafusion_common::internal_err;
+use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
 use std::vec;
@@ -69,19 +69,44 @@ impl DateDiffFunc {
             .map_or_else(|| 0, |v| v.parse::<i64>().unwrap_or(0))
     }
 
+    const fn is_datetime_like(dt: &DataType) -> bool {
+        matches!(
+            dt,
+            DataType::Timestamp(_, _)
+                | DataType::Date32
+                | DataType::Date64
+                | DataType::Time32(_)
+                | DataType::Time64(_)
+                | DataType::Utf8
+                | DataType::LargeUtf8
+                | DataType::Null
+        )
+    }
+
+    const fn is_time(dt: &DataType) -> bool {
+        matches!(dt, DataType::Time32(_) | DataType::Time64(_))
+    }
+
     fn date_diff_func(
         &self,
         lhs: &Arc<dyn Array>,
         rhs: &Arc<dyn Array>,
         unit_type: DatePart,
     ) -> Result<ColumnarValue> {
+        // If input are TIME, handle separately
+        if matches!(lhs.data_type(), DataType::Time64(_)) {
+            return Self::time_only_diff(lhs, rhs, unit_type);
+        }
+
         let arr1 = cast(lhs, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
         let arr2 = cast(rhs, &DataType::Timestamp(TimeUnit::Nanosecond, None))?;
         let diff = sub(&arr2, &arr1)?;
         let diff_arr = diff
             .as_any()
             .downcast_ref::<DurationNanosecondArray>()
-            .ok_or_else(|| dtime_errors::CantCastToSnafu { v: "duration_nsec" }.build())?;
+            .context(dtime_errors::CantCastToSnafu {
+                v: "duration_nsec".to_string(),
+            })?;
         match unit_type {
             DatePart::Quarter | DatePart::Year | DatePart::YearISO => {
                 let arr1 = &date_part(&arr1, unit_type)?;
@@ -145,6 +170,46 @@ impl DateDiffFunc {
         }
     }
 
+    fn time_only_diff(
+        lhs: &Arc<dyn Array>,
+        rhs: &Arc<dyn Array>,
+        unit_type: DatePart,
+    ) -> Result<ColumnarValue> {
+        match unit_type {
+            DatePart::Hour
+            | DatePart::Minute
+            | DatePart::Second
+            | DatePart::Millisecond
+            | DatePart::Microsecond
+            | DatePart::Nanosecond => {
+                // Cast TIME to Int64 nanoseconds from midnight, compute diff
+                let lhs_i64 = cast(lhs, &DataType::Int64)?;
+                let rhs_i64 = cast(rhs, &DataType::Int64)?;
+                let diff_i64 = sub(&rhs_i64, &lhs_i64)?;
+                // Convert to Duration(Ns) to reuse the generic diff logic
+                let diff_ns = cast(&diff_i64, &DataType::Duration(TimeUnit::Nanosecond))?;
+                let diff_arr = diff_ns
+                    .as_any()
+                    .downcast_ref::<DurationNanosecondArray>()
+                    .context(dtime_errors::CantCastToSnafu {
+                        v: "duration_nsec".to_string(),
+                    })?;
+                Ok(match unit_type {
+                    DatePart::Hour => Self::diff(diff_arr, 3_600 * SECOND),
+                    DatePart::Minute => Self::diff(diff_arr, 60 * SECOND),
+                    DatePart::Second => Self::diff(diff_arr, SECOND),
+                    DatePart::Millisecond => Self::diff(diff_arr, 1_000_000),
+                    DatePart::Microsecond => Self::diff(diff_arr, 1_000),
+                    _ => Self::diff(diff_arr, 1),
+                })
+            }
+            _ => dtime_errors::DateDiffInvalidComponentForTimeSnafu {
+                component: format!("{unit_type:?}"),
+            }
+            .fail()?,
+        }
+    }
+
     fn weeks_diff(&self, diff_arr: &DurationNanosecondArray) -> ColumnarValue {
         let week_start = self.week_start();
         let nanos_in_day: i64 = 86_400_000_000_000;
@@ -193,7 +258,7 @@ impl ScalarUDFImpl for DateDiffFunc {
 
     fn coerce_types(&self, arg_types: &[DataType]) -> Result<Vec<DataType>> {
         if arg_types.len() != 3 {
-            return plan_err!("function requires three arguments");
+            return dtime_errors::DateDiffThreeArgsRequiredSnafu.fail()?;
         }
 
         let part_type = &arg_types[0];
@@ -203,26 +268,27 @@ impl ScalarUDFImpl for DateDiffFunc {
         let coerced0 = match part_type {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Null => DataType::Utf8,
             other => {
-                return plan_err!("First argument must be a string, but found {:?}", other);
+                return dtime_errors::DateDiffFirstArgNotStringSnafu {
+                    found: format!("{other:?}"),
+                }
+                .fail()?;
             }
         };
 
-        fn is_datetime_like(dt: &DataType) -> bool {
-            matches!(
-                dt,
-                DataType::Timestamp(_, _)
-                    | DataType::Date32
-                    | DataType::Date64
-                    | DataType::Time32(_)
-                    | DataType::Time64(_)
-                    | DataType::Utf8
-                    | DataType::LargeUtf8
-                    | DataType::Null
-            )
+        if !Self::is_datetime_like(arg1) || !Self::is_datetime_like(arg2) {
+            return dtime_errors::DateDiffSecondAndThirdInvalidTypesSnafu.fail()?;
         }
 
-        if !is_datetime_like(arg1) || !is_datetime_like(arg2) {
-            return plan_err!("Second and third arguments must be date, time, timestamp or string");
+        // TIME cannot be mixed with other types. If either argument is TIME, both must be TIME.
+        if Self::is_time(arg1) || Self::is_time(arg2) {
+            if Self::is_time(arg1) && Self::is_time(arg2) {
+                return Ok(vec![
+                    coerced0,
+                    DataType::Time64(TimeUnit::Nanosecond),
+                    DataType::Time64(TimeUnit::Nanosecond),
+                ]);
+            }
+            return dtime_errors::DateDiffTimeMixingUnsupportedSnafu.fail()?;
         }
 
         Ok(vec![
@@ -234,7 +300,7 @@ impl ScalarUDFImpl for DateDiffFunc {
 
     fn return_type(&self, arg_types: &[DataType]) -> Result<DataType> {
         if arg_types.len() != 3 {
-            return internal_err!("function requires three arguments");
+            return dtime_errors::DateDiffThreeArgsRequiredSnafu.fail()?;
         }
         Ok(DataType::Int64)
     }
@@ -243,11 +309,11 @@ impl ScalarUDFImpl for DateDiffFunc {
         let args = &args.args;
 
         if args.len() != 3 {
-            return plan_err!("function requires three arguments");
+            return dtime_errors::DateDiffThreeArgsRequiredSnafu.fail()?;
         }
         let date_or_time_part = match &args[0] {
             ColumnarValue::Scalar(ScalarValue::Utf8(Some(part))) => part.clone(),
-            _ => return plan_err!("Invalid unit type format"),
+            _ => return dtime_errors::DateDiffInvalidUnitFormatSnafu.fail()?,
         };
         let len = match (&args[1], &args[2]) {
             (ColumnarValue::Array(arr1), _) => arr1.len(),
@@ -302,7 +368,7 @@ impl ScalarUDFImpl for DateDiffFunc {
                     DatePart::Nanosecond,
                 )
             }
-            _ => plan_err!("Invalid date_or_time_part type")?,
+            _ => dtime_errors::DateDiffInvalidPartTypeSnafu.fail()?,
         }
     }
     fn aliases(&self) -> &[String] {
