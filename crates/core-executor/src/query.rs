@@ -430,8 +430,8 @@ impl UserQuery {
             .catalog_list()
             .catalog(name)
             .ok_or_else(|| {
-                ex_error::CatalogNotFoundSnafu {
-                    catalog: name.to_string(),
+                ex_error::DatabaseNotFoundSnafu {
+                    db: name.to_string(),
                 }
                 .build()
             })
@@ -1869,12 +1869,7 @@ impl UserQuery {
         let table_ref = match parent_type {
             ShowType::Account | ShowType::Database => {
                 let database = parts.join("");
-                self.get_catalog(&database).map_err(|_| {
-                    ex_error::DatabaseNotFoundSnafu {
-                        db: database.clone(),
-                    }
-                    .build()
-                })?;
+                self.get_catalog(&database)?;
                 TableReference::full(database, String::new(), String::new())
             }
             ShowType::Schema => {
@@ -1883,12 +1878,7 @@ impl UserQuery {
                     [d, s] => (d.clone(), s.clone()),
                     _ => (String::new(), String::new()),
                 };
-                let catalog = self.get_catalog(&database).map_err(|_| {
-                    ex_error::DatabaseNotFoundSnafu {
-                        db: database.clone(),
-                    }
-                    .build()
-                })?;
+                let catalog = self.get_catalog(&database)?;
                 // Information schema is not registered in catalog
                 if schema != INFORMATION_SCHEMA {
                     catalog
@@ -1911,12 +1901,7 @@ impl UserQuery {
                         String::new(),
                     ),
                 };
-                let catalog = self.get_catalog(&database).map_err(|_| {
-                    ex_error::DatabaseNotFoundSnafu {
-                        db: database.clone(),
-                    }
-                    .build()
-                })?;
+                let catalog = self.get_catalog(&database)?;
                 let schema_prov =
                     catalog
                         .schema(&schema)
