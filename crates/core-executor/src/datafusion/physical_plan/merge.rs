@@ -11,7 +11,9 @@ use datafusion::{
     physical_expr::EquivalenceProperties,
 };
 use datafusion_common::{DFSchemaRef, DataFusionError};
-use datafusion_iceberg::{DataFusionTable, error::Error as DataFusionIcebergError};
+use datafusion_iceberg::{
+    DataFusionTable, error::Error as DataFusionIcebergError, table::write_parquet_data_files,
+};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PhysicalExpr, PlanProperties,
     RecordBatchStream, SendableRecordBatchStream,
@@ -20,11 +22,8 @@ use datafusion_physical_plan::{
     projection::ProjectionExec,
     stream::RecordBatchStreamAdapter,
 };
-use futures::{Stream, StreamExt, TryStreamExt};
-use iceberg_rust::{
-    arrow::write::write_parquet_partitioned, catalog::tabular::Tabular,
-    error::Error as IcebergError,
-};
+use futures::{Stream, StreamExt};
+use iceberg_rust::{catalog::tabular::Tabular, error::Error as IcebergError};
 use lru::LruCache;
 use pin_project_lite::pin_project;
 use snafu::ResultExt;
@@ -147,7 +146,7 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
         let projection =
             ProjectionExec::try_new(schema_projection(&self.input.schema()), filtered)?;
 
-        let batches = projection.execute(partition, context)?;
+        let batches = projection.execute(partition, context.clone())?;
 
         let stream = futures::stream::once({
             let tabular = self.target.tabular.clone();
@@ -163,12 +162,8 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
                 .map_err(DataFusionIcebergError::from)?;
 
                 // Write recordbatches into parquet files on object-storage
-                let datafiles = write_parquet_partitioned(
-                    table,
-                    batches.map_err(Into::into),
-                    branch.as_deref(),
-                )
-                .await?;
+                let datafiles =
+                    write_parquet_data_files(table, batches, &context, branch.as_deref()).await?;
 
                 let matching_files = {
                     #[allow(clippy::unwrap_used)]
