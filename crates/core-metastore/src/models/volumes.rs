@@ -315,11 +315,11 @@ impl Volume {
     }
 }
 
-/// Creates an ObjectStore from a URL string with optional endpoint.
+/// Creates an `ObjectStore` from a URL string with optional endpoint.
 /// This utility function handles creating object stores for different URL schemes.
 ///
 /// # Arguments
-/// * `url_str` - The URL string (e.g., "s3://bucket/path", "file:///path")
+/// * `url_str` - The URL string (e.g., "<s3://bucket/path>", "<file:///path>")
 /// * `endpoint` - Optional custom endpoint for S3
 ///
 /// # Returns

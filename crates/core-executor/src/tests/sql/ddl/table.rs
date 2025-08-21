@@ -219,3 +219,13 @@ test_query!(
     ],
     snapshot_path = "table"
 );
+
+test_query!(
+    drop_table_if_exists_uppercase_quoted_table_name,
+    "DROP TABLE IF EXISTS \"EMBUCKET\".\"PUBLIC_SNOWPLOW_MANIFEST\".\"TABLE_TO_DROP\" cascade",
+    setup_queries = [
+        "CREATE SCHEMA embucket.public_snowplow_manifest",
+        "CREATE TABLE embucket.public_snowplow_manifest.table_to_drop (id INT)",
+    ],
+    snapshot_path = "table"
+);
