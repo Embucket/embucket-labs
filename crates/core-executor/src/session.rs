@@ -81,7 +81,12 @@ impl UserSession {
                         "datafusion.execution.skip_physical_aggregate_schema_check",
                         true,
                     )
-                    .set_bool("datafusion.sql_parser.parse_float_as_decimal", true),
+                    .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
+                    .set_usize("datafusion.execution.minimum_parallel_output_files", 1)
+                    .set_usize(
+                        "datafusion.execution.parquet.maximum_parallel_row_group_writers",
+                        4,
+                    ),
             )
             .with_default_features()
             .with_runtime_env(runtime_env)
