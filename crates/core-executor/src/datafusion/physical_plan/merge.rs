@@ -573,6 +573,10 @@ fn create_matching_data_files(
 /// # Returns
 /// * `Result<HashSet<String>, DataFusionError>` - `HashSet` of unique string values or an error
 fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> {
+    if array.is_empty() {
+        return Ok(HashSet::new());
+    }
+
     let first = downcast_array::<StringArray>(array).value(0).to_owned();
 
     let slice_len = array.len() - 1;
@@ -631,6 +635,10 @@ fn unique_files_and_manifests(
     files: &dyn Array,
     manifests: &dyn Array,
 ) -> Result<HashMap<String, String>, DataFusionError> {
+    if files.is_empty() {
+        return Ok(HashMap::new());
+    }
+
     let first_file = downcast_array::<StringArray>(files).value(0).to_owned();
     let first_manifest = downcast_array::<StringArray>(manifests).value(0).to_owned();
 
