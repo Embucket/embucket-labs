@@ -1,7 +1,7 @@
 # DBT Run Summary
-PASS: 30
+PASS: 31
 WARN: 0
-ERROR: 1
+ERROR: 0
 SKIP: 0
 TOTAL: 31
 
