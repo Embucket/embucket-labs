@@ -90,6 +90,8 @@ pub struct ResponseData {
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sql_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_id: Option<String>,
 }
 
 impl ResponseData {

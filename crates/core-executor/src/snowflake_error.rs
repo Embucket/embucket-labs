@@ -177,7 +177,7 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                 entity_type: Entity::Table,
             }
             .build(),
-            status_code: StatusCode::TableNotFound,
+            status_code: StatusCode::NotFound,
         },
         Error::SchemaNotFoundInDatabase { schema, db, .. } => SnowflakeError::SqlCompilation {
             error: EntityDoesntExistSnafu {
@@ -185,7 +185,7 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                 entity_type: Entity::Schema,
             }
             .build(),
-            status_code: StatusCode::SchemaNotFound,
+            status_code: StatusCode::NotFound,
         },
         Error::DatabaseNotFound { db: catalog, .. } | Error::CatalogNotFound { catalog, .. } => {
             SnowflakeError::SqlCompilation {
@@ -194,7 +194,7 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                     entity_type: Entity::Database,
                 }
                 .build(),
-                status_code: StatusCode::DatabaseNotFound,
+                status_code: StatusCode::NotFound,
             }
         }
         Error::NotSupportedStatement { statement, .. } => SnowflakeError::SqlCompilation {
@@ -272,7 +272,7 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
                 entity_type: Entity::Schema,
             }
             .build(),
-            status_code: StatusCode::SchemaNotFound,
+            status_code: StatusCode::NotFound,
         },
         _ => CustomSnafu {
             message: format_message(&subtext, message),

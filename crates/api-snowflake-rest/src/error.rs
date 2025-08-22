@@ -1,4 +1,5 @@
 use crate::schemas::JsonResponse;
+use crate::schemas::ResponseData;
 use axum::{Json, http, response::IntoResponse};
 use core_executor::status_code::StatusCode;
 use datafusion::arrow::error::ArrowError;
@@ -121,35 +122,57 @@ impl IntoResponse for Error {
     )]
     #[allow(clippy::too_many_lines)]
     fn into_response(self) -> axum::response::Response<axum::body::Body> {
-        let status_code = match &self {
+        // TODO: Here we have different status codes for different errors
+        // - first, there is http status code
+        // - second, there is snowflake error status code
+        // - third, there is snowflake error sqlState
+        // For a very specific error we need to be able to match all three, message is much less relevant
+
+        // SQLSTATE - consists of 5 bytes. They are divided into two parts: the first and second bytes contain a class and the following three a subclass.
+        // Each class belongs to one of four categories: "S" denotes "Success" (class 00), "W" denotes "Warning" (class 01), "N" denotes "No data" (class 02),
+        // and "X" denotes "Exception" (all other classes).
+        let (http_code, sql_state, status_code) = match &self {
             Self::Execution { source } => match source.to_snowflake_error().status_code() {
-                StatusCode::Internal => http::StatusCode::INTERNAL_SERVER_ERROR,
-                StatusCode::ObjectStore => http::StatusCode::SERVICE_UNAVAILABLE,
-                _ => http::StatusCode::OK,
+                StatusCode::Internal => (
+                    http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "02000",
+                    StatusCode::Internal,
+                ),
+                StatusCode::ObjectStore => (
+                    http::StatusCode::SERVICE_UNAVAILABLE,
+                    "02000",
+                    StatusCode::ObjectStore,
+                ),
+                StatusCode::NotFound => (http::StatusCode::OK, "02000", StatusCode::NotFound),
+                _ => (http::StatusCode::OK, "02000", StatusCode::Other),
             },
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
-            | Self::InvalidWarehouseIdFormat { .. } => http::StatusCode::BAD_REQUEST,
+            | Self::InvalidWarehouseIdFormat { .. } => {
+                (http::StatusCode::BAD_REQUEST, "02000", StatusCode::Other)
+            }
             Self::MissingAuthToken { .. }
             | Self::MissingDbtSession { .. }
             | Self::InvalidAuthData { .. }
-            | Self::InvalidAuthToken { .. } => http::StatusCode::UNAUTHORIZED,
+            | Self::InvalidAuthToken { .. } => {
+                (http::StatusCode::UNAUTHORIZED, "02000", StatusCode::Other)
+            }
             Self::RowParse { .. }
             | Self::Utf8 { .. }
             | Self::Arrow { .. }
-            | Self::NotImplemented { .. } => http::StatusCode::OK,
+            | Self::NotImplemented { .. } => (http::StatusCode::OK, "02000", StatusCode::Other),
         };
 
         let display_error = self.display_error_message();
         // Give more context to user, not just "Internal server error"
         // if status_code == http::StatusCode::INTERNAL_SERVER_ERROR {
         //     display_error = "Internal server error".to_string();
-        // }
+        // }sno
 
         // Record the result as part of the current span.
         tracing::Span::current()
-            .record("status_code", status_code.as_u16())
+            .record("status_code", status_code.to_string())
             .record("query_id", self.query_id())
             .record("display_error", &display_error)
             .record("debug_error", self.debug_error_message())
@@ -160,11 +183,22 @@ impl IntoResponse for Error {
             success: false,
             message: Some(display_error),
             // TODO: On error data field contains details about actual error
-            // {'data': {'internalError': False, 'unredactedFromSecureObject': False, 'errorCode': '002003', 'age': 0, 'sqlState': '02000', 'queryId': '01bb407f-0002-97af-0004-d66e006a69fa', 'line': 1, 'pos': 14, 'type': 'COMPILATION'}}
-            data: None,
-            code: Some(status_code.as_u16().to_string()),
+            // {'data': {'internalError': False, 'unredactedFromSecureObject': False, 'errorCode': '002043', 'age': 0, 'sqlState': '02000', 'queryId': '01be8b7b-0003-6429-0004-d66e02e60096', 'line': -1, 'pos': -1, 'type': 'COMPILATION'}, 'code': '002043', 'message': 'SQL compilation error:\nObject does not exist, or operation cannot be performed.', 'success': False, 'headers': None}
+            // {'data': {'rowtype': [], 'rowsetBase64': None, 'rowset': None, 'total': None, 'queryResultFormat': None, 'errorCode': '002043', 'sqlState': '02000'}, 'success': False, 'message': "8244114031572: SQL compilation error: Schema 'embucket.no' does not exist or not authorized", 'code': '002043'}
+            data: Some(ResponseData {
+                error_code: Some(status_code.to_string()),
+                sql_state: Some(sql_state.to_string()),
+                // TODO: fill in other fields, some of them shouldn't be here at all for errors
+                row_type: Vec::new(),
+                row_set_base_64: None,
+                row_set: None,
+                total: None,
+                query_result_format: None,
+                query_id: Some(self.query_id()),
+            }),
+            code: Some(status_code.to_string()),
         });
-        (status_code, body).into_response()
+        (http_code, body).into_response()
     }
 }
 
@@ -179,11 +213,7 @@ impl Error {
 
     pub fn display_error_message(&self) -> String {
         if let Self::Execution { source, .. } = self {
-            format!(
-                "{}: {}",
-                source.query_id(),
-                source.to_snowflake_error().display_error_message()
-            )
+            source.to_snowflake_error().display_error_message()
         } else {
             self.to_string()
         }
