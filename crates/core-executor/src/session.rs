@@ -26,11 +26,15 @@ use embucket_functions::session_params::{SessionParams, SessionProperty};
 use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::num::NonZero;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
+use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
+static MINIMUM_PARALLEL_OUTPUT_FILES: usize = 1;
+static PARALLEL_ROW_GROUP_RATIO: usize = 4;
 
 #[must_use]
 pub const fn to_unix(t: OffsetDateTime) -> i64 {
@@ -66,6 +70,8 @@ impl UserSession {
         // That's a hack to use our custom expr planner first and default ones later. We probably need to get rid of default planners at some point.
         expr_planners.insert(0, Arc::new(CustomExprPlanner));
 
+        let parallelism_opt = available_parallelism().ok().map(NonZero::get);
+
         let session_params = SessionParams::default();
         let session_params_arc = Arc::new(session_params.clone());
         let state = SessionStateBuilder::new()
@@ -82,10 +88,13 @@ impl UserSession {
                         true,
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
-                    .set_usize("datafusion.execution.minimum_parallel_output_files", 1)
+                    .set_usize(
+                        "datafusion.execution.minimum_parallel_output_files",
+                        MINIMUM_PARALLEL_OUTPUT_FILES,
+                    )
                     .set_usize(
                         "datafusion.execution.parquet.maximum_parallel_row_group_writers",
-                        4,
+                        parallelism_opt.map_or(1, |x| x / PARALLEL_ROW_GROUP_RATIO),
                     ),
             )
             .with_default_features()
