@@ -1,6 +1,6 @@
 
 # Errors grouped by high-level categories
-      1 Other error
+      1 SQL compilation error
 
 # Errors grouped by type (comprehensive analysis)
 
