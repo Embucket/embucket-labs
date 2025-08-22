@@ -1,6 +1,7 @@
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
 use datafusion_common::arrow::datatypes::Schema;
+use embucket_functions::to_snowflake_datatype;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -132,6 +133,7 @@ impl ColumnInfo {
             collation: None,
         };
 
+        column_info.r#type = to_snowflake_datatype(field.data_type());
         match field.data_type() {
             DataType::Int8
             | DataType::Int16
@@ -141,43 +143,27 @@ impl ColumnInfo {
             | DataType::UInt16
             | DataType::UInt32
             | DataType::UInt64 => {
-                column_info.r#type = "fixed".to_string();
                 column_info.precision = Some(38);
                 column_info.scale = Some(0);
             }
             DataType::Float16 | DataType::Float32 | DataType::Float64 => {
-                column_info.r#type = "real".to_string();
                 column_info.precision = Some(38);
                 column_info.scale = Some(16);
             }
             DataType::Decimal128(precision, scale) | DataType::Decimal256(precision, scale) => {
-                column_info.r#type = "fixed".to_string();
                 column_info.precision = Some(i32::from(*precision));
                 column_info.scale = Some(i32::from(*scale));
             }
-            DataType::Boolean => {
-                column_info.r#type = "boolean".to_string();
-            }
             // Varchar, Char, Utf8
             DataType::Utf8 => {
-                column_info.r#type = "text".to_string();
                 column_info.byte_length = Some(16_777_216);
                 column_info.length = Some(16_777_216);
             }
             DataType::Time32(_) | DataType::Time64(_) => {
-                column_info.r#type = "time".to_string();
                 column_info.precision = Some(0);
                 column_info.scale = Some(9);
             }
-            DataType::Date32 | DataType::Date64 => {
-                column_info.r#type = "date".to_string();
-            }
-            DataType::Timestamp(unit, tz) => {
-                if let Some(_tz) = tz {
-                    column_info.r#type = "timestamp_tz".to_string();
-                } else {
-                    column_info.r#type = "timestamp_ntz".to_string();
-                }
+            DataType::Timestamp(unit, _) => {
                 column_info.precision = Some(0);
                 let scale = match unit {
                     TimeUnit::Second => 0,
@@ -188,13 +174,10 @@ impl ColumnInfo {
                 column_info.scale = Some(scale);
             }
             DataType::Binary | DataType::BinaryView => {
-                column_info.r#type = "binary".to_string();
                 column_info.byte_length = Some(8_388_608);
                 column_info.length = Some(8_388_608);
             }
-            _ => {
-                column_info.r#type = "text".to_string();
-            }
+            _ => {}
         }
         column_info
     }

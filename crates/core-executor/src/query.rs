@@ -1811,20 +1811,12 @@ impl UserQuery {
     }
 
     pub async fn describe_table_query(&self, table_name: ObjectName) -> Result<QueryResult> {
-        // Use existing table name resolution logic
         let resolved_ident = self.resolve_table_object_name(table_name.0)?;
         let table_ident = self.resolve_table_ref(&resolved_ident);
-
-        // Build custom SQL query with renamed columns
-        // TODO: How to map data_type (Datafusion) to type (Snowflake) better?
         let query = format!(
             "SELECT 
                 column_name as name,
-                CASE 
-                    WHEN data_type = 'Utf8' THEN 'TEXT'
-                    WHEN data_type ILIKE '%timestamp%' THEN 'Timestamp'
-                    ELSE data_type
-                END as type,
+                upper(snowflake_data_type) as type,
                 is_nullable as 'null?'
             FROM {}.information_schema.columns
             WHERE table_catalog = '{}' 
@@ -1833,7 +1825,6 @@ impl UserQuery {
             ORDER BY ordinal_position",
             table_ident.catalog, table_ident.catalog, table_ident.schema, table_ident.table
         );
-
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 

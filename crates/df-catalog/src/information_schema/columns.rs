@@ -19,6 +19,7 @@ use datafusion_expr::TableType;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
+use embucket_functions::to_snowflake_datatype;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ impl InformationSchemaColumns {
             Field::new("column_default", Utf8, true),
             Field::new("is_nullable", Utf8, false),
             Field::new("data_type", Utf8, false),
+            Field::new("snowflake_data_type", Utf8, false),
             Field::new("character_maximum_length", UInt64, true),
             Field::new("character_octet_length", UInt64, true),
             Field::new("numeric_precision", UInt64, true),
@@ -70,6 +72,7 @@ impl InformationSchemaColumns {
             column_defaults: StringBuilder::new(),
             is_nullables: StringBuilder::new(),
             data_types: StringBuilder::new(),
+            snowflake_data_types: StringBuilder::new(),
             character_maximum_lengths: UInt64Builder::with_capacity(default_capacity),
             character_octet_lengths: UInt64Builder::with_capacity(default_capacity),
             numeric_precisions: UInt64Builder::with_capacity(default_capacity),
@@ -112,6 +115,7 @@ pub struct InformationSchemaColumnsBuilder {
     column_defaults: StringBuilder,
     is_nullables: StringBuilder,
     data_types: StringBuilder,
+    snowflake_data_types: StringBuilder,
     character_maximum_lengths: UInt64Builder,
     character_octet_lengths: UInt64Builder,
     numeric_precisions: UInt64Builder,
@@ -155,6 +159,8 @@ impl InformationSchemaColumnsBuilder {
         // "System supplied type" --> Use debug format of the datatype
         self.data_types
             .append_value(format!("{:?}", field.data_type()));
+        self.snowflake_data_types
+            .append_value(to_snowflake_datatype(field.data_type()));
 
         // "If data_type identifies a character or bit string type, the
         // declared maximum length; null for all other data types or
@@ -231,6 +237,7 @@ impl InformationSchemaColumnsBuilder {
                 Arc::new(self.column_defaults.finish()),
                 Arc::new(self.is_nullables.finish()),
                 Arc::new(self.data_types.finish()),
+                Arc::new(self.snowflake_data_types.finish()),
                 Arc::new(self.character_maximum_lengths.finish()),
                 Arc::new(self.character_octet_lengths.finish()),
                 Arc::new(self.numeric_precisions.finish()),
