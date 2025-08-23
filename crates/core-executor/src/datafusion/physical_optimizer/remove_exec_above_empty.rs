@@ -52,8 +52,9 @@ impl PhysicalOptimizerRule for RemoveExecAboveEmpty {
         _config: &ConfigOptions,
     ) -> DFResult<Arc<dyn ExecutionPlan>> {
         plan.transform_up(|plan| {
-            // Skip EmptyExec itself
-            if plan.as_any().is::<EmptyExec>() {
+            // Skip EmptyExec itself and do not replace aggregate operations with EmptyExec because they should
+            // still return results even on empty tables (e.g., COUNT(*) should return 0)
+            if plan.as_any().is::<EmptyExec>() || contains_aggregates(&plan) {
                 return Ok(Transformed::no(plan));
             }
 
@@ -64,14 +65,7 @@ impl PhysicalOptimizerRule for RemoveExecAboveEmpty {
 
             // Replace the current node with EmptyExec if all inputs are EmptyExec
             let all_empty = inputs.iter().all(|input| input.as_any().is::<EmptyExec>());
-
             if all_empty {
-                // Do not replace aggregate operations with EmptyExec because they should
-                // still return results even on empty tables (e.g., COUNT(*) should return 0)
-                if plan.as_any().is::<AggregateExec>() {
-                    return Ok(Transformed::no(plan));
-                }
-
                 return Ok(Transformed::yes(Arc::new(EmptyExec::new(plan.schema()))));
             }
 
@@ -87,6 +81,17 @@ impl PhysicalOptimizerRule for RemoveExecAboveEmpty {
     fn schema_check(&self) -> bool {
         true
     }
+}
+
+/// Check if the execution plan contains any aggregate operations
+fn contains_aggregates(plan: &Arc<dyn ExecutionPlan>) -> bool {
+    if plan.as_any().is::<AggregateExec>() {
+        return true;
+    }
+
+    plan.children()
+        .iter()
+        .any(|child| contains_aggregates(child))
 }
 
 #[cfg(test)]
