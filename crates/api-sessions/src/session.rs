@@ -40,19 +40,19 @@ impl SessionStore {
                     .map(|(id, session)| (id.clone(), session.expiry.clone()))
                     .collect()
             };
-            
+
             let now = OffsetDateTime::now_utc();
             tracing::trace!("Starting to delete expired for: {}", now);
             //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
 
             let mut session_ids = Vec::new();
-            for (session_id, expiry_mutex) in sessions_mutexes.iter() {
+            for (session_id, expiry_mutex) in &sessions_mutexes {
                 let expiry = expiry_mutex.lock().await;
                 if *expiry <= now {
                     session_ids.push(session_id.clone());
                 }
             }
-            
+
             for session_id in session_ids {
                 let _ = self.execution_svc.delete_session(session_id).await;
             }
