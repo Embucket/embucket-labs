@@ -13,3 +13,10 @@ test_query!(
     setup_queries = ["CREATE TABLE empty_table (id INT)"],
     snapshot_path = "aggregate"
 );
+
+test_query!(
+    count_cte_with_group_by,
+    "SELECT COUNT(*) FROM empty_table GROUP BY id",
+    setup_queries = ["CREATE TABLE empty_table (id INT)"],
+    snapshot_path = "aggregate"
+);
