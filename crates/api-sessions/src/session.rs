@@ -29,24 +29,25 @@ impl SessionStore {
         interval.tick().await; // The first tick completes immediately; skip.
         loop {
             interval.tick().await;
-            let sessions = self.execution_svc.get_sessions().await;
-
-            // Acquire read lock while looking for expired sessions
-            let sessions = sessions.read().await;
-
-            let now = OffsetDateTime::now_utc();
-            tracing::trace!("Starting to delete expired for: {}", now);
-            //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
             let mut session_ids = Vec::new();
-            for (session_id, session) in sessions.iter() {
-                let expiry = session.expiry.lock().await;
-                if *expiry <= now {
-                    session_ids.push(session_id.clone());
+            {
+                let sessions = self.execution_svc.get_sessions().await;
+                // Acquire read lock while looking for expired sessions
+                let sessions = sessions.read().await;
+
+                let now = OffsetDateTime::now_utc();
+                tracing::trace!("Starting to delete expired for: {}", now);
+                //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
+
+                for (session_id, session) in sessions.iter() {
+                    let expiry = session.expiry.lock().await;
+                    if *expiry <= now {
+                        session_ids.push(session_id.clone());
+                    }
                 }
             }
 
             for session_id in session_ids {
-                tracing::trace!("Deleting expired: {}", session_id);
                 let _ = self.execution_svc.delete_session(session_id).await;
             }
         }
