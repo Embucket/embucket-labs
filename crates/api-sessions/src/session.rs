@@ -29,24 +29,30 @@ impl SessionStore {
         interval.tick().await; // The first tick completes immediately; skip.
         loop {
             interval.tick().await;
-            let mut session_ids = Vec::new();
-            {
-                let sessions = self.execution_svc.get_sessions().await;
+            let sessions = self.execution_svc.get_sessions();
+
+            // Collect just the mutexes of the expiries, no locks on mutexes acquired here
+            let sessions_mutexes: Vec<_> = {
                 // Acquire read lock while looking for expired sessions
                 let sessions = sessions.read().await;
+                sessions
+                    .iter()
+                    .map(|(id, session)| (id.clone(), session.expiry.clone()))
+                    .collect()
+            };
+            
+            let now = OffsetDateTime::now_utc();
+            tracing::trace!("Starting to delete expired for: {}", now);
+            //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
 
-                let now = OffsetDateTime::now_utc();
-                tracing::trace!("Starting to delete expired for: {}", now);
-                //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
-
-                for (session_id, session) in sessions.iter() {
-                    let expiry = session.expiry.lock().await;
-                    if *expiry <= now {
-                        session_ids.push(session_id.clone());
-                    }
+            let mut session_ids = Vec::new();
+            for (session_id, expiry_mutex) in sessions_mutexes.iter() {
+                let expiry = expiry_mutex.lock().await;
+                if *expiry <= now {
+                    session_ids.push(session_id.clone());
                 }
             }
-
+            
             for session_id in session_ids {
                 let _ = self.execution_svc.delete_session(session_id).await;
             }
@@ -90,7 +96,7 @@ impl DFSessionId {
         execution_svc: Arc<dyn ExecutionService>,
         id: String,
     ) -> Result<Self, session_error::Error> {
-        let sessions = execution_svc.get_sessions().await;
+        let sessions = execution_svc.get_sessions();
 
         let mut sessions = sessions.write().await;
 

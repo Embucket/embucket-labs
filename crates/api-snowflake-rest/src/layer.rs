@@ -26,7 +26,7 @@ pub async fn require_auth(
         return crate::error::MissingAuthTokenSnafu.fail()?;
     };
 
-    let sessions = state.execution_svc.get_sessions().await; // `get_sessions` returns an RwLock
+    let sessions = state.execution_svc.get_sessions(); // `get_sessions` returns an RwLock
 
     let sessions = sessions.read().await;
 

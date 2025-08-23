@@ -20,7 +20,7 @@ pub async fn propagate_session_cookie(
     if let Some(token) = extract_token_from_cookie(req.headers()) {
         tracing::debug!("Found DF session_id in cookie header: {}", token);
 
-        let sessions = state.execution_svc.get_sessions().await;
+        let sessions = state.execution_svc.get_sessions();
 
         let sessions = sessions.read().await;
 
