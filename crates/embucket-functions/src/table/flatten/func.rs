@@ -155,9 +155,6 @@ impl TableFunctionImpl for FlattenTableFunc {
         if named_args_count > 0 && named_args_count != args.len() {
             return exec_err!("flatten() supports either all named arguments or positional");
         }
-        if named_args_count == 0 && args.len() != 5 {
-            return exec_err!("flatten() expects 5 args: INPUT, PATH, OUTER, RECURSIVE, MODE");
-        }
 
         let flatten_args = if named_args_count > 0 {
             get_named_args(args)?
@@ -257,8 +254,12 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<FlattenArgs> {
 }
 
 fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
+    if args.is_empty() {
+        return exec_err!("flatten() expects at least 1 argument: INPUT");
+    }
+
     // path
-    let path = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[1] {
+    let path = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = args.get(1) {
         if let Some(p) = tokenize_path(v) {
             p
         } else {
@@ -269,26 +270,25 @@ fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
     };
 
     // is_outer
-    let is_outer = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[2] {
+    let is_outer = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = &args.get(2) {
         *v
     } else {
         false
     };
 
     // is_recursive
-    let is_recursive = if let Expr::Literal(ScalarValue::Boolean(Some(v))) = &args[3] {
+    let is_recursive = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = &args.get(3) {
         *v
     } else {
         false
     };
 
     // mode
-    let mode = if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &args[4] {
+    let mode = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = &args.get(4) {
         match v.to_lowercase().as_str() {
             "object" => FlattenMode::Object,
             "array" => FlattenMode::Array,
-            "both" => FlattenMode::Both,
-            _ => return exec_err!("MODE must be one of: object, array, both"),
+            _ => FlattenMode::Both,
         }
     } else {
         FlattenMode::Both

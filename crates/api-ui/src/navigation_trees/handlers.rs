@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use super::error::ExecutionSnafu;
 use crate::downcast_string_column;
 use crate::error::{ErrorResponse, Result};

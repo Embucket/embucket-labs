@@ -10,14 +10,14 @@ pub struct UnimplementedFunctionError {
 
 impl std::fmt::Display for UnimplementedFunctionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(details) = &self.details {
-            if !details.is_empty() {
-                return write!(
-                    f,
-                    "Function '{}' is not implemented yet. Details: {}",
-                    self.function_name, details
-                );
-            }
+        if let Some(details) = &self.details
+            && !details.is_empty()
+        {
+            return write!(
+                f,
+                "Function '{}' is not implemented yet. Details: {}",
+                self.function_name, details
+            );
         }
 
         write!(

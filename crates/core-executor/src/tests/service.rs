@@ -550,3 +550,39 @@ async fn test_max_concurrency_level() {
     // Pass the barrier to allow the first two queries to finish
     barrier.wait().await;
 }
+
+#[tokio::test]
+#[allow(clippy::expect_used)]
+async fn test_query_timeout() {
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(
+            metastore.clone(),
+            history_store.clone(),
+            Arc::new(Config::default().with_query_timeout(1)),
+        )
+        .await
+        .expect("Failed to create execution service"),
+    );
+
+    let session = execution_svc
+        .create_session("test_session_id".to_string())
+        .await
+        .expect("Failed to create session");
+
+    // register sleep UDF for testing purposes
+    session.ctx.register_udf(sleep_udf());
+
+    let res = execution_svc
+        .query(
+            "test_session_id",
+            "SELECT sleep(3)",
+            QueryContext::default(),
+        )
+        .await;
+    assert!(
+        res.is_err(),
+        "Expected query execution exceeded timeout error but got {res:?}"
+    );
+}

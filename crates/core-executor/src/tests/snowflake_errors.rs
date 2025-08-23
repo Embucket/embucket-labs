@@ -1,4 +1,3 @@
-use crate::SnowflakeError;
 use crate::error as errors;
 use datafusion::error::DataFusionError;
 use datafusion_common::{Diagnostic, Location, Span};
@@ -46,10 +45,12 @@ fn test_datafusion_errors() {
 
 #[test]
 fn test_error_not_supported() {
-    let err = SnowflakeError::from(errors::Error::DataFusion {
+    let err = errors::Error::DataFusion {
         error: Box::new(DataFusionError::NotImplemented("1".into())),
         location: location!(),
-    });
+    }
+    .to_snowflake_error();
+
     if !err
         .to_string()
         .starts_with("SQL compilation error: unsupported feature")
@@ -60,7 +61,7 @@ fn test_error_not_supported() {
 
 #[test]
 fn test_error_diagnostic_location() {
-    let err = SnowflakeError::from(errors::Error::DataFusion {
+    let err = errors::Error::DataFusion {
         error: Box::new(DataFusionError::Diagnostic(
             Box::new(Diagnostic::new_error(
                 "err",
@@ -72,7 +73,8 @@ fn test_error_diagnostic_location() {
             Box::new(DataFusionError::Plan("plan".into())),
         )),
         location: location!(),
-    });
+    }
+    .to_snowflake_error();
     if !err
         .to_string()
         .starts_with("SQL compilation error: error line 1 at position 2\n")

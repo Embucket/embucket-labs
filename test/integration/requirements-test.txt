@@ -1,0 +1,5 @@
+pytest>=7.4
+PyYAML>=6.0
+snowflake-connector-python>=3.6
+pyspark==3.5
+findspark>=2.0.1

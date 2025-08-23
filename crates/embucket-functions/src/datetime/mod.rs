@@ -16,17 +16,23 @@ pub mod next_day;
 pub mod previous_day;
 pub mod time_from_parts;
 pub mod timestamp_from_parts;
+use crate::datetime::convert_timezone::ConvertTimezoneFunc;
+use crate::datetime::date_diff::DateDiffFunc;
+use crate::datetime::last_day::LastDayFunc;
+use crate::session_params::SessionParams;
 pub use errors::Error;
 
-pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::Result<()> {
+pub fn register_udfs(
+    registry: &mut dyn FunctionRegistry,
+    session_params: &Arc<SessionParams>,
+) -> datafusion_common::Result<()> {
     let functions: Vec<Arc<ScalarUDF>> = vec![
         add_months::get_udf(),
-        convert_timezone::get_udf(),
         date_add::get_udf(),
-        date_diff::get_udf(),
+        Arc::new(ScalarUDF::from(DateDiffFunc::new(session_params.clone()))),
         date_from_parts::get_udf(),
         dayname::get_udf(),
-        last_day::get_udf(),
+        Arc::new(ScalarUDF::from(LastDayFunc::new(session_params.clone()))),
         monthname::get_udf(),
         next_day::get_udf(),
         previous_day::get_udf(),
@@ -37,6 +43,9 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
     for func in functions {
         registry.register_udf(func)?;
     }
-
+    date_part_extract::register_udfs(registry, session_params)?;
+    registry.register_udf(Arc::new(ScalarUDF::from(ConvertTimezoneFunc::new(
+        session_params.to_owned(),
+    ))))?;
     Ok(())
 }

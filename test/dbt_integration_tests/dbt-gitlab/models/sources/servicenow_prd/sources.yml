@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: servicenow_prd
-    database: RAW
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: servicenow_prd
     loaded_at_field: _fivetran_synced
     loader: fivetran
@@ -21,4 +21,4 @@ sources:
       - name: sla
       - name: sys_user
       - name: sys_user_group
-      - name: task
+      - name: dup_servicenow_prd_task

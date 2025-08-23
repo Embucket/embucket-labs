@@ -1,0 +1,192 @@
+---
+title: Iceberg catalog
+description: Use Embucket as an Iceberg Catalog.
+---
+
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+
+This guide shows how to connect external [Iceberg](https://iceberg.apache.org/) clients to Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API and create tables using `pyiceberg`. It doesn't cover Apache Spark or Trino integrations, advanced [Apache Iceberg](https://iceberg.apache.org/) features, or production deployment considerations.
+
+- Install `pyiceberg` and ensure Embucket runs
+- Create a volume and database for data persistence
+- Connect to Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API
+- Create and populate [Iceberg](https://iceberg.apache.org/) tables
+- Query tables through Embucket's SQL interface
+
+## Prerequisites
+
+Install `pyiceberg` and run Embucket before starting this guide. If you haven't already, follow the [quick start](/essentials/quick-start) to get started.
+
+```bash
+pip install 'pyiceberg[all]'
+```
+
+## Create a volume and database
+
+<Aside type="caution">
+  Select your volume type based on deployment needs. Memory volumes store data in Embucket's memory,
+  making them inaccessible to external Iceberg clients. Filesystem volumes store data on disk. They
+  work only when clients share the same filesystem with Embucket. S3 volumes work with all
+  deployment configurations.
+</Aside>
+
+[Volumes](/essentials/volumes) specify where Embucket stores data. For this guide create a volume of type `file`, name it `demo` and specify path to a directory to store the data.
+
+<Tabs>
+  <TabItem label="API">
+
+```python
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:3000/v1/metastore/volumes",
+    json={
+        "ident": "demo",
+        "type": "file",
+        "path": "/home/ec2-user/tmp/demo",
+    })
+```
+
+</TabItem>
+<TabItem label="SQL">
+
+```sql
+CREATE EXTERNAL VOLUME IF NOT EXISTS demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 'file' PATH = '/home/ec2-user/tmp/demo'));
+```
+
+</TabItem>
+</Tabs>
+
+Next, create a database. Embucket requires a volume for each database. Create databases in the UI, using the internal API or SQL interface:
+
+<Tabs>
+  <TabItem label="API">
+
+```python
+response = requests.post(
+    "http://127.0.0.1:3000/v1/metastore/databases",
+    json={
+        "ident": "demo",
+        "volume": "demo",
+    })
+```
+
+</TabItem>
+<TabItem label="SQL">
+
+```sql
+CREATE DATABASE IF NOT EXISTS demo EXTERNAL_VOLUME = 'demo';
+```
+
+</TabItem>
+</Tabs>
+
+Embucket uses database terminology, while [Iceberg](https://iceberg.apache.org/) uses warehouse terminology. At the same time, Embucket provides an [Iceberg](https://iceberg.apache.org/) Catalog API, that operate on warehouses, namespaces and tables. Following table shows the mapping between Embucket and [Iceberg](https://iceberg.apache.org/) entities:
+
+| Embucket | Iceberg   |
+| -------- | --------- |
+| Database | Warehouse |
+| Schema   | Namespace |
+| Table    | Table     |
+
+Run the following query to show databases:
+
+```sh
+$ snow sql -c local
+
+> show databases;
++----------------------------------------------------------------+
+| created_on | name     | kind     | database_name | schema_name |
+|------------+----------+----------+---------------+-------------|
+| None       | slatedb  | STANDARD | None          | None        |
+| None       | demo     | STANDARD | None          | None        |
+| None       | embucket | STANDARD | None          | None        |
++----------------------------------------------------------------+
+```
+
+## Connect to Embucket
+
+Use `pyiceberg` to connect to the Embucket's [Iceberg](https://iceberg.apache.org/) Catalog API. It requires `rest` catalog type, URI of the API and a warehouse name. Warehouse matches a database name in Embucket.
+
+```python
+from pyiceberg.catalog import load_catalog
+
+# Connect to Embucket
+catalog = load_catalog(
+    type="rest",
+    uri="http://127.0.0.1:3000/catalog",
+    warehouse="demo",
+)
+```
+
+## Upload the dataset
+
+<Steps>
+
+1. Download the [NYC Taxi dataset](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) as an example
+
+   ```bash
+   curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet -o yellow_tripdata_2023-01.parquet
+   ```
+
+2. Load it into a PyArrow table:
+
+   ```python
+   import pyarrow.parquet as pq
+
+   df = pq.read_table("yellow_tripdata_2023-01.parquet")
+   ```
+
+3. Create a new [Iceberg](https://iceberg.apache.org/) table:
+
+   ```python
+   catalog.create_namespace("public")
+   table = catalog.create_table(
+       "public.taxi_dataset",
+       schema=df.schema,
+   )
+   ```
+
+4. Append the PyArrow table to the [Iceberg](https://iceberg.apache.org/) table:
+
+   ```python
+   table.append(df)
+   len(table.scan().to_arrow())
+   ```
+
+</Steps>
+
+At this moment `pyiceberg` SDK have written a data and committed an [Iceberg](https://iceberg.apache.org/) transaction with Embucket [Iceberg](https://iceberg.apache.org/) Catalog API. Query the data using SQL interface:
+
+```sql
+select * from demo.public.taxi_dataset limit 10;
+```
+
+```
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| VendorID | tpep_pickup_datetime | tpep_dropoff_datetime | passenger_count | trip_distance | RatecodeID | store_and_fwd_flag | PULocationID | DOLocationID | payment_type | fare_amount | extra | mta_tax | tip_amount | tolls_amount | improvement_surcharge | total_amount | congestion_surcharge | airport_fee |
+|----------+----------------------+-----------------------+-----------------+---------------+------------+--------------------+--------------+--------------+--------------+-------------+-------+---------+------------+--------------+-----------------------+--------------+----------------------+-------------|
+| 2        | 2023-01-22 21:37:32  | 2023-01-22 21:53:13   | 3.0             | 3.12          | 1.0        | N                  | 230          | 211          | 1            | 17.0        | 1.0   | 0.5     | 4.4        | 0.0          | 1.0                   | 26.4         | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:56:16  | 2023-01-22 22:05:41   | 1.0             | 1.94          | 1.0        | N                  | 114          | 13           | 1            | 12.1        | 1.0   | 0.5     | 3.42       | 0.0          | 1.0                   | 20.52        | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:39:05  | 2023-01-22 21:43:20   | 1.0             | 0.37          | 1.0        | N                  | 229          | 229          | 1            | 5.8         | 1.0   | 0.5     | 0.25       | 0.0          | 1.0                   | 11.05        | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:50:14  | 2023-01-22 21:52:57   | 1.0             | 0.85          | 1.0        | N                  | 262          | 263          | 1            | 5.8         | 1.0   | 0.5     | 2.16       | 0.0          | 1.0                   | 12.96        | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:57:31  | 2023-01-22 22:02:46   | 1.0             | 1.23          | 1.0        | N                  | 141          | 75           | 2            | 7.9         | 1.0   | 0.5     | 0.0        | 0.0          | 1.0                   | 12.9         | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:22:44  | 2023-01-22 21:26:06   | 1.0             | 0.44          | 1.0        | N                  | 256          | 256          | 2            | 5.8         | 1.0   | 0.5     | 0.0        | 0.0          | 1.0                   | 8.3          | 0.0                  | 0.0         |
+| 2        | 2023-01-22 21:38:28  | 2023-01-22 21:46:46   | 1.0             | 1.78          | 1.0        | N                  | 79           | 170          | 1            | 10.7        | 1.0   | 0.5     | 3.14       | 0.0          | 1.0                   | 18.84        | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:49:46  | 2023-01-22 22:02:26   | 1.0             | 2.42          | 1.0        | N                  | 170          | 143          | 1            | 14.9        | 1.0   | 0.5     | 3.98       | 0.0          | 1.0                   | 23.88        | 2.5                  | 0.0         |
+| 2        | 2023-01-22 21:59:58  | 2023-01-22 22:36:35   | 1.0             | 22.26         | 1.0        | N                  | 132          | 241          | 1            | 83.5        | 1.0   | 0.5     | 10.0       | 6.55         | 1.0                   | 103.8        | 0.0                  | 1.25        |
+| 2        | 2023-01-22 21:15:44  | 2023-01-22 21:40:22   | 2.0             | 9.14          | 1.0        | N                  | 264          | 151          | 1            | 38.7        | 6.0   | 0.5     | 13.81      | 6.55         | 1.0                   | 70.31        | 2.5                  | 1.25        |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
+
+```sql
+select count(*) from demo.PUBLIC.taxi_dataset;
+```
+
+```
++----------+
+| count(*) |
+|----------|
+| 3066766  |
++----------+
+```

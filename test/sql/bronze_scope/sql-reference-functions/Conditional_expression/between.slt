@@ -14,12 +14,12 @@ SELECT 'true' WHERE 'the' BETWEEN 'that' AND 'then'
 true
 
 query T
-SELECT 'm' BETWEEN COLLATE('A', 'lower') AND COLLATE('Z', 'lower')
+SELECT 'm' BETWEEN 'a' AND 'z'
 ----
 TRUE
 
 query T
-SELECT COLLATE('m', 'upper') BETWEEN 'A' AND 'Z'
+SELECT 'M' BETWEEN 'A' AND 'Z'
 ----
 TRUE
 

@@ -25,7 +25,13 @@ impl VisitorMut for CopyIntoStatementIdentifiers {
     type Break = ();
 
     fn pre_visit_statement(&mut self, statement: &mut Statement) -> ControlFlow<Self::Break> {
-        if let Statement::CopyIntoSnowflake { into, from_obj, .. } = statement {
+        if let Statement::CopyIntoSnowflake {
+            into,
+            from_obj,
+            stage_params,
+            ..
+        } = statement
+        {
             fn sanitize_identifier(obj_name: &mut ObjectName) {
                 if let Some(ObjectNamePart::Identifier(ident)) = obj_name.0.first_mut() {
                     // Remove any leading @, ~, or / characters
@@ -36,6 +42,12 @@ impl VisitorMut for CopyIntoStatementIdentifiers {
             sanitize_identifier(into);
             if let Some(from_obj) = from_obj {
                 sanitize_identifier(from_obj);
+            }
+            if let Some(storage_integration) = &mut stage_params.storage_integration {
+                *storage_integration = storage_integration
+                    .trim_start_matches('\'')
+                    .trim_end_matches('\'')
+                    .to_string();
             }
         }
 

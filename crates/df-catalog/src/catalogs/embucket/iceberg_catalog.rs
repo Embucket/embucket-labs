@@ -310,7 +310,9 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for schema in schemas {
-            namespaces.push(IcebergNamespace::try_new(&[schema.ident.schema.clone()])?);
+            namespaces.push(IcebergNamespace::try_new(std::slice::from_ref(
+                &schema.ident.schema,
+            ))?);
         }
         Ok(namespaces)
     }

@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/conversion/to_object.rs
+description: "\"SELECT to_object(null)\""
+---
+Ok(
+    [
+        "+-----------------+",
+        "| to_object(NULL) |",
+        "+-----------------+",
+        "|                 |",
+        "+-----------------+",
+    ],
+)

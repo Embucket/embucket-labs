@@ -5,4 +5,5 @@ run.log
 logs/
 assets/
 dbt-snowplow-web/
+.user.yml
 

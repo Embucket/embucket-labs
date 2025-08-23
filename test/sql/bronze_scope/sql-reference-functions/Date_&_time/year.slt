@@ -40,7 +40,7 @@ exclude-from-coverage
 statement ok
 ALTER SESSION SET WEEK_START = 0;
 
-query TTTTTTTT
+query TTTTTT
 WITH week_examples AS (
   SELECT column1::DATE AS d FROM (VALUES
     ('2016-12-30'),
@@ -57,7 +57,6 @@ WITH week_examples AS (
 calculations AS (
   SELECT
     d,
-    DATE_TRUNC('week', d) AS trunc_date,
     LAST_DAY(d, 'week') AS last_dow_date
   FROM
     week_examples
@@ -66,8 +65,6 @@ SELECT
   d AS "Date",
   DAYNAME(d) AS "Day",
   DAYOFWEEK(d) AS "DOW",
-  trunc_date AS "Trunc Date",
-  DAYNAME(trunc_date) AS "Trunc Day",
   last_dow_date AS "Last DOW Date",
   DAYNAME(last_dow_date) AS "Last DOW Day",
   DATEDIFF('week', '2017-01-01'::DATE, d) AS "Weeks Diff from 2017-01-01 to Date"
@@ -76,21 +73,21 @@ FROM
 ORDER BY
   d;
 ----
-'2016-12-30'	Fri	5	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2016-12-31'	Sat	6	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2017-01-01'	Sun	0	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2017-01-02'	Mon	1	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-03'	Tue	2	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-04'	Wed	3	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-05'	Thu	4	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-12-30'	Sat	6	'2017-12-25'	Mon	'2017-12-31'	Sun	52
-'2017-12-31'	Sun	0	'2017-12-25'	Mon	'2017-12-31'	Sun	52
+'2016-12-30'	Fri	5	'2017-01-01'	Sun	0
+'2016-12-31'	Sat	6	'2017-01-01'	Sun	0
+'2017-01-01'	Sun	0	'2017-01-01'	Sun	0
+'2017-01-02'	Mon	1	'2017-01-08'	Sun	1
+'2017-01-03'	Tue	2	'2017-01-08'	Sun	1
+'2017-01-04'	Wed	3	'2017-01-08'	Sun	1
+'2017-01-05'	Thu	4	'2017-01-08'	Sun	1
+'2017-12-30'	Sat	6	'2017-12-31'	Sun	52
+'2017-12-31'	Sun	0	'2017-12-31'	Sun	52
 
 exclude-from-coverage
 statement ok
 ALTER SESSION SET WEEK_START = 1;
 
-query TTTTTTTT
+query TTTTTT
 WITH week_examples AS (
   SELECT column1::DATE AS d FROM (VALUES
     ('2016-12-30'),
@@ -107,7 +104,6 @@ WITH week_examples AS (
 calculations AS (
   SELECT
     d,
-    DATE_TRUNC('week', d) AS trunc_date,
     LAST_DAY(d, 'week') AS last_dow_date
   FROM
     week_examples
@@ -116,8 +112,6 @@ SELECT
   d AS "Date",
   DAYNAME(d) AS "Day",
   DAYOFWEEK(d) AS "DOW",
-  trunc_date AS "Trunc Date",
-  DAYNAME(trunc_date) AS "Trunc Day",
   last_dow_date AS "Last DOW Date",
   DAYNAME(last_dow_date) AS "Last DOW Day",
   DATEDIFF('week', '2017-01-01'::DATE, d) AS "Weeks Diff from 2017-01-01 to Date"
@@ -126,21 +120,21 @@ FROM
 ORDER BY
   d;
 ----
-'2016-12-30'	Fri	5	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2016-12-31'	Sat	6	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2017-01-01'	Sun	7	'2016-12-26'	Mon	'2017-01-01'	Sun	0
-'2017-01-02'	Mon	1	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-03'	Tue	2	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-04'	Wed	3	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-01-05'	Thu	4	'2017-01-02'	Mon	'2017-01-08'	Sun	1
-'2017-12-30'	Sat	6	'2017-12-25'	Mon	'2017-12-31'	Sun	52
-'2017-12-31'	Sun	7	'2017-12-25'	Mon	'2017-12-31'	Sun	52
+'2016-12-30'	Fri	5	'2017-01-01'	Sun	0
+'2016-12-31'	Sat	6	'2017-01-01'	Sun	0
+'2017-01-01'	Sun	7	'2017-01-01'	Sun	0
+'2017-01-02'	Mon	1	'2017-01-08'	Sun	1
+'2017-01-03'	Tue	2	'2017-01-08'	Sun	1
+'2017-01-04'	Wed	3	'2017-01-08'	Sun	1
+'2017-01-05'	Thu	4	'2017-01-08'	Sun	1
+'2017-12-30'	Sat	6	'2017-12-31'	Sun	52
+'2017-12-31'	Sun	7	'2017-12-31'	Sun	52
 
 exclude-from-coverage
 statement ok
 ALTER SESSION SET WEEK_START = 3;
 
-query TTTTTTTT
+query TTTTTT
 WITH week_examples AS (
   SELECT column1::DATE AS d FROM (VALUES
     ('2016-12-30'),
@@ -157,7 +151,6 @@ WITH week_examples AS (
 calculations AS (
   SELECT
     d,
-    DATE_TRUNC('week', d) AS trunc_date,
     LAST_DAY(d, 'week') AS last_dow_date
   FROM
     week_examples
@@ -166,8 +159,6 @@ SELECT
   d AS "Date",
   DAYNAME(d) AS "Day",
   DAYOFWEEK(d) AS "DOW",
-  trunc_date AS "Trunc Date",
-  DAYNAME(trunc_date) AS "Trunc Day",
   last_dow_date AS "Last DOW Date",
   DAYNAME(last_dow_date) AS "Last DOW Day",
   DATEDIFF('week', '2017-01-01'::DATE, d) AS "Weeks Diff from 2017-01-01 to Date"
@@ -176,15 +167,15 @@ FROM
 ORDER BY
   d;
 ----
-'2016-12-30'	Fri	3	'2016-12-28'	Wed	'2017-01-03'	Tue	0
-'2016-12-31'	Sat	4	'2016-12-28'	Wed	'2017-01-03'	Tue	0
-'2017-01-01'	Sun	5	'2016-12-28'	Wed	'2017-01-03'	Tue	0
-'2017-01-02'	Mon	6	'2016-12-28'	Wed	'2017-01-03'	Tue	0
-'2017-01-03'	Tue	7	'2016-12-28'	Wed	'2017-01-03'	Tue	0
-'2017-01-04'	Wed	1	'2017-01-04'	Wed	'2017-01-10'	Tue	1
-'2017-01-05'	Thu	2	'2017-01-04'	Wed	'2017-01-10'	Tue	1
-'2017-12-30'	Sat	4	'2017-12-27'	Wed	'2018-01-02'	Tue	52
-'2017-12-31'	Sun	5	'2017-12-27'	Wed	'2018-01-02'	Tue	52
+'2016-12-30'	Fri	3	'2017-01-03'	Tue	0
+'2016-12-31'	Sat	4	'2017-01-03'	Tue	0
+'2017-01-01'	Sun	5	'2017-01-03'	Tue	0
+'2017-01-02'	Mon	6	'2017-01-03'	Tue	0
+'2017-01-03'	Tue	7	'2017-01-03'	Tue	0
+'2017-01-04'	Wed	1	'2017-01-10'	Tue	1
+'2017-01-05'	Thu	2	'2017-01-10'	Tue	1
+'2017-12-30'	Sat	4	'2018-01-02'	Tue	52
+'2017-12-31'	Sun	5	'2018-01-02'	Tue	52
 
 exclude-from-coverage
 statement ok

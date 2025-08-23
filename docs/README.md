@@ -1,19 +1,19 @@
-# Embucket Docs
+# Embucket docs
 
 ## About
 
-Astro Starlight frontend application for the Embucket docs.
+`Astro` Starlight frontend app for the Embucket docs.
 
 ## Local development prerequisites
 
 Before you begin, make sure you have the following installed on your machine:
 
 - **Node.js** (LTS version) - [Download](https://nodejs.org)
-- **pnpm** (Package Manager) - [Installation Guide](https://pnpm.io)
+- **`pnpm`** (Package Manager) - [Installation Guide](https://pnpm.io)
 
-## Quick Start
+## Quick start
 
-Follow these steps to get the application up and running in your local development environment.
+Follow these steps to get the app up and running in your local development environment.
 
 ### 1. FE Installation and Setup (`./docs` folder)
 
@@ -35,7 +35,7 @@ To ensure everything is working correctly:
 
 - The frontend development server should be running on http://localhost:4321.
 
-### Project Structure
+### Project structure
 
 ```
 .
@@ -49,26 +49,27 @@ To ensure everything is working correctly:
 └── astro.config.mjs
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its filename.
 
 Images can be added to `src/assets/` and embedded in Markdown with a relative link.
 
-Static assets, like favicons, can be placed in the `public/` directory.
+Static assets, like `favicons`, can be placed in the `public/` directory.
 
 ## Common scripts
 
-| Command          | Action                                           |
-| :--------------- | :----------------------------------------------- |
-| `pnpm install`   | Installs dependencies                            |
-| `pnpm dev`       | Starts local dev server at `localhost:4321`      |
-| `pnpm build`     | Build your production site to `./dist/`          |
-| `pnpm preview`   | Preview your build locally, before deploying     |
-| `pnpm astro ...` | Run CLI commands like `astro add`, `astro check` |
-| `pnpm format`    | Format with Prettier + fix errors                |
-| `pnpm ncu`       | Update repo dependencies                         |
+| Command          | Action                                             |
+| :--------------- | :------------------------------------------------- |
+| `pnpm install`   | Installs dependencies                              |
+| `pnpm dev`       | Starts local `dev` server at `localhost:4321`      |
+| `pnpm build`     | Build your production site to `./dist/`            |
+| `pnpm preview`   | Preview your build locally, before deploying       |
+| `pnpm astro ...` | Run `CLI` commands like `astro add`, `astro check` |
+| `pnpm format`    | Format with Prettier + fix errors                  |
+| `pnpm ncu`       | Update `repo` dependencies                         |
 
 ### Tech stack
 
-- [Astro Starlight](https://starlight.astro.build)
+- [`Astro` Starlight](https://starlight.astro.build)
 - [Tailwind](https://tailwindcss.com)
 - [Prettier](https://prettier.io)
+- [Vale](https://vale.sh)

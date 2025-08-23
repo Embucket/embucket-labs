@@ -155,7 +155,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Table {table} not found in schema {schema} in database {db}"))]
+    #[snafu(display("Table {table} not found in {db}.{schema}"))]
     TableNotFound {
         table: String,
         schema: String,
@@ -226,6 +226,14 @@ pub enum Error {
     UrlParse {
         #[snafu(source)]
         error: url::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Iceberg spec error: {error}"))]
+    IcebergSpec {
+        #[snafu(source)]
+        error: iceberg_rust_spec::error::Error,
         #[snafu(implicit)]
         location: Location,
     },

@@ -107,3 +107,9 @@ test_query!(
     "SELECT TRY_TO_DATE('5/7/2000', 'MM/DD/YYYY')",
     snapshot_path = "to_date"
 );
+
+test_query!(
+    to_date_with_date,
+    "SELECT TO_DATE(TO_DATE('2024-05-10')) as date",
+    snapshot_path = "to_date"
+);

@@ -92,6 +92,7 @@ impl IntoResponse for Error {
             | core_metastore::Error::SlateDB { .. }
             | core_metastore::Error::UtilSlateDB { .. }
             | core_metastore::Error::Iceberg { .. }
+            | core_metastore::Error::IcebergSpec { .. }
             | core_metastore::Error::Serde { .. }
             | core_metastore::Error::TableMetadataBuilder { .. }
             | core_metastore::Error::TableObjectStoreNotFound { .. }

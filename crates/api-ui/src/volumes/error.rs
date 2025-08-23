@@ -51,21 +51,26 @@ pub enum Error {
     },
 }
 
+fn core_executor_error(source: &core_executor::Error) -> StatusCode {
+    match source {
+        core_executor::Error::QueryExecution { source, .. } => core_executor_error(source),
+        core_executor::Error::Metastore { source, .. } => match **source {
+            core_metastore::Error::VolumeAlreadyExists { .. }
+            | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+            core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        },
+        core_executor::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
+        core_executor::Error::VolumeFieldRequired { .. } => StatusCode::BAD_REQUEST,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 // Select which status code to return.
 impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::CreateQuery { source, .. } => match &source {
-                core_executor::Error::Metastore { source, .. } => match **source {
-                    core_metastore::Error::VolumeAlreadyExists { .. }
-                    | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                    core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                },
-                core_executor::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,
-                core_executor::Error::VolumeFieldRequired { .. } => StatusCode::BAD_REQUEST,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
+            Self::CreateQuery { source, .. } => core_executor_error(source),
             Self::Create { source, .. } => match &source {
                 core_metastore::Error::VolumeAlreadyExists { .. }
                 | core_metastore::Error::ObjectAlreadyExists { .. } => StatusCode::CONFLICT,

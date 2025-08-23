@@ -40,6 +40,7 @@ serde_yaml = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
+strum.workspace = true
 
 [lints]
 workspace = true

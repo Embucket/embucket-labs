@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use super::error::AuthErrorResponse;
 use super::error::CreateJwtSnafu;
 use crate::auth::error::{self as auth_error, BadRefreshTokenSnafu, TokenErrorKind};

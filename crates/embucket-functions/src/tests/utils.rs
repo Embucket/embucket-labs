@@ -1,5 +1,6 @@
 use crate::expr_planner::CustomExprPlanner;
 use crate::session::register_session_context_udfs;
+use crate::session_params::SessionParams;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
 use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
@@ -24,7 +25,7 @@ pub fn create_session() -> Arc<SessionContext> {
         .build();
     let mut ctx = SessionContext::new_with_state(state);
     register_session_context_udfs(&mut ctx).unwrap();
-    register_udfs(&mut ctx).expect("Cannot register UDFs");
+    register_udfs(&mut ctx, &Arc::new(SessionParams::default())).expect("Cannot register UDFs");
     register_udafs(&mut ctx).expect("Cannot register UDAFs");
     register_udtfs(&ctx, history_store_mock());
     Arc::new(ctx)

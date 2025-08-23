@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: gong
-    database: RAW
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: gong
     loader: fivetran    
     loaded_at_field: _fivetran_synced

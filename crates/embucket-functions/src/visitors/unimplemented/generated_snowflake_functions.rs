@@ -145,12 +145,6 @@ pub const AGGREGATE_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/count_if")
     ),
-    ("GROUPING_ID", FunctionInfo::new(
-        "GROUPING_ID",
-        "Describes which of a list of expressions are grouped in a row produced by a GROUP BY query."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/grouping_id")
-    ),
     ("HASH_AGG", FunctionInfo::new(
         "HASH_AGG",
         "Returns an aggregate signed 64-bit hash value over the (unordered) set of input rows."
@@ -603,13 +597,6 @@ pub const CONVERSION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_json")
     .with_subcategory("semi-structured")
     ),
-    ("TO_OBJECT", FunctionInfo::new(
-        "TO_OBJECT",
-        "Converts the input value to an OBJECT."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/to_object")
-    .with_subcategory("semi-structured")
-    ),
     ("TO_XML", FunctionInfo::new(
         "TO_XML",
         "Converts a VARIANT to a VARCHAR that contains an XML representation of the value."
@@ -741,30 +728,6 @@ pub const DATETIME_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Calculates the beginning or end of a “slice” of time, where the length of the slice is a multiple of a standard unit of time (minute, hour, day, etc.)."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/time_slice")
-    ),
-    ("WEEKISO", FunctionInfo::new(
-        "WEEKISO",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("WEEKOFYEAR", FunctionInfo::new(
-        "WEEKOFYEAR",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("YEAROFWEEK", FunctionInfo::new(
-        "YEAROFWEEK",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
-    ),
-    ("YEAROFWEEKISO", FunctionInfo::new(
-        "YEAROFWEEKISO",
-        "Extracts the corresponding date part from a date or timestamp."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/year")
     ),
 ];
 
@@ -2330,13 +2293,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Returns a JSON object consisting of all the components (fragment, host, path, port, query, scheme) in a valid input URL/URI."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_url")
-    ),
-    ("REGEXP_SUBSTR_ALL", FunctionInfo::new(
-        "REGEXP_SUBSTR_ALL",
-        "Returns an ARRAY that contains all substrings that match a regular expression within a string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/regexp_substr_all")
-    .with_subcategory("regex")
     ),
     ("SEARCH", FunctionInfo::new(
         "SEARCH",

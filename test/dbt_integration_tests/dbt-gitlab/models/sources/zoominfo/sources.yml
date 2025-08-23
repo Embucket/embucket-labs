@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: zoominfo
-    database: "ZOOMINFO_INBOUND"
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: gitlab
     loader: Snowflake Data Exchange
     

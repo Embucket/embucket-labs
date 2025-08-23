@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('monte_carlo_prod_insights', 'dashboard_analytics') }}
+    FROM {{ source('monte_carlo_prod_insights', 'dup_dashboard_analytics') }}
 
 ), renamed AS (
 

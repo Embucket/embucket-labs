@@ -78,7 +78,7 @@ sources:
     loaded_at_field: _fivetran_synced
     
     quoting:
-      database: true
+      database: false
       schema: false
       identifier: false
 

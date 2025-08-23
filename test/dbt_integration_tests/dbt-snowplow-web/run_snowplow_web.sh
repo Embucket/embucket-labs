@@ -1,7 +1,7 @@
 
 echo ""
 echo "Cloning dbt-snowplow-web repository"
-git clone git@github.com:snowplow/dbt-snowplow-web.git
+git clone https://github.com/snowplow/dbt-snowplow-web.git
 echo ""
 
 echo "###############################"
@@ -19,7 +19,9 @@ chmod +x run.sh statistics.sh
 
 cp events.csv dbt-snowplow-web/seeds/
 cp seeds.yml dbt-snowplow-web/seeds/
-cp snowplow_web_base_events_this_run.sql dbt-snowplow-web/models/base/scratch/snowflake/
+
+#cp snowplow_web_base_events_this_run.sql dbt-snowplow-web/models/base/scratch/snowflake/
+#cp snowplow_web_consent_events_this_run.sql dbt-snowplow-web/models/optional_modules/consent/scratch/snowflake/
 echo ""
 
 echo "###############################"

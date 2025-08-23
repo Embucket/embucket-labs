@@ -28,7 +28,7 @@ jobs:
     outputs:
       has-tests: ${{ steps.selection.outputs.has-tests }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
           fetch-depth: 0
@@ -128,13 +128,13 @@ jobs:
       EMBUCKET_HOST: localhost
       EMBUCKET_PORT: 3000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
           fetch-depth: 0
 
       - name: Download SLT Selection
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: slt-selection
           path: ./artifacts

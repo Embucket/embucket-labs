@@ -1,0 +1,90 @@
+datasets:
+  - name: tpch_lineitem
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: lineitem
+    ddl:
+      embucket: sql/tpch/lineitem_embucket.sql
+      spark: sql/tpch/lineitem_spark.sql
+    format: parquet
+    sources:
+      - lineitem.parquet
+
+  - name: tpch_orders
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: orders
+    ddl:
+      embucket: sql/tpch/orders_embucket.sql
+      spark: sql/tpch/orders_spark.sql
+    format: parquet
+    sources:
+      - orders.parquet
+
+  - name: tpch_part
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: part
+    ddl:
+      embucket: sql/tpch/part_embucket.sql
+      spark: sql/tpch/part_spark.sql
+    format: parquet
+    sources:
+      - part.parquet
+
+  - name: tpch_supplier
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: supplier
+    ddl:
+      embucket: sql/tpch/supplier_embucket.sql
+      spark: sql/tpch/supplier_spark.sql
+    format: parquet
+    sources:
+      - supplier.parquet
+
+  - name: tpch_customer
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: customer
+    ddl:
+      embucket: sql/tpch/customer_embucket.sql
+      spark: sql/tpch/customer_spark.sql
+    format: parquet
+    sources:
+      - customer.parquet
+
+  - name: tpch_nation
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: nation
+    ddl:
+      embucket: sql/tpch/nation_embucket.sql
+      spark: sql/tpch/nation_spark.sql
+    format: parquet
+    sources:
+      - nation.parquet
+
+  - name: tpch_region
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: region
+    ddl:
+      embucket: sql/tpch/region_embucket.sql
+      spark: sql/tpch/region_spark.sql
+    format: parquet
+    sources:
+      - region.parquet
+
+  - name: tpch_partsupp
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: partsupp
+    ddl:
+      embucket: sql/tpch/partsupp_embucket.sql
+      spark: sql/tpch/partsupp_spark.sql
+    format: parquet
+    sources:
+      - partsupp.parquet
+
+  - name: nyc_taxi_yellow
+    namespace: public   # schema within EMBUCKET_DATABASE
+    table: yellow_tripdata
+    ddl:
+      embucket: sql/nyc_taxi/yellow_embucket.sql
+      spark: sql/nyc_taxi/yellow_spark.sql
+    format: parquet
+    sources:
+      - yellow_tripdata_2025-01.parquet

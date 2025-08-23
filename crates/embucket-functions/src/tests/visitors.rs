@@ -1,10 +1,51 @@
 use crate::visitors::{
-    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, qualify_in_query,
-    select_expr_aliases, table_functions, table_functions_cte_relation,
+    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element,
+    rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion_common::Result as DFResult;
+
+#[test]
+fn test_rlike_regexp_expr_rewriter() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![
+        (
+            "SELECT 'nevermore' RLIKE 'never'",
+            "SELECT regexp_like('nevermore', 'never')",
+        ),
+        (
+            "SELECT 'nevermore' REGEXP 'never'",
+            "SELECT regexp_like('nevermore', 'never')",
+        ),
+        (
+            "SELECT 'nevermore' NOT RLIKE 'never'",
+            "SELECT NOT regexp_like('nevermore', 'never')",
+        ),
+        (
+            "SELECT 'nevermore' NOT REGEXP 'never'",
+            "SELECT NOT regexp_like('nevermore', 'never')",
+        ),
+        //the `values` will be put inside the `()`, not by the rewriter
+        (
+            "SELECT column1 FROM VALUES ('San Francisco'), ('San Jose'), ('Santa Clara'), ('Sacramento') WHERE column1 RLIKE 'San* [fF].*'",
+            "SELECT column1 FROM (VALUES ('San Francisco'), ('San Jose'), ('Santa Clara'), ('Sacramento')) WHERE regexp_like(column1, 'San* [fF].*')",
+        ),
+        (
+            "SELECT column1 FROM VALUES ('San Francisco'), ('San Jose'), ('Santa Clara'), ('Sacramento') WHERE column1 NOT RLIKE 'San* [fF].*'",
+            "SELECT column1 FROM (VALUES ('San Francisco'), ('San Jose'), ('Santa Clara'), ('Sacramento')) WHERE NOT regexp_like(column1, 'San* [fF].*')",
+        ),
+    ];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            rlike_regexp_expr_rewriter::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
+    Ok(())
+}
 
 #[test]
 fn test_json_element() -> DFResult<()> {
@@ -72,6 +113,28 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_add(us, 100000, '2025-06-01')",
             "SELECT date_add('us', 100000, '2025-06-01')",
         ),
+        (
+            "SELECT date_part(year, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('year', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        // to_char format replacements
+        (
+            "SELECT to_char(col::DATE, 'YYYYMMDD')",
+            "SELECT to_char(col::DATE, '%Y%m%d')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'DD-MM-YYYY')",
+            "SELECT to_char(col::DATE, '%d-%m-%Y')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'MM/DD/YYYY HH24:MI:SS')",
+            "SELECT to_char(col::DATE, '%m/%d/%Y %H:%M:%S')",
+        ),
+        (
+            "SELECT to_char(col::DATE, 'YYYY/MM/DD HH24')",
+            "SELECT to_char(col::DATE, '%Y/%m/%d %H')",
+        ),
+        ("SELECT grouping_id(a)", "SELECT grouping(a)"),
     ];
 
     for (input, expected) in cases {
@@ -240,49 +303,6 @@ fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
         }
     }
 
-    Ok(())
-}
-
-#[test]
-fn test_qualify_in_query() -> DFResult<()> {
-    let state = SessionContext::new().state();
-    let cases = vec![
-        (
-            "SELECT product_id FROM sales QUALIFY ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) = 1",
-            "SELECT * FROM (SELECT product_id, ROW_NUMBER() OVER (PARTITION BY city ORDER BY retail_price) AS qualify_alias FROM sales) WHERE qualify_alias = 1",
-        ),
-        (
-            "create table test_table as (WITH max_task_instance AS (
-                SELECT MAX(task_instance) AS max_column_value
-                FROM base WHERE RIGHT( task_instance, 8) = (SELECT MAX(RIGHT( task_instance, 8)) FROM base )
-            ), filtered AS (
-                SELECT * FROM base
-                WHERE _task_instance = (SELECT max_column_value  FROM max_task_instance)
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) = 1
-            ) SELECT * FROM filtered);",
-            "CREATE TABLE test_table AS (WITH max_task_instance AS (SELECT MAX(task_instance) \
-            AS max_column_value FROM base WHERE RIGHT(task_instance, 8) = (SELECT MAX(RIGHT(task_instance, 8)) FROM base)), \
-            filtered AS (SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY _uploaded_at DESC) AS qualify_alias \
-            FROM (SELECT * FROM base WHERE _task_instance = (SELECT max_column_value FROM max_task_instance))) WHERE qualify_alias = 1) \
-            SELECT * FROM filtered)"
-        ),
-        (
-            "SELECT * FROM test
-            WHERE task = (SELECT max_column_value FROM max_task_instance)
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) = 1",
-            "SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY uploaded_at DESC) \
-            AS qualify_alias FROM (SELECT * FROM test WHERE task = (SELECT max_column_value FROM max_task_instance))) \
-            WHERE qualify_alias = 1",
-        ),
-    ];
-
-    for (input, expected) in cases {
-        let mut statement = state.sql_to_statement(input, "snowflake")?;
-        if let DFStatement::Statement(ref mut stmt) = statement {
-            qualify_in_query::visit(stmt);
-        }
-        assert_eq!(statement.to_string(), expected);
-    }
     Ok(())
 }
 

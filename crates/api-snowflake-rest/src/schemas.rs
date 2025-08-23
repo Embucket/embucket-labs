@@ -11,13 +11,9 @@ pub struct LoginRequestQuery {
     #[serde(rename = "request_id")]
     pub request_id: String,
     #[serde(rename = "databaseName")]
-    pub database_name: String,
+    pub database_name: Option<String>,
     #[serde(rename = "schemaName")]
-    pub schema_name: String,
-    #[serde(rename = "warehouse")]
-    pub warehouse: String,
-    #[serde(rename = "roleName")]
-    pub role_name: Option<String>,
+    pub schema_name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,6 +90,8 @@ pub struct ResponseData {
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sql_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_id: Option<String>,
 }
 
 impl ResponseData {

@@ -137,14 +137,11 @@ pub fn encode_float64_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::Number(if array.value(i).fract() == 0.0 {
-                Number::from(array.value(i).to_i64().ok_or_else(|| {
+            JsonValue::Number(
+                Number::from_f64(array.value(i)).ok_or_else(|| {
                     ArrowError::InvalidArgumentError("Invalid float value".into())
-                })?)
-            } else {
-                Number::from_f64(array.value(i))
-                    .ok_or_else(|| ArrowError::InvalidArgumentError("Invalid float value".into()))?
-            })
+                })?,
+            )
         });
     }
     Ok(JsonValue::Array(values))

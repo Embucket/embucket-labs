@@ -165,6 +165,14 @@ pub struct CliOpts {
 
     #[arg(
         long,
+        env = "QUERY_TIMEOUT_SECS",
+        default_value = "1200",
+        help = "Maximum duration in seconds a single query is allowed to run"
+    )]
+    pub query_timeout_secs: u64,
+
+    #[arg(
+        long,
         value_enum,
         env = "MEM_POOL_TYPE",
         default_value = "greedy",

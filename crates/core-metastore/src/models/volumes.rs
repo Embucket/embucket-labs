@@ -1,5 +1,10 @@
 use crate::error::{self as metastore_error, Result};
-use object_store::{ObjectStore, aws::AmazonS3Builder, path::Path};
+use object_store::{
+    ClientOptions, ObjectStore,
+    aws::{AmazonS3Builder, resolve_bucket_region},
+    local::LocalFileSystem,
+    path::Path,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
@@ -307,5 +312,55 @@ impl Volume {
             .await
             .context(metastore_error::ObjectStoreSnafu)?;
         Ok(())
+    }
+}
+
+/// Creates an `ObjectStore` from a URL string with optional endpoint.
+/// This utility function handles creating object stores for different URL schemes.
+///
+/// # Arguments
+/// * `url_str` - The URL string (e.g., "<s3://bucket/path>", "<file:///path>")
+/// * `endpoint` - Optional custom endpoint for S3
+///
+/// # Returns
+/// An `Arc<dyn ObjectStore>` that can be used for file operations
+pub async fn create_object_store_from_url(
+    url_str: &str,
+    endpoint: Option<String>,
+) -> Result<Arc<dyn ObjectStore + 'static>> {
+    let url = url::Url::parse(url_str).context(metastore_error::UrlParseSnafu)?;
+
+    match url.scheme() {
+        "s3" => {
+            let bucket = url.host_str().unwrap_or_default();
+
+            let region = resolve_bucket_region(bucket, &ClientOptions::default())
+                .await
+                .context(metastore_error::ObjectStoreSnafu)?;
+
+            let s3_volume = S3Volume {
+                region: Some(region),
+                bucket: Some(bucket.to_string()),
+                endpoint,
+                credentials: None,
+            };
+
+            let mut builder = s3_volume.get_s3_builder();
+            builder = builder.with_skip_signature(true);
+
+            let s3 = builder.build().context(metastore_error::ObjectStoreSnafu)?;
+            Ok(Arc::new(s3))
+        }
+        "file" => {
+            let local_fs = LocalFileSystem::new();
+            Ok(Arc::new(local_fs))
+        }
+        _ => {
+            let error = object_store::Error::Generic {
+                store: "url_parser",
+                source: format!("Unsupported URL scheme: {}", url.scheme()).into(),
+            };
+            Err(error).context(metastore_error::ObjectStoreSnafu)
+        }
     }
 }

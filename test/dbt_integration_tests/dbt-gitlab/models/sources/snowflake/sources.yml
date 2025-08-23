@@ -25,7 +25,7 @@ sources:
       - name: users
 
   - name: snowflake_account_usage
-    database: snowflake
+    database: '{{ env_var("SNOWFLAKE_LOAD_DATABASE") }}'
     schema: account_usage
 
     quoting:

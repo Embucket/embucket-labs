@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::Result;
 use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};

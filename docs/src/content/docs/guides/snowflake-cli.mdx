@@ -1,0 +1,176 @@
+---
+title: Connect with Snowflake command-line tool
+description: Use Snowflake command-line tool to query Embucket with familiar Snowflake commands and syntax.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Learn how to connect Snowflake command-line tool to Embucket. Run SQL queries with familiar Snowflake commands. Leverage your existing Snowflake workflows while accessing Embucket's data processing capabilities.
+
+This guide covers `snowflake-cli` configuration to connect to a local Embucket instance and execute SQL queries through the Snowflake-compatible API. This guide covers local development setup only. Production deployments, advanced authentication, and performance optimization remain outside this scope.
+
+- Set up Snowflake command-line tool for local development
+- Configure connection parameters specific to Embucket's API
+- Test connectivity with sample data operations
+
+**Prerequisites:** you need Python 3.8+, Docker, and a running Embucket container.
+
+<Aside type="note">
+  The `snowflake-cli` serves as the official command-line tool that provides Snowflake's SQL
+  interface. Embucket exposes a Snowflake-compatible API endpoint that accepts standard Snowflake
+  SQL commands.
+</Aside>
+
+## Install Snowflake command-line tool
+
+Install `snowflake-cli` through Python's package manager:
+
+```bash
+pip install snowflake-cli
+```
+
+## Configure your connection
+
+<Steps>
+
+1. **Create a connection profile**
+
+   Add a connection profile—a saved set of connection parameters—for your Embucket instance:
+
+   ```bash
+   snow connection add --connection-name embucket --account local-dev.embucket --user embucket --password embucket --host localhost --port 3000 --region us-east-1
+   ```
+
+   <Aside type="tip">
+     Use `local-dev.embucket` as the account identifier (Snowflake's organization reference).
+     Embucket accepts any account format for local development.
+   </Aside>
+
+2. **Locate your configuration file**
+
+   Find your Snowflake command-line tool configuration file:
+
+   ```bash
+   snow --info
+   ```
+
+   <Tabs>
+     <TabItem label="macOS">
+       ``` /Users/[USERNAME]/Library/Application Support/snowflake/config.toml ```
+     </TabItem>
+     <TabItem label="Linux">``` ~/.config/snowflake/config.toml ```</TabItem>
+     <TabItem label="Windows">
+       ``` C:\Users\[USERNAME]\AppData\Roaming\snowflake\config.toml ```
+     </TabItem>
+   </Tabs>
+
+3. **Update the configuration**
+
+   Edit your configuration file. Add the HTTP protocol setting under `[connections.embucket]`:
+
+   ```toml
+   [connections.embucket]
+   host = "localhost"
+   region = "us-east-1"
+   port = 3000
+   protocol = "http"
+   database = "embucket"
+   schema = "public"
+   warehouse = "compute-wh"
+   password = "embucket"
+   account = "local-dev.embucket"
+   user = "embucket"
+   ```
+
+   <Aside type="caution">
+     Set `protocol = "http"` because Embucket runs without SSL in local development mode.
+   </Aside>
+
+</Steps>
+
+## Start Embucket
+
+Launch the Embucket container:
+
+```bash
+docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
+```
+
+<Aside type="note">
+  Port 3000 handles Snowflake-compatible API requests. Port 8080 serves the web interface.
+</Aside>
+
+## Connect and query
+
+<Steps>
+
+1. **Open the SQL shell**
+
+   Connect to Embucket with your configured profile:
+
+   ```bash
+   snow sql -c embucket
+   ```
+
+   The `snowflake-cli` shows its interactive shell prompt.
+
+2. **Create sample data**
+
+   Test your connection. Create a table and insert sample data:
+
+   ```sql
+   CREATE TABLE employees (
+     id INT,
+     name STRING,
+     department STRING,
+     salary DECIMAL(10,2)
+   );
+
+   INSERT INTO employees VALUES
+     (1, 'Alice Johnson', 'Engineering', 95000.00),
+     (2, 'Bob Smith', 'Marketing', 75000.00),
+     (3, 'Carol Davis', 'Engineering', 98000.00);
+   ```
+
+3. **Query your data**
+
+   Run a query to verify the connection works:
+
+   ```sql
+   SELECT * FROM employees;
+   ```
+
+   **Expected output:**
+
+   ```
+   +---------------------------------------------+
+   | id | name          | department  | salary   |
+   |----+---------------+-------------+----------|
+   | 1  | Alice Johnson | Engineering | 95000.00 |
+   | 2  | Bob Smith     | Marketing   | 75000.00 |
+   | 3  | Carol Davis   | Engineering | 98000.00 |
+   +---------------------------------------------+
+   ```
+
+</Steps>
+
+## Troubleshooting
+
+- **Connection refused or timeout errors:** Verify Embucket container runs on ports 3000 and 8080
+- **Protocol errors:** Check that you set `protocol = "http"` in your configuration file
+- **Authentication failures:** Use exactly `embucket` for both username and password
+- **SQL execution errors:** Check that you use Snowflake-compatible SQL syntax
+
+## Next steps
+
+Execute advanced workflows with `snowflake-cli` and Embucket:
+
+- Execute complex analytical queries with familiar Snowflake SQL syntax
+- Manage databases and schemas through `snowflake-cli` commands
+- Integrate Embucket into existing Snowflake-based workflows
+- Test Snowflake queries locally before production deployment
+
+<Aside type="tip">
+  For production deployments, configure HTTPS and update your connection settings with proper SSL
+  certificates.
+</Aside>

@@ -6,6 +6,11 @@ test_query!(
     snapshot_path = "flatten"
 );
 test_query!(
+    flatten_non_namedargs,
+    "SELECT * FROM FLATTEN('[1,77]') f;",
+    snapshot_path = "flatten"
+);
+test_query!(
     flatten_outer,
     r#"SELECT * FROM FLATTEN(INPUT => PARSE_JSON('{"a":1, "b":[77,88]}'), OUTER => TRUE) f;"#,
     snapshot_path = "flatten"

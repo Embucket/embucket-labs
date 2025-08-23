@@ -7,6 +7,7 @@ use super::error::{self as ex_error, Result};
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
 use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -20,9 +21,9 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
-use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
+use embucket_functions::session_params::{SessionParams, SessionProperty};
 use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
 use std::collections::HashMap;
@@ -40,6 +41,7 @@ pub struct UserSession {
     pub executor: DedicatedExecutor,
     pub config: Arc<Config>,
     pub expiry: Arc<Mutex<OffsetDateTime>>,
+    pub session_params: Arc<SessionParams>,
 }
 
 impl UserSession {
@@ -59,10 +61,11 @@ impl UserSession {
         // That's a hack to use our custom expr planner first and default ones later. We probably need to get rid of default planners at some point.
         expr_planners.insert(0, Arc::new(CustomExprPlanner));
 
+        let session_params = SessionParams::default();
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
-                    .with_option_extension(SessionParams::default())
+                    .with_option_extension(session_params.clone())
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume
                     .with_create_default_catalog_and_schema(false)
@@ -81,11 +84,13 @@ impl UserSession {
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
             .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
+            .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        register_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
+        let session_params = Arc::new(session_params);
+        register_udfs(&mut ctx, &session_params).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
         register_udtfs(&ctx, history_store.clone());
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
@@ -104,6 +109,7 @@ impl UserSession {
                 OffsetDateTime::now_utc()
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
+            session_params,
         };
         Ok(session)
     }

@@ -163,6 +163,7 @@ pub async fn query(
                 None
             },
             total: Some(1),
+            query_id: Some(query_result.query_id.to_string()),
             error_code: None,
             sql_state: Option::from("ok".to_string()),
         }),

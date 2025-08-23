@@ -1,3 +1,4 @@
+use super::snowflake_error::SnowflakeError;
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -15,9 +16,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("Concurrency limit reached — too many concurrent queries are running"))]
-    ConcurrencyLimitError {
+    ConcurrencyLimit {
         #[snafu(source)]
         error: tokio::sync::TryAcquireError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query execution exceeded timeout"))]
+    QueryTimeout {
         #[snafu(implicit)]
         location: Location,
     },
@@ -94,6 +101,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Unsupported URL scheme '{scheme}' in URL: {url}"))]
+    UnsupportedUrlScheme {
+        scheme: String,
+        url: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Arrow error: {error}"))]
     Arrow {
         #[snafu(source)]
@@ -141,7 +156,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("DataFusion erro when building logical plan for join of merge target and source: {error}"))]
+    #[snafu(display("DataFusion error when building logical plan for join of merge target and source: {error}"))]
     DataFusionLogicalPlanMergeJoin {
         #[snafu(source(from(DataFusionError, Box::new)))]
         error: Box<DataFusionError>,
@@ -172,16 +187,27 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Table {table} not found"))]
+    #[snafu(display("Table {table} not found in schema {schema}"))]
     TableNotFound {
+        schema: String,
         table: String,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Schema {schema} not found"))]
-    SchemaNotFound {
+    #[snafu(display("Table {table} not found in {db}.{schema}"))]
+    TableNotFoundInSchemaInDatabase {
+        table: String,
         schema: String,
+        db: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Schema {schema} not found in database {db}"))]
+    SchemaNotFoundInDatabase {
+        schema: String,
+        db: String,
         #[snafu(implicit)]
         location: Location,
     },
@@ -486,9 +512,15 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Not supported statement: {statement}"))]
+    NotSupportedStatement {
+        statement: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 
-    #[snafu(display("Unexpected subquery result for set variable"))]
-    UnexpectedSubqueryResultForSetVariable {
+    #[snafu(display("Unexpected subquery result"))]
+    UnexpectedSubqueryResult {
         #[snafu(implicit)]
         location: Location,
     },
@@ -505,6 +537,36 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Can't cast to {v}"))]
+    CantCastTo {
+        v: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("{query_id}: Query execution error: {source}"))]
+    QueryExecution {
+        query_id: String,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl Error {
+    pub fn query_id(&self) -> String {
+        if let Self::QueryExecution { query_id, .. } = self {
+            query_id.clone()
+        } else {
+            String::new()
+        }
+    }
+    #[must_use]
+    pub fn to_snowflake_error(&self) -> SnowflakeError {
+        SnowflakeError::from_executor_error(self)
+    }
 }
 
 #[derive(Debug)]
@@ -523,5 +585,11 @@ impl Display for ObjectType {
             Self::Schema => write!(f, "schema"),
             Self::Table => write!(f, "table"),
         }
+    }
+}
+
+impl From<Error> for datafusion_common::DataFusionError {
+    fn from(value: Error) -> Self {
+        Self::External(Box::new(value))
     }
 }

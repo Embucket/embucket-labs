@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::state::AppState;
 use crate::volumes::error::VolumeNotFoundSnafu;
 use crate::{

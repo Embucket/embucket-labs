@@ -1,7 +1,7 @@
 WITH source AS (
 
     SELECT *
-    FROM {{ source('monte_carlo_prod_insights', 'events') }}
+    FROM {{ source('monte_carlo_prod_insights', 'dup_prod_insights_events') }}
 
 ), renamed AS (
 

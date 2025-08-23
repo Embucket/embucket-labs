@@ -239,7 +239,7 @@ impl RegexpInstrFunc {
                 }
                 other => regexp_errors::UnsupportedInputTypeWithPositionSnafu {
                     data_type: other.data_type(),
-                    position: 6usize,
+                    position: 7usize,
                 }
                 .fail(),
             },

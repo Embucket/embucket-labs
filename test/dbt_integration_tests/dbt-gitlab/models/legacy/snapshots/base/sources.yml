@@ -8,7 +8,7 @@ sources:
     loaded_at_field: dbt_updated_at
     
     quoting:
-      database: true
+      database: false
       schema: false
       identifier: false
 

@@ -1,49 +1,82 @@
 ---
 title: Iceberg
-description: Learn how Embucket is built with Apache Iceberg, what features are supported and what are current limitations.
+description: Learn how Embucket builds on Apache Iceberg, what features you can use, and current limitations.
 ---
 
-Embucket is a Snowflake "bring-your-own-cloud" alternative, built on top of open technologies like Apache Iceberg, Apache Arrow, Apache Parquet. Apache Iceberg is an open table format that prescribes how to store and manage large datasets, while Apache Arrow is an in-memory columnar storage format that provides a fast and efficient way to access and process data. Learn more about [Apache Iceberg](https://iceberg.apache.org/).
+import { Aside } from '@astrojs/starlight/components';
 
-Embucket uses Iceberg for data storage, and provides an Iceberg Catalog REST API to read and write data for external tools. All Embucket tables behind the scenes are Iceberg tables, and can be queried using the Iceberg Catalog REST API. This means that any Iceberg client can read and write data to Embucket. At this moment, Embucket ensures compatibility with Apache Spark, pyiceberg and AWS S3 table buckets.
+Embucket uses [Apache Iceberg](https://iceberg.apache.org/)'s open table format to store, manage, and query your data at scale. You can use any Iceberg client to read and write data to Embucket tables.
 
-## Compatibility
+Key points:
 
-Embucket can read data produced by Apache Spark, pyiceberg and AWS S3 table buckets.
-The data written by Embucket can be read with Apache Spark, pyiceberg and AWS S3 table buckets.
+- All Embucket tables use the [Apache Iceberg](https://iceberg.apache.org/) format
+- Embucket exposes an Iceberg Catalog REST API for external tools
+- Compatible with Apache Spark, `pyiceberg`, and AWS S3 table buckets
+- Embucket doesn't yet support some Iceberg features
 
-Embucket target to be compatible with Iceberg v2, but not all feature are supported yet.
+{/* vale Google.Headings = NO */}
 
-Notable missing features are:
+## About Apache Iceberg
+
+{/* vale Google.Headings = YES */}
+
+[Apache Iceberg](https://iceberg.apache.org/) provides an open table format that defines how to store and manage large datasets.
+
+The platform uses Iceberg for data storage and exposes an Iceberg Catalog REST API that lets external tools read and write data. All tables use Iceberg format internally, allowing any Iceberg client to access your data. This system targets compatibility with Apache Spark, `pyiceberg`, and AWS S3 table buckets.
+
+## Compatibility and limitations
+
+The platform reads data from Apache Spark, `pyiceberg`, and AWS S3 table buckets. External tools can read data that Embucket writes.
+
+<Aside type="note">
+  Embucket targets compatibility with Iceberg v2, but doesn't yet support some features.
+</Aside>
+
+### Missing features:
 
 - Credentials vending
 - Server side planning
 - Views
-- Maintenance operations
+- Table maintenance operations such as compaction and snapshot cleanup
+- `UPDATE` and `DELETE` operations
+- `ALTER TABLE` operations
 
-## Limitations
+<Aside type="tip">
+  You can delegate maintenance operations to external tools like AWS S3 table buckets and Apache
+  Spark.
+</Aside>
 
-Embucket currently doesn't provide full support of all Iceberg features. Some of the features are not supported yet due to limitations in Embucket's dependencies and architecture.
+### Supported operations
 
-- Embucket doesn't support table maintenance operations like compaction, snapshot expiration, etc. However, it is possible to delegate these operations to external tools, like AWS S3 table buckets and Apache Spark.
-- Embucket doesn't support `UPDATE` and `DELETE` operations. However, `MERGE INTO` statement is supported.
-- Embucket doesn't support `ALTER TABLE` operations
+- `MERGE INTO` statements
+- Read operations for most Iceberg table formats
+- Write operations that create new data files
 
-### Read path
+### Read operations
 
-Embucket is able to read delete files, however it doesn't support position delete files yet (pending Arrow Parquet reader support).
+The system reads delete files but doesn't yet support position delete files—specialized files that mark individual rows for deletion. This limitation exists because the underlying Parquet file reader doesn't yet handle this deletion method.
 
-### Write path
+### Write operations
 
-Embucket is unable to write delete files, and thus there is no support for DELETE and UPDATE operations. However, there is limited support for MERGE INTO statement, that allows to update and delete rows in a table. This is done by implementing Copy-On-Write (CoW) semantics, where specific parquet files are overwritten in full with new data.
+The platform doesn't write delete files, which prevents `DELETE` and `UPDATE` operations. Still it supports limited `MERGE INTO` statements that update and delete table rows. These operations use CoW or Copy-On-Write semantics, a strategy that overwrites entire Parquet files—columnar data files—with new data instead of modifying individual rows.
+
+<Aside type="caution">
+
+`MERGE INTO` operations rewrite entire Parquet files, which can become expensive for large files with
+small changes.
+
+</Aside>
 
 ## Catalog API
 
-Embucket provides an Iceberg Catalog REST API to read and write data for external tools. This API is partially compatible with [Apache Iceberg Catalog REST API](https://iceberg.apache.org/spec/#catalog-rest-api).
+Embucket exposes an Iceberg Catalog REST API that external tools use to read and write data. This API partially implements the [Apache Iceberg Catalog REST API](https://iceberg.apache.org/spec/#catalog-rest-api).
 
-However, not all endpoints are implemented yet, and some of the existing endpoints are not fully compatible with Apache Iceberg Catalog REST API.
+<Aside type="note">
+  Embucket doesn't support all endpoints. Some existing endpoints don't fully match the Apache
+  Iceberg specification.
+</Aside>
 
-Currently, the only following endpoints are implemented:
+### Supported endpoints:
 
 - `GET /v1/config`
 - `GET /v1/{wid}/namespaces`

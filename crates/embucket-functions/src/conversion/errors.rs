@@ -160,6 +160,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid type"))]
+    InvalidType {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Unsupported format: {format}. Valid formats are {expected}."))]
     UnsupportedFormat {
         format: String,
@@ -181,6 +187,22 @@ pub enum Error {
         value: String,
         #[snafu(source)]
         error: std::num::ParseFloatError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("invalid type [{parameter}({value})] for parameter '{parameter}'"))]
+    InvalidTypeForParameter {
+        value: String,
+        parameter: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to cast variant value {value} to {real_type}"))]
+    FailedToCastVariant {
+        value: String,
+        real_type: String,
         #[snafu(implicit)]
         location: Location,
     },

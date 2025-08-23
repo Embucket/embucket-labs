@@ -1,7 +1,6 @@
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
-use super::e2e_aws::s3_client;
-use crate::SnowflakeError;
+use super::e2e_s3tables_aws::s3tables_client;
 use crate::models::QueryContext;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
@@ -17,6 +16,7 @@ use core_metastore::models::volumes::AwsAccessKeyCredentials;
 use core_metastore::models::volumes::AwsCredentials;
 use core_metastore::{FileVolume, S3TablesVolume, S3Volume, VolumeType};
 use core_utils::Db;
+use error_stack::ErrorChainExt;
 use futures::future::join_all;
 use object_store::ObjectStore;
 use object_store::{
@@ -36,20 +36,21 @@ use std::sync::Arc;
 
 // Set following envs, or add to .env
 
-pub const EMBUCKET_OBJECT_STORE_PREFIX: &str = "EMBUCKET_OBJECT_STORE_";
+pub const MINIO_OBJECT_STORE_PREFIX: &str = "MINIO_OBJECT_STORE_";
 // # Env vars for s3 object store on minio
-// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
-// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
-// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
-// EMBUCKET_OBJECT_STORE_AWS_BUCKET=tables-data
-// EMBUCKET_OBJECT_STORE_AWS_ENDPOINT=http://localhost:9000
-// EMBUCKET_OBJECT_STORE_AWS_ALLOW_HTTP=true
+// MINIO_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// MINIO_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// MINIO_OBJECT_STORE_AWS_REGION=us-east-1
+// MINIO_OBJECT_STORE_AWS_BUCKET=tables-data
+// MINIO_OBJECT_STORE_AWS_ENDPOINT=http://localhost:9000
+// MINIO_OBJECT_STORE_AWS_ALLOW_HTTP=true
 
-// Example env for object store on AWS
-// EMBUCKET_OBJECT_STORE_AWS_ACCESS_KEY_ID=
-// EMBUCKET_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
-// EMBUCKET_OBJECT_STORE_AWS_REGION=us-east-1
-// EMBUCKET_OBJECT_STORE_AWS_BUCKET=e2e-store
+pub const AWS_OBJECT_STORE_PREFIX: &str = "AWS_OBJECT_STORE_";
+// # Env vars for s3 object store on AWS
+// AWS_OBJECT_STORE_AWS_ACCESS_KEY_ID=
+// AWS_OBJECT_STORE_AWS_SECRET_ACCESS_KEY=
+// AWS_OBJECT_STORE_AWS_REGION=us-east-1
+// AWS_OBJECT_STORE_AWS_BUCKET=tables-data
 
 pub const E2E_S3VOLUME_PREFIX: &str = "E2E_S3VOLUME_";
 // Env vars for S3Volume on minio / AWS (change or remove endpoint):
@@ -67,6 +68,7 @@ pub const E2E_S3TABLESVOLUME_PREFIX: &str = "E2E_S3TABLESVOLUME_";
 
 pub const TEST_SESSION_ID1: &str = "test_session_id1";
 pub const TEST_SESSION_ID2: &str = "test_session_id2";
+pub const TEST_SESSION_ID3: &str = "test_session_id3";
 
 #[derive(Clone)]
 pub struct VolumeConfig {
@@ -119,51 +121,55 @@ pub const TEST_DATABASE_NAME: &str = "embucket";
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
-    Slatedb {
+    TestSlatedb {
         source: slatedb::SlateDBError,
         object_store: Arc<dyn ObjectStore>,
         #[snafu(implicit)]
         location: Location,
     },
-    ObjectStore {
+    TestObjectStore {
         source: object_store::Error,
         #[snafu(implicit)]
         location: Location,
     },
-    SnowflakeExecution {
+    TestExecution {
         query: String,
-        #[snafu(source(from(crate::Error, SnowflakeError::from)))]
-        source: SnowflakeError,
+        source: crate::Error,
         #[snafu(implicit)]
         location: Location,
     },
-    S3VolumeConfig {
+    TestS3VolumeConfig {
         source: VarError,
         #[snafu(implicit)]
         location: Location,
     },
-    S3TablesVolumeConfig {
+    TestS3TablesVolumeConfig {
         source: VarError,
         #[snafu(implicit)]
         location: Location,
     },
-    Metastore {
+    TestMetastore {
         source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Error corrupting S3 volume: No Aws access key credentials found"))]
-    CreateS3VolumeWithBadCreds {
+    TestCreateS3VolumeWithBadCreds {
         #[snafu(implicit)]
         location: Location,
     },
-    AwsSdk {
+    TestAwsSdk {
         source: aws_sdk_s3tables::Error,
         #[snafu(implicit)]
         location: Location,
     },
-    BadVolumeType {
+    TestBadVolumeType {
         volume_type: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    TestToxiProxy {
+        source: reqwest::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -177,20 +183,68 @@ pub fn test_suffix() -> String {
         .to_string()
 }
 
+pub fn copy_env_to_new_prefix(env_prefix: &str, new_env_prefix: &str, skip_envs: &[&str]) {
+    unsafe {
+        if !skip_envs.contains(&"AWS_ACCESS_KEY_ID") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ACCESS_KEY_ID"),
+                std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_SECRET_ACCESS_KEY") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_SECRET_ACCESS_KEY"),
+                std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_REGION") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_REGION"),
+                std::env::var(format!("{env_prefix}AWS_REGION")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_BUCKET") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_BUCKET"),
+                std::env::var(format!("{env_prefix}AWS_BUCKET")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_ENDPOINT") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ENDPOINT"),
+                std::env::var(format!("{env_prefix}AWS_ENDPOINT")).unwrap_or_default(),
+            );
+        }
+        if !skip_envs.contains(&"AWS_ALLOW_HTTP") {
+            std::env::set_var(
+                format!("{new_env_prefix}AWS_ALLOW_HTTP"),
+                std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),
+            );
+        }
+        std::env::set_var(
+            format!("{new_env_prefix}AWS_ALLOW_HTTP"),
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).unwrap_or_default(),
+        );
+    }
+}
+
 pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
-    let region = std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
+    let region =
+        std::env::var(format!("{env_prefix}AWS_REGION")).context(TestS3VolumeConfigSnafu)?;
     let access_key =
-        std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
-    let secret_key =
-        std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY")).context(S3VolumeConfigSnafu)?;
+        std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(TestS3VolumeConfigSnafu)?;
+    let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
+        .context(TestS3VolumeConfigSnafu)?;
+    // endpoint is optional
     let endpoint =
-        std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
-    let bucket = std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
+        std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(TestS3VolumeConfigSnafu);
+    let bucket =
+        std::env::var(format!("{env_prefix}AWS_BUCKET")).context(TestS3VolumeConfigSnafu)?;
 
     Ok(S3Volume {
         region: Some(region),
         bucket: Some(bucket),
-        endpoint: Some(endpoint),
+        endpoint: endpoint.ok(),
         credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
             aws_access_key_id: access_key,
             aws_secret_access_key: secret_key,
@@ -198,12 +252,16 @@ pub fn s3_volume(env_prefix: &str) -> Result<S3Volume, Error> {
     })
 }
 
-pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3TablesVolume, Error> {
+pub fn s3_tables_volume(
+    _schema_namespace: &str,
+    env_prefix: &str,
+) -> Result<S3TablesVolume, Error> {
     let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
-        .context(S3TablesVolumeConfigSnafu)?;
+        .context(TestS3TablesVolumeConfigSnafu)?;
     let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
-        .context(S3TablesVolumeConfigSnafu)?;
-    let arn = std::env::var(format!("{env_prefix}AWS_ARN")).context(S3TablesVolumeConfigSnafu)?;
+        .context(TestS3TablesVolumeConfigSnafu)?;
+    let arn =
+        std::env::var(format!("{env_prefix}AWS_ARN")).context(TestS3TablesVolumeConfigSnafu)?;
     let endpoint: Option<String> = std::env::var(format!("{env_prefix}AWS_ENDPOINT"))
         .map(Some)
         .unwrap_or(None);
@@ -218,11 +276,11 @@ pub fn s3_tables_volume(schema_namespace: &str, env_prefix: &str) -> Result<S3Ta
     })
 }
 
-pub async fn create_s3_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
+pub async fn create_s3tables_client(env_prefix: &str) -> Result<aws_sdk_s3tables::Client, Error> {
     // use the same credentials as for s3 tables volume
     let s3_tables_volume = s3_tables_volume("test", env_prefix)?;
     if let AwsCredentials::AccessKey(ref access_key) = s3_tables_volume.credentials {
-        return Ok(s3_client(
+        return Ok(s3tables_client(
             access_key.aws_access_key_id.clone(),
             access_key.aws_secret_access_key.clone(),
             s3_tables_volume.region(),
@@ -237,11 +295,16 @@ pub type TestPlan = Vec<ParallelTest>;
 
 pub struct ParallelTest(pub Vec<TestQuery>);
 
+pub trait TestQueryCallback: Sync + Send {
+    fn err_callback(&self, err: &crate::Error);
+}
+
 pub struct TestQuery {
     pub sqls: Vec<&'static str>,
     pub executor: Arc<ExecutorWithObjectStore>,
     pub session_id: &'static str,
     pub expected_res: bool,
+    pub err_callback: Option<Box<dyn TestQueryCallback>>,
 }
 
 pub struct S3TableStore {
@@ -253,28 +316,43 @@ pub struct S3ObjectStore {
     pub s3_builder: AmazonS3Builder,
 }
 impl S3ObjectStore {
+    #[allow(clippy::or_fun_call)]
     pub fn from_env(env_prefix: &str) -> Result<Self, Error> {
         let region =
-            std::env::var(format!("{env_prefix}AWS_REGION")).context(S3VolumeConfigSnafu)?;
-        let access_key =
-            std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_REGION")).context(TestS3VolumeConfigSnafu)?;
+        let access_key = std::env::var(format!("{env_prefix}AWS_ACCESS_KEY_ID"))
+            .context(TestS3VolumeConfigSnafu)?;
         let secret_key = std::env::var(format!("{env_prefix}AWS_SECRET_ACCESS_KEY"))
-            .context(S3VolumeConfigSnafu)?;
+            .context(TestS3VolumeConfigSnafu)?;
         let endpoint =
-            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ENDPOINT")).context(TestS3VolumeConfigSnafu);
         let allow_http =
-            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_ALLOW_HTTP")).context(TestS3VolumeConfigSnafu);
         let bucket =
-            std::env::var(format!("{env_prefix}AWS_BUCKET")).context(S3VolumeConfigSnafu)?;
+            std::env::var(format!("{env_prefix}AWS_BUCKET")).context(TestS3VolumeConfigSnafu)?;
 
-        let s3_builder = AmazonS3Builder::new()
-            .with_access_key_id(access_key)
-            .with_secret_access_key(secret_key)
-            .with_region(region)
-            .with_bucket_name(bucket)
-            .with_endpoint(endpoint)
-            .with_allow_http(allow_http == "true")
-            .with_conditional_put(S3ConditionalPut::ETagMatch);
+        eprintln!("Create s3_object_store: {region}, {bucket}, {endpoint:?}");
+
+        let s3_builder = if endpoint.is_ok() {
+            AmazonS3Builder::new()
+                .with_access_key_id(access_key)
+                .with_secret_access_key(secret_key)
+                .with_region(region)
+                .with_bucket_name(bucket)
+                .with_allow_http(allow_http.ok().unwrap_or("false".to_string()) == "true")
+                .with_conditional_put(S3ConditionalPut::ETagMatch)
+                // don't know how to apply optional endpoint with the builder
+                .with_endpoint(endpoint?)
+        } else {
+            AmazonS3Builder::new()
+                .with_access_key_id(access_key)
+                .with_secret_access_key(secret_key)
+                .with_region(region)
+                .with_bucket_name(bucket)
+                .with_allow_http(allow_http.ok().unwrap_or("false".to_string()) == "true")
+                .with_conditional_put(S3ConditionalPut::ETagMatch)
+        };
+
         Ok(Self { s3_builder })
     }
 }
@@ -299,17 +377,23 @@ impl ExecutorWithObjectStore {
         self.executor
             .create_session(TEST_SESSION_ID1.to_string())
             .await
-            .context(SnowflakeExecutionSnafu {
+            .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID1",
             })?;
 
         self.executor
             .create_session(TEST_SESSION_ID2.to_string())
             .await
-            .context(SnowflakeExecutionSnafu {
+            .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID2",
             })?;
 
+        self.executor
+            .create_session(TEST_SESSION_ID3.to_string())
+            .await
+            .context(TestExecutionSnafu {
+                query: "create session TEST_SESSION_ID3",
+            })?;
         Ok(())
     }
 
@@ -328,7 +412,7 @@ impl ExecutorWithObjectStore {
             .get::<RwObject<MetastoreVolume>>(&db_key)
             .await
             .context(UtilSlateDBSnafu)
-            .context(MetastoreSnafu)?;
+            .context(TestMetastoreSnafu)?;
         if let Some(volume) = volume {
             let volume = volume.data;
             // set_bad_aws_credentials_for_bucket, by reversing creds
@@ -359,29 +443,29 @@ impl ExecutorWithObjectStore {
                         .put(&db_key, &rwobject)
                         .await
                         .context(UtilSlateDBSnafu)
-                        .context(MetastoreSnafu)?;
+                        .context(TestMetastoreSnafu)?;
                     // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
                     self.metastore
                         .update_volume(&volume_name, rwobject.data)
                         .await
-                        .context(MetastoreSnafu)?;
+                        .context(TestMetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials
                     let object_store = self
                         .metastore
                         .volume_object_store(&volume_name)
                         .await
-                        .context(MetastoreSnafu)?;
+                        .context(TestMetastoreSnafu)?;
                     if let Some(object_store) = object_store {
                         let obj_store_res = object_store
                             .get(&object_store::path::Path::from("/"))
                             .await
-                            .context(ObjectStoreSnafu);
+                            .context(TestObjectStoreSnafu);
                         // fail if object_store read succesfully
                         assert!(obj_store_res.is_err());
                     }
                 } else {
-                    return Err(CreateS3VolumeWithBadCredsSnafu.build());
+                    return Err(TestCreateS3VolumeWithBadCredsSnafu.build());
                 }
             }
         }
@@ -445,6 +529,7 @@ pub async fn create_volumes(
         let volume = (*volume).to_string();
         match volume_type {
             TestVolumeType::Memory => {
+                eprintln!("Creating memory volume: {volume}");
                 let res = metastore
                     .create_volume(
                         &volume,
@@ -460,6 +545,7 @@ pub async fn create_volumes(
                 user_data_dir.push("store");
                 user_data_dir.push(format!("user-volume-{suffix}"));
                 let user_data_dir = user_data_dir.as_path();
+                eprintln!("Creating file volume: {volume}, {user_data_dir:?}");
                 let res = metastore
                     .create_volume(
                         &volume,
@@ -478,6 +564,7 @@ pub async fn create_volumes(
             TestVolumeType::S3 => {
                 let prefix = prefix.unwrap_or(E2E_S3VOLUME_PREFIX);
                 if let Ok(s3_volume) = s3_volume(prefix) {
+                    eprintln!("Creating s3 volume: {volume}, {s3_volume:?}");
                     let res = metastore
                         .create_volume(
                             &volume,
@@ -495,6 +582,7 @@ pub async fn create_volumes(
             TestVolumeType::S3Tables => {
                 let prefix = prefix.unwrap_or(E2E_S3TABLESVOLUME_PREFIX);
                 if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
+                    eprintln!("Creating s3tables volume: {volume}, {s3_tables_volume:?}");
                     let res = metastore
                         .create_volume(
                             &volume,
@@ -559,7 +647,7 @@ impl ObjectStoreType {
                 .clone()
                 .build()
                 .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                .context(ObjectStoreSnafu),
+                .context(TestObjectStoreSnafu),
         }
     }
 
@@ -574,7 +662,7 @@ impl ObjectStoreType {
                 .with_block_cache(Arc::new(MokaCache::new()))
                 .build()
                 .await
-                .context(SlatedbSnafu {
+                .context(TestSlatedbSnafu {
                     object_store: self.object_store()?,
                 })?,
             )),
@@ -590,7 +678,7 @@ impl ObjectStoreType {
         }
         LocalFileSystem::new_with_prefix(path)
             .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
-            .context(ObjectStoreSnafu)
+            .context(TestObjectStoreSnafu)
     }
 }
 
@@ -598,6 +686,8 @@ pub async fn create_executor(
     object_store_type: ObjectStoreType,
     alias: &str,
 ) -> Result<ExecutorWithObjectStore, Error> {
+    eprintln!("Creating executor with object store type: {object_store_type}");
+
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
@@ -631,6 +721,8 @@ pub async fn create_executor_with_early_volumes_creation(
     alias: &str,
     override_volumes: Vec<VolumeConfig>,
 ) -> Result<ExecutorWithObjectStore, Error> {
+    eprintln!("Creating executor with object store type: {object_store_type}");
+
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
 
@@ -646,7 +738,7 @@ pub async fn create_executor_with_early_volumes_creation(
         Arc::new(Config::default()),
     )
     .await
-    .context(SnowflakeExecutionSnafu {
+    .context(TestExecutionSnafu {
         query: "EXECUTOR CREATE ERROR".to_string(),
     })?;
 
@@ -707,7 +799,7 @@ pub async fn exec_parallel_test_plan(
                         .executor
                         .query(test.session_id, sql, QueryContext::default())
                         .await
-                        .context(SnowflakeExecutionSnafu { query: sql.clone() });
+                        .context(TestExecutionSnafu { query: sql.clone() });
                     let ExecutorWithObjectStore {
                         alias,
                         object_store_type,
@@ -748,6 +840,7 @@ pub async fn exec_parallel_test_plan(
                 // let res = result.context(SnowflakeExecutionSnafu { query: sql.clone() });
                 let res_is_ok = res.is_ok();
                 let TestQuery {
+                    err_callback,
                     expected_res,
                     session_id,
                     ..
@@ -767,9 +860,14 @@ pub async fn exec_parallel_test_plan(
                     Ok(res) => eprintln!("res: {res:#?}"),
                     Err(error) => {
                         eprintln!("Debug error: {error:#?}");
-                        let snowflake_error = SnowflakeError::from(error);
+                        eprintln!("Chain error: {}", error.error_chain());
+                        let snowflake_error = error.to_snowflake_error();
                         eprintln!("Snowflake debug error: {snowflake_error:#?}"); // message with line number in snowflake_errors
                         eprintln!("Snowflake display error: {snowflake_error}"); // clean message as from transport
+                        // callback can fail on user's assertion
+                        if let Some(err_callback) = err_callback {
+                            err_callback.err_callback(&error);
+                        }
                     }
                 }
 

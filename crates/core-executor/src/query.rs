@@ -6,7 +6,8 @@ use super::catalog::{
 };
 use super::datafusion::planner::ExtendedSqlToRel;
 use super::error::{
-    self as ex_error, Error, ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
+    self as ex_error, Error, InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu,
+    ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
@@ -15,7 +16,6 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::error::{InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu};
 use crate::models::{QueryContext, QueryResult};
 use arrow_schema::SchemaBuilder;
 use core_history::HistoryStore;
@@ -23,6 +23,7 @@ use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
     TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume, VolumeType,
+    models::volumes::create_object_store_from_url,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
@@ -40,15 +41,14 @@ use datafusion::datasource::listing::{
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
-use datafusion::optimizer::OptimizerConfig;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
 use datafusion::sql::planner::ParserOptions;
 use datafusion::sql::resolve::resolve_table_references;
 use datafusion::sql::sqlparser::ast::{
-    CreateTable as CreateTableStatement, Expr, Ident, ObjectName, Query, SchemaName, Statement,
-    TableFactor,
+    CreateTable as CreateTableStatement, DescribeAlias, Expr, Ident, ObjectName, Query, SchemaName,
+    Statement, TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
 use datafusion_common::{
@@ -60,7 +60,7 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, ScalarUDF, SubqueryAlias, TryCast, and,
+    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
     build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
@@ -70,15 +70,13 @@ use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
-use df_catalog::information_schema::session_params::{SessionParams, SessionProperty};
 use df_catalog::table::CachingTable;
-use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
-use embucket_functions::datetime::date_part_extract;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
+use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    json_element, qualify_in_query, select_expr_aliases, table_functions,
-    table_functions_cte_relation, timestamp, top_limit,
+    rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation,
+    timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -94,16 +92,16 @@ use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
-use object_store::ObjectStore;
-use object_store::aws::AmazonS3Builder;
+use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
+use object_store::{ClientOptions, ObjectStore};
 use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
-    AssignmentTarget, CloudProviderParams, MergeAction, MergeClause, MergeClauseKind,
-    MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens, PivotValueSource,
-    ShowObjects, ShowStatementFilter, ShowStatementIn, TruncateTableTarget, Use, Value,
-    visit_relations_mut,
+    AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
+    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
+    ShowStatementInParentType as ShowType, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -261,98 +259,10 @@ impl UserQuery {
         }
     }
 
-    fn register_session_udfs(&self) {
-        // DATE_PART_EXTRACT
-        let week_start = self
-            .session
-            .get_session_variable("week_start")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<usize>()
-            .unwrap_or(0);
-
-        let week_of_year_policy = self
-            .session
-            .get_session_variable("week_of_year_policy")
-            .unwrap_or_else(|| "0".to_string())
-            .parse::<usize>()
-            .unwrap_or(0);
-
-        date_part_extract::register_udfs(&self.session.ctx, week_start, week_of_year_policy);
-
-        // TO_TIMESTAMP
-        let format = self
-            .session
-            .get_session_variable("timestamp_input_format")
-            .unwrap_or_else(|| "auto".to_string());
-        let tz = self
-            .session
-            .get_session_variable("timezone")
-            .unwrap_or_else(|| "America/Los_Angeles".to_string());
-
-        let mapping = self
-            .session
-            .get_session_variable("timestamp_input_mapping")
-            .unwrap_or_else(|| "timestamp_ntz".to_string());
-
-        let funcs = [
-            (
-                if mapping == "timestamp_ntz" {
-                    None
-                } else {
-                    Some(Arc::from(tz.clone()))
-                },
-                false,
-                "to_timestamp".to_string(),
-            ),
-            (
-                if mapping == "timestamp_ntz" {
-                    None
-                } else {
-                    Some(Arc::from(tz.clone()))
-                },
-                true,
-                "try_to_timestamp".to_string(),
-            ),
-            (None, false, "to_timestamp_ntz".to_string()),
-            (None, true, "try_to_timestamp_ntz".to_string()),
-            (
-                Some(Arc::from(tz.clone())),
-                false,
-                "to_timestamp_tz".to_string(),
-            ),
-            (
-                Some(Arc::from(tz.clone())),
-                true,
-                "try_to_timestamp_tz".to_string(),
-            ),
-            (
-                Some(Arc::from(tz.clone())),
-                false,
-                "to_timestamp_ltz".to_string(),
-            ),
-            (
-                Some(Arc::from(tz)),
-                true,
-                "try_to_timestamp_ltz".to_string(),
-            ),
-        ];
-
-        for (tz, r#try, name) in funcs {
-            self.session
-                .ctx
-                .register_udf(ScalarUDF::from(ToTimestampFunc::new(
-                    tz,
-                    format.clone(),
-                    r#try,
-                    name,
-                )));
-        }
-    }
-
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
         if let DFStatement::Statement(value) = statement {
-            json_element::visit(value);
+            rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
             top_limit::visit(value);
             unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
@@ -361,7 +271,6 @@ impl UserQuery {
             inline_aliases_in_query::visit(value);
             fetch_to_limit::visit(value).context(ex_error::SqlParserSnafu)?;
             table_functions::visit(value);
-            qualify_in_query::visit(value);
             timestamp::visit(value);
             table_functions_cte_relation::visit(value);
             visit_all(value);
@@ -380,7 +289,6 @@ impl UserQuery {
     pub async fn execute(&mut self) -> Result<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
-        self.register_session_udfs();
 
         // Record the result as part of the current span.
         tracing::Span::current().record("statement", format!("{statement:#?}"));
@@ -427,7 +335,11 @@ impl UserQuery {
                     }
                     let params = HashMap::from([(
                         variable.to_string(),
-                        SessionProperty::from_str_value(value, Some(self.session.ctx.session_id())),
+                        SessionProperty::from_str_value(
+                            variable.to_string(),
+                            value,
+                            Some(self.session.ctx.session_id()),
+                        ),
                     )]);
                     self.session.set_session_variable(true, params)?;
                     return self.status_response();
@@ -469,8 +381,15 @@ impl UserQuery {
                 Statement::CopyIntoSnowflake { .. } => {
                     return Box::pin(self.copy_into_snowflake_query(*s)).await;
                 }
-                Statement::AlterTable { .. }
-                | Statement::StartTransaction { .. }
+                Statement::AlterTable {
+                    name,
+                    operations,
+                    if_exists,
+                    ..
+                } => {
+                    return Box::pin(self.alter_table(name, operations, if_exists)).await;
+                }
+                Statement::StartTransaction { .. }
                 | Statement::Commit { .. }
                 | Statement::Rollback { .. }
                 | Statement::Update { .. } => return self.status_response(),
@@ -495,6 +414,13 @@ impl UserQuery {
                 }
                 Statement::Drop { .. } => return Box::pin(self.drop_query(*s)).await,
                 Statement::Merge { .. } => return Box::pin(self.merge_query(*s)).await,
+                Statement::ExplainTable {
+                    describe_alias: DescribeAlias::Describe | DescribeAlias::Desc,
+                    table_name,
+                    ..
+                } => {
+                    return Box::pin(self.describe_table_query(table_name)).await;
+                }
                 _ => {}
             }
         } else if let DFStatement::CreateExternalTable(cetable) = statement {
@@ -511,8 +437,8 @@ impl UserQuery {
             .catalog_list()
             .catalog(name)
             .ok_or_else(|| {
-                ex_error::CatalogNotFoundSnafu {
-                    catalog: name.to_string(),
+                ex_error::DatabaseNotFoundSnafu {
+                    db: name.to_string(),
                 }
                 .build()
             })
@@ -586,49 +512,85 @@ impl UserQuery {
         variables: OneOrManyWithParens<ObjectName>,
         values: Vec<Expr>,
     ) -> Result<QueryResult> {
-        let mut session_values = Vec::new();
-        for value in values {
+        let params = variables
+            .iter()
+            .map(ToString::to_string)
+            .zip(values.into_iter());
+
+        let mut session_params = HashMap::new();
+        for (name, value) in params {
             let session_value = match value {
                 Expr::Value(v) => Ok(SessionProperty::from_value(
+                    name.clone(),
                     &v.value,
                     self.session.ctx.session_id(),
                 )),
                 Expr::Subquery(query) => {
                     let query_str = query.to_string();
-                    let res = self.execute_with_custom_plan(&query_str).await?;
-                    if res.records.is_empty()
-                        || res.records[0].num_columns() < 1
-                        || res.records[0].num_rows() < 1
-                    {
-                        return ex_error::UnexpectedSubqueryResultForSetVariableSnafu.fail();
-                    }
-                    let column = res.records[0].column(0);
-                    let scalar = ScalarValue::try_from_array(column, 0)
-                        .context(ex_error::DataFusionSnafu)?;
+                    let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
+                        &scalar,
+                        self.session.ctx.session_id(),
+                    ))
+                }
+                Expr::BinaryOp { .. } => {
+                    let query_str = format!("SELECT {value}");
+                    let scalar = self.execute_scalar_query(&query_str).await?;
+                    Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
                 }
                 _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
             }?;
-            session_values.push(session_value);
+            session_params.insert(name, session_value);
         }
-        let params = variables
-            .iter()
-            .map(ToString::to_string)
-            .zip(session_values.into_iter())
-            .collect();
-        self.session.set_session_variable(true, params)?;
+        self.session.set_session_variable(true, session_params)?;
+        self.status_response()
+    }
+
+    #[instrument(name = "UserQuery::alter_table", level = "trace", skip(self), err)]
+    #[allow(clippy::too_many_lines)]
+    pub async fn alter_table(
+        &self,
+        name: ObjectName,
+        operations: Vec<AlterTableOperation>,
+        if_exists: bool,
+    ) -> Result<QueryResult> {
+        let ident = &self.resolve_table_object_name(name.0.clone())?;
+        let resolved = self.resolve_table_ref(ident);
+        let catalog = self.get_catalog(&resolved.catalog)?;
+        let schema =
+            catalog
+                .schema(&resolved.schema)
+                .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: &resolved.schema.to_string(),
+                    db: &resolved.catalog.to_string(),
+                })?;
+        if !if_exists {
+            schema
+                .table(&resolved.table)
+                .await
+                .context(ex_error::DataFusionSnafu)?
+                .context(ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                    table: &resolved.table.to_string(),
+                    schema: &resolved.schema.to_string(),
+                    db: &resolved.catalog.to_string(),
+                })?;
+        }
         self.status_response()
     }
 
     #[instrument(name = "UserQuery::drop_query", level = "trace", skip(self), err)]
+    #[allow(clippy::too_many_lines)]
     pub async fn drop_query(&self, statement: Statement) -> Result<QueryResult> {
         let Statement::Drop {
             object_type,
             names,
             cascade,
+            if_exists,
             ..
         } = statement.clone()
         else {
@@ -666,7 +628,7 @@ impl UserQuery {
 
         let catalog_name = table_ref.catalog.as_ref();
         let schema_name = table_ref.schema.to_string();
-        let ident = Identifier::new(&[schema_name.clone()], table_ref.table.as_ref());
+        let ident = Identifier::new(std::slice::from_ref(&schema_name), table_ref.table.as_ref());
 
         let catalog = self.get_catalog(catalog_name)?;
         let iceberg_catalog = match self
@@ -681,7 +643,8 @@ impl UserQuery {
 
         match object_type {
             ObjectType::Table | ObjectType::View => {
-                if iceberg_catalog.clone().load_tabular(&ident).await.is_ok() {
+                let table_resp = iceberg_catalog.clone().load_tabular(&ident).await;
+                if table_resp.is_ok() {
                     iceberg_catalog
                         .drop_table(&ident)
                         .await
@@ -692,6 +655,29 @@ impl UserQuery {
                         table: ident.name().to_string(),
                     }))
                     .await?;
+                } else if let Some(IcebergError::NotFound(_)) = table_resp.as_ref().err() {
+                    // Check if the schema exists first
+                    if iceberg_catalog
+                        .load_namespace(ident.namespace())
+                        .await
+                        .is_err()
+                    {
+                        ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema_name,
+                            db: catalog_name.to_string(),
+                        }
+                        .fail()?;
+                    } else if !if_exists {
+                        ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                            table: ident.name().to_string(),
+                            schema: schema_name,
+                            db: catalog_name.to_string(),
+                        }
+                        .fail()?;
+                    }
+                } else {
+                    // return original error, since schema exists
+                    table_resp.context(ex_error::IcebergSnafu)?;
                 }
                 self.status_response()
             }
@@ -754,15 +740,26 @@ impl UserQuery {
         create_table_statement.storage_serialization_policy = None;
         create_table_statement.cluster_by = None;
 
-        let plan = self
+        let mut plan = self
             .get_custom_logical_plan(&create_table_statement.to_string())
             .await?;
-        let ident: MetastoreTableIdent = new_table_ident.into();
+        // Run analyzer rules to ensure the logical plan has the correct schema,
+        // especially when handling CTEs used as sources for INSERT statements.
+        plan = self
+            .session
+            .ctx
+            .state()
+            .analyzer()
+            .execute_and_check(plan, self.session.ctx.state().config_options(), |_, _| ())
+            .context(ex_error::DataFusionSnafu)?;
 
-        let catalog = self.get_catalog(ident.database.as_str())?;
+        let ident: MetastoreTableIdent = new_table_ident.into();
+        let catalog_name = ident.database.clone();
+
+        let catalog = self.get_catalog(&catalog_name)?;
         self.create_iceberg_table(
             catalog.clone(),
-            ident.database.clone(),
+            catalog_name.clone(),
             table_location,
             ident.clone(),
             create_table_statement,
@@ -795,20 +792,15 @@ impl UserQuery {
 
             let target_table = catalog
                 .schema(schema_name)
-                .ok_or_else(|| {
-                    ex_error::SchemaNotFoundSnafu {
-                        schema: schema_name.to_string(),
-                    }
-                    .build()
+                .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    schema: schema_name.to_string(),
+                    db: &catalog_name,
                 })?
                 .table(name.table())
                 .await
                 .context(ex_error::DataFusionSnafu)?
-                .ok_or_else(|| {
-                    ex_error::TableProviderNotFoundSnafu {
-                        table_name: name.table().to_string(),
-                    }
-                    .build()
+                .context(ex_error::TableProviderNotFoundSnafu {
+                    table_name: name.table().to_string(),
                 })?;
             let schema = target_table.schema();
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
@@ -1134,11 +1126,12 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?;
 
+            let url = ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
+
             let object_store = self
-                .get_object_store_from_stage_params(stage_params)
+                .get_object_store_from_stage_params(stage_params, &url)
                 .await?;
 
-            let url = ListingTableUrl::parse(&location.value).context(ex_error::DataFusionSnafu)?;
             self.session
                 .ctx
                 .register_object_store(url.object_store().as_ref(), object_store);
@@ -1314,13 +1307,11 @@ impl UserQuery {
             .get_iceberg_table_provider(
                 &target_ident,
                 Some(
-                    //TODO Return proper Error
-                    #[allow(clippy::unwrap_used)]
                     DataFusionTableConfigBuilder::default()
                         .enable_data_file_path_column(true)
                         .enable_manifest_file_path_column(true)
                         .build()
-                        .unwrap(),
+                        .context(ex_error::IcebergSnafu)?,
                 ),
             )
             .await?;
@@ -1536,7 +1527,7 @@ impl UserQuery {
         self.created_entity_response()
     }
 
-    #[instrument(name = "UserQuery::create_schema", level = "trace", skip(self), err)]
+    #[instrument(name = "UserQuery::create_view", level = "trace", skip(self), err)]
     pub async fn create_view(&self, statement: Statement) -> Result<QueryResult> {
         let mut plan = self.sql_statement_to_plan(statement).await?;
         match &mut plan {
@@ -1593,7 +1584,7 @@ impl UserQuery {
             }
             .fail();
         }
-        let namespace = Namespace::try_new(&[ident.schema.clone()])
+        let namespace = Namespace::try_new(std::slice::from_ref(&ident.schema))
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
         iceberg_catalog
@@ -1638,7 +1629,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowSchemas { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Database)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1660,7 +1652,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowTables { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1685,7 +1678,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowViews { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1710,7 +1704,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowObjects(ShowObjects { show_options, .. }) => {
-                let reference = self.resolve_show_in_name(show_options.show_in, false);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in, ShowType::Schema)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1737,7 +1732,8 @@ impl UserQuery {
                 apply_show_filters(sql, &filters)
             }
             Statement::ShowColumns { show_options, .. } => {
-                let reference = self.resolve_show_in_name(show_options.show_in.clone(), true);
+                let reference =
+                    self.resolve_show_in_name(show_options.show_in.clone(), ShowType::Table)?;
                 let catalog: String = reference
                     .catalog()
                     .map_or_else(|| self.current_database(), ToString::to_string);
@@ -1814,6 +1810,24 @@ impl UserQuery {
         Box::pin(self.execute_with_custom_plan(&query)).await
     }
 
+    pub async fn describe_table_query(&self, table_name: ObjectName) -> Result<QueryResult> {
+        let resolved_ident = self.resolve_table_object_name(table_name.0)?;
+        let table_ident = self.resolve_table_ref(&resolved_ident);
+        let query = format!(
+            "SELECT 
+                column_name as name,
+                upper(snowflake_data_type) as type,
+                is_nullable as 'null?'
+            FROM {}.information_schema.columns
+            WHERE table_catalog = '{}' 
+              AND table_schema = '{}' 
+              AND table_name = '{}'
+            ORDER BY ordinal_position",
+            table_ident.catalog, table_ident.catalog, table_ident.schema, table_ident.table
+        );
+        Box::pin(self.execute_with_custom_plan(&query)).await
+    }
+
     #[instrument(
         name = "UserQuery::truncate_table",
         level = "trace",
@@ -1846,26 +1860,92 @@ impl UserQuery {
         res
     }
 
-    #[must_use]
     pub fn resolve_show_in_name(
         &self,
         show_in: Option<ShowStatementIn>,
-        table: bool,
-    ) -> TableReference {
-        let parts: Vec<String> = show_in
-            .and_then(|in_clause| in_clause.parent_name)
-            .map(|obj| obj.0.into_iter().map(|ident| ident.to_string()).collect())
-            .unwrap_or_default();
+        default_show_type: ShowType,
+    ) -> Result<TableReference> {
+        if show_in.is_none() {
+            return Ok(TableReference::full(
+                self.current_database(),
+                self.current_schema(),
+                String::new(),
+            ));
+        }
 
-        let (catalog, schema, table_name) = match parts.as_slice() {
-            [one] if table => (self.current_database(), self.current_schema(), one.clone()),
-            [one] => (self.current_database(), one.clone(), String::new()),
-            [s, t] if table => (self.current_database(), s.clone(), t.clone()),
-            [d, s] => (d.clone(), s.clone(), String::new()),
-            [d, s, t] => (d.clone(), s.clone(), t.clone()),
-            _ => (self.current_database(), String::new(), String::new()),
+        let parts: Vec<String> = show_in
+            .as_ref()
+            .and_then(|in_clause| in_clause.parent_name.clone())
+            .map(|obj| {
+                obj.0
+                    .into_iter()
+                    .map(|ident| match ident {
+                        ObjectNamePart::Identifier(ident) => {
+                            self.normalize_ident(ident).to_string()
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let parent_type = show_in
+            .and_then(|in_clause| in_clause.parent_type)
+            .unwrap_or(default_show_type);
+
+        let table_ref = match parent_type {
+            ShowType::Account | ShowType::Database => {
+                let database = parts.join("");
+                self.get_catalog(&database)?;
+                TableReference::full(database, String::new(), String::new())
+            }
+            ShowType::Schema => {
+                let (database, schema) = match parts.as_slice() {
+                    [s] => (self.current_database(), s.clone()),
+                    [d, s] => (d.clone(), s.clone()),
+                    _ => (String::new(), String::new()),
+                };
+                let catalog = self.get_catalog(&database)?;
+                // Information schema is not registered in catalog
+                if schema != INFORMATION_SCHEMA {
+                    catalog
+                        .schema(&schema)
+                        .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema.clone(),
+                            db: database.clone(),
+                        })?;
+                }
+                TableReference::full(database, schema, String::new())
+            }
+            ShowType::Table | ShowType::View => {
+                let (database, schema, table) = match parts.as_slice() {
+                    [t] => (self.current_database(), self.current_schema(), t.clone()),
+                    [s, t] => (self.current_database(), s.clone(), t.clone()),
+                    [d, s, t] => (d.clone(), s.clone(), t.clone()),
+                    _ => (
+                        self.current_database(),
+                        self.current_schema(),
+                        String::new(),
+                    ),
+                };
+                let catalog = self.get_catalog(&database)?;
+                let schema_prov =
+                    catalog
+                        .schema(&schema)
+                        .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            schema: schema.clone(),
+                            db: database.clone(),
+                        })?;
+                if !schema_prov.table_exist(&table) {
+                    return ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                        table,
+                        schema: schema.clone(),
+                        db: database,
+                    }
+                    .fail()?;
+                }
+                TableReference::full(database, schema, table)
+            }
         };
-        TableReference::full(catalog, schema, table_name)
+        Ok(table_ref)
     }
 
     #[instrument(
@@ -2026,15 +2106,18 @@ impl UserQuery {
     )]
     pub async fn execute_with_custom_plan(&self, query: &str) -> Result<QueryResult> {
         let mut plan = self.get_custom_logical_plan(query).await?;
-        let session_params = self
+        let session_params_map: HashMap<String, ScalarValue> = self
             .session
-            .ctx
-            .state()
-            .options()
-            .extensions
-            .get::<SessionParams>()
-            .cloned()
-            .map_or_else(|| ParamValues::Map(HashMap::default()), ParamValues::from);
+            .session_params
+            .properties
+            .iter()
+            .filter_map(|entry| {
+                // Use original parameter name as key
+                let (key, prop) = (entry.value().name.clone(), entry.value().clone());
+                prop.to_scalar_value().map(|scalar| (key, scalar))
+            })
+            .collect();
+        let session_params = ParamValues::Map(session_params_map);
 
         plan = self
             .session_context_expr_rewriter()
@@ -2055,7 +2138,19 @@ impl UserQuery {
         self.execute_logical_plan(plan).await
     }
 
-    #[allow(clippy::unwrap_used)]
+    async fn execute_scalar_query(&self, query_str: &str) -> Result<ScalarValue> {
+        let res = self.execute_with_custom_plan(query_str).await?;
+        if res.records.is_empty()
+            || res.records[0].num_columns() < 1
+            || res.records[0].num_rows() < 1
+        {
+            return ex_error::UnexpectedSubqueryResultSnafu.fail();
+        }
+
+        let column = res.records[0].column(0);
+        ScalarValue::try_from_array(column, 0).context(ex_error::DataFusionSnafu)
+    }
+
     async fn table_references_for_statement(
         &self,
         statement: &DFStatement,
@@ -2068,16 +2163,14 @@ impl UserQuery {
             .context(ex_error::DataFusionSnafu)?;
         for reference in references {
             let resolved = self.resolve_table_ref(reference);
-            if let Entry::Vacant(v) = tables.entry(resolved.clone()) {
-                if let Ok(schema) = self.schema_for_ref(resolved.clone()) {
-                    if let Some(table) = schema
-                        .table(&resolved.table)
-                        .await
-                        .context(ex_error::DataFusionSnafu)?
-                    {
-                        v.insert(provider_as_source(table));
-                    }
-                }
+            if let Entry::Vacant(v) = tables.entry(resolved.clone())
+                && let Ok(schema) = self.schema_for_ref(resolved.clone())
+                && let Some(table) = schema
+                    .table(&resolved.table)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?
+            {
+                v.insert(provider_as_source(table));
             }
         }
         Ok(tables)
@@ -2089,14 +2182,15 @@ impl UserQuery {
         &self,
         table_ref: impl Into<TableReference>,
     ) -> ResolvedTableReference {
-        table_ref
+        let resolved = table_ref
             .into()
-            .resolve(&self.current_database(), &self.current_schema())
+            .resolve(&self.current_database(), &self.current_schema());
+        normalize_resolved_ref(&resolved)
     }
 
     #[must_use]
     pub fn resolve_schema_ref(&self, schema: SchemaReference) -> ResolvedTableReference {
-        match schema {
+        let schema_ref = match schema {
             SchemaReference::Bare { schema } => ResolvedTableReference {
                 catalog: Arc::from(self.current_database()),
                 schema,
@@ -2107,7 +2201,8 @@ impl UserQuery {
                 schema,
                 table: Arc::from(""),
             },
-        }
+        };
+        normalize_resolved_ref(&schema_ref)
     }
 
     pub fn schema_for_ref(
@@ -2143,22 +2238,21 @@ impl UserQuery {
             if batch.num_columns() > 0 {
                 let column = batch.column(0);
                 for row_idx in 0..batch.num_rows() {
-                    if !column.is_null(row_idx) {
-                        if let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx) {
-                            let expr = if batch.schema().fields()[0].data_type().is_numeric() {
-                                Expr::Value(
-                                    Value::Number(scalar_value.to_string(), false)
-                                        .with_empty_span(),
-                                )
-                            } else {
-                                Expr::Value(
-                                    Value::SingleQuotedString(scalar_value.to_string())
-                                        .with_empty_span(),
-                                )
-                            };
+                    if !column.is_null(row_idx)
+                        && let Ok(scalar_value) = ScalarValue::try_from_array(column, row_idx)
+                    {
+                        let expr = if batch.schema().fields()[0].data_type().is_numeric() {
+                            Expr::Value(
+                                Value::Number(scalar_value.to_string(), false).with_empty_span(),
+                            )
+                        } else {
+                            Expr::Value(
+                                Value::SingleQuotedString(scalar_value.to_string())
+                                    .with_empty_span(),
+                            )
+                        };
 
-                            exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
-                        }
+                        exprs.push(sqlparser::ast::ExprWithAlias { expr, alias: None });
                     }
                 }
             }
@@ -2521,24 +2615,72 @@ impl UserQuery {
     async fn get_object_store_from_stage_params(
         &self,
         stage_params: StageParamsObject,
+        url: &ListingTableUrl,
     ) -> Result<Arc<dyn ObjectStore + 'static>> {
-        let object_store = match (stage_params.storage_integration, stage_params.credentials) {
+        match (&stage_params.storage_integration, &stage_params.credentials) {
             (Some(volume), _) => {
                 let volume = self
                     .metastore
-                    .get_volume(&volume)
+                    .get_volume(volume)
                     .await
                     .context(ex_error::MetastoreSnafu)?
                     .context(ex_error::VolumeNotFoundSnafu { volume })?;
-                volume
+                Ok(volume
                     .get_object_store()
-                    .context(ex_error::MetastoreSnafu)?
+                    .context(ex_error::MetastoreSnafu)?)
             }
-            (None, _) => {
-                todo!()
+            (None, credentials) if !credentials.options.is_empty() => {
+                // Create object store from credentials
+                let access_key_id = get_kv_option(credentials, "AWS_KEY_ID");
+                let secret_access_key = get_kv_option(credentials, "AWS_SECRET_KEY");
+                let session_token = get_kv_option(credentials, "AWS_SESSION_TOKEN");
+
+                if let (Some(access_key), Some(secret_key)) = (access_key_id, secret_access_key) {
+                    let object_store_url = url.object_store();
+                    let bucket = object_store_url
+                        .as_str()
+                        .trim_start_matches("s3://")
+                        .trim_end_matches('/');
+
+                    let region = resolve_bucket_region(bucket, &ClientOptions::default())
+                        .await
+                        .context(ex_error::ObjectStoreSnafu)?;
+
+                    let credentials = if let Some(token) = session_token {
+                        Some(AwsCredentials::Token(token.to_string()))
+                    } else {
+                        Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                            aws_access_key_id: access_key.to_string(),
+                            aws_secret_access_key: secret_key.to_string(),
+                        }))
+                    };
+
+                    let s3_volume = S3Volume {
+                        region: Some(region),
+                        bucket: Some(bucket.to_string()),
+                        endpoint: stage_params.endpoint.clone(),
+                        credentials,
+                    };
+
+                    let s3 = s3_volume
+                        .get_s3_builder()
+                        .build()
+                        .context(ex_error::ObjectStoreSnafu)?;
+                    Ok(Arc::new(s3))
+                } else {
+                    // Fall through to URL-based object store creation
+                    Ok(
+                        create_object_store_from_url(url.as_str(), stage_params.endpoint)
+                            .await
+                            .context(ex_error::MetastoreSnafu)?,
+                    )
+                }
             }
-        };
-        Ok(object_store)
+            // No stage params or credentials - create from URL
+            _ => create_object_store_from_url(url.as_str(), stage_params.endpoint)
+                .await
+                .context(ex_error::MetastoreSnafu),
+        }
     }
 
     async fn build_listing_table_config(
@@ -3154,5 +3296,12 @@ fn create_file_format(
         }
     } else {
         Ok(None)
+    }
+}
+fn normalize_resolved_ref(table_ref: &ResolvedTableReference) -> ResolvedTableReference {
+    ResolvedTableReference {
+        catalog: Arc::from(table_ref.catalog.to_ascii_lowercase()),
+        schema: Arc::from(table_ref.schema.to_ascii_lowercase()),
+        table: Arc::from(table_ref.table.to_ascii_lowercase()),
     }
 }

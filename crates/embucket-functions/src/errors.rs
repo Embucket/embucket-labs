@@ -1,4 +1,3 @@
-use error_stack_trace;
 use snafu::{Location, Snafu};
 
 // In this file we create 2 types of errors: DataFusionInternalError and DataFusionExecutionError
@@ -125,6 +124,13 @@ pub enum DataFusionInternalError {
     },
     #[snafu(display("Failed to serialize value to JSON: {error}"))]
     FailedToSerializeValue {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to deserialize JSON: {error}"))]
+    FailedToDeserializeValue {
         #[snafu(source)]
         error: serde_json::Error,
         #[snafu(implicit)]

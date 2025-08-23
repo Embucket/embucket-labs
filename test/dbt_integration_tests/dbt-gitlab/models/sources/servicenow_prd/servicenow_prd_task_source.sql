@@ -1,6 +1,6 @@
 WITH source AS (
   SELECT *
-  FROM {{ source('servicenow_prd','task') }}
+  FROM {{ source('servicenow_prd','dup_servicenow_prd_task') }}
 ),
 
 renamed AS (

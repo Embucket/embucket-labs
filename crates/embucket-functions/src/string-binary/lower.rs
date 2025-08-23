@@ -111,17 +111,17 @@ impl ScalarUDFImpl for LowerFunc {
     }
 
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
-        if args.len() == 1 {
-            if let Expr::Literal(scalar) = &args[0] {
-                if scalar.is_null() {
-                    return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-                        ScalarValue::Null,
-                    )));
-                }
+        if args.len() == 1
+            && let Expr::Literal(scalar) = &args[0]
+        {
+            if scalar.is_null() {
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
-                    ScalarValue::Utf8(Some(scalar.to_string().to_lowercase())),
+                    ScalarValue::Null,
                 )));
             }
+            return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
+                ScalarValue::Utf8(Some(scalar.to_string().to_lowercase())),
+            )));
         }
 
         Ok(ExprSimplifyResult::Original(args))

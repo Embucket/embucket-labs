@@ -1,0 +1,466 @@
+---
+title: Working with Apache Spark
+description: Set up Apache Spark with Embucket to load and query data using Docker containers and Jupyter notebooks
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+This guide walks you through setting up [Apache Spark](https://spark.apache.org/) with Embucket to create a complete data processing environment. You'll use Docker containers to deploy Spark with Embucket's [Apache Iceberg](https://iceberg.apache.org/) storage format for efficient data operations.
+
+Embucket provides an [Iceberg](https://iceberg.apache.org/) Catalog API that enables [Apache Spark](https://spark.apache.org/) to read and write data seamlessly. This integration lets you process large datasets while maintaining data consistency and performance.
+
+## What you'll learn
+
+In this guide, you:
+
+- Deploy a complete [Apache Spark](https://spark.apache.org/) environment with Embucket using Docker
+- Configure Spark to connect with Embucket's [Iceberg](https://iceberg.apache.org/) catalog
+- Load sample data into Embucket tables
+- Query data using Spark SQL in Jupyter notebooks
+
+## Docker configuration
+
+Create a `docker-compose.yml` file in your working directory. This configuration defines four services that work together to provide a complete data processing environment.
+
+```yaml
+services:
+  # Apache Spark with Iceberg support and Jupyter notebook interface
+  spark-iceberg:
+    image: tabulario/spark-iceberg
+    container_name: spark-iceberg
+    depends_on:
+      - embucket
+      - minio
+    networks:
+      iceberg_net:
+    volumes:
+      # Local warehouse directory for data storage
+      - ./warehouse:/home/iceberg/warehouse
+      # Directory for Jupyter notebooks
+      - ./notebooks:/home/iceberg/notebooks/notebooks
+    environment:
+      # AWS credentials for S3 compatibility with minio
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - AWS_REGION=us-east-2
+      # Spark memory configuration - adjust based on your system resources
+      - SPARK_DRIVER_MEMORY=16g
+      - SPARK_EXECUTOR_MEMORY=16g
+    ports:
+      # Jupyter notebook web interface
+      - 8888:8888
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      echo '
+        spark.sql.extensions                   org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+        spark.sql.catalog.demo                 org.apache.iceberg.spark.SparkCatalog
+        spark.sql.catalog.demo.catalog-impl    org.apache.iceberg.rest.RESTCatalog
+        spark.sql.catalog.demo.uri             http://embucket:3000/catalog
+        spark.sql.catalog.demo.io-impl         org.apache.iceberg.aws.s3.S3FileIO
+        spark.sql.catalog.demo.warehouse       demo
+        spark.sql.catalog.demo.cache-enabled   false
+        spark.sql.catalog.demo.rest.access-key-id  AKIAIOSFODNN7EXAMPLE
+        spark.sql.catalog.demo.rest.secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        spark.sql.catalog.demo.rest.signing-region us-east-2
+        spark.sql.catalog.demo.rest.sigv4-enabled  true
+        spark.sql.catalog.demo.s3.endpoint     http://warehouse.minio:9000
+        spark.sql.defaultCatalog               demo
+        spark.eventLog.enabled                 true
+        spark.eventLog.dir                     /home/iceberg/spark-events
+        spark.history.fs.logDirectory          /home/iceberg/spark-events
+        spark.sql.catalog.demo.s3.path-style-access  true
+      ' > /opt/spark/conf/spark-defaults.conf && ./entrypoint.sh notebook
+      "
+
+  # Embucket server providing Iceberg catalog and web interface
+  embucket:
+    image: embucket/embucket
+    container_name: embucket
+    depends_on:
+      mc:
+        condition: service_healthy # Wait for minio setup to complete
+    networks:
+      iceberg_net:
+    ports:
+      # API server for catalog operations
+      - 3000:3000
+      # Web interface for data management
+      - 8080:8080
+    environment:
+      # Configure S3-compatible storage backend
+      - OBJECT_STORE_BACKEND=s3
+      - SLATEDB_PREFIX=data/
+      # S3 credentials matching minio configuration
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - AWS_REGION=us-east-2
+      # S3 bucket and endpoint configuration
+      - S3_BUCKET=mybucket
+      - S3_ENDPOINT=http://warehouse.minio:9000
+      - S3_ALLOW_HTTP=true # Required for local minio setup
+      - CATALOG_URL=http://embucket:3000/catalog
+    volumes:
+      - ./tmp:/tmp
+
+  # minio S3-compatible object storage
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      # minio admin credentials (must match AWS credentials above)
+      - MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
+      - MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    volumes:
+      # Local directory for persistent storage
+      - ./warehouse:/warehouse
+    networks:
+      iceberg_net:
+        aliases:
+          # Network alias for internal container communication
+          - warehouse.minio
+    ports:
+      # minio web console
+      - 9001:9001
+      # minio S3 API
+      - 9000:9000
+    command: ['server', '/warehouse', '--console-address', ':9001']
+
+  # minio client for initial bucket setup
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      iceberg_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - AWS_REGION=us-east-2
+    entrypoint: >
+      /bin/sh -c "
+      # Wait for minio to be ready
+      until (/usr/bin/mc alias set minio http://warehouse.minio:9000 AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) do echo '...waiting for minio...' && sleep 1; done;
+      # Clean up any existing bucket
+      /usr/bin/mc rm -r --force minio/mybucket;
+      # Create new bucket for Embucket data
+      /usr/bin/mc mb minio/mybucket;
+      # Set bucket permissions
+      /usr/bin/mc anonymous set public minio/mybucket;
+      # Keep container running
+      tail -f /dev/null
+      "
+    healthcheck:
+      test: ['CMD', '/usr/bin/mc', 'ls', 'minio/mybucket']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# Custom network for container communication
+networks:
+  iceberg_net:
+```
+
+### Service overview
+
+The Docker Compose configuration creates four interconnected services:
+
+| Service                      | Purpose                | Key Features                                                            |
+| ---------------------------- | ---------------------- | ----------------------------------------------------------------------- |
+| **spark-iceberg**            | Apache Spark runtime   | Provides Spark with Iceberg support and Jupyter notebook interface      |
+| **embucket**                 | Catalog management     | Main server that manages the Iceberg catalog and web interface          |
+| **[minio](https://min.io/)** | Object storage         | S3-compatible storage backend for table data files                      |
+| **mc**                       | Storage initialization | [minio](https://min.io/) client that sets up the initial storage bucket |
+
+All services communicate through a custom Docker network `iceberg_net` and share consistent AWS credentials for secure authentication between components.
+
+### Start the services
+
+Deploy all services using Docker Compose:
+
+```bash
+# Pull images and start services in detached mode
+docker compose up -d
+
+# Monitor startup progress (optional)
+docker compose logs -f
+```
+
+The initial startup takes 2-3 minutes as Docker downloads images and initializes services. You'll see log messages indicating each service's startup progress.
+
+### Verify deployment
+
+Check that all services run:
+
+```bash
+# Check service status
+docker compose ps
+```
+
+Expected output:
+
+```
+NAME           IMAGE                    STATUS         PORTS
+embucket       embucket/embucket        Up             0.0.0.0:3000->3000/tcp, 0.0.0.0:8080->8080/tcp
+mc             minio/mc                 Up (healthy)
+minio          minio/minio              Up             0.0.0.0:9000->9000/tcp, 0.0.0.0:9001->9001/tcp
+spark-iceberg  tabulario/spark-iceberg  Up             0.0.0.0:8888->8888/tcp
+```
+
+All services should show "Up" status. The `mc` service shows "healthy" when bucket initialization completes.
+
+### Access the web interfaces
+
+Once deployment completes, access these interfaces:
+
+| Interface                            | URL                                            | Purpose                               |
+| ------------------------------------ | ---------------------------------------------- | ------------------------------------- |
+| **Embucket Web UI**                  | [http://localhost:8080](http://localhost:8080) | Manage databases, volumes, and tables |
+| **Jupyter Notebooks**                | [http://localhost:8888](http://localhost:8888) | Interactive Spark development         |
+| **[minio](https://min.io/) Console** | [http://localhost:9001](http://localhost:9001) | Track object storage                  |
+
+Use the [minio](https://min.io/) console credentials: username `AKIAIOSFODNN7EXAMPLE`, password `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
+
+## Configure Embucket storage
+
+Before loading data, configure Embucket with the necessary storage volumes and databases. You can use either the web interface or API calls for this setup.
+
+### Create a storage volume
+
+A volume defines where Embucket stores your table data. Create an S3-compatible volume that connects to your [minio](https://min.io/) instance.
+
+<Tabs>
+<TabItem label="Web interface">
+
+1. Open [http://localhost:8080](http://localhost:8080) in your browser
+2. Navigate to the **Volumes** section
+3. Click **Create Volume**
+4. Enter these details:
+   - **Name**: `demo`
+   - **Type**: `S3`
+   - **Bucket**: `mybucket`
+   - **Endpoint**: `http://warehouse.minio:9000`
+   - **Access Key**: `AKIAIOSFODNN7EXAMPLE`
+   - **Secret Key**: `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`
+5. Click **Create** to save the volume
+
+</TabItem>
+<TabItem label="API">
+
+```bash
+curl -X POST http://localhost:3000/v1/metastore/volumes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ident": "demo",
+    "type": "s3",
+    "credentials": {
+      "credential_type": "access_key",
+      "aws-access-key-id": "AKIAIOSFODNN7EXAMPLE",
+      "aws-secret-access-key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    },
+    "bucket": "mybucket",
+    "endpoint": "http://warehouse.minio:9000"
+  }'
+```
+
+</TabItem>
+<TabItem label="SQL">
+
+```sql
+CREATE EXTERNAL VOLUME demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 's3' ENDPOINT = 'http://warehouse.minio:9000' ACCESS_KEY = 'AKIAIOSFODNN7EXAMPLE' SECRET_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' BUCKET = 'mybucket'));
+```
+
+</TabItem>
+</Tabs>
+
+### Create a database
+
+Databases organize your tables logically within Embucket. Create a database that uses your storage volume.
+
+<Tabs>
+<TabItem label="Web interface">
+
+1. In the Embucket web interface, go to **Databases**
+2. Click **Create Database**
+3. Enter:
+   - **Name**: `demo`
+   - **Volume**: `demo`
+4. Click **Create** to save the database
+
+</TabItem>
+<TabItem label="API">
+
+```bash
+curl -X POST http://localhost:3000/v1/metastore/databases \
+  -H "Content-Type: application/json" \
+  -d '{"ident": "demo", "volume": "demo"}'
+```
+
+</TabItem>
+<TabItem label="SQL">
+
+```sql
+CREATE DATABASE demo WITH EXTERNAL_VOLUME = 'demo';
+```
+
+</TabItem>
+</Tabs>
+
+### Verify the configuration
+
+Confirm that your volume and database exist:
+
+```bash
+# Check created volumes
+curl -s http://localhost:3000/v1/metastore/volumes | jq
+
+# Check created databases
+curl -s http://localhost:3000/v1/metastore/databases | jq
+```
+
+Both commands should return JSON responses showing your `demo` volume and database configurations.
+
+## Work with data using Spark
+
+Use [Apache Spark](https://spark.apache.org/) through Jupyter notebooks to load data into Embucket and run queries on your tables.
+
+{/* vale Google.Headings = NO */}
+
+### Open Jupyter notebook
+
+{/* vale Google.Headings = YES */}
+
+1. Navigate to [http://localhost:8888](http://localhost:8888) in your browser
+2. The Jupyter notebook interface displays with a file browser
+3. Create a new notebook: click **New** > **Python 3**
+
+### Create databases and explore data
+
+Set up a database structure for your data:
+
+```sql
+%%sql
+
+-- Create a database for sample data
+CREATE DATABASE IF NOT EXISTS nyc;
+
+-- Show all available databases
+SHOW DATABASES;
+```
+
+Check for sample data in the container:
+
+```bash
+!ls -l /home/iceberg/data/
+```
+
+### Load sample data
+
+Load NYC taxi data into an Iceberg table:
+
+```python
+# Read the parquet file
+df = spark.read.parquet("/home/iceberg/data/yellow_tripdata_2021-04.parquet")
+
+# Show basic dataset information
+print(f"Records: {df.count():,}")
+print(f"Columns: {len(df.columns)}")
+
+# Display schema
+print("\nSchema:")
+df.printSchema()
+
+# Show sample rows
+print("\nSample data:")
+df.show(3)
+```
+
+```python
+# Save data as an Iceberg table
+df.write.mode("append").saveAsTable("nyc.yellow_taxis")
+```
+
+### Query the data
+
+Run SQL queries on your loaded data:
+
+1. Basic count query
+
+   ```sql
+   %%sql
+
+   -- Basic count query
+   SELECT COUNT(*) as total_trips
+   FROM nyc.yellow_taxis;
+   ```
+
+2. Trip analysis by passenger count
+
+   ```sql
+   %%sql
+
+   SELECT
+       passenger_count,
+       COUNT(*) as trip_count,
+       ROUND(AVG(trip_distance), 2) as avg_distance_miles,
+       ROUND(AVG(total_amount), 2) as avg_fare_amount
+   FROM nyc.yellow_taxis
+   WHERE passenger_count BETWEEN 1 AND 6
+   GROUP BY passenger_count
+   ORDER BY passenger_count;
+   ```
+
+3. Top pickup locations
+
+   ```sql
+   %%sql
+
+   SELECT
+       PULocationID as pickup_location,
+       COUNT(*) as trips
+   FROM nyc.yellow_taxis
+   GROUP BY PULocationID
+   ORDER BY trips DESC
+   LIMIT 10;
+   ```
+
+### Use your own data
+
+To work with your own data files:
+
+1. Copy files to the `notebooks` directory in your project folder
+2. Access them from `/home/iceberg/notebooks/notebooks/` in the container
+3. Load and process using [Spark](https://spark.apache.org/):
+
+```python
+# Load different file formats
+
+# CSV with headers
+csv_df = spark.read.option("header", "true").option("inferSchema", "true").csv("/home/iceberg/notebooks/notebooks/data.csv")
+
+# JSON files
+json_df = spark.read.json("/home/iceberg/notebooks/notebooks/data.json")
+
+# Parquet files
+parquet_df = spark.read.parquet("/home/iceberg/notebooks/notebooks/data.parquet")
+
+# Save to Iceberg table
+csv_df.write.mode("overwrite").saveAsTable("demo.my_data")
+```
+
+```python
+# Create tables with specific schemas
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
+
+# Define schema
+schema = StructType([
+    StructField("id", IntegerType(), True),
+    StructField("name", StringType(), True),
+    StructField("value", DoubleType(), True)
+])
+
+# Read with schema
+df_with_schema = spark.read.schema(schema).csv("/home/iceberg/notebooks/notebooks/structured_data.csv")
+df_with_schema.write.mode("overwrite").saveAsTable("demo.structured_table")
+```

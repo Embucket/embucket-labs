@@ -94,7 +94,7 @@ echo "###############################"
 echo ""
 echo "Creating embucket database"
 if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD upload.py
+  $PYTHON_CMD upload.py
 fi
 echo ""
 

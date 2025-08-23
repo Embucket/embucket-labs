@@ -1,0 +1,255 @@
+---
+title: Volumes
+description: Configure volumes to store data and metadata in Embucket
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Volumes define where Embucket stores your data. You configure volumes that reference object storage locations. Object storage uses cloud-based storage systems like Amazon S3. You then create databases that use those volumes. This document covers how to configure and manage volumes in your Embucket deployment.
+
+**Key topics covered:**
+
+- Volume types and their use cases
+- Managing volumes
+- Database-to-volume relationships and management
+
+## Overview
+
+A volume contains a storage configuration with:
+
+- **Storage location**: The object storage bucket or path where Embucket stores data
+- **Access credentials**: Authentication information for the storage system
+- **Storage backend**: The storage system type: S3, S3 tables bucket, filesystem, or memory
+
+Volumes serve as the foundation for databases. Every database requires a volume to store its tables and metadata. You can reuse a single volume across many databases.
+
+## Volume types
+
+Embucket supports three volume types:
+
+### S3 volumes
+
+S3 volumes store data in S3-compatible object storage. S3-compatible means storage systems that use the Amazon S3 API standard for data access and management. Use S3 volumes for production deployments.
+
+**Supported storage systems:**
+
+- Amazon S3
+- Any S3-compatible storage system
+
+### S3 tables volumes
+
+S3 tables volumes store data in S3-compatible object storage. S3-compatible means storage systems that use the Amazon S3 API standard for data access and management. Use S3 volumes for production deployments.
+
+**Supported storage systems:**
+
+- AWS S3
+
+### Filesystem volumes
+
+Filesystem volumes store data on local disk. Use filesystem volumes only for development and testing.
+
+<Aside type="caution">
+  Avoid filesystem volumes in production environments as they may not work with distributed
+  deployments.
+</Aside>
+
+### Memory volumes
+
+Memory volumes store data in RAM. Use memory volumes only for temporary testing.
+
+<Aside type="danger">
+  Memory volumes lose all data when the system restarts or shuts down. Never use memory volumes for
+  important data.
+</Aside>
+
+## Create a volume
+
+You can create volumes using the Embucket UI, REST API, or SQL interface. T
+
+<Tabs>
+<TabItem label="API">
+
+<Aside type="note">
+  The `metastore` endpoint manages metadata storage. The metastore tracks database schemas, table
+  definitions, and data location information for your Iceberg warehouse configuration.
+</Aside>
+
+```bash
+curl -X POST http://localhost:3000/v1/metastore/volumes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ident": "production-volume",
+    "type": "s3",
+    "bucket": "my-data-bucket",
+    "endpoint": "https://s3.amazonaws.com",
+    "credentials": {
+      "credential_type": "access_key",
+      "aws-access-key-id": "AKIAIOSFODNN7EXAMPLE",
+      "aws-secret-access-key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }
+  }'
+```
+
+</TabItem>
+
+<TabItem label="SQL">
+
+    ```sql
+    CREATE EXTERNAL VOLUME IF NOT EXISTS demo STORAGE_LOCATIONS = ((NAME = 'demo' STORAGE_PROVIDER = 's3' BUCKET = 'my-data-bucket' ENDPOINT = 'https://s3.amazonaws.com' CREDENTIALS = '{"credential_type": "access_key", "aws-access-key-id": "AKIAIOSFODNN7EXAMPLE", "aws-secret-access-key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}'));
+    ```
+
+</TabItem>
+
+<TabItem label="UI">
+
+    1. Navigate to the Volumes page in the Embucket UI
+    2. Click "Create Volume"
+    3. Enter the volume configuration details
+    4. Click "Create"
+
+    ![Volume creation](create-volume-1.png)
+    ![Volume creation](create-volume-2.png)
+
+</TabItem>
+
+</Tabs>
+
+### Volume attributes
+
+Volumes require the following attributes:
+
+<Tabs>
+<TabItem label="Memory">
+
+- `ident`: A unique identifier for the volume
+- `type`: `memory` for a memory volume
+
+</TabItem>
+
+<TabItem label="Filesystem">
+
+- `ident`: A unique identifier for the volume
+- `type`: `file` for a filesystem volume
+- `path`: The **absolute** path to the directory that stores data
+
+</TabItem>
+<TabItem label="S3">
+
+- `ident`: A unique identifier for the volume
+- `type`: `s3` for an S3 volume
+- `bucket`: The name of the S3 bucket that stores data
+- `endpoint`: The S3 service endpoint (optional for AWS S3)
+- `credentials`: AWS access credentials
+
+</TabItem>
+
+<TabItem label="S3 table bucket">
+
+- `ident`: A unique identifier for the volume
+- `type`: `s3-tables` for an S3 table bucket volume
+- `credentials`: AWS access credentials
+- `arn`: The full Amazon Resource Name (ARN) of the S3 table bucket
+
+</TabItem>
+
+</Tabs>
+
+## Create database
+
+After creating a volume, you can create databases that use that volume to store data.
+
+You can create a database using the REST API, SQL, or UI.
+
+<Tabs>
+<TabItem label="REST API">
+
+    ```bash
+    curl -X POST http://localhost:3000/v1/metastore/databases \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ident": "analytics_db",
+        "volume": "production-volume"
+      }'
+    ```
+
+</TabItem>
+
+<TabItem label="SQL">
+
+    ```sql
+    CREATE DATABASE IF NOT EXISTS analytics_db WITH EXTERNAL_VOLUME = 'production-volume';
+    ```
+
+</TabItem>
+
+<TabItem label="UI">
+
+    1. Navigate to the Data page in the Embucket UI
+    2. Click "Add Database"
+    3. Specify name and volume for the database
+    4. Click "Create"
+
+</TabItem>
+
+</Tabs>
+
+You can create more databases using the same volume. Each database has its own schema and tables.
+
+<Aside type="note">
+  For S3 table buckets volume you can create only **one database**. This limitation exists because
+  S3 table bucket provides a single storage location for all tables.
+</Aside>
+
+## Manage volumes
+
+### List volumes
+
+```bash
+curl http://localhost:3000/v1/metastore/volumes
+```
+
+### Update volume credentials
+
+```bash
+curl -X PUT http://localhost:3000/v1/metastore/volumes/production-volume \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credentials": {
+      "credential_type": "access_key",
+      "aws-access-key-id": "NEW_ACCESS_KEY",
+      "aws-secret-access-key": "NEW_SECRET_KEY"
+    }
+  }'
+```
+
+### Delete a volume
+
+<Aside type="danger">
+  Deleting a volume removes access to all databases and data in that volume. You can't undo this
+  action.
+</Aside>
+
+```bash
+curl -X DELETE http://localhost:3000/v1/metastore/volumes/volume-name
+```
+
+## Best practices
+
+**Production deployments:**
+
+- Use S3 or S3 table bucket volumes for all production data
+- Configure Identity and Access Management (IAM) policies with least required permissions for S3 bucket access
+- Use separate volumes for different environments: production, staging, development
+- Regularly backup your S3 buckets
+
+**Development and testing:**
+
+- Use filesystem or memory volumes for local development
+- Use minio for development environments that need S3 compatibility
+- Avoid using production volumes for testing
+
+**Volume organization:**
+
+- Create separate volumes for different data domains or teams
+- Use descriptive volume names that show their purpose
+- Document volume configurations and access policies

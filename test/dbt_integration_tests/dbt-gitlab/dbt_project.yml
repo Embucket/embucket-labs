@@ -164,7 +164,7 @@ seeds:
       +database: RAW
     zoominfo:
       +schema: zoominfo
-      +database: ZOOMINFO_INBOUND
+      +database: RAW
     gitlab:
       +schema: gitlab
       +database: RAW
@@ -236,7 +236,7 @@ seeds:
       +database: RAW
     prod_insights:
       +schema: prod_insights
-      +database: MONTE_CARLO
+      +database: RAW
     PROMETHEUS:
       +schema: PROMETHEUS
       +database: RAW
@@ -287,7 +287,7 @@ seeds:
       +database: RAW
     snapshots:
       +schema: snapshots
-      +database: MY_SNOWFLAKE_SNAPSHOT_DATABASE
+      +database: RAW
     snowflake:
       +schema: snowflake
       +database: RAW

@@ -1,88 +1,245 @@
 ---
 title: AWS S3 table buckets
-description: Use AWS S3 table buckets as a storage for your data.
+description: Store and query your data using AWS S3 table buckets with Embucket for enhanced table management capabilities.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-This guide demonstrates how to use AWS S3 table buckets as a storage for your data. It is not only possible to use regular S3 buckets but explicitly using S3 table buckets get you some additional benefits like table maintenance and other features provided by AWS S3 table buckets.
+This guide walks you through configuring AWS S3 table buckets as storage for your data in Embucket. S3 table buckets provide extra benefits over standard S3 based volumes. These benefits include automatic table maintenance and AWS-managed optimization features.
 
-## Step 1: Create an S3 table bucket
+## What you'll learn
 
-To create an S3 table bucket, you can use the AWS Management Console, AWS CLI, or AWS SDKs.
+Follow this guide to:
 
-I'll use AWS CLI to create an S3 table bucket.
+- Create an AWS S3 table bucket using the AWS command-line tool
+- Configure an Embucket volume to use S3 table buckets
+- Create tables and load data using familiar SQL commands
+- Verify table creation and query data through AWS Console
 
-```bash
-aws s3tables create-table-bucket --name my-table-bucket --region us-east-2
-```
+## What this guide covers
 
-It will return something like this:
+This guide covers basic setup and usage of S3 table buckets with Embucket. Advanced table maintenance features, cross-region replication, and enterprise security configurations fall outside the scope of this guide.
 
-```json
-{
-  "arn": "arn:aws:s3tables:us-east-2:XXX:bucket/my-table-bucket"
-}
-```
-
-This is enough to use the S3 table bucket as a storage for your data.
-
-## Step 2: Create a volume
-
-To create a volume, you can use UI or internal API.
-
-With the following command we create a volume of type `s3-tables`. It's different from regular S3 volumes in that it uses AWS S3 table bucket as a storage for your data. Since S3 table buckets can contain namespaces and tables, we need to provide additional information to the volume. Namely, we need to provide the name of the table bucket and the ARN of the table bucket. Name becomes a database and ARN is used to identify the table bucket.
-
-<Aside type="caution">
-  S3 table bucket volume maps to only one database! You can specify database name when creating
-  volume.
+<Aside type="note">
+  S3 table buckets offer built-in table maintenance, automatic compaction, and optimization features
+  that remain unavailable with standard S3 based volumes.
 </Aside>
 
+## Prerequisites
+
+Before you begin, verify you have:
+
+- AWS command-line tool installed and configured with appropriate permissions
+- Embucket instance running locally or in your environment
+- Valid AWS credentials with S3 Tables service permissions
+
+## Understanding AWS S3 table buckets
+
+AWS designed S3 table buckets specifically for tabular data storage. They provide:
+
+- **Automatic optimization**: Built-in compaction and file organization
+- **Schema enforcement**: Native support for table schemas and metadata
+- **Query performance**: Optimized for analytical workloads
+- **AWS integration**: Seamless integration with Athena, Glue, and other AWS services
+
+<Aside type="caution">
+  Each S3 table bucket volume (a storage location that Embucket manages) in Embucket maps to exactly
+  one database. You specify the database name when creating the volume.
+</Aside>
+
+## Create an S3 table bucket
+
+<Steps>
+
+1. **Create the table bucket**
+
+   Use the AWS command-line tool to create your S3 table bucket:
+
+   ```bash
+   aws s3tables create-table-bucket --name my-table-bucket --region us-east-2
+   ```
+
+   The command returns the bucket ARN:
+
+   ```json
+   {
+     "arn": "arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket"
+   }
+   ```
+
+2. **Record the bucket information**
+
+   Save the following information for the next step:
+   - **Bucket name**: `my-table-bucket`
+   - **Region**: `us-east-2`
+   - **ARN**: The full ARN returned by the command
+
+</Steps>
+
+## Configure Embucket volume
+
+Create a volume in Embucket that connects to your S3 table bucket. Use either the API or SQL interface.
+
+<Tabs>
+<TabItem label="API">
+
+Use `HTTPie` or `curl` to create the volume via API:
+
 ```bash
-http http://localhost:3000/v1/metastore/volumes ident=demo type=s3-tables database=demo credentials:='{"credential_type":"access_key","aws-access-key-id":"XXX","aws-secret-access-key":"XXX"}' 'arn=arn:aws:s3tables:us-east-2:XXX:bucket/my-table-bucket'
+http POST localhost:3000/v1/metastore/volumes \
+  ident=demo \
+  type=s3-tables \
+  database=demo \
+  credentials:='{
+    "credential_type": "access_key",
+    "aws-access-key-id": "YOUR_ACCESS_KEY",
+    "aws-secret-access-key": "YOUR_SECRET_KEY"
+  }' \
+  arn=arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket
 ```
 
-Here `demo` is the identifier of the volume, `s3-tables` is the type of the volume, `XXX` is the access key ID and secret access key of the AWS account, `demo` is the name of the database and `arn:aws:s3tables:us-east-2:XXX:bucket/my-table-bucket` is the ARN of the S3 table bucket. Embucket will use arn to identify the S3 table bucket. region and table bucket name.
+**Required parameters:**
 
-## Step 3: Create a table, load data and query it
+- `ident`: Volume identifier
+- `type`: Volume type `s3-tables`
+- `database`: Database name that maps to this volume
+- `credentials`: AWS access credentials
+- `arn`: Full S3 table bucket ARN
 
-To create a table one can use either UI or `snowflake-cli`. We will use `snowflake-cli` to create a table.
+</TabItem>
+<TabItem label="SQL">
 
-```
-$ snow sql -c local
+Use the SQL interface to create the volume:
 
-CREATE SCHEMA demo.public;
-+-------+
-| count |
-|-------|
-| 0     |
-+-------+
-
-
-CREATE TABLE demo.public.users (
-    id INT,
-    name VARCHAR(100),
-    email VARCHAR(100)
-) AS VALUES (1, 'John Doe', 'john.doe@example.com'), (2, 'Jane Doe', 'jane.doe@example.com');
-+-------+
-| count |
-|-------|
-| 2     |
-+-------+
+```sql
+CREATE EXTERNAL VOLUME IF NOT EXISTS demo
+STORAGE_LOCATIONS = ((
+  NAME = 'demo'
+  STORAGE_PROVIDER = 's3-tables'
+  ARN = 'arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket'
+));
 ```
 
-Now we can query the table using same `snowflake-cli` session:
+</TabItem>
+</Tabs>
 
-```
-> SELECT * FROM demo.public.users;
-+--------------------------------------+
-| id | name     | email                |
-|----+----------+----------------------|
-| 1  | John Doe | john.doe@example.com |
-| 2  | Jane Doe | jane.doe@example.com |
-+--------------------------------------+
-```
+<Aside type="tip">
+  Replace `YOUR_ACCESS_KEY` and `YOUR_SECRET_KEY` with your actual AWS credentials, and update the
+  ARN with your specific account ID and bucket details.
+</Aside>
 
-We also can open AWS Console and check that the table is created. Open AWS Console and navigate to S3 table bucket. In a table bucket used to create a volume we should see a namespace `demo` and a table `users`. Select the table and hit "Query table with Athena". In the SQL editor we should see the same query we used in `snowflake-cli` session:
+## Create and query tables
 
-![s3-tables](s3-tables-query.png)
+Create tables, load data, and run queries using the Snowflake command-line tool or any Snowflake-compatible tool. Use [Snowflake command-line tool guide](/guides/snowflake-cli) for the information on how to connect to Embucket.
+
+<Steps>
+
+1. **Connect to Embucket**
+
+   Start a Snowflake command-line tool session:
+
+   ```bash
+   snow sql -c local
+   ```
+
+2. **Create a schema**
+
+   Set up the schema structure:
+
+   ```sql
+   CREATE SCHEMA demo.public;
+   ```
+
+   Output:
+
+   ```
+   +-------+
+   | count |
+   |-------|
+   | 0     |
+   +-------+
+   ```
+
+3. **Create a table with data**
+
+   Create and populate a table in one command:
+
+   ```sql
+   CREATE TABLE demo.public.users (
+       id INT,
+       name VARCHAR(100),
+       email VARCHAR(100)
+   ) AS VALUES
+       (1, 'John Doe', 'john.doe@example.com'),
+       (2, 'Jane Doe', 'jane.doe@example.com');
+   ```
+
+   Output:
+
+   ```
+   +-------+
+   | count |
+   |-------|
+   | 2     |
+   +-------+
+   ```
+
+4. **Query the table**
+
+   Verify you can read the data:
+
+   ```sql
+   SELECT * FROM demo.public.users;
+   ```
+
+   Output:
+
+   ```
+   +----+----------+----------------------+
+   | id | name     | email                |
+   |----|----------|----------------------|
+   | 1  | John Doe | john.doe@example.com |
+   | 2  | Jane Doe | jane.doe@example.com |
+   +----+----------+----------------------+
+   ```
+
+</Steps>
+
+## Verify in AWS console
+
+Verify table creation and query your data directly through AWS services:
+
+<Steps>
+
+1. **Open AWS Console**
+
+   Navigate to the S3 Tables service in the AWS Console.
+
+2. **Locate your table bucket**
+
+   Find the `my-table-bucket` you created earlier.
+
+3. **Browse tables**
+
+   Inside the table bucket, you see:
+   - Database: `demo`
+   - Table: `users`
+
+4. **Query with Athena**
+
+   Select the `users` table and choose "Query table with Athena." The SQL editor opens with your table ready for queries.
+
+</Steps>
+
+![S3 table bucket query interface](s3-tables-query.png)
+
+## Next steps
+
+Now that you have S3 table buckets working with Embucket, consider:
+
+- **Performance optimization**: Configure table partitioning for large datasets
+- **Security**: Set up IAM roles for fine-grained access control
+- **Monitoring**: Enable AWS CloudTrail for audit logging
+- **Integration**: Connect BI tools and data pipelines to your Embucket instance
+
+For more advanced configuration options, see the [volumes documentation](/essentials/volumes).

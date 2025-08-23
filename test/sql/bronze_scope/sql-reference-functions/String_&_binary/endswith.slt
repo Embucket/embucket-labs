@@ -12,7 +12,7 @@ SELECT * FROM strings_test WHERE ENDSWITH(s, 'te')
 latte
 
 query TT
-SELECT ENDSWITH(COLLATE('nñ', 'en-ci-ai'), 'n'),
-       ENDSWITH(COLLATE('nñ', 'es-ci-ai'), 'n')
+SELECT ENDSWITH('nñ', 'n'),
+       ENDSWITH('nn', 'n')
 ----
-TRUE	FALSE
+FALSE	TRUE

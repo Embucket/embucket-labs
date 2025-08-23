@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub use crate::aggregate::errors as aggregate_errors;
 pub use crate::conversion::errors as conversion_errors;
 pub use crate::datetime::errors as datetime_errors;
+use crate::session_params::SessionParams;
 
 pub(crate) mod aggregate;
 pub mod arrow_error;
@@ -29,6 +30,7 @@ pub mod df_error;
 // #[cfg(feature = "geospatial")]
 // pub mod geospatial;
 pub mod encryption;
+mod errors;
 pub mod expr_planner;
 mod json;
 pub mod numeric;
@@ -36,6 +38,7 @@ pub mod regexp;
 #[path = "semi-structured/mod.rs"]
 pub mod semi_structured;
 pub mod session;
+pub mod session_params;
 #[path = "string-binary/mod.rs"]
 pub mod string_binary;
 pub mod system;
@@ -45,10 +48,13 @@ pub mod tests;
 mod utils;
 pub mod visitors;
 
-pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
+pub fn register_udfs(
+    registry: &mut dyn FunctionRegistry,
+    session_params: &Arc<SessionParams>,
+) -> Result<()> {
     conditional::register_udfs(registry)?;
-    conversion::register_udfs(registry)?;
-    datetime::register_udfs(registry)?;
+    conversion::register_udfs(registry, session_params)?;
+    datetime::register_udfs(registry, session_params)?;
     numeric::register_udfs(registry)?;
     encryption::register_udfs(registry)?;
     string_binary::register_udfs(registry)?;
@@ -352,4 +358,35 @@ impl Utf8LikeArray {
             }
         }
     }
+}
+
+#[must_use]
+pub fn to_snowflake_datatype(data_type: &DataType) -> String {
+    let s: &str = match data_type {
+        DataType::Int8
+        | DataType::Int16
+        | DataType::Int32
+        | DataType::Int64
+        | DataType::UInt8
+        | DataType::UInt16
+        | DataType::UInt32
+        | DataType::UInt64
+        | DataType::Decimal128(_, _)
+        | DataType::Decimal256(_, _) => "fixed",
+        DataType::Float16 | DataType::Float32 | DataType::Float64 => "real",
+        DataType::Boolean => "boolean",
+        DataType::Time32(_) | DataType::Time64(_) => "time",
+        DataType::Date32 | DataType::Date64 => "date",
+        DataType::Timestamp(_, tz) => {
+            if tz.is_some() {
+                "timestamp_tz"
+            } else {
+                "timestamp_ntz"
+            }
+        }
+        DataType::Binary | DataType::BinaryView => "binary",
+        _ => "text",
+    };
+
+    s.to_string()
 }

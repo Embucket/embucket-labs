@@ -1,3 +1,4 @@
+#![allow(clippy::needless_for_each)]
 use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use crate::tables::error::{

@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::response::IntoResponse;
-use core_executor::SnowflakeError;
+use error_stack::ErrorChainExt;
 use error_stack::ErrorExt;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -98,13 +98,21 @@ impl IntoResponse for Error {
     #[tracing::instrument(
         name = "api-ui::Error::into_response",
         level = "info",
-        fields(display_error, debug_error, error_stack_trace, status_code),
+        fields(
+            display_error,
+            debug_error,
+            error_stack_trace,
+            error_chain,
+            status_code
+        ),
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
         // Record the result as part of the current span.
         tracing::Span::current()
             .record("error_stack_trace", self.output_msg())
+            .record("error_chain", self.error_chain())
+            .record("query_id", self.query_id())
             .record("status_code", self.status_code().as_u16());
 
         let code = self.status_code();
@@ -112,10 +120,10 @@ impl IntoResponse for Error {
             // no error added into span here and it's Ok
             source.into_response()
         } else {
-            let (display_message, debug_message) = self.display_debug_error_messages();
+            let display_message = self.display_error_message();
             // Record the result as part of the current span.
             tracing::Span::current().record("display_error", &display_message);
-            tracing::Span::current().record("debug_error", &debug_message);
+            tracing::Span::current().record("debug_error", self.debug_error_message());
             (
                 code,
                 Json(ErrorResponse {
@@ -129,19 +137,48 @@ impl IntoResponse for Error {
 }
 
 impl Error {
-    pub fn display_debug_error_messages(self) -> (String, String) {
-        // acquire error str as later it will be moved
-        let error_str = self.to_string();
-        let debug_str = format!("{self:?}");
+    pub fn query_id(&self) -> String {
         match self {
-            Self::QueriesError { source, .. } => match *source {
+            Self::QueriesError { source, .. } => match &**source {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
-                } => SnowflakeError::from(source).display_debug_error_messages(),
-                _ => (error_str, debug_str),
+                } => source.query_id(),
+                _ => String::new(),
             },
-            _ => (error_str, debug_str),
+            _ => String::new(),
+        }
+    }
+
+    pub fn display_error_message(&self) -> String {
+        // acquire error str as later it will be moved
+        let error_str = self.to_string();
+        match self {
+            Self::QueriesError { source, .. } => match &**source {
+                crate::queries::Error::Query {
+                    source: crate::queries::error::QueryError::Execution { source, .. },
+                    ..
+                } => format!(
+                    "{}: {}",
+                    source.query_id(),
+                    source.to_snowflake_error().display_error_message()
+                ),
+                _ => error_str,
+            },
+            _ => error_str,
+        }
+    }
+
+    pub fn debug_error_message(&self) -> String {
+        match self {
+            Self::QueriesError { source, .. } => match &**source {
+                crate::queries::Error::Query {
+                    source: crate::queries::error::QueryError::Execution { source, .. },
+                    ..
+                } => source.to_snowflake_error().debug_error_message(),
+                _ => format!("{self:?}"),
+            },
+            _ => format!("{self:?}"),
         }
     }
 }

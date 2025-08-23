@@ -1,0 +1,269 @@
+---
+title: Configuration
+description: Configure Embucket for different deployment scenarios using environment variables or configuration files.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide covers how to configure Embucket for your specific deployment needs. You can configure Embucket using environment variables, configuration files, or command-line options to control storage backends, networking, authentication, and performance settings.
+
+Embucket supports flexible configuration through many methods, allowing you to adapt it for development, testing, and production environments.
+
+## Configuration methods
+
+You can configure Embucket using three methods, in order of precedence:
+
+1. **Command-line arguments** - Highest precedence
+2. **Environment variables** - Medium precedence
+3. **Configuration file** `.env` - Lowest precedence
+
+### Configuration file
+
+Create a `.env` file in your working directory with key-value pairs. Embucket automatically loads this file at startup.
+
+```bash
+# Basic configuration example
+CATALOG_URL=http://127.0.0.1:3000
+OBJECT_STORE_BACKEND=memory
+JWT_SECRET=your-secret-key
+```
+
+### Environment variables
+
+Set environment variables in your shell or deployment environment. Environment variables override configuration file settings.
+
+```bash
+export OBJECT_STORE_BACKEND=s3
+export AWS_REGION=us-east-1
+```
+
+### Command-line arguments
+
+Pass configuration options directly to the `embucketd` command. Command-line arguments override both environment variables and configuration file settings.
+
+```bash
+embucketd --backend s3 --port 3001
+```
+
+## Core settings
+
+These settings control Embucket's basic operation and most deployments need them.
+
+### Network configuration
+
+| Setting         | Environment Variable | Default     | Description                         |
+| --------------- | -------------------- | ----------- | ----------------------------------- |
+| `--host`        | `BUCKET_HOST`        | `localhost` | Host address to bind the API server |
+| `--port`        | `BUCKET_PORT`        | `3000`      | Port for the API server             |
+| `--assets-port` | `WEB_ASSETS_PORT`    | `8080`      | Port for the web UI assets server   |
+
+### Catalog configuration
+
+| Setting         | Environment Variable | Default                 | Description                                                        |
+| --------------- | -------------------- | ----------------------- | ------------------------------------------------------------------ |
+| `--catalog-url` | `CATALOG_URL`        | `http://127.0.0.1:3000` | URL where external clients can access the Iceberg catalog REST API |
+
+### Authentication
+
+| Setting                | Environment Variable | Default    | Description                                  |
+| ---------------------- | -------------------- | ---------- | -------------------------------------------- |
+| `--jwt-secret`         | `JWT_SECRET`         | None       | Required secret key for JWT token generation |
+| `--auth-demo-user`     | `AUTH_DEMO_USER`     | `embucket` | Username for demo authentication             |
+| `--auth-demo-password` | `AUTH_DEMO_PASSWORD` | `embucket` | Password for demo authentication             |
+
+<Aside type="caution">
+  Set `JWT_SECRET` to a strong, random string in production environments. The demo user credentials
+  work only for testing.
+</Aside>
+
+### CORS configuration
+
+| Setting               | Environment Variable | Default                 | Description                          |
+| --------------------- | -------------------- | ----------------------- | ------------------------------------ |
+| `--cors-enabled`      | `CORS_ENABLED`       | `true`                  | Enable Cross-Origin Resource Sharing |
+| `--cors-allow-origin` | `CORS_ALLOW_ORIGIN`  | `http://localhost:8080` | Allowed origin for CORS requests     |
+
+## Storage backends
+
+Embucket uses SlateDB to store metadata and supports three storage backends. Choose the backend that matches your deployment environment and performance requirements.
+
+### Memory backend
+
+Stores all data in memory. Use this for development, testing, or temporary deployments.
+
+```bash
+# Configuration
+OBJECT_STORE_BACKEND=memory
+```
+
+**Use cases:**
+
+- Local development
+- Testing and CI/CD pipelines
+- Temporary data exploration
+
+<Aside type="note">Data stored in memory disappears when Embucket restarts.</Aside>
+
+### File system backend
+
+Stores data in local files. Use this for single-node deployments with persistent storage.
+
+```bash
+# Configuration
+OBJECT_STORE_BACKEND=file
+FILE_STORAGE_PATH=./storage
+SLATEDB_PREFIX=state
+```
+
+**Use cases:**
+
+- Single-node production deployments
+- Development with data persistence
+- Local testing with realistic data sizes
+
+**Requirements:**
+
+- Persistent local storage
+- File system write permissions
+
+### S3-compatible object storage
+
+Stores data in S3 or S3-compatible object storage. Use this for production deployments requiring scalability and durability.
+
+```bash
+# AWS S3 configuration
+OBJECT_STORE_BACKEND=s3
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+S3_BUCKET=your-embucket-data
+```
+
+```bash
+# S3-compatible storage (MinIO, etc.)
+OBJECT_STORE_BACKEND=s3
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET=your-embucket-data
+S3_ENDPOINT=https://your-s3-endpoint.com
+S3_ALLOW_HTTP=false
+```
+
+**Use cases:**
+
+- Production deployments
+- Multi-node or cloud deployments
+- High availability requirements
+- Large-scale data processing
+
+**Requirements:**
+
+- S3 bucket with read/write permissions
+- Network connectivity to S3 endpoint
+
+## Advanced settings
+
+### Data format
+
+| Setting         | Environment Variable | Default | Description                                                       |
+| --------------- | -------------------- | ------- | ----------------------------------------------------------------- |
+| `--data-format` | `DATA_FORMAT`        | `json`  | Data serialization format for Snowflake v1 API: `json` or `arrow` |
+
+### Memory and disk pools
+
+| Setting | Environment Variable              | Default  | Description                          |
+| ------- | --------------------------------- | -------- | ------------------------------------ |
+| N/A     | `MEM_POOL_TYPE`                   | `greedy` | Memory pool allocation strategy      |
+| N/A     | `MEM_POOL_SIZE_MB`                | `4096`   | Memory pool size in megabytes        |
+| N/A     | `MEM_ENABLE_TRACK_CONSUMERS_POOL` | `true`   | Enable memory pool consumer tracking |
+| N/A     | `DISK_POOL_SIZE_MB`               | `102400` | Disk pool size in megabytes          |
+
+### Bootstrapping
+
+| Setting          | Environment Variable | Default | Description                                                     |
+| ---------------- | -------------------- | ------- | --------------------------------------------------------------- |
+| `--no-bootstrap` | N/A                  | `false` | Skip bootstrap process that creates default database and schema |
+
+<Aside type="note">
+  The bootstrap process creates an in-memory volume, default database named `embucket`, and default
+  schema named `public`.
+</Aside>
+
+### Tracing and debugging
+
+| Setting                    | Environment Variable | Default                | Description                                   |
+| -------------------------- | -------------------- | ---------------------- | --------------------------------------------- |
+| `--tracing-level`          | `TRACING_LEVEL`      | `info`                 | Log level: `off`, `info`, `debug`, or `trace` |
+| `--tracing-span-processor` | `span_processor`     | `batch-span-processor` | Tracing span processor type                   |
+
+<Aside type="tip">
+  Override tracing level using the `RUST_LOG` environment variable for more granular control.
+</Aside>
+
+## Configuration examples
+
+### Development setup
+
+Minimal configuration for local development:
+
+```bash
+# .env file
+OBJECT_STORE_BACKEND=memory
+JWT_SECRET=dev-secret-key
+```
+
+### Single-node production
+
+Configuration for production deployment on a single server:
+
+```bash
+# .env file
+OBJECT_STORE_BACKEND=file
+FILE_STORAGE_PATH=/var/lib/embucket/storage
+SLATEDB_PREFIX=prod-state
+JWT_SECRET=secure-random-string
+BUCKET_HOST=0.0.0.0
+CORS_ALLOW_ORIGIN=https://your-domain.com
+```
+
+{/* vale Google.Headings = NO */}
+
+### Deployment with S3
+
+{/* vale Google.Headings = YES */}
+
+Configuration for scalable cloud deployment:
+
+```bash
+# .env file
+OBJECT_STORE_BACKEND=s3
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+S3_BUCKET=my-company-embucket-prod
+JWT_SECRET=secure-random-string
+BUCKET_HOST=0.0.0.0
+CORS_ALLOW_ORIGIN=https://analytics.company.com
+CATALOG_URL=https://embucket-api.company.com:3000
+```
+
+## Command-line reference
+
+View all available command-line options:
+
+```bash
+embucketd --help
+```
+
+Common command patterns:
+
+```bash
+# Start with custom port and S3 backend
+embucketd --port 3001 --backend s3 --bucket my-data-bucket
+
+# Start with file backend and custom storage path
+embucketd --backend file --file-storage-path /opt/embucket/data
+
+# Start with debug logging
+embucketd --tracing-level debug
+```

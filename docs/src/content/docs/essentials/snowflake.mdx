@@ -3,65 +3,180 @@ title: Snowflake compatibility
 description: Details on how Embucket implements Snowflake compatibility, current limitations and future plans.
 ---
 
-Embucket is a Snowflake compatible database, meaning it fully supports the Snowflake SQL dialect and provides a Snowflake compatible API (only v1 at the moment).
-This document dives into the details of how Embucket implements Snowflake compatibility, current limitations and future plans.
+import { Aside, Steps } from '@astrojs/starlight/components';
 
-## Overview
+Embucket provides Snowflake compatibility through SQL dialect support and API compatibility. This document explains how Embucket implements Snowflake compatibility, covers current limitations, and outlines development plans.
 
-Embucket provides a snowflake v1 rest api, that should be compatible with any Snowflake client, that uses it. It was primarily tested with snowflake-connector-python and tools relying on it, like dbt and snowflake-cli, Apache Superset, etc.
+This document doesn't cover Snowflake enterprise features, data governance capabilities, or advanced security configurations. The current focus remains on core SQL compatibility and API integration for analytical workloads.
 
-Embucket also provides a SQL engine, that is based on Datafusion and should be compatible with any SQL client, that uses it. We aim to be 100% SQL flavour compatible with Snowflake, but currently we only support a subset of SQL features. Moreover, there are some features available in Embucket, that are not available in Snowflake (i.e. some built-in functions, some data types, etc).
+Embucket supports the Snowflake SQL dialect and provides a Snowflake v1 REST API. You can use existing Snowflake clients and tools with Embucket.
 
-Compatibility is verified using SQL logic tests (SLT) and dbt integration tests (integration tests). SLTs are used to verify that the SQL engine is compatible with Snowflake, while integration tests are used to verify that the rest api is compatible with Snowflake. At the moment, we use dbt gitlab project as a proxy of compatibility.
+**Key compatibility features:**
 
-Embucket [repository](https://github.com/Embucket/embucket) contains current compatiblity badges for both SLT test suite and dbt gitlab.
+- Snowflake v1 REST API compatibility
+- SQL dialect support through [Apache DataFusion](https://datafusion.apache.org/) engine
+- Compatible with snowflake-connector-python and dependent tools
+- Integration with [dbt](https://docs.getdbt.com/), snowflake-cli, and Apache Superset
 
-## Structural differences
+## API compatibility
 
-Snowflake is a managed analytics database, built on top of FoundationDB and object storage (S3) and provides a managed service for users to deploy and scale their analytics workloads [whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf).
+Embucket provides a Snowflake v1 REST API that works with any Snowflake client. The platform has tested compatibility primarily with snowflake-connector-python and tools that depend on it, including [dbt](https://docs.getdbt.com/), snowflake-cli, and Apache Superset.
 
-Embucket aims to provide an open source Snowflake alternative focusing on same ease of use and manageability, but with the added benefits of open source and self-hosted. It's built on top of open technologies like Apache Datafusion, Apache Iceberg, Commonhouse SlateDB, Apache Arrow, Parquet, and more.
+{/* vale Google.Headings = NO */}
 
-This leads to some structural differences between Snowflake and Embucket:
+## SQL engine compatibility
 
-- Metadata is stored in SlateDB (on top of object storage), not in distributed database like FoundationDB
-- Data is stored in Iceberg and Parquet format, not in proprietary format
-- Datafusion SQL engine is used for query execution, which is single node and use Arrow as in memory representation
+{/* vale Google.Headings = YES */}
 
-Some features are not supported yet due to limitations in Embucket's dependencies and architecture.
+Embucket provides a SQL engine based on **[Apache DataFusion](https://datafusion.apache.org/)** - an [Apache Arrow](https://arrow.apache.org/)-native query engine. The engine works with any SQL client. Embucket aims for 100% SQL dialect compatibility with Snowflake but currently support a subset of SQL features. Embucket includes some built-in functions and data types that Snowflake doesn't provide.
 
-## Limitations
+## Compatibility testing
 
-- Single query parallelism - query is executed on single node: query processing is limited to single node memory and CPU
-- Single table writer - only one instance can write to the table
-- Limited datatypes support - VARIANT support is implemented as JSON-serialized TEXT on the storage layer, since at the moment there is no support for VARIANT in Parquet, Iceberg, or Arrow.
+Embucket verifies compatibility using two test methods:
 
-## Variant support
+- **SQL Logic Tests**: Verify SQL engine compatibility with Snowflake
+- **[dbt](https://docs.getdbt.com/) integration tests**: Verify REST API compatibility with Snowflake
 
-Variant is implemented as JSON-serialized TEXT on the storage layer, since at the moment there is no support for VARIANT in Parquet, Iceberg, or Arrow.
+Embucket uses the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibility benchmark. The Embucket [repository](https://github.com/Embucket/embucket) displays current compatibility badges for both SQL logic test suite and dbt Gitlab.
 
-Following queries still work:
+## Architecture differences
 
-```sh
- > create table t2 (c1 variant) as values (parse_json('{"k1":1}'));
-+-------+
-| count |
-|-------|
-| 1     |
-+-------+
+Snowflake provides a managed analytics database built on [FoundationDB](https://www.foundationdb.org) and object storage such as S3. Snowflake delivers a managed service for deploying and scaling analytics workloads. See their [whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf) for details.
 
- > select * from t2;
-+----------+
-| c1       |
-|----------|
-| {"k1":1} |
-+----------+
+Embucket provides an open source Snowflake alternative with the same ease of use and manageability. You gain open source and self-hosting benefits. The system uses open technologies including [Apache DataFusion](https://datafusion.apache.org/), [Apache Iceberg](https://iceberg.apache.org/), [SlateDB](https://slatedb.io/), [Apache Arrow](https://arrow.apache.org/), and Parquet.
+
+These technology choices differ structurally:
+
+- **Metadata storage**: [SlateDB](https://slatedb.io/) on object storage instead of FoundationDB distributed database
+- **Data format**: [Iceberg](https://iceberg.apache.org/) and Parquet format instead of proprietary format
+- **Query execution**: Single-node [DataFusion](https://datafusion.apache.org/) SQL engine with [Arrow](https://arrow.apache.org/) in-memory representation
+
+<Aside type="caution">
+  Some features remain unsupported due to limitations in Embucket's dependencies and architecture.
+</Aside>
+
+## Current limitations
+
+### Architecture constraints
+
+- **Single-node execution**: Query processing limits to one node's memory and CPU capacity
+- **No distributed parallelism**: Can't distribute queries across many nodes
+- **Single writer**: Only one instance can write to a table simultaneously
+
+### Data type limitations
+
+- **Limited VARIANT support**: Embucket stores VARIANT as JSON-serialized `TEXT` because Parquet, Iceberg, and Arrow don't support VARIANT natively
+- **Numeric type differences**: Embucket uses different numeric types than Snowflake for type coercion
+- **Timestamp precision**: Fixed nanosecond precision differs from Snowflake's variable precision
+- **No collation/charset support**: All text data uses UTF-8 encoding. Locale-aware collations and custom character sets remain unsupported for some time.
+
+### Error handling
+
+- **Different error format**: Error messages don't match Snowflake's format
+
+### Backslash escaping
+
+Embucket handles backslash escaping in string literals differently than Snowflake. This affects how you write queries that include backslashes or special characters in strings.
+
+**Key differences:**
+
+- **Escape character interpretation**: Snowflake treats single backslashes literally in most cases, while Embucket interprets them as escape characters
+- **Backslash repetition**: You need more backslashes in Embucket to achieve the same result as Snowflake
+- **Error handling**: Some backslash patterns that work in Snowflake cause errors in Embucket
+
+#### Getting literal backslashes
+
+**Snowflake:**
+
+```sql
+SELECT * FROM VALUES ('\\b');
+-- Returns: \b
 ```
 
-However, underneath, the data is stored as TEXT:
+**Embucket:**
 
-```sh
-  > select arrow_typeof(c1) from t2;
+```sql
+SELECT * FROM VALUES ('\\\\b');
+-- Returns: \b
+```
+
+#### Handling special characters
+
+**Snowflake:**
+
+```sql
+SELECT * FROM VALUES ('\b');
+-- Returns: \x08 (backspace character, may appear as broken symbol)
+```
+
+**Embucket:**
+
+```sql
+SELECT * FROM VALUES ('\b');
+-- Returns: \x08 (backspace character, may not display in UI)
+```
+
+#### Single trailing backslash
+
+**Snowflake:**
+
+```sql
+SELECT * FROM VALUES ('\\');
+-- Returns: \
+```
+
+**Embucket:**
+
+```sql
+SELECT * FROM VALUES ('\\');
+-- Error: Unterminated string literal
+```
+
+## VARIANT data type support
+
+Embucket implements VARIANT as JSON-serialized `TEXT` on the storage layer. This approach becomes necessary because Parquet, Iceberg, and Arrow don't support VARIANT natively.
+
+<Steps>
+
+1. **Create a table**
+
+   ```sql
+   create table t2 (c1 variant) as values (parse_json('{"k1":1}'));
+   ```
+
+   ```
+   +-------+
+   | count |
+   |-------|
+   | 1     |
+   +-------+
+   ```
+
+2. **Count rows**
+
+   ```sql
+   select * from t2;
+   ```
+
+   ```
+   +----------+
+   | c1       |
+   |----------|
+   | {"k1":1} |
+   +----------+
+   ```
+
+</Steps>
+
+### Storage implementation details
+
+In the storage layer, Embucket stores VARIANT as JSON-serialized `TEXT`.
+
+```sql
+select arrow_typeof(c1) from t2;
+```
+
+```
 +-------------------------------------+
 | arrow_typeof(embucket.public.t2.c1) |
 |-------------------------------------|
@@ -69,17 +184,23 @@ However, underneath, the data is stored as TEXT:
 +-------------------------------------+
 ```
 
-## Numeric support
+## Numeric type handling
 
-Embucket relies on Datafusion for type coercion and might use different numeric types than Snowflake. This might lead to different results in some cases. For example, for most (all?) aggregate functions on numeric types, Snowflake uses Decimal with dynamic precision and scale, while Embucket use Decimal128.
-Embucket uses it for the better compatibility and less errors. `Decimal128` has the closest behaviour to a `NUMBER`.
-This is a known issue and we plan to address it in the future.
-At the moment this leads to some numeric functions returning different results than Snowflake:
+Embucket uses [DataFusion](https://datafusion.apache.org/) for type coercion and may use different numeric types than Snowflake. This produces different results in some cases.
 
-Embucket:
+For aggregation functions on numeric types, Snowflake uses Decimal with dynamic precision and scale. Embucket uses Decimal128 for better compatibility and fewer errors. `Decimal128` provides the closest behavior to Snowflake's `NUMBER` type.
 
-```sh
- > select avg(a), system$typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
+<Aside type="note">This feature remains under development.</Aside>
+
+### Numeric function result differences
+
+**Embucket result:**
+
+```sql
+select avg(a), system$typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
+```
+
+```
 +--------------------------------------------+
 | avg(t.a)          | arrow_typeof(avg(t.a)) |
 |-------------------+------------------------|
@@ -87,10 +208,13 @@ Embucket:
 +--------------------------------------------+
 ```
 
-Snowflake:
+**Snowflake result:**
 
-```sh
- > select avg(a), system$typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
+```sql
+select avg(a), system$typeof(avg(a)) from values (1.0), (2.0), (10.0) as t(a);
+```
+
+```
 +----------------------------------+
 | AVG(A)   | SYSTEM$TYPEOF(AVG(A)) |
 |----------+-----------------------|
@@ -98,19 +222,26 @@ Snowflake:
 +----------------------------------+
 ```
 
-## Timestamp support
+## Timestamp handling
 
-Embucket uses Arrow's timestamp type, which is a 64-bit integer representing the number of nanoseconds since the Unix epoch (1970-01-01 00:00:00 UTC). This is a fixed precision type, which means that the precision is always nanoseconds, even if the value has a different precision in Snowflake. Snowflake also stores timezone offset per timestamp value, while Embucket stores timezone offset per column. This means that Embucket might return different results for the same query, depending on the timezone set in the session.
+Embucket uses [Arrow](https://arrow.apache.org/)'s timestamp type: a 64-bit integer representing nanoseconds since the Unix epoch (1970-01-01 00:00:00 UTC). This fixed precision type always uses nanoseconds. Snowflake uses different precision.
 
-## Error format
+### Timezone storage differences
 
-Embucket returns errors in a different format than Snowflake. Those error originate from Apache Arrow and Datafusion, and are not compatible with Snowflake's error format.
+- **Snowflake**: Stores timezone offset per timestamp value
+- **Embucket**: Stores timezone offset per column
 
-## Future plans
+Embucket may return different results for the same query depending on the session timezone setting.
 
-We plan to address the following issues in the future:
+## Error message format
 
-- Numeric support
-- Variant support
-- Timestamp support
-- Error format
+Embucket returns errors in a different format than Snowflake. [Apache Arrow](https://arrow.apache.org/) and [DataFusion](https://datafusion.apache.org/) generate these errors and they don't match Snowflake's error format.
+
+## Development roadmap
+
+The development roadmap includes these compatibility improvements:
+
+- **Numeric support**: Add dynamic precision Decimal types for aggregation functions
+- **VARIANT support**: Add native VARIANT storage when underlying dependencies support it
+- **Timestamp support**: Improve timezone handling to match Snowflake's per-value storage
+- **Error format**: Align error messages with Snowflake's error format

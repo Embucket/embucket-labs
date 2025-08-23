@@ -57,8 +57,8 @@ exclude-from-coverage
 statement ok
 INSERT INTO qual_test VALUES (1),(2);
 
+# Modified due to different error
 statement error
 SELECT * FROM qual_test QUALIFY x > 0;
 ----
-000992 (42601): SQL compilation error: error line 1 at position 24
-found QUALIFY clause but no window function.
+000200: Error during planning: QUALIFY clause requires at least one window function in the SELECT list or QUALIFY predicate

@@ -60,6 +60,7 @@ impl ToDateFunc {
                     TypeSignature::Coercible(vec![Coercion::new_exact(
                         TypeSignatureClass::Timestamp,
                     )]),
+                    TypeSignature::Exact(vec![DataType::Date32]),
                 ],
                 Volatility::Immutable,
             ),
@@ -240,7 +241,7 @@ impl ToDateFunc {
 
                 Ok(Arc::new(date32_array_builder.finish()))
             }
-            DataType::Timestamp(_, _) => {
+            DataType::Timestamp(_, _) | DataType::Date32 => {
                 Ok(cast_with_options(array, &DataType::Date32, cast_options)?)
             }
             other => conv_errors::UnsupportedInputTypeWithPositionSnafu {
