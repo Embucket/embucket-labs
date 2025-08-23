@@ -6,12 +6,17 @@ use datafusion::physical_plan::empty::EmptyExec;
 use datafusion::physical_plan::execution_plan::ExecutionPlan;
 use datafusion_common::config::ConfigOptions;
 use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
+use datafusion_physical_plan::aggregates::AggregateExec;
 
 /// A physical optimizer rule that removes any execution plan node
 /// whose all inputs are `EmptyExec`. Since an `EmptyExec` always
 /// returns no rows, operations like `SortExec`, `FilterExec`,
 /// `ProjectionExec`, `JoinExec` (with both sides empty), etc., can be
 /// safely replaced with a single `EmptyExec`.
+///
+/// However, aggregate operations (like `AggregateExec`) are preserved even
+/// when their inputs are empty, because aggregate functions should return
+/// results even on empty tables (e.g., COUNT(*) should return 0).
 ///
 /// This helps avoid unnecessary execution overhead and simplifies the final plan.
 ///
@@ -61,6 +66,12 @@ impl PhysicalOptimizerRule for RemoveExecAboveEmpty {
             let all_empty = inputs.iter().all(|input| input.as_any().is::<EmptyExec>());
 
             if all_empty {
+                // Do not replace aggregate operations with EmptyExec because they should
+                // still return results even on empty tables (e.g., COUNT(*) should return 0)
+                if plan.as_any().is::<AggregateExec>() {
+                    return Ok(Transformed::no(plan));
+                }
+
                 return Ok(Transformed::yes(Arc::new(EmptyExec::new(plan.schema()))));
             }
 
