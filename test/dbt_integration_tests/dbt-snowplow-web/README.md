@@ -10,9 +10,9 @@
 cd test/dbt_integration_tests/dbt-snowplow-web
 ```
 
-2. Run dbt-snowplow-web project
+2. Run dbt-snowplow-web project 
 ```sh
-./run_snowplow_web.sh
+./incermental.sh false/true
 ```
 
 Note:

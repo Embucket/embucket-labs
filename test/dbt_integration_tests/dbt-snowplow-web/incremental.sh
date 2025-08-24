@@ -23,8 +23,6 @@ echo "Running dbt"
 if [ "$is_incremental" == true ]; then
 
 # SECOND RUN INCEREMENTAL
-echo "Generating events"
-python3 gen_events.py $num_rows
 
 echo "Loading events"
 python3 load_events.py events_yesterday.csv
