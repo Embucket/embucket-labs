@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Set incremental flag from command line argument, default to false
+# Set incremental flag from command line argument, default to true
 is_incremental=${1:-false}
 # Set number of rows to generate, default to 1000
 num_rows=${2:-10000}
@@ -16,6 +16,10 @@ python3 gen_events.py $num_rows
 
 echo "Loading events"
 python3 load_events.py events_day_before_yesterday.csv
+
+echo "Commenting out seed file copies in run_snowplow_web.sh"
+sed -i '' 's/^cp events.csv dbt-snowplow-web\/seeds\//#cp events.csv dbt-snowplow-web\/seeds\//' run_snowplow_web.sh
+sed -i '' 's/^cp seeds.yml dbt-snowplow-web\/seeds\//#cp seeds.yml dbt-snowplow-web\/seeds\//' run_snowplow_web.sh
 
 echo "Running dbt"
 ./run_snowplow_web.sh

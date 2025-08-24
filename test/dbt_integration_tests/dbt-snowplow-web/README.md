@@ -10,10 +10,17 @@
 cd test/dbt_integration_tests/dbt-snowplow-web
 ```
 
-2. Run dbt-snowplow-web project 
+2. Run dbt-snowplow-web incremental
 ```sh
-./incermental.sh false/true
+./incremental.sh true
 ```
+
+3. Old way run dbt-snowplow-web project
+```sh
+./run_snowplow_web.sh
+```
+
+
 
 Note:
 It runs with default user and password 'embucket'. No need to add .env file. 
