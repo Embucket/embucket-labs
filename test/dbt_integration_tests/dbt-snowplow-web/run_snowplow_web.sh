@@ -1,3 +1,4 @@
+#!/bin/bash
 
 echo ""
 echo "Cloning dbt-snowplow-web repository"
@@ -17,8 +18,8 @@ cp generate_dbt_test_assets.py dbt-snowplow-web/
 
 chmod +x run.sh statistics.sh
 
-cp events.csv dbt-snowplow-web/seeds/
-cp seeds.yml dbt-snowplow-web/seeds/
+#cp events.csv dbt-snowplow-web/seeds/
+#cp seeds.yml dbt-snowplow-web/seeds/
 
 #cp snowplow_web_base_events_this_run.sql dbt-snowplow-web/models/base/scratch/snowflake/
 #cp snowplow_web_consent_events_this_run.sql dbt-snowplow-web/models/optional_modules/consent/scratch/snowflake/

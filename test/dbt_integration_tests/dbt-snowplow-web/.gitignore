@@ -6,4 +6,6 @@ logs/
 assets/
 dbt-snowplow-web/
 .user.yml
-
+datasets/
+events_day_before_yesterday.csv
+events_yesterday.csv
