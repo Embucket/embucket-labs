@@ -252,21 +252,31 @@ def write_events_csv(filename, events):
 def main():
     """Generate events for yesterday and the day before yesterday."""
     
+    # Get number of rows from command line argument, default to 1000
+    import sys
+    num_events = 1000
+    if len(sys.argv) > 1:
+        try:
+            num_events = int(sys.argv[1])
+        except ValueError:
+            print(f"Error: '{sys.argv[1]}' is not a valid number. Using default 1000 rows.")
+            num_events = 1000
+    
     # Calculate dates
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
     day_before_yesterday = today - timedelta(days=2)
     
     print(f"Generating events for:")
-    print(f"  Yesterday: {yesterday}")
-    print(f"  Day before yesterday: {day_before_yesterday}")
+    print(f"  Yesterday: {yesterday} ({num_events} rows)")
+    print(f"  Day before yesterday: {day_before_yesterday} ({num_events} rows)")
     
     # Generate events for yesterday
-    yesterday_events = generate_event_data(yesterday, num_events=150)
+    yesterday_events = generate_event_data(yesterday, num_events=num_events)
     write_events_csv('events_yesterday.csv', yesterday_events)
     
     # Generate events for day before yesterday
-    day_before_events = generate_event_data(day_before_yesterday, num_events=120)
+    day_before_events = generate_event_data(day_before_yesterday, num_events=num_events)
     write_events_csv('events_day_before_yesterday.csv', day_before_events)
     
     print("\nFiles generated:")

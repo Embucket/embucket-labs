@@ -116,7 +116,20 @@ def main():
     
     # Configuration
     script_dir = Path(__file__).parent
-    events_file = script_dir / "events.csv"
+    
+    # Check if a file argument was provided
+    if len(sys.argv) > 1:
+        input_file = sys.argv[1]
+        events_file = Path(input_file)
+        
+        # Check if the input file exists
+        if not events_file.exists():
+            print(f"Error: {events_file} not found")
+            sys.exit(1)
+    else:
+        # Default behavior - use events.csv in script directory
+        events_file = script_dir / "events.csv"
+    
     sql_script = script_dir / "load_events_data.sql"
     
     # Check if required files exist
@@ -129,7 +142,7 @@ def main():
         sys.exit(1)
     
     # Copy file to data directory
-    print("Copying events.csv to data directory...")
+    print(f"Copying {events_file} to data directory...")
     copy_file_to_data_dir(str(events_file))
     
     # Connect to Embucket

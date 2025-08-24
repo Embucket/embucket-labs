@@ -1,14 +1,35 @@
+#!/bin/bash
+
+# Set incremental flag from command line argument, default to false
+is_incremental=${1:-false}
+# Set number of rows to generate, default to 1000
+num_rows=${2:-10000}
+
 echo "Setting up Docker container"
 ./setup_docker.sh
 
 sleep 5
 
+# FIRST RUN
 echo "Generating events"
-python3 gen_events.py
+python3 gen_events.py $num_rows
 
 echo "Loading events"
-python3 load_events.py
+python3 load_events.py events_day_before_yesterday.csv
 
 echo "Running dbt"
 ./run_snowplow_web.sh
 
+if [ "$is_incremental" == true ]; then
+
+# SECOND RUN INCEREMENTAL
+echo "Generating events"
+python3 gen_events.py $num_rows
+
+echo "Loading events"
+python3 load_events.py events_yesterday.csv
+
+echo "Running dbt"
+./run_snowplow_web.sh
+
+fi
