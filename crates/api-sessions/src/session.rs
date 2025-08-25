@@ -42,11 +42,7 @@ where
     type Rejection = session_error::Error;
 
     #[allow(clippy::unwrap_used)]
-    #[tracing::instrument(
-        level = "debug",
-        skip(req, state),
-        fields(session_id, located_at)
-    )]
+    #[tracing::instrument(level = "debug", skip(req, state), fields(session_id, located_at))]
     async fn from_request_parts(req: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let execution_svc = state.get_execution_svc();
 
