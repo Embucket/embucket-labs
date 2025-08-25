@@ -191,6 +191,15 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Invalid int value: {value}"))]
+    FailedToParseInt {
+        value: String,
+        #[snafu(source)]
+        error: std::num::ParseIntError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("invalid type [{parameter}({value})] for parameter '{parameter}'"))]
     InvalidTypeForParameter {
         value: String,

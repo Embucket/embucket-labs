@@ -2,7 +2,7 @@ use crate::conversion::{Micro, Nano, TimestampBuilder};
 use crate::conversion_errors::{
     ArgumentTwoNeedsToBeIntegerSnafu, ArgumentTwoNeedsToBeStringSnafu, CantAddLocalTimezoneSnafu,
     CantCastToSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu,
-    InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
+    FailedToParseIntSnafu, InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use crate::session_params::SessionParams;
 use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime};
@@ -26,6 +26,7 @@ use datafusion_expr::{
     ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use regex::Regex;
+use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
@@ -389,7 +390,7 @@ fn build_timestamp_array_from_scalar_string<T: TimestampBuilder>(
             Some(s) if contains_only_digits(s) => {
                 let i = s
                     .parse::<i64>()
-                    .map_err(|_| CantParseTimestampSnafu.build())?;
+                    .context(FailedToParseIntSnafu { value: s })?;
                 let t = match determine_timestamp_scale(i) {
                     0 => i * 1_000_000_000,
                     3 => i * 1_000_000,
@@ -504,7 +505,7 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFRe
     let tz: Tz = tz_str.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
     let dt = match unit {
         TimeUnit::Microsecond => {
-            DateTime::from_timestamp_micros(ts).ok_or_else(|| CantGetTimestampSnafu.build())?
+            DateTime::from_timestamp_micros(ts).context(CantGetTimestampSnafu)?
         }
         _ => DateTime::from_timestamp_nanos(ts),
     };
@@ -513,7 +514,7 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFRe
             .naive_utc()
             .and_utc()
             .timestamp_nanos_opt()
-            .ok_or_else(|| CantGetTimestampSnafu.build())?)
+            .context(CantGetTimestampSnafu)?)
     } else if try_mode {
         Ok(0)
     } else {
