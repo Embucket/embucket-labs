@@ -499,9 +499,9 @@ test_query!(
     setup_queries = [
         "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
         "CREATE TABLE embucket.public.merge_source_table (ID INTEGER, description VARCHAR)",
-        "CREATE VIEW embucket.public.merge_source AS SELECT * FROM embucket.public.merge_source_table",
         "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row')",
         "INSERT INTO embucket.public.merge_source_table VALUES (2, 'updated row'), (3, 'new row')",
+        "CREATE VIEW embucket.public.merge_source AS SELECT * FROM embucket.public.merge_source_table",
         "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
     ]
 );
