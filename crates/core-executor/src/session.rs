@@ -28,10 +28,16 @@ use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::AtomicI64;
 use time::{Duration, OffsetDateTime};
-use tokio::sync::Mutex;
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
+
+#[must_use]
+pub const fn to_unix(t: OffsetDateTime) -> i64 {
+    // unix_timestamp is enough, no need to use nanoseconds precision
+    t.unix_timestamp()
+}
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
@@ -40,7 +46,7 @@ pub struct UserSession {
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
     pub config: Arc<Config>,
-    pub expiry: Arc<Mutex<OffsetDateTime>>,
+    pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
 }
 
@@ -105,7 +111,7 @@ impl UserSession {
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),
             config,
-            expiry: Arc::from(Mutex::from(
+            expiry: AtomicI64::new(to_unix(
                 OffsetDateTime::now_utc()
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),

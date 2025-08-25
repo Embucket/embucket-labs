@@ -2,14 +2,12 @@ use crate::error as session_error;
 use axum::extract::FromRequestParts;
 use core_executor::ExecutionAppState;
 use core_executor::service::ExecutionService;
-use core_executor::session::SESSION_INACTIVITY_EXPIRATION_SECONDS;
 use http::header::COOKIE;
 use http::request::Parts;
 use http::{HeaderMap, HeaderName};
 use regex::Regex;
 use snafu::ResultExt;
 use std::{collections::HashMap, sync::Arc};
-use time::{Duration, OffsetDateTime};
 
 pub const SESSION_ID_COOKIE_NAME: &str = "session_id";
 
@@ -29,33 +27,7 @@ impl SessionStore {
         interval.tick().await; // The first tick completes immediately; skip.
         loop {
             interval.tick().await;
-            let sessions = self.execution_svc.get_sessions();
-
-            // Collect just the mutexes of the expiries, no locks on mutexes acquired here
-            let sessions_mutexes: Vec<_> = {
-                // Acquire read lock while looking for expired sessions
-                let sessions = sessions.read().await;
-                sessions
-                    .iter()
-                    .map(|(id, session)| (id.clone(), session.expiry.clone()))
-                    .collect()
-            };
-
-            let now = OffsetDateTime::now_utc();
-            tracing::trace!("Starting to delete expired for: {}", now);
-            //Sadly can't use `sessions.retain(|_, session| { ... }`, since the `OffsetDatetime` is in a `Mutex`
-
-            let mut session_ids = Vec::new();
-            for (session_id, expiry_mutex) in &sessions_mutexes {
-                let expiry = expiry_mutex.lock().await;
-                if *expiry <= now {
-                    session_ids.push(session_id.clone());
-                }
-            }
-
-            for session_id in session_ids {
-                let _ = self.execution_svc.delete_session(session_id).await;
-            }
+            let _ = self.execution_svc.delete_expired_sessions().await;
         }
     }
 }
@@ -70,49 +42,48 @@ where
     type Rejection = session_error::Error;
 
     #[allow(clippy::unwrap_used)]
+    #[tracing::instrument(
+        level = "debug",
+        skip(req, state),
+        fields(session_id, located_at)
+    )]
     async fn from_request_parts(req: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let execution_svc = state.get_execution_svc();
 
-        if let Some(token) = extract_token_from_auth(&req.headers) {
-            tracing::debug!("Found DF session_id in auth header: {}", token);
-
-            let id = Self::get_or_create_session(execution_svc, token.clone()).await?;
-
-            Ok(id)
+        let (session_id, located_at) = if let Some(token) = extract_token_from_auth(&req.headers) {
+            (token, "auth header")
         } else {
             //This is guaranteed by the `propagate_session_cookie`, so we can unwrap
             let Self(token) = req.extensions.get::<Self>().unwrap();
-            tracing::debug!("Found DF session_id in extensions: {}", token);
+            (token.clone(), "extensions")
+        };
 
-            let id = Self::get_or_create_session(execution_svc, token.clone()).await?;
+        // Record the result as part of the current span.
+        tracing::Span::current()
+            .record("located_at", located_at)
+            .record("session_id", session_id.clone());
 
-            Ok(id)
-        }
+        Self::get_or_create_session(execution_svc, session_id).await
     }
 }
 
 impl DFSessionId {
+    #[tracing::instrument(level = "info", skip(execution_svc), fields(sessions_count))]
     async fn get_or_create_session(
         execution_svc: Arc<dyn ExecutionService>,
-        id: String,
+        session_id: String,
     ) -> Result<Self, session_error::Error> {
-        let sessions = execution_svc.get_sessions();
-
-        let mut sessions = sessions.write().await;
-
-        if let Some(session) = sessions.get_mut(&id) {
-            let mut expiry = session.expiry.lock().await;
-            *expiry = OffsetDateTime::now_utc()
-                + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS);
-            tracing::debug!("Updating expiry: {}", *expiry);
-        } else {
-            drop(sessions);
+        if !execution_svc
+            .update_session_expiry(session_id.clone())
+            .await
+            .context(session_error::ExecutionSnafu)?
+        {
             let _ = execution_svc
-                .create_session(id.clone())
+                .create_session(session_id.clone())
                 .await
                 .context(session_error::ExecutionSnafu)?;
         }
-        Ok(Self(id))
+        Ok(Self(session_id))
     }
 }
 
@@ -165,6 +136,8 @@ mod tests {
     use core_executor::models::QueryContext;
     use core_executor::service::ExecutionService;
     use core_executor::service::make_test_execution_svc;
+    use core_executor::session::to_unix;
+    use std::sync::atomic::Ordering;
     use std::time::Duration;
     use time::OffsetDateTime;
     use tokio::time::sleep;
@@ -180,9 +153,9 @@ mod tests {
             .await
             .expect("Failed to create a session");
 
-        let mut expiry = user_session.expiry.lock().await;
-        *expiry = OffsetDateTime::now_utc();
-        drop(expiry);
+        user_session
+            .expiry
+            .store(to_unix(OffsetDateTime::now_utc()), Ordering::Relaxed);
 
         let session_store = SessionStore::new(execution_svc.clone());
 

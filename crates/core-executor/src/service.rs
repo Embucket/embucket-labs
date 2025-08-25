@@ -14,11 +14,14 @@ use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
 use snafu::{OptionExt, ResultExt};
 use std::num::NonZeroUsize;
+use std::sync::atomic::Ordering;
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
+use time::{Duration as DateTimeDuration, OffsetDateTime};
 
 use super::error::{self as ex_error, Result};
 use super::{models::QueryContext, models::QueryResult, session::UserSession};
+use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType, query_result_to_history};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
@@ -32,7 +35,10 @@ use uuid::Uuid;
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>>;
-    async fn delete_session(&self, session_id: String) -> Result<()>;
+    async fn update_session_expiry(&self, session_id: String) -> Result<bool>;
+    async fn delete_expired_sessions(&self) -> Result<()>;
+    // Currently delete_session function is not used
+    // async fn delete_session(&self, session_id: String) -> Result<()>;
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
     async fn query(
         &self,
@@ -212,21 +218,83 @@ impl ExecutionService for CoreExecutionService {
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::delete_session",
+        name = "ExecutionService::update_session_expiry",
         level = "debug",
         skip(self),
-        fields(new_sessions_count),
+        fields(old_sessions_count, new_sessions_count, now),
         err
     )]
-    async fn delete_session(&self, session_id: String) -> Result<()> {
-        // TODO: Need to have a timeout for the lock
-        let mut session_list = self.df_sessions.write().await;
-        session_list.remove(&session_id);
+    async fn update_session_expiry(&self, session_id: String) -> Result<bool> {
+        let mut sessions = self.df_sessions.write().await;
+
+        let res = if let Some(session) = sessions.get_mut(&session_id) {
+            let now = OffsetDateTime::now_utc();
+            let new_expiry =
+                to_unix(now + DateTimeDuration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS));
+            session.expiry.store(new_expiry, Ordering::Relaxed);
+
+            // Record the result as part of the current span.
+            tracing::Span::current().record("sessions_count", sessions.len());
+            true
+        } else {
+            false
+        };
+        Ok(res)
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::delete_expired_sessions",
+        level = "debug",
+        skip(self),
+        fields(old_sessions_count, new_sessions_count, now),
+        err
+    )]
+    async fn delete_expired_sessions(&self) -> Result<()> {
+        let now = to_unix(OffsetDateTime::now_utc());
+        let mut sessions = self.df_sessions.write().await;
+
+        let old_sessions_count = sessions.len();
+
+        sessions.retain(|session_id, session| {
+            let expiry = session.expiry.load(Ordering::Relaxed);
+            if expiry <= now {
+                let _ = tracing::debug_span!(
+                    "ExecutionService::delete_expired_session",
+                    session_id,
+                    expiry,
+                    now
+                )
+                .entered();
+                false
+            } else {
+                true
+            }
+        });
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("new_sessions_count", session_list.len());
+        tracing::Span::current()
+            .record("old_sessions_count", old_sessions_count)
+            .record("new_sessions_count", sessions.len())
+            .record("now", now);
         Ok(())
     }
+
+    // #[tracing::instrument(
+    //     name = "ExecutionService::delete_session",
+    //     level = "debug",
+    //     skip(self),
+    //     fields(new_sessions_count),
+    //     err
+    // )]
+    // async fn delete_session(&self, session_id: String) -> Result<()> {
+    //     // TODO: Need to have a timeout for the lock
+    //     let mut session_list = self.df_sessions.write().await;
+    //     session_list.remove(&session_id);
+
+    //     // Record the result as part of the current span.
+    //     tracing::Span::current().record("new_sessions_count", session_list.len());
+    //     Ok(())
+    // }
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>> {
         self.df_sessions.clone()
     }
