@@ -86,6 +86,7 @@ echo ""
         dbt run --full-refresh  2>&1 | tee assets/run.log
 	#dbt run --full-refresh
     fi 
+    dbt test
 
 # Update the errors log and run results
 echo "###############################"
