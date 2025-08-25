@@ -15,11 +15,15 @@ use crate::query::UserQuery;
 use crate::utils::Config;
 use core_history::history_store::HistoryStore;
 use core_metastore::Metastore;
+use datafusion::arrow::array::RecordBatch;
 use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
+use datafusion_tracing::{
+    InstrumentationOptions, instrument_with_trace_spans, pretty_format_compact_batch,
+};
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
@@ -32,6 +36,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
+use tracing::field;
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
 static MINIMUM_PARALLEL_OUTPUT_FILES: usize = 1;
@@ -73,6 +78,22 @@ impl UserSession {
 
         let parallelism_opt = available_parallelism().ok().map(NonZero::get);
 
+        #[allow(clippy::redundant_clone)]
+        let options = InstrumentationOptions::builder()
+            .record_metrics(true)
+            .preview_limit(5)
+            .preview_fn(Arc::new(|batch: &RecordBatch| {
+                pretty_format_compact_batch(batch, 64, 3, 10).map(|fmt| fmt.to_string())
+            }))
+            .add_custom_field("env", "local")
+            .add_custom_field("region", "local")
+            .build();
+
+        let instrument_rule = instrument_with_trace_spans!(
+            options: options,
+            env = field::Empty,
+            region = field::Empty,
+        );
         let session_params = SessionParams::default();
         let state = SessionStateBuilder::new()
             .with_config(
@@ -110,6 +131,7 @@ impl UserSession {
             .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
             .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
+            .with_physical_optimizer_rule(instrument_rule)
             .with_expr_planners(expr_planners)
             .build();
         let mut ctx = SessionContext::new_with_state(state);

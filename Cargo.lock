@@ -1847,6 +1847,7 @@ version = "7.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a65ebfec4fb190b6f90e944a817d60499ee0744e582530e2c9900a22e591d9a"
 dependencies = [
+ "crossterm",
  "unicode-segmentation",
  "unicode-width",
 ]
@@ -1976,6 +1977,7 @@ dependencies = [
  "datafusion-expr",
  "datafusion-functions-json",
  "datafusion-physical-plan",
+ "datafusion-tracing",
  "datafusion_iceberg",
  "df-catalog",
  "dotenv",
@@ -2188,6 +2190,28 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
+
+[[package]]
+name = "crossterm"
+version = "0.28.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "829d955a0bb380ef178a640b91779e3987da38c9aea133b20614cfed8cdea9c6"
+dependencies = [
+ "bitflags 2.9.1",
+ "crossterm_winapi",
+ "parking_lot",
+ "rustix 0.38.44",
+ "winapi",
+]
+
+[[package]]
+name = "crossterm_winapi"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "crunchy"
@@ -2908,6 +2932,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "datafusion-tracing"
+version = "47.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbf55551f2e193468487104169a87e0d1f3bc0d6657bace2f9b80e732a9f98e6"
+dependencies = [
+ "comfy-table",
+ "datafusion",
+ "delegate",
+ "futures",
+ "pin-project",
+ "tracing",
+ "tracing-futures",
+ "unicode-width",
+]
+
+[[package]]
 name = "datafusion_iceberg"
 version = "0.8.0"
 source = "git+https://github.com/Embucket/iceberg-rust.git?rev=13e10d451ef3cdee4bd4bd66d011b8a1785836f8#13e10d451ef3cdee4bd4bd66d011b8a1785836f8"
@@ -2940,6 +2980,17 @@ checksum = "847c0b5d4f3a3d80f9c64db3cb60eb00304b3ea1262c7299dd6274a83e714d24"
 dependencies = [
  "byteorder",
  "time",
+]
+
+[[package]]
+name = "delegate"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6178a82cf56c836a3ba61a7935cdb1c49bfaa6fa4327cd5bf554a503087de26b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.105",
 ]
 
 [[package]]
@@ -3253,6 +3304,7 @@ dependencies = [
  "core-history",
  "core-metastore",
  "core-utils",
+ "datafusion-tracing",
  "dotenv",
  "object_store",
  "opentelemetry",
@@ -8496,6 +8548,8 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
+ "futures",
+ "futures-task",
  "pin-project",
  "tracing",
 ]

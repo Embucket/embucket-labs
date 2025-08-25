@@ -50,6 +50,7 @@ datafusion-functions-json = { git = "https://github.com/Embucket/datafusion-func
 datafusion-macros = { version = "47.0.0" }
 datafusion-physical-plan = { version = "47.0.0" }
 datafusion_iceberg = { git = "https://github.com/Embucket/iceberg-rust.git", rev = "13e10d451ef3cdee4bd4bd66d011b8a1785836f8" }
+datafusion-tracing = "47.0.0"
 futures = { version = "0.3" }
 http = "1.2"
 http-body-util = "0.1.0"

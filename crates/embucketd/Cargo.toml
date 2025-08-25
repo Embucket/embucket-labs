@@ -41,6 +41,7 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 strum.workspace = true
+datafusion-tracing.workspace = true
 
 [lints]
 workspace = true
