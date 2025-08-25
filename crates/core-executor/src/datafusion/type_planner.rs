@@ -35,8 +35,10 @@ impl TypePlanner for CustomTypePlanner {
             SQLDataType::Blob(_) | SQLDataType::Binary(_) | SQLDataType::Varbinary(_) => {
                 Ok(Some(DataType::Binary))
             }
-            // https://github.com/apache/datafusion/issues/12644
-            SQLDataType::JSON => Ok(Some(DataType::Utf8)),
+            // https://github.com/apache/datafusion/issues/12644 for JSON
+            SQLDataType::JSON | SQLDataType::Character(_) | SQLDataType::CharacterVarying(_) => {
+                Ok(Some(DataType::Utf8))
+            }
             SQLDataType::Datetime(precision) => {
                 let time_unit = parse_timestamp_precision(*precision)?;
                 Ok(Some(DataType::Timestamp(time_unit, None)))
