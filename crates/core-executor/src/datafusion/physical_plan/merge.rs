@@ -346,133 +346,140 @@ impl Stream for MergeCOWFilterStream {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        let project = self.project();
+        let mut project = self.project();
 
-        // Return early if a batch is ready
-        if let Some(batch) = project.ready_batches.pop() {
-            return Poll::Ready(Some(Ok(batch)));
-        }
+        loop {
+            // Return early if a batch is ready
+            if let Some(batch) = project.ready_batches.pop() {
+                return Poll::Ready(Some(Ok(batch)));
+            }
 
-        match project.input.poll_next(cx) {
-            Poll::Ready(Some(Ok(batch))) => {
-                let schema = batch.schema();
+            match project.input.as_mut().poll_next(cx) {
+                Poll::Ready(Some(Ok(batch))) => {
+                    let schema = batch.schema();
 
-                let source_exists = batch.column(schema.index_of(SOURCE_EXISTS_COLUMN)?);
-                let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
-                let manifest_file_path = batch.column(schema.index_of(MANIFEST_FILE_PATH_COLUMN)?);
+                    let source_exists = batch.column(schema.index_of(SOURCE_EXISTS_COLUMN)?);
+                    let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
+                    let manifest_file_path =
+                        batch.column(schema.index_of(MANIFEST_FILE_PATH_COLUMN)?);
 
-                let filtered_data_file_path = filter(
-                    &data_file_path,
-                    &downcast_array::<BooleanArray>(source_exists),
-                )?;
+                    let filtered_data_file_path = filter(
+                        &data_file_path,
+                        &downcast_array::<BooleanArray>(source_exists),
+                    )?;
 
-                let all_data_and_manifest_files =
-                    unique_files_and_manifests(&data_file_path, &manifest_file_path)?;
+                    let all_data_and_manifest_files =
+                        unique_files_and_manifests(&data_file_path, &manifest_file_path)?;
 
-                let matching_data_files = create_matching_data_files(
-                    project.matching_files,
-                    &filtered_data_file_path,
-                    &all_data_and_manifest_files,
-                )?;
+                    let matching_data_files = create_matching_data_files(
+                        project.matching_files,
+                        &filtered_data_file_path,
+                        &all_data_and_manifest_files,
+                    )?;
 
-                let newly_matched_data_files: HashSet<String> = project
-                    .not_matching_files
-                    .keys()
-                    .map(ToOwned::to_owned)
-                    .collect::<HashSet<String>>()
-                    .intersection(&matching_data_files)
-                    .map(ToOwned::to_owned)
-                    .collect();
+                    let newly_matched_data_files: HashSet<String> = project
+                        .not_matching_files
+                        .keys()
+                        .map(ToOwned::to_owned)
+                        .collect::<HashSet<String>>()
+                        .intersection(&matching_data_files)
+                        .map(ToOwned::to_owned)
+                        .collect();
 
-                let matching_data_and_manifest_files = collect_matching_data_and_manifest_files(
-                    &batch,
-                    all_data_and_manifest_files,
-                    &matching_data_files,
-                    project.not_matched_buffer,
-                );
+                    let matching_data_and_manifest_files = collect_matching_data_and_manifest_files(
+                        &batch,
+                        all_data_and_manifest_files,
+                        &matching_data_files,
+                        project.not_matched_buffer,
+                    );
 
-                // When datafile didn't match in previous record batches but matches now, the
-                // previous record batches have to be appended to the output
-                for file in newly_matched_data_files {
-                    let manifest = project.not_matching_files.remove(&file).ok_or_else(|| {
-                        DataFusionError::Internal(
-                            error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
-                                .build()
-                                .to_string(),
-                        )
-                    })?;
+                    // When datafile didn't match in previous record batches but matches now, the
+                    // previous record batches have to be appended to the output
+                    for file in newly_matched_data_files {
+                        let manifest =
+                            project.not_matching_files.remove(&file).ok_or_else(|| {
+                                DataFusionError::Internal(
+                                    error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
+                                        .build()
+                                        .to_string(),
+                                )
+                            })?;
 
-                    let batches = project.not_matched_buffer.pop(&file).ok_or_else(|| {
-                        DataFusionError::Internal(
-                            error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
-                                .build()
-                                .to_string(),
-                        )
-                    })?;
-
-                    for batch in batches {
-                        let schema = batch.schema();
-                        let data_file_path = batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
-
-                        let predicate = eq(&data_file_path, &StringArray::new_scalar(&file))?;
-                        let filtered_batch = filter_record_batch(&batch, &predicate)?;
-
-                        project.ready_batches.push(filtered_batch);
-                    }
-
-                    project.matching_files.insert(file, manifest);
-                }
-
-                if matching_data_and_manifest_files.is_empty() {
-                    Poll::Ready(Some(Ok(batch)))
-                } else {
-                    let file_predicate = matching_data_files
-                        .iter()
-                        .try_fold(None::<BooleanArray>, |acc, x| {
-                            let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
-                            if let Some(acc) = acc {
-                                let result = or(&acc, &new)?;
-                                Ok::<_, DataFusionError>(Some(result))
-                            } else {
-                                Ok(Some(new))
-                            }
-                        })?
-                        .ok_or_else(|| {
+                        let batches = project.not_matched_buffer.pop(&file).ok_or_else(|| {
                             DataFusionError::Internal(
-                                error::MissingFilterPredicatesSnafu {}.build().to_string(),
+                                error::MergeFilterStreamNotMatchingSnafu { file: file.clone() }
+                                    .build()
+                                    .to_string(),
                             )
                         })?;
 
-                    let predicate = or_kleene(
-                        &file_predicate,
-                        &downcast_array::<BooleanArray>(&source_exists),
-                    )?;
+                        for batch in batches {
+                            let schema = batch.schema();
+                            let data_file_path =
+                                batch.column(schema.index_of(DATA_FILE_PATH_COLUMN)?);
 
-                    project
-                        .matching_files
-                        .extend(matching_data_and_manifest_files);
+                            let predicate = eq(&data_file_path, &StringArray::new_scalar(&file))?;
+                            let filtered_batch = filter_record_batch(&batch, &predicate)?;
 
-                    let filtered_batch = filter_record_batch(&batch, &predicate)?;
+                            project.ready_batches.push(filtered_batch);
+                        }
 
-                    Poll::Ready(Some(Ok(filtered_batch)))
+                        project.matching_files.insert(file, manifest);
+                    }
+
+                    if matching_data_and_manifest_files.is_empty() {
+                        if !filtered_data_file_path.is_empty() {
+                            return Poll::Ready(Some(Ok(batch)));
+                        }
+                    } else {
+                        let file_predicate = matching_data_files
+                            .iter()
+                            .try_fold(None::<BooleanArray>, |acc, x| {
+                                let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
+                                if let Some(acc) = acc {
+                                    let result = or(&acc, &new)?;
+                                    Ok::<_, DataFusionError>(Some(result))
+                                } else {
+                                    Ok(Some(new))
+                                }
+                            })?
+                            .ok_or_else(|| {
+                                DataFusionError::Internal(
+                                    error::MissingFilterPredicatesSnafu {}.build().to_string(),
+                                )
+                            })?;
+
+                        let predicate = or_kleene(
+                            &file_predicate,
+                            &downcast_array::<BooleanArray>(&source_exists),
+                        )?;
+
+                        project
+                            .matching_files
+                            .extend(matching_data_and_manifest_files);
+
+                        let filtered_batch = filter_record_batch(&batch, &predicate)?;
+
+                        return Poll::Ready(Some(Ok(filtered_batch)));
+                    }
                 }
-            }
-            Poll::Ready(None) => {
-                // The stream has finished, we now have to pass the list of matched files to the
-                // matching_files_ref to be accessed from outside of this stream
-                let mut matching_files = std::mem::take(project.matching_files);
-                let mut new: HashMap<String, Vec<String>> = HashMap::new();
-                for (file, manifest) in matching_files.drain() {
-                    new.entry(manifest)
-                        .and_modify(|v| v.push(file.clone()))
-                        .or_insert_with(|| vec![file]);
+                Poll::Ready(None) => {
+                    // The stream has finished, we now have to pass the list of matched files to the
+                    // matching_files_ref to be accessed from outside of this stream
+                    let mut matching_files = std::mem::take(project.matching_files);
+                    let mut new: HashMap<String, Vec<String>> = HashMap::new();
+                    for (file, manifest) in matching_files.drain() {
+                        new.entry(manifest)
+                            .and_modify(|v| v.push(file.clone()))
+                            .or_insert_with(|| vec![file]);
+                    }
+                    #[allow(clippy::unwrap_used)]
+                    let mut lock = project.matching_files_ref.lock().unwrap();
+                    lock.replace(new);
+                    return Poll::Ready(None);
                 }
-                #[allow(clippy::unwrap_used)]
-                let mut lock = project.matching_files_ref.lock().unwrap();
-                lock.replace(new);
-                Poll::Ready(None)
+                x => return x,
             }
-            x => x,
         }
     }
 }
