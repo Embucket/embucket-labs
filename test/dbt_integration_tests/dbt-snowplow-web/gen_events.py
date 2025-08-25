@@ -30,6 +30,9 @@ def generate_event_data(target_date, num_events=1000):
         'https://example.com/blog'
     ]
     
+    # Event names to randomly select from
+    event_names = ['page_ping', 'web_vitals', 'cmp_visible', 'consent_preferences', 'unstruct', 'struct', 'page_view']
+    
     events = []
     
     for i in range(num_events):
@@ -39,9 +42,11 @@ def generate_event_data(target_date, num_events=1000):
         second = random.randint(0, 59)
         
         base_time = datetime.combine(target_date, datetime.min.time().replace(hour=hour, minute=minute, second=second))
+        # Add milliseconds for compatibility with dbt models
+        base_time = base_time.replace(microsecond=random.randint(0, 999999))
         collector_tstamp = base_time
-        dvce_created_tstamp = base_time - timedelta(seconds=random.randint(1, 5))
-        etl_tstamp = base_time + timedelta(seconds=random.randint(1, 3))
+        dvce_created_tstamp = base_time - timedelta(seconds=random.randint(1, 5), microseconds=random.randint(0, 999999))
+        etl_tstamp = base_time + timedelta(seconds=random.randint(1, 3), microseconds=random.randint(0, 999999))
         
         # Generate event data
         event_id = str(uuid.uuid4())
@@ -53,6 +58,9 @@ def generate_event_data(target_date, num_events=1000):
         city = random.choice(cities)
         user_agent = random.choice(user_agents)
         page_url = random.choice(pages)
+        
+        # Randomly select event name
+        event_name = random.choice(event_names)
         
         # Generate contexts (simplified JSON)
         ua_context = [{
@@ -77,18 +85,18 @@ def generate_event_data(target_date, num_events=1000):
         }]
         
         event = [
-            'website',  # app_id
+            'default',  # app_id
             'web',      # platform
-            etl_tstamp.strftime('%Y-%m-%d %H:%M:%S'),  # etl_tstamp
-            collector_tstamp.strftime('%Y-%m-%d %H:%M:%S'),  # collector_tstamp
-            dvce_created_tstamp.strftime('%Y-%m-%d %H:%M:%S'),  # dvce_created_tstamp
+            etl_tstamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # etl_tstamp with milliseconds
+            collector_tstamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # collector_tstamp with milliseconds
+            dvce_created_tstamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # dvce_created_tstamp with milliseconds
             'page_view',  # event
             event_id,  # event_id
             '',  # txn_id
-            'biz1',  # name_tracker
-            'js-3.5.0',  # v_tracker
-            'ssc-2.6.1-kinesis',  # v_collector
-            'snowplow-stream-enrich-3.2.3-common-3.2.3',  # v_etl
+            'eng.gcp-dev1',  # name_tracker
+            'js-2.17.2',  # v_tracker
+            'ssc-2.1.2-googlepubsub',  # v_collector
+            'beam-enrich-1.4.2-rc1-common-1.4.2-rc1',  # v_etl
             '',  # user_id
             '',  # user_ipaddress
             str(uuid.uuid4()),  # user_fingerprint
@@ -194,13 +202,13 @@ def generate_event_data(target_date, num_events=1000):
             '',  # mkt_clickid
             '',  # mkt_network
             '',  # etl_tags
-            dvce_created_tstamp.strftime('%Y-%m-%d %H:%M:%S'),  # dvce_sent_tstamp
+            dvce_created_tstamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # dvce_sent_tstamp with milliseconds
             '',  # refr_domain_userid
             '',  # refr_dvce_tstamp
             domain_sessionid,  # domain_sessionid
-            collector_tstamp.strftime('%Y-%m-%d %H:%M:%S'),  # derived_tstamp
+            collector_tstamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # derived_tstamp with milliseconds
             'com.snowplowanalytics.snowplow',  # event_vendor
-            'page_view',  # event_name
+            event_name,  # event_name
             'jsonschema',  # event_format
             '1-0-0',  # event_version
             str(uuid.uuid4()),  # event_fingerprint
