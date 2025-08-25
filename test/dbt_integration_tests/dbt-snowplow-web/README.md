@@ -15,8 +15,7 @@ cd test/dbt_integration_tests/dbt-snowplow-web
 ./incremental.sh false 10000
 ```
 Note: It starts it's own Embukcet in docker.
-By default it is non incremental run.
-
+Also, you can run it over and over again, it stops the container and cleans it before the new run.
 
 3. Old way run dbt-snowplow-web project
 ```sh
