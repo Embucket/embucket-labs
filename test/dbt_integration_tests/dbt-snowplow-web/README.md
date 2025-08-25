@@ -10,10 +10,13 @@
 cd test/dbt_integration_tests/dbt-snowplow-web
 ```
 
-2. Run dbt-snowplow-web incremental
+2. Run dbt-snowplow-web incremental:  1 - is incremental true/false, 2 - rows of sample data to be generated
 ```sh
-./incremental.sh true
+./incremental.sh false 10000
 ```
+Note: It starts it's own Embukcet in docker.
+By default it is non incremental run.
+
 
 3. Old way run dbt-snowplow-web project
 ```sh
