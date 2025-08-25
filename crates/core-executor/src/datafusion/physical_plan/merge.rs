@@ -393,6 +393,13 @@ impl Stream for MergeCOWFilterStream {
                         project.not_matched_buffer,
                     );
 
+                    if matching_data_and_manifest_files.is_empty() {
+                        // If there are no rows where source_exists is true
+                        if !filtered_data_file_path.is_empty() {
+                            return Poll::Ready(Some(Ok(batch)));
+                        }
+                        continue;
+                    }
                     // When datafile didn't match in previous record batches but matches now, the
                     // previous record batches have to be appended to the output
                     for file in newly_matched_data_files {
@@ -427,41 +434,35 @@ impl Stream for MergeCOWFilterStream {
                         project.matching_files.insert(file, manifest);
                     }
 
-                    if matching_data_and_manifest_files.is_empty() {
-                        if !filtered_data_file_path.is_empty() {
-                            return Poll::Ready(Some(Ok(batch)));
-                        }
-                    } else {
-                        let file_predicate = matching_data_files
-                            .iter()
-                            .try_fold(None::<BooleanArray>, |acc, x| {
-                                let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
-                                if let Some(acc) = acc {
-                                    let result = or(&acc, &new)?;
-                                    Ok::<_, DataFusionError>(Some(result))
-                                } else {
-                                    Ok(Some(new))
-                                }
-                            })?
-                            .ok_or_else(|| {
-                                DataFusionError::Internal(
-                                    error::MissingFilterPredicatesSnafu {}.build().to_string(),
-                                )
-                            })?;
+                    let file_predicate = matching_data_files
+                        .iter()
+                        .try_fold(None::<BooleanArray>, |acc, x| {
+                            let new = eq(&data_file_path, &StringArray::new_scalar(x))?;
+                            if let Some(acc) = acc {
+                                let result = or(&acc, &new)?;
+                                Ok::<_, DataFusionError>(Some(result))
+                            } else {
+                                Ok(Some(new))
+                            }
+                        })?
+                        .ok_or_else(|| {
+                            DataFusionError::Internal(
+                                error::MissingFilterPredicatesSnafu {}.build().to_string(),
+                            )
+                        })?;
 
-                        let predicate = or_kleene(
-                            &file_predicate,
-                            &downcast_array::<BooleanArray>(&source_exists),
-                        )?;
+                    let predicate = or_kleene(
+                        &file_predicate,
+                        &downcast_array::<BooleanArray>(&source_exists),
+                    )?;
 
-                        project
-                            .matching_files
-                            .extend(matching_data_and_manifest_files);
+                    project
+                        .matching_files
+                        .extend(matching_data_and_manifest_files);
 
-                        let filtered_batch = filter_record_batch(&batch, &predicate)?;
+                    let filtered_batch = filter_record_batch(&batch, &predicate)?;
 
-                        return Poll::Ready(Some(Ok(filtered_batch)));
-                    }
+                    return Poll::Ready(Some(Ok(filtered_batch)));
                 }
                 Poll::Ready(None) => {
                     // The stream has finished, we now have to pass the list of matched files to the
