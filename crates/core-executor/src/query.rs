@@ -1213,12 +1213,18 @@ impl UserQuery {
             } => {
                 let source_ident = self.resolve_table_object_name(source_ident.0)?;
 
-                let source_provider = self.get_iceberg_table_provider(&source_ident, None).await?;
+                let source_provider = self.get_caching_table_provider(&source_ident).await?;
 
-                let target_filter = target_filter_expression(&source_provider).await?;
+                let target_filter = if let Some(table) =
+                    source_provider.as_any().downcast_ref::<DataFusionTable>()
+                {
+                    target_filter_expression(table).await?
+                } else {
+                    None
+                };
 
                 let source_table_source: Arc<dyn TableSource> =
-                    Arc::new(DefaultTableSource::new(Arc::new(source_provider)));
+                    Arc::new(DefaultTableSource::new(source_provider));
 
                 session_context_provider.tables.insert(
                     self.resolve_table_ref(&source_ident),
@@ -2573,26 +2579,7 @@ impl UserQuery {
         target_ident: &NormalizedIdent,
         config: Option<datafusion_iceberg::table::DataFusionTableConfig>,
     ) -> Result<DataFusionTable> {
-        let target_provider = {
-            let target_cache = self
-                .session
-                .ctx
-                .table_provider(target_ident)
-                .await
-                .context(ex_error::DataFusionSnafu)?;
-
-            target_cache
-                .as_any()
-                .downcast_ref::<CachingTable>()
-                .ok_or_else(|| {
-                    ex_error::CatalogDownCastSnafu {
-                        catalog: "DataFusionTable".to_string(),
-                    }
-                    .build()
-                })?
-                .table
-                .clone()
-        };
+        let target_provider = self.get_caching_table_provider(target_ident).await?;
 
         let target_ref = target_provider
             .as_any()
@@ -2610,6 +2597,31 @@ impl UserQuery {
             schema,
             ..target_ref.clone()
         })
+    }
+
+    async fn get_caching_table_provider(
+        &self,
+        target_ident: &NormalizedIdent,
+    ) -> Result<Arc<dyn TableProvider>> {
+        let target_cache = self
+            .session
+            .ctx
+            .table_provider(target_ident)
+            .await
+            .context(ex_error::DataFusionSnafu)?;
+
+        let target_provider = target_cache
+            .as_any()
+            .downcast_ref::<CachingTable>()
+            .ok_or_else(|| {
+                ex_error::CatalogDownCastSnafu {
+                    catalog: "DataFusionTable".to_string(),
+                }
+                .build()
+            })?
+            .table
+            .clone();
+        Ok(target_provider)
     }
 
     async fn get_object_store_from_stage_params(
