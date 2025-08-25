@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/conversion/to_timestamp.rs
-description: "\"SELECT\n        '9999-12-31 00:00:02'::TIMESTAMP as t,\n        '9999-12-31 00:00:02.000912'::TIMESTAMP as t2,\n        '9999-12-31 00:00:02.000912123'::TIMESTAMP as t3,\n        '31-Dec-9999 00:00:02.000912123'::TIMESTAMP as t4,\n        '31-11-9999 00:00:02.000912123'::TIMESTAMP as t5\""
----
-Err(
-    "Error: Arrow error: Cast error: Overflow converting 9999-12-31 00:00:02 to Nanosecond. The dates that can be represented as nanoseconds have to be between 1677-09-21T00:12:44.0 and 2262-04-11T23:47:16.854775804",
-)
