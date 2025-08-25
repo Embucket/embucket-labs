@@ -1,4 +1,12 @@
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use crate::conversion::{Micro, Nano, TimestampBuilder};
+use crate::conversion_errors::{
+    ArgumentTwoNeedsToBeIntegerSnafu, ArgumentTwoNeedsToBeStringSnafu, CantAddLocalTimezoneSnafu,
+    CantCastToSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu,
+    InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
+};
+use crate::session_params::SessionParams;
+use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime};
+use chrono_tz::Tz;
 use datafusion::arrow::array::{
     Array, Decimal128Array, StringArray, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
     new_null_array,
@@ -11,22 +19,15 @@ use datafusion::logical_expr::ColumnarValue;
 use datafusion_common::arrow::array::{
     ArrayRef, TimestampMicrosecondBuilder, TimestampSecondBuilder,
 };
+use datafusion_common::cast::{as_int64_array, as_string_array};
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
-
-use crate::conversion_errors::{
-    ArgumentTwoNeedsToBeIntegerSnafu, ArgumentTwoNeedsToBeStringSnafu, CantAddLocalTimezoneSnafu,
-    CantCastToSnafu, CantGetTimestampSnafu, CantParseTimestampSnafu, CantParseTimezoneSnafu,
-    InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
-};
-use crate::session_params::SessionParams;
-use chrono_tz::Tz;
-use datafusion_common::cast::{as_generic_string_array, as_int64_array};
 use datafusion_expr::{
     ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use regex::Regex;
 use std::any::Any;
+use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 
 #[allow(clippy::unwrap_used)]
@@ -36,28 +37,12 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
-const DATE_FORMATS: [&str; 2] = ["%d-%b-%Y", "%d-%B-%Y"];
-
-const TIMESTAMP_FORMATS: [&str; 18] = [
-    "%Y-%m-%d %H:%M:%S.%f",
-    "%Y-%m-%d %H:%M",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y-%m-%d %H:%M:%S.%f",
-    "%Y-%m-%dT%H:%M:%S.%f",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y-%m-%d %H:%M:%S.%f",
-    "%Y-%m-%dT%H:%M:%S.%f",
-    "%d-%b-%Y %H:%M:%S",
-    "%d-%b-%YT%H:%M:%S",
-    "%d-%b-%Y %H:%M:%S.%f",
-    "%d-%b-%YT%H:%M:%S.%f",
-    "%d-%B-%Y %H:%M:%S",
-    "%d-%B-%YT%H:%M:%S",
-    "%d-%B-%Y %H:%M:%S.%f",
-    "%d-%B-%YT%H:%M:%S.%f",
-];
+#[allow(clippy::unwrap_used)]
+static TIMESTAMP_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^(\d{1,4})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:\s?(Z|[+-]\d{2}:?\d{2}|[A-Za-z]{2,4}))?$"
+    ).unwrap()
+});
 
 #[derive(Debug)]
 pub struct ToTimestampFunc {
@@ -118,6 +103,16 @@ impl ToTimestampFunc {
             _ => Some(Arc::from(timezone)),
         }
     }
+
+    fn unit_for_string_input(&self, v: &str) -> TimeUnit {
+        if try_parse_with_auto(v, self.try_mode, TimeUnit::Nanosecond).is_ok() {
+            TimeUnit::Nanosecond
+        } else if try_parse_with_auto(v, self.try_mode, TimeUnit::Microsecond).is_ok() {
+            TimeUnit::Microsecond
+        } else {
+            TimeUnit::Nanosecond
+        }
+    }
 }
 
 impl ScalarUDFImpl for ToTimestampFunc {
@@ -143,6 +138,11 @@ impl ScalarUDFImpl for ToTimestampFunc {
             if args.arg_types[0].is_numeric() {
                 return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
                     TimeUnit::Second,
+                    self.timezone(),
+                )));
+            } else if let Some(ScalarValue::Utf8(Some(v))) = args.scalar_arguments[0] {
+                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
+                    self.unit_for_string_input(v),
                     self.timezone(),
                 )));
             }
@@ -314,9 +314,7 @@ impl ScalarUDFImpl for ToTimestampFunc {
                 &DEFAULT_CAST_OPTIONS,
             )?;
             Ok(ColumnarValue::Array(Arc::new(arr)))
-        } else if matches!(arr.data_type(), DataType::Date32)
-            || matches!(arr.data_type(), DataType::Date64)
-        {
+        } else if matches!(arr.data_type(), DataType::Date32 | DataType::Date64) {
             let arr = cast_with_options(
                 &arr,
                 &DataType::Timestamp(TimeUnit::Nanosecond, self.timezone()),
@@ -329,10 +327,10 @@ impl ScalarUDFImpl for ToTimestampFunc {
             };
 
             parse_decimal(&arr, &args, self.timezone(), *s)
-        } else if matches!(arr.data_type(), DataType::Utf8)
-            || matches!(arr.data_type(), DataType::Utf8View)
-            || matches!(arr.data_type(), DataType::LargeUtf8)
-        {
+        } else if matches!(
+            arr.data_type(),
+            DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8
+        ) {
             let format = if args.len() > 1 {
                 let ColumnarValue::Scalar(v) = &args[1] else {
                     return ArgumentTwoNeedsToBeStringSnafu.fail()?;
@@ -351,75 +349,141 @@ impl ScalarUDFImpl for ToTimestampFunc {
             };
 
             let arr = cast_with_options(&arr, &DataType::Utf8, &DEFAULT_CAST_OPTIONS)?;
-            let arr: &StringArray = as_generic_string_array(&arr)?;
+            let arr = as_string_array(&arr)?;
 
-            let mut builder = TimestampNanosecondBuilder::with_capacity(arr.len())
-                .with_timezone_opt(self.timezone());
-            for v in arr {
-                match v {
-                    None => builder.append_null(),
-                    Some(s) if contains_only_digits(s) => {
-                        let i = s
-                            .parse::<i64>()
-                            .map_err(|_| CantParseTimestampSnafu.build())?;
-                        let t = match determine_timestamp_scale(i) {
-                            0 => i * 1_000_000_000,
-                            3 => i * 1_000_000,
-                            6 => i * 1_000,
-                            9 => i,
-                            _ => return CantParseTimestampSnafu.fail()?,
-                        };
-                        builder.append_value(t);
-                    }
-                    Some(s) => {
-                        let s = remove_timezone(s);
-                        let parsed_opt = if format.eq_ignore_ascii_case("auto") {
-                            try_parse_with_auto(&s, self.try_mode)?
-                        } else {
-                            try_parse_with_format(&s, &format, self.try_mode)?
-                        };
-                        match parsed_opt {
-                            Some(parsed) => {
-                                let t = if let Some(tz) = &self.timezone() {
-                                    apply_timezone(parsed, tz, self.try_mode)?
-                                } else {
-                                    parsed
-                                };
-                                builder.append_value(t);
-                            }
-                            None => {
-                                builder.append_null();
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(ColumnarValue::Array(Arc::new(builder.finish())))
+            // For string inputs the timestamp value may exceed the i64 range if always treated as nanoseconds,
+            // so we first determine the appropriate time unit and then choose the corresponding builder.
+            let unit = self.unit_for_string_input(arr.value(0));
+            let array: ArrayRef = match unit {
+                TimeUnit::Microsecond => build_timestamp_array_from_scalar_string::<Micro>(
+                    arr,
+                    &format,
+                    self.timezone(),
+                    self.try_mode,
+                )?,
+                _ => build_timestamp_array_from_scalar_string::<Nano>(
+                    arr,
+                    &format,
+                    self.timezone(),
+                    self.try_mode,
+                )?,
+            };
+            Ok(ColumnarValue::Array(Arc::new(array)))
         } else {
             InvalidDataTypeSnafu.fail()?
         }
     }
 }
 
-fn try_parse_with_auto(s: &str, try_mode: bool) -> DFResult<Option<i64>> {
+#[allow(clippy::needless_pass_by_value)]
+fn build_timestamp_array_from_scalar_string<T: TimestampBuilder>(
+    arr: &StringArray,
+    format: &str,
+    tz: Option<Arc<str>>,
+    try_mode: bool,
+) -> DFResult<ArrayRef> {
+    let mut builder = T::new(arr.len(), tz.clone());
+    for v in arr {
+        match v {
+            None => T::append_null(&mut builder),
+            Some(s) if contains_only_digits(s) => {
+                let i = s
+                    .parse::<i64>()
+                    .map_err(|_| CantParseTimestampSnafu.build())?;
+                let t = match determine_timestamp_scale(i) {
+                    0 => i * 1_000_000_000,
+                    3 => i * 1_000_000,
+                    6 => i * 1_000,
+                    9 => i,
+                    _ => return CantParseTimestampSnafu.fail()?,
+                };
+                T::append_value(&mut builder, t);
+            }
+            Some(s) => {
+                let s = remove_timezone(s);
+                let parsed_opt = if format.eq_ignore_ascii_case("auto") {
+                    try_parse_with_auto(&s, try_mode, T::unit())?
+                } else {
+                    try_parse_with_format(&s, format, try_mode)?
+                };
+                match parsed_opt {
+                    Some(parsed) => {
+                        let t = if let Some(tz) = &tz {
+                            apply_timezone(parsed, tz, try_mode, T::unit())?
+                        } else {
+                            parsed
+                        };
+                        T::append_value(&mut builder, t);
+                    }
+                    None => T::append_null(&mut builder),
+                }
+            }
+        }
+    }
+    Ok(T::finish(builder))
+}
+
+#[allow(clippy::cast_possible_wrap, clippy::as_conversions)]
+fn try_parse_with_regex(s: &str, unit: TimeUnit) -> Option<i64> {
+    if let Some(caps) = TIMESTAMP_REGEX.captures(s) {
+        let first = caps[1].parse().ok()?;
+        let second_str = &caps[2];
+        let second: u32 = match Month::from_str(second_str) {
+            Ok(m) => m.number_from_month(),
+            Err(_) => second_str.parse().ok()?,
+        };
+        let third = caps[3].parse().ok()?;
+
+        let (year, month, day) = if first > 31 {
+            // YYYY-MM-DD or YYYY/MM/DD
+            (first, second, third)
+        } else if third > 31 {
+            // DD-MMM-YYYY
+            (third, second, first)
+        } else {
+            return None;
+        };
+        let (mut hour, mut minute, mut second, mut nano) = (0, 0, 0, 0);
+
+        if let Some(hour_match) = caps.get(4) {
+            hour = hour_match.as_str().parse().ok()?;
+            minute = caps[5].parse().ok()?;
+            second = caps.get(6).map_or(0, |m| m.as_str().parse().unwrap_or(0));
+            nano = caps.get(7).map_or(0, |m| {
+                let frac_str = m.as_str();
+                let padded = format!("{:0<9}", &frac_str[..std::cmp::min(9, frac_str.len())]);
+                padded.parse().unwrap_or(0)
+            });
+        }
+        let tz_opt = caps.get(8).map(|m| m.as_str().trim());
+
+        let naive = NaiveDate::from_ymd_opt(year as i32, month, day)?
+            .and_hms_nano_opt(hour, minute, second, nano)?;
+        let dt = if let Some(tz_str) = tz_opt {
+            if let Some(offset) = parse_timezone(tz_str) {
+                naive.and_local_timezone(offset).single()?.to_utc()
+            } else {
+                naive.and_utc()
+            }
+        } else {
+            naive.and_utc()
+        };
+
+        match unit {
+            TimeUnit::Microsecond => Some(dt.timestamp_micros()),
+            _ => dt.timestamp_nanos_opt(),
+        }
+    } else {
+        None
+    }
+}
+
+fn try_parse_with_auto(s: &str, try_mode: bool, unit: TimeUnit) -> DFResult<Option<i64>> {
     if let Ok(v) = string_to_timestamp_nanos(s) {
         return Ok(Some(v));
     }
-    for f in TIMESTAMP_FORMATS {
-        if let Ok(v) = NaiveDateTime::parse_from_str(s, f)
-            && let Some(ts) = v.and_utc().timestamp_nanos_opt()
-        {
-            return Ok(Some(ts));
-        }
-    }
-    for f in DATE_FORMATS {
-        if let Ok(v) = NaiveDate::parse_from_str(s, f)
-            && let Some(ts) = v
-                .and_hms_nano_opt(0, 0, 0, 0)
-                .and_then(|dt| dt.and_utc().timestamp_nanos_opt())
-        {
-            return Ok(Some(ts));
-        }
+    if let Some(ts) = try_parse_with_regex(s, unit) {
+        return Ok(Some(ts));
     }
     if try_mode {
         Ok(None)
@@ -436,9 +500,14 @@ fn try_parse_with_format(s: &str, format: &str, try_mode: bool) -> DFResult<Opti
     }
 }
 
-fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool) -> DFResult<i64> {
+fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFResult<i64> {
     let tz: Tz = tz_str.parse().map_err(|_| CantParseTimezoneSnafu.build())?;
-    let dt = DateTime::from_timestamp_nanos(ts);
+    let dt = match unit {
+        TimeUnit::Microsecond => {
+            DateTime::from_timestamp_micros(ts).ok_or_else(|| CantGetTimestampSnafu.build())?
+        }
+        _ => DateTime::from_timestamp_nanos(ts),
+    };
     if let Some(local) = dt.naive_utc().and_local_timezone(tz).single() {
         Ok(local
             .naive_utc()
@@ -449,6 +518,27 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool) -> DFResult<i64> {
         Ok(0)
     } else {
         CantAddLocalTimezoneSnafu.fail()?
+    }
+}
+
+fn parse_timezone(s: &str) -> Option<FixedOffset> {
+    match s.to_uppercase().as_str() {
+        "Z" | "UTC" | "GMT" => Some(FixedOffset::east_opt(0)?),
+        "CET" => Some(FixedOffset::east_opt(3600)?),
+        "CEST" => Some(FixedOffset::east_opt(7200)?),
+        "EET" => Some(FixedOffset::east_opt(7200)?),
+        "EEST" => Some(FixedOffset::east_opt(10800)?),
+        "PST" => Some(FixedOffset::west_opt(8 * 3600)?),
+        "PDT" => Some(FixedOffset::west_opt(7 * 3600)?),
+        "EST" => Some(FixedOffset::west_opt(5 * 3600)?),
+        "EDT" => Some(FixedOffset::west_opt(4 * 3600)?),
+        "CST" => Some(FixedOffset::west_opt(6 * 3600)?),
+        "CDT" => Some(FixedOffset::west_opt(5 * 3600)?),
+        "MST" => Some(FixedOffset::west_opt(7 * 3600)?),
+        "MDT" => Some(FixedOffset::west_opt(6 * 3600)?),
+        "JST" => Some(FixedOffset::east_opt(9 * 3600)?),
+        "MSD" => Some(FixedOffset::east_opt(14400)?),
+        other => FixedOffset::from_str(other).ok(),
     }
 }
 
@@ -828,15 +918,15 @@ mod tests {
             session_params(Some("YYYY-MM-DD HH24:MI:SS.FF3 TZHTZM".to_string()), None)?,
         )));
 
-        let sql = "SELECT to_timestamp('2021-03-02 15:55:18.539000')";
+        let sql = "SELECT to_timestamp('2021-03-02 15:55:18.539000') as ts";
         let result = ctx.sql(sql).await?.collect().await?;
         assert_batches_eq!(
             &[
-                "+--------------------------------------------------+",
-                "| to_timestamp(Utf8(\"2021-03-02 15:55:18.539000\")) |",
-                "+--------------------------------------------------+",
-                "| 2021-03-02T15:55:18.539                          |",
-                "+--------------------------------------------------+",
+                "+-------------------------+",
+                "| ts                      |",
+                "+-------------------------+",
+                "| 2021-03-02T15:55:18.539 |",
+                "+-------------------------+",
             ],
             &result
         );
@@ -936,30 +1026,30 @@ mod tests {
             session_params(Some("auto".to_string()), None)?,
         )));
 
-        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025')";
+        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025') as ts";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
-                "+-----------------------------------+",
-                "| to_timestamp(Utf8(\"05-Mar-2025\")) |",
-                "+-----------------------------------+",
-                "| 2025-03-05T00:00:00               |",
-                "+-----------------------------------+",
+                "+---------------------+",
+                "| ts                  |",
+                "+---------------------+",
+                "| 2025-03-05T00:00:00 |",
+                "+---------------------+",
             ],
             &result
         );
 
-        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025T01:02:03')";
+        let sql = "SELECT TO_TIMESTAMP('05-Mar-2025T01:02:03') as ts";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
-                "+--------------------------------------------+",
-                "| to_timestamp(Utf8(\"05-Mar-2025T01:02:03\")) |",
-                "+--------------------------------------------+",
-                "| 2025-03-05T01:02:03                        |",
-                "+--------------------------------------------+",
+                "+---------------------+",
+                "| ts                  |",
+                "+---------------------+",
+                "| 2025-03-05T01:02:03 |",
+                "+---------------------+",
             ],
             &result
         );

@@ -15,6 +15,8 @@ use crate::conversion::to_date::ToDateFunc;
 use crate::conversion::to_decimal::ToDecimalFunc;
 use crate::conversion::to_timestamp::ToTimestampFunc;
 use crate::session_params::SessionParams;
+use arrow_schema::TimeUnit;
+use datafusion::arrow::array::{ArrayRef, TimestampMicrosecondBuilder, TimestampNanosecondBuilder};
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 pub use errors::Error;
@@ -69,4 +71,58 @@ pub fn register_udfs(
         registry.register_udf(func)?;
     }
     Ok(())
+}
+
+trait TimestampBuilder {
+    type Builder;
+
+    fn new(cap: usize, tz: Option<Arc<str>>) -> Self::Builder;
+    fn append_value(b: &mut Self::Builder, v: i64);
+    fn append_null(b: &mut Self::Builder);
+    fn finish(b: Self::Builder) -> ArrayRef;
+    fn unit() -> TimeUnit;
+}
+
+struct Nano;
+struct Micro;
+
+impl TimestampBuilder for Nano {
+    type Builder = TimestampNanosecondBuilder;
+    fn new(cap: usize, tz: Option<Arc<str>>) -> Self::Builder {
+        TimestampNanosecondBuilder::with_capacity(cap).with_timezone_opt(tz)
+    }
+    fn append_value(b: &mut Self::Builder, v: i64) {
+        b.append_value(v);
+    }
+
+    fn append_null(b: &mut Self::Builder) {
+        b.append_null();
+    }
+
+    fn finish(mut b: Self::Builder) -> ArrayRef {
+        Arc::new(b.finish())
+    }
+
+    fn unit() -> TimeUnit {
+        TimeUnit::Nanosecond
+    }
+}
+
+impl TimestampBuilder for Micro {
+    type Builder = TimestampMicrosecondBuilder;
+    fn new(cap: usize, tz: Option<Arc<str>>) -> Self::Builder {
+        TimestampMicrosecondBuilder::with_capacity(cap).with_timezone_opt(tz)
+    }
+    fn append_value(b: &mut Self::Builder, v: i64) {
+        b.append_value(v);
+    }
+    fn append_null(b: &mut Self::Builder) {
+        b.append_null();
+    }
+    fn finish(mut b: Self::Builder) -> ArrayRef {
+        Arc::new(b.finish())
+    }
+    fn unit() -> TimeUnit {
+        TimeUnit::Microsecond
+    }
 }
