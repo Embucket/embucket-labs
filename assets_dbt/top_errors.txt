@@ -1,16 +1,16 @@
 # DBT Run Summary
-PASS: 1472
+PASS: 1474
 WARN: 0
-ERROR: 111
-SKIP: 113
+ERROR: 110
+SKIP: 112
 TOTAL: 1696
 
 
 # Errors grouped by high-level categories
-    111 Other error
+    110 Other error
 
 # Errors grouped by type (comprehensive analysis)
-    111 Other error
+    110 Other error
 
 # Total top 10 errors (full messages)
       8 010001 (02000): SQL compilation error: unsupported feature: Physical plan does not support logical expression InSubquery(InSubquery { expr: Column(Column { relation: Some(Bare { table: "distinct_source" }), name: "max_task_instance" }), subquery: <subquery>, negated: false })
@@ -22,7 +22,7 @@ TOTAL: 1696
       3 010001 (02000): External error: No table found for reference in expression
       3 010001 (02000): External error: Failed to deserialize JSON: EOF while parsing a value at line 1 column 0
       3 010001 (02000): Arrow error: Cast error: Overflow converting 9999-12-31 00:00:00 to Nanosecond. The dates that can be represented as nanoseconds have to be between 1677-09-21T00:12:44.0 and 2262-04-11T23:47:16.854775804
-      2 010001 (02000): This feature is not implemented: Unsupported SQL type CharacterVarying(Some(IntegerLength { length: 16777216, unit: None }))
+      2 010001 (02000): Schema error: No field named "DBT_VALID_FROM". Valid fields are snapshots.id, snapshots.name, snapshots.path, snapshots.owner_id, snapshots.created_at, snapshots.updated_at, snapshots.type, snapshots.avatar, snapshots.membership_lock, snapshots.share_with_group_lock, snapshots.visibility_level, snapshots.request_access_enabled, snapshots.ldap_sync_status, snapshots.ldap_sync_error, snapshots.ldap_sync_last_update_at, snapshots.ldap_sync_last_successful_update_at, snapshots.ldap_sync_last_sync_at, snapshots.lfs_enabled, snapshots.parent_id, snapshots.shared_runners_minutes_limit, snapshots.repository_size_limit, snapshots.require_two_factor_authentication, snapshots.two_factor_grace_period, snapshots.plan_id, snapshots.project_creation_level, snapshots.auto_devops_enabled, snapshots._uploaded_at, snapshots.namespaces_rank_in_key, snapshots.dbt_scd_id, snapshots.dbt_updated_at, snapshots.dbt_valid_from, snapshots.dbt_valid_to, snapshots.extra_shared_runners_minutes_limit, snapshots.push_rule_id, snapshots.shared_runners_enabled, snapshots.custom_project_templates_group_id, snapshots.traversal_ids, snapshots.pgp_is_deleted, snapshots.pgp_is_deleted_updated_at.
 
 # Total top 10 errors (truncated to 50 chars)
      15 010001 (02000): SQL compilation error: unsupported
@@ -30,13 +30,13 @@ TOTAL: 1696
      11 010001 (02000): Schema error: No field named "DBT_
       7 010001 (02000): Error during planning: Internal er
       5 010001 (02000): type_coercion
-      3 010001 (02000): This feature is not implemented: U
       3 010001 (02000): This feature is not implemented: A
       3 010001 (02000): Schema error: No field named day. 
       3 010001 (02000): SQL compilation error: table 'embu
       3 010001 (02000): SQL compilation error: column 'met
+      3 010001 (02000): SQL compilation error: column 'DEF
 
 # Error categorization summary
-DBT total errors: 111
-Total error lines analyzed: 111
-Coverage: 111 out of 111 error lines captured
+DBT total errors: 110
+Total error lines analyzed: 110
+Coverage: 110 out of 110 error lines captured
