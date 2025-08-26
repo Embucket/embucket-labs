@@ -26,10 +26,9 @@ impl VisitorMut for FunctionsRewriter {
                         && let Expr::Identifier(Ident { value, .. }) = ident
                     {
                         // Special case: transform epoch_seconds to epoch for DataFusion compatibility
-                        let transformed_value = if value == "epoch_seconds" {
-                            "epoch".to_string()
-                        } else {
-                            value.clone()
+                        let transformed_value = match value.as_str() {
+                            "epoch_seconds" => "epoch".to_string(),
+                            _ => value.clone(),
                         };
                         *ident = Expr::Value(SingleQuotedString(transformed_value).into());
                     }
