@@ -41,7 +41,7 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
 #[allow(clippy::unwrap_used)]
 static TIMESTAMP_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^(\d{1,4})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:\s?(Z|[+-]\d{2}:?\d{2}|[A-Za-z]{2,4}))?$"
+        r"^(\d{1,4})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:\s?(Z|[+-]\d{2}(?::?\d{2})?|[A-Za-z]{2,4}))?$"
     ).unwrap()
 });
 
@@ -632,14 +632,10 @@ fn remove_timezone(datetime_str: &str) -> String {
     if datetime_str.len() < 15 {
         return datetime_str.to_string();
     }
-
-    let s = datetime_str.trim();
-
-    if let Some(caps) = RE_TIMEZONE.find(s) {
-        return s[0..caps.start()].to_string();
+    if let Some(caps) = RE_TIMEZONE.find(datetime_str) {
+        return datetime_str[0..caps.start()].trim().to_string();
     }
-
-    s.to_string()
+    datetime_str.to_string()
 }
 
 fn contains_only_digits(s: &str) -> bool {

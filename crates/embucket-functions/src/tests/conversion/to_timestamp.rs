@@ -69,6 +69,7 @@ test_query!(
         TO_TIMESTAMP('9999-12-31 00:00:02.000912')as t2,
         TO_TIMESTAMP('9999-12-31 00:00:02.000912123') as t3,
         TO_TIMESTAMP('31-Dec-9999 00:00:02.000912123') as t4,
-        TO_TIMESTAMP('31-12-9999 00:00:02.000912123') as t5",
+        TO_TIMESTAMP('31-12-9999 00:00:02.000912123') as t5,
+        TO_TIMESTAMP('9999-12-31 00:00:00.000 +0000') as t6",
     snapshot_path = "to_timestamp"
 );
