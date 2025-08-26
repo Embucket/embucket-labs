@@ -97,6 +97,7 @@ chr
 coalesce
 concat
 concat_ws
+conditional_true_event
 contains
 convert_timezone
 corr

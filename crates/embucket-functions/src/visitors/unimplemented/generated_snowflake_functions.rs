@@ -3185,12 +3185,6 @@ pub const WINDOW_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/conditional_change_event")
     ),
-    ("CONDITIONAL_TRUE_EVENT", FunctionInfo::new(
-        "CONDITIONAL_TRUE_EVENT",
-        "Returns a window event number for each row within a window partition based on the result of the boolean argument expr1."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/conditional_true_event")
-    ),
     ("RATIO_TO_REPORT", FunctionInfo::new(
         "RATIO_TO_REPORT",
         "Returns the ratio of a value within a group to the sum of the values within the group."

@@ -47,6 +47,7 @@ pub mod table;
 pub mod tests;
 mod utils;
 pub mod visitors;
+pub mod window;
 
 pub fn register_udfs(
     registry: &mut dyn FunctionRegistry,
@@ -62,6 +63,7 @@ pub fn register_udfs(
     regexp::register_udfs(registry)?;
     system::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
+    window::register_udwfs(registry)?;
     Ok(())
 }
 

@@ -1,0 +1,20 @@
+---
+source: crates/embucket-functions/src/tests/window/conditional_true_event.rs
+description: "\"SELECT province, o_col, \n      CONDITIONAL_TRUE_EVENT(o_col) \n        OVER (PARTITION BY province ORDER BY o_col) \n          AS true_event\n    FROM (\n         VALUES\n         ('Alberta',    0, 10),\n         ('Alberta',    0, 10),\n         ('Alberta',   13, 10),\n         ('Alberta',   13, 11),\n         ('Alberta',   14, 11),\n         ('Alberta',   15, 12),\n         ('Alberta', NULL, NULL),\n         ('Manitoba',    30, 30)\n    ) AS tbl(province, o_col, i_col)\n    ORDER BY province, o_col;\""
+---
+Ok(
+    [
+        "+----------+-------+------------+",
+        "| province | o_col | true_event |",
+        "+----------+-------+------------+",
+        "| Alberta  | 0     | 0          |",
+        "| Alberta  | 0     | 0          |",
+        "| Alberta  | 13    | 1          |",
+        "| Alberta  | 13    | 2          |",
+        "| Alberta  | 14    | 3          |",
+        "| Alberta  | 15    | 4          |",
+        "| Alberta  |       | 4          |",
+        "| Manitoba | 30    | 1          |",
+        "+----------+-------+------------+",
+    ],
+)

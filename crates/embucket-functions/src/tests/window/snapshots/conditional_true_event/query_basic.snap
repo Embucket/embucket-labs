@@ -1,0 +1,20 @@
+---
+source: crates/embucket-functions/src/tests/window/conditional_true_event.rs
+description: "\"SELECT id, flag,\n            CONDITIONAL_TRUE_EVENT(flag) OVER (ORDER BY id) AS evt\n     FROM (VALUES (1, TRUE), (2, TRUE), (3, FALSE), (4, TRUE), (5, TRUE), (6, FALSE), (7, NULL), (8, TRUE)) AS t(id, flag);\""
+---
+Ok(
+    [
+        "+----+-------+-----+",
+        "| id | flag  | evt |",
+        "+----+-------+-----+",
+        "| 1  | true  | 1   |",
+        "| 2  | true  | 2   |",
+        "| 3  | false | 2   |",
+        "| 4  | true  | 3   |",
+        "| 5  | true  | 4   |",
+        "| 6  | false | 4   |",
+        "| 7  |       | 4   |",
+        "| 8  | true  | 5   |",
+        "+----+-------+-----+",
+    ],
+)

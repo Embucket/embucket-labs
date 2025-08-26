@@ -1,0 +1,25 @@
+---
+source: crates/embucket-functions/src/tests/window/conditional_true_event.rs
+description: "\"SELECT p, o,\n            CONDITIONAL_TRUE_EVENT(o > 2) OVER (PARTITION BY p ORDER BY o) AS evt\n     FROM (\n         VALUES\n         (100,1,1,70,'seventy'),\n         (100,2,2,30,'thirty'),\n         (100,3,3,40,'fourty'),\n         (100,4,NULL,90,'ninety'),\n         (100,5,5,50,'fifty'),\n         (100,6,6,30,'thirty'),\n         (200,7,7,40,'fourty'),\n         (200,8,NULL,NULL,'n_u_l_l'),\n         (200,9,NULL,NULL,'n_u_l_l'),\n         (200,10,10,20,'twenty'),\n         (200,11,NULL,90,'ninety'),\n         (300,12,12,30,'thirty'),\n         (400,13,NULL,20,'twenty')\n     ) AS tbl(p, o, i, r, s)\n     ORDER BY p, o;\""
+---
+Ok(
+    [
+        "+-----+----+-----+",
+        "| p   | o  | evt |",
+        "+-----+----+-----+",
+        "| 100 | 1  | 0   |",
+        "| 100 | 2  | 0   |",
+        "| 100 | 3  | 1   |",
+        "| 100 | 4  | 2   |",
+        "| 100 | 5  | 3   |",
+        "| 100 | 6  | 4   |",
+        "| 200 | 7  | 1   |",
+        "| 200 | 8  | 2   |",
+        "| 200 | 9  | 3   |",
+        "| 200 | 10 | 4   |",
+        "| 200 | 11 | 5   |",
+        "| 300 | 12 | 1   |",
+        "| 400 | 13 | 1   |",
+        "+-----+----+-----+",
+    ],
+)
