@@ -73,7 +73,7 @@ use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
-use embucket_functions::visitors::{copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query, like_ilike_any, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation, timestamp, top_limit, unimplemented::functions_checker::visit as unimplemented_functions_checker};
+use embucket_functions::visitors::{copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query, like_any, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation, timestamp, top_limit, unimplemented::functions_checker::visit as unimplemented_functions_checker};
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
@@ -259,7 +259,7 @@ impl UserQuery {
         if let DFStatement::Statement(value) = statement {
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
-            like_ilike_any::visit(value);
+            like_any::visit(value);
             top_limit::visit(value);
             unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
             copy_into_identifiers::visit(value);

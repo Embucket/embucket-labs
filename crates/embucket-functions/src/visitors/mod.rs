@@ -17,7 +17,7 @@ pub mod table_functions_cte_relation;
 pub mod timestamp;
 pub mod top_limit;
 pub mod unimplemented;
-pub mod like_ilike_any;
+pub mod like_any;
 
 #[must_use]
 pub fn query_with_body(inner_select: Select) -> Query {
