@@ -1,6 +1,8 @@
 import pytest
 from conftest import compare_result_sets
-from tpch_queries import TPCH_QUERIES
+from queries.tpch_queries import TPCH_QUERIES
+from queries.tpcds_queries import TPCDS_QUERIES
+from queries.clickbench_queries import CLICKBENCH_QUERIES
 
 
 def _run_cross_engine_test(
@@ -51,7 +53,8 @@ def _run_multi_table_test(
     assert len(embucket_result) > 0
 
 
-@pytest.mark.parametrize('nyc_taxi', ['spark', 'embucket'], indirect=True)
+# NYC Yellow Taxi Tests
+@pytest.mark.parametrize('nyc_yellow_taxi', ['spark', 'embucket'], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
@@ -81,16 +84,104 @@ def _run_multi_table_test(
         "q_vendor_avg_distance",
     ],
 )
-def test_nyc_taxi(
+def test_yellow_nyc_taxi(
     spark_engine,
     embucket_engine,
-    nyc_taxi,
+    nyc_yellow_taxi,
     query_id,
     query_sql,
 ):
-    """Test NYC Taxi dataset with taxi-specific queries using different loaders."""
+    """Test NYC Yellow Taxi dataset with taxi-specific queries using different loaders."""
     _run_cross_engine_test(
-        spark_engine, embucket_engine, nyc_taxi, query_id, query_sql
+        spark_engine, embucket_engine, nyc_yellow_taxi, query_id, query_sql
+    )
+
+
+# NYC Green Taxi Tests
+@pytest.mark.parametrize('nyc_green_taxi', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize(
+    "query_id,query_sql",
+    [
+        ("q_count", "SELECT COUNT(*) FROM {{TABLE:table}}"),
+        (
+            "q_vendor_counts",
+            "SELECT vendorid, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY vendorid",
+        ),
+        (
+            "q_payment_amounts",
+            "SELECT payment_type, COUNT(*) AS c, SUM(total_amount) AS total FROM {{TABLE:table}} GROUP BY payment_type",
+        ),
+        (
+            "q_daily_counts",
+            "SELECT CAST(lpep_pickup_datetime AS DATE) AS d, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY CAST(lpep_pickup_datetime AS DATE)",
+        ),
+        (
+            "q_vendor_avg_distance",
+            "SELECT vendorid, AVG(trip_distance) AS avg_dist FROM {{TABLE:table}} GROUP BY vendorid",
+        ),
+    ],
+    ids=[
+        "q_count",
+        "q_vendor_counts",
+        "q_payment_amounts",
+        "q_daily_counts",
+        "q_vendor_avg_distance",
+    ],
+)
+def test_green_nyc_taxi(
+    spark_engine,
+    embucket_engine,
+    nyc_green_taxi,
+    query_id,
+    query_sql,
+):
+    """Test NYC Green Taxi dataset with taxi-specific queries using different loaders."""
+    _run_cross_engine_test(
+        spark_engine, embucket_engine, nyc_green_taxi, query_id, query_sql
+    )
+
+
+# FHV Tests
+@pytest.mark.parametrize('fhv', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize(
+    "query_id,query_sql",
+    [
+        ("q_count", "SELECT COUNT(*) FROM {{TABLE:table}}"),
+        (
+            "q_base_counts",
+            "SELECT dispatching_base_num, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num"
+        ),
+        (
+            "q_daily_counts",
+            "SELECT CAST(pickup_datetime AS DATE) AS d, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY CAST(pickup_datetime AS DATE)"
+        ),
+        (
+            "q_location_counts",
+            "SELECT DOlocationID, COUNT(*) AS c FROM {{TABLE:table}} WHERE DOlocationID IS NOT NULL GROUP BY DOlocationID"
+        ),
+        (
+            "q_base_affiliation",
+            "SELECT dispatching_base_num, Affiliated_base_number, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num, Affiliated_base_number"
+        ),
+    ],
+    ids=[
+        "q_count",
+        "q_base_counts",
+        "q_daily_counts",
+        "q_location_counts",
+        "q_base_affiliation",
+    ],
+)
+def test_fhv(
+    spark_engine,
+    embucket_engine,
+    fhv,
+    query_id,
+    query_sql,
+):
+    """Test NYC FHV Taxi dataset with taxi-specific queries using different loaders."""
+    _run_cross_engine_test(
+        spark_engine, embucket_engine, fhv, query_id, query_sql
     )
 
 
@@ -103,4 +194,38 @@ def test_tpch_benchmark_queries(
     """Test actual TPC-H benchmark queries using complete dataset with all tables and different loaders."""
     _run_multi_table_test(
         spark_engine, embucket_engine, tpch_full, query_id, query_sql
+    )
+
+
+# TPC-DS Benchmark Tests
+@pytest.mark.parametrize('tpcds_full', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize("query_id,query_sql", TPCDS_QUERIES, ids=[query_id for query_id, _ in TPCDS_QUERIES])
+def test_tpcds_benchmark_queries(
+    spark_engine, embucket_engine, tpcds_full, query_id, query_sql
+):
+    """Test TPC-DS queries using complete dataset with all tables and different loaders."""
+    _run_multi_table_test(
+        spark_engine, embucket_engine, tpcds_full, query_id, query_sql
+    )
+
+
+# Clickbench Benchmark Tests
+@pytest.mark.parametrize('clickbench_hits', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize("query_id,query_sql", CLICKBENCH_QUERIES, ids=[query_id for query_id, _ in CLICKBENCH_QUERIES])
+def test_clickbench_hits(
+        spark_engine,
+        embucket_engine,
+        clickbench_hits,
+        query_id,
+        query_sql,
+):
+    """Test Clickbench queries using complete dataset with all tables and different loaders."""
+    dataset, table_name, _ = clickbench_hits
+
+    # Create a dictionary with "hits" as the key, similar to TPC-H test approach
+    loaded_tables = {"hits": (dataset, table_name, None)}
+
+    # Use the multi-table test function which correctly handles aliases
+    _run_multi_table_test(
+        spark_engine, embucket_engine, loaded_tables, query_id, query_sql
     )

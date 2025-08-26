@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Dict, Any, Callable, List, Optional, Tuple
 
 import pytest
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def _get(key: str, default: Optional[str] = None) -> Optional[str]:
@@ -460,7 +462,7 @@ def spark_engine(spark) -> SparkEngine:
 
 # NYC Taxi Dataset Fixtures
 @pytest.fixture(scope="session")
-def nyc_taxi(request, test_run_id):
+def nyc_yellow_taxi(request, test_run_id):
     """Parameterized NYC taxi fixture that accepts engine type.
 
     Use with indirect=True parametrization:
@@ -474,6 +476,40 @@ def nyc_taxi(request, test_run_id):
 
     engine = request.getfixturevalue(f"{engine_type}_engine")
     return _load_dataset_fixture("nyc_taxi_yellow", engine, test_run_id, engine_type)
+
+
+@pytest.fixture(scope="session")
+def nyc_green_taxi(request, test_run_id):
+    """Parameterized NYC green taxi fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi_green', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("nyc_taxi_green", engine, test_run_id, engine_type)
+
+
+@pytest.fixture(scope="session")
+def fhv(request, test_run_id):
+    """Parameterized NYC green taxi fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi_green', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("fhv", engine, test_run_id, engine_type)
 
 
 # TPC-H Dataset Fixtures
@@ -532,3 +568,56 @@ def tpch_full(request, test_run_id):
         )
 
     return loaded_tables
+
+
+@pytest.fixture(scope="session")
+def tpcds_full(request, test_run_id):
+    """Parameterized TPC-DS complete dataset fixture that accepts engine type.
+
+    Loads all TPC-DS tables with the specified engine and returns as dict.
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('tpcds_full', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    tables = [
+        "call_center", "catalog_page", "catalog_returns", "catalog_sales",
+        "customer", "customer_address", "customer_demographics", "date_dim",
+        "household_demographics", "income_band", "inventory", "item",
+        "promotion", "reason", "ship_mode", "store", "store_returns",
+        "store_sales", "time_dim", "warehouse", "web_page", "web_returns",
+        "web_sales", "web_site"
+    ]
+
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+
+    # Load all tables with the specified engine
+    loaded_tables = {}
+    for table in tables:
+        dataset_name = f"tpcds_{table}"
+        loaded_tables[table] = _load_dataset_fixture(
+            dataset_name, engine, test_run_id, engine_type
+        )
+
+    return loaded_tables
+
+
+@pytest.fixture(scope="session")
+def clickbench_hits(request, test_run_id):
+    """Parameterized Clickbench hits fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('clickbench_hits', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("clickbench_hits", engine, test_run_id, engine_type)
