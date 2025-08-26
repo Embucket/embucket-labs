@@ -54,12 +54,16 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
 
     let state = ctx.state();
 
+    // Functions that are currently implemented as alias functions in the core-executor crate
+    let exceptions_to_ignore: Vec<String> = vec!["grouping_id".to_string()];
+
     let all_functions: BTreeSet<_> = state
         .scalar_functions()
         .keys()
         .chain(state.aggregate_functions().keys())
         .chain(state.window_functions().keys())
         .chain(state.table_functions().keys())
+        .chain(exceptions_to_ignore.iter())
         .cloned()
         .collect();
 

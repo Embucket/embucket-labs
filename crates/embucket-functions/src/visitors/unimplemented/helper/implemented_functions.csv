@@ -211,6 +211,7 @@ lcm
 lead
 least
 left
+len
 length
 levenshtein
 list_any_value
@@ -308,6 +309,7 @@ previous_day
 quarter
 radians
 random
+randstr
 range
 rank
 regexp_count

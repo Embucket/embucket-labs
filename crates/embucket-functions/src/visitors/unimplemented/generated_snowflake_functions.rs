@@ -819,12 +819,6 @@ pub const GENERATION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/normal")
     ),
-    ("RANDSTR", FunctionInfo::new(
-        "RANDSTR",
-        "Returns a random string of specified length."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/randstr")
-    ),
     ("SEQ1", FunctionInfo::new(
         "SEQ1",
         "Returns a sequence of monotonically increasing integers, with wrap-around."
@@ -2233,12 +2227,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Performs a case-insensitive comparison to match a string against any of one or more specified patterns."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/ilike_any")
-    ),
-    ("LEN", FunctionInfo::new(
-        "LEN",
-        "Returns the length of an input string or binary value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/length")
     ),
     ("LIKE ALL", FunctionInfo::new(
         "LIKE ALL",
