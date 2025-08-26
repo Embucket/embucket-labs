@@ -25,7 +25,13 @@ impl VisitorMut for FunctionsRewriter {
                             args.iter_mut().next()
                         && let Expr::Identifier(Ident { value, .. }) = ident
                     {
-                        *ident = Expr::Value(SingleQuotedString(value.clone()).into());
+                        // Special case: transform epoch_seconds to epoch for DataFusion compatibility
+                        let transformed_value = if value == "epoch_seconds" {
+                            "epoch".to_string()
+                        } else {
+                            value.clone()
+                        };
+                        *ident = Expr::Value(SingleQuotedString(transformed_value).into());
                     }
                     func_name
                 }
