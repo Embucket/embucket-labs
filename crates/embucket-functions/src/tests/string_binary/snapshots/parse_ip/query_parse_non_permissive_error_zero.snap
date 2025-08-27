@@ -1,0 +1,7 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/parse_ip.rs
+description: "\"SELECT PARSE_IP('not_an_ip', 'INET', 0) AS err\""
+---
+Err(
+    "Error: External error: failed to parse ip: invalid IP address syntax",
+)

@@ -3192,6 +3192,7 @@ dependencies = [
  "hex",
  "indexmap 2.10.0",
  "insta",
+ "ipnet",
  "jsonpath_lib",
  "lazy_static",
  "paste",

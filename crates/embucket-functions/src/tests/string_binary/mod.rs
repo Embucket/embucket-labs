@@ -4,6 +4,7 @@ mod hex_encode;
 mod jarowinkler_similarity;
 mod length;
 mod lower;
+mod parse_ip;
 mod randstr;
 mod sha2;
 mod split;

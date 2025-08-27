@@ -137,6 +137,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("failed to parse ip: {reason}"))]
+    ParseIpFailed {
+        reason: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Enum variants from this error return DataFusionError

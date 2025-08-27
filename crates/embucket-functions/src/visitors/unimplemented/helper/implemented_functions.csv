@@ -298,6 +298,7 @@ object_keys
 object_pick
 octet_length
 overlay
+parse_ip
 parse_json
 percent_rank
 percentile_cont

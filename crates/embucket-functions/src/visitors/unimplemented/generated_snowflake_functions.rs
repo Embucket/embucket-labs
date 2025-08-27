@@ -2270,12 +2270,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_document-snowflake-cortex")
     ),
-    ("PARSE_IP", FunctionInfo::new(
-        "PARSE_IP",
-        "Returns a JSON object consisting of all the components from a valid INET (Internet Protocol) or CIDR (Classless Internet Domain Routing) IPv4 or IPv6 string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_ip")
-    ),
     ("PARSE_URL", FunctionInfo::new(
         "PARSE_URL",
         "Returns a JSON object consisting of all the components (fragment, host, path, port, query, scheme) in a valid input URL/URI."
