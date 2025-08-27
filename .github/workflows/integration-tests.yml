@@ -180,7 +180,7 @@ jobs:
       
           # Generate and export TPC-DS tables
           echo "Generating TPC-DS data..."
-          duckdb -c "INSTALL dsdgen; CALL dsdgen(sf=1); EXPORT DATABASE 'tpcds_data' (FORMAT PARQUET);"
+          duckdb -c "CALL dsdgen(sf=1); EXPORT DATABASE 'tpcds_data' (FORMAT PARQUET);"
       
           # Verify TPC-DS data directories
           if [ ! "$(ls -A tpcds_data)" ]; then
