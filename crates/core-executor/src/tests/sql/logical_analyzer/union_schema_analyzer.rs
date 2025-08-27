@@ -10,5 +10,5 @@ test_query!(
     "SELECT '2024-12-31 10:00:00.000'::TIMESTAMP as t
         UNION ALL
     SELECT '9999-12-31 00:00:00.000 +0000' AS t;",
-    snapshot_path = "union_schema_cast_analyzer"
+    snapshot_path = "union_schema_analyzer"
 );

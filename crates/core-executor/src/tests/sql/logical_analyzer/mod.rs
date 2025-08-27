@@ -1,2 +1,2 @@
 pub mod casting;
-mod union_schema_cast_analyzer;
+mod union_schema_analyzer;

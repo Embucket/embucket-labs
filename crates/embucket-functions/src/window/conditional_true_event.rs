@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// Returns a window event number for each row within a partition based on a boolean condition.
 /// The event number increments whenever the condition transitions from `FALSE` or `NULL` to `TRUE`.
 ///
-/// Syntax: CONDITIONAL_TRUE_EVENT(<condition>)
+/// Syntax: `CONDITIONAL_TRUE_EVENT`(<condition>)
 ///
 /// Arguments:
 /// - `<condition>`: Boolean expression evaluated for each row.
@@ -60,7 +60,7 @@ impl WindowUDFImpl for ConditionalTrueEvent {
         self
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "conditional_true_event"
     }
 
