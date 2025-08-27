@@ -93,7 +93,8 @@ models:
         It processes node execution data to create a directed acyclic graph (DAG) 
         and determines the critical path of the dbt run.
         The model also generates a Mermaid gantt chart representation of the critical path.
-        
+      config:
+        enabled: false
       columns:
         - name: invocation_id
           description: Unique identifier for each dbt command invocation
@@ -124,6 +125,7 @@ models:
               - materialization
               - was_full_refresh
       config:
+        enabled: false
         occurrence_limit: 50
       
       columns:
