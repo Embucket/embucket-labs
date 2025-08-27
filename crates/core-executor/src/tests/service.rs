@@ -1,10 +1,12 @@
-use crate::models::{QueryContext, QueryResult};
+use crate::models::{QueryContext, QueryHandle, QueryResult};
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::tests::sleep_udf;
 use crate::utils::Config;
 use core_history::entities::worksheet::Worksheet;
 use core_history::history_store::{GetQueriesParams, HistoryStore};
 use core_history::store::SlateDBHistoryStore;
+use core_history::QueryStatus;
+use core_history::result_set::ResultSet;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
 use core_metastore::models::table::TableIdent as MetastoreTableIdent;
@@ -30,7 +32,7 @@ async fn test_execute_always_returns_schema() {
     .expect("Failed to create execution service");
 
     execution_svc
-        .create_session("test_session_id".to_string())
+        .create_session("test_session_id")
         .await
         .expect("Failed to create session");
 
@@ -111,7 +113,7 @@ async fn test_service_upload_file() {
 
     let session_id = "test_session_id";
     execution_svc
-        .create_session(session_id.to_string())
+        .create_session(&session_id)
         .await
         .expect("Failed to create session");
 
@@ -240,7 +242,7 @@ async fn test_service_create_table_file_volume() {
 
     let session_id = "test_session_id";
     execution_svc
-        .create_session(session_id.to_string())
+        .create_session(&session_id)
         .await
         .expect("Failed to create session");
 
@@ -324,7 +326,7 @@ async fn test_query_recording() {
 
     let session_id = "test_session_id";
     execution_svc
-        .create_session(session_id.to_string())
+        .create_session(&session_id)
         .await
         .expect("Failed to create session");
 
@@ -508,7 +510,7 @@ async fn test_max_concurrency_level() {
     );
 
     let session = execution_svc
-        .create_session("test_session_id".to_string())
+        .create_session("test_session_id")
         .await
         .expect("Failed to create session");
 
@@ -567,7 +569,7 @@ async fn test_query_timeout() {
     );
 
     let session = execution_svc
-        .create_session("test_session_id".to_string())
+        .create_session("test_session_id")
         .await
         .expect("Failed to create session");
 
@@ -585,4 +587,60 @@ async fn test_query_timeout() {
         res.is_err(),
         "Expected query execution exceeded timeout error but got {res:?}"
     );
+}
+
+#[tokio::test]
+#[allow(clippy::expect_used)]
+async fn test_submit_query() {
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let execution_svc = CoreExecutionService::new(
+        metastore,
+        history_store.clone(),
+        Arc::new(Config::default().with_query_timeout(1)),
+    )
+    .await
+    .expect("Failed to create execution service");
+
+    let session = execution_svc
+        .create_session("test_session_id")
+        .await
+        .expect("Failed to create session");
+
+    // register sleep UDF for testing purposes
+    session.ctx.register_udf(sleep_udf());
+
+    let res = execution_svc
+        .submit_query(
+            "test_session_id",
+            "SELECT sleep(1)",
+            QueryContext::default(),
+        )
+        .await;
+    let query_handle = res.expect("Failed to submit query");
+    assert_eq!(
+        query_handle.query_status,
+        QueryStatus::Running,
+    );
+
+    // test intermediate history state QueryStatus::Running
+    // let query_record_res = history_store.get_query(query_handle.query_id)
+    //     .await
+    //     .expect("Failed to get query at history store after query submit");
+    
+    // assert_eq!(query_record_res.query_id(), query_handle.query_id);
+
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    let query_record_res = history_store.get_query(query_handle.query_id)
+        .await
+        .expect("Failed to get query at history store after query expected to be finished");
+    
+    assert_eq!(query_record_res.query_id(), query_handle.query_id);
+
+    let result_set: ResultSet = query_record_res.try_into()
+        .expect("Failed to convert query record to result set");
+
+    assert_eq!(format!("{result_set:?}"), "");
 }

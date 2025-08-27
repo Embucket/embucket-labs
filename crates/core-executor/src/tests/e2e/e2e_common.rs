@@ -375,21 +375,21 @@ impl ExecutorWithObjectStore {
 
     pub async fn create_sessions(&self) -> Result<(), Error> {
         self.executor
-            .create_session(TEST_SESSION_ID1.to_string())
+            .create_session(TEST_SESSION_ID1)
             .await
             .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID1",
             })?;
 
         self.executor
-            .create_session(TEST_SESSION_ID2.to_string())
+            .create_session(TEST_SESSION_ID2)
             .await
             .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID2",
             })?;
 
         self.executor
-            .create_session(TEST_SESSION_ID3.to_string())
+            .create_session(TEST_SESSION_ID3)
             .await
             .context(TestExecutionSnafu {
                 query: "create session TEST_SESSION_ID3",

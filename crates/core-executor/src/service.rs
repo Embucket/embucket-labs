@@ -1,4 +1,5 @@
 use bytes::{Buf, Bytes};
+use core_history::QueryStatus;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::arrow::csv::reader::Format;
@@ -20,7 +21,8 @@ use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
 
 use super::error::{self as ex_error, Result};
-use super::{models::QueryContext, models::QueryResult, session::UserSession};
+use super::models::{QueryContext, QueryHandle, QueryResult};
+use super::session::UserSession;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType, query_result_to_history};
 use core_history::history_store::HistoryStore;
@@ -30,22 +32,39 @@ use core_utils::Db;
 use df_catalog::catalog_list::EmbucketCatalogList;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::{Duration, timeout};
+use tokio_util::sync::CancellationToken;
+use dashmap::DashMap;
 use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
-    async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>>;
-    async fn update_session_expiry(&self, session_id: String) -> Result<bool>;
+    async fn create_session(&self, session_id: &str) -> Result<Arc<UserSession>>;
+    async fn update_session_expiry(&self, session_id: &str) -> Result<bool>;
     async fn delete_expired_sessions(&self) -> Result<()>;
+    async fn get_session(&self, session_id: &str) -> Result<Arc<UserSession>>;
+    async fn session_exists(&self, session_id: &str) -> bool;
     // Currently delete_session function is not used
     // async fn delete_session(&self, session_id: String) -> Result<()>;
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
+    async fn cancel_query(&self, query_id: i64) -> Result<()>;
+    async fn submit_query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> Result<QueryHandle>;
     async fn query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> Result<QueryResult>;
+    ) -> Result<QueryResult>;    
+    // async fn new_query(
+    //     &self,
+    //     session_id: &str,
+    //     query: &str,
+    //     query_context: QueryContext,
+    // ) -> Result<ResultSet>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -64,6 +83,7 @@ pub struct CoreExecutionService {
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
     concurrency_limit: Arc<Semaphore>,
+    queries: DashMap<i64, CancellationToken>,
 }
 
 impl CoreExecutionService {
@@ -89,6 +109,7 @@ impl CoreExecutionService {
             catalog_list,
             runtime_env,
             concurrency_limit: Arc::new(Semaphore::new(max_concurrency_level)),
+            queries: DashMap::new(),
         })
     }
 
@@ -191,10 +212,10 @@ impl ExecutionService for CoreExecutionService {
         fields(new_sessions_count),
         err
     )]
-    async fn create_session(&self, session_id: String) -> Result<Arc<UserSession>> {
+    async fn create_session(&self, session_id: &str) -> Result<Arc<UserSession>> {
         {
             let sessions = self.df_sessions.read().await;
-            if let Some(session) = sessions.get(&session_id) {
+            if let Some(session) = sessions.get(session_id) {
                 return Ok(session.clone());
             }
         }
@@ -209,7 +230,7 @@ impl ExecutionService for CoreExecutionService {
             tracing::trace!("Acquiring write lock for df_sessions");
             let mut sessions = self.df_sessions.write().await;
             tracing::trace!("Acquired write lock for df_sessions");
-            sessions.insert(session_id.clone(), user_session.clone());
+            sessions.insert(session_id.to_string(), user_session.clone());
 
             // Record the result as part of the current span.
             tracing::Span::current().record("new_sessions_count", sessions.len());
@@ -224,10 +245,10 @@ impl ExecutionService for CoreExecutionService {
         fields(old_sessions_count, new_sessions_count, now),
         err
     )]
-    async fn update_session_expiry(&self, session_id: String) -> Result<bool> {
+    async fn update_session_expiry(&self, session_id: &str) -> Result<bool> {
         let mut sessions = self.df_sessions.write().await;
 
-        let res = if let Some(session) = sessions.get_mut(&session_id) {
+        let res = if let Some(session) = sessions.get_mut(session_id) {
             let now = OffsetDateTime::now_utc();
             let new_expiry =
                 to_unix(now + DateTimeDuration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS));
@@ -279,6 +300,34 @@ impl ExecutionService for CoreExecutionService {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "ExecutionService::get_session",
+        level = "debug",
+        skip(self),
+        fields(session_id),
+        err
+    )]
+    async fn get_session(&self, session_id: &str) -> Result<Arc<UserSession>> {
+        let sessions = self.df_sessions.read().await;
+        let session = sessions
+            .get(session_id)
+            .context(ex_error::MissingDataFusionSessionSnafu {
+                id: session_id,
+            })?;
+        Ok(session.clone())
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::session_exists",
+        level = "debug",
+        skip(self),
+        fields(session_id)
+    )]
+    async fn session_exists(&self, session_id: &str) -> bool {
+        let sessions = self.df_sessions.read().await;
+        sessions.contains_key(session_id)
+    }
+
     // #[tracing::instrument(
     //     name = "ExecutionService::delete_session",
     //     level = "debug",
@@ -297,6 +346,103 @@ impl ExecutionService for CoreExecutionService {
     // }
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>> {
         self.df_sessions.clone()
+    }
+
+    async fn cancel_query(&self, query_id: i64) -> Result<()> {
+        let cancel_token = self.queries.get(&query_id)
+            .context(ex_error::QueryIdIsntRunningSnafu { query_id: query_id.to_string() })?;
+        cancel_token.cancel();
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::async_query",
+        level = "debug",
+        skip(self),
+        fields(query_id, old_queries_count = self.queries.len()),
+        err
+    )]
+    async fn submit_query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> Result<QueryHandle> {
+        // check session before acquiring query permit
+        let user_session = self.get_session(session_id).await?;
+
+        // Attempt to acquire a concurrency permit without waiting.
+        // This immediately returns an error if the concurrency limit has been reached.
+        // If you want the task to wait until a permit becomes available, use `.acquire().await` instead.
+
+        // Holding this permit ensures that no more than the configured number of concurrent queries
+        // can execute at the same time. When the permit is dropped, the slot is released back to the semaphore.
+        let _permit = self
+            .concurrency_limit
+            .try_acquire()
+            .context(ex_error::ConcurrencyLimitSnafu)?;
+
+        let mut history_record = self
+            .history_store
+            .query_record(query, query_context.worksheet_id);
+
+        let query_id = history_record.query_id();
+
+        // Record the result as part of the current span.
+        tracing::Span::current().record("query_id", query_id);
+
+        // Attach the generated query ID to the query context before execution.
+        // This ensures consistent tracking and logging of the query across all layers.
+        let query_obj = user_session.query(
+            query,
+            query_context.with_query_id(query_id),
+        );
+
+        let query_cancel_token = CancellationToken::new();
+        let history_store_ref = self.history_store.clone();
+        let queries_ref = self.queries.clone();
+        let query_timeout_secs = self.config.query_timeout_secs;
+        queries_ref.insert(query_id, query_cancel_token.clone());
+
+        tokio::spawn(async move {
+            let mut query_obj = query_obj;
+
+            // Execute the query with a timeout to prevent long-running or stuck queries
+            // from blocking system resources indefinitely. If the timeout is exceeded,
+            // convert the timeout into a standard QueryTimeout error so it can be handled
+            // and recorded like any other execution failure.
+            let result_fut = timeout(
+                Duration::from_secs(query_timeout_secs),
+                query_obj.execute(),
+            );
+
+            let query_result: Result<QueryResult> = tokio::select! {
+                finished = result_fut => {
+                    match finished {
+                        Ok(inner_result) => inner_result,
+                        Err(_) => Err(ex_error::QueryTimeoutSnafu.build()),
+                    }
+                },
+                _ = query_cancel_token.cancelled() => {
+                    Err(ex_error::QueryCancelledSnafu { query_id: query_id.to_string() }.build())
+                }
+            };
+
+            // cleanup: remove from map when done
+            queries_ref.remove(&query_id);
+
+            // Record the query in the session’s history, including result count or error message.
+            // This ensures all queries are traceable and auditable within a session, which enables
+            // features like `last_query_id()` and enhances debugging and observability.
+            history_store_ref
+                .save_query_record(&mut history_record, query_result_to_history(&query_result))
+                .await;
+        });   
+
+        Ok(QueryHandle {
+            query_id,
+            query_status: QueryStatus::Running,
+        })
     }
 
     #[tracing::instrument(
@@ -324,18 +470,7 @@ impl ExecutionService for CoreExecutionService {
             .try_acquire()
             .context(ex_error::ConcurrencyLimitSnafu)?;
 
-        let user_session = {
-            let sessions = self.df_sessions.read().await;
-            sessions
-                .get(session_id)
-                .ok_or_else(|| {
-                    ex_error::MissingDataFusionSessionSnafu {
-                        id: session_id.to_string(),
-                    }
-                    .build()
-                })?
-                .clone()
-        };
+        let user_session = self.get_session(session_id).await?;
 
         let mut history_record = self
             .history_store
@@ -375,6 +510,33 @@ impl ExecutionService for CoreExecutionService {
             query_id: history_record.query_id().to_string(),
         })?)
     }
+
+    // #[tracing::instrument(
+    //     name = "ExecutionService::query",
+    //     level = "debug",
+    //     skip(self),
+    //     fields(query_id),
+    //     err
+    // )]
+    // #[allow(clippy::large_futures)]
+    // async fn new_query(
+    //     &self,
+    //     session_id: &str,
+    //     query: &str,
+    //     query_context: QueryContext,
+    // ) -> Result<QueryResult> {
+
+    //     let query_handle = self.submit_query(session_id, query, query_context).await?;
+
+    //     let query_record_res = self.history_store.get_query(query_handle.query_id).await
+    //         .context(ex_error::QueryIdNotFoundSnafu {
+    //             query_id: query_handle.query_id.to_string(),
+    //         });
+        
+    //     let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
+    //         query_id: query_handle.query_id.to_string(),
+    //     })?;        
+    // }
 
     #[tracing::instrument(
         name = "ExecutionService::upload_data_to_table",

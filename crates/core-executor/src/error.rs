@@ -553,6 +553,29 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Query {query_id} isn't running"))]
+    QueryIdIsntRunning {
+        query_id: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query {query_id} not found"))]
+    QueryIdNotFound {
+        query_id: String,
+        #[snafu(source(from(core_history::errors::Error, Box::new)))]
+        source: Box<core_history::errors::Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query {query_id} cancelled"))]
+    QueryCancelled {
+        query_id: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl Error {

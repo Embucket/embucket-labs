@@ -59,7 +59,7 @@ pub async fn login(
 
     let _ = state
         .execution_svc
-        .create_session(session_id.clone())
+        .create_session(&session_id)
         .await?;
 
     Ok(Json(LoginResponse {

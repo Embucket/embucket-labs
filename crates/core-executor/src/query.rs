@@ -283,7 +283,7 @@ impl UserQuery {
         name = "UserQuery::execute",
         level = "debug",
         skip(self),
-        fields(statement),
+        fields(statement, query_id = self.query_context.query_id),
         err
     )]
     pub async fn execute(&mut self) -> Result<QueryResult> {

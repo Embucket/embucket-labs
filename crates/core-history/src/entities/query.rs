@@ -11,6 +11,7 @@ pub enum QueryStatus {
     Running,
     Successful,
     Failed,
+    Canceled,
 }
 
 impl Display for QueryStatus {
@@ -19,6 +20,7 @@ impl Display for QueryStatus {
             Self::Running => write!(f, "Running"),
             Self::Successful => write!(f, "Successful"),
             Self::Failed => write!(f, "Failed"),
+            Self::Canceled => write!(f, "Canceled"),
         }
     }
 }
@@ -81,6 +83,11 @@ impl QueryRecord {
         self.status = QueryStatus::Failed;
         self.error = Some(error.message);
         self.diagnostic_error = Some(error.diagnostic_message);
+    }
+
+    pub fn finished_as_canceled(&mut self) {
+        self.finished(0, None);
+        self.status = QueryStatus::Canceled;
     }
 
     // Returns a key with inverted id for descending order

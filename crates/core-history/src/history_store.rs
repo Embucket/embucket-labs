@@ -402,6 +402,12 @@ mod tests {
                     });
                     item
                 }
+                QueryStatus::Canceled => {
+                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
+                    item.finished_as_canceled();
+                    item                    
+                    
+                }
             };
             created.push(query_record);
         }

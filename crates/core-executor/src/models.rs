@@ -5,6 +5,7 @@ use embucket_functions::to_snowflake_datatype;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use core_history::QueryStatus;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
@@ -13,6 +14,7 @@ pub struct QueryContext {
     pub worksheet_id: Option<i64>,
     pub query_id: i64,
     pub ip_address: Option<String>,
+    pub async_query: bool,
 }
 
 impl QueryContext {
@@ -28,6 +30,7 @@ impl QueryContext {
             worksheet_id,
             query_id: Default::default(),
             ip_address: None,
+            async_query: false,
         }
     }
 
@@ -42,6 +45,17 @@ impl QueryContext {
         self.ip_address = Some(ip_address);
         self
     }
+
+    #[must_use]
+    pub fn with_async_query(mut self, async_query: bool) -> Self {
+        self.async_query = async_query;
+        self
+    }    
+}
+
+pub struct QueryHandle {
+    pub query_id: i64,
+    pub query_status: QueryStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]

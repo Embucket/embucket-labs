@@ -16,6 +16,7 @@ aws-config = { workspace = true }
 aws-credential-types = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
+dashmap = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-doc = { workspace = true }
@@ -46,6 +47,7 @@ tracing = { workspace = true }
 tracing-attributes = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = "0.1.17"
+tokio-util = { workspace = true }
 
 url = { workspace = true }
 uuid = { workspace = true }

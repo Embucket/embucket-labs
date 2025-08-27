@@ -210,7 +210,7 @@ async fn template_test_s3_store_single_executor_with_old_and_freshly_created_ses
     let newly_created_session = "newly_created_session";
     executor
         .executor
-        .create_session(newly_created_session.to_string())
+        .create_session(newly_created_session)
         .await
         .expect("Failed to create newly_created_session");
 
@@ -715,7 +715,7 @@ async fn test_e2e_file_store_s3_tables_volumes_deny_rw_create_table_inconsistenc
     // Here use freshly created sessions instead of precreated
     let session3 = "session3";
     exec.executor
-        .create_session(session3.to_string())
+        .create_session(session3)
         .await
         .expect("Failed to create session3");
 

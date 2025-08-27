@@ -75,6 +75,7 @@ strum_macros = { version = "0.27.2" }
 tar = "0.4.44"
 tempfile = { version = "3" }
 time = "0.3.37"
+tokio-util = "0.7.16"
 tokio = { version = "1", features = ["full", "tracing"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6.1", features = [

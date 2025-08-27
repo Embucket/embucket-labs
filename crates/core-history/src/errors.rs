@@ -2,6 +2,7 @@ use error_stack_trace;
 use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::Snafu;
+use crate::QueryRecordId;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -130,4 +131,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("No result set for QueryRecord: {query_id}"))]
+    NoResultSet {
+        query_id: QueryRecordId,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
