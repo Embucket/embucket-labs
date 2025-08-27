@@ -135,11 +135,12 @@ jobs:
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_2025-01.parquet
           curl -0 https://d37ci6vzurychx.cloudfront.net/trip-data/fhv_tripdata_2025-01.parquet
+          curl -0 hits.parquet https://storage.googleapis.com/glaredb-bench/data/clickbench/partitioned/hits_35.parquet
           curl -O https://blobs.duckdb.org/data/tpch-sf1.db
       
           # Verify downloaded files exist
           echo "Verifying downloaded files..."
-          for file in yellow_tripdata_2025-01.parquet green_tripdata_2025-01.parquet fhv_tripdata_2025-01.parquet tpch-sf1.db; do
+          for file in yellow_tripdata_2025-01.parquet green_tripdata_2025-01.parquet fhv_tripdata_2025-01.parquet tpch-sf1.db hits.parquet; do
             if [ ! -f "$file" ]; then
               echo "ERROR: Failed to download $file"
               exit 1
@@ -188,26 +189,6 @@ jobs:
           else
             echo "✓ TPC-DS data generated ($(du -sh tpcds_data | cut -f1))"
             echo "Files: $(ls tpcds_data | wc -l)"
-          fi
-      
-          # Create a downsampled ClickBench dataset (~100MB)
-          echo "Generating ClickBench data..."
-          duckdb -c "
-            COPY (
-              SELECT *
-              FROM parquet_scan('https://datasets.clickhouse.com/hits_compatible/hits.parquet')
-              LIMIT 1000000  -- ~100MB output
-            )
-            TO 'hits.parquet'
-            (FORMAT PARQUET, COMPRESSION snappy, ROW_GROUP_SIZE 100000);
-          "
-      
-          # Verify ClickBench data
-          if [ ! -f "hits.parquet" ]; then
-            echo "ERROR: Failed to generate hits.parquet"
-            exit 1
-          else
-            echo "✓ hits.parquet exists ($(du -h "hits.parquet" | cut -f1))"
           fi
       
           echo "All datasets successfully prepared."
