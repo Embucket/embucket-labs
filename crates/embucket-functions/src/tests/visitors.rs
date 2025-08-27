@@ -118,7 +118,7 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT date_part('year', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
         ),
         (
-            "SELECT date_part(epoch_seconds, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part(epoch_second, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
             "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
         ),
         // to_char format replacements
