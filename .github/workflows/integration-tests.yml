@@ -134,8 +134,8 @@ jobs:
           # Download existing files
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_2025-01.parquet
-          curl -0 https://d37ci6vzurychx.cloudfront.net/trip-data/fhv_tripdata_2025-01.parquet
-          curl -0 hits.parquet https://storage.googleapis.com/glaredb-bench/data/clickbench/partitioned/hits_35.parquet
+          curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/fhv_tripdata_2025-01.parquet
+          curl -o hits.parquet https://storage.googleapis.com/glaredb-bench/data/clickbench/partitioned/hits_35.parquet
           curl -O https://blobs.duckdb.org/data/tpch-sf1.db
       
           # Verify downloaded files exist
