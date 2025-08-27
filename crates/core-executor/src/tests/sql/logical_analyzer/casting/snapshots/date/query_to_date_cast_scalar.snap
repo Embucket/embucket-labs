@@ -1,6 +1,6 @@
 ---
-source: crates/core-executor/src/tests/sql/casting/date.rs
-description: "\"SELECT CAST('03-April-2024' AS DATE)\""
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/date.rs
+description: "\"SELECT '03-April-2024'::DATE\""
 ---
 Ok(
     [

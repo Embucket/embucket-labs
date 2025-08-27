@@ -5,8 +5,7 @@ use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, Result};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
-use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
-use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::logical_analyzer::analyzer_rules;
 use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
@@ -68,10 +67,11 @@ impl UserSession {
         expr_planners.insert(0, Arc::new(CustomExprPlanner));
 
         let session_params = SessionParams::default();
+        let session_params_arc = Arc::new(session_params.clone());
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
-                    .with_option_extension(session_params.clone())
+                    .with_option_extension(session_params)
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume
                     .with_create_default_catalog_and_schema(false)
@@ -88,15 +88,13 @@ impl UserSession {
             .with_catalog_list(catalog_list)
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
-            .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
-            .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
+            .with_analyzer_rules(analyzer_rules(session_params_arc.clone()))
             .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        let session_params = Arc::new(session_params);
-        register_udfs(&mut ctx, &session_params).context(ex_error::RegisterUDFSnafu)?;
+        register_udfs(&mut ctx, &session_params_arc).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
         register_udtfs(&ctx, history_store.clone());
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
@@ -115,7 +113,7 @@ impl UserSession {
                 OffsetDateTime::now_utc()
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
-            session_params,
+            session_params: session_params_arc,
         };
         Ok(session)
     }

@@ -1,5 +1,5 @@
 ---
-source: crates/core-executor/src/tests/sql/casting/date.rs
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/date.rs
 description: "\"SELECT col::DATE FROM (SELECT '2024-04-03'::DATE AS col)\""
 ---
 Ok(
