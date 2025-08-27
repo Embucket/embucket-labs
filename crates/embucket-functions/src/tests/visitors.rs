@@ -151,6 +151,10 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT dateadd('year', 5, '2025-06-01')",
         ),
         (
+            "SELECT dateadd('year', 5, '2025-06-01')",
+            "SELECT dateadd('year', 5, '2025-06-01')",
+        ),
+        (
             "SELECT datediff(day, 5, '2025-06-01')",
             "SELECT datediff('day', 5, '2025-06-01')",
         ),
@@ -176,6 +180,18 @@ fn test_functions_rewriter() -> DFResult<()> {
         ),
         (
             "SELECT date_part(epoch_second, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part(epoch_seconds, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part('epoch_seconds', TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part(\"epoch_second\", TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
             "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
         ),
         // to_char format replacements
