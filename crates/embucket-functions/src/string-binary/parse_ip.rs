@@ -1,11 +1,12 @@
 use crate::macros::make_udf_function;
-use datafusion::arrow::array::{Array, StringBuilder, as_string_array};
+use datafusion::arrow::array::{Array, StringArray, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
     Coercion, ColumnarValue, Signature, TypeSignature, TypeSignatureClass, Volatility,
 };
 use datafusion_common::ScalarValue;
+use datafusion_common::cast::as_generic_string_array;
 use datafusion_common::types::{
     NativeType, logical_float16, logical_float32, logical_float64, logical_string,
 };
@@ -15,7 +16,9 @@ use serde_json::json;
 use std::any::Any;
 use std::sync::Arc;
 
-use crate::string_binary::errors::{ArrayLengthMismatchSnafu, ParseIpFailedSnafu};
+use crate::string_binary::errors::{
+    ArrayLengthMismatchSnafu, NonConstantArgumentSnafu, ParseIpFailedSnafu,
+};
 
 /// `PARSE_IP` SQL function
 ///
@@ -64,7 +67,6 @@ impl ParseIpFunc {
                                 TypeSignatureClass::Integer,
                                 TypeSignatureClass::Native(logical_float16()),
                                 TypeSignatureClass::Native(logical_float32()),
-                                TypeSignatureClass::Native(logical_float64()),
                             ],
                             NativeType::Float64,
                         ),
@@ -94,37 +96,40 @@ impl ScalarUDFImpl for ParseIpFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
 
-        let ip_arg = match &args[0] {
-            ColumnarValue::Array(arr) => Arc::clone(arr),
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
-        let type_arg = match &args[1] {
-            ColumnarValue::Array(arr) => Arc::clone(arr),
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        let ip_arg = args[0].clone().into_array(number_rows)?;
+        let type_arg = args[1].clone().into_array(number_rows)?;
 
-        let ip_cast = datafusion::arrow::compute::cast(&ip_arg, &DataType::Utf8)?;
-        let type_cast = datafusion::arrow::compute::cast(&type_arg, &DataType::Utf8)?;
-        let ip_array = as_string_array(&ip_cast);
-        let type_array = as_string_array(&type_cast);
+        let ip_array: &StringArray = as_generic_string_array(&ip_arg)?;
+        let type_array: &StringArray = as_generic_string_array(&type_arg)?;
 
         let len = ip_array.len();
 
-        let permissive_arg = if args.len() > 2 {
+        let perm: bool = if args.len() > 2 {
             match &args[2] {
-                ColumnarValue::Array(arr) => Arc::clone(arr),
-                ColumnarValue::Scalar(v) => v.to_array_of_size(len)?,
+                ColumnarValue::Array(_) => NonConstantArgumentSnafu {
+                    function_name: "PARSE_IP".to_string(),
+                    position: 3usize,
+                }
+                .fail()?,
+                ColumnarValue::Scalar(v) => {
+                    let v = v.cast_to(&DataType::Float64)?;
+                    let f = if let ScalarValue::Float64(Some(x)) = v {
+                        x
+                    } else {
+                        0.0
+                    };
+                    f.round() != 0.0
+                }
             }
         } else {
-            ScalarValue::Int64(Some(0)).to_array_of_size(len)?
+            false
         };
-        let permissive_cast =
-            datafusion::arrow::compute::cast(&permissive_arg, &DataType::Float64)?;
-        let permissive_array = datafusion_common::cast::as_float64_array(&permissive_cast)?;
 
-        if ip_array.len() != type_array.len() || ip_array.len() != permissive_array.len() {
+        if ip_array.len() != type_array.len() {
             ArrayLengthMismatchSnafu.fail()?;
         }
 
@@ -141,13 +146,6 @@ impl ScalarUDFImpl for ParseIpFunc {
                 continue;
             }
             let ip_str = ip_array.value(i);
-            let perm = if permissive_array.is_valid(i) {
-                let v = permissive_array.value(i);
-                let r = v.round();
-                i64::from(r != 0.0)
-            } else {
-                0
-            };
             match ip_str.parse::<IpNet>() {
                 Ok(parsed) => match parsed {
                     IpNet::V4(net) => {
@@ -160,7 +158,7 @@ impl ScalarUDFImpl for ParseIpFunc {
                     }
                 },
                 Err(e) => {
-                    if perm == 1 {
+                    if perm {
                         let json_err = json!({ "error": e.to_string() }).to_string();
                         builder.append_value(json_err);
                     } else {

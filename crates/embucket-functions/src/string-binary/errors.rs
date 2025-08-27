@@ -138,6 +138,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("argument {position} to function {function_name} needs to be constant"))]
+    NonConstantArgument {
+        function_name: String,
+        position: usize,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("failed to parse ip: {reason}"))]
     ParseIpFailed {
         reason: String,
