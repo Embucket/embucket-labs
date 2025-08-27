@@ -205,6 +205,11 @@ impl ScalarUDFImpl for ToTimestampFunc {
             }
         }
 
+        // If the first argument is already a timestamp type, return it as is (with its timezone).
+        if matches!(args.arg_types[0], DataType::Timestamp(_, _)) {
+            return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
+        }
+
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
             TimeUnit::Nanosecond,
             self.timezone(),
