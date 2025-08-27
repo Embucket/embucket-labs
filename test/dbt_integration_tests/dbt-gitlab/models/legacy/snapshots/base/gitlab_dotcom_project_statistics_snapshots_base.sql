@@ -26,8 +26,8 @@ WITH source AS (
       shared_runners_seconds::NUMBER                  AS shared_runners_seconds,
       shared_runners_seconds_last_reset::TIMESTAMP    AS last_update_started_at,
       DATEADD('sec', _uploaded_at, '1970-01-01')      AS uploaded_at,
-      "DBT_VALID_FROM"::TIMESTAMP                     AS valid_from,
-      "DBT_VALID_TO"::TIMESTAMP                       AS valid_to
+      dbt_valid_from::TIMESTAMP                     AS valid_from,
+      dbt_valid_to::TIMESTAMP                       AS valid_to
 
     FROM source
 

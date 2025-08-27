@@ -28,8 +28,8 @@ WITH source AS (
       trial::BOOLEAN                             AS is_trial,
       created_at::TIMESTAMP                      AS created_at,
       updated_at::TIMESTAMP                      AS updated_at,
-      "DBT_VALID_FROM"::TIMESTAMP                AS valid_from,
-      "DBT_VALID_TO"::TIMESTAMP                  AS valid_to,
+      dbt_valid_from::TIMESTAMP                AS valid_from,
+      dbt_valid_to::TIMESTAMP                  AS valid_to,
       REPLACE(license_file_sha256::VARCHAR, '-') AS license_sha256
     FROM source
 

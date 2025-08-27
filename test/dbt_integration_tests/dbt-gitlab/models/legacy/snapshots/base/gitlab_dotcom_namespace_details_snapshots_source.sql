@@ -14,8 +14,8 @@ WITH snapshots AS (
     created_at::TIMESTAMP                                         AS created_at,
     updated_at::TIMESTAMP                                         AS updated_at,
     
-    "DBT_VALID_FROM"::TIMESTAMP                                   AS valid_from,
-    "DBT_VALID_TO"::TIMESTAMP                                     AS valid_to
+    dbt_valid_from::TIMESTAMP                                   AS valid_from,
+    dbt_valid_to::TIMESTAMP                                     AS valid_to
   FROM snapshots
     
 )

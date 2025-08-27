@@ -18,8 +18,8 @@ WITH source AS (
       salesforce_account_id::VARCHAR                          AS sfdc_account_id,
       created_at::TIMESTAMP                                   AS billing_account_created_at,
       updated_at::TIMESTAMP                                   AS billing_account_updated_at,
-      "DBT_VALID_FROM"::TIMESTAMP                             AS valid_from,
-      "DBT_VALID_TO"::TIMESTAMP                               AS valid_to
+      dbt_valid_from::TIMESTAMP                             AS valid_from,
+      dbt_valid_to::TIMESTAMP                               AS valid_to
     FROM source
 
 )

@@ -28,8 +28,8 @@ WITH source AS (
     seats_in_use::NUMBER                          AS seats_in_use,
     seats_owed::NUMBER                            AS seats_owed,
     trial_extension_type::NUMBER                  AS trial_extension_type,
-    "DBT_VALID_FROM"::TIMESTAMP                   AS valid_from,
-    "DBT_VALID_TO"::TIMESTAMP                     AS valid_to
+    dbt_valid_from::TIMESTAMP                   AS valid_from,
+    dbt_valid_to::TIMESTAMP                     AS valid_to
   
   FROM source
     

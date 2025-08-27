@@ -43,8 +43,8 @@ WITH snapshots AS (
     two_factor_grace_period::NUMBER                               AS two_factor_grace_period,
     project_creation_level::NUMBER                                AS project_creation_level,
     push_rule_id::NUMBER                                          AS push_rule_id,
-    "DBT_VALID_FROM"::TIMESTAMP                                   AS valid_from,
-    "DBT_VALID_TO"::TIMESTAMP                                     AS valid_to
+    dbt_valid_from::TIMESTAMP                                   AS valid_from,
+    dbt_valid_to::TIMESTAMP                                     AS valid_to
   FROM snapshots
     
 )
