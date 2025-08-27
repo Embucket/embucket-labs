@@ -25,8 +25,8 @@ TOTAL: 1696
       2 010001 (02000): Schema error: No field named "DBT_VALID_FROM". Valid fields are snapshots.id, snapshots.name, snapshots.path, snapshots.owner_id, snapshots.created_at, snapshots.updated_at, snapshots.type, snapshots.avatar, snapshots.membership_lock, snapshots.share_with_group_lock, snapshots.visibility_level, snapshots.request_access_enabled, snapshots.ldap_sync_status, snapshots.ldap_sync_error, snapshots.ldap_sync_last_update_at, snapshots.ldap_sync_last_successful_update_at, snapshots.ldap_sync_last_sync_at, snapshots.lfs_enabled, snapshots.parent_id, snapshots.shared_runners_minutes_limit, snapshots.repository_size_limit, snapshots.require_two_factor_authentication, snapshots.two_factor_grace_period, snapshots.plan_id, snapshots.project_creation_level, snapshots.auto_devops_enabled, snapshots._uploaded_at, snapshots.namespaces_rank_in_key, snapshots.dbt_scd_id, snapshots.dbt_updated_at, snapshots.dbt_valid_from, snapshots.dbt_valid_to, snapshots.extra_shared_runners_minutes_limit, snapshots.push_rule_id, snapshots.shared_runners_enabled, snapshots.custom_project_templates_group_id, snapshots.traversal_ids, snapshots.pgp_is_deleted, snapshots.pgp_is_deleted_updated_at.
 
 # Total top 10 errors (truncated to 50 chars)
-     15 010001 (02000): SQL compilation error: unsupported
      14 010001 (02000): SQL error: ParserError("Expected: 
+     14 010001 (02000): SQL compilation error: unsupported
      11 010001 (02000): Schema error: No field named "DBT_
       7 010001 (02000): Error during planning: Internal er
       5 010001 (02000): type_coercion
