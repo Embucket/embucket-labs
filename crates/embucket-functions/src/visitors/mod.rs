@@ -10,6 +10,7 @@ pub mod fetch_to_limit;
 pub mod functions_rewriter;
 pub mod inline_aliases_in_query;
 pub mod json_element;
+pub mod like_any;
 pub mod rlike_regexp_expr_rewriter;
 pub mod select_expr_aliases;
 pub mod table_functions;
@@ -17,7 +18,6 @@ pub mod table_functions_cte_relation;
 pub mod timestamp;
 pub mod top_limit;
 pub mod unimplemented;
-pub mod like_any;
 
 #[must_use]
 pub fn query_with_body(inner_select: Select) -> Query {
