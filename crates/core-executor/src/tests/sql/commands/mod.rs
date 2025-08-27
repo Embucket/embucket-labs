@@ -1,4 +1,5 @@
 mod fetch;
+mod like_any;
 mod pivot;
 mod rlike_regexp;
 mod show;

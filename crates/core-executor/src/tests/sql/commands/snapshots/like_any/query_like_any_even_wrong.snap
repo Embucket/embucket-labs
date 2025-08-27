@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/sql/commands/like_any.rs
+description: "\"SELECT * FROM VALUES\n                ('John  Dddoe'),\n                ('Joe   Doe'),\n                ('John_down'),\n                ('Joe down'),\n                ('Tom   Doe'),\n                ('Tim down'),\n                (NULL)\n            WHERE column1 LIKE ANY ('%Jo%oe%', '%YES%')\n            ORDER BY column1\""
+---
+Ok(
+    [
+        "+-------------+",
+        "| column1     |",
+        "+-------------+",
+        "| Joe   Doe   |",
+        "| John  Dddoe |",
+        "+-------------+",
+    ],
+)

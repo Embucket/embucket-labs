@@ -1,10 +1,67 @@
 use crate::visitors::{
-    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element,
+    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, like_any,
     rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion_common::Result as DFResult;
+
+#[test]
+fn test_like_any_expr_rewriter() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![
+        (
+            "SELECT * FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%','T%e')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' OR column1 LIKE 'T%e' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%','T%e', '%Tim%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' OR column1 LIKE 'T%e' OR column1 LIKE '%Tim%' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' ORDER BY column1",
+        ),
+    ];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            like_any::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
+    Ok(())
+}
 
 #[test]
 fn test_rlike_regexp_expr_rewriter() -> DFResult<()> {
