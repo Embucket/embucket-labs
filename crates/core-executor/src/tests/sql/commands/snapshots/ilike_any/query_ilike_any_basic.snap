@@ -1,0 +1,16 @@
+---
+source: crates/core-executor/src/tests/sql/commands/ilike_any.rs
+description: "\"SELECT * FROM VALUES\n        ('jane doe'),\n        ('Jane Doe'),\n        ('JANE DOE'),\n        ('John Doe'),\n        ('John Smith')\n     WHERE column1 ILIKE ANY ('jane%', '%SMITH')\n     ORDER BY column1\""
+---
+Ok(
+    [
+        "+------------+",
+        "| column1    |",
+        "+------------+",
+        "| JANE DOE   |",
+        "| Jane Doe   |",
+        "| John Smith |",
+        "| jane doe   |",
+        "+------------+",
+    ],
+)
