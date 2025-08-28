@@ -31,8 +31,8 @@ use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableId
 use core_utils::Db;
 use dashmap::DashMap;
 use df_catalog::catalog_list::EmbucketCatalogList;
+use tokio::sync::RwLock;
 use tokio::sync::oneshot;
-use tokio::sync::{RwLock, Semaphore};
 use tokio::time::{Duration, timeout};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -65,12 +65,6 @@ pub trait ExecutionService: Send + Sync {
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult>;
-    async fn new_query(
-        &self,
-        session_id: &str,
-        query: &str,
-        query_context: QueryContext,
-    ) -> Result<QueryResult>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -88,8 +82,7 @@ pub struct CoreExecutionService {
     config: Arc<Config>,
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
-    concurrency_limit: Arc<Semaphore>,
-    queries: DashMap<i64, CancellationToken>,
+    pub queries: Arc<DashMap<i64, CancellationToken>>,
 }
 
 impl CoreExecutionService {
@@ -105,7 +98,6 @@ impl CoreExecutionService {
         config: Arc<Config>,
     ) -> Result<Self> {
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
-        let max_concurrency_level = config.max_concurrency_level;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
             metastore,
@@ -114,8 +106,7 @@ impl CoreExecutionService {
             config,
             catalog_list,
             runtime_env,
-            concurrency_limit: Arc::new(Semaphore::new(max_concurrency_level)),
-            queries: DashMap::new(),
+            queries: Arc::new(DashMap::new()),
         })
     }
 
@@ -432,19 +423,11 @@ impl ExecutionService for CoreExecutionService {
         query: &str,
         query_context: QueryContext,
     ) -> Result<AsyncQueryHandle> {
-        // check session before acquiring query permit
         let user_session = self.get_session(session_id).await?;
 
-        // Attempt to acquire a concurrency permit without waiting.
-        // This immediately returns an error if the concurrency limit has been reached.
-        // If you want the task to wait until a permit becomes available, use `.acquire().await` instead.
-
-        // Holding this permit ensures that no more than the configured number of concurrent queries
-        // can execute at the same time. When the permit is dropped, the slot is released back to the semaphore.
-        let _permit = self
-            .concurrency_limit
-            .try_acquire()
-            .context(ex_error::ConcurrencyLimitSnafu)?;
+        if self.queries.len() >= self.config.max_concurrency_level {
+            return ex_error::ConcurrencyLimitSnafu.fail();
+        }
 
         let mut history_record = self
             .history_store
@@ -463,6 +446,7 @@ impl ExecutionService for CoreExecutionService {
         // also presence in this map means that query is running
         let cancel_token = CancellationToken::new();
         self.queries.insert(query_id, cancel_token.clone());
+        // eprintln!("submit_query: {query_id}, {}, {}", self.queries.len(), chrono::Utc::now());
 
         let query_timeout_secs = self.config.query_timeout_secs;
 
@@ -486,7 +470,9 @@ impl ExecutionService for CoreExecutionService {
                     match finished {
                         Ok(inner_result) => {
                             QueryResultStatus {
-                                query_result: inner_result,
+                                query_result: inner_result.context(ex_error::QueryExecutionSnafu {
+                                    query_id: query_id.to_string(),
+                                }),
                                 status: QueryStatus::Successful,
                             }
                         },
@@ -547,91 +533,8 @@ impl ExecutionService for CoreExecutionService {
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult> {
-        // Attempt to acquire a concurrency permit without waiting.
-        // This immediately returns an error if the concurrency limit has been reached.
-        // If you want the task to wait until a permit becomes available, use `.acquire().await` instead.
-
-        // Holding this permit ensures that no more than the configured number of concurrent queries
-        // can execute at the same time. When the permit is dropped, the slot is released back to the semaphore.
-        let _permit = self
-            .concurrency_limit
-            .try_acquire()
-            .context(ex_error::ConcurrencyLimitSnafu)?;
-
-        let user_session = self.get_session(session_id).await?;
-
-        let mut history_record = self
-            .history_store
-            .query_record(query, query_context.worksheet_id);
-
-        // Record the result as part of the current span.
-        tracing::Span::current().record("query_id", history_record.query_id().to_string());
-
-        // Attach the generated query ID to the query context before execution.
-        // This ensures consistent tracking and logging of the query across all layers.
-        let mut query_obj = user_session.query(
-            query,
-            query_context.with_query_id(history_record.query_id()),
-        );
-
-        // Execute the query with a timeout to prevent long-running or stuck queries
-        // from blocking system resources indefinitely. If the timeout is exceeded,
-        // convert the timeout into a standard QueryTimeout error so it can be handled
-        // and recorded like any other execution failure.
-        let result = timeout(
-            Duration::from_secs(self.config.query_timeout_secs),
-            query_obj.execute(),
-        )
-        .await;
-        let query_result: Result<QueryResult> = match result {
-            Ok(inner_result) => inner_result,
-            Err(_) => Err(ex_error::QueryTimeoutSnafu.build()),
-        };
-
-        // Record the query in the session’s history, including result count or error message.
-        // This ensures all queries are traceable and auditable within a session, which enables
-        // features like `last_query_id()` and enhances debugging and observability.
-        self.history_store
-            .save_query_record(&mut history_record, query_result_to_history(&query_result))
-            .await;
-        Ok(query_result.context(ex_error::QueryExecutionSnafu {
-            query_id: history_record.query_id().to_string(),
-        })?)
-    }
-
-    #[tracing::instrument(
-        name = "ExecutionService::query",
-        level = "debug",
-        skip(self),
-        fields(query_id),
-        err
-    )]
-    #[allow(clippy::large_futures)]
-    async fn new_query(
-        &self,
-        session_id: &str,
-        query: &str,
-        query_context: QueryContext,
-    ) -> Result<QueryResult> {
         let query_handle = self.submit_query(session_id, query, query_context).await?;
-
-        // for sync execution need to wait for query to finish
-
-        let query_record_res = self
-            .history_store
-            .get_query(query_handle.query_id)
-            .await
-            .context(ex_error::QueryHistorySnafu);
-
-        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
-            query_id: query_handle.query_id.to_string(),
-        })?;
-
-        Ok(query_record
-            .try_into()
-            .context(ex_error::QueryExecutionSnafu {
-                query_id: query_handle.query_id.to_string(),
-            })?)
+        self.wait_async_query_completion(query_handle).await
     }
 
     #[tracing::instrument(

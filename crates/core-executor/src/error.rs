@@ -17,8 +17,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[snafu(display("Concurrency limit reached — too many concurrent queries are running"))]
     ConcurrencyLimit {
-        #[snafu(source)]
-        error: tokio::sync::TryAcquireError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -599,11 +597,19 @@ impl Error {
     }
     #[must_use]
     pub const fn is_query_cancelled(&self) -> bool {
-        matches!(self, Self::QueryCancelled { .. })
+        if let Self::QueryExecution { source, .. } = self {
+            source.is_query_cancelled()
+        } else {
+            matches!(self, Self::QueryCancelled { .. })
+        }
     }
     #[must_use]
     pub const fn is_query_timeout(&self) -> bool {
-        matches!(self, Self::QueryTimeout { .. })
+        if let Self::QueryExecution { source, .. } = self {
+            source.is_query_timeout()
+        } else {
+            matches!(self, Self::QueryTimeout { .. })
+        }
     }
 }
 
