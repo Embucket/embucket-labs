@@ -1,9 +1,12 @@
-name: Build and Release
+name: Build and release
 
 on:
   # Run nightly at 2 AM UTC
   schedule:
     - cron: '0 2 * * *'
+  push:
+    tags:
+      - "v*.*.*"
   # Allow manual runs from the Actions tab
   workflow_dispatch:
   # Run when a new release is created on GitHub
