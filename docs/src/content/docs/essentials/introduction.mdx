@@ -35,11 +35,11 @@ Your data stays in open formats. Compute costs remain under your control.
 
 ### Stateless compute
 
-Stateless compute is a computing model where servers maintain no persistent state between queries or sessions. Unlike stateful systems that store data locally, stateless compute nodes rely on external storage systems for all data persistence. Object storage and the Iceberg catalog handle durability and metadata. This architecture makes upgrades, scaling, and failover trivial.
+Stateless compute represents a computing model where servers maintain no persistent state between queries or sessions. Unlike stateful systems that store data locally, stateless compute nodes rely on external storage systems for all data persistence. Object storage and the Iceberg catalog handle durability and metadata. This architecture makes upgrades, scaling, and failover trivial.
 
 ### Query-per-node architecture
 
-Query-per-node is a processing architecture where each compute node independently handles complete queries without requiring a separate coordinator layer. Unlike traditional distributed systems that separate coordinators from executors, each node serves as both coordinator and executor. This design eliminates single points of failure. The architecture provides better fault tolerance and simpler scaling. You add or remove nodes elastically to handle load spikes.
+Query-per-node architecture enables each compute node to independently handle complete queries without requiring a separate coordinator layer. Unlike traditional distributed systems that separate coordinators from executors, each node serves as both coordinator and executor. This design eliminates single points of failure. The architecture provides better fault tolerance and simpler scaling. You add or remove nodes elastically to handle load spikes.
 
 ### Snowflake-first compatibility
 
