@@ -68,6 +68,11 @@ impl TableProvider for CachingTable {
         filters: &[Expr],
         limit: Option<usize>,
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
+        // If this table is a View, we need to ensure it reflects the latest state of its underlying tables.
+        // Note: ViewTable contains a logical plan that references the snapshot of the source tables
+        // at the time the view was created. Without updating TableScan nodes, the view would continue
+        // to reference stale data. Here we reconstruct the logical plan with updated TableScan nodes
+        // so that any query on the view sees the latest snapshots of the source tables.
         if self.table.table_type() == TableType::View
             && let Some(view) = self.table.as_any().downcast_ref::<ViewTable>()
         {
@@ -88,6 +93,16 @@ impl TableProvider for CachingTable {
     }
 }
 
+/// Rewrites all `TableScan` nodes in a logical plan to point to the latest state of their source tables.
+///
+/// This is necessary because a `ViewTable` stores a logical plan referencing the snapshot of its
+/// underlying tables at creation time. Without this rewriting step, queries against the view
+/// would return stale data. The function:
+/// 1. Collects all `TableScan` nodes in the plan.
+///    - We do this separately because `transform_up` / `transform_down` cannot be async,
+///      so we need to gather the nodes first before performing any async resolution.
+/// 2. Asynchronously resolves each table to its current `TableProvider`.
+/// 3. Replaces `TableScan` nodes in the logical plan with updated ones pointing to the latest data.
 async fn rewrite_view_source(
     state: &dyn Session,
     plan: LogicalPlan,
