@@ -4,7 +4,7 @@ use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::optimizer::AnalyzerRule;
 use datafusion_common::config::ConfigOptions;
-use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
+use datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion_common::{Column, DFSchema};
 use datafusion_expr::{Expr, ExprSchemable, Union};
 use std::fmt::Debug;
@@ -55,10 +55,13 @@ impl AnalyzerRule for UnionSchemaAnalyzer {
 }
 
 fn analyze_internal(plan: &LogicalPlan) -> DFResult<LogicalPlan> {
-    match plan {
-        LogicalPlan::Union(union) => rewrite_union(union),
-        other => Ok(other.clone()),
-    }
+    Ok(plan
+        .clone()
+        .transform_down(|node| match node {
+            LogicalPlan::Union(union) => Ok(Transformed::yes(rewrite_union(&union)?)),
+            _ => Ok(Transformed::no(node.clone())),
+        })?
+        .data)
 }
 
 fn rewrite_union(union: &Union) -> datafusion_common::Result<LogicalPlan> {
