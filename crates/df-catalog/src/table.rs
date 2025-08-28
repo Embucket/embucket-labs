@@ -153,12 +153,10 @@ async fn rewrite_view_source(
     let new_plan = plan
         .clone()
         .transform_up(|ref plan| {
-            if let LogicalPlan::TableScan(scan) = plan {
-                if let Some(new_scan) = replacements.get(&scan.table_name.to_string()) {
-                    Ok(Transformed::yes(LogicalPlan::TableScan(new_scan.clone())))
-                } else {
-                    Ok(Transformed::no(plan.clone()))
-                }
+            if let LogicalPlan::TableScan(scan) = plan
+                && let Some(new_scan) = replacements.get(&scan.table_name.to_string())
+            {
+                Ok(Transformed::yes(LogicalPlan::TableScan(new_scan.clone())))
             } else {
                 Ok(Transformed::no(plan.clone()))
             }
