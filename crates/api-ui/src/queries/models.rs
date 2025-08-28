@@ -95,6 +95,7 @@ pub enum QueryStatus {
     Successful,
     Failed,
     Canceled,
+    TimedOut,
 }
 
 impl From<QueryStatusItem> for QueryStatus {
@@ -104,6 +105,7 @@ impl From<QueryStatusItem> for QueryStatus {
             QueryStatusItem::Successful => Self::Successful,
             QueryStatusItem::Failed => Self::Failed,
             QueryStatusItem::Canceled => Self::Canceled,
+            QueryStatusItem::TimedOut => Self::TimedOut,
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::errors::{self as core_history_errors, Result};
 use crate::result_set::ResultSet;
 use crate::{
-    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
+    QueryRecord, QueryRecordId, QueryRecordReference, QueryStatus, SlateDBHistoryStore, Worksheet, WorksheetId
 };
 use async_trait::async_trait;
 use core_utils::Db;
@@ -349,7 +349,11 @@ impl HistoryStore for SlateDBHistoryStore {
                     diagnostic_message: format!("{err:?}"),
                 }),
             },
-            Err(execution_err) => query_record.finished_with_error(execution_err),
+            Err(execution_err) => match query_record.status {
+                QueryStatus::Canceled => query_record.finished_as_canceled(),
+                QueryStatus::TimedOut => query_record.finished_as_timed_out(),
+                _ => query_record.finished_with_error(execution_err),
+            }
         }
 
         if let Err(err) = self.add_query(query_record).await {
@@ -407,6 +411,11 @@ mod tests {
                     item.finished_as_canceled();
                     item                    
                     
+                }
+                QueryStatus::TimedOut => {
+                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
+                    item.finished_as_timed_out();
+                    item
                 }
             };
             created.push(query_record);

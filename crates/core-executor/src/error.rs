@@ -555,15 +555,14 @@ pub enum Error {
     },
 
     #[snafu(display("Query {query_id} isn't running"))]
-    QueryIdIsntRunning {
+    QueryIsntRunning {
         query_id: String,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Query {query_id} not found"))]
-    QueryIdNotFound {
-        query_id: String,
+    #[snafu(display("Query History error: {source}"))]
+    QueryHistory {
         #[snafu(source(from(core_history::errors::Error, Box::new)))]
         source: Box<core_history::errors::Error>,
         #[snafu(implicit)]
@@ -573,6 +572,14 @@ pub enum Error {
     #[snafu(display("Query {query_id} cancelled"))]
     QueryCancelled {
         query_id: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query result recv error: {error}"))]
+    QueryResultRecv {
+        #[snafu(source)]
+        error: tokio::sync::oneshot::error::RecvError,
         #[snafu(implicit)]
         location: Location,
     },

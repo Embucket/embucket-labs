@@ -21,7 +21,7 @@ use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
 
 use super::error::{self as ex_error, Result};
-use super::models::{QueryContext, QueryHandle, QueryResult};
+use super::models::{QueryContext, AsyncQueryHandle, QueryResult, QueryResultStatus};
 use super::session::UserSession;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType, query_result_to_history};
@@ -32,6 +32,7 @@ use core_utils::Db;
 use df_catalog::catalog_list::EmbucketCatalogList;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::{Duration, timeout};
+use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 use dashmap::DashMap;
 use uuid::Uuid;
@@ -46,25 +47,27 @@ pub trait ExecutionService: Send + Sync {
     // Currently delete_session function is not used
     // async fn delete_session(&self, session_id: String) -> Result<()>;
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
-    async fn cancel_query(&self, query_id: i64) -> Result<()>;
     async fn submit_query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> Result<QueryHandle>;
+    ) -> Result<AsyncQueryHandle>;
+    async fn cancel_query(&self, query_id: i64) -> Result<()>;
+    async fn wait_async_query_completion(&self, query_handle: AsyncQueryHandle) -> Result<QueryResult>;
+    async fn query_result(&self, query_id: i64) -> Result<QueryResult>;
     async fn query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult>;    
-    // async fn new_query(
-    //     &self,
-    //     session_id: &str,
-    //     query: &str,
-    //     query_context: QueryContext,
-    // ) -> Result<ResultSet>;
+    async fn new_query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> Result<QueryResult>;
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -348,11 +351,54 @@ impl ExecutionService for CoreExecutionService {
         self.df_sessions.clone()
     }
 
+    #[tracing::instrument(
+        name = "ExecutionService::cancel_query",
+        level = "debug",
+        skip(self),
+        err
+    )]    
     async fn cancel_query(&self, query_id: i64) -> Result<()> {
         let cancel_token = self.queries.get(&query_id)
-            .context(ex_error::QueryIdIsntRunningSnafu { query_id: query_id.to_string() })?;
+            .context(ex_error::QueryIsntRunningSnafu { query_id: query_id.to_string() })?;
         cancel_token.cancel();
         Ok(())
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::wait_async_query_completion",
+        level = "debug",
+        skip(self, query_handle),
+        fields(query_id = query_handle.query_id),
+        err
+    )]
+    async fn wait_async_query_completion(&self, query_handle: AsyncQueryHandle) -> Result<QueryResult> {
+        let _ = self.queries.get(&query_handle.query_id)
+            .context(ex_error::QueryIsntRunningSnafu { query_id: query_handle.query_id.to_string() })?;
+        
+        let query_status = query_handle.rx.await
+            .context(ex_error::QueryResultRecvSnafu)?;
+
+        Ok(query_status.query_result?)
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::query_result",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    async fn query_result(&self, query_id: i64) -> Result<QueryResult> {
+        let query_record_res = self.history_store.get_query(query_id)
+            .await
+            .context(ex_error::QueryHistorySnafu);
+        
+        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
+            query_id: query_id.to_string(),
+        })?;
+
+        Ok(query_record.try_into().context(ex_error::QueryExecutionSnafu {
+            query_id: query_id.to_string(),
+        })?)
     }
 
     #[tracing::instrument(
@@ -367,7 +413,7 @@ impl ExecutionService for CoreExecutionService {
         session_id: &str,
         query: &str,
         query_context: QueryContext,
-    ) -> Result<QueryHandle> {
+    ) -> Result<AsyncQueryHandle> {
         // check session before acquiring query permit
         let user_session = self.get_session(session_id).await?;
 
@@ -398,11 +444,17 @@ impl ExecutionService for CoreExecutionService {
             query_context.with_query_id(query_id),
         );
 
-        let query_cancel_token = CancellationToken::new();
+        // add cancellation token to the map, so it can be cancelled if needed
+        // also presence in this map means that query is running
+        let cancel_token = CancellationToken::new();
+        self.queries.insert(query_id, cancel_token.clone());
+
+        let query_timeout_secs = self.config.query_timeout_secs;
+
         let history_store_ref = self.history_store.clone();
         let queries_ref = self.queries.clone();
-        let query_timeout_secs = self.config.query_timeout_secs;
-        queries_ref.insert(query_id, query_cancel_token.clone());
+
+        let (tx, rx) = oneshot::channel();
 
         tokio::spawn(async move {
             let mut query_obj = query_obj;
@@ -416,32 +468,60 @@ impl ExecutionService for CoreExecutionService {
                 query_obj.execute(),
             );
 
-            let query_result: Result<QueryResult> = tokio::select! {
+            // wait for any future to be resolved
+            let query_result_status = tokio::select! {
                 finished = result_fut => {
                     match finished {
-                        Ok(inner_result) => inner_result,
-                        Err(_) => Err(ex_error::QueryTimeoutSnafu.build()),
+                        Ok(inner_result) => {
+                            QueryResultStatus {
+                                query_result: inner_result,
+                                status: QueryStatus::Successful,
+                            }
+                        },
+                        Err(_) => {
+                            QueryResultStatus {
+                                query_result: Err(ex_error::QueryTimeoutSnafu.build()),
+                                status: QueryStatus::TimedOut,
+                            }
+                        },
                     }
                 },
-                _ = query_cancel_token.cancelled() => {
-                    Err(ex_error::QueryCancelledSnafu { query_id: query_id.to_string() }.build())
+                _ = cancel_token.cancelled() => {              
+                    QueryResultStatus {
+                        query_result: Err(ex_error::QueryCancelledSnafu { query_id: query_id.to_string() }.build()),
+                        status: QueryStatus::Canceled,
+                    }
                 }
             };
 
-            // cleanup: remove from map when done
-            queries_ref.remove(&query_id);
+            let query_status = format!("{:?}", query_result_status.status);
+            let _ = tracing::debug_span!(
+                "ExecutionService::submit_query_result",
+                query_id,
+                query_status,
+            )
+            .entered();
 
             // Record the query in the session’s history, including result count or error message.
             // This ensures all queries are traceable and auditable within a session, which enables
             // features like `last_query_id()` and enhances debugging and observability.
             history_store_ref
-                .save_query_record(&mut history_record, query_result_to_history(&query_result))
+                .save_query_record(
+                    &mut history_record, 
+                    query_result_to_history(&query_result_status.query_result),
+                )
                 .await;
+
+            // save result to the query histore before transfering ownership to the channel
+            let _ = tx.send(query_result_status);
+
+            // cleanup: remove from map when done
+            queries_ref.remove(&query_id);
         });   
 
-        Ok(QueryHandle {
+        Ok(AsyncQueryHandle {
             query_id,
-            query_status: QueryStatus::Running,
+            rx,
         })
     }
 
@@ -511,32 +591,37 @@ impl ExecutionService for CoreExecutionService {
         })?)
     }
 
-    // #[tracing::instrument(
-    //     name = "ExecutionService::query",
-    //     level = "debug",
-    //     skip(self),
-    //     fields(query_id),
-    //     err
-    // )]
-    // #[allow(clippy::large_futures)]
-    // async fn new_query(
-    //     &self,
-    //     session_id: &str,
-    //     query: &str,
-    //     query_context: QueryContext,
-    // ) -> Result<QueryResult> {
+    #[tracing::instrument(
+        name = "ExecutionService::query",
+        level = "debug",
+        skip(self),
+        fields(query_id),
+        err
+    )]
+    #[allow(clippy::large_futures)]
+    async fn new_query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> Result<QueryResult> {
 
-    //     let query_handle = self.submit_query(session_id, query, query_context).await?;
+        let query_handle = self.submit_query(session_id, query, query_context).await?;
 
-    //     let query_record_res = self.history_store.get_query(query_handle.query_id).await
-    //         .context(ex_error::QueryIdNotFoundSnafu {
-    //             query_id: query_handle.query_id.to_string(),
-    //         });
+        // for sync execution need to wait for query to finish
+
+        let query_record_res = self.history_store.get_query(query_handle.query_id)
+            .await
+            .context(ex_error::QueryHistorySnafu);
         
-    //     let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
-    //         query_id: query_handle.query_id.to_string(),
-    //     })?;        
-    // }
+        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
+            query_id: query_handle.query_id.to_string(),
+        })?;
+
+        Ok(query_record.try_into().context(ex_error::QueryExecutionSnafu {
+            query_id: query_handle.query_id.to_string(),
+        })?)
+    }
 
     #[tracing::instrument(
         name = "ExecutionService::upload_data_to_table",

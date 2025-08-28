@@ -12,6 +12,7 @@ pub enum QueryStatus {
     Successful,
     Failed,
     Canceled,
+    TimedOut,
 }
 
 impl Display for QueryStatus {
@@ -21,6 +22,7 @@ impl Display for QueryStatus {
             Self::Successful => write!(f, "Successful"),
             Self::Failed => write!(f, "Failed"),
             Self::Canceled => write!(f, "Canceled"),
+            Self::TimedOut => write!(f, "TimedOut"),
         }
     }
 }
@@ -88,6 +90,11 @@ impl QueryRecord {
     pub fn finished_as_canceled(&mut self) {
         self.finished(0, None);
         self.status = QueryStatus::Canceled;
+    }
+
+    pub fn finished_as_timed_out(&mut self) {
+        self.finished(0, None);
+        self.status = QueryStatus::TimedOut;
     }
 
     // Returns a key with inverted id for descending order
