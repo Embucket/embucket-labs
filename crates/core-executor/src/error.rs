@@ -597,6 +597,14 @@ impl Error {
     pub fn to_snowflake_error(&self) -> SnowflakeError {
         SnowflakeError::from_executor_error(self)
     }
+    #[must_use]
+    pub const fn is_query_cancelled(&self) -> bool {
+        matches!(self, Self::QueryCancelled { .. })
+    }
+    #[must_use]
+    pub const fn is_query_timeout(&self) -> bool {
+        matches!(self, Self::QueryTimeout { .. })
+    }
 }
 
 #[derive(Debug)]

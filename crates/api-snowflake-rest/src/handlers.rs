@@ -57,10 +57,7 @@ pub async fn login(
 
     let session_id = uuid::Uuid::new_v4().to_string();
 
-    let _ = state
-        .execution_svc
-        .create_session(&session_id)
-        .await?;
+    let _ = state.execution_svc.create_session(&session_id).await?;
 
     Ok(Json(LoginResponse {
         data: Option::from(LoginData { token: session_id }),

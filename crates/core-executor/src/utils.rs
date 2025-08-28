@@ -3,8 +3,8 @@ use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Sna
 use arrow_schema::ArrowError;
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
-use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
+use core_history::{QueryResultError, QueryStatus};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::timezone::Tz;
@@ -792,15 +792,26 @@ pub fn query_result_to_history(
             query_result_to_result_set(query_result)
                 // ResultSet creation failed from Ok(QueryResult)
                 .map_err(|err| QueryResultError {
+                    status: QueryStatus::Failed,
                     message: err.to_string(),
                     diagnostic_message: format!("{err:?}"),
                 })
         }
         // Query failed
-        Err(err) => Err(QueryResultError {
-            message: err.to_snowflake_error().to_string(),
-            diagnostic_message: format!("{err:?}"),
-        }),
+        Err(err) => {
+            let status = if err.is_query_cancelled() {
+                QueryStatus::Canceled
+            } else if err.is_query_timeout() {
+                QueryStatus::TimedOut
+            } else {
+                QueryStatus::Failed
+            };
+            Err(QueryResultError {
+                status,
+                message: err.to_snowflake_error().to_string(),
+                diagnostic_message: format!("{err:?}"),
+            })
+        }
     }
 }
 

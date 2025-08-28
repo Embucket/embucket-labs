@@ -82,19 +82,9 @@ impl QueryRecord {
 
     pub fn finished_with_error(&mut self, error: crate::QueryResultError) {
         self.finished(0, None);
-        self.status = QueryStatus::Failed;
+        self.status = error.status;
         self.error = Some(error.message);
         self.diagnostic_error = Some(error.diagnostic_message);
-    }
-
-    pub fn finished_as_canceled(&mut self) {
-        self.finished(0, None);
-        self.status = QueryStatus::Canceled;
-    }
-
-    pub fn finished_as_timed_out(&mut self) {
-        self.finished(0, None);
-        self.status = QueryStatus::TimedOut;
     }
 
     // Returns a key with inverted id for descending order

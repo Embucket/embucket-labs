@@ -1,8 +1,8 @@
+use crate::QueryRecordId;
 use error_stack_trace;
 use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::Snafu;
-use crate::QueryRecordId;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -137,5 +137,5 @@ pub enum Error {
         query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
 }

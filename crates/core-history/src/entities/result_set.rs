@@ -1,5 +1,5 @@
-use crate::errors;
 use crate::QueryRecord;
+use crate::errors;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
@@ -31,10 +31,12 @@ pub struct ResultSet {
 impl TryFrom<QueryRecord> for ResultSet {
     type Error = errors::Error;
     fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {
-        let result_str = value.result.context(errors::NoResultSetSnafu { query_id: value.id })?;
+        let result_str = value
+            .result
+            .context(errors::NoResultSetSnafu { query_id: value.id })?;
 
-        let result_set: Self = serde_json::from_str(&result_str)
-            .context(errors::DeserializeValueSnafu)?;
+        let result_set: Self =
+            serde_json::from_str(&result_str).context(errors::DeserializeValueSnafu)?;
         Ok(result_set)
     }
 }

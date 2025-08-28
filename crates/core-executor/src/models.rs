@@ -1,6 +1,7 @@
 use crate::error;
 use crate::utils::query_result_to_result_set;
 use arrow_schema::SchemaRef;
+use core_history::{QueryRecord, QueryStatus, result_set::ResultSet};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
@@ -9,17 +10,16 @@ use datafusion::arrow::json::reader::ReaderBuilder;
 use datafusion_common::arrow::datatypes::Schema;
 use embucket_functions::to_snowflake_datatype;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::io::Cursor;
-use core_history::{QueryRecord, QueryStatus, result_set::ResultSet};
 use snafu::ResultExt;
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::sync::Arc;
 use tokio::sync::oneshot;
 
 pub struct AsyncQueryHandle {
     pub query_id: i64,
     pub rx: oneshot::Receiver<QueryResultStatus>,
-} 
+}
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct QueryContext {
@@ -61,10 +61,10 @@ impl QueryContext {
     }
 
     #[must_use]
-    pub fn with_async_query(mut self, async_query: bool) -> Self {
+    pub const fn with_async_query(mut self, async_query: bool) -> Self {
         self.async_query = async_query;
         self
-    }    
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,9 +89,7 @@ fn convert_resultset_to_arrow_json_lines(
     let mut lines = String::new();
     for row in &result_set.rows {
         let json_value = serde_json::Value::Array(row.0.clone());
-        lines.push_str(
-            &serde_json::to_string(&json_value)?,
-        );
+        lines.push_str(&serde_json::to_string(&json_value)?);
         lines.push('\n');
     }
     Ok(lines)
@@ -101,15 +99,14 @@ impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {
         let query_id = value.id;
-        let result_set = ResultSet::try_from(value)
-            .context(error::QueryHistorySnafu)?;
+        let result_set = ResultSet::try_from(value).context(error::QueryHistorySnafu)?;
 
-        let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)
-            .context(error::SerdeParseSnafu)?;
+        let arrow_json =
+            convert_resultset_to_arrow_json_lines(&result_set).context(error::SerdeParseSnafu)?;
 
         // Parse schema from serialized JSON
-        let schema_value = serde_json::from_str(&result_set.schema)
-            .context(error::SerdeParseSnafu)?;
+        let schema_value =
+            serde_json::from_str(&result_set.schema).context(error::SerdeParseSnafu)?;
 
         let schema_ref: SchemaRef = schema_value;
         let json_reader = ReaderBuilder::new(schema_ref.clone())
