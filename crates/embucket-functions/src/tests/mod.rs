@@ -1,6 +1,7 @@
 mod aggregate;
 mod conditional;
 mod conversion;
+mod crypto;
 mod datetime;
 mod encryption;
 mod numeric;
