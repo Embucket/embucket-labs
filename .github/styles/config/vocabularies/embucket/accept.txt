@@ -7,7 +7,7 @@ dbt
 minio
 mc
 REST
-lakehouse
+[Ll]akehouses?
 failover
 SDK
 ACID
@@ -31,3 +31,4 @@ ARN
 IAM
 NYC
 UTC
+DBAs?
