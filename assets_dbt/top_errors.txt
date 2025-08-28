@@ -1,42 +1,42 @@
 # DBT Run Summary
-PASS: 1474
+PASS: 1491
 WARN: 0
-ERROR: 110
-SKIP: 112
-TOTAL: 1696
+ERROR: 88
+SKIP: 83
+TOTAL: 1662
 
 
 # Errors grouped by high-level categories
-    110 Other error
+     88 Other error
 
 # Errors grouped by type (comprehensive analysis)
-    110 Other error
+     88 Other error
 
 # Total top 10 errors (full messages)
       8 010001 (02000): SQL compilation error: unsupported feature: Physical plan does not support logical expression InSubquery(InSubquery { expr: Column(Column { relation: Some(Bare { table: "distinct_source" }), name: "max_task_instance" }), subquery: <subquery>, negated: false })
-      5 010001 (02000): type_coercion
-      3 010001 (02000): This feature is not implemented: ANY in LIKE expression
+      6 010001 (02000): type_coercion
+      4 010001 (02000): External error: Failed to deserialize JSON: EOF while parsing a value at line 1 column 0
       3 010001 (02000): SQL error: ParserError("Expected: [EXTERNAL] TABLE or [MATERIALIZED] VIEW or FUNCTION after CREATE OR REPLACE, found: secure at Line: 2, Column: 19")
       3 010001 (02000): SQL compilation error: column 'metric_value' not found
       3 010001 (02000): SQL compilation error: column 'DEFAULT' not found
-      3 010001 (02000): External error: No table found for reference in expression
-      3 010001 (02000): External error: Failed to deserialize JSON: EOF while parsing a value at line 1 column 0
       3 010001 (02000): Arrow error: Cast error: Overflow converting 9999-12-31 00:00:00 to Nanosecond. The dates that can be represented as nanoseconds have to be between 1677-09-21T00:12:44.0 and 2262-04-11T23:47:16.854775804
-      2 010001 (02000): Schema error: No field named "DBT_VALID_FROM". Valid fields are snapshots.id, snapshots.name, snapshots.path, snapshots.owner_id, snapshots.created_at, snapshots.updated_at, snapshots.type, snapshots.avatar, snapshots.membership_lock, snapshots.share_with_group_lock, snapshots.visibility_level, snapshots.request_access_enabled, snapshots.ldap_sync_status, snapshots.ldap_sync_error, snapshots.ldap_sync_last_update_at, snapshots.ldap_sync_last_successful_update_at, snapshots.ldap_sync_last_sync_at, snapshots.lfs_enabled, snapshots.parent_id, snapshots.shared_runners_minutes_limit, snapshots.repository_size_limit, snapshots.require_two_factor_authentication, snapshots.two_factor_grace_period, snapshots.plan_id, snapshots.project_creation_level, snapshots.auto_devops_enabled, snapshots._uploaded_at, snapshots.namespaces_rank_in_key, snapshots.dbt_scd_id, snapshots.dbt_updated_at, snapshots.dbt_valid_from, snapshots.dbt_valid_to, snapshots.extra_shared_runners_minutes_limit, snapshots.push_rule_id, snapshots.shared_runners_enabled, snapshots.custom_project_templates_group_id, snapshots.traversal_ids, snapshots.pgp_is_deleted, snapshots.pgp_is_deleted_updated_at.
+      2 010001 (02000): Feature Complex types as bytes is not supported.
+      2 010001 (02000): External error: No table found for reference in expression
+      2 010001 (02000): External error: Feature Arrow datatype Null is not supported. is not supported.
 
 # Total top 10 errors (truncated to 50 chars)
-     14 010001 (02000): SQL error: ParserError("Expected: 
-     14 010001 (02000): SQL compilation error: unsupported
-     11 010001 (02000): Schema error: No field named "DBT_
-      7 010001 (02000): Error during planning: Internal er
-      5 010001 (02000): type_coercion
-      3 010001 (02000): This feature is not implemented: A
+     10 010001 (02000): SQL compilation error: unsupported
+      8 010001 (02000): Error during planning: Internal er
+      6 010001 (02000): type_coercion
+      4 010001 (02000): SQL compilation error: error line 
+      4 010001 (02000): External error: Failed to deserial
       3 010001 (02000): Schema error: No field named day. 
+      3 010001 (02000): SQL error: ParserError("Expected: 
       3 010001 (02000): SQL compilation error: table 'embu
       3 010001 (02000): SQL compilation error: column 'met
       3 010001 (02000): SQL compilation error: column 'DEF
 
 # Error categorization summary
-DBT total errors: 110
-Total error lines analyzed: 110
-Coverage: 110 out of 110 error lines captured
+DBT total errors: 88
+Total error lines analyzed: 88
+Coverage: 88 out of 88 error lines captured
