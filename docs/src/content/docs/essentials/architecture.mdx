@@ -5,13 +5,13 @@ description: Comprehensive overview of Embucket's zero-disk lakehouse architectu
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Embucket delivers a Snowflake-compatible lakehouse through a zero-disk architecture where all persistent state resides in object storage. This document explains how Embucket's components work together to provide a complete analytics platform in a single binary.
+Embucket delivers a Snowflake-compatible lakehouse through a zero-disk architecture—an architectural approach where all persistent state resides in object storage rather than on local compute nodes. This document explains how Embucket's components work together to provide a complete analytics platform in a single binary.
 
 You'll learn about the system's architecture, core components, data flow, and operational characteristics. This overview targets data engineers, platform architects, and anyone deploying Embucket in production.
 
 ## System overview
 
-Embucket implements a zero-disk lakehouse architecture where nodes maintain no persistent state. Object storage serves as the single source of truth for both data and metadata. This design eliminates operational complexity while delivering horizontal scalability and fault tolerance.
+Embucket implements a zero-disk lakehouse architecture—a system design where compute nodes maintain no persistent state. Object storage serves as the single source of truth for both data and metadata. This design eliminates operational complexity while delivering horizontal scalability and fault tolerance.
 
 ![System Overview](architecture.png)
 
@@ -65,7 +65,7 @@ SlateDB eliminates the need for external database dependencies while maintaining
 
 ### API compatibility
 
-Embucket implements Snowflake's SQL grammar and REST API:
+Embucket implements Snowflake's SQL dialect and REST API:
 
 - **SQL compatibility**: Snowflake-flavored SQL with existing queries
 - **REST API**: v1 Snowflake REST API for driver compatibility
