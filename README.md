@@ -60,10 +60,10 @@ Built on proven open source:
 
 **Ready for more?** Check out the comprehensive documentation:
 
-**[Quick Start Guide](docs/src/content/docs/essentials/quick-start.mdx)** - Detailed setup and first queries  
-**[Architecture Guide](docs/src/content/docs/essentials/architecture.mdx)** - How the zero-disk lakehouse works  
-**[Configuration](docs/src/content/docs/essentials/configuration.mdx)** - Production deployment options  
-**[dbt Integration](docs/src/content/docs/guides/dbt-snowplow.mdx)** - Run existing dbt projects  
+[Quick start](https://docs.embucket.com/essentials/quick-start/) - Detailed setup and first queries  
+[Architecture](https://docs.embucket.com/essentials/architecture/) - How the zero-disk lakehouse works  
+[Configuration](https://docs.embucket.com/essentials/configuration/) - Production deployment options  
+[dbt Integration](https://docs.embucket.com/guides/dbt-snowplow/) - Run existing dbt projects  
 
 **From source:**
 ```bash
