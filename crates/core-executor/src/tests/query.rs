@@ -615,6 +615,11 @@ test_query!(
     setup_queries = ["ALTER SESSION SET timestamp_input_mapping = 'timestamp_tz'"]
 );
 
+test_query!(
+    timestamp_with_timezone_to_timestamp,
+    "SELECT TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', '2024-12-31 10:00:00.000'::TIMESTAMP)) as model_tstamp;"
+);
+
 // Basic date part extraction tests
 test_query!(
     date_part_extract_basic,

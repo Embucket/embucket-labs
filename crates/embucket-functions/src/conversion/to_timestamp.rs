@@ -205,6 +205,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
             }
         }
 
+        // If the first argument is already a timestamp type, return it as is (with its timezone).
+        if matches!(
+            args.arg_types[0],
+            DataType::Timestamp(TimeUnit::Microsecond, _)
+                | DataType::Timestamp(TimeUnit::Nanosecond, Some(_))
+        ) {
+            return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
+        }
+
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
             TimeUnit::Nanosecond,
             self.timezone(),
@@ -299,6 +308,14 @@ impl ScalarUDFImpl for ToTimestampFunc {
             };
             Ok(ColumnarValue::Array(Arc::new(arr)))
         } else if matches!(arr.data_type(), DataType::Timestamp(_, _)) {
+            if matches!(
+                arr.data_type(),
+                DataType::Timestamp(TimeUnit::Microsecond, _)
+                    | DataType::Timestamp(TimeUnit::Nanosecond, Some(_))
+            ) {
+                return Ok(ColumnarValue::Array(Arc::new(arr)));
+            }
+
             let DataType::Timestamp(_, tz) = arr.data_type() else {
                 InvalidDataTypeSnafu.fail()?
             };
