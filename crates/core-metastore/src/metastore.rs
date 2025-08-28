@@ -556,11 +556,11 @@ impl Metastore for SlateDBMetastore {
                     .build()
                 })?;
 
+                let schema = url_encode(&ident.schema);
+                let table = url_encode(&ident.table);
+
                 let prefix = volume.prefix();
-                format!(
-                    "{prefix}/{}/{}/{}",
-                    ident.database, ident.schema, ident.table
-                )
+                format!("{prefix}/{}/{}/{}", ident.database, schema, table)
             };
 
             let metadata_part = format!("metadata/{}", Self::generate_metadata_filename());
@@ -919,6 +919,10 @@ fn convert_add_schema_update_to_lowercase(updates: &mut Vec<IcebergTableUpdate>)
         }
     }
     Ok(())
+}
+
+fn url_encode(input: &str) -> String {
+    url::form_urlencoded::byte_serialize(input.as_bytes()).collect()
 }
 
 #[cfg(test)]
