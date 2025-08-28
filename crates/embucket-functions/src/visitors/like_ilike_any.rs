@@ -14,39 +14,55 @@ impl LikeILikeAny {
         case_sensitive: bool,
     ) -> Expr {
         if let Expr::Tuple(patterns) = &*pattern {
-            let mut new_expr = if case_sensitive {
-                Expr::ILike {
+            if case_sensitive {
+                let mut new_expr = Expr::ILike {
                     negated,
                     any: false,
                     expr: inner_expr.clone(),
                     pattern: Box::new(patterns[patterns.len() - 1].clone()),
                     escape_char: escape_char.clone(),
-                }
-            } else {
-                Expr::Like {
-                    negated,
-                    any: false,
-                    expr: inner_expr.clone(),
-                    pattern: Box::new(patterns[patterns.len() - 1].clone()),
-                    escape_char: escape_char.clone(),
-                }
-            };
-            //For even number of patterns in `any` its: patterns / 2 = binary expr of like or
-            //For ood number of patterns in `any` its: (patterns / 2) + 1 = binary expr of like or
-            patterns.iter().rev().skip(1).for_each(|pattern| {
-                new_expr = Expr::BinaryOp {
-                    left: Box::new(Expr::Like {
-                        negated,
-                        any: false,
-                        expr: inner_expr.clone(),
-                        pattern: Box::new(pattern.clone()),
-                        escape_char: escape_char.clone(),
-                    }),
-                    op: BinaryOperator::Or,
-                    right: Box::new(new_expr.clone()),
                 };
-            });
-            new_expr
+                //For even number of patterns in `any` its: patterns / 2 = binary expr of like or
+                //For ood number of patterns in `any` its: (patterns / 2) + 1 = binary expr of like or
+                patterns.iter().rev().skip(1).for_each(|pattern| {
+                    new_expr = Expr::BinaryOp {
+                        left: Box::new(Expr::ILike {
+                            negated,
+                            any: false,
+                            expr: inner_expr.clone(),
+                            pattern: Box::new(pattern.clone()),
+                            escape_char: escape_char.clone(),
+                        }),
+                        op: BinaryOperator::Or,
+                        right: Box::new(new_expr.clone()),
+                    };
+                });
+                new_expr
+            } else {
+                let mut new_expr = Expr::Like {
+                    negated,
+                    any: false,
+                    expr: inner_expr.clone(),
+                    pattern: Box::new(patterns[patterns.len() - 1].clone()),
+                    escape_char: escape_char.clone(),
+                };
+                //For even number of patterns in `any` its: patterns / 2 = binary expr of like or
+                //For ood number of patterns in `any` its: (patterns / 2) + 1 = binary expr of like or
+                patterns.iter().rev().skip(1).for_each(|pattern| {
+                    new_expr = Expr::BinaryOp {
+                        left: Box::new(Expr::Like {
+                            negated,
+                            any: false,
+                            expr: inner_expr.clone(),
+                            pattern: Box::new(pattern.clone()),
+                            escape_char: escape_char.clone(),
+                        }),
+                        op: BinaryOperator::Or,
+                        right: Box::new(new_expr.clone()),
+                    };
+                });
+                new_expr
+            }
         } else if let Expr::Nested(pattern) = &*pattern {
             if case_sensitive {
                 Expr::ILike {

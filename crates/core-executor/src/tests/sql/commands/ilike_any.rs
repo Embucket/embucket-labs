@@ -1,6 +1,19 @@
 use crate::test_query;
 
 test_query!(
+    ilike_any_basic,
+    "SELECT * FROM VALUES
+        ('jane doe'),
+        ('Jane Doe'),
+        ('JANE DOE'),
+        ('John Doe'),
+        ('John Smith')
+     WHERE column1 ILIKE ANY ('jane%', '%SMITH')
+     ORDER BY column1",
+    snapshot_path = "ilike_any"
+);
+
+test_query!(
     ilike_any_even,
     "SELECT * FROM VALUES
                 ('John  Dddoe'),
