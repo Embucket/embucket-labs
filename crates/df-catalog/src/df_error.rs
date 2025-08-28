@@ -48,6 +48,17 @@ pub enum DFExternalError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Cannot resolve view reference '{reference}'"))]
+    CannotResolveViewReference {
+        reference: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to downcast Session to SessionState"))]
+    SessionDowncast {
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl From<DFExternalError> for datafusion_common::DataFusionError {
