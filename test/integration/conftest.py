@@ -5,7 +5,6 @@ from typing import Dict, Any, Callable, List, Optional, Tuple
 
 import pytest
 from dotenv import load_dotenv
-
 load_dotenv()
 
 
@@ -156,7 +155,7 @@ def embucket_bootstrap(embucket_exec):
 def spark() -> Any:
     """Create a SparkSession configured for Iceberg REST via Embucket and S3A (MinIO).
 
-    Skips if pyspark is not available or required env vars  are missing.
+    Skips if pyspark is not available or required env vars are missing.
     """
     # Provide sane defaults for local dev
     rest_uri = _get("EMBUCKET_ICEBERG_REST_URI", "http://localhost:3000/catalog")
@@ -296,12 +295,12 @@ def _load_dataset_fixture(
 
 
 def compare_result_sets(
-    a: List[Tuple[Any, ...]],
-    b: List[Tuple[Any, ...]],
-    rel_tol: float = 1e-6,
-    abs_tol: float = 1e-9,
-    metrics_recorder=None,
-    query_id=None,
+        a: List[Tuple[Any, ...]],
+        b: List[Tuple[Any, ...]],
+        rel_tol: float = 1e-6,
+        abs_tol: float = 1e-9,
+        metrics_recorder=None,
+        query_id=None,
 ) -> Tuple[bool, str]:
     """Compare two result sets with type tolerance and order-insensitive.
 
@@ -315,7 +314,7 @@ def compare_result_sets(
         mismatch_info = {
             "type": "row_count_mismatch",
             "spark_rows": len(a),
-            "embucket_rows": len(b),
+            "embucket_rows": len(b)
         }
         if metrics_recorder and query_id:
             metrics_recorder.add_mismatch(query_id, mismatch_info)
@@ -334,7 +333,7 @@ def compare_result_sets(
                 "type": "row_structure_mismatch",
                 "row_index": i,
                 "spark_columns": len(ra),
-                "embucket_columns": len(rb),
+                "embucket_columns": len(rb)
             }
             mismatches.append(mismatch_info)
             if len(mismatches) >= 10:  # Limit number of mismatches collected
@@ -352,7 +351,7 @@ def compare_result_sets(
                 row_mismatches[j] = {
                     "spark_value": va,
                     "embucket_value": vb,
-                    "type": "numeric_mismatch",
+                    "type": "numeric_mismatch"
                 }
                 continue
 
@@ -364,26 +363,25 @@ def compare_result_sets(
                 row_mismatches[j] = {
                     "spark_value": va,
                     "embucket_value": vb,
-                    "type": "value_mismatch",
+                    "type": "value_mismatch"
                 }
 
         if row_mismatches:
-            mismatches.append(
-                {"type": "data_mismatch", "row_index": i, "columns": row_mismatches}
-            )
+            mismatches.append({
+                "type": "data_mismatch",
+                "row_index": i,
+                "columns": row_mismatches
+            })
 
             if len(mismatches) >= 10:  # Limit number of mismatches collected
                 break
 
     if mismatches:
         if metrics_recorder and query_id:
-            metrics_recorder.add_mismatch(
-                query_id,
-                {
-                    "total_mismatches": len(mismatches),
-                    "details": mismatches[:10],  # Limit to first 10 for reasonable size
-                },
-            )
+            metrics_recorder.add_mismatch(query_id, {
+                "total_mismatches": len(mismatches),
+                "details": mismatches[:10]  # Limit to first 10 for reasonable size
+            })
 
         # Format first mismatch for error message
         first = mismatches[0]
@@ -652,30 +650,12 @@ def tpcds_full(request, test_run_id):
     """
     engine_type = request.param
     tables = [
-        "call_center",
-        "catalog_page",
-        "catalog_returns",
-        "catalog_sales",
-        "customer",
-        "customer_address",
-        "customer_demographics",
-        "date_dim",
-        "household_demographics",
-        "income_band",
-        "inventory",
-        "item",
-        "promotion",
-        "reason",
-        "ship_mode",
-        "store",
-        "store_returns",
-        "store_sales",
-        "time_dim",
-        "warehouse",
-        "web_page",
-        "web_returns",
-        "web_sales",
-        "web_site",
+        "call_center", "catalog_page", "catalog_returns", "catalog_sales",
+        "customer", "customer_address", "customer_demographics", "date_dim",
+        "household_demographics", "income_band", "inventory", "item",
+        "promotion", "reason", "ship_mode", "store", "store_returns",
+        "store_sales", "time_dim", "warehouse", "web_page", "web_returns",
+        "web_sales", "web_site"
     ]
 
     if engine_type not in ["spark", "embucket"]:
@@ -721,17 +701,10 @@ import csv, os, socket, platform, json, time
 
 class MetricsRecorder:
     FIELDS = [
-        "test_run_id",
-        "dataset",
-        "query_id",
-        "rows_spark",
-        "rows_embucket",
-        "time_spark_ms",
-        "time_embucket_ms",
-        "speedup_vs_spark",
-        "passed",
-        "nodeid",
-        "created_at",
+        "test_run_id", "dataset",
+        "query_id", "rows_spark", "rows_embucket",
+        "time_spark_ms", "time_embucket_ms", "speedup_vs_spark",
+        "passed", "nodeid", "created_at"
     ]
 
     def __init__(self, outfile: Path, test_run_id: str):
@@ -765,14 +738,11 @@ class MetricsRecorder:
 
         # Write mismatches JSON if there are any
         if self.mismatches:
-            mismatch_file = self.outfile.with_name(
-                f"mismatches_{self.test_run_id}.json"
-            )
+            mismatch_file = self.outfile.with_name(f"mismatches_{self.test_run_id}.json")
             with mismatch_file.open("w") as f:
                 json.dump(self.mismatches, f, indent=2, default=str)
 
         self.rows.clear()
-
 
 @pytest.fixture(scope="session")
 def metrics_recorder(test_run_id) -> MetricsRecorder:
