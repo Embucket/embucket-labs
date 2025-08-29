@@ -9,7 +9,19 @@ test_query!(
     union_with_timestamp_microseconds,
     "SELECT '2024-12-31 10:00:00.000'::TIMESTAMP as t
         UNION ALL
-    SELECT '9999-12-31 00:00:00.000 +0000' AS t",
-    sort_all = true,
+    SELECT '9999-12-31 00:00:00.000 +0000' AS t
+    ORDER BY 1",
+    snapshot_path = "union_schema_analyzer"
+);
+
+test_query!(
+    union_with_timestamp_microseconds_cte,
+    "WITH res AS (
+        SELECT '2024-12-31 10:00:00.000'::TIMESTAMP as t
+        UNION ALL
+        SELECT '9999-12-31 00:00:00.000 +0000'
+    )
+    SELECT t FROM res
+    ORDER BY t",
     snapshot_path = "union_schema_analyzer"
 );

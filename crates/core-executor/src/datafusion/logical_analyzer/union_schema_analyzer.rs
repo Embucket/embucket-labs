@@ -55,13 +55,21 @@ impl AnalyzerRule for UnionSchemaAnalyzer {
 }
 
 fn analyze_internal(plan: &LogicalPlan) -> DFResult<LogicalPlan> {
-    Ok(plan
-        .clone()
-        .transform_down(|node| match node {
-            LogicalPlan::Union(union) => Ok(Transformed::yes(rewrite_union(&union)?)),
-            _ => Ok(Transformed::no(node.clone())),
-        })?
-        .data)
+    let mut new_plan = plan.clone().transform_down(|node| match node {
+        LogicalPlan::Union(union) => Ok(Transformed::yes(rewrite_union(&union)?)),
+        _ => Ok(Transformed::no(node.clone())),
+    })?;
+
+    // Recompute schemas for Projection and SubqueryAlias nodes above the rewritten Union
+    if new_plan.transformed {
+        new_plan = new_plan.data.transform_up(|node| match node {
+            LogicalPlan::Projection(_) | LogicalPlan::SubqueryAlias(_) => {
+                Ok(Transformed::yes(node.recompute_schema()?))
+            }
+            _ => Ok(Transformed::no(node)),
+        })?;
+    }
+    Ok(new_plan.data)
 }
 
 fn rewrite_union(union: &Union) -> datafusion_common::Result<LogicalPlan> {
