@@ -84,6 +84,8 @@ tower-http = { version = "0.6.1", features = [
   "sensitive-headers",
   "cors",
   "trace",
+  "compression-full",
+  "decompression-full"
 ] }
 tower-sessions = { version = "0.14.0" }
 tracing = { version = "0.1", features = ["attributes"] }

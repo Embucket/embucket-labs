@@ -1,12 +1,10 @@
 use crate::error::{self as api_snowflake_rest_error, Error, Result};
-use crate::schemas::{
-    JsonResponse, LoginData, LoginRequestBody, LoginRequestQuery, LoginResponse, QueryRequest,
-    QueryRequestBody, ResponseData,
+use crate::models::{
+    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData
 };
 use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::Json;
-use axum::body::Bytes;
 use axum::extract::{ConnectInfo, Query, State};
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
@@ -18,9 +16,7 @@ use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
-use flate2::read::GzDecoder;
 use snafu::ResultExt;
-use std::io::Read;
 use std::net::SocketAddr;
 use tracing::debug;
 
@@ -32,25 +28,14 @@ use tracing::debug;
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
 
-#[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state, body), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
     State(state): State<AppState>,
-    Query(query): Query<LoginRequestQuery>,
-    body: Bytes,
+    Query(_query_params): Query<LoginRequestQueryParams>,
+    Json(LoginRequestBody { data: LoginRequestData { login_name, password, .. } }): Json<LoginRequestBody>,
 ) -> Result<Json<LoginResponse>> {
-    // Decompress the gzip-encoded body
-    // TODO: Investigate replacing this with a middleware
-    let mut d = GzDecoder::new(&body[..]);
-    let mut s = String::new();
-    d.read_to_string(&mut s)
-        .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
-
-    // Deserialize the JSON body
-    let body_json: LoginRequestBody =
-        serde_json::from_str(&s).context(api_snowflake_rest_error::LoginRequestParseSnafu)?;
-
-    if body_json.data.login_name != *state.config.auth.demo_user
-        || body_json.data.password != *state.config.auth.demo_password
+    if login_name != *state.config.auth.demo_user
+        || password != *state.config.auth.demo_password
     {
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
@@ -60,7 +45,7 @@ pub async fn login(
     let _ = state.execution_svc.create_session(&session_id).await?;
 
     Ok(Json(LoginResponse {
-        data: Option::from(LoginData { token: session_id }),
+        data: Option::from(LoginResponseData { token: session_id }),
         success: true,
         message: Option::from("successfully executed".to_string()),
     }))
@@ -103,30 +88,35 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
-#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state, body), fields(query_id), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
-    body: Bytes,
+    Json(QueryRequestBody { sql_text, async_exec }): Json<QueryRequestBody>,
 ) -> Result<Json<JsonResponse>> {
-    // Decompress the gzip-encoded body
-    let mut d = GzDecoder::new(&body[..]);
-    let mut s = String::new();
-    d.read_to_string(&mut s)
-        .context(api_snowflake_rest_error::GZipDecompressSnafu)?;
-
-    // Deserialize the JSON body
-    let body_json: QueryRequestBody =
-        serde_json::from_str(&s).context(api_snowflake_rest_error::QueryBodyParseSnafu)?;
-
     let serialization_format = state.config.dbt_serialization_format;
+    let query_context = QueryContext::default().with_ip_address(addr.ip().to_string());
+
+    if async_exec {
+        let query_handle = state.execution_svc.submit_query(&session_id, &sql_text, query_context).await?;
+        return Ok(Json(JsonResponse {
+            data: Option::from(ResponseData {
+                query_id: Some(query_handle.query_id.to_string()),
+                ..Default::default()
+            }),
+            success: true,
+            message: Option::from("successfully executed".to_string()),
+            code: Some(format!("{:06}", 200)),
+        }));
+    }
+
     let query_result = state
         .execution_svc
         .query(
             &session_id,
-            &body_json.sql_text,
+            &sql_text,
             QueryContext::default().with_ip_address(addr.ip().to_string()),
         )
         .await?;
@@ -170,7 +160,7 @@ pub async fn query(
     });
     debug!(
         "query {:?}, response: {:?}, records: {:?}",
-        body_json.sql_text, json_resp, records
+        sql_text, json_resp, records
     );
     Ok(json_resp)
 }
@@ -182,8 +172,8 @@ pub async fn abort() -> Result<Json<serde_json::value::Value>> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_lines)]
 mod tests {
-    use crate::schemas::{
-        ClientData, ClientEnvironment, JsonResponse, LoginRequestBody, LoginResponse,
+    use crate::models::{
+        ClientEnvironment, JsonResponse, LoginRequestData, LoginRequestBody, LoginResponse,
         QueryRequestBody,
     };
     use crate::test_server::run_test_server_with_demo_auth;
@@ -207,6 +197,7 @@ mod tests {
 
         let query_request = QueryRequestBody {
             sql_text: "SELECT 1;".to_string(),
+            async_exec: false,
         };
 
         let query_compressed_bytes = make_bytes_body(&query_request);
@@ -228,7 +219,7 @@ mod tests {
         assert_eq!(http::StatusCode::UNAUTHORIZED, res.status());
 
         let login_request = LoginRequestBody {
-            data: ClientData {
+            data: LoginRequestData {
                 client_app_id: String::new(),
                 client_app_version: String::new(),
                 svn_revision: None,

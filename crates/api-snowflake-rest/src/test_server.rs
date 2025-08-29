@@ -1,7 +1,7 @@
 use crate::auth::create_router as create_auth_router;
 use crate::layer::require_auth;
 use crate::router::create_router;
-use crate::schemas::Config;
+use crate::models::Config;
 use crate::state;
 use axum::Router;
 use axum::middleware;
@@ -12,6 +12,9 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower::ServiceBuilder;
+use tower_http::compression::CompressionLayer;
+use tower_http::decompression::RequestDecompressionLayer;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn run_test_server_with_demo_auth(
@@ -65,14 +68,21 @@ pub async fn make_app(
         config: snowflake_rest_cfg,
     };
 
+    let compression_layer = ServiceBuilder::new()
+        .layer(CompressionLayer::new())
+        .layer(RequestDecompressionLayer::new());
+
     let snowflake_router =
         create_router()
             .with_state(snowflake_state.clone())
+            .layer(compression_layer.clone())
             .layer(middleware::from_fn_with_state(
                 snowflake_state.clone(),
                 require_auth,
             ));
-    let snowflake_auth_router = create_auth_router().with_state(snowflake_state);
+    let snowflake_auth_router = create_auth_router()
+        .with_state(snowflake_state.clone())
+        .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
 
     let router = Router::new().merge(snowflake_router);

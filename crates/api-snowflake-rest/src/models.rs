@@ -7,35 +7,34 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LoginRequestQuery {
+#[serde(rename_all = "camelCase")]
+pub struct LoginRequestQueryParams {
     #[serde(rename = "request_id")]
     pub request_id: String,
-    #[serde(rename = "databaseName")]
     pub database_name: Option<String>,
-    #[serde(rename = "schemaName")]
     pub schema_name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginRequestBody {
-    pub data: ClientData,
+    pub data: LoginRequestData,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoginResponse {
-    pub data: Option<LoginData>,
+    pub data: Option<LoginResponseData>,
     pub success: bool,
     pub message: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LoginData {
+pub struct LoginResponseData {
     pub token: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub struct ClientData {
+pub struct LoginRequestData {
     pub client_app_id: String,
     pub client_app_version: String,
     pub svn_revision: Option<String>,
@@ -63,18 +62,19 @@ pub struct ClientEnvironment {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
-    #[serde(rename = "requestId")]
     pub request_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryRequestBody {
-    #[serde(rename = "sqlText")]
     pub sql_text: String,
+    pub async_exec: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseData {
     #[serde(rename = "rowtype")]
@@ -177,3 +177,4 @@ impl Config {
         self
     }
 }
+

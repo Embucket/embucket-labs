@@ -1,4 +1,4 @@
-use crate::schemas::Config;
+use crate::models::Config;
 use core_executor::ExecutionAppState;
 use core_executor::service::ExecutionService;
 use std::sync::Arc;

@@ -26,7 +26,9 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 strum = { workspace = true }
 tokio = { workspace = true }
+tower = { workspace = true }
 tower-sessions = { workspace = true }
+tower-http = { workspace = true }
 
 [dev-dependencies]
 reqwest = "0.12.14"

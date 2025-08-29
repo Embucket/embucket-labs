@@ -1,5 +1,5 @@
-use crate::schemas::JsonResponse;
-use crate::schemas::ResponseData;
+use crate::models::JsonResponse;
+use crate::models::ResponseData;
 use axum::{Json, http, response::IntoResponse};
 use core_executor::status_code::StatusCode;
 use datafusion::arrow::error::ArrowError;
