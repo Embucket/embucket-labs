@@ -136,64 +136,12 @@ jobs:
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_2025-01.parquet
           curl -O https://d37ci6vzurychx.cloudfront.net/trip-data/fhv_tripdata_2025-01.parquet
           curl -o hits.parquet https://storage.googleapis.com/glaredb-bench/data/clickbench/partitioned/hits_35.parquet
-          curl -O https://blobs.duckdb.org/data/tpch-sf1.db
       
-          # Verify downloaded files exist
-          echo "Verifying downloaded files..."
-          for file in yellow_tripdata_2025-01.parquet green_tripdata_2025-01.parquet fhv_tripdata_2025-01.parquet tpch-sf1.db hits.parquet; do
-            if [ ! -f "$file" ]; then
-              echo "ERROR: Failed to download $file"
-              exit 1
-            else
-              echo "✓ $file exists ($(du -h "$file" | cut -f1))"
-            fi
-          done
-      
-          # Create the target directory for ClickBench data
-          mkdir -p tpch_data
-          mkdir -p tpcds_data
-      
-          # Export TPC-H tables to the new directory
-          echo "Generating TPC-H data..."
-          duckdb tpch-sf1.db -c "
-            COPY customer  TO 'tpch_data/customer.parquet'  (FORMAT 'PARQUET');
-            COPY lineitem  TO 'tpch_data/lineitem.parquet'  (FORMAT 'PARQUET');
-            COPY nation    TO 'tpch_data/nation.parquet'    (FORMAT 'PARQUET');
-            COPY orders    TO 'tpch_data/orders.parquet'    (FORMAT 'PARQUET');
-            COPY part      TO 'tpch_data/part.parquet'      (FORMAT 'PARQUET');
-            COPY partsupp  TO 'tpch_data/partsupp.parquet'  (FORMAT 'PARQUET');
-            COPY region    TO 'tpch_data/region.parquet'    (FORMAT 'PARQUET');
-            COPY supplier  TO 'tpch_data/supplier.parquet'  (FORMAT 'PARQUET');
-          "
-      
-          # Verify TPC-H data generation
-          echo "Verifying TPC-H data files..."
-          tpch_files=(customer.parquet lineitem.parquet nation.parquet orders.parquet part.parquet partsupp.parquet region.parquet supplier.parquet)
-          for file in "${tpch_files[@]}"; do
-            if [ ! -f "tpch_data/$file" ]; then
-              echo "ERROR: Failed to generate tpch_data/$file"
-              exit 1
-            else
-              echo "✓ tpch_data/$file exists ($(du -h "tpch_data/$file" | cut -f1))"
-            fi
-          done
-      
-          # Generate and export TPC-DS tables
-          echo "Generating TPC-DS data..."
-          duckdb -c "CALL dsdgen(sf=1); EXPORT DATABASE 'tpcds_data' (FORMAT PARQUET);"
-      
-          # Verify TPC-DS data directories
-          if [ ! "$(ls -A tpcds_data)" ]; then
-            echo "ERROR: Failed to generate TPC-DS data files"
-            exit 1
-          else
-            echo "✓ TPC-DS data generated ($(du -sh tpcds_data | cut -f1))"
-            echo "Files: $(ls tpcds_data | wc -l)"
-          fi
-      
-          echo "All datasets successfully prepared."
-          echo "Working directory contents:"
-          ls -la
+          mkdir -p tpch_data tpcds_data
+          duckdb -c "CALL dbgen(sf=0.1); export database 'tpch_data' (format parquet);" 
+          duckdb -c "CALL dsdgen(sf=0.1); export database 'tpcds_data' (format parquet);"
+
+          tree
 
       - name: Run integration tests
         working-directory: ./test/integration
