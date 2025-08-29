@@ -621,3 +621,62 @@ def clickbench_hits(request, test_run_id):
 
     engine = request.getfixturevalue(f"{engine_type}_engine")
     return _load_dataset_fixture("clickbench_hits", engine, test_run_id, engine_type)
+
+
+# ---- Simple perf metrics plumbing ------------------------------------------
+from pathlib import Path
+from datetime import datetime
+import csv, os, socket, platform, json, time
+
+class MetricsRecorder:
+    FIELDS = [
+        "test_run_id", "commit_sha", "dataset", "tables",
+        "query_id", "rows_spark", "rows_embucket",
+        "time_spark_ms", "time_embucket_ms", "speedup_vs_spark",
+        "passed", "nodeid", "created_at"
+    ]
+    def __init__(self, outfile: Path, test_run_id: str):
+        self.outfile = Path(outfile)
+        self.test_run_id = test_run_id
+        self.rows = []
+        self.outfile.parent.mkdir(parents=True, exist_ok=True)
+
+    def add(self, **kw):
+        row = {k: kw.get(k) for k in self.FIELDS}
+        row["test_run_id"] = self.test_run_id
+        row["commit_sha"] = os.getenv("GITHUB_SHA", "")
+        row["created_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        self.rows.append(row)
+
+    def flush(self):
+        write_header = not self.outfile.exists()
+        with self.outfile.open("a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=self.FIELDS)
+            if write_header:
+                w.writeheader()
+            for r in self.rows:
+                w.writerow(r)
+        self.rows.clear()
+
+@pytest.fixture(scope="session")
+def metrics_recorder(test_run_id) -> MetricsRecorder:
+    # You can override paths via env if you like
+    artifacts_dir = Path(os.getenv("INTEGRATION_ARTIFACTS_DIR", "artifacts"))
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    rec = MetricsRecorder(artifacts_dir / f"metrics_{test_run_id}.csv", test_run_id)
+    yield rec
+    rec.flush()
+
+# Optional: write a small run metadata file once per session (handy for dashboards)
+# @pytest.fixture(scope="session", autouse=True)
+# def _write_run_meta(test_run_id):
+#     meta = {
+#         "test_run_id": test_run_id,
+#         "commit_sha": os.getenv("GITHUB_SHA", ""),
+#         "runner_os": os.getenv("RUNNER_OS", platform.system()),
+#         "hostname": socket.gethostname(),
+#         "created_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+#     }
+#     out = Path(os.getenv("INTEGRATION_ARTIFACTS_DIR", "artifacts")) / f"run_meta_{test_run_id}.json"
+#     out.parent.mkdir(parents=True, exist_ok=True)
+#     out.write_text(json.dumps(meta, indent=2))
