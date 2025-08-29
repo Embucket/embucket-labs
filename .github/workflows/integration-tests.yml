@@ -4,18 +4,9 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - crates/**
-      - Cargo.toml
-      - Cargo.lock
-      - Dockerfile
-      - .github/workflows/**
-      - test/integration/**
-  pull_request:
-    paths:
-      - test/integration/**
+  schedule:
+    # Runs every day at 2 AM UTC
+    - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

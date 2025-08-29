@@ -5,8 +5,8 @@ permissions:
   
 on:
   schedule:
-    # Runs every day at 4 AM UTC
-    - cron: '0 4 * * *'
+    # Runs every day at 3 AM UTC
+    - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
