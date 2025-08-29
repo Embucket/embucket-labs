@@ -197,11 +197,10 @@ jobs:
 
       - name: Run integration tests
         working-directory: ./test/integration
-        run: |
-          pytest test_unified_integration.py::test_yellow_nyc_taxi -v --maxfail=0 --tb=short | tee pytest-output.log
+        run: pytest -v
 
-      - name: Display all test failures
-        run: |
-          echo "==== Pytest Failures ===="
-          grep -A 10 "FAILED" pytest-output.log || echo "No failures found."
+      - name: Display test failures
+        if: always()
+        working-directory: ./test/integration
+        run: python display_test_failures.py
 

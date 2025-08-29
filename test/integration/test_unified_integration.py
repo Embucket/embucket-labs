@@ -25,7 +25,6 @@ def _run_cross_engine_test(
     # Record once per query (pair-wise)
     metrics_recorder.add(
         dataset=dataset.name,
-        tables=table_name,
         query_id=query_id,
         rows_spark=len(spark_result),
         rows_embucket=len(embucket_result),
@@ -53,12 +52,16 @@ def _run_multi_table_test(
     embucket_result = embucket_engine.sql(query_sql, alias_to_table)
     t3 = time.perf_counter()
 
-    ok, msg = compare_result_sets(spark_result, embucket_result)
+    ok, msg = compare_result_sets(
+        spark_result,
+        embucket_result,
+        metrics_recorder=metrics_recorder,
+        query_id=query_id
+    )
 
     any_ds = next(iter(loaded_tables.values()))[0]
     metrics_recorder.add(
         dataset=any_ds.name,
-        tables=",".join(sorted(loaded_tables.keys())),
         query_id=query_id,
         rows_spark=len(spark_result),
         rows_embucket=len(embucket_result),
