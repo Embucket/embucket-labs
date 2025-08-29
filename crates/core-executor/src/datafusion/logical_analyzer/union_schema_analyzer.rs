@@ -55,7 +55,7 @@ impl AnalyzerRule for UnionSchemaAnalyzer {
 }
 
 fn analyze_internal(plan: &LogicalPlan) -> DFResult<LogicalPlan> {
-    let mut new_plan = plan.clone().transform_down(|node| match node {
+    let mut new_plan = plan.clone().transform_up(|node| match node {
         LogicalPlan::Union(union) => Ok(Transformed::yes(rewrite_union(&union)?)),
         _ => Ok(Transformed::no(node.clone())),
     })?;
