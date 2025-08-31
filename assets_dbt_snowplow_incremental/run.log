@@ -1,22 +1,22 @@
-[0m12:06:27  Running with dbt=1.9.8
-[0m12:06:28  Registered adapter: snowflake=1.9.1
-[0m12:06:29  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
-[0m12:06:29  
-[0m12:06:29  Concurrency: 4 threads (target='embucket')
-[0m12:06:29  
-[0m12:06:29  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m12:06:29  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m12:06:29  
-[0m12:06:29  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m12:06:29  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m12:06:30  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 1.00s]
-[0m12:06:30  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 1.00s]
-[0m12:06:31  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
-[0m12:06:31  12:06:31 + Snowplow: New Snowplow incremental model. Backfilling
-[0m12:06:31  12:06:31 + Snowplow: Processing data between '2025-08-01 00:00:00' and '2025-08-29 23:59:57' (snowplow_web)
-[0m12:06:31  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.78s]
-[0m12:06:31  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
-ERROR:snowflake.connector.result_batch:Failed to convert: field lower_limit: TIMESTAMP_TZ::1756641992.0, Error: not enough values to unpack (expected 2, got 1)
+[0m12:10:46  Running with dbt=1.9.8
+[0m12:10:46  Registered adapter: snowflake=1.9.1
+[0m12:10:47  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
+[0m12:10:47  
+[0m12:10:47  Concurrency: 4 threads (target='embucket')
+[0m12:10:47  
+[0m12:10:48  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+[0m12:10:48  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
+[0m12:10:48  
+[0m12:10:48  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
+[0m12:10:48  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
+[0m12:10:49  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 1.01s]
+[0m12:10:49  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 1.01s]
+[0m12:10:49  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
+[0m12:10:49  12:10:49 + Snowplow: New Snowplow incremental model. Backfilling
+[0m12:10:50  12:10:50 + Snowplow: Processing data between '2025-08-01 00:00:00' and '2025-08-29 23:59:56' (snowplow_web)
+[0m12:10:50  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.77s]
+[0m12:10:50  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
+ERROR:snowflake.connector.result_batch:Failed to convert: field lower_limit: TIMESTAMP_TZ::1756642250.0, Error: not enough values to unpack (expected 2, got 1)
 Traceback (most recent call last):
   File "/home/runner/work/embucket/embucket/test/dbt_integration_tests/dbt-snowplow-web/dbt-snowplow-web/env/lib/python3.12/site-packages/snowflake/connector/result_batch.py", line 575, in _parse
     row_result[idx] = v if c is None or v is None else c(v)
@@ -25,42 +25,42 @@ Traceback (most recent call last):
     value, tz = encoded_value.split()
     ^^^^^^^^^
 ValueError: not enough values to unpack (expected 2, got 1)
-[0m12:06:32  [31mUnhandled error while executing [0m
-252005: Failed to convert: field lower_limit: TIMESTAMP_TZ::1756641992.0, Error: not enough values to unpack (expected 2, got 1)
-[0m12:06:32  4 of 29 ERROR creating sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[31mERROR[0m in 1.01s]
-[0m12:06:32  5 of 29 SKIP relation public_scratch.snowplow_web_base_sessions_this_run ....... [[33mSKIP[0m]
-[0m12:06:32  6 of 29 SKIP relation public_scratch.snowplow_web_base_events_this_run ......... [[33mSKIP[0m]
-[0m12:06:32  7 of 29 SKIP relation public_scratch.snowplow_web_consent_events_this_run ...... [[33mSKIP[0m]
-[0m12:06:32  8 of 29 SKIP relation public_scratch.snowplow_web_pv_engaged_time .............. [[33mSKIP[0m]
-[0m12:06:32  9 of 29 SKIP relation public_scratch.snowplow_web_pv_scroll_depth .............. [[33mSKIP[0m]
-[0m12:06:32  10 of 29 SKIP relation public_scratch.snowplow_web_sessions_this_run ........... [[33mSKIP[0m]
-[0m12:06:32  11 of 29 SKIP relation public_derived.snowplow_web_user_mapping ................ [[33mSKIP[0m]
-[0m12:06:32  12 of 29 SKIP relation public_scratch.snowplow_web_vital_events_this_run ....... [[33mSKIP[0m]
-[0m12:06:32  13 of 29 SKIP relation public_derived.snowplow_web_consent_log ................. [[33mSKIP[0m]
-[0m12:06:32  14 of 29 SKIP relation public_scratch.snowplow_web_page_views_this_run ......... [[33mSKIP[0m]
-[0m12:06:32  15 of 29 SKIP relation public_derived.snowplow_web_sessions .................... [[33mSKIP[0m]
-[0m12:06:32  16 of 29 SKIP relation public_scratch.snowplow_web_vitals_this_run ............. [[33mSKIP[0m]
-[0m12:06:32  17 of 29 SKIP relation public_derived.snowplow_web_consent_cmp_stats ........... [[33mSKIP[0m]
-[0m12:06:32  18 of 29 SKIP relation public_derived.snowplow_web_consent_versions ............ [[33mSKIP[0m]
-[0m12:06:32  19 of 29 SKIP relation public_derived.snowplow_web_page_views .................. [[33mSKIP[0m]
-[0m12:06:32  20 of 29 SKIP relation public_scratch.snowplow_web_users_sessions_this_run ..... [[33mSKIP[0m]
-[0m12:06:32  21 of 29 SKIP relation public_derived.snowplow_web_vitals ...................... [[33mSKIP[0m]
-[0m12:06:32  22 of 29 SKIP relation public_derived.snowplow_web_consent_users ............... [[33mSKIP[0m]
-[0m12:06:32  23 of 29 SKIP relation public_scratch.snowplow_web_users_aggs .................. [[33mSKIP[0m]
-[0m12:06:32  24 of 29 SKIP relation public_derived.snowplow_web_vital_measurements .......... [[33mSKIP[0m]
-[0m12:06:32  25 of 29 SKIP relation public_derived.snowplow_web_consent_scope_status ........ [[33mSKIP[0m]
-[0m12:06:32  26 of 29 SKIP relation public_derived.snowplow_web_consent_totals .............. [[33mSKIP[0m]
-[0m12:06:32  27 of 29 SKIP relation public_scratch.snowplow_web_users_lasts ................. [[33mSKIP[0m]
-[0m12:06:32  28 of 29 SKIP relation public_scratch.snowplow_web_users_this_run .............. [[33mSKIP[0m]
-[0m12:06:32  29 of 29 SKIP relation public_derived.snowplow_web_users ....................... [[33mSKIP[0m]
-[0m12:06:32  
-[0m12:06:32  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m12:06:32  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.02s]
-[0m12:06:32  
-[0m12:06:32  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 3.49 seconds (3.49s).
-[0m12:06:32  
-[0m12:06:32  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
-[0m12:06:32  
-[0m12:06:32    252005: Failed to convert: field lower_limit: TIMESTAMP_TZ::1756641992.0, Error: not enough values to unpack (expected 2, got 1)
-[0m12:06:32  
-[0m12:06:32  Done. PASS=5 WARN=0 ERROR=1 SKIP=25 TOTAL=31
+[0m12:10:51  [31mUnhandled error while executing [0m
+252005: Failed to convert: field lower_limit: TIMESTAMP_TZ::1756642250.0, Error: not enough values to unpack (expected 2, got 1)
+[0m12:10:51  4 of 29 ERROR creating sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[31mERROR[0m in 1.01s]
+[0m12:10:51  5 of 29 SKIP relation public_scratch.snowplow_web_base_sessions_this_run ....... [[33mSKIP[0m]
+[0m12:10:51  6 of 29 SKIP relation public_scratch.snowplow_web_base_events_this_run ......... [[33mSKIP[0m]
+[0m12:10:51  7 of 29 SKIP relation public_scratch.snowplow_web_consent_events_this_run ...... [[33mSKIP[0m]
+[0m12:10:51  8 of 29 SKIP relation public_scratch.snowplow_web_pv_engaged_time .............. [[33mSKIP[0m]
+[0m12:10:51  9 of 29 SKIP relation public_scratch.snowplow_web_pv_scroll_depth .............. [[33mSKIP[0m]
+[0m12:10:51  10 of 29 SKIP relation public_scratch.snowplow_web_sessions_this_run ........... [[33mSKIP[0m]
+[0m12:10:51  11 of 29 SKIP relation public_derived.snowplow_web_user_mapping ................ [[33mSKIP[0m]
+[0m12:10:51  12 of 29 SKIP relation public_scratch.snowplow_web_vital_events_this_run ....... [[33mSKIP[0m]
+[0m12:10:51  13 of 29 SKIP relation public_derived.snowplow_web_consent_log ................. [[33mSKIP[0m]
+[0m12:10:51  14 of 29 SKIP relation public_scratch.snowplow_web_page_views_this_run ......... [[33mSKIP[0m]
+[0m12:10:51  15 of 29 SKIP relation public_derived.snowplow_web_sessions .................... [[33mSKIP[0m]
+[0m12:10:51  16 of 29 SKIP relation public_scratch.snowplow_web_vitals_this_run ............. [[33mSKIP[0m]
+[0m12:10:51  17 of 29 SKIP relation public_derived.snowplow_web_consent_cmp_stats ........... [[33mSKIP[0m]
+[0m12:10:51  18 of 29 SKIP relation public_derived.snowplow_web_consent_versions ............ [[33mSKIP[0m]
+[0m12:10:51  19 of 29 SKIP relation public_derived.snowplow_web_page_views .................. [[33mSKIP[0m]
+[0m12:10:51  20 of 29 SKIP relation public_scratch.snowplow_web_users_sessions_this_run ..... [[33mSKIP[0m]
+[0m12:10:51  21 of 29 SKIP relation public_derived.snowplow_web_vitals ...................... [[33mSKIP[0m]
+[0m12:10:51  22 of 29 SKIP relation public_derived.snowplow_web_consent_users ............... [[33mSKIP[0m]
+[0m12:10:51  23 of 29 SKIP relation public_scratch.snowplow_web_users_aggs .................. [[33mSKIP[0m]
+[0m12:10:51  24 of 29 SKIP relation public_derived.snowplow_web_vital_measurements .......... [[33mSKIP[0m]
+[0m12:10:51  25 of 29 SKIP relation public_derived.snowplow_web_consent_scope_status ........ [[33mSKIP[0m]
+[0m12:10:51  26 of 29 SKIP relation public_derived.snowplow_web_consent_totals .............. [[33mSKIP[0m]
+[0m12:10:51  27 of 29 SKIP relation public_scratch.snowplow_web_users_lasts ................. [[33mSKIP[0m]
+[0m12:10:51  28 of 29 SKIP relation public_scratch.snowplow_web_users_this_run .............. [[33mSKIP[0m]
+[0m12:10:51  29 of 29 SKIP relation public_derived.snowplow_web_users ....................... [[33mSKIP[0m]
+[0m12:10:51  
+[0m12:10:51  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+[0m12:10:51  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.02s]
+[0m12:10:51  
+[0m12:10:51  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 3.45 seconds (3.45s).
+[0m12:10:51  
+[0m12:10:51  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m12:10:51  
+[0m12:10:51    252005: Failed to convert: field lower_limit: TIMESTAMP_TZ::1756642250.0, Error: not enough values to unpack (expected 2, got 1)
+[0m12:10:51  
+[0m12:10:51  Done. PASS=5 WARN=0 ERROR=1 SKIP=25 TOTAL=31
