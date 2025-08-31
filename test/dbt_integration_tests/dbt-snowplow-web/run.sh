@@ -81,9 +81,9 @@ echo ""
         dbt seed --full-refresh
 #  dbt run
     if [ -n "$DBT_MODEL" ]; then
-        dbt run --full-refresh --select +"$DBT_MODEL" 2>&1 | tee assets/run.log
+        dbt run --select +"$DBT_MODEL" 2>&1 | tee assets/run.log
     else
-        dbt run --full-refresh  2>&1 | tee assets/run.log
+        dbt run  2>&1 | tee assets/run.log
 	#dbt run --full-refresh
     fi 
     # dbt test
