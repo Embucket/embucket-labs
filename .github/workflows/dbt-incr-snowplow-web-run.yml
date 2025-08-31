@@ -1,11 +1,11 @@
-name: DBT Snowplow Web run
+name: DBT Snowplow Web Incremental Run
 
 permissions:
   contents: write
 
 on:
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -44,7 +44,7 @@ jobs:
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./incremental.sh false 10000
+          ./incremental.sh true 10000
 
       # Generate Test Assets
       - name: Generate data for commit message
@@ -73,18 +73,18 @@ jobs:
           # Note: .git folder is preserved when switching branches in the same repo
           
           # Clean only the snowplow assets directory (preserve .git and other directories)
-          if [ -d "assets_dbt_snowplow" ]; then
-            rm -rf assets_dbt_snowplow
+          if [ -d "assets_dbt_snowplow_incremental" ]; then
+            rm -rf assets_dbt_snowplow_incremental
           fi
           
           # Create assets directory
-          mkdir -p assets_dbt_snowplow
+          mkdir -p assets_dbt_snowplow_incremental
           
           # Copy assets from the temporary location
-          cp -r /tmp/embucket-assets-snowplow/* assets_dbt_snowplow/
+          cp -r /tmp/embucket-assets-snowplow/* assets_dbt_snowplow_incremental/
           
           # Add and commit
-          git add assets_dbt_snowplow
+          git add assets_dbt_snowplow_incremental
           git commit -m "Update test assets [DBT Snowplow Web run result: $COVERAGE%] [skip ci]" || echo "No changes to commit"
           
           # Push to the existing assets branch

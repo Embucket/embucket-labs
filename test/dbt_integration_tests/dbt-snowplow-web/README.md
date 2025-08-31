@@ -1,7 +1,15 @@
 
-![DBT SNowplow Web run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow/dbt_success_badge.svg)
+Not Incremental Run
+![DBT SNowplow Web Run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow/dbt_success_badge.svg)
 ## DBT Snowplow Web run results:
 ![DBT Snowplow Web run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow/dbt_run_status.png)
+
+
+
+Incremental Run
+![DBT SNowplow Web Incremental Run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow_incremental/dbt_success_badge.svg)
+## DBT Snowplow Web run results:
+![DBT Snowplow Web Incremental Run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow_incremental/dbt_run_status.png)
 
 # How to run dbt-snowplow -web?
 
