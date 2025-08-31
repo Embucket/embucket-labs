@@ -1,4 +1,4 @@
-name: DBT Snowplow Web Inceremental Run
+name: DBT Snowplow Web Incremental Run
 
 permissions:
   contents: write
