@@ -14,6 +14,13 @@ docker rm em 2>/dev/null || true
 echo "Removing all Docker volumes (this will delete ALL persistent data)..."
 docker volume prune -f
 
+# Remove Docker images (choose one of the options below)
+echo "Removing Docker images..."
+
+# Option 1: Remove only the embucket image
+echo "Removing embucket image..."
+docker rmi embucket/embucket 2>/dev/null || true
+
 # Create datasets directory if it doesn't exist
 echo "Creating datasets directory..."
 mkdir -p ./datasets
