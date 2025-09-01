@@ -21,27 +21,12 @@ jobs:
         with:
           submodules: true
 
-      # - name: Start Embucket Server (Docker)
-      #   run: |
-      #     docker run -d \
-      #       --name embucket-server \
-      #       -p 3000:3000 \
-      #       embucket/embucket
-      #     echo "Starting Embucket server..."
-      #     sleep 20
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install Python dependencies
-        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: DBT Snowplow Web run
+      - name: DBT Snowplow Web Inceremental run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
           ./incremental.sh true 10000
