@@ -15,6 +15,7 @@ use embucket_functions::session_params::SessionParams;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
+use embucket_functions::conversion::to_array::ToArrayFunc;
 
 /// Rewrites expressions in the logical plan with explicit casts `...::*` or `CAST(... AS *)`
 /// as an `TO_*` function call, where `*` is the `DataType` and corresponding function name respectively.
@@ -61,6 +62,12 @@ impl CastAnalyzer {
                             if let Some(ts_cast) = self.rewrite_timestamp_cast(cast)? {
                                 return Ok(ts_cast);
                             }
+                        }
+                        DataType::List(_) | DataType::ListView(_) | DataType::LargeList(_) | DataType::LargeListView(_) | DataType::FixedSizeList(_, _) => {
+                            return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
+                                func: Arc::new(ScalarUDF::from(ToArrayFunc::new())),
+                                args: vec![cast.expr.deref().clone()],
+                            })));
                         }
                         _ => return Ok(Transformed::no(e)),
                     }
@@ -112,7 +119,7 @@ impl CastAnalyzer {
 impl AnalyzerRule for CastAnalyzer {
     fn analyze(&self, plan: LogicalPlan, _: &ConfigOptions) -> DFResult<LogicalPlan> {
         plan.transform_up_with_subqueries(|plan| self.analyze_internal(&plan))
-            .data()
+            .data()?.recompute_schema()
     }
 
     fn name(&self) -> &'static str {
