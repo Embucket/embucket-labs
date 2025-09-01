@@ -79,6 +79,16 @@ impl FlattenTableFunc {
         }
     }
 
+    pub fn append_null(&self, out: &Rc<RefCell<Out>>) {
+        let mut o = out.borrow_mut();
+        o.seq.append_value(self.row_id.load(Ordering::Acquire));
+        o.key.append_null();
+        o.path.append_null();
+        o.index.append_null();
+        o.value.append_null();
+        o.this.append_null();
+    }
+
     #[allow(
         clippy::unwrap_used,
         clippy::as_conversions,
@@ -592,7 +602,6 @@ mod tests {
     #[tokio::test]
     async fn test_outer() -> DFResult<()> {
         // outer = true
-
         let ctx = SessionContext::new();
         ctx.register_udtf("flatten", Arc::new(FlattenTableFunc::new()));
 
@@ -604,6 +613,18 @@ mod tests {
             "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
             "+-----+-----+------+-------+-------+------+",
             "| 1   |     | b    |       |       |      |",
+            "+-----+-----+------+-------+-------+------+",
+        ];
+        assert_batches_eq!(exp, &result);
+
+        let sql = "SELECT * from flatten(NULL,'b',true,false,'both')";
+        let result = ctx.sql(sql).await?.collect().await?;
+
+        let exp = [
+            "+-----+-----+------+-------+-------+------+",
+            "| SEQ | KEY | PATH | INDEX | VALUE | THIS |",
+            "+-----+-----+------+-------+-------+------+",
+            "| 1   |     |      |       |       |      |",
             "+-----+-----+------+-------+-------+------+",
         ];
         assert_batches_eq!(exp, &result);

@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use datafusion::arrow::array::{
     Array, ArrayRef, StringArray, StringBuilder, UInt64Array, UInt64Builder,
 };
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};
@@ -214,8 +215,8 @@ impl ExecutionPlan for FlattenExec {
         let mut all_batches = vec![];
         let mut last_outer: Option<Value> = None;
         for batch in batches {
-            let array = batch
-                .column(0)
+            let array = cast(batch.column(0), &DataType::Utf8)?;
+            let array = array
                 .as_any()
                 .downcast_ref::<StringArray>()
                 .ok_or_else(|| errors::ExpectedInputColumnToBeUtf8Snafu.build())?;
@@ -232,10 +233,14 @@ impl ExecutionPlan for FlattenExec {
                 last_outer: None,
             }));
 
-            for i in 0..array.len() {
-                let json_str = array.value(i);
-                let json_val: Value = serde_json::from_str(json_str)
-                    .context(df_error::FailedToDeserializeJsonSnafu)?;
+            for v in array {
+                let Some(v) = v else {
+                    flatten_func.append_null(&out);
+                    continue;
+                };
+
+                let json_val: Value =
+                    serde_json::from_str(v).context(df_error::FailedToDeserializeJsonSnafu)?;
 
                 let Some(input) = get_json_value(&json_val, &self.args.path) else {
                     continue;
