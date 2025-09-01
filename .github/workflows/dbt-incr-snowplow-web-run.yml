@@ -4,8 +4,11 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
+  pull_request:
+    branches:
+      - osmazur/dbt-snowplow-workflow
+  # schedule:
+  #   - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
