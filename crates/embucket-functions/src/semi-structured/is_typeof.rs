@@ -1,12 +1,14 @@
-use datafusion::arrow::array::{Array, as_string_array};
+use crate::semi_structured::errors;
+use datafusion::arrow::array::{Array, StringArray};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::arrow::array::BooleanBuilder;
-use datafusion_common::{ScalarValue, exec_err};
+use datafusion_common::exec_err;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -83,17 +85,14 @@ impl ScalarUDFImpl for IsTypeofFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
-
-        let arr = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
+        let arr = args[0].clone().into_array(number_rows)?;
 
         let mut b = BooleanBuilder::new();
 
         match arr.data_type() {
-            DataType::Null => append_all(&mut b, arr.len(), matches!(self.kind, Kind::Null)),
             DataType::Boolean => append_all(&mut b, arr.len(), matches!(self.kind, Kind::Boolean)),
             v if v.is_integer() => {
                 // If the kind is decimal, we need to check if the integer can be cast to decimal
@@ -117,7 +116,11 @@ impl ScalarUDFImpl for IsTypeofFunc {
                 append_all(&mut b, arr.len(), matches!(self.kind, Kind::Decimal));
             }
             _ => {
-                let input = as_string_array(&arr);
+                let array = cast(&arr, &DataType::Utf8)?;
+                let input = array
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context(errors::ExpectedUtf8StringForArraySnafu)?;
                 for v in input {
                     let Some(v) = v else {
                         b.append_null();
@@ -140,13 +143,7 @@ impl ScalarUDFImpl for IsTypeofFunc {
                 }
             }
         }
-
-        let res = b.finish();
-        Ok(if arr.len() == 1 {
-            ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?)
-        } else {
-            ColumnarValue::Array(Arc::new(res))
-        })
+        Ok(ColumnarValue::Array(Arc::new(b.finish())))
     }
 }
 
@@ -168,13 +165,13 @@ mod tests {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(IsTypeofFunc::new(Kind::Integer)));
 
-        let sql = "SELECT is_integer(123), is_integer(NULL)";
+        let sql = "SELECT is_integer('123'), is_integer(NULL)";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-------------------------+------------------+",
-                "| is_integer(123) | is_integer(NULL) |",
+                "| is_integer(Utf8(\"123\")) | is_integer(NULL) |",
                 "+-------------------------+------------------+",
                 "| true                    |                  |",
                 "+-------------------------+------------------+",
