@@ -182,6 +182,7 @@ insert
 instr
 is_array
 is_boolean
+is_decimal
 is_double
 is_integer
 is_null_value

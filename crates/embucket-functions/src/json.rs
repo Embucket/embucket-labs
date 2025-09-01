@@ -6,12 +6,13 @@ use datafusion::arrow::array::AsArray;
 use datafusion::arrow::array::{
     Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
 };
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{
-    ArrowNativeType, DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type,
-    DurationMicrosecondType, DurationMillisecondType, DurationNanosecondType, DurationSecondType,
-    Float16Type, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type, Int64Type,
-    IntervalDayTimeType, IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType,
-    Time32MillisecondType, Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
+    ArrowNativeType, DataType, Date32Type, Date64Type, Decimal256Type, DurationMicrosecondType,
+    DurationMillisecondType, DurationNanosecondType, DurationSecondType, Float16Type, Float32Type,
+    Float64Type, Int8Type, Int16Type, Int32Type, Int64Type, IntervalDayTimeType,
+    IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType, Time32MillisecondType,
+    Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
     TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
     TimestampSecondType, UInt8Type, UInt16Type, UInt32Type, UInt64Type,
 };
@@ -681,14 +682,19 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
 
 /// Encodes a Decimal128 Arrow array into a JSON array
 pub fn encode_decimal128_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
-    let array = array.as_primitive::<Decimal128Type>();
+    let array = cast(&array, &DataType::Float64)?;
+    let array = array.as_primitive::<Float64Type>();
     let mut values = Vec::with_capacity(array.len());
 
     for i in 0..array.len() {
         values.push(if array.is_null(i) {
             JsonValue::Null
         } else {
-            JsonValue::String(array.value(i).to_string())
+            JsonValue::Number(
+                Number::from_f64(array.value(i)).ok_or_else(|| {
+                    ArrowError::InvalidArgumentError("Invalid decimal value".into())
+                })?,
+            )
         });
     }
     Ok(JsonValue::Array(values))

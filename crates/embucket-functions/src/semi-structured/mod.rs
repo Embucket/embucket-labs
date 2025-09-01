@@ -63,6 +63,7 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Array))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Boolean))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Double))),
+        Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Decimal))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Integer))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Null))),
         Arc::new(ScalarUDF::from(IsTypeofFunc::new(is_typeof::Kind::Object))),

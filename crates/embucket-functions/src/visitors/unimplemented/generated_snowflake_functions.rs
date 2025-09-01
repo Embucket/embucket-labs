@@ -1961,12 +1961,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_date-value")
     ),
-    ("IS_DECIMAL", FunctionInfo::new(
-        "IS_DECIMAL",
-        "Returns TRUE if its VARIANT argument contains a fixed-point number or integer value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_decimal")
-    ),
     ("IS_TIME", FunctionInfo::new(
         "IS_TIME",
         "Verifies whether a VARIANT argument contains a TIME value."

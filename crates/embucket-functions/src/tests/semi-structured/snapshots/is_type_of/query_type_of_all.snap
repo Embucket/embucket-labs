@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/semi-structured/is_type_of.rs
+description: "\"SELECT\n        IS_DECIMAL(1.23::DECIMAL(6, 3)) AS decimal,\n        IS_DECIMAL(3.21::DOUBLE) AS dec_double,\n        IS_DECIMAL(15) AS decimal_int,\n        IS_BOOLEAN(TRUE) AS boolean,\n        IS_INTEGER('123') as int,\n        IS_INTEGER(NULL) as int_null,\n        IS_DOUBLE('123') as double_str,\n        IS_DOUBLE('3.14') as double,\n        IS_DOUBLE(3.14) as double_num\""
+---
+Ok(
+    [
+        "+---------+------------+-------------+---------+------+----------+------------+--------+------------+",
+        "| decimal | dec_double | decimal_int | boolean | int  | int_null | double_str | double | double_num |",
+        "+---------+------------+-------------+---------+------+----------+------------+--------+------------+",
+        "| true    | false      | true        | true    | true | false    | true       | true   | true       |",
+        "+---------+------------+-------------+---------+------+----------+------------+--------+------------+",
+    ],
+)

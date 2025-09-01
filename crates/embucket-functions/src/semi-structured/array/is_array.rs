@@ -3,7 +3,6 @@ use datafusion::arrow::array::{Array, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
-use datafusion_common::ScalarValue;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use std::any::Any;
@@ -59,12 +58,10 @@ impl ScalarUDFImpl for IsArrayFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
-
-        let arr = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
+        let arr = args[0].clone().into_array(number_rows)?;
 
         let mut b = BooleanBuilder::with_capacity(arr.len());
         let input = as_string_array(&arr);
@@ -80,13 +77,7 @@ impl ScalarUDFImpl for IsArrayFunc {
                 b.append_null();
             }
         }
-
-        let res = b.finish();
-        Ok(if res.len() == 1 {
-            return Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?));
-        } else {
-            ColumnarValue::Array(Arc::new(b.finish()))
-        })
+        Ok(ColumnarValue::Array(Arc::new(b.finish())))
     }
 }
 

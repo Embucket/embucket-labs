@@ -1,4 +1,5 @@
 use datafusion::arrow::array::{Array, as_string_array};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -14,6 +15,7 @@ pub enum Kind {
     Null,
     Boolean,
     Double,
+    Decimal,
     Real,
     Integer,
     String,
@@ -21,14 +23,16 @@ pub enum Kind {
     Object,
 }
 
-// is_null_value, is_boolean, is_double, is_integer, is_varchar, is_array, is_object, is_real SQL functions
-// These functions check if the value in a VARIANT column is of a specific type.
-// Syntax: IS_<type>(<variant_expr>)
-// Arguments:
-// - variant_expr
-//   An expression that evaluates to a value of type VARIANT.
-// Example: SELECT is_integer('123') AS is_int, is_null_value(NULL) AS is_null;
-// Returns a BOOLEAN value indicating whether the value is of the specified type or NULL if the input is NULL.
+/// `is_null_value`, `is_boolean`, `is_decimal`, `is_double`, `is_integer`, `is_varchar`,
+/// `is_array`, `is_object`, `is_real` SQL functions.
+///
+/// These functions check if the value in a VARIANT column is of a specific type.
+/// Syntax: IS_<type>(<`variant_expr`>)
+/// Arguments:
+/// - `variant_expr`
+///   An expression that evaluates to a value of type VARIANT.
+///   Example: `SELECT is_integer('123') AS is_int, is_null_value(NULL) AS is_null`;
+///   Returns a BOOLEAN value indicating whether the value is of the specified type or NULL if the input is NULL.
 #[derive(Debug)]
 pub struct IsTypeofFunc {
     signature: Signature,
@@ -45,7 +49,7 @@ impl IsTypeofFunc {
     #[must_use]
     pub fn new(kind: Kind) -> Self {
         Self {
-            signature: Signature::string(1, Volatility::Immutable),
+            signature: Signature::any(1, Volatility::Immutable),
             kind,
         }
     }
@@ -61,6 +65,7 @@ impl ScalarUDFImpl for IsTypeofFunc {
             Kind::Null => "is_null_value",
             Kind::Boolean => "is_boolean",
             Kind::Double => "is_double",
+            Kind::Decimal => "is_decimal",
             Kind::Integer => "is_integer",
             Kind::String => "is_varchar",
             Kind::Array => "is_array",
@@ -86,24 +91,53 @@ impl ScalarUDFImpl for IsTypeofFunc {
         };
 
         let mut b = BooleanBuilder::new();
-        let input = as_string_array(&arr);
-        for v in input {
-            let Some(v) = v else {
-                b.append_null();
-                continue;
-            };
 
-            match serde_json::from_str::<Value>(v) {
-                Ok(v) => match self.kind {
-                    Kind::Null => b.append_value(v.is_null()),
-                    Kind::Boolean => b.append_value(v.is_boolean()),
-                    Kind::Double | Kind::Real => b.append_value(v.is_number()),
-                    Kind::Integer => b.append_value(v.is_i64()),
-                    Kind::String => b.append_value(v.is_string()),
-                    Kind::Array => b.append_value(v.is_array()),
-                    Kind::Object => b.append_value(v.is_object()),
-                },
-                Err(e) => exec_err!("Failed to parse JSON string: {e}")?,
+        match arr.data_type() {
+            DataType::Null => append_all(&mut b, arr.len(), matches!(self.kind, Kind::Null)),
+            DataType::Boolean => append_all(&mut b, arr.len(), matches!(self.kind, Kind::Boolean)),
+            v if v.is_integer() => {
+                // If the kind is decimal, we need to check if the integer can be cast to decimal
+                if matches!(self.kind, Kind::Decimal)
+                    && cast(&arr, &DataType::Decimal128(38, 0)).is_ok()
+                {
+                    append_all(&mut b, arr.len(), matches!(self.kind, Kind::Decimal));
+                } else {
+                    append_all(&mut b, arr.len(), matches!(self.kind, Kind::Integer));
+                }
+            }
+            v if v.is_floating() => {
+                append_all(
+                    &mut b,
+                    arr.len(),
+                    matches!(self.kind, Kind::Double | Kind::Real),
+                );
+            }
+            v if v.is_nested() => append_all(&mut b, arr.len(), matches!(self.kind, Kind::Array)),
+            DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => {
+                append_all(&mut b, arr.len(), matches!(self.kind, Kind::Decimal));
+            }
+            _ => {
+                let input = as_string_array(&arr);
+                for v in input {
+                    let Some(v) = v else {
+                        b.append_null();
+                        continue;
+                    };
+                    match serde_json::from_str::<Value>(v) {
+                        Ok(v) => match self.kind {
+                            Kind::Null => b.append_value(v.is_null()),
+                            Kind::Boolean => b.append_value(v.is_boolean()),
+                            Kind::Double | Kind::Real | Kind::Decimal => {
+                                b.append_value(v.is_number());
+                            }
+                            Kind::Integer => b.append_value(v.is_i64()),
+                            Kind::String => b.append_value(v.is_string()),
+                            Kind::Array => b.append_value(v.is_array()),
+                            Kind::Object => b.append_value(v.is_object()),
+                        },
+                        Err(e) => exec_err!("Failed to parse JSON string: {e}")?,
+                    }
+                }
             }
         }
 
@@ -113,6 +147,12 @@ impl ScalarUDFImpl for IsTypeofFunc {
         } else {
             ColumnarValue::Array(Arc::new(res))
         })
+    }
+}
+
+fn append_all(b: &mut BooleanBuilder, len: usize, v: bool) {
+    for _ in 0..len {
+        b.append_value(v);
     }
 }
 
@@ -128,13 +168,13 @@ mod tests {
         let ctx = SessionContext::new();
         ctx.register_udf(ScalarUDF::from(IsTypeofFunc::new(Kind::Integer)));
 
-        let sql = "SELECT is_integer('123'), is_integer(NULL)";
+        let sql = "SELECT is_integer(123), is_integer(NULL)";
         let result = ctx.sql(sql).await?.collect().await?;
 
         assert_batches_eq!(
             &[
                 "+-------------------------+------------------+",
-                "| is_integer(Utf8(\"123\")) | is_integer(NULL) |",
+                "| is_integer(123) | is_integer(NULL) |",
                 "+-------------------------+------------------+",
                 "| true                    |                  |",
                 "+-------------------------+------------------+",
