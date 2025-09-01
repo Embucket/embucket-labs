@@ -12,18 +12,6 @@ echo "Copy files"
 cp dbt_project.yml dbt-snowplow-web/
 cp profiles.yml dbt-snowplow-web/
 echo ""
-#cp run.sh dbt-snowplow-web/
-#cp statistics.sh dbt-snowplow-web/
-#cp requirements.txt dbt-snowplow-web/
-#cp generate_dbt_test_assets.py dbt-snowplow-web/
-
-#chmod +x run.sh statistics.sh
-
-# cp events.csv dbt-snowplow-web/seeds/
-# cp seeds.yml dbt-snowplow-web/seeds/
-
-#cp snowplow_web_base_events_this_run.sql dbt-snowplow-web/models/base/scratch/snowflake/
-#cp snowplow_web_consent_events_this_run.sql dbt-snowplow-web/models/optional_modules/consent/scratch/snowflake/
 
 # Determine which Python command to use
 echo "###############################"

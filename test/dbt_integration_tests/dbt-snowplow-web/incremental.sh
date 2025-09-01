@@ -51,10 +51,6 @@ $PYTHON_CMD gen_events.py $num_rows
 echo "Loading events"
 $PYTHON_CMD load_events.py events_day_before_yesterday.csv
 
-# echo "Commenting out seed file copies in run_snowplow_web.sh"
-# sed -i '' 's/^cp events.csv dbt-snowplow-web\/seeds\//#cp events.csv dbt-snowplow-web\/seeds\//' run_snowplow_web.sh
-# sed -i '' 's/^cp seeds.yml dbt-snowplow-web\/seeds\//#cp seeds.yml dbt-snowplow-web\/seeds\//' run_snowplow_web.sh
-
 echo "Running dbt"
 ./run_snowplow_web.sh
 
