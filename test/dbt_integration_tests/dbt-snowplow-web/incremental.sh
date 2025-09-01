@@ -10,6 +10,15 @@ echo "Setting up Docker container"
 
 sleep 5
 
+# install requirements
+
+python3 -m venv env
+source env/bin/activate
+
+python3 -m pip install --upgrade pip >/dev/null 2>&1
+
+pip install -r requirements.txt >/dev/null 2>&1
+
 # FIRST RUN
 echo "Generating events"
 python3 gen_events.py $num_rows
