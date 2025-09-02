@@ -60,9 +60,9 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Can't locate query record by key: {key}"))]
+    #[snafu(display("Can't locate query record by query_id: {} ({})", query_id.to_uuid(), query_id.as_i64()))]
     QueryNotFound {
-        key: String,
+        query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
