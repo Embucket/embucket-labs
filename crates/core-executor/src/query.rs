@@ -804,11 +804,14 @@ impl UserQuery {
                     table_name: name.table().to_string(),
                 })?;
             let schema = target_table.schema();
+            tracing::error!("DDL (TT) Schema: {}", schema);
+            let new_logical_plan = cast_input_to_target_schema(input, &schema)?;
+            tracing::error!("DML (Cast to TT) Schema: {}", new_logical_plan.schema().as_arrow());
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
                 name,
                 provider_as_source(target_table),
                 WriteOp::Insert(InsertOp::Append),
-                Arc::new(cast_input_to_target_schema(input, &schema)?),
+                Arc::new(new_logical_plan),
             ));
             return self.execute_logical_plan(insert_plan).await;
         }
@@ -2091,7 +2094,8 @@ impl UserQuery {
                     .ctx
                     .execute_logical_plan(plan)
                     .await
-                    .context(ex_error::DataFusionSnafu)?
+                    .context(ex_error::DataFusionSnafu)?;
+                let records = records
                     .collect()
                     .await
                     .context(ex_error::DataFusionSnafu)?;
@@ -3147,6 +3151,7 @@ pub fn cast_input_to_target_schema(
     for field in target_schema.fields() {
         let name = field.name();
         let data_type = field.data_type();
+        tracing::error!("Metadata: {:?}", field.metadata());
         let (reference, input_field) = get_field(input_schema, name)?;
         if input_field.data_type() == data_type {
             if input_field.name() == name {
@@ -3172,6 +3177,7 @@ pub fn cast_input_to_target_schema(
             )));
         }
     }
+    tracing::error!("Input plan schema: {}", input.schema().as_arrow());
     let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
     Ok(LogicalPlan::Projection(projection))
 }

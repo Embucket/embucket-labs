@@ -50,33 +50,11 @@ impl CastAnalyzer {
             let original_name = name_preserver.save(&expr);
 
             let transformed_expr = expr.transform_up(|e| {
-                if let Expr::Cast(cast) = &e {
-                    match &cast.data_type {
-                        DataType::Date32 => {
-                            return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-                                func: Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
-                                args: vec![cast.expr.deref().clone()],
-                            })));
-                        }
-                        DataType::Timestamp(_, _) => {
-                            if let Some(ts_cast) = self.rewrite_timestamp_cast(cast)? {
-                                return Ok(ts_cast);
-                            }
-                        }
-                        DataType::List(_)
-                        | DataType::ListView(_)
-                        | DataType::LargeList(_)
-                        | DataType::LargeListView(_)
-                        | DataType::FixedSizeList(_, _) => {
-                            return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-                                func: Arc::new(ScalarUDF::from(ToArrayFunc::new())),
-                                args: vec![cast.expr.deref().clone()],
-                            })));
-                        }
-                        _ => return Ok(Transformed::no(e)),
-                    }
+                match &e {
+                    Expr::Cast(cast) => self.rewrite_cast_to(cast.data_type.clone(), cast.expr.deref(), &e),
+                    Expr::TryCast(try_cast) => self.rewrite_cast_to(try_cast.data_type.clone(), try_cast.expr.deref(), &e),
+                    _ => Ok(Transformed::no(e))
                 }
-                Ok(Transformed::no(e))
             })?;
 
             Ok(transformed_expr.update_data(|data| original_name.restore(data)))
@@ -84,8 +62,32 @@ impl CastAnalyzer {
         Ok(new_plan)
     }
 
-    fn rewrite_timestamp_cast(&self, cast: &Cast) -> DFResult<Option<Transformed<Expr>>> {
-        if let Expr::Literal(ScalarValue::Utf8(Some(v))) = &*cast.expr {
+    fn rewrite_cast_to(&self, data_type: DataType, expr: &Expr, original_expr: &Expr) -> DFResult<Transformed<Expr>> {
+        match data_type.clone() {
+            DataType::Date32 => Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
+                    func: Arc::new(ScalarUDF::from(ToDateFunc::new(false))),
+                    args: vec![expr.clone()],
+                }))),
+            DataType::Timestamp(_, _) => {
+                if let Some(ts_cast) = self.rewrite_timestamp_cast(data_type, expr.clone())? {
+                    return Ok(ts_cast);
+                }
+                Ok(Transformed::no(original_expr.clone()))
+            }
+            DataType::List(_)
+            | DataType::ListView(_)
+            | DataType::LargeList(_)
+            | DataType::LargeListView(_)
+            | DataType::FixedSizeList(_, _) => Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
+                    func: Arc::new(ScalarUDF::from(ToArrayFunc::new())),
+                    args: vec![expr.clone()],
+                }))),
+            _ =>  Ok(Transformed::no(original_expr.clone())),
+        }
+    }
+
+    fn rewrite_timestamp_cast(&self, data_type: DataType, expr: Expr) -> DFResult<Option<Transformed<Expr>>> {
+        if let Expr::Literal(ScalarValue::Utf8(Some(v))) = expr.clone() {
             let udf = self.to_timestamp_udf();
 
             // Infer the return type of the UDF for the given literal
@@ -97,17 +99,17 @@ impl CastAnalyzer {
             let func_return_type = return_info.return_type().clone();
             let mut expr = Expr::ScalarFunction(ScalarFunction {
                 func: Arc::new(udf),
-                args: vec![cast.expr.deref().clone()],
+                args: vec![expr.clone()],
             });
 
             // Wrap the UDF result with a CAST only if its return type differs from the target type
-            if func_return_type != cast.data_type {
+            if func_return_type != data_type {
                 // Special case: if the UDF return type is Timestamp(Microsecond, _),
                 // it means the literal had out-of-range nanoseconds.
                 // In that case, we should keep the UDF's return type instead of forcing the target type.
                 let final_type = match func_return_type {
                     DataType::Timestamp(TimeUnit::Microsecond, _) => func_return_type,
-                    _ => cast.data_type.clone(),
+                    _ => data_type.clone(),
                 };
                 expr = Expr::Cast(Cast {
                     expr: Box::new(expr),
