@@ -42,7 +42,7 @@ impl QueryContext {
             database,
             schema,
             worksheet_id,
-            query_id: Default::default(),
+            query_id: QueryRecordId::default(),
             ip_address: None,
             async_query: false,
         }
@@ -128,7 +128,11 @@ impl TryFrom<QueryRecord> for QueryResult {
 
 impl QueryResult {
     #[must_use]
-    pub const fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>, query_id: QueryRecordId) -> Self {
+    pub const fn new(
+        records: Vec<RecordBatch>,
+        schema: Arc<ArrowSchema>,
+        query_id: QueryRecordId,
+    ) -> Self {
         Self {
             records,
             schema,

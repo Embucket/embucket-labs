@@ -1,6 +1,7 @@
 use crate::error::{self as api_snowflake_rest_error, Error, Result};
 use crate::models::{
-    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData
+    JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse, LoginResponseData,
+    QueryRequest, QueryRequestBody, ResponseData,
 };
 use crate::state::AppState;
 use api_sessions::DFSessionId;
@@ -11,7 +12,6 @@ use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::models::QueryContext;
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
-use core_history::QueryRecordId;
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
@@ -33,12 +33,17 @@ const ARROW_IPC_ALIGNMENT: usize = 8;
 #[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn login(
     State(state): State<AppState>,
-    Query(_query_params): Query<LoginRequestQueryParams>,
-    Json(LoginRequestBody { data: LoginRequestData { login_name, password, .. } }): Json<LoginRequestBody>,
+    // Query(_query_params): Query<LoginRequestQueryParams>,
+    Json(LoginRequestBody {
+        data:
+            LoginRequestData {
+                login_name,
+                password,
+                ..
+            },
+    }): Json<LoginRequestBody>,
 ) -> Result<Json<LoginResponse>> {
-    if login_name != *state.config.auth.demo_user
-        || password != *state.config.auth.demo_password
-    {
+    if login_name != *state.config.auth.demo_user || password != *state.config.auth.demo_password {
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
 
@@ -96,13 +101,19 @@ pub async fn query(
     DFSessionId(session_id): DFSessionId,
     State(state): State<AppState>,
     Query(query): Query<QueryRequest>,
-    Json(QueryRequestBody { sql_text, async_exec }): Json<QueryRequestBody>,
+    Json(QueryRequestBody {
+        sql_text,
+        async_exec,
+    }): Json<QueryRequestBody>,
 ) -> Result<Json<JsonResponse>> {
     let serialization_format = state.config.dbt_serialization_format;
     let query_context = QueryContext::default().with_ip_address(addr.ip().to_string());
 
     if async_exec {
-        let query_handle = state.execution_svc.submit_query(&session_id, &sql_text, query_context).await?;
+        let query_handle = state
+            .execution_svc
+            .submit_query(&session_id, &sql_text, query_context)
+            .await?;
         let query_uuid: Uuid = query_handle.query_id.to_uuid();
         // Record the result as part of the current span.
         tracing::Span::current()
@@ -184,7 +195,7 @@ pub async fn abort() -> Result<Json<serde_json::value::Value>> {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_lines)]
 mod tests {
     use crate::models::{
-        ClientEnvironment, JsonResponse, LoginRequestData, LoginRequestBody, LoginResponse,
+        ClientEnvironment, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
         QueryRequestBody,
     };
     use crate::test_server::run_test_server_with_demo_auth;

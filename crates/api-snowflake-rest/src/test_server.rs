@@ -1,7 +1,7 @@
 use crate::auth::create_router as create_auth_router;
 use crate::layer::require_auth;
-use crate::router::create_router;
 use crate::models::Config;
+use crate::router::create_router;
 use crate::state;
 use axum::Router;
 use axum::middleware;
@@ -72,16 +72,15 @@ pub async fn make_app(
         .layer(CompressionLayer::new())
         .layer(RequestDecompressionLayer::new());
 
-    let snowflake_router =
-        create_router()
-            .with_state(snowflake_state.clone())
-            .layer(compression_layer.clone())
-            .layer(middleware::from_fn_with_state(
-                snowflake_state.clone(),
-                require_auth,
-            ));
-    let snowflake_auth_router = create_auth_router()
+    let snowflake_router = create_router()
         .with_state(snowflake_state.clone())
+        .layer(compression_layer.clone())
+        .layer(middleware::from_fn_with_state(
+            snowflake_state.clone(),
+            require_auth,
+        ));
+    let snowflake_auth_router = create_auth_router()
+        .with_state(snowflake_state)
         .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
 

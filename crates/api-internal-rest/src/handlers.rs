@@ -13,7 +13,7 @@ use core_metastore::{
     *,
 };
 
-use crate::{error::GetQuerySnafu, state::State as AppState, QueryIdParam};
+use crate::{QueryIdParam, error::GetQuerySnafu, state::State as AppState};
 use core_utils::scan_iterator::ScanIterator;
 use validator::Validate;
 

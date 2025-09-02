@@ -1,15 +1,20 @@
 use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 use uuid::Uuid;
-use std::{fmt::{Debug, Display}, str::FromStr};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 pub struct QueryRecordId(pub i64);
 
 impl QueryRecordId {
-    pub fn as_i64(&self) -> i64 {
+    #[must_use]
+    pub const fn as_i64(&self) -> i64 {
         self.0
     }
 
+    #[must_use]
     pub fn to_uuid(self) -> Uuid {
         self.into()
     }
@@ -27,6 +32,7 @@ impl Debug for QueryRecordId {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<i64> for QueryRecordId {
     fn into(self) -> i64 {
         self.0
@@ -48,13 +54,18 @@ impl FromStr for QueryRecordId {
 }
 
 // Only applied for uuids created by QueryRecordId::into
+#[allow(clippy::fallible_impl_from)]
 impl From<Uuid> for QueryRecordId {
     #[allow(clippy::unwrap_used)]
     fn from(uuid: Uuid) -> Self {
-        Self(i64::from_be_bytes(uuid.as_bytes()[8..16].try_into().unwrap()))
+        // it is safe in our case
+        Self(i64::from_be_bytes(
+            uuid.as_bytes()[8..16].try_into().unwrap(),
+        ))
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Uuid> for QueryRecordId {
     fn into(self) -> Uuid {
         let mut bytes = [0u8; 16];

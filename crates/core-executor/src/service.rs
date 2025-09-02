@@ -26,7 +26,7 @@ use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType, query_result_to_history};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
-use core_history::{QueryStatus, QueryRecordId};
+use core_history::{QueryRecordId, QueryStatus};
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use dashmap::DashMap;
@@ -371,12 +371,11 @@ impl ExecutionService for CoreExecutionService {
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult> {
-        let _ =
-            self.queries
-                .get(&query_handle.query_id.into())
-                .context(ex_error::QueryIsntRunningSnafu {
-                    query_id: query_handle.query_id.to_string(),
-                })?;
+        let _ = self.queries.get(&query_handle.query_id.into()).context(
+            ex_error::QueryIsntRunningSnafu {
+                query_id: query_handle.query_id.to_string(),
+            },
+        )?;
 
         let query_status = query_handle
             .rx
