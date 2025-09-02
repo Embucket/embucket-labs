@@ -17,7 +17,7 @@ use datafusion::logical_expr::{ColumnarValue, Expr};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, create_physical_expr};
 use datafusion_common::tree_node::{TreeNode, TreeNodeRecursion};
 use datafusion_common::{
-    Column, DFSchema, Result as DFResult, Result, ScalarValue, TableReference,
+    Column, DFSchema, DataFusionError, Result as DFResult, Result, ScalarValue, TableReference,
 };
 use datafusion_expr::execution_props::ExecutionProps;
 use datafusion_expr::expr::ScalarFunction;
@@ -25,9 +25,11 @@ use datafusion_expr::{BinaryExpr, LogicalPlanBuilder, Subquery, TableType};
 use datafusion_physical_plan::common::collect;
 use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion_physical_plan::memory::MemoryStream;
+use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties};
+use futures::{StreamExt, TryStreamExt};
 use serde_json::Value;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -206,147 +208,150 @@ impl ExecutionPlan for FlattenExec {
 
     fn execute(
         &self,
-        partition: usize,
-        context: Arc<TaskContext>,
+        _partition: usize,
+        _context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
-        let batches = self.get_input_batches(partition, context)?;
-        let flatten_func = FlattenTableFunc::new();
+        let schema = Arc::clone(&self.schema);
+        let args = self.args.clone();
+        let limit = self.limit;
+        let session_state = Arc::clone(&self.session_state);
+        let projection = self.projection.clone();
 
-        let mut all_batches = vec![];
-        let mut last_outer: Option<Value> = None;
-        for batch in batches {
-            let array = cast(batch.column(0), &DataType::Utf8)?;
-            let array = array
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .ok_or_else(|| errors::ExpectedInputColumnToBeUtf8Snafu.build())?;
+        let stream = futures::stream::once(async move {
+            let batches = if let Expr::Literal(ScalarValue::Utf8(Some(s))) = &args.input_expr {
+                let array: ArrayRef = Arc::new(StringArray::from(vec![s.clone()]));
+                let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
+                vec![batch]
+            } else {
+                evaluate_expr_or_plan(&args.input_expr, session_state.as_ref()).await?
+            };
 
-            flatten_func.row_id.fetch_add(1, Ordering::Acquire);
+            let flatten_func = FlattenTableFunc::new();
+            let mut all_batches = vec![];
+            let mut last_outer: Option<Value> = None;
 
-            let out = Rc::new(RefCell::new(Out {
-                seq: UInt64Builder::new(),
-                key: StringBuilder::new(),
-                path: StringBuilder::new(),
-                index: UInt64Builder::new(),
-                value: StringBuilder::new(),
-                this: StringBuilder::new(),
-                last_outer: None,
-            }));
+            for batch in batches {
+                let array = cast(batch.column(0), &DataType::Utf8)?;
+                let array = array
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context(errors::ExpectedInputColumnToBeUtf8Snafu)?;
 
-            for v in array {
-                let Some(v) = v else {
-                    flatten_func.append_null(&out);
-                    continue;
-                };
+                flatten_func.row_id.fetch_add(1, Ordering::Acquire);
 
-                let json_val: Value =
-                    serde_json::from_str(v).context(df_error::FailedToDeserializeJsonSnafu)?;
+                let out = Rc::new(RefCell::new(Out {
+                    seq: UInt64Builder::new(),
+                    key: StringBuilder::new(),
+                    path: StringBuilder::new(),
+                    index: UInt64Builder::new(),
+                    value: StringBuilder::new(),
+                    this: StringBuilder::new(),
+                    last_outer: None,
+                }));
 
-                let Some(input) = get_json_value(&json_val, &self.args.path) else {
-                    continue;
-                };
+                for v in array {
+                    let Some(v) = v else {
+                        flatten_func.append_null(&out);
+                        continue;
+                    };
 
-                flatten_func.flatten(
-                    input,
-                    &self.args.path,
-                    self.args.is_outer,
-                    self.args.is_recursive,
-                    &self.args.mode,
-                    &out,
-                )?;
+                    let json_val: Value =
+                        serde_json::from_str(v).context(df_error::FailedToDeserializeJsonSnafu)?;
+
+                    let Some(input) = get_json_value(&json_val, &args.path) else {
+                        continue;
+                    };
+
+                    flatten_func.flatten(
+                        input,
+                        &args.path,
+                        args.is_outer,
+                        args.is_recursive,
+                        &args.mode,
+                        &out,
+                    )?;
+                }
+
+                let mut out = out.borrow_mut();
+                let cols: Vec<ArrayRef> = vec![
+                    Arc::new(out.seq.finish()),
+                    Arc::new(out.key.finish()),
+                    Arc::new(out.path.finish()),
+                    Arc::new(out.index.finish()),
+                    Arc::new(out.value.finish()),
+                    Arc::new(out.this.finish()),
+                ];
+
+                last_outer.clone_from(&out.last_outer);
+                let batch = RecordBatch::try_new(schema.clone(), cols)?;
+                if batch.num_rows() > 0 {
+                    all_batches.push(batch);
+                }
             }
 
-            let mut out = out.borrow_mut();
-            let cols: Vec<ArrayRef> = vec![
-                Arc::new(out.seq.finish()),
-                Arc::new(out.key.finish()),
-                Arc::new(out.path.finish()),
-                Arc::new(out.index.finish()),
-                Arc::new(out.value.finish()),
-                Arc::new(out.this.finish()),
-            ];
-
-            last_outer.clone_from(&out.last_outer);
-            let batch = RecordBatch::try_new(self.schema.clone(), cols)?;
-            if batch.num_rows() > 0 {
-                all_batches.push(batch);
+            if all_batches.is_empty() {
+                Ok::<_, DataFusionError>(
+                    MemoryStream::try_new(
+                        vec![empty_record_batch(
+                            schema.clone(),
+                            &args.path,
+                            last_outer,
+                            args.is_outer,
+                            flatten_func.row_id.load(Ordering::Acquire),
+                        )],
+                        schema.clone(),
+                        projection.clone(),
+                    )?
+                    .boxed(),
+                )
+            } else {
+                Ok::<_, DataFusionError>(
+                    MemoryStream::try_new(all_batches, schema.clone(), projection.clone())?
+                        .with_fetch(limit)
+                        .boxed(),
+                )
             }
-        }
+        })
+        .try_flatten()
+        .map_err(|e| e);
 
-        if all_batches.is_empty() {
-            return Ok(Box::pin(MemoryStream::try_new(
-                vec![Self::empty_record_batch(
-                    self.schema.clone(),
-                    &self.args.path,
-                    last_outer,
-                    self.args.is_outer,
-                    flatten_func.row_id.load(Ordering::Acquire),
-                )],
-                self.schema.clone(),
-                self.projection.clone(),
-            )?));
-        }
-
-        Ok(Box::pin(
-            MemoryStream::try_new(all_batches, self.schema.clone(), self.projection.clone())?
-                .with_fetch(self.limit),
-        ))
+        Ok(Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&self.schema),
+            stream,
+        )))
     }
 }
 
-impl FlattenExec {
-    fn get_input_batches(
-        &self,
-        _partition: usize,
-        _context: Arc<TaskContext>,
-    ) -> Result<Vec<RecordBatch>> {
-        let expr = self.args.input_expr.clone();
-
-        // Fast path for literal input
-        if let Expr::Literal(ScalarValue::Utf8(Some(s))) = expr {
-            let array: ArrayRef = Arc::new(StringArray::from(vec![s]));
-            let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
-            return Ok(vec![batch]);
-        }
-
-        // Evaluate the expression or plan to get the input batches
-        let session_state = self.session_state.clone();
-        futures::executor::block_on(async move {
-            evaluate_expr_or_plan(&expr, session_state.as_ref()).await
-        })
-    }
-
-    #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    #[must_use]
-    pub fn empty_record_batch(
-        schema: SchemaRef,
-        path: &[PathToken],
-        last_outer: Option<Value>,
-        null: bool,
-        row_id: u64,
-    ) -> RecordBatch {
-        let arrays: Vec<ArrayRef> = if null {
-            let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
-            vec![
-                Arc::new(UInt64Array::from(vec![row_id])) as ArrayRef,
-                Arc::new(StringArray::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
-                Arc::new(UInt64Array::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::new_null(1)) as ArrayRef,
-                Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
-            ]
-        } else {
-            vec![
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(UInt64Array::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-                Arc::new(StringArray::new_null(0)) as ArrayRef,
-            ]
-        };
-        RecordBatch::try_new(schema, arrays).unwrap()
-    }
+#[allow(clippy::unwrap_used, clippy::as_conversions)]
+#[must_use]
+pub fn empty_record_batch(
+    schema: SchemaRef,
+    path: &[PathToken],
+    last_outer: Option<Value>,
+    null: bool,
+    row_id: u64,
+) -> RecordBatch {
+    let arrays: Vec<ArrayRef> = if null {
+        let last_outer_ = last_outer.map(|v| serde_json::to_string_pretty(&v).unwrap());
+        vec![
+            Arc::new(UInt64Array::from(vec![row_id])) as ArrayRef,
+            Arc::new(StringArray::new_null(1)) as ArrayRef,
+            Arc::new(StringArray::from(vec![path_to_string(path)])) as ArrayRef,
+            Arc::new(UInt64Array::new_null(1)) as ArrayRef,
+            Arc::new(StringArray::new_null(1)) as ArrayRef,
+            Arc::new(StringArray::from(vec![last_outer_])) as ArrayRef,
+        ]
+    } else {
+        vec![
+            Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+            Arc::new(StringArray::new_null(0)) as ArrayRef,
+            Arc::new(StringArray::new_null(0)) as ArrayRef,
+            Arc::new(UInt64Array::new_null(0)) as ArrayRef,
+            Arc::new(StringArray::new_null(0)) as ArrayRef,
+            Arc::new(StringArray::new_null(0)) as ArrayRef,
+        ]
+    };
+    RecordBatch::try_new(schema, arrays).unwrap()
 }
 
 fn extract_table_ref(expr: &Expr) -> Option<TableReference> {
