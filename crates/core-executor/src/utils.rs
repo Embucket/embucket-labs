@@ -74,7 +74,7 @@ impl Config {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, EnumString, Debug, Display, Default)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
     Arrow,

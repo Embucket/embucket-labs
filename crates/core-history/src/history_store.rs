@@ -253,12 +253,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .get(key_str)
             .await
             .context(core_history_errors::QueryGetSnafu)?;
-        res.ok_or_else(|| {
-            core_history_errors::QueryNotFoundSnafu {
-                query_id: id,
-            }
-            .build()
-        })
+        res.ok_or_else(|| core_history_errors::QueryNotFoundSnafu { query_id: id }.build())
     }
 
     #[instrument(name = "HistoryStore::get_queries", level = "debug", skip(self), err)]

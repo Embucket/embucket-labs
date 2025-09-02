@@ -81,7 +81,7 @@ pub enum Error {
         error: core_history::QueryIdError,
         #[snafu(implicit)]
         location: Location,
-    },    
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -6,12 +6,13 @@ use crate::models::{
 use crate::state::AppState;
 use api_sessions::DFSessionId;
 use axum::Json;
-use axum::extract::{ConnectInfo, Query, State};
+use axum::extract::{ConnectInfo, Path, Query, State};
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
-use core_executor::models::QueryContext;
+use core_executor::models::{QueryContext, QueryResult};
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
+use core_history::{QueryIdParam, QueryRecordId};
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
@@ -95,6 +96,60 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
+#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", err, ret(level = tracing::Level::TRACE))]
+fn prepare_query_result(
+    sql_text: &str,
+    query_result: QueryResult,
+    ser_fmt: DataSerializationFormat,
+) -> Result<Json<JsonResponse>> {
+    // No need to fetch underlying error for snafu(transparent)
+    let records = convert_record_batches(query_result.clone(), ser_fmt)?;
+    debug!(
+        "serialized json: {}",
+        records_to_json_string(&records)?.as_str()
+    );
+    let query_uuid: Uuid = query_result.query_id.to_uuid();
+    // Record the result as part of the current span.
+    tracing::Span::current()
+        .record("query_id", query_result.query_id.as_i64())
+        .record("query_uuid", query_uuid.to_string());
+
+    let json_resp = Json(JsonResponse {
+        data: Option::from(ResponseData {
+            row_type: query_result
+                .column_info()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            query_result_format: Some(ser_fmt.to_string().to_lowercase()),
+            row_set: if ser_fmt == DataSerializationFormat::Json {
+                Option::from(ResponseData::rows_to_vec(
+                    records_to_json_string(&records)?.as_str(),
+                )?)
+            } else {
+                None
+            },
+            row_set_base_64: if ser_fmt == DataSerializationFormat::Arrow {
+                Option::from(records_to_arrow_string(&records)?)
+            } else {
+                None
+            },
+            total: Some(1),
+            query_id: Some(query_uuid.to_string()),
+            error_code: None,
+            sql_state: Option::from("ok".to_string()),
+        }),
+        success: true,
+        message: Option::from("successfully executed".to_string()),
+        code: Some(format!("{:06}", 200)),
+    });
+    debug!(
+        "query {:?}, response: {:?}, records: {:?}",
+        sql_text, json_resp, records
+    );
+    Ok(json_resp)
+}
+
 #[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -139,52 +194,27 @@ pub async fn query(
             QueryContext::default().with_ip_address(addr.ip().to_string()),
         )
         .await?;
-    // No need to fetch underlying error for snafu(transparent)
-    let records = convert_record_batches(query_result.clone(), serialization_format)?;
-    debug!(
-        "serialized json: {}",
-        records_to_json_string(&records)?.as_str()
-    );
-    let query_uuid: Uuid = query_result.query_id.to_uuid();
+
+    prepare_query_result(&sql_text, query_result, serialization_format)
+}
+
+#[tracing::instrument(name = "api_snowflake_rest::get_query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
+pub async fn get_query(
+    State(state): State<AppState>,
+    Path(query_id): Path<QueryIdParam>,
+) -> Result<Json<JsonResponse>> {
+    let query_id: QueryRecordId = query_id.into();
+
+    let query_uuid: Uuid = query_id.to_uuid();
     // Record the result as part of the current span.
     tracing::Span::current()
-        .record("query_id", query_result.query_id.as_i64())
+        .record("query_id", query_id.as_i64())
         .record("query_uuid", query_uuid.to_string());
 
-    let json_resp = Json(JsonResponse {
-        data: Option::from(ResponseData {
-            row_type: query_result
-                .column_info()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            query_result_format: Some(serialization_format.to_string().to_lowercase()),
-            row_set: if serialization_format == DataSerializationFormat::Json {
-                Option::from(ResponseData::rows_to_vec(
-                    records_to_json_string(&records)?.as_str(),
-                )?)
-            } else {
-                None
-            },
-            row_set_base_64: if serialization_format == DataSerializationFormat::Arrow {
-                Option::from(records_to_arrow_string(&records)?)
-            } else {
-                None
-            },
-            total: Some(1),
-            query_id: Some(query_uuid.to_string()),
-            error_code: None,
-            sql_state: Option::from("ok".to_string()),
-        }),
-        success: true,
-        message: Option::from("successfully executed".to_string()),
-        code: Some(format!("{:06}", 200)),
-    });
-    debug!(
-        "query {:?}, response: {:?}, records: {:?}",
-        sql_text, json_resp, records
-    );
-    Ok(json_resp)
+    let query_result = state.execution_svc.query_result(query_id).await?;
+
+    // TODO: get query text from history ?
+    prepare_query_result("", query_result, state.config.dbt_serialization_format)
 }
 
 pub async fn abort() -> Result<Json<serde_json::value::Value>> {

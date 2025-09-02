@@ -6,7 +6,7 @@ use axum::{
 };
 use snafu::ResultExt;
 
-use core_history::{QueryRecord, QueryRecordId, QueryIdParam};
+use core_history::{QueryIdParam, QueryRecord, QueryRecordId};
 #[allow(clippy::wildcard_imports)]
 use core_metastore::{
     error::{self as metastore_error},
