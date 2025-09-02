@@ -1,6 +1,6 @@
 use crate::error::{self as api_snowflake_rest_error, Error, Result};
 use crate::models::{
-    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData
+    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData, SnowflakeQueryId
 };
 use crate::state::AppState;
 use api_sessions::DFSessionId;
@@ -19,6 +19,7 @@ use datafusion::arrow::record_batch::RecordBatch;
 use snafu::ResultExt;
 use std::net::SocketAddr;
 use tracing::debug;
+use uuid::Uuid;
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
 // Buffer Alignment and Padding: Implementations are recommended to allocate memory
@@ -88,7 +89,7 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
-#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,
@@ -101,9 +102,15 @@ pub async fn query(
 
     if async_exec {
         let query_handle = state.execution_svc.submit_query(&session_id, &sql_text, query_context).await?;
+        let query_uuid: Uuid = SnowflakeQueryId::new(query_handle.query_id).into();
+        // Record the result as part of the current span.
+        tracing::Span::current()
+            .record("query_id", query_handle.query_id)
+            .record("query_uuid", query_uuid.to_string());
+
         return Ok(Json(JsonResponse {
             data: Option::from(ResponseData {
-                query_id: Some(query_handle.query_id.to_string()),
+                query_id: Some(query_uuid.to_string()),
                 ..Default::default()
             }),
             success: true,
@@ -126,8 +133,11 @@ pub async fn query(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
     );
+    let query_uuid: Uuid = SnowflakeQueryId::new(query_result.query_id).into();
     // Record the result as part of the current span.
-    tracing::Span::current().record("query_id", query_result.query_id);
+    tracing::Span::current()
+        .record("query_id", query_result.query_id)
+        .record("query_uuid", query_uuid.to_string());
 
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
@@ -150,7 +160,7 @@ pub async fn query(
                 None
             },
             total: Some(1),
-            query_id: Some(query_result.query_id.to_string()),
+            query_id: Some(query_uuid.to_string()),
             error_code: None,
             sql_state: Option::from("ok".to_string()),
         }),

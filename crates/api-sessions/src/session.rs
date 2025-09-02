@@ -79,6 +79,11 @@ impl DFSessionId {
                 .await
                 .context(session_error::ExecutionSnafu)?;
         }
+
+        let sessions_count = execution_svc.get_sessions().read().await.len();
+        // Record the result as part of the current span.
+        tracing::Span::current().record("sessions_count", sessions_count);        
+
         Ok(Self(session_id))
     }
 }
