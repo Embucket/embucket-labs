@@ -51,10 +51,7 @@ use datafusion::sql::sqlparser::ast::{
     Statement, TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
-use datafusion_common::{
-    Column, DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
-    TableReference, plan_datafusion_err,
-};
+use datafusion_common::{Column, DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference, TableReference, plan_datafusion_err, DFSchemaRef};
 use datafusion_expr::conditional_expressions::CaseBuilder;
 use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
@@ -109,6 +106,7 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
+use datafusion_expr::utils::exprlist_to_fields;
 use tracing_attributes::instrument;
 use url::Url;
 
@@ -3151,7 +3149,6 @@ pub fn cast_input_to_target_schema(
     for field in target_schema.fields() {
         let name = field.name();
         let data_type = field.data_type();
-        tracing::error!("Metadata: {:?}", field.metadata());
         let (reference, input_field) = get_field(input_schema, name)?;
         if input_field.data_type() == data_type {
             if input_field.name() == name {
@@ -3177,8 +3174,9 @@ pub fn cast_input_to_target_schema(
             )));
         }
     }
-    tracing::error!("Input plan schema: {}", input.schema().as_arrow());
-    let projection = Projection::try_new(projections, input).context(ex_error::DataFusionSnafu)?;
+    let schema = DFSchema::try_from(target_schema.clone()).context(ex_error::DataFusionSnafu)?;
+    tracing::error!("New schema: {}", schema.as_arrow());
+    let projection = Projection::try_new_with_schema(projections, input, Arc::from(schema)).context(ex_error::DataFusionSnafu)?;
     Ok(LogicalPlan::Projection(projection))
 }
 
