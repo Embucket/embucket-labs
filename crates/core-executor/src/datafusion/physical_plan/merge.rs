@@ -726,6 +726,11 @@ fn schema_projection(schema: &Schema) -> Vec<(Arc<dyn PhysicalExpr>, String)> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
+    use datafusion::arrow::array::{GenericStringBuilder, Int32Array};
+    use datafusion::arrow::compute;
+    use datafusion::arrow::datatypes::{DataType, Field};
+    use futures::stream;
+
     use super::*;
     use std::sync::Arc;
 
@@ -768,7 +773,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_source_exist_filter_stream() {
+    async fn test_source_exist_filter_stream_simple() {
         use datafusion::arrow::datatypes::{DataType, Field};
         use futures::stream;
 
@@ -840,6 +845,176 @@ mod tests {
         }
 
         assert!(total_rows == 9);
+    }
+
+    fn build_record_batch(
+        input: &[(
+            Vec<bool>,
+            Vec<Option<String>>,
+            Vec<Option<String>>,
+            Vec<i32>,
+        )],
+    ) -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![
+            Field::new(SOURCE_EXISTS_COLUMN, DataType::Boolean, true),
+            Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true),
+            Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true),
+            Field::new("data", DataType::Int32, false),
+        ]));
+
+        let mut b_builder = BooleanArray::builder(8);
+        let mut df_builder = GenericStringBuilder::<i32>::new();
+        let mut mf_builder = GenericStringBuilder::<i32>::new();
+        let mut d_builder = Int32Array::builder(8);
+        for (b, df, mf, d) in input {
+            b_builder.append_slice(b);
+            df_builder.append_array(&StringArray::from(df.clone()));
+            mf_builder.append_array(&StringArray::from(mf.clone()));
+            d_builder.append_slice(d);
+        }
+        RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(b_builder.finish()),
+                Arc::new(df_builder.finish()),
+                Arc::new(mf_builder.finish()),
+                Arc::new(d_builder.finish()),
+            ],
+        )
+        .expect("Failed to build record batch")
+    }
+
+    fn generate_target(
+        i: i32,
+    ) -> (
+        Vec<bool>,
+        Vec<Option<String>>,
+        Vec<Option<String>>,
+        Vec<i32>,
+    ) {
+        (
+            vec![false, false, false, false],
+            vec![
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+            ],
+            vec![
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+            ],
+            vec![i * 4 + 1, i * 4 + 2, i * 4 + 3, i * 4 + 4],
+        )
+    }
+
+    fn generate_source(
+        i: i32,
+    ) -> (
+        Vec<bool>,
+        Vec<Option<String>>,
+        Vec<Option<String>>,
+        Vec<i32>,
+    ) {
+        (
+            vec![true, true, true, true],
+            vec![None, None, None, None],
+            vec![None, None, None, None],
+            vec![i * 4 + 1, i * 4 + 2, i * 4 + 3, i * 4 + 4],
+        )
+    }
+
+    fn generate_matching(
+        i: i32,
+    ) -> (
+        Vec<bool>,
+        Vec<Option<String>>,
+        Vec<Option<String>>,
+        Vec<i32>,
+    ) {
+        (
+            vec![true, true, true, true],
+            vec![
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+                Some(format!("file${i}")),
+            ],
+            vec![
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+                Some(format!("manifest${i}")),
+            ],
+            vec![i * 4 + 1, i * 4 + 2, i * 4 + 3, i * 4 + 4],
+        )
+    }
+
+    fn build_input_stream(sequence: &[usize]) -> Vec<Result<RecordBatch, DataFusionError>> {
+        sequence
+            .iter()
+            .enumerate()
+            .map(|(n, i)| {
+                let n: i32 = n.try_into().unwrap();
+                match i {
+                    1 => Ok(build_record_batch(&[generate_target(n)])),
+                    2 => Ok(build_record_batch(&[generate_source(n)])),
+                    3 => Ok(build_record_batch(&[
+                        generate_target(n),
+                        generate_source(n),
+                    ])),
+                    4 => Ok(build_record_batch(&[generate_matching(n)])),
+                    5 => Ok(build_record_batch(&[
+                        generate_target(n),
+                        generate_matching(n),
+                    ])),
+                    6 => Ok(build_record_batch(&[
+                        generate_source(n),
+                        generate_matching(n),
+                    ])),
+                    7 => Ok(build_record_batch(&[
+                        generate_source(n),
+                        generate_target(n),
+                        generate_matching(n),
+                    ])),
+
+                    _ => panic!(),
+                }
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn test_source_exist_filter_stream() {
+        use datafusion::arrow::datatypes::{DataType, Field};
+        use futures::stream;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new(SOURCE_EXISTS_COLUMN, DataType::Boolean, true),
+            Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true),
+            Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true),
+            Field::new("data", DataType::Int32, false),
+        ]));
+
+        let input_stream = stream::iter(build_input_stream(&[1]));
+
+        let stream = Box::pin(RecordBatchStreamAdapter::new(schema, input_stream));
+
+        let matching_files = Arc::default();
+
+        let mut filter_stream = MergeCOWFilterStream::new(stream, matching_files);
+
+        let mut sum = 0;
+        while let Some(result) = StreamExt::next(&mut filter_stream).await {
+            let batch = result.unwrap();
+            let data = batch.column(3);
+
+            sum += compute::sum(&downcast_array::<Int32Array>(&data)).unwrap();
+        }
+
+        assert_eq!(sum, -1);
     }
 
     #[test]
