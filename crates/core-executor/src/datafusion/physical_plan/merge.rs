@@ -729,10 +729,46 @@ mod tests {
     use datafusion::arrow::array::{GenericStringBuilder, Int32Array};
     use datafusion::arrow::compute;
     use datafusion::arrow::datatypes::{DataType, Field};
-    use futures::stream;
 
     use super::*;
     use std::sync::Arc;
+
+    macro_rules! test_source_exist_filter_stream {
+        ($test_name:ident, $input_slice:expr, $expected_sum:expr) => {
+            paste::paste! {
+                #[tokio::test]
+                async fn [<test_source_exist_filter_stream_ $test_name>]() {
+                    use datafusion::arrow::datatypes::{DataType, Field};
+                    use futures::stream;
+
+                    let schema = Arc::new(Schema::new(vec![
+                        Field::new(SOURCE_EXISTS_COLUMN, DataType::Boolean, true),
+                        Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true),
+                        Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true),
+                        Field::new("data", DataType::Int32, false),
+                    ]));
+
+                    let input_stream = stream::iter(build_input_stream($input_slice));
+
+                    let stream = Box::pin(RecordBatchStreamAdapter::new(schema, input_stream));
+
+                    let matching_files = Arc::default();
+
+                    let mut filter_stream = MergeCOWFilterStream::new(stream, matching_files);
+
+                    let mut sum = 0;
+                    while let Some(result) = StreamExt::next(&mut filter_stream).await {
+                        let batch = result.unwrap();
+                        let data = batch.column(3);
+
+                        sum += compute::sum(&downcast_array::<Int32Array>(&data)).unwrap();
+                    }
+
+                    assert_eq!(sum, $expected_sum);
+                }
+            }
+        };
+    }
 
     #[test]
     fn test_unique_values_with_duplicates() {
@@ -986,37 +1022,6 @@ mod tests {
             .collect()
     }
 
-    #[tokio::test]
-    async fn test_source_exist_filter_stream() {
-        use datafusion::arrow::datatypes::{DataType, Field};
-        use futures::stream;
-
-        let schema = Arc::new(Schema::new(vec![
-            Field::new(SOURCE_EXISTS_COLUMN, DataType::Boolean, true),
-            Field::new(DATA_FILE_PATH_COLUMN, DataType::Utf8, true),
-            Field::new(MANIFEST_FILE_PATH_COLUMN, DataType::Utf8, true),
-            Field::new("data", DataType::Int32, false),
-        ]));
-
-        let input_stream = stream::iter(build_input_stream(&[1]));
-
-        let stream = Box::pin(RecordBatchStreamAdapter::new(schema, input_stream));
-
-        let matching_files = Arc::default();
-
-        let mut filter_stream = MergeCOWFilterStream::new(stream, matching_files);
-
-        let mut sum = 0;
-        while let Some(result) = StreamExt::next(&mut filter_stream).await {
-            let batch = result.unwrap();
-            let data = batch.column(3);
-
-            sum += compute::sum(&downcast_array::<Int32Array>(&data)).unwrap();
-        }
-
-        assert_eq!(sum, -1);
-    }
-
     #[test]
     fn test_unique_files_and_manifests_with_duplicates() {
         let files = Arc::new(StringArray::from(vec![
@@ -1041,4 +1046,8 @@ mod tests {
         ]);
         assert_eq!(result, expected);
     }
+
+    test_source_exist_filter_stream!(single_target, &[1], 0);
+    test_source_exist_filter_stream!(single_source, &[2], 10);
+    test_source_exist_filter_stream!(single_matching, &[4], 10);
 }
