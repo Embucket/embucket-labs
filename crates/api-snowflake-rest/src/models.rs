@@ -5,31 +5,6 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::collections::HashMap;
-use uuid::Uuid;
-
-pub struct SnowflakeQueryId(i64);
-
-impl SnowflakeQueryId {
-    pub fn new(query_id: i64) -> Self {
-        Self(query_id)
-    }
-}
-
-// Only use for uuids created by SnowflakeQueryId::into
-impl TryFrom<Uuid> for SnowflakeQueryId {
-    type Error = std::array::TryFromSliceError;
-    fn try_from(uuid: Uuid) -> std::result::Result<Self, Self::Error> {
-        Ok(Self(i64::from_be_bytes(uuid.as_bytes()[8..16].try_into()?)))
-    }
-}
-
-impl Into<Uuid> for SnowflakeQueryId {
-    fn into(self) -> Uuid {
-        let mut bytes = [0u8; 16];
-        bytes[8..].copy_from_slice(&self.0.to_be_bytes());
-        Uuid::from_bytes(bytes)
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

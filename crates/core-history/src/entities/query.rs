@@ -1,4 +1,4 @@
-use crate::WorksheetId;
+use crate::{WorksheetId, QueryRecordId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
@@ -27,8 +27,6 @@ impl Display for QueryStatus {
     }
 }
 
-pub type QueryRecordId = i64;
-
 // QueryRecord struct is used for storing QueryRecord History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -51,7 +49,7 @@ impl QueryRecord {
     pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
         Self {
-            id: Self::inverted_id(start_time.timestamp_millis()),
+            id: Self::inverted_id(QueryRecordId(start_time.timestamp_millis())),
             worksheet_id,
             query: String::from(query),
             start_time,
@@ -89,7 +87,7 @@ impl QueryRecord {
 
     // Returns a key with inverted id for descending order
     #[must_use]
-    pub fn get_key(id: QueryRecordId) -> Bytes {
+    pub fn get_key(id: i64) -> Bytes {
         Bytes::from(format!("/qh/{id}"))
     }
 
@@ -123,10 +121,10 @@ impl IterableEntity for QueryRecord {
     type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {
-        self.id
+        self.id.into()
     }
 
     fn key(&self) -> Bytes {
-        Self::get_key(self.id)
+        Self::get_key(self.cursor())
     }
 }

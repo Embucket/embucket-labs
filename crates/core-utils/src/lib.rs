@@ -358,7 +358,7 @@ mod test {
         }
 
         fn key(&self) -> Bytes {
-            Self::get_key(self.cursor())
+            Self::get_key(self.cursor().into())
         }
     }
 
@@ -497,14 +497,14 @@ mod test {
         let created_items = populate_with_items(&db).await;
         let created_more_items = populate_with_more_items(&db).await;
 
-        let range = PseudoItem::get_key(PseudoItem::min_cursor())
-            ..PseudoItem::get_key(PseudoItem::max_cursor());
+        let range = PseudoItem::get_key(PseudoItem::min_cursor().into())
+            ..PseudoItem::get_key(PseudoItem::max_cursor().into());
         eprintln!("PseudoItem range {range:?}");
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(created_items.as_slice(), retrieved.as_slice());
 
-        let range = PseudoItem2::get_key(PseudoItem2::min_cursor())
-            ..PseudoItem2::get_key(PseudoItem2::max_cursor());
+        let range = PseudoItem2::get_key(PseudoItem2::min_cursor().into())
+            ..PseudoItem2::get_key(PseudoItem2::max_cursor().into());
         eprintln!("PseudoItem2 range {range:?}");
         let retrieved: Vec<PseudoItem2> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(created_more_items.as_slice(), retrieved.as_slice());
@@ -531,7 +531,7 @@ mod test {
         let db = Db::memory().await;
         let created_items = populate_with_items(&db).await;
         let items = created_items[5..].iter().as_slice();
-        let range = items.first().unwrap().key()..PseudoItem::get_key(PseudoItem::max_cursor());
+        let range = items.first().unwrap().key()..PseudoItem::get_key(PseudoItem::max_cursor().into());
         let retrieved: Vec<PseudoItem> = db.items_from_range(range, None).await.unwrap();
         assert_check_items(items, retrieved.as_slice());
     }

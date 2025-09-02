@@ -1,4 +1,4 @@
-use crate::{QueryRecordId, WorksheetId};
+use crate::{WorksheetId, QueryRecordId};
 use bytes::Bytes;
 use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
@@ -30,10 +30,10 @@ impl QueryRecordReference {
 }
 
 impl IterableEntity for QueryRecordReference {
-    type Cursor = QueryRecordId;
+    type Cursor = i64;
 
     fn cursor(&self) -> Self::Cursor {
-        self.id
+        self.id.into()
     }
 
     fn key(&self) -> Bytes {

@@ -2,7 +2,7 @@
 use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult, StoreSnafu};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
-    QueryRecord,
+    QueryRecord, QueryRecordId,
 };
 use crate::state::AppState;
 use crate::{
@@ -18,7 +18,7 @@ use axum::{
     extract::{Query, State},
 };
 use core_executor::models::{QueryContext, QueryResult};
-use core_history::{QueryRecordId, WorksheetId};
+use core_history::WorksheetId;
 use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
@@ -119,7 +119,7 @@ pub async fn query(
     {
         Ok(QueryResult { query_id, .. }) => {
             // Record the result as part of the current span.
-            tracing::Span::current().record("query_id", query_id);
+            tracing::Span::current().record("query_id", query_id.as_i64());
             let query_record = state
                 .history_store
                 .get_query(query_id)
@@ -161,7 +161,7 @@ pub async fn get_query(
 ) -> Result<Json<QueryGetResponse>> {
     state
         .history_store
-        .get_query(query_record_id)
+        .get_query(query_record_id.into())
         .await
         .map(|query_record| {
             Ok(Json(QueryGetResponse(

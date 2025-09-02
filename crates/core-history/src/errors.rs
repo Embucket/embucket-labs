@@ -132,7 +132,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("No result set for QueryRecord: {query_id}"))]
+    #[snafu(display("No result set for QueryRecord: {}", query_id.to_uuid()))]
     NoResultSet {
         query_id: QueryRecordId,
         #[snafu(implicit)]

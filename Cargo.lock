@@ -250,6 +250,7 @@ dependencies = [
  "serde_json",
  "snafu",
  "tracing",
+ "uuid",
  "validator",
 ]
 
@@ -2060,6 +2061,7 @@ dependencies = [
  "snafu",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

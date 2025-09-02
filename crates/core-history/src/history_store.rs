@@ -106,8 +106,8 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
 }
 
 async fn queries_iterator(db: &Db, cursor: Option<QueryRecordId>) -> Result<DbIterator<'_>> {
-    let start_key = QueryRecord::get_key(cursor.unwrap_or_else(QueryRecordId::min_cursor));
-    let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
+    let start_key = QueryRecord::get_key(cursor.map_or_else(i64::min_cursor, Into::into));
+    let end_key = QueryRecord::get_key(i64::max_cursor());
     db.range_iterator(start_key..end_key)
         .await
         .context(core_history_errors::GetWorksheetQueriesSnafu)
@@ -120,9 +120,9 @@ async fn worksheet_queries_references_iterator(
 ) -> Result<DbIterator<'_>> {
     let refs_start_key = QueryRecordReference::get_key(
         worksheet_id,
-        cursor.unwrap_or_else(QueryRecordId::min_cursor),
+        cursor.unwrap_or_else(|| i64::min_cursor().into()),
     );
-    let refs_end_key = QueryRecordReference::get_key(worksheet_id, QueryRecordId::max_cursor());
+    let refs_end_key = QueryRecordReference::get_key(worksheet_id, i64::max_cursor().into());
     db.range_iterator(refs_start_key..refs_end_key)
         .await
         .context(core_history_errors::GetWorksheetQueriesSnafu)
@@ -244,7 +244,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(name = "HistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord> {
-        let key_bytes = QueryRecord::get_key(id);
+        let key_bytes = QueryRecord::get_key(id.into());
         let key_str =
             std::str::from_utf8(key_bytes.as_ref()).context(core_history_errors::BadKeySnafu)?;
 
@@ -309,8 +309,8 @@ impl HistoryStore for SlateDBHistoryStore {
             }
             Ok(items)
         } else {
-            let start_key = QueryRecord::get_key(cursor.unwrap_or_else(QueryRecordId::min_cursor));
-            let end_key = QueryRecord::get_key(QueryRecordId::max_cursor());
+            let start_key = QueryRecord::get_key(cursor.map_or_else(i64::min_cursor, Into::into));
+            let end_key = QueryRecord::get_key(i64::max_cursor());
 
             Ok(self
                 .db
@@ -328,7 +328,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SlateDBHistoryStore::save_query_record",
         level = "trace",
         skip(self, query_record, execution_result),
-        fields(query_id = query_record.id,
+        fields(query_id = query_record.id.as_i64(),
             query = query_record.query,
             query_result_count = query_record.result_count,
             query_duration_ms = query_record.duration_ms,
@@ -386,7 +386,7 @@ mod tests {
                         i.try_into().expect("Failed convert idx to milliseconds"),
                     );
                 let mut record = QueryRecord::new(query, worksheet_id);
-                record.id = start_time.timestamp_millis();
+                record.id = QueryRecordId(start_time.timestamp_millis());
                 record.start_time = start_time;
                 record.status = QueryStatus::Running;
                 record
@@ -439,7 +439,7 @@ mod tests {
             db.add_query(item).await.expect("Failed adding query");
         }
 
-        let cursor = <QueryRecord as IterableEntity>::Cursor::min_cursor();
+        let cursor = QueryRecordId(<QueryRecord as IterableEntity>::Cursor::min_cursor());
         eprintln!("cursor: {cursor}");
         let get_queries_params = GetQueriesParams::new()
             .with_worksheet_id(worksheet.id)

@@ -1,7 +1,7 @@
 use crate::error;
 use crate::utils::query_result_to_result_set;
 use arrow_schema::SchemaRef;
-use core_history::{QueryRecord, QueryStatus, result_set::ResultSet};
+use core_history::{QueryRecord, QueryRecordId, QueryStatus, result_set::ResultSet};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 
 pub struct AsyncQueryHandle {
-    pub query_id: i64,
+    pub query_id: QueryRecordId,
     pub rx: oneshot::Receiver<QueryResultStatus>,
 }
 
@@ -26,7 +26,7 @@ pub struct QueryContext {
     pub database: Option<String>,
     pub schema: Option<String>,
     pub worksheet_id: Option<i64>,
-    pub query_id: i64,
+    pub query_id: QueryRecordId,
     pub ip_address: Option<String>,
     pub async_query: bool,
 }
@@ -49,7 +49,7 @@ impl QueryContext {
     }
 
     #[must_use]
-    pub const fn with_query_id(mut self, new_id: i64) -> Self {
+    pub const fn with_query_id(mut self, new_id: QueryRecordId) -> Self {
         self.query_id = new_id;
         self
     }
@@ -73,7 +73,7 @@ pub struct QueryResult {
     /// The schema associated with the result.
     /// This is required to construct a valid response even when `records` are empty
     pub schema: Arc<ArrowSchema>,
-    pub query_id: i64,
+    pub query_id: QueryRecordId,
 }
 
 impl TryInto<ResultSet> for QueryResult {
@@ -128,7 +128,7 @@ impl TryFrom<QueryRecord> for QueryResult {
 
 impl QueryResult {
     #[must_use]
-    pub const fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>, query_id: i64) -> Self {
+    pub const fn new(records: Vec<RecordBatch>, schema: Arc<ArrowSchema>, query_id: QueryRecordId) -> Self {
         Self {
             records,
             schema,
@@ -136,7 +136,7 @@ impl QueryResult {
         }
     }
     #[must_use]
-    pub const fn with_query_id(mut self, new_id: i64) -> Self {
+    pub const fn with_query_id(mut self, new_id: QueryRecordId) -> Self {
         self.query_id = new_id;
         self
     }

@@ -1,7 +1,7 @@
 use super::error::{QueryError, QueryRecordResult, ResultParseSnafu};
 use crate::default_limit;
 use chrono::{DateTime, Utc};
-use core_history::{QueryRecordId, QueryStatus as QueryStatusItem, WorksheetId};
+use core_history::{QueryStatus as QueryStatusItem, WorksheetId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snafu::ResultExt;
@@ -27,46 +27,6 @@ pub struct ResultSet {
     pub columns: Vec<Column>,
     pub rows: Vec<Row>,
 }
-
-// impl ResultSet {
-//     pub fn query_result_to_result_set(
-//         records: &[RecordBatch],
-//         columns: &[ColumnInfo],
-//     ) -> std::result::Result<Self, QueryError> {
-//         let buf = Vec::new();
-//         let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-//         let mut writer = write_builder.build::<_, JsonArray>(buf);
-
-//         // serialize records to str
-//         let records: Vec<&RecordBatch> = records.iter().collect();
-//         writer
-//             .write_batches(&records)
-//             .context(CreateResultSetSnafu)?;
-//         writer.finish().context(CreateResultSetSnafu)?;
-
-//         // Get the underlying buffer back,
-//         let buf = writer.into_inner();
-//         let record_batch_str = String::from_utf8(buf).context(Utf8Snafu)?;
-
-//         // convert to array, leaving only values
-//         let rows: Vec<IndexMap<String, Value>> =
-//             serde_json::from_str(record_batch_str.as_str()).context(ResultParseSnafu)?;
-//         let rows: Vec<Row> = rows
-//             .into_iter()
-//             .map(|obj| Row(obj.values().cloned().collect()))
-//             .collect();
-
-//         let columns = columns
-//             .iter()
-//             .map(|ci| Column {
-//                 name: ci.name.clone(),
-//                 r#type: ci.r#type.clone(),
-//             })
-//             .collect();
-
-//         Ok(Self { columns, rows })
-//     }
-// }
 
 impl TryFrom<&str> for ResultSet {
     type Error = QueryError;
@@ -110,6 +70,10 @@ impl From<QueryStatusItem> for QueryStatus {
     }
 }
 
+// Keep own QueryRecordId for compatibility with current open api schema
+// Currently QueryRecordId used in apu-ui support only i64 based query_id
+pub type QueryRecordId = i64;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRecord {
@@ -141,7 +105,7 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
             ResultSet::try_from(query_result.as_str())?
         };
         Ok(Self {
-            id: query.id,
+            id: query.id.into(),
             worksheet_id: query.worksheet_id,
             query: query.query,
             start_time: query.start_time,
@@ -181,7 +145,7 @@ impl Into<core_history::GetQueriesParams> for GetQueriesParams {
             worksheet_id: self.worksheet_id,
             sql_text: self.sql_text,
             min_duration_ms: self.min_duration_ms,
-            cursor: self.cursor,
+            cursor: self.cursor.map(Into::into),
             limit: self.limit,
         }
     }

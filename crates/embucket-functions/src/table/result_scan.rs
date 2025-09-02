@@ -64,7 +64,7 @@ impl ResultScanFunc {
 
         let query_record = block_in_new_runtime(async move {
             let record = history_store
-                .get_query(query_id_parsed)
+                .get_query(query_id_parsed.into())
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;
             Ok::<QueryRecord, DataFusionError>(record)

@@ -871,6 +871,7 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSe
 mod tests {
     use super::*;
     use crate::models::ColumnInfo;
+    use core_history::QueryRecordId;
     use datafusion::arrow::array::{
         ArrayRef, BooleanArray, Float64Array, Int32Array, TimestampSecondArray, UInt64Array,
         UnionArray,
@@ -1115,7 +1116,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let result = QueryResult::new(vec![batch], schema, 0);
+        let result = QueryResult::new(vec![batch], schema, QueryRecordId(0));
         let column_infos = result.column_info();
 
         // === JSON conversion ===
@@ -1298,7 +1299,7 @@ mod tests {
             )
             .unwrap(),
         ];
-        let query_result = QueryResult::new(record_batches.clone(), schema, 0);
+        let query_result = QueryResult::new(record_batches.clone(), schema, QueryRecordId(0));
         let column_infos = query_result.column_info();
         let converted_batches =
             convert_record_batches(query_result, DataSerializationFormat::Arrow).unwrap();
@@ -1323,7 +1324,7 @@ mod tests {
 
         let record_batch =
             RecordBatch::try_new(schema.clone(), vec![date32_array, date64_array]).unwrap();
-        let query_result = QueryResult::new(vec![record_batch], schema, 0);
+        let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
         let converted_batches =
             convert_record_batches(query_result, DataSerializationFormat::Json).unwrap();
         let converted_batch = &converted_batches[0];

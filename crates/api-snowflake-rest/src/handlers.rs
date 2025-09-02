@@ -1,6 +1,6 @@
 use crate::error::{self as api_snowflake_rest_error, Error, Result};
 use crate::models::{
-    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData, SnowflakeQueryId
+    JsonResponse, LoginRequestBody, LoginRequestData, LoginRequestQueryParams, LoginResponse, LoginResponseData, QueryRequest, QueryRequestBody, ResponseData
 };
 use crate::state::AppState;
 use api_sessions::DFSessionId;
@@ -11,6 +11,7 @@ use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::models::QueryContext;
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
+use core_history::QueryRecordId;
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
@@ -102,10 +103,10 @@ pub async fn query(
 
     if async_exec {
         let query_handle = state.execution_svc.submit_query(&session_id, &sql_text, query_context).await?;
-        let query_uuid: Uuid = SnowflakeQueryId::new(query_handle.query_id).into();
+        let query_uuid: Uuid = query_handle.query_id.to_uuid();
         // Record the result as part of the current span.
         tracing::Span::current()
-            .record("query_id", query_handle.query_id)
+            .record("query_id", query_handle.query_id.as_i64())
             .record("query_uuid", query_uuid.to_string());
 
         return Ok(Json(JsonResponse {
@@ -133,10 +134,10 @@ pub async fn query(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
     );
-    let query_uuid: Uuid = SnowflakeQueryId::new(query_result.query_id).into();
+    let query_uuid: Uuid = query_result.query_id.to_uuid();
     // Record the result as part of the current span.
     tracing::Span::current()
-        .record("query_id", query_result.query_id)
+        .record("query_id", query_result.query_id.as_i64())
         .record("query_uuid", query_uuid.to_string());
 
     let json_resp = Json(JsonResponse {

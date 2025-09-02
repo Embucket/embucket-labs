@@ -1,5 +1,4 @@
 use bytes::{Buf, Bytes};
-use core_history::QueryStatus;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::arrow::csv::reader::Format;
@@ -27,6 +26,7 @@ use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType, query_result_to_history};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
+use core_history::{QueryStatus, QueryRecordId};
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
 use dashmap::DashMap;
@@ -53,12 +53,12 @@ pub trait ExecutionService: Send + Sync {
         query: &str,
         query_context: QueryContext,
     ) -> Result<AsyncQueryHandle>;
-    async fn cancel_query(&self, query_id: i64) -> Result<()>;
+    async fn cancel_query(&self, query_id: QueryRecordId) -> Result<()>;
     async fn wait_async_query_completion(
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult>;
-    async fn query_result(&self, query_id: i64) -> Result<QueryResult>;
+    async fn query_result(&self, query_id: QueryRecordId) -> Result<QueryResult>;
     async fn query(
         &self,
         session_id: &str,
@@ -349,10 +349,10 @@ impl ExecutionService for CoreExecutionService {
         skip(self),
         err
     )]
-    async fn cancel_query(&self, query_id: i64) -> Result<()> {
+    async fn cancel_query(&self, query_id: QueryRecordId) -> Result<()> {
         let cancel_token =
             self.queries
-                .get(&query_id)
+                .get(&query_id.into())
                 .context(ex_error::QueryIsntRunningSnafu {
                     query_id: query_id.to_string(),
                 })?;
@@ -364,7 +364,7 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::wait_async_query_completion",
         level = "debug",
         skip(self, query_handle),
-        fields(query_id = query_handle.query_id),
+        fields(query_id = query_handle.query_id.as_i64(), query_uuid = query_handle.query_id.to_uuid().to_string()),
         err
     )]
     async fn wait_async_query_completion(
@@ -373,7 +373,7 @@ impl ExecutionService for CoreExecutionService {
     ) -> Result<QueryResult> {
         let _ =
             self.queries
-                .get(&query_handle.query_id)
+                .get(&query_handle.query_id.into())
                 .context(ex_error::QueryIsntRunningSnafu {
                     query_id: query_handle.query_id.to_string(),
                 })?;
@@ -392,7 +392,7 @@ impl ExecutionService for CoreExecutionService {
         skip(self),
         err
     )]
-    async fn query_result(&self, query_id: i64) -> Result<QueryResult> {
+    async fn query_result(&self, query_id: QueryRecordId) -> Result<QueryResult> {
         let query_record_res = self
             .history_store
             .get_query(query_id)
@@ -414,7 +414,7 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::async_query",
         level = "debug",
         skip(self),
-        fields(query_id, old_queries_count = self.queries.len()),
+        fields(query_id, query_uuid, old_queries_count = self.queries.len()),
         err
     )]
     async fn submit_query(
@@ -436,7 +436,9 @@ impl ExecutionService for CoreExecutionService {
         let query_id = history_record.query_id();
 
         // Record the result as part of the current span.
-        tracing::Span::current().record("query_id", query_id);
+        tracing::Span::current()
+            .record("query_id", query_id.as_i64())
+            .record("query_uuid", query_id.to_uuid().to_string());
 
         // Attach the generated query ID to the query context before execution.
         // This ensures consistent tracking and logging of the query across all layers.
@@ -445,7 +447,7 @@ impl ExecutionService for CoreExecutionService {
         // add cancellation token to the map, so it can be cancelled if needed
         // also presence in this map means that query is running
         let cancel_token = CancellationToken::new();
-        self.queries.insert(query_id, cancel_token.clone());
+        self.queries.insert(query_id.into(), cancel_token.clone());
         // eprintln!("submit_query: {query_id}, {}, {}", self.queries.len(), chrono::Utc::now());
 
         let query_timeout_secs = self.config.query_timeout_secs;
@@ -494,7 +496,8 @@ impl ExecutionService for CoreExecutionService {
 
             let _ = tracing::debug_span!(
                 "ExecutionService::submit_query_result",
-                query_id,
+                query_id = query_id.as_i64(),
+                query_uuid = query_id.to_uuid().to_string(),
                 query_status = format!("{:?}", query_result_status.status),
             )
             .entered();
@@ -513,7 +516,7 @@ impl ExecutionService for CoreExecutionService {
             let _ = tx.send(query_result_status);
 
             // cleanup: remove from map when done
-            queries_ref.remove(&query_id);
+            queries_ref.remove(&query_id.into());
         });
 
         Ok(AsyncQueryHandle { query_id, rx })

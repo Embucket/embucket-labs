@@ -90,7 +90,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
         let mut records = Vec::new();
         for i in 0..3 {
             let mut q = QueryRecord::new("query", None);
-            q.id = i;
+            q.id = i.into();
             records.push(q);
         }
         Ok(records)
