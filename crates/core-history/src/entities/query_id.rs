@@ -15,8 +15,10 @@ impl QueryRecordId {
     }
 
     #[must_use]
-    pub fn to_uuid(self) -> Uuid {
-        self.into()
+    pub fn as_uuid(&self) -> Uuid {
+        let mut bytes = [0u8; 16];
+        bytes[8..].copy_from_slice(&self.0.to_be_bytes());
+        Uuid::from_bytes(bytes)
     }
 }
 
@@ -68,8 +70,6 @@ impl From<Uuid> for QueryRecordId {
 #[allow(clippy::from_over_into)]
 impl Into<Uuid> for QueryRecordId {
     fn into(self) -> Uuid {
-        let mut bytes = [0u8; 16];
-        bytes[8..].copy_from_slice(&self.0.to_be_bytes());
-        Uuid::from_bytes(bytes)
+        self.as_uuid()
     }
 }

@@ -350,12 +350,10 @@ impl ExecutionService for CoreExecutionService {
         err
     )]
     async fn cancel_query(&self, query_id: QueryRecordId) -> Result<()> {
-        let cancel_token =
-            self.queries
-                .get(&query_id.into())
-                .context(ex_error::QueryIsntRunningSnafu {
-                    query_id: query_id.to_string(),
-                })?;
+        let cancel_token = self
+            .queries
+            .get(&query_id.into())
+            .context(ex_error::QueryIsntRunningSnafu { query_id })?;
         cancel_token.cancel();
         Ok(())
     }
@@ -364,18 +362,18 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::wait_async_query_completion",
         level = "debug",
         skip(self, query_handle),
-        fields(query_id = query_handle.query_id.as_i64(), query_uuid = query_handle.query_id.to_uuid().to_string()),
+        fields(query_id = query_handle.query_id.as_i64(), query_uuid = query_handle.query_id.as_uuid().to_string()),
         err
     )]
     async fn wait_async_query_completion(
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult> {
-        let _ = self.queries.get(&query_handle.query_id.into()).context(
-            ex_error::QueryIsntRunningSnafu {
-                query_id: query_handle.query_id.to_string(),
-            },
-        )?;
+        let query_id = query_handle.query_id;
+        let _ = self
+            .queries
+            .get(&query_id.into())
+            .context(ex_error::QueryIsntRunningSnafu { query_id })?;
 
         let query_status = query_handle
             .rx
@@ -398,15 +396,11 @@ impl ExecutionService for CoreExecutionService {
             .await
             .context(ex_error::QueryHistorySnafu);
 
-        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu {
-            query_id: query_id.to_string(),
-        })?;
+        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu { query_id })?;
 
         Ok(query_record
             .try_into()
-            .context(ex_error::QueryExecutionSnafu {
-                query_id: query_id.to_string(),
-            })?)
+            .context(ex_error::QueryExecutionSnafu { query_id })?)
     }
 
     #[tracing::instrument(
@@ -437,7 +431,7 @@ impl ExecutionService for CoreExecutionService {
         // Record the result as part of the current span.
         tracing::Span::current()
             .record("query_id", query_id.as_i64())
-            .record("query_uuid", query_id.to_uuid().to_string());
+            .record("query_uuid", query_id.as_uuid().to_string());
 
         // Attach the generated query ID to the query context before execution.
         // This ensures consistent tracking and logging of the query across all layers.
@@ -472,7 +466,7 @@ impl ExecutionService for CoreExecutionService {
                         Ok(inner_result) => {
                             QueryResultStatus {
                                 query_result: inner_result.context(ex_error::QueryExecutionSnafu {
-                                    query_id: query_id.to_string(),
+                                    query_id,
                                 }),
                                 status: QueryStatus::Successful,
                             }
@@ -487,7 +481,7 @@ impl ExecutionService for CoreExecutionService {
                 },
                 () = cancel_token.cancelled() => {
                     QueryResultStatus {
-                        query_result: Err(ex_error::QueryCancelledSnafu { query_id: query_id.to_string() }.build()),
+                        query_result: Err(ex_error::QueryCancelledSnafu { query_id }.build()),
                         status: QueryStatus::Canceled,
                     }
                 }
@@ -496,7 +490,7 @@ impl ExecutionService for CoreExecutionService {
             let _ = tracing::debug_span!(
                 "ExecutionService::submit_query_result",
                 query_id = query_id.as_i64(),
-                query_uuid = query_id.to_uuid().to_string(),
+                query_uuid = query_id.as_uuid().to_string(),
                 query_status = format!("{:?}", query_result_status.status),
             )
             .entered();

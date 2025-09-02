@@ -205,7 +205,7 @@ impl IntoResponse for Error {
 impl Error {
     pub fn query_id(&self) -> String {
         if let Self::Execution { source, .. } = self {
-            source.query_id()
+            source.query_id().as_uuid().to_string()
         } else {
             String::new()
         }

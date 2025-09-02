@@ -286,7 +286,7 @@ impl UserQuery {
         fields(
             statement,
             query_id = self.query_context.query_id.as_i64(),
-            query_uuid = self.query_context.query_id.to_uuid().to_string(),
+            query_uuid = self.query_context.query_id.as_uuid().to_string(),
         ),
         err
     )]

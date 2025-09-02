@@ -1,4 +1,5 @@
 use super::snowflake_error::SnowflakeError;
+use core_history::QueryRecordId;
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -543,18 +544,18 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("{query_id}: Query execution error: {source}"))]
+    #[snafu(display("{}: Query execution error: {source}", query_id.as_uuid()))]
     QueryExecution {
-        query_id: String,
+        query_id: QueryRecordId,
         #[snafu(source(from(Error, Box::new)))]
         source: Box<Error>,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Query {query_id} isn't running"))]
+    #[snafu(display("Query {} isn't running", query_id.as_uuid()))]
     QueryIsntRunning {
-        query_id: String,
+        query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
@@ -569,7 +570,7 @@ pub enum Error {
 
     #[snafu(display("Query {query_id} cancelled"))]
     QueryCancelled {
-        query_id: String,
+        query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
@@ -584,11 +585,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn query_id(&self) -> String {
+    pub fn query_id(&self) -> QueryRecordId {
         if let Self::QueryExecution { query_id, .. } = self {
-            query_id.clone()
+            *query_id
         } else {
-            String::new()
+            QueryRecordId::default()
         }
     }
     #[must_use]

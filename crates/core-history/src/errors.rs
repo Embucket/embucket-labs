@@ -60,7 +60,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Can't locate query record by query_id: {} ({})", query_id.to_uuid(), query_id.as_i64()))]
+    #[snafu(display("Can't locate query record by query_id: {} ({})", query_id.as_uuid(), query_id.as_i64()))]
     QueryNotFound {
         query_id: QueryRecordId,
         #[snafu(implicit)]
@@ -132,7 +132,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("No result set for QueryRecord: {}", query_id.to_uuid()))]
+    #[snafu(display("No result set for QueryRecord: {}", query_id.as_uuid()))]
     NoResultSet {
         query_id: QueryRecordId,
         #[snafu(implicit)]

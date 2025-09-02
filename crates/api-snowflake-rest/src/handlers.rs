@@ -108,7 +108,7 @@ fn prepare_query_result(
         "serialized json: {}",
         records_to_json_string(&records)?.as_str()
     );
-    let query_uuid: Uuid = query_result.query_id.to_uuid();
+    let query_uuid: Uuid = query_result.query_id.as_uuid();
     // Record the result as part of the current span.
     tracing::Span::current()
         .record("query_id", query_result.query_id.as_i64())
@@ -169,7 +169,7 @@ pub async fn query(
             .execution_svc
             .submit_query(&session_id, &sql_text, query_context)
             .await?;
-        let query_uuid: Uuid = query_handle.query_id.to_uuid();
+        let query_uuid: Uuid = query_handle.query_id.as_uuid();
         // Record the result as part of the current span.
         tracing::Span::current()
             .record("query_id", query_handle.query_id.as_i64())
@@ -205,7 +205,7 @@ pub async fn get_query(
 ) -> Result<Json<JsonResponse>> {
     let query_id: QueryRecordId = query_id.into();
 
-    let query_uuid: Uuid = query_id.to_uuid();
+    let query_uuid: Uuid = query_id.as_uuid();
     // Record the result as part of the current span.
     tracing::Span::current()
         .record("query_id", query_id.as_i64())

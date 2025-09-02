@@ -143,7 +143,7 @@ impl Error {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
-                } => source.query_id(),
+                } => source.query_id().as_uuid().to_string(),
                 _ => String::new(),
             },
             _ => String::new(),
