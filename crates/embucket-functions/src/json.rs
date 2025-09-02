@@ -682,6 +682,9 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
 
 /// Encodes a Decimal128 Arrow array into a JSON array
 pub fn encode_decimal128_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
+    // JSON parser can only handle numeric values as floats or integers.
+    // Therefore, we convert Decimal128 to Float64 to ensure compatibility
+    // with the JSON encoding logic.
     let array = cast(&array, &DataType::Float64)?;
     encode_float64_array(array)
 }
