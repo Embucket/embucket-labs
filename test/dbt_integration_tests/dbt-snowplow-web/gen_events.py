@@ -284,11 +284,14 @@ def main():
     
     # Generate events for today
     today_events = generate_event_data(today, num_events=num_events)
-    write_events_csv('events_today.csv', today_events)
+    
+    # Combine yesterday's and today's events for events_today.csv
+    combined_events = yesterday_events + today_events
+    write_events_csv('events_today.csv', combined_events)
     
     print("\nFiles generated:")
-    print("  - events_yesterday.csv")
-    print("  - events_today.csv")
+    print("  - events_yesterday.csv (yesterday's events only)")
+    print("  - events_today.csv (yesterday's + today's events combined)")
 
 if __name__ == "__main__":
     main() 
