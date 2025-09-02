@@ -683,21 +683,7 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
 /// Encodes a Decimal128 Arrow array into a JSON array
 pub fn encode_decimal128_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = cast(&array, &DataType::Float64)?;
-    let array = array.as_primitive::<Float64Type>();
-    let mut values = Vec::with_capacity(array.len());
-
-    for i in 0..array.len() {
-        values.push(if array.is_null(i) {
-            JsonValue::Null
-        } else {
-            JsonValue::Number(
-                Number::from_f64(array.value(i)).ok_or_else(|| {
-                    ArrowError::InvalidArgumentError("Invalid decimal value".into())
-                })?,
-            )
-        });
-    }
-    Ok(JsonValue::Array(values))
+    encode_float64_array(array)
 }
 
 /// Encodes a Decimal256 Arrow array into a JSON array
