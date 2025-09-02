@@ -1,5 +1,5 @@
 -- Load Snowplow Events Data into Embucket Database
--- This script creates the necessary infrastructure and loads the events.csv data
+-- This script creates the necessary infrastructure and loads the events_yesterday.csv and events_today.csv data
 
 -- Step 1: Create external volume for local storage
 CREATE EXTERNAL VOLUME IF NOT EXISTS local 
@@ -19,9 +19,9 @@ DROP TABLE IF EXISTS events;
 CREATE TABLE IF NOT EXISTS events (
     app_id STRING,
     platform STRING,
-    etl_tstamp TIMESTAMP,
-    collector_tstamp TIMESTAMP,
-    dvce_created_tstamp TIMESTAMP,
+    etl_tstamp TIMESTAMP_NTZ,
+    collector_tstamp TIMESTAMP_NTZ,
+    dvce_created_tstamp TIMESTAMP_NTZ,
     event STRING,
     event_id STRING,
     txn_id STRING,
@@ -134,18 +134,18 @@ CREATE TABLE IF NOT EXISTS events (
     mkt_clickid STRING,
     mkt_network STRING,
     etl_tags STRING,
-    dvce_sent_tstamp TIMESTAMP,
+    dvce_sent_tstamp TIMESTAMP_NTZ,
     refr_domain_userid STRING,
-    refr_dvce_tstamp TIMESTAMP,
+    refr_dvce_tstamp TIMESTAMP_NTZ,
     domain_sessionid STRING,
-    derived_tstamp TIMESTAMP,
+    derived_tstamp TIMESTAMP_NTZ,
     event_vendor STRING,
     event_name STRING,
     event_format STRING,
     event_version STRING,
     event_fingerprint STRING,
-    true_tstamp TIMESTAMP,
-    load_tstamp TIMESTAMP,
+    true_tstamp TIMESTAMP_NTZ,
+    load_tstamp TIMESTAMP_NTZ,
     contexts_com_snowplowanalytics_snowplow_web_page_1 STRING,
     unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1 STRING,
     unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1 STRING,
@@ -156,8 +156,16 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- Step 4: Load data using COPY INTO with CSV file format
+-- Load yesterday's events
 COPY INTO events
-FROM 'file:///app/data/events.csv'
+FROM 'file:///app/data/events_yesterday.csv'
+STORAGE_INTEGRATION = local
+FILE_FORMAT = (TYPE = CSV, SKIP_HEADER = 1)
+ON_ERROR = 'CONTINUE';
+
+-- Load today's events
+COPY INTO events
+FROM 'file:///app/data/events_today.csv'
 STORAGE_INTEGRATION = local
 FILE_FORMAT = (TYPE = CSV, SKIP_HEADER = 1)
 ON_ERROR = 'CONTINUE';

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to generate events.csv files with Snowplow event data for yesterday and the day before yesterday.
+Script to generate events.csv files with Snowplow event data for yesterday and today.
 """
 
 import csv
@@ -258,7 +258,7 @@ def write_events_csv(filename, events):
     print(f"Generated {len(events)} events in {filename}")
 
 def main():
-    """Generate events for yesterday and the day before yesterday."""
+    """Generate events for yesterday and today."""
     
     # Get number of rows from command line argument, default to 1000
     import sys
@@ -273,19 +273,18 @@ def main():
     # Calculate dates
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
-    day_before_yesterday = today - timedelta(days=2)
     
     print(f"Generating events for:")
     print(f"  Yesterday: {yesterday} ({num_events} rows)")
-    print(f"  Day before yesterday: {day_before_yesterday} ({num_events} rows)")
+    print(f"  Today: {today} ({num_events} rows)")
     
     # Generate events for yesterday
     yesterday_events = generate_event_data(yesterday, num_events=num_events)
-    write_events_csv('events_yesterday.csv', yesterday_events)
+    write_events_csv('events_day_before_yesterday.csv', yesterday_events)
     
-    # Generate events for day before yesterday
-    day_before_events = generate_event_data(day_before_yesterday, num_events=num_events)
-    write_events_csv('events_day_before_yesterday.csv', day_before_events)
+    # Generate events for today
+    today_events = generate_event_data(today, num_events=num_events)
+    write_events_csv('events_yesterday.csv', today_events)
     
     print("\nFiles generated:")
     print("  - events_yesterday.csv")
