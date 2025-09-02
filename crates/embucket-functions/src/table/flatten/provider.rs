@@ -361,7 +361,9 @@ fn extract_table_ref(expr: &Expr) -> Option<TableReference> {
             relation: Some(r), ..
         }) = e
         {
+            // Stop on the first table reference found
             table_ref = Some(r.clone());
+            return Ok(TreeNodeRecursion::Stop);
         }
         Ok(TreeNodeRecursion::Continue)
     });
