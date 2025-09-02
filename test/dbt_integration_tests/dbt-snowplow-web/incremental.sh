@@ -49,7 +49,7 @@ echo "Generating events"
 $PYTHON_CMD gen_events.py $num_rows
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_day_before_yesterday.csv
+$PYTHON_CMD load_events.py events_yesterday.csv
 
 echo "Running dbt"
 ./run_snowplow_web.sh
@@ -79,7 +79,7 @@ if [ "$is_incremental" == true ]; then
 # SECOND RUN INCEREMENTAL
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv
+$PYTHON_CMD load_events.py events_today.csv
 
 echo "Running dbt"
 ./run_snowplow_web.sh

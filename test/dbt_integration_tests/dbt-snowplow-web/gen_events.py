@@ -280,15 +280,15 @@ def main():
     
     # Generate events for yesterday
     yesterday_events = generate_event_data(yesterday, num_events=num_events)
-    write_events_csv('events_day_before_yesterday.csv', yesterday_events)
+    write_events_csv('events_yesterday.csv', yesterday_events)
     
     # Generate events for today
     today_events = generate_event_data(today, num_events=num_events)
-    write_events_csv('events_yesterday.csv', today_events)
+    write_events_csv('events_today.csv', today_events)
     
     print("\nFiles generated:")
     print("  - events_yesterday.csv")
-    print("  - events_day_before_yesterday.csv")
+    print("  - events_today.csv")
 
 if __name__ == "__main__":
     main() 

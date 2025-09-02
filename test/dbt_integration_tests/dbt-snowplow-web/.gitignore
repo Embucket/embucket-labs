@@ -9,3 +9,4 @@ dbt-snowplow-web/
 datasets/
 events_day_before_yesterday.csv
 events_yesterday.csv
+events_today.csv
