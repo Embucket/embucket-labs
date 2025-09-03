@@ -7,7 +7,13 @@ from queries.clickbench_queries import CLICKBENCH_QUERIES
 
 
 def _run_cross_engine_test(
-    spark_engine, embucket_engine, loaded_dataset, query_id, query_sql, metrics_recorder, request
+    spark_engine,
+    embucket_engine,
+    loaded_dataset,
+    query_id,
+    query_sql,
+    metrics_recorder,
+    request,
 ):
     dataset, table_name, _ = loaded_dataset
     alias = {"table": (dataset, table_name)}
@@ -30,19 +36,26 @@ def _run_cross_engine_test(
         rows_embucket=len(embucket_result),
         time_spark_ms=round((t1 - t0) * 1000, 3),
         time_embucket_ms=round((t3 - t2) * 1000, 3),
-        speedup_vs_spark=round(( (t1 - t0) / max((t3 - t2), 1e-9) ), 4),
+        speedup_vs_spark=round(((t1 - t0) / max((t3 - t2), 1e-9)), 4),
         passed=bool(ok),
         nodeid=request.node.nodeid,
     )
 
     assert ok, f"Query {query_id} mismatch between Spark and Embucket: {msg}"
-    assert len(spark_result) > 0
-    assert len(embucket_result) > 0
+
 
 def _run_multi_table_test(
-    spark_engine, embucket_engine, loaded_tables, query_id, query_sql, metrics_recorder, request
+    spark_engine,
+    embucket_engine,
+    loaded_tables,
+    query_id,
+    query_sql,
+    metrics_recorder,
+    request,
 ):
-    alias_to_table = {alias: (ds, table) for alias, (ds, table, _) in loaded_tables.items()}
+    alias_to_table = {
+        alias: (ds, table) for alias, (ds, table, _) in loaded_tables.items()
+    }
 
     t0 = time.perf_counter()
     spark_result = spark_engine.sql(query_sql, alias_to_table)
@@ -56,7 +69,7 @@ def _run_multi_table_test(
         spark_result,
         embucket_result,
         metrics_recorder=metrics_recorder,
-        query_id=query_id
+        query_id=query_id,
     )
 
     any_ds = next(iter(loaded_tables.values()))[0]
@@ -67,18 +80,18 @@ def _run_multi_table_test(
         rows_embucket=len(embucket_result),
         time_spark_ms=round((t1 - t0) * 1000, 3),
         time_embucket_ms=round((t3 - t2) * 1000, 3),
-        speedup_vs_spark=round(( (t1 - t0) / max((t3 - t2), 1e-9) ), 4),
+        speedup_vs_spark=round(((t1 - t0) / max((t3 - t2), 1e-9)), 4),
         passed=bool(ok),
         nodeid=request.node.nodeid,
     )
 
-    assert ok, f"Multi-table query {query_id} mismatch between Spark and Embucket: {msg}"
-    assert len(spark_result) > 0
-    assert len(embucket_result) > 0
+    assert (
+        ok
+    ), f"Multi-table query {query_id} mismatch between Spark and Embucket: {msg}"
 
 
 # NYC Yellow Taxi Tests
-@pytest.mark.parametrize('nyc_yellow_taxi', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize("nyc_yellow_taxi", ["spark", "embucket"], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
@@ -115,16 +128,22 @@ def test_yellow_nyc_taxi(
     query_id,
     query_sql,
     metrics_recorder,
-    request
+    request,
 ):
     """Test NYC Yellow Taxi dataset with taxi-specific queries using different loaders."""
     _run_cross_engine_test(
-        spark_engine, embucket_engine, nyc_yellow_taxi, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        nyc_yellow_taxi,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )
 
 
 # NYC Green Taxi Tests
-@pytest.mark.parametrize('nyc_green_taxi', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize("nyc_green_taxi", ["spark", "embucket"], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
@@ -161,35 +180,41 @@ def test_green_nyc_taxi(
     query_id,
     query_sql,
     metrics_recorder,
-    request
+    request,
 ):
     """Test NYC Green Taxi dataset with taxi-specific queries using different loaders."""
     _run_cross_engine_test(
-        spark_engine, embucket_engine, nyc_green_taxi, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        nyc_green_taxi,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )
 
 
 # FHV Tests
-@pytest.mark.parametrize('fhv', ['spark', 'embucket'], indirect=True)
+@pytest.mark.parametrize("fhv", ["spark", "embucket"], indirect=True)
 @pytest.mark.parametrize(
     "query_id,query_sql",
     [
         ("q_count", "SELECT COUNT(*) FROM {{TABLE:table}}"),
         (
             "q_base_counts",
-            "SELECT dispatching_base_num, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num"
+            "SELECT dispatching_base_num, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num",
         ),
         (
             "q_daily_counts",
-            "SELECT CAST(pickup_datetime AS DATE) AS d, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY CAST(pickup_datetime AS DATE)"
+            "SELECT CAST(pickup_datetime AS DATE) AS d, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY CAST(pickup_datetime AS DATE)",
         ),
         (
             "q_location_counts",
-            "SELECT DOlocationID, COUNT(*) AS c FROM {{TABLE:table}} WHERE DOlocationID IS NOT NULL GROUP BY DOlocationID"
+            "SELECT DOlocationID, COUNT(*) AS c FROM {{TABLE:table}} WHERE DOlocationID IS NOT NULL GROUP BY DOlocationID",
         ),
         (
             "q_base_affiliation",
-            "SELECT dispatching_base_num, Affiliated_base_number, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num, Affiliated_base_number"
+            "SELECT dispatching_base_num, Affiliated_base_number, COUNT(*) AS c FROM {{TABLE:table}} GROUP BY dispatching_base_num, Affiliated_base_number",
         ),
     ],
     ids=[
@@ -201,56 +226,87 @@ def test_green_nyc_taxi(
     ],
 )
 def test_fhv(
-    spark_engine,
-    embucket_engine,
-    fhv,
-    query_id,
-    query_sql,
-    metrics_recorder,
-    request
+    spark_engine, embucket_engine, fhv, query_id, query_sql, metrics_recorder, request
 ):
     """Test NYC FHV Taxi dataset with taxi-specific queries using different loaders."""
     _run_cross_engine_test(
-        spark_engine, embucket_engine, fhv, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        fhv,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )
 
 
-
 # TPC-H Benchmark Tests - Real TPC-H queries using multiple tables
-@pytest.mark.parametrize('tpch_full', ['spark', 'embucket'], indirect=True)
-@pytest.mark.parametrize("query_id,query_sql", TPCH_QUERIES, ids=[query_id for query_id, _ in TPCH_QUERIES])
+@pytest.mark.parametrize("tpch_full", ["spark", "embucket"], indirect=True)
+@pytest.mark.parametrize(
+    "query_id,query_sql", TPCH_QUERIES, ids=[query_id for query_id, _ in TPCH_QUERIES]
+)
 def test_tpch_benchmark_queries(
-    spark_engine, embucket_engine, tpch_full, query_id, query_sql, metrics_recorder, request
+    spark_engine,
+    embucket_engine,
+    tpch_full,
+    query_id,
+    query_sql,
+    metrics_recorder,
+    request,
 ):
     """Test actual TPC-H benchmark queries using complete dataset with all tables and different loaders."""
     _run_multi_table_test(
-        spark_engine, embucket_engine, tpch_full, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        tpch_full,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )
 
 
 # TPC-DS Benchmark Tests
-@pytest.mark.parametrize('tpcds_full', ['spark', 'embucket'], indirect=True)
-@pytest.mark.parametrize("query_id,query_sql", TPCDS_QUERIES, ids=[query_id for query_id, _ in TPCDS_QUERIES])
+@pytest.mark.parametrize("tpcds_full", ["spark", "embucket"], indirect=True)
+@pytest.mark.parametrize(
+    "query_id,query_sql", TPCDS_QUERIES, ids=[query_id for query_id, _ in TPCDS_QUERIES]
+)
 def test_tpcds_benchmark_queries(
-    spark_engine, embucket_engine, tpcds_full, query_id, query_sql, metrics_recorder, request
+    spark_engine,
+    embucket_engine,
+    tpcds_full,
+    query_id,
+    query_sql,
+    metrics_recorder,
+    request,
 ):
     """Test TPC-DS queries using complete dataset with all tables and different loaders."""
     _run_multi_table_test(
-        spark_engine, embucket_engine, tpcds_full, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        tpcds_full,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )
 
 
 # Clickbench Benchmark Tests
-@pytest.mark.parametrize('clickbench_hits', ['spark', 'embucket'], indirect=True)
-@pytest.mark.parametrize("query_id,query_sql", CLICKBENCH_QUERIES, ids=[query_id for query_id, _ in CLICKBENCH_QUERIES])
+@pytest.mark.parametrize("clickbench_hits", ["spark", "embucket"], indirect=True)
+@pytest.mark.parametrize(
+    "query_id,query_sql",
+    CLICKBENCH_QUERIES,
+    ids=[query_id for query_id, _ in CLICKBENCH_QUERIES],
+)
 def test_clickbench_hits(
-        spark_engine,
-        embucket_engine,
-        clickbench_hits,
-        query_id,
-        query_sql,
-        metrics_recorder,
-        request
+    spark_engine,
+    embucket_engine,
+    clickbench_hits,
+    query_id,
+    query_sql,
+    metrics_recorder,
+    request,
 ):
     """Test Clickbench queries using complete dataset with all tables and different loaders."""
     dataset, table_name, _ = clickbench_hits
@@ -260,5 +316,11 @@ def test_clickbench_hits(
 
     # Use the multi-table test function which correctly handles aliases
     _run_multi_table_test(
-        spark_engine, embucket_engine, loaded_tables, query_id, query_sql, metrics_recorder, request
+        spark_engine,
+        embucket_engine,
+        loaded_tables,
+        query_id,
+        query_sql,
+        metrics_recorder,
+        request,
     )

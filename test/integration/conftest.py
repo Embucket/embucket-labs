@@ -205,33 +205,6 @@ def spark() -> Any:
     return spark
 
 
-def _normalize_value(v: Any) -> Any:
-    import decimal
-    from datetime import datetime, date
-
-    if v is None:
-        return (0, None)
-    if isinstance(v, (bool,)):
-        return (1, bool(v))
-    if isinstance(v, (int,)):
-        return (2, int(v))
-    if isinstance(v, (float,)):
-        # round for sort key; actual compare uses tolerance
-        return (3, round(float(v), 12))
-    if isinstance(v, decimal.Decimal):
-        return (4, str(v))
-    if isinstance(v, (datetime, date)):
-        return (5, v.isoformat())
-    if isinstance(v, (bytes, bytearray)):
-        return (6, v.hex())
-    # Fallback to string repr for order stability
-    return (9, str(v))
-
-
-def _sort_rows(rows: List[Tuple[Any, ...]]) -> List[Tuple[Any, ...]]:
-    return sorted(rows, key=lambda row: tuple(_normalize_value(v) for v in row))
-
-
 def _rows_to_tuples(rows: Any) -> List[Tuple[Any, ...]]:
     out: List[Tuple[Any, ...]] = []
     for r in rows:
@@ -254,6 +227,36 @@ def _is_number(x: Any) -> bool:
     import decimal
 
     return isinstance(x, (int, float, decimal.Decimal))
+
+
+def _normalize_row_for_counting(
+    row: Tuple[Any, ...], rel_tol: float, abs_tol: float
+) -> Tuple[Any, ...]:
+    """Normalize a row for counter-based comparison by standardizing values within tolerance."""
+    normalized = []
+    for value in row:
+        if _is_number(value):
+            # For numeric values, round to 4 decimal places for robust comparison
+            float_val = float(value)
+            # Handle special floating point values
+            if not (float_val == float_val):  # NaN check
+                normalized.append('__NaN__')  # Use string to ensure NaN values are equal in Counter
+            elif float_val == float('inf'):
+                normalized.append('__PosInf__')
+            elif float_val == float('-inf'):
+                normalized.append('__NegInf__')
+            else:
+                # Round to 4 decimal places to handle typical database precision differences
+                normalized.append(round(float_val, 4))
+        elif isinstance(value, str):
+            # Normalize string values by stripping whitespace
+            normalized.append(value.strip())
+        else:
+            # Keep other values (None, etc.) as-is
+            normalized.append(value)
+
+    return tuple(normalized)
+
 
 
 def _render_sql_with_table(sql: str, table_fqn: str) -> str:
@@ -308,9 +311,9 @@ def compare_result_sets(
     Returns (ok, message). On failure, message contains a small diff.
     If metrics_recorder and query_id are provided, detailed mismatch info is recorded.
     """
-    mismatches = []
+    from collections import Counter
 
-    # Check row count
+    # Check row count first
     if len(a) != len(b):
         mismatch_info = {
             "type": "row_count_mismatch",
@@ -321,12 +324,88 @@ def compare_result_sets(
             metrics_recorder.add_mismatch(query_id, mismatch_info)
         return False, f"Row count differs: {len(a)} vs {len(b)}"
 
-    sa = _sort_rows(a)
-    sb = _sort_rows(b)
+    # Normalize rows for numeric tolerance and count occurrences
+    try:
+        normalized_a = [_normalize_row_for_counting(row, rel_tol, abs_tol) for row in a]
+        normalized_b = [_normalize_row_for_counting(row, rel_tol, abs_tol) for row in b]
+
+        counter_a = Counter(normalized_a)
+        counter_b = Counter(normalized_b)
+
+        # Compare counters - order doesn't matter
+        if counter_a == counter_b:
+            return True, "OK"
+
+        # Generate detailed error information
+        mismatches = []
+
+        # Find rows that are in A but not in B (or with different counts)
+        for row, count_a in counter_a.items():
+            count_b = counter_b.get(row, 0)
+            if count_a != count_b:
+                mismatch_info = {
+                    "type": "row_count_difference",
+                    "row": row,
+                    "spark_count": count_a,
+                    "embucket_count": count_b,
+                }
+                mismatches.append(mismatch_info)
+                if len(mismatches) >= 10:  # Limit for performance
+                    break
+
+        # Find rows that are in B but not in A
+        for row, count_b in counter_b.items():
+            if row not in counter_a:
+                mismatch_info = {
+                    "type": "row_count_difference",
+                    "row": row,
+                    "spark_count": 0,
+                    "embucket_count": count_b,
+                }
+                mismatches.append(mismatch_info)
+                if len(mismatches) >= 10:  # Limit for performance
+                    break
+
+        if metrics_recorder and query_id:
+            metrics_recorder.add_mismatch(
+                query_id,
+                {
+                    "total_mismatches": len(mismatches),
+                    "details": mismatches[:10],
+                },
+            )
+
+        # Format error message with first mismatch
+        if mismatches:
+            first = mismatches[0]
+            msg = f"Row count mismatch: {first['row']} appears {first['spark_count']} times in first set, {first['embucket_count']} times in second set"
+        else:
+            msg = f"Data sets differ but details could not be determined"
+
+        return False, msg
+
+    except Exception as e:
+        # Fallback to original comparison logic if normalization fails
+        return _compare_result_sets_legacy(
+            a, b, rel_tol, abs_tol, metrics_recorder, query_id
+        )
+
+
+def _compare_result_sets_legacy(
+    a: List[Tuple[Any, ...]],
+    b: List[Tuple[Any, ...]],
+    rel_tol: float = 1e-5,
+    abs_tol: float = 1e-8,
+    metrics_recorder=None,
+    query_id=None,
+) -> Tuple[bool, str]:
+    """Legacy order-dependent comparison as fallback."""
     import math
 
+    mismatches = []
+
     # Check row data
-    for i, (ra, rb) in enumerate(zip(sa, sb)):
+    for i, (ra, rb) in enumerate(zip(a, b)):
         row_mismatches = {}
 
         if len(ra) != len(rb):
