@@ -1177,7 +1177,7 @@ mod tests {
 
         // timestamp → string
         let arr = as_str_array(batch.column(1));
-        assert_eq!(arr.value(0), "1627846261");
+        assert_eq!(arr.value(0), "1627846261 1020"); // 1020-1440 = -420 (PDT) America/Los_Angeles
         assert!(arr.is_null(1));
         assert_eq!(arr.value(2), "1627846262");
 
