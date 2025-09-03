@@ -25,6 +25,7 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
 use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
+use embucket_functions::conversion::to_timestamp::parse_timezone;
 use indexmap::IndexMap;
 use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
@@ -220,9 +221,9 @@ pub fn convert_record_batches(
                         Arc::clone(column)
                     }
                 }
-                DataType::Timestamp(unit, _) => {
+                DataType::Timestamp(unit, tz) => {
                     convert_and_push(column, &field, metadata, &mut fields, |col| {
-                        Ok(convert_timestamp(col, *unit, data_format))
+                        Ok(convert_timestamp(col, *unit, tz.clone(), data_format))
                     })?
                 }
                 DataType::Date32 | DataType::Date64 => {
@@ -319,17 +320,29 @@ macro_rules! downcast_and_iter {
 fn convert_timestamp(
     column: &ArrayRef,
     unit: TimeUnit,
+    tz: Option<Arc<str>>,
     data_format: DataSerializationFormat,
 ) -> ArrayRef {
     match data_format {
         DataSerializationFormat::Arrow => convert_timestamp_to_struct(column, unit),
         DataSerializationFormat::Json => {
+            // When serializing to JSON, if a timezone is present we encode it as an offset in minutes
+            // relative to UTC. Chrono returns this as a signed number (e.g. -120 for UTC-2).
+            // To make the value non-negative (required by Snowflake's encoding), we normalize it by
+            // adding 1440 (the number of minutes in a day).
+            // On deserialization, the Snowflake Python connector’s _TIMESTAMP_TZ_to_python reverses
+            // this normalization by subtracting 1440, restoring the original signed offset.
+            let tz_encoded = encode_tz(tz);
+
             let timestamps: Vec<_> = match unit {
                 TimeUnit::Second => downcast_and_iter!(column, TimestampSecondArray)
                     .map(|x| {
                         x.map(|ts| {
                             let ts = DateTime::from_timestamp(ts, 0).unwrap_or_default();
-                            format!("{}", ts.timestamp())
+                            match tz_encoded {
+                                Some(tz) => format!("{} {}", ts.timestamp(), tz),
+                                None => format!("{}", ts.timestamp()),
+                            }
                         })
                     })
                     .collect(),
@@ -337,7 +350,17 @@ fn convert_timestamp(
                     .map(|x| {
                         x.map(|ts| {
                             let ts = DateTime::from_timestamp_millis(ts).unwrap_or_default();
-                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
+                            match tz_encoded {
+                                Some(tz) => format!(
+                                    "{}.{} {}",
+                                    ts.timestamp(),
+                                    ts.timestamp_subsec_millis(),
+                                    tz
+                                ),
+                                None => {
+                                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_millis())
+                                }
+                            }
                         })
                     })
                     .collect(),
@@ -345,7 +368,17 @@ fn convert_timestamp(
                     .map(|x| {
                         x.map(|ts| {
                             let ts = DateTime::from_timestamp_micros(ts).unwrap_or_default();
-                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+                            match tz_encoded {
+                                Some(tz) => format!(
+                                    "{}.{} {}",
+                                    ts.timestamp(),
+                                    ts.timestamp_subsec_micros(),
+                                    tz
+                                ),
+                                None => {
+                                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_micros())
+                                }
+                            }
                         })
                     })
                     .collect(),
@@ -353,7 +386,17 @@ fn convert_timestamp(
                     .map(|x| {
                         x.map(|ts| {
                             let ts = DateTime::from_timestamp_nanos(ts);
-                            format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                            match tz_encoded {
+                                Some(tz) => format!(
+                                    "{}.{} {}",
+                                    ts.timestamp(),
+                                    ts.timestamp_subsec_nanos(),
+                                    tz
+                                ),
+                                None => {
+                                    format!("{}.{}", ts.timestamp(), ts.timestamp_subsec_nanos())
+                                }
+                            }
                         })
                     })
                     .collect(),
@@ -361,6 +404,11 @@ fn convert_timestamp(
             Arc::new(StringArray::from(timestamps)) as ArrayRef
         }
     }
+}
+
+fn encode_tz(tz: Option<Arc<str>>) -> Option<i32> {
+    tz.and_then(|t| parse_timezone(&t))
+        .map(|off| off.local_minus_utc() / 60 + 1440)
 }
 
 #[allow(clippy::as_conversions)]
@@ -922,7 +970,7 @@ mod tests {
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
-                "1627846261.233222111",
+                "1627846261.233222111 1020", // 1020-1440 = -420 (PDT)
                 Some("America/Los_Angeles".to_string()),
                 (1_627_846_261, 233_222_111, 1_627_846_261_233_222_111),
             ),
@@ -945,13 +993,24 @@ mod tests {
                         TimestampNanosecondArray::from(values).with_timezone_opt(tz.clone()),
                     ) as ArrayRef,
                 };
-            let result = convert_timestamp(&timestamp_array, *unit, DataSerializationFormat::Json);
+            let tz = tz.as_ref().map(|s| Arc::from(s.as_str()));
+            let result = convert_timestamp(
+                &timestamp_array,
+                *unit,
+                tz.clone(),
+                DataSerializationFormat::Json,
+            );
             let string_array = result.as_any().downcast_ref::<StringArray>().unwrap();
             assert_eq!(string_array.len(), 2);
             assert_eq!(string_array.value(0), *expected_json);
             assert!(string_array.is_null(1));
 
-            let result = convert_timestamp(&timestamp_array, *unit, DataSerializationFormat::Arrow);
+            let result = convert_timestamp(
+                &timestamp_array,
+                *unit,
+                tz.clone(),
+                DataSerializationFormat::Arrow,
+            );
             if tz.is_some() {
                 let struct_array = result.as_any().downcast_ref::<StructArray>().unwrap();
                 let epoch_array = struct_array

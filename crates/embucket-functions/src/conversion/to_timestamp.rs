@@ -5,7 +5,7 @@ use crate::conversion_errors::{
     FailedToParseIntSnafu, InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use crate::session_params::SessionParams;
-use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc};
 use chrono_tz::Tz;
 use datafusion::arrow::array::{
     Array, Decimal128Array, StringArray, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
@@ -539,7 +539,8 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFRe
     }
 }
 
-fn parse_timezone(s: &str) -> Option<FixedOffset> {
+#[must_use]
+pub fn parse_timezone(s: &str) -> Option<FixedOffset> {
     match s.to_uppercase().as_str() {
         "Z" | "UTC" | "GMT" => Some(FixedOffset::east_opt(0)?),
         "CET" => Some(FixedOffset::east_opt(3600)?),
@@ -556,7 +557,16 @@ fn parse_timezone(s: &str) -> Option<FixedOffset> {
         "MDT" => Some(FixedOffset::west_opt(6 * 3600)?),
         "JST" => Some(FixedOffset::east_opt(9 * 3600)?),
         "MSD" => Some(FixedOffset::east_opt(14400)?),
-        other => FixedOffset::from_str(other).ok(),
+        _ => {
+            if let Ok(fixed) = FixedOffset::from_str(s) {
+                return Some(fixed);
+            }
+            if let Ok(tz) = s.parse::<Tz>() {
+                let now = Utc::now().naive_utc();
+                return Some(tz.offset_from_utc_datetime(&now).fix());
+            }
+            None
+        }
     }
 }
 
