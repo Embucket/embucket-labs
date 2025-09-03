@@ -1,42 +1,42 @@
 # DBT Run Summary
-PASS: 1499
+PASS: 1500
 WARN: 0
-ERROR: 85
-SKIP: 78
+ERROR: 83
+SKIP: 79
 TOTAL: 1662
 
 
 # Errors grouped by high-level categories
-     85 Other error
+     83 Other error
 
 # Errors grouped by type (comprehensive analysis)
-     85 Other error
+     83 Other error
 
 # Total top 10 errors (full messages)
       8 010001 (02000): SQL compilation error: unsupported feature: Physical plan does not support logical expression InSubquery(InSubquery { expr: Column(Column { relation: Some(Bare { table: "distinct_source" }), name: "max_task_instance" }), subquery: <subquery>, negated: false })
       6 010001 (02000): type_coercion
-      4 010001 (02000): External error: Failed to deserialize JSON: EOF while parsing a value at line 1 column 0
-      3 010001 (02000): SQL error: ParserError("Expected: [EXTERNAL] TABLE or [MATERIALIZED] VIEW or FUNCTION after CREATE OR REPLACE, found: secure at Line: 2, Column: 19")
       3 010001 (02000): SQL compilation error: column 'metric_value' not found
       3 010001 (02000): SQL compilation error: column 'DEFAULT' not found
       3 010001 (02000): Cannot resolve view reference 'embucket.public.flatten'
       2 010001 (02000): Parquet error: Arrow: Incompatible type. Field 'the_array' has type List(Field { name: "", data_type: Utf8, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {"PARQUET:field_id": "5"} }), array has type List(Field { name: "", data_type: Utf8, nullable: true, dict_id: 0, dict_is_ordered: false, metadata: {} })
-      2 010001 (02000): External error: Feature Complex types as bytes is not supported.
+      2 010001 (02000): Internal error: UDF to_array returned a different number of rows than expected. Expected: 10, Got: 0.
+      2 010001 (02000): External error: No table found for reference in expression
       2 010001 (02000): External error: Feature Arrow datatype Null is not supported. is not supported.
+      2 010001 (02000): Error during planning: Internal error: Function 'variant_element' failed to match any signature, errors: Internal error: Expect TypeSignatureClass::Native(LogicalType(Native(String), String)) but received NativeType::Boolean, DataType: Boolean.
 
 # Total top 10 errors (truncated to 50 chars)
      10 010001 (02000): SQL compilation error: unsupported
       6 010001 (02000): type_coercion
       5 010001 (02000): Error during planning: Internal er
       4 010001 (02000): SQL compilation error: error line 
-      4 010001 (02000): External error: Failed to deserial
       3 010001 (02000): Schema error: No field named day. 
-      3 010001 (02000): SQL error: ParserError("Expected: 
       3 010001 (02000): SQL compilation error: table 'embu
       3 010001 (02000): SQL compilation error: column 'met
       3 010001 (02000): SQL compilation error: column 'DEF
+      3 010001 (02000): Cannot resolve view reference 'emb
+      2 010001 (02000): SQL error: ParserError("Expected a
 
 # Error categorization summary
-DBT total errors: 85
-Total error lines analyzed: 85
-Coverage: 85 out of 85 error lines captured
+DBT total errors: 83
+Total error lines analyzed: 83
+Coverage: 83 out of 83 error lines captured
