@@ -943,6 +943,8 @@ mod tests {
             .collect()
     }
 
+    /// Builds a test record batch from a sequence of input data.
+    #[allow(clippy::type_complexity)]
     fn build_record_batch(
         input: &[(
             Vec<bool>,
@@ -980,6 +982,8 @@ mod tests {
         .expect("Failed to build record batch")
     }
 
+    // Creates test data for the target table where __source_exists is NULL ==> NOT MATCHED
+    #[allow(clippy::type_complexity)]
     fn generate_target(
         i: i32,
     ) -> (
@@ -1006,6 +1010,9 @@ mod tests {
         )
     }
 
+    // Creates test data for the source table where __data_file_path & __manifest_file_path are
+    // NULL ==> NOT MATCHED
+    #[allow(clippy::type_complexity)]
     fn generate_source(
         i: i32,
     ) -> (
@@ -1022,6 +1029,8 @@ mod tests {
         )
     }
 
+    // Creates MATCHED test data for target and source table
+    #[allow(clippy::type_complexity)]
     fn generate_matching(
         i: i32,
     ) -> (
