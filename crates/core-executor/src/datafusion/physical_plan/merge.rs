@@ -988,12 +988,13 @@ mod tests {
         )
     }
 
-    fn build_input_stream(sequence: &[usize]) -> Vec<Result<RecordBatch, DataFusionError>> {
+    fn build_input_stream(
+        sequence: &[(usize, usize)],
+    ) -> Vec<Result<RecordBatch, DataFusionError>> {
         sequence
             .iter()
-            .enumerate()
             .map(|(n, i)| {
-                let n: i32 = n.try_into().unwrap();
+                let n: i32 = (*n).try_into().unwrap();
                 match i {
                     1 => Ok(build_record_batch(&[generate_target(n)])),
                     2 => Ok(build_record_batch(&[generate_source(n)])),
@@ -1047,7 +1048,7 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    test_source_exist_filter_stream!(single_target, &[1], 0);
-    test_source_exist_filter_stream!(single_source, &[2], 10);
-    test_source_exist_filter_stream!(single_matching, &[4], 10);
+    test_source_exist_filter_stream!(single_target, &[(1, 1)], 0);
+    test_source_exist_filter_stream!(single_source, &[(1, 2)], 10);
+    test_source_exist_filter_stream!(single_matching, &[(1, 4)], 10);
 }
