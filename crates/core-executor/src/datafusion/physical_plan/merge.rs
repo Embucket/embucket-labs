@@ -808,6 +808,31 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+    #[test]
+    fn test_unique_files_and_manifests_with_duplicates() {
+        let files = Arc::new(StringArray::from(vec![
+            "file1", "file2", "file3", "file4", "file5",
+        ]));
+        let manifests = Arc::new(StringArray::from(vec![
+            "manifest1",
+            "manifest1",
+            "manifest2",
+            "manifest2",
+            "manifest3",
+        ]));
+
+        let result = unique_files_and_manifests(files.as_ref(), manifests.as_ref()).unwrap();
+
+        let expected = HashMap::from_iter([
+            ("file1".to_string(), "manifest1".to_string()),
+            ("file2".to_string(), "manifest1".to_string()),
+            ("file3".to_string(), "manifest2".to_string()),
+            ("file4".to_string(), "manifest2".to_string()),
+            ("file5".to_string(), "manifest3".to_string()),
+        ]);
+        assert_eq!(result, expected);
+    }
+
     #[tokio::test]
     async fn test_source_exist_filter_stream_simple() {
         use datafusion::arrow::datatypes::{DataType, Field};
@@ -881,6 +906,41 @@ mod tests {
         }
 
         assert!(total_rows == 9);
+    }
+
+    fn build_input_stream(
+        sequence: &[(usize, usize)],
+    ) -> Vec<Result<RecordBatch, DataFusionError>> {
+        sequence
+            .iter()
+            .map(|(n, i)| {
+                let n: i32 = (*n).try_into().unwrap();
+                match i {
+                    1 => Ok(build_record_batch(&[generate_target(n)])),
+                    2 => Ok(build_record_batch(&[generate_source(n)])),
+                    3 => Ok(build_record_batch(&[
+                        generate_target(n),
+                        generate_source(n),
+                    ])),
+                    4 => Ok(build_record_batch(&[generate_matching(n)])),
+                    5 => Ok(build_record_batch(&[
+                        generate_target(n),
+                        generate_matching(n),
+                    ])),
+                    6 => Ok(build_record_batch(&[
+                        generate_source(n),
+                        generate_matching(n),
+                    ])),
+                    7 => Ok(build_record_batch(&[
+                        generate_source(n),
+                        generate_target(n),
+                        generate_matching(n),
+                    ])),
+
+                    _ => panic!(),
+                }
+            })
+            .collect()
     }
 
     fn build_record_batch(
@@ -988,67 +1048,11 @@ mod tests {
         )
     }
 
-    fn build_input_stream(
-        sequence: &[(usize, usize)],
-    ) -> Vec<Result<RecordBatch, DataFusionError>> {
-        sequence
-            .iter()
-            .map(|(n, i)| {
-                let n: i32 = (*n).try_into().unwrap();
-                match i {
-                    1 => Ok(build_record_batch(&[generate_target(n)])),
-                    2 => Ok(build_record_batch(&[generate_source(n)])),
-                    3 => Ok(build_record_batch(&[
-                        generate_target(n),
-                        generate_source(n),
-                    ])),
-                    4 => Ok(build_record_batch(&[generate_matching(n)])),
-                    5 => Ok(build_record_batch(&[
-                        generate_target(n),
-                        generate_matching(n),
-                    ])),
-                    6 => Ok(build_record_batch(&[
-                        generate_source(n),
-                        generate_matching(n),
-                    ])),
-                    7 => Ok(build_record_batch(&[
-                        generate_source(n),
-                        generate_target(n),
-                        generate_matching(n),
-                    ])),
-
-                    _ => panic!(),
-                }
-            })
-            .collect()
-    }
-
-    #[test]
-    fn test_unique_files_and_manifests_with_duplicates() {
-        let files = Arc::new(StringArray::from(vec![
-            "file1", "file2", "file3", "file4", "file5",
-        ]));
-        let manifests = Arc::new(StringArray::from(vec![
-            "manifest1",
-            "manifest1",
-            "manifest2",
-            "manifest2",
-            "manifest3",
-        ]));
-
-        let result = unique_files_and_manifests(files.as_ref(), manifests.as_ref()).unwrap();
-
-        let expected = HashMap::from_iter([
-            ("file1".to_string(), "manifest1".to_string()),
-            ("file2".to_string(), "manifest1".to_string()),
-            ("file3".to_string(), "manifest2".to_string()),
-            ("file4".to_string(), "manifest2".to_string()),
-            ("file5".to_string(), "manifest3".to_string()),
-        ]);
-        assert_eq!(result, expected);
-    }
-
-    test_source_exist_filter_stream!(single_target, &[(1, 1)], 0);
-    test_source_exist_filter_stream!(single_source, &[(1, 2)], 10);
-    test_source_exist_filter_stream!(single_matching, &[(1, 4)], 10);
+    test_source_exist_filter_stream!(single_target, &[(0, 1)], 0);
+    test_source_exist_filter_stream!(single_source, &[(0, 2)], 10);
+    test_source_exist_filter_stream!(single_matching, &[(0, 4)], 10);
+    test_source_exist_filter_stream!(single_target_source, &[(0, 3)], 20);
+    test_source_exist_filter_stream!(single_target_matching, &[(0, 5)], 20);
+    test_source_exist_filter_stream!(single_source_matching, &[(0, 6)], 20);
+    test_source_exist_filter_stream!(single_target_source_matching, &[(0, 7)], 30);
 }
