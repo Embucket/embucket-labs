@@ -444,6 +444,8 @@ impl Stream for MergeCOWFilterStream {
                         project.matching_files.insert(file, manifest);
                     }
 
+                    // All files without a match are recorded and their record batches are stored
+                    // in the 'not_matched_buffer'
                     for file in not_matched_data_files {
                         let manifest = data_and_manifest_files.get(&file).ok_or_else(|| {
                             DataFusionError::Internal(
@@ -772,11 +774,11 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
-    macro_rules! test_source_exist_filter_stream {
+    macro_rules! test_merge_cow_filter_stream {
         ($test_name:ident, $input_slice:expr, $expected_sum:expr) => {
             paste::paste! {
                 #[tokio::test]
-                async fn [<test_source_exist_filter_stream_ $test_name>]() {
+                async fn [<test_merge_cow_filter_stream_ $test_name>]() {
                     use datafusion::arrow::datatypes::{DataType, Field};
                     use futures::stream;
 
@@ -873,7 +875,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_source_exist_filter_stream_simple() {
+    async fn test_merge_cow_filter_stream_simple() {
         use datafusion::arrow::datatypes::{DataType, Field};
         use futures::stream;
 
@@ -1101,13 +1103,20 @@ mod tests {
         )
     }
 
-    test_source_exist_filter_stream!(single_target, &[(0, 1)], 0);
-    test_source_exist_filter_stream!(single_source, &[(0, 2)], 10);
-    test_source_exist_filter_stream!(single_matching, &[(0, 4)], 10);
-    test_source_exist_filter_stream!(single_target_source, &[(0, 3)], 10);
-    test_source_exist_filter_stream!(single_target_matching, &[(0, 5)], 20);
-    test_source_exist_filter_stream!(single_source_matching, &[(0, 6)], 20);
-    test_source_exist_filter_stream!(single_target_source_matching, &[(0, 7)], 30);
-    test_source_exist_filter_stream!(target_source, &[(0, 1), (0, 2)], 10);
-    test_source_exist_filter_stream!(target_matching, &[(0, 1), (0, 4)], 20);
+    test_merge_cow_filter_stream!(single_target, &[(0, 1)], 0);
+    test_merge_cow_filter_stream!(single_source, &[(0, 2)], 10);
+    test_merge_cow_filter_stream!(single_matching, &[(0, 4)], 10);
+    test_merge_cow_filter_stream!(single_target_source, &[(0, 3)], 10);
+    test_merge_cow_filter_stream!(single_target_matching, &[(0, 5)], 20);
+    test_merge_cow_filter_stream!(single_source_matching, &[(0, 6)], 20);
+    test_merge_cow_filter_stream!(single_target_source_matching, &[(0, 7)], 30);
+    test_merge_cow_filter_stream!(target_source, &[(0, 1), (0, 2)], 10);
+    test_merge_cow_filter_stream!(target_matching, &[(0, 1), (0, 4)], 20);
+    test_merge_cow_filter_stream!(source_matching, &[(0, 2), (0, 4)], 20);
+    test_merge_cow_filter_stream!(target_target_matching, &[(0, 1), (0, 1), (0, 4)], 30);
+    test_merge_cow_filter_stream!(
+        target1_target2_matching2_target3_matching1,
+        &[(0, 1), (1, 1), (1, 4), (2, 1), (0, 4)],
+        72
+    );
 }
