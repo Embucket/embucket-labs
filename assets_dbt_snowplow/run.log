@@ -1,77 +1,19 @@
-[0m04:04:32  Running with dbt=1.9.8
-[0m04:04:32  Registered adapter: snowflake=1.9.1
-[0m04:04:33  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
-[0m04:04:33  
-[0m04:04:33  Concurrency: 4 threads (target='embucket')
-[0m04:04:33  
-[0m04:04:34  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m04:04:34  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m04:04:34  
-[0m04:04:34  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m04:04:34  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m04:04:34  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32mok 1[0m in 0.51s]
-[0m04:04:34  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32mok 1[0m in 0.51s]
-[0m04:04:34  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
-[0m04:04:35  04:04:35 + Snowplow: No data in manifest. Processing data from start_date
-[0m04:04:35  04:04:35 + Snowplow: Processing data between '2025-09-01 00:00:00' and '2025-09-03 04:04:35' (snowplow_web)
-[0m04:04:35  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32mok 1[0m in 0.77s]
-[0m04:04:35  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
-[0m04:04:36  4 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[32mok 1[0m in 0.80s]
-[0m04:04:36  5 of 29 START sql table model public_scratch.snowplow_web_base_sessions_this_run  [RUN]
-[0m04:04:37  5 of 29 OK created sql table model public_scratch.snowplow_web_base_sessions_this_run  [[32mok 1[0m in 0.60s]
-[0m04:04:37  6 of 29 START sql table model public_scratch.snowplow_web_base_events_this_run . [RUN]
-[0m04:04:38  6 of 29 OK created sql table model public_scratch.snowplow_web_base_events_this_run  [[32mok 1[0m in 1.01s]
-[0m04:04:38  7 of 29 START sql table model public_scratch.snowplow_web_consent_events_this_run  [RUN]
-[0m04:04:38  8 of 29 START sql table model public_scratch.snowplow_web_pv_engaged_time ...... [RUN]
-[0m04:04:38  9 of 29 START sql table model public_scratch.snowplow_web_pv_scroll_depth ...... [RUN]
-[0m04:04:38  10 of 29 START sql table model public_scratch.snowplow_web_sessions_this_run ... [RUN]
-[0m04:04:38  7 of 29 ERROR creating sql table model public_scratch.snowplow_web_consent_events_this_run  [[31mERROR[0m in 0.41s]
-[0m04:04:38  11 of 29 START sql incremental model public_derived.snowplow_web_user_mapping .. [RUN]
-[0m04:04:38  8 of 29 OK created sql table model public_scratch.snowplow_web_pv_engaged_time . [[32mok 1[0m in 0.50s]
-[0m04:04:38  9 of 29 OK created sql table model public_scratch.snowplow_web_pv_scroll_depth . [[32mok 1[0m in 0.50s]
-[0m04:04:38  13 of 29 SKIP relation public_derived.snowplow_web_consent_log ................. [[33mSKIP[0m]
-[0m04:04:38  12 of 29 START sql table model public_scratch.snowplow_web_vital_events_this_run  [RUN]
-[0m04:04:38  14 of 29 START sql table model public_scratch.snowplow_web_page_views_this_run . [RUN]
-[0m04:04:38  11 of 29 OK created sql incremental model public_derived.snowplow_web_user_mapping  [[32mok 1[0m in 0.40s]
-[0m04:04:38  10 of 29 OK created sql table model public_scratch.snowplow_web_sessions_this_run  [[32mok 1[0m in 0.80s]
-[0m04:04:38  15 of 29 SKIP relation public_derived.snowplow_web_consent_cmp_stats ........... [[33mSKIP[0m]
-[0m04:04:38  16 of 29 SKIP relation public_derived.snowplow_web_consent_versions ............ [[33mSKIP[0m]
-[0m04:04:38  17 of 29 START sql incremental model public_derived.snowplow_web_sessions ...... [RUN]
-[0m04:04:38  18 of 29 SKIP relation public_derived.snowplow_web_consent_users ............... [[33mSKIP[0m]
-[0m04:04:38  19 of 29 SKIP relation public_derived.snowplow_web_consent_scope_status ........ [[33mSKIP[0m]
-[0m04:04:38  20 of 29 SKIP relation public_derived.snowplow_web_consent_totals .............. [[33mSKIP[0m]
-[0m04:04:39  12 of 29 OK created sql table model public_scratch.snowplow_web_vital_events_this_run  [[32mok 1[0m in 0.48s]
-[0m04:04:39  21 of 29 START sql table model public_scratch.snowplow_web_vitals_this_run ..... [RUN]
-[0m04:04:39  14 of 29 OK created sql table model public_scratch.snowplow_web_page_views_this_run  [[32mok 1[0m in 0.66s]
-[0m04:04:39  22 of 29 START sql incremental model public_derived.snowplow_web_page_views .... [RUN]
-[0m04:04:39  21 of 29 OK created sql table model public_scratch.snowplow_web_vitals_this_run  [[32mok 1[0m in 0.40s]
-[0m04:04:39  23 of 29 START sql incremental model public_derived.snowplow_web_vitals ........ [RUN]
-[0m04:04:39  17 of 29 OK created sql incremental model public_derived.snowplow_web_sessions . [[32mok 1[0m in 0.69s]
-[0m04:04:39  24 of 29 START sql table model public_scratch.snowplow_web_users_sessions_this_run  [RUN]
-[0m04:04:39  22 of 29 OK created sql incremental model public_derived.snowplow_web_page_views  [[32mok 1[0m in 0.60s]
-[0m04:04:40  24 of 29 OK created sql table model public_scratch.snowplow_web_users_sessions_this_run  [[32mok 1[0m in 0.40s]
-[0m04:04:40  25 of 29 START sql table model public_scratch.snowplow_web_users_aggs .......... [RUN]
-[0m04:04:40  23 of 29 OK created sql incremental model public_derived.snowplow_web_vitals ... [[32mok 1[0m in 0.60s]
-[0m04:04:40  26 of 29 START sql table model public_derived.snowplow_web_vital_measurements .. [RUN]
-[0m04:04:40  26 of 29 OK created sql table model public_derived.snowplow_web_vital_measurements  [[32mok 1[0m in 0.30s]
-[0m04:04:40  25 of 29 OK created sql table model public_scratch.snowplow_web_users_aggs ..... [[32mok 1[0m in 0.40s]
-[0m04:04:40  27 of 29 START sql table model public_scratch.snowplow_web_users_lasts ......... [RUN]
-[0m04:04:40  27 of 29 OK created sql table model public_scratch.snowplow_web_users_lasts .... [[32mok 1[0m in 0.40s]
-[0m04:04:40  28 of 29 START sql table model public_scratch.snowplow_web_users_this_run ...... [RUN]
-[0m04:04:41  28 of 29 OK created sql table model public_scratch.snowplow_web_users_this_run . [[32mok 1[0m in 0.40s]
-[0m04:04:41  29 of 29 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
-[0m04:04:41  29 of 29 OK created sql incremental model public_derived.snowplow_web_users .... [[32mok 1[0m in 0.60s]
-[0m04:04:41  
-[0m04:04:42  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m04:04:42  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.35s]
-[0m04:04:42  
-[0m04:04:42  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 8.74 seconds (8.74s).
-[0m04:04:42  
-[0m04:04:42  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
-[0m04:04:42  
-[0m04:04:42    Database Error in model snowplow_web_consent_events_this_run (models/optional_modules/consent/scratch/snowflake/snowplow_web_consent_events_this_run.sql)
-  010001 (02000): Internal error: UDF to_array returned a different number of rows than expected. Expected: 499, Got: 0.
-  This was likely caused by a bug in DataFusion's code and we would welcome that you file an bug report in our issue tracker
-  compiled code at target/run/snowplow_web/models/optional_modules/consent/scratch/snowflake/snowplow_web_consent_events_this_run.sql
-[0m04:04:42  
-[0m04:04:42  Done. PASS=24 WARN=0 ERROR=1 SKIP=6 TOTAL=31
+[0m04:04:22  Running with dbt=1.9.8
+[0m04:04:23  Registered adapter: snowflake=1.9.1
+[0m04:04:24  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
+[0m04:04:24  
+[0m04:04:24  Concurrency: 4 threads (target='embucket')
+[0m04:04:24  
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f83647efb00>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=167991af-4c9a-4970-8391-be85986970ce&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f83647ee5a0>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=ab299dc6-f683-4b07-9150-5d12efca4419&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f8364d97080>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=a5580d79-9972-47fe-be99-f6396412dc9f&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f8354e1c5c0>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=e4125285-ca7f-4337-81a5-9cb38e9ce644&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f8354fea900>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=a0bd374a-162b-44ca-ba26-7915a0ebfc89&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+WARNING:snowflake.connector.vendored.urllib3.connectionpool:Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<snowflake.connector.vendored.urllib3.connection.HTTPConnection object at 0x7f8368988e60>: Failed to establish a new connection: [Errno 111] Connection refused')': /session/v1/login-request?request_id=cd8fbb1f-fafd-4d44-826f-e9bc39f801e2&databaseName=EMBUCKET&schemaName=public&warehouse=COMPUTE_WH&roleName=SYSADMIN
+[0m04:04:25  
+[0m04:04:25  Finished running  in 0 hours 0 minutes and 1.46 seconds (1.46s).
+[0m04:04:25  Encountered an error:
+Runtime Error
+  Database error while listing schemas in database "EMBUCKET"
+  Database Error
+    250001: Could not connect to Snowflake backend after 2 attempt(s).Aborting
