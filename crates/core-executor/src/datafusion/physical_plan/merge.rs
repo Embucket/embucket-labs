@@ -468,13 +468,15 @@ impl Stream for MergeCOWFilterStream {
                         // Return early if all rows only come from source
                         if matching_data_file_array.len() == source_exists_array.len() {
                             return Poll::Ready(Some(Ok(batch)));
+                        } else if matching_data_file_array.is_empty() {
+                            //NO matches and no rows from source
+                            continue;
                         }
-                        continue;
                     }
 
-                    let file_predicate = all_matching_data_files
-                        .iter()
-                        .try_fold(None::<BooleanArray>, |acc, x| {
+                    let file_predicate = all_matching_data_files.iter().try_fold(
+                        None::<BooleanArray>,
+                        |acc, x| {
                             let new = eq(&data_file_path_array, &StringArray::new_scalar(x))?;
                             if let Some(acc) = acc {
                                 let result = or(&acc, &new)?;
@@ -482,17 +484,16 @@ impl Stream for MergeCOWFilterStream {
                             } else {
                                 Ok(Some(new))
                             }
-                        })?
-                        .ok_or_else(|| {
-                            DataFusionError::Internal(
-                                error::MissingFilterPredicatesSnafu {}.build().to_string(),
-                            )
-                        })?;
-
-                    let predicate = or_kleene(
-                        &file_predicate,
-                        &downcast_array::<BooleanArray>(&source_exists_array),
+                        },
                     )?;
+                    let predicate = if let Some(file_predicate) = file_predicate {
+                        or_kleene(
+                            &file_predicate,
+                            &downcast_array::<BooleanArray>(&source_exists_array),
+                        )?
+                    } else {
+                        downcast_array::<BooleanArray>(&source_exists_array)
+                    };
 
                     project
                         .matching_files
@@ -1038,16 +1039,16 @@ mod tests {
         (
             vec![false, false, false, false],
             vec![
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
             ],
             vec![
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
             ],
             vec![i * 4 + 1, i * 4 + 2, i * 4 + 3, i * 4 + 4],
         )
@@ -1085,16 +1086,16 @@ mod tests {
         (
             vec![true, true, true, true],
             vec![
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
-                Some(format!("file${i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
+                Some(format!("file{i}")),
             ],
             vec![
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
-                Some(format!("manifest${i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
+                Some(format!("manifest{i}")),
             ],
             vec![i * 4 + 1, i * 4 + 2, i * 4 + 3, i * 4 + 4],
         )
@@ -1103,7 +1104,7 @@ mod tests {
     test_source_exist_filter_stream!(single_target, &[(0, 1)], 0);
     test_source_exist_filter_stream!(single_source, &[(0, 2)], 10);
     test_source_exist_filter_stream!(single_matching, &[(0, 4)], 10);
-    test_source_exist_filter_stream!(single_target_source, &[(0, 3)], 20);
+    test_source_exist_filter_stream!(single_target_source, &[(0, 3)], 10);
     test_source_exist_filter_stream!(single_target_matching, &[(0, 5)], 20);
     test_source_exist_filter_stream!(single_source_matching, &[(0, 6)], 20);
     test_source_exist_filter_stream!(single_target_source_matching, &[(0, 7)], 30);
