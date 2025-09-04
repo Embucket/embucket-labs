@@ -744,6 +744,7 @@ impl UserQuery {
             .await?;
         // Run analyzer rules to ensure the logical plan has the correct schema,
         // especially when handling CTEs used as sources for INSERT statements.
+        tracing::error!("Schema before analysis: {:?}", plan.schema().as_arrow());
         plan = self
             .session
             .ctx
@@ -751,6 +752,7 @@ impl UserQuery {
             .analyzer()
             .execute_and_check(plan, self.session.ctx.state().config_options(), |_, _| ())
             .context(ex_error::DataFusionSnafu)?;
+        tracing::error!("Schema after analysis: {:?}", plan.schema().as_arrow());
 
         let ident: MetastoreTableIdent = new_table_ident.into();
         let catalog_name = ident.database.clone();
@@ -777,7 +779,7 @@ impl UserQuery {
             name,
             input,
             ..
-        })) = plan
+        })) = plan.clone()
         {
             if is_logical_plan_effectively_empty(&input) {
                 return self.created_entity_response();
@@ -801,7 +803,7 @@ impl UserQuery {
                 .context(ex_error::TableProviderNotFoundSnafu {
                     table_name: name.table().to_string(),
                 })?;
-            let schema = target_table.schema();
+            let schema = plan.schema().inner();
             tracing::error!("DDL (TT) Schema: {}", schema);
             let new_logical_plan = cast_input_to_target_schema(input, &schema)?;
             tracing::error!("DML (Cast to TT) Schema: {}", new_logical_plan.schema().as_arrow());
@@ -3175,7 +3177,7 @@ pub fn cast_input_to_target_schema(
         }
     }
     let schema = DFSchema::try_from(target_schema.clone()).context(ex_error::DataFusionSnafu)?;
-    tracing::error!("New schema: {}", schema.as_arrow());
+    //tracing::error!("New schema: {}", schema.as_arrow());
     let projection = Projection::try_new_with_schema(projections, input, Arc::from(schema)).context(ex_error::DataFusionSnafu)?;
     Ok(LogicalPlan::Projection(projection))
 }
