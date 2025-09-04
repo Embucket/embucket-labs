@@ -12,6 +12,7 @@ use super::error::{
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
+use crate::datafusion::physical_optimizer::runtime_physical_optimizer_rules;
 use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
@@ -41,6 +42,7 @@ use datafusion::datasource::listing::{
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
+use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
@@ -51,6 +53,7 @@ use datafusion::sql::sqlparser::ast::{
     Statement, TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
+use datafusion_common::config::ConfigOptions;
 use datafusion_common::{
     Column, DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
     TableReference, plan_datafusion_err,
@@ -68,6 +71,7 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
+use datafusion_physical_plan::collect;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -810,7 +814,12 @@ impl UserQuery {
                 WriteOp::Insert(InsertOp::Append),
                 Arc::new(cast_input_to_target_schema(input, &schema)?),
             ));
-            return self.execute_logical_plan(insert_plan).await;
+            return self
+                .execute_logical_plan_with_custom_rules(
+                    insert_plan,
+                    runtime_physical_optimizer_rules(schema),
+                )
+                .await;
         }
         self.created_entity_response()
     }
@@ -2093,6 +2102,46 @@ impl UserQuery {
                     .await
                     .context(ex_error::DataFusionSnafu)?
                     .collect()
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                if !records.is_empty() {
+                    schema = records[0].schema().as_ref().clone();
+                }
+                Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
+            })
+            .await
+            .context(ex_error::JobSnafu)??;
+        Ok(stream)
+    }
+
+    async fn execute_logical_plan_with_custom_rules(
+        &self,
+        plan: LogicalPlan,
+        rules: Vec<Arc<dyn PhysicalOptimizerRule + Send + Sync>>,
+    ) -> Result<QueryResult> {
+        let session = self.session.clone();
+        let query_id = self.query_context.query_id;
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                let mut schema = plan.schema().as_arrow().clone();
+                let df = session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                let task_ctx = df.task_ctx();
+                let mut physical_plan = df
+                    .create_physical_plan()
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                for rule in rules {
+                    physical_plan = rule
+                        .optimize(physical_plan, &ConfigOptions::new())
+                        .context(ex_error::DataFusionSnafu)?;
+                }
+                let records = collect(physical_plan, Arc::new(task_ctx))
                     .await
                     .context(ex_error::DataFusionSnafu)?;
                 if !records.is_empty() {
