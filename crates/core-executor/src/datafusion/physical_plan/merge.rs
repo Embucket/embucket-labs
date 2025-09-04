@@ -910,7 +910,7 @@ mod tests {
 
     /// Generates test record batches from a sequence of scenario identifiers.
     ///
-    /// Each tuple in the sequence contains (index, scenario_type) where scenario_type maps to:
+    /// Each tuple in the sequence contains (index, `scenario_type`) where `scenario_type` maps to:
     /// 1. Target-only data, 2. Source-only data, 3. Target+Source, 4. Matching data,
     /// 5. Target+Matching, 6. Source+Matching, 7. Target+Source+Matching
     fn build_input_stream(

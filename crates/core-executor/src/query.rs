@@ -17,7 +17,7 @@ use crate::datafusion::physical_plan::merge::{
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use arrow_schema::SchemaBuilder;
+use arrow_schema::{Fields, SchemaBuilder};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
@@ -60,8 +60,8 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
-    build_join_schema, is_null, lit, or, when,
+    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast,
+    UserDefinedLogicalNode, and, build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -870,7 +870,21 @@ impl UserQuery {
         }
 
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
-            plan.schema().as_arrow().fields(),
+            &Fields::from(
+                plan.schema()
+                    .as_arrow()
+                    .fields()
+                    .iter()
+                    .map(|field| {
+                        if field.data_type() == &DataType::Null {
+                            let new_field = Field::new(field.name(), DataType::Utf8, true);
+                            Arc::new(new_field)
+                        } else {
+                            field.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            ),
             &mut 0,
         ))
         .map_err(|err| DataFusionError::External(Box::new(err)))
