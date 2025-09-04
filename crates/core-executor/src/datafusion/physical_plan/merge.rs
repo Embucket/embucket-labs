@@ -1049,4 +1049,9 @@ mod tests {
         &[(0, 1), (1, 1), (1, 4), (2, 1), (0, 4)],
         72
     );
+    test_merge_cow_filter_stream!(
+        source_target_source_matching,
+        &[(0, 2), (0, 1), (0, 6), (0, 5)],
+        60
+    );
 }
