@@ -77,14 +77,6 @@ impl CastAnalyzer {
                 }
                 Ok(Transformed::no(original_expr.clone()))
             }
-            // DataType::List(_)
-            // | DataType::ListView(_)
-            // | DataType::LargeList(_)
-            // | DataType::LargeListView(_)
-            // | DataType::FixedSizeList(_, _) => Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-            //         func: Arc::new(ScalarUDF::from(ToArrayFunc::new())),
-            //         args: vec![expr.clone()],
-            //     }))),
             _ => Ok(Transformed::no(original_expr.clone())),
         }
     }

@@ -1,12 +1,15 @@
+use super::errors as conv_errors;
 use crate::macros::make_udf_function;
-use datafusion::arrow::array::Array;
+use arrow_schema::Field;
+use datafusion::arrow::array::{Array, ListArray, StringArray};
+use datafusion::arrow::buffer::OffsetBuffer;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::ScalarValue;
-use datafusion_common::arrow::array::StringBuilder;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
+use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
@@ -60,47 +63,58 @@ impl ScalarUDFImpl for ToArrayFunc {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(DataType::Utf8)
+        Ok(DataType::List(Arc::new(Field::new_list_field(
+            DataType::Utf8,
+            true,
+        ))))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { args, .. } = args;
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
+        let arr = args[0].clone().into_array(number_rows)?;
 
-        let arr = match args[0].clone() {
-            ColumnarValue::Array(arr) => arr,
-            ColumnarValue::Scalar(v) => v.to_array()?,
-        };
+        let mut offsets = Vec::with_capacity(arr.len() + 1);
+        offsets.push(0);
 
-        let mut b = StringBuilder::with_capacity(arr.len(), 1024);
+        let mut flat_values = Vec::new();
+
         for i in 0..arr.len() {
             let value = ScalarValue::try_from_array(&arr, i)?;
             if value.is_null() {
-                b.append_null();
+                offsets.push(
+                    i32::try_from(flat_values.len())
+                        .context(conv_errors::InvalidIntegerConversionSnafu)?,
+                );
                 continue;
             }
-            match value.data_type() {
-                DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                    match serde_json::from_str::<Value>(&value.to_string()) {
-                        Ok(v) => {
-                            if v.is_array() {
-                                b.append_value(v.to_string());
-                            } else {
-                                b.append_value(format!("[\"{value}\"]"));
-                            }
+            let s = value.to_string();
+            match serde_json::from_str::<Value>(&s) {
+                Ok(v) if v.is_array() => {
+                    if let Some(json_arr) = v.as_array() {
+                        for item in json_arr {
+                            flat_values.push(item.to_string());
                         }
-                        Err(_) => b.append_value(format!("[\"{value}\"]")),
                     }
                 }
-                _ => b.append_value(format!("[{value}]")),
+                _ => flat_values.push(s),
             }
+            offsets.push(
+                i32::try_from(flat_values.len())
+                    .context(conv_errors::InvalidIntegerConversionSnafu)?,
+            );
         }
+        let values_array = Arc::new(StringArray::from(flat_values));
+        let offset_buf = OffsetBuffer::new(offsets.into());
 
-        let res = b.finish();
-        Ok(if res.len() == 1 {
-            return Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(&res, 0)?));
-        } else {
-            ColumnarValue::Array(Arc::new(b.finish()))
-        })
+        let list_array = ListArray::new(
+            Arc::new(Field::new_list_field(DataType::Utf8, true)),
+            offset_buf,
+            values_array,
+            None,
+        );
+        Ok(ColumnarValue::Array(Arc::new(list_array)))
     }
 }
 
@@ -127,11 +141,11 @@ mod tests {
 
         assert_batches_eq!(
             [
-                "+----+----------+--------+-----------------------+-------------+---------+",
-                "| a1 | a2       | a3     | a4                    | a5          | a6      |",
-                "+----+----------+--------+-----------------------+-------------+---------+",
-                "|    | [\"test\"] | [true] | [1712278923000000000] | [[1, 2, 3]] | [1,2,3] |",
-                "+----+----------+--------+-----------------------+-------------+---------+",
+                "+----+--------+--------+-----------------------+-----------+-----------+",
+                "| a1 | a2     | a3     | a4                    | a5        | a6        |",
+                "+----+--------+--------+-----------------------+-----------+-----------+",
+                "| [] | [test] | [true] | [1712278923000000000] | [1, 2, 3] | [1, 2, 3] |",
+                "+----+--------+--------+-----------------------+-----------+-----------+",
             ],
             &result
         );
