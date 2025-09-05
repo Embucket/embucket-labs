@@ -35,14 +35,14 @@ impl CastAnalyzer {
         Self { session_params }
     }
 
-    fn to_timestamp_udf(&self, try_flag: bool) -> ScalarUDF {
-        let name = if try_flag {
+    fn to_timestamp_udf(&self, try_mode: bool) -> ScalarUDF {
+        let name = if try_mode {
             "try_to_timestamp".to_string()
         } else {
             "to_timestamp".to_string()
         };
         ScalarUDF::from(ToTimestampFunc::new(
-            try_flag,
+            try_mode,
             name,
             self.session_params.clone(),
         ))
@@ -71,16 +71,16 @@ impl CastAnalyzer {
         data_type: &DataType,
         expr: &Expr,
         original_expr: &Expr,
-        try_flag: bool,
+        try_mode: bool,
     ) -> DFResult<Transformed<Expr>> {
         match data_type.clone() {
             DataType::Date32 => Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
-                func: Arc::new(ScalarUDF::from(ToDateFunc::new(try_flag))),
+                func: Arc::new(ScalarUDF::from(ToDateFunc::new(try_mode))),
                 args: vec![expr.clone()],
             }))),
             DataType::Timestamp(_, _) => {
                 if let Some(ts_cast) =
-                    self.rewrite_timestamp_cast(data_type, expr.clone(), try_flag)?
+                    self.rewrite_timestamp_cast(data_type, expr.clone(), try_mode)?
                 {
                     return Ok(ts_cast);
                 }
@@ -104,10 +104,10 @@ impl CastAnalyzer {
         &self,
         data_type: &DataType,
         expr: Expr,
-        try_flag: bool,
+        try_mode: bool,
     ) -> DFResult<Option<Transformed<Expr>>> {
         if let Expr::Literal(ScalarValue::Utf8(Some(v))) = expr.clone() {
-            let udf = self.to_timestamp_udf(try_flag);
+            let udf = self.to_timestamp_udf(try_mode);
 
             // Infer the return type of the UDF for the given literal
             let return_info = udf.return_type_from_args(ReturnTypeArgs {
