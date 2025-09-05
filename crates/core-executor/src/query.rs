@@ -64,7 +64,7 @@ use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
     JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
-    build_join_schema, is_null, lit, or, when,
+    build_join_schema, is_null, lit, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
@@ -3020,11 +3020,9 @@ fn collect_merge_clause_expressions(
 fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
     let expr = match merge_clause.clause_kind {
         MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN))),
-        MergeClauseKind::NotMatched => Ok(or(
-            is_null(col(TARGET_EXISTS_COLUMN)),
-            is_null(col(TARGET_EXISTS_COLUMN)),
-        )),
-        MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatched | MergeClauseKind::NotMatchedByTarget => {
+            Ok(is_null(col(TARGET_EXISTS_COLUMN)))
+        }
         MergeClauseKind::NotMatchedBySource => {
             return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
         }
