@@ -60,8 +60,8 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast,
-    UserDefinedLogicalNode, and, build_join_schema, is_null, lit, or, when,
+    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
+    build_join_schema, is_null, lit, or, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
