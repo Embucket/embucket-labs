@@ -1,6 +1,6 @@
 import pytest
 import time
-from conftest import compare_result_sets
+from utils import compare_result_sets
 from queries.tpch_queries import TPCH_QUERIES
 from queries.tpcds_queries import TPCDS_QUERIES
 from queries.clickbench_queries import CLICKBENCH_QUERIES

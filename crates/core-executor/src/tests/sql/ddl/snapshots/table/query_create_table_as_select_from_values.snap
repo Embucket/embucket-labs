@@ -1,0 +1,16 @@
+---
+source: crates/core-executor/src/tests/sql/ddl/table.rs
+description: "\"SELECT * FROM embucket.public.testtable\""
+info: "Setup queries: CREATE OR REPLACE TABLE embucket.public.testtable AS SELECT * FROM VALUES (null); INSERT INTO embucket.public.testtable VALUES (null), ('fff')"
+---
+Ok(
+    [
+        "+---------+",
+        "| column1 |",
+        "+---------+",
+        "|         |",
+        "|         |",
+        "| fff     |",
+        "+---------+",
+    ],
+)

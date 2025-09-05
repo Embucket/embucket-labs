@@ -30,6 +30,26 @@ test_query!(
 );
 
 test_query!(
+    create_table_as_select,
+    "SELECT * FROM embucket.public.testtable",
+    setup_queries = [
+        "CREATE OR REPLACE TABLE embucket.public.testtable AS SELECT NULL AS DEFAULT",
+        "INSERT INTO embucket.public.testtable VALUES (null), ('fff')",
+    ],
+    snapshot_path = "table"
+);
+
+test_query!(
+    create_table_as_select_from_values,
+    "SELECT * FROM embucket.public.testtable",
+    setup_queries = [
+        "CREATE OR REPLACE TABLE embucket.public.testtable AS SELECT * FROM VALUES (null)",
+        "INSERT INTO embucket.public.testtable VALUES (null), ('fff')",
+    ],
+    snapshot_path = "table"
+);
+
+test_query!(
     create_table_quoted_identifiers,
     "SELECT * FROM embucket.\"test public\".\"test table\"",
     setup_queries = [
