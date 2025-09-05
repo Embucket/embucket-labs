@@ -8,7 +8,7 @@ interface QuerySQLProps {
 
 export function QuerySQL({ queryRecord }: QuerySQLProps) {
   return (
-    <div className="gap-6 rounded-lg border p-4">
+    <div className="mb-4 gap-6 rounded-lg border p-4">
       {queryRecord.error ? (
         <span className="text-sm text-red-500">{queryRecord.error}</span>
       ) : (

@@ -44,12 +44,12 @@ export function QueryPage() {
         />
       ) : (
         <>
-          <div ref={detailsRef} className="flex flex-col gap-4 p-4">
+          <div ref={detailsRef} className="p-4">
             <QueryDetails queryRecord={queryRecord} />
-            <QuerySQL queryRecord={queryRecord} />
           </div>
 
           <ScrollArea tableViewport className="mx-4" style={tableStyle}>
+            <QuerySQL queryRecord={queryRecord} />
             {!!rows.length && (
               <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
             )}
