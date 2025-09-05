@@ -68,21 +68,19 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                     let new_exprs: DFResult<Vec<(Arc<dyn PhysicalExpr>, String)>> = proj
                         .expr()
                         .iter()
-                        .enumerate()
-                        .map(|(i, (expr, _))| {
-                            let target_field = Arc::new(self.target_schema.field(i).clone());
+                        .map(|(expr, name)| {
+                            let name = name.to_string();
+                            let Ok(target_field) = self.target_schema.field_with_name(&name) else {
+                                return Ok((expr.clone(), name));
+                            };
 
                             // If the expression is a literal containing a ListArray,
                             // attempt to rebuild the literal so that its internal ListArray
                             // matches the target field's data type (including metadata for Parquet compatibility).
                             if let Some(lit) = expr.as_any().downcast_ref::<Literal>()
-                                && let Some(new_lit) =
-                                    rebuild_list_literal(lit, self.target_schema.field(i))
+                                && let Some(new_lit) = rebuild_list_literal(lit, target_field)
                             {
-                                return Ok((
-                                    Arc::new(new_lit) as Arc<dyn PhysicalExpr>,
-                                    target_field.name().to_string(),
-                                ));
+                                return Ok((Arc::new(new_lit) as Arc<dyn PhysicalExpr>, name));
                             }
 
                             // If the expression is a List type but the element type or metadata
@@ -90,17 +88,17 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                             // to convert it to the target field's List type.
                             if let Ok(expr_type) = expr.data_type(&proj.input().schema())
                                 && let (DataType::List(_), DataType::List(_)) =
-                                    (expr_type, target_field.data_type().clone())
+                                    (expr_type, target_field.data_type())
                             {
                                 let casted = Arc::new(CastExpr::new(
                                     expr.clone(),
                                     target_field.data_type().clone(),
                                     None,
                                 ));
-                                return Ok((casted, target_field.name().to_string()));
+                                return Ok((casted, name));
                             }
 
-                            Ok((expr.clone(), target_field.name().to_string()))
+                            Ok((expr.clone(), name))
                         })
                         .collect();
 
