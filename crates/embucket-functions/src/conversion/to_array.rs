@@ -70,6 +70,9 @@ impl ScalarUDFImpl for ToArrayFunc {
         if matches!(args.arg_types[0], DataType::List(_)) {
             return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
         }
+        if matches!(args.arg_types[0], DataType::Null) {
+            return Ok(ReturnInfo::new_nullable(DataType::Null));
+        }
         Ok(ReturnInfo::new_nullable(DataType::List(Arc::new(
             Field::new_list_field(args.arg_types[0].clone(), true),
         ))))
@@ -82,7 +85,7 @@ impl ScalarUDFImpl for ToArrayFunc {
         let arr = args[0].clone().into_array(number_rows)?;
 
         // If the first argument is already a list type, return it as is.
-        if matches!(arr.data_type(), DataType::List(_)) {
+        if matches!(arr.data_type(), DataType::List(_) | DataType::Null) {
             return Ok(ColumnarValue::Array(Arc::new(arr)));
         }
 
@@ -171,7 +174,7 @@ mod tests {
                 "+----+--------+--------+-----------------------+-----------+-----------+-----------+",
                 "| a1 | a2     | a3     | a4                    | a5        | a6        | a7        |",
                 "+----+--------+--------+-----------------------+-----------+-----------+-----------+",
-                "| [] | [test] | [true] | [2024-04-05T01:02:03] | [1, 2, 3] | [1, 2, 3] | [1, 2, 3] |",
+                "|    | [test] | [true] | [2024-04-05T01:02:03] | [1, 2, 3] | [1, 2, 3] | [1, 2, 3] |",
                 "+----+--------+--------+-----------------------+-----------+-----------+-----------+",
             ],
             &result
