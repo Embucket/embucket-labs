@@ -67,15 +67,15 @@ impl ScalarUDFImpl for ToArrayFunc {
     }
 
     fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
-        if matches!(args.arg_types[0], DataType::List(_)) {
-            return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
-        }
-        if matches!(args.arg_types[0], DataType::Null) {
-            return Ok(ReturnInfo::new_nullable(DataType::Null));
-        }
-        Ok(ReturnInfo::new_nullable(DataType::List(Arc::new(
-            Field::new_list_field(args.arg_types[0].clone(), true),
-        ))))
+        let return_type = match args.arg_types[0] {
+            DataType::List(_) => args.arg_types[0].clone(),
+            DataType::Null => DataType::Null,
+            _ => DataType::List(Arc::new(Field::new_list_field(
+                args.arg_types[0].clone(),
+                true,
+            ))),
+        };
+        Ok(ReturnInfo::new_nullable(return_type))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
