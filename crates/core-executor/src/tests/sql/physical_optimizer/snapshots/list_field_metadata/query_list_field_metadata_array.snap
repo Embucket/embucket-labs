@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/sql/physical_optimizer/list_field_metadata.rs
+description: "\"SELECT * FROM array\""
+info: "Setup queries: CREATE TABLE array as (SELECT [1,2]::ARRAY)"
+---
+Ok(
+    [
+        "+------------------------------------+",
+        "| array_construct(int64(1),int64(2)) |",
+        "+------------------------------------+",
+        "| [[1,2]]                            |",
+        "+------------------------------------+",
+    ],
+)
