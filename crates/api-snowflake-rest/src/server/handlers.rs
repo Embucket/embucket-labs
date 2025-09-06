@@ -383,7 +383,7 @@ mod tests {
         assert!(query_response.data.is_some());
         assert!(query_response.success);
         assert!(query_response.message.is_some());
-        assert!(query_response.code.is_some());
+        assert!(query_response.code.is_none()); // no code set on success
     }
     fn make_bytes_body<T: ?Sized + Serialize>(request: &T) -> Bytes {
         let json = serde_json::to_string(request).expect("Failed to serialize JSON");
