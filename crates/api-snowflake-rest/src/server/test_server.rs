@@ -1,5 +1,5 @@
-use crate::server::router::make_app;
 use super::server_models::Config;
+use crate::server::router::make_app;
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use core_utils::Db;

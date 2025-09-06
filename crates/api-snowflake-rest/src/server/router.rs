@@ -1,4 +1,4 @@
-use super::handlers::{login, abort, get_query, query};
+use super::handlers::{abort, get_query, login, query};
 use super::state::AppState;
 use axum::Router;
 use axum::routing::{get, post};
@@ -27,7 +27,6 @@ pub fn create_router() -> Router<AppState> {
         .route("/queries/v1/abort-request", post(abort))
         .route("/queries/{queryId}/result", get(get_query))
 }
-
 
 // TODO: We should consider using this by both ain and tests
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]

@@ -618,6 +618,7 @@ impl Error {
     pub fn to_snowflake_error(&self) -> SnowflakeError {
         SnowflakeError::from_executor_error(self)
     }
+    // These looks usefull, though not used anymore: is_query_cancelled, is_query_timeout
     #[must_use]
     pub const fn is_query_cancelled(&self) -> bool {
         if let Self::QueryExecution { source, .. } = self {

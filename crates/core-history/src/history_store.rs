@@ -1,5 +1,4 @@
 use crate::errors::{self as core_history_errors, Result};
-use crate::result_set::ResultSet;
 use crate::{
     QueryRecord, QueryRecordId, QueryRecordReference, QueryStatus, SlateDBHistoryStore, Worksheet,
     WorksheetId,
@@ -98,11 +97,7 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord>;
     async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>>;
     fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-    async fn save_query_record(
-        &self,
-        query_record: &mut QueryRecord,
-        execution_result: Option<std::result::Result<ResultSet, QueryResultError>>,
-    );
+    async fn save_query_record(&self, query_record: &mut QueryRecord);
 }
 
 async fn queries_iterator(db: &Db, cursor: Option<QueryRecordId>) -> Result<DbIterator<'_>> {
@@ -322,7 +317,7 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "SlateDBHistoryStore::save_query_record",
         level = "trace",
-        skip(self, query_record, execution_result),
+        skip(self, query_record),
         fields(query_id = query_record.id.as_i64(),
             query = query_record.query,
             query_result_count = query_record.result_count,
@@ -332,29 +327,8 @@ impl HistoryStore for SlateDBHistoryStore {
             save_query_history_error,
         ),
     )]
-    async fn save_query_record(
-        &self,
-        query_record: &mut QueryRecord,
-        execution_result: Option<std::result::Result<ResultSet, QueryResultError>>,
-    ) {
-        if let Some(execution_result) = execution_result {
-            match execution_result {
-                Ok(result_set) => match serde_json::to_string(&result_set) {
-                    Ok(encoded_res) => {
-                        let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
-                        query_record.finished(result_count, Some(encoded_res));
-                    }
-                    // serde error
-                    Err(err) => query_record.finished_with_error(QueryResultError {
-                        status: QueryStatus::Failed,
-                        message: err.to_string(),
-                        diagnostic_message: format!("{err:?}"),
-                    }),
-                },
-                Err(execution_err) => query_record.finished_with_error(execution_err),
-            }
-        }
-
+    async fn save_query_record(&self, query_record: &mut QueryRecord) {
+        // This function won't fail, just sends happened write errors to the logs
         if let Err(err) = self.add_query(query_record).await {
             // Record the result as part of the current span.
             tracing::Span::current().record("save_query_history_error", format!("{err:?}"));
@@ -399,7 +373,7 @@ mod tests {
                 }
                 QueryStatus::Canceled | QueryStatus::TimedOut | QueryStatus::Failed => {
                     let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
-                    item.finished_with_error(QueryResultError {
+                    item.finished_with_error(&QueryResultError {
                         status: query_status.clone(),
                         message: String::from("Test query pseudo error"),
                         diagnostic_message: String::from("diagnostic message"),

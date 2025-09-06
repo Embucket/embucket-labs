@@ -1,6 +1,7 @@
 use crate::error;
-use crate::utils::query_result_to_result_set;
+use crate::utils::{query_result_to_result_set, query_status_result_to_history};
 use arrow_schema::SchemaRef;
+use core_history::QueryResultError;
 use core_history::{QueryRecord, QueryRecordId, QueryStatus, result_set::ResultSet};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
@@ -155,6 +156,12 @@ impl QueryResult {
 pub struct QueryResultStatus {
     pub query_result: Result<QueryResult, crate::Error>,
     pub status: QueryStatus,
+}
+
+impl QueryResultStatus {
+    pub fn to_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
+        query_status_result_to_history(self.status.clone(), &self.query_result)
+    }
 }
 
 // TODO: We should not have serde dependency here

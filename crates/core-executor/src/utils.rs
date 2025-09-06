@@ -784,7 +784,8 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_result_to_history(
+pub fn query_status_result_to_history(
+    status: QueryStatus,
     result: &Result<QueryResult>,
 ) -> std::result::Result<ResultSet, QueryResultError> {
     match result {
@@ -798,20 +799,11 @@ pub fn query_result_to_history(
                 })
         }
         // Query failed
-        Err(err) => {
-            let status = if err.is_query_cancelled() {
-                QueryStatus::Canceled
-            } else if err.is_query_timeout() {
-                QueryStatus::TimedOut
-            } else {
-                QueryStatus::Failed
-            };
-            Err(QueryResultError {
-                status,
-                message: err.to_snowflake_error().to_string(),
-                diagnostic_message: format!("{err:?}"),
-            })
-        }
+        Err(err) => Err(QueryResultError {
+            status,
+            message: err.to_snowflake_error().to_string(),
+            diagnostic_message: format!("{err:?}"),
+        }),
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{QueryRecordId, WorksheetId};
+use crate::{QueryRecordId, QueryResultError, ResultSet, WorksheetId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
@@ -69,6 +69,31 @@ impl QueryRecord {
         self.id
     }
 
+    pub const fn set_status(&mut self, status: QueryStatus) {
+        self.status = status;
+    }
+
+    // This takes result by reference, since it just serialize it, so can't be consumed
+    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>) {
+        match result {
+            Ok(result_set) => match serde_json::to_string(&result_set) {
+                Ok(encoded_res) => {
+                    let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
+                    self.finished(result_count, Some(encoded_res));
+                }
+                // serde error
+                // Following error is created right here, so ownership could be transferred into
+                Err(err) => self.finished_with_error(&QueryResultError {
+                    status: QueryStatus::Failed,
+                    message: err.to_string(),
+                    diagnostic_message: format!("{err:?}"),
+                }),
+            },
+            // Following error is received from outside, so can be used just as reference
+            Err(execution_err) => self.finished_with_error(execution_err),
+        }
+    }
+
     pub fn finished(&mut self, result_count: i64, result: Option<String>) {
         self.result_count = result_count;
         self.result = result;
@@ -79,11 +104,13 @@ impl QueryRecord {
             .num_milliseconds();
     }
 
-    pub fn finished_with_error(&mut self, error: crate::QueryResultError) {
+    pub fn finished_with_error(&mut self, error: &crate::QueryResultError) {
         self.finished(0, None);
-        self.status = error.status;
-        self.error = Some(error.message);
-        self.diagnostic_error = Some(error.diagnostic_message);
+        // Copy all data
+        // Consider transfering ownership if redesign is done
+        self.status = error.status.clone();
+        self.error = Some(error.message.clone());
+        self.diagnostic_error = Some(error.diagnostic_message.clone());
     }
 
     // Returns a key with inverted id for descending order

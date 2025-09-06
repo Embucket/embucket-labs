@@ -274,8 +274,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_login() {
-        let addr =
-            run_test_server("embucket", "embucket").await;
+        let addr = run_test_server("embucket", "embucket").await;
         let client = reqwest::Client::new();
         let login_url = format!("http://{addr}/session/v1/login-request");
         let query_url = format!("http://{addr}/queries/v1/query-request");

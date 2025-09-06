@@ -23,7 +23,7 @@ use super::error::{self as ex_error, Result};
 use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
 use super::session::UserSession;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
-use crate::utils::{Config, MemPoolType, query_result_to_history};
+use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryStatus};
@@ -35,7 +35,7 @@ use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
 use tokio_util::sync::CancellationToken;
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::Instrument;
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -441,6 +441,7 @@ impl ExecutionService for CoreExecutionService {
         let mut history_record = self
             .history_store
             .query_record(query, query_context.worksheet_id);
+        history_record.set_status(QueryStatus::Running);
 
         let query_id = history_record.query_id();
 
@@ -461,7 +462,7 @@ impl ExecutionService for CoreExecutionService {
 
         // Add query to history with status: Running
         self.history_store
-            .save_query_record(&mut history_record, None)
+            .save_query_record(&mut history_record)
             .await;
 
         let query_timeout_secs = self.config.query_timeout_secs;
@@ -471,19 +472,10 @@ impl ExecutionService for CoreExecutionService {
 
         let (tx, rx) = oneshot::channel();
 
-        let cx = tracing::Span::current().context();
+        let child = tracing::info_span!("spawn_query_task");
 
         tokio::spawn(async move {
             let mut query_obj = query_obj;
-
-            {
-                // attach parent context inside this task
-                let _guard = cx.attach();
-
-                // Create a new tracing span AFTER attaching
-                let child = tracing::info_span!("submit_query_spawned");
-                let _enter = child.enter();
-            }
 
             // Execute the query with a timeout to prevent long-running or stuck queries
             // from blocking system resources indefinitely. If the timeout is exceeded,
@@ -501,7 +493,7 @@ impl ExecutionService for CoreExecutionService {
                                 query_result: inner_result.context(ex_error::QueryExecutionSnafu {
                                     query_id,
                                 }),
-                                status: status.clone(),
+                                status,
                             }
                         },
                         Err(_) => {
@@ -524,30 +516,28 @@ impl ExecutionService for CoreExecutionService {
                 }
             };
 
-            let _ = tracing::debug_span!(
-                "ExecutionService::submit_query_result",
+            let _ = tracing::debug_span!("spawned_query_task_result",
                 query_id = query_id.as_i64(),
                 query_uuid = query_id.as_uuid().to_string(),
                 query_status = format!("{:?}", query_result_status.status),
             )
             .entered();
 
+            let result = query_result_status.to_result_set();
+            history_record.set_result(&result);
+            history_record.set_status(query_result_status.status.clone());
+
             // Record the query in the session’s history, including result count or error message.
             // This ensures all queries are traceable and auditable within a session, which enables
             // features like `last_query_id()` and enhances debugging and observability.
-            history_store_ref
-                .save_query_record(
-                    &mut history_record,
-                    Some(query_result_to_history(&query_result_status.query_result)),
-                )
-                .await;
+            history_store_ref.save_query_record(&mut history_record).await;
 
             // save result to the query histore before transfering ownership to the channel
             let _ = tx.send(query_result_status);
 
             // cleanup: remove from map when done
             queries_ref.remove(&query_id.into());
-        });
+        }.instrument(child));
 
         Ok(AsyncQueryHandle { query_id, rx })
     }
