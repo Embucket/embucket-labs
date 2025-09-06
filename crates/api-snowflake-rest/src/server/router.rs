@@ -1,5 +1,5 @@
-use crate::handlers::{abort, get_query, query};
-use crate::state::AppState;
+use super::handlers::{abort, get_query, query};
+use super::state::AppState;
 use axum::Router;
 use axum::routing::{get, post};
 

@@ -1,8 +1,8 @@
-use crate::auth::create_router as create_auth_router;
-use crate::layer::require_auth;
-use crate::models::Config;
-use crate::router::create_router;
-use crate::state;
+use super::auth::create_router as create_auth_router;
+use super::layer::require_auth;
+use super::router::create_router;
+use super::server_models::Config;
+use super::state;
 use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
@@ -15,6 +15,10 @@ use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::decompression::RequestDecompressionLayer;
+
+pub async fn run_test_server() -> SocketAddr {
+    run_test_server_with_demo_auth(String::new(), String::new()).await
+}
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn run_test_server_with_demo_auth(
@@ -42,11 +46,6 @@ pub async fn run_test_server_with_demo_auth(
     });
 
     addr
-}
-
-#[allow(clippy::unwrap_used)]
-pub async fn run_test_server() -> SocketAddr {
-    run_test_server_with_demo_auth(String::new(), String::new()).await
 }
 
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]

@@ -3,12 +3,12 @@ use std::sync::Arc;
 pub mod datafusion;
 pub mod dedicated_executor;
 pub mod error;
+pub mod error_code;
 pub mod models;
 pub mod query;
 pub mod service;
 pub mod session;
 pub mod snowflake_error;
-pub mod status_code;
 pub mod utils;
 
 #[cfg(test)]

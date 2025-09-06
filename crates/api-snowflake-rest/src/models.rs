@@ -1,9 +1,7 @@
-use super::error::{self as api_snowflake_rest_error, Result};
+#[cfg(feature = "default-server")]
 use core_executor::models::ColumnInfo as ColumnInfoModel;
-use core_executor::utils::DataSerializationFormat;
-use indexmap::IndexMap;
+
 use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,18 +92,6 @@ pub struct ResponseData {
     pub query_id: Option<String>,
 }
 
-impl ResponseData {
-    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Vec<serde_json::Value>>> {
-        let json_array: Vec<IndexMap<String, serde_json::Value>> =
-            serde_json::from_str(json_rows_string)
-                .context(api_snowflake_rest_error::RowParseSnafu)?;
-        Ok(json_array
-            .into_iter()
-            .map(|obj| obj.values().cloned().collect())
-            .collect())
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct JsonResponse {
     pub data: Option<ResponseData>,
@@ -131,6 +117,7 @@ pub struct ColumnInfo {
     collation: Option<String>,
 }
 
+#[cfg(feature = "default-server")]
 impl From<ColumnInfoModel> for ColumnInfo {
     fn from(column_info: ColumnInfoModel) -> Self {
         Self {
@@ -153,27 +140,4 @@ impl From<ColumnInfoModel> for ColumnInfo {
 pub struct Auth {
     pub demo_user: String,
     pub demo_password: String,
-}
-
-#[derive(Clone, Default)]
-pub struct Config {
-    pub auth: Auth,
-    pub dbt_serialization_format: DataSerializationFormat,
-}
-
-impl Config {
-    pub fn new(data_format: &str) -> std::result::Result<Self, strum::ParseError> {
-        Ok(Self {
-            dbt_serialization_format: DataSerializationFormat::try_from(data_format)?,
-            ..Self::default()
-        })
-    }
-    #[must_use]
-    pub fn with_demo_credentials(mut self, demo_user: String, demo_password: String) -> Self {
-        self.auth = Auth {
-            demo_user,
-            demo_password,
-        };
-        self
-    }
 }

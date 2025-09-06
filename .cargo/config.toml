@@ -10,3 +10,4 @@ embucket-trace = "run -- --jwt-secret=test --backend=memory --cors-allow-origin=
 embucket-seed = "run -p embucket-seed -- --server-address 127.0.0.1:3000 --auth-user embucket --auth-password embucket --seed-variant typical"
 update-functions = "run -p embucket-functions generate-implemented-functions"
 e2e = "test --jobs 8 --workspace e2e_ -- --ignored"
+test-rest = "test -p api-snowflake-rest --no-default-features --features external-server"

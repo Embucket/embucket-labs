@@ -1,15 +1,17 @@
-use crate::error::{self as api_snowflake_rest_error, Error, Result};
+use super::state::AppState;
+use crate::SqlState;
 use crate::models::{
     JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse, LoginResponseData,
     QueryRequest, QueryRequestBody, ResponseData,
 };
-use crate::state::AppState;
+use crate::server::error::{self as api_snowflake_rest_error, Error, Result};
 use api_sessions::DFSessionId;
 use axum::Json;
 use axum::extract::{ConnectInfo, Path, Query, State};
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
+use core_executor::error as ex_error;
 use core_executor::models::{QueryContext, QueryResult};
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
 use core_history::{QueryIdParam, QueryRecordId};
@@ -18,7 +20,8 @@ use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
-use snafu::ResultExt;
+use indexmap::IndexMap;
+use snafu::{ResultExt, location};
 use std::net::SocketAddr;
 use tracing::debug;
 use uuid::Uuid;
@@ -96,8 +99,21 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
     String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
 }
 
+// moved from impl ResponseData, to satisfy features dependencies
+impl ResponseData {
+    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Vec<serde_json::Value>>> {
+        let json_array: Vec<IndexMap<String, serde_json::Value>> =
+            serde_json::from_str(json_rows_string)
+                .context(api_snowflake_rest_error::RowParseSnafu)?;
+        Ok(json_array
+            .into_iter()
+            .map(|obj| obj.values().cloned().collect())
+            .collect())
+    }
+}
+
 #[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", err, ret(level = tracing::Level::TRACE))]
-fn prepare_query_result(
+pub fn prepare_query_ok_response(
     sql_text: &str,
     query_result: QueryResult,
     ser_fmt: DataSerializationFormat,
@@ -137,11 +153,11 @@ fn prepare_query_result(
             total: Some(1),
             query_id: Some(query_uuid.to_string()),
             error_code: None,
-            sql_state: Option::from("ok".to_string()),
+            sql_state: Some(SqlState::Success.to_string()),
         }),
         success: true,
         message: Option::from("successfully executed".to_string()),
-        code: Some(format!("{:06}", 200)),
+        code: None,
     });
     debug!(
         "query {:?}, response: {:?}, records: {:?}",
@@ -182,7 +198,7 @@ pub async fn query(
             }),
             success: true,
             message: Option::from("successfully executed".to_string()),
-            code: Some(format!("{:06}", 200)),
+            code: None,
         }));
     }
 
@@ -195,7 +211,7 @@ pub async fn query(
         )
         .await?;
 
-    prepare_query_result(&sql_text, query_result, serialization_format)
+    prepare_query_ok_response(&sql_text, query_result, serialization_format)
 }
 
 #[tracing::instrument(name = "api_snowflake_rest::get_query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
@@ -212,9 +228,25 @@ pub async fn get_query(
         .record("query_uuid", query_uuid.to_string());
 
     let query_result = state.execution_svc.query_result(query_id).await?;
+    match query_result {
+        Ok(query_result) => {
+            prepare_query_ok_response("", query_result, state.config.dbt_serialization_format)
+        }
+        // Return the same response as it would be returned when error is propagated
+        Err(error) => {
+            // Create without using build(), and not using context which works with result
+            let error = Error::Execution {
+                source: ex_error::Error::QueryExecution {
+                    query_id,
+                    source: Box::new(error),
+                    location: location!(),
+                },
+            };
 
-    // TODO: get query text from history ?
-    prepare_query_result("", query_result, state.config.dbt_serialization_format)
+            let (_http_code, body) = error.prepare_response();
+            Ok(body)
+        }
+    }
 }
 
 pub async fn abort() -> Result<Json<serde_json::value::Value>> {
@@ -222,13 +254,14 @@ pub async fn abort() -> Result<Json<serde_json::value::Value>> {
 }
 
 #[cfg(test)]
+#[cfg(not(feature = "external-server"))]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_lines)]
 mod tests {
     use crate::models::{
         ClientEnvironment, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
         QueryRequestBody,
     };
-    use crate::test_server::run_test_server_with_demo_auth;
+    use crate::server::test_server::run_test_server_with_demo_auth;
     use axum::body::Bytes;
     use axum::http;
     use flate2::Compression;

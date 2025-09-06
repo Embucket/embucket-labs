@@ -1,0 +1,38 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_sqls.rs
+description: "select 1\nSnowflake: \n+---+\n| 1 |\n|---|\n| 1 |\n+---+"
+expression: snapshot
+info: "historical codes: sqlState: 02000, errorCode: "
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "Int64(1)",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "fixed",
+        "byteLength": null,
+        "length": null,
+        "scale": 0,
+        "precision": 38,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": null,
+    "rowset": [
+      [
+        1
+      ]
+    ],
+    "total": 1,
+    "queryResultFormat": "json",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": "000200"
+}

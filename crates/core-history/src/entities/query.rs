@@ -45,6 +45,7 @@ pub struct QueryRecord {
 }
 
 impl QueryRecord {
+    // When created - it's Running by default
     #[must_use]
     pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
@@ -57,7 +58,7 @@ impl QueryRecord {
             duration_ms: 0,
             result_count: 0,
             result: None,
-            status: QueryStatus::Successful,
+            status: QueryStatus::Running,
             error: None,
             diagnostic_error: None,
         }

@@ -1,8 +1,10 @@
-pub mod auth;
-pub mod error;
-pub mod handlers;
-pub mod layer;
+#[cfg(feature = "default-server")]
+pub mod server;
+
 pub mod models;
-pub mod router;
-pub mod state;
-pub mod test_server;
+pub mod sql_state;
+
+#[cfg(test)]
+pub mod tests;
+
+pub use sql_state::SqlState;

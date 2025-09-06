@@ -56,15 +56,18 @@ time = { workspace = true }
 pin-project-lite = "0.2.16"
 lru = "0.15.0"
 
+opentelemetry = { version = "0.30.0" }
+tracing-opentelemetry = { version = "0.31.0" }
+
 # added for making Snowflake error
 slatedb = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }
+reqwest = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 dotenv = "0.15.0"
-reqwest = "0.12.14"
 aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }
 aws-sdk-s3tables = { version = "1.32.0", features = ["behavior-version-latest"] }
 aws-sdk-sts = { version = "1.80.0", features = ["behavior-version-latest"] }

@@ -1,0 +1,21 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_sqls.rs
+description: "create table foo\nSnowflake:\n001003 (42000): UUID: SQL compilation error: \nsyntax error line 1 at position 16 unexpected '<EOF>'."
+expression: snapshot
+info: "historical codes: sqlState: 42503, errorCode: 001001"
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "errorCode": "001003",
+    "sqlState": "42000",
+    "queryId": "UUID"
+  },
+  "success": false,
+  "message": "SQL compilation error: syntax error unexpected end of input",
+  "code": "001003"
+}

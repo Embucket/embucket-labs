@@ -4,8 +4,8 @@ use super::e2e_common::TestAwsSdkSnafu;
 use super::e2e_toxiproxy::{
     create_toxic_conn_limit, create_toxiproxy, delete_toxic_conn_limit, delete_toxiproxy,
 };
+use crate::error_code::ErrorCode;
 use crate::service::ExecutionService;
-use crate::status_code::StatusCode;
 use crate::tests::e2e::e2e_common::{
     AWS_OBJECT_STORE_PREFIX, E2E_S3TABLESVOLUME_PREFIX, E2E_S3VOLUME_PREFIX, Error,
     MINIO_OBJECT_STORE_PREFIX, ObjectStoreType, ParallelTest, S3ObjectStore, TEST_SESSION_ID1,
@@ -1574,7 +1574,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             let snowflake_err = err.to_snowflake_error();
-            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
+            assert_eq!(snowflake_err.error_code(), ErrorCode::ObjectStore);
             assert!(
                 snowflake_err
                     .to_string()
@@ -1652,7 +1652,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_s3_volume_write_
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             let snowflake_err = err.to_snowflake_error();
-            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
+            assert_eq!(snowflake_err.error_code(), ErrorCode::ObjectStore);
             assert!(
                 snowflake_err
                     .to_string()
@@ -1719,7 +1719,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             let snowflake_err = err.to_snowflake_error();
-            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
+            assert_eq!(snowflake_err.error_code(), ErrorCode::ObjectStore);
             assert!(
                 snowflake_err
                     .to_string()
@@ -1795,7 +1795,7 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_write_to_metasto
     impl TestQueryCallback for ErrCallback {
         fn err_callback(&self, err: &crate::Error) {
             let snowflake_err = err.to_snowflake_error();
-            assert_eq!(snowflake_err.status_code(), StatusCode::ObjectStore);
+            assert_eq!(snowflake_err.error_code(), ErrorCode::ObjectStore);
             assert!(
                 snowflake_err
                     .to_string()

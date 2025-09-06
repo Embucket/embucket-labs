@@ -101,7 +101,7 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        execution_result: std::result::Result<ResultSet, QueryResultError>,
+        execution_result: Option<std::result::Result<ResultSet, QueryResultError>>,
     );
 }
 
@@ -335,22 +335,24 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn save_query_record(
         &self,
         query_record: &mut QueryRecord,
-        execution_result: std::result::Result<ResultSet, QueryResultError>,
+        execution_result: Option<std::result::Result<ResultSet, QueryResultError>>,
     ) {
-        match execution_result {
-            Ok(result_set) => match serde_json::to_string(&result_set) {
-                Ok(encoded_res) => {
-                    let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
-                    query_record.finished(result_count, Some(encoded_res));
-                }
-                // serde error
-                Err(err) => query_record.finished_with_error(QueryResultError {
-                    status: QueryStatus::Failed,
-                    message: err.to_string(),
-                    diagnostic_message: format!("{err:?}"),
-                }),
-            },
-            Err(execution_err) => query_record.finished_with_error(execution_err),
+        if let Some(execution_result) = execution_result {
+            match execution_result {
+                Ok(result_set) => match serde_json::to_string(&result_set) {
+                    Ok(encoded_res) => {
+                        let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
+                        query_record.finished(result_count, Some(encoded_res));
+                    }
+                    // serde error
+                    Err(err) => query_record.finished_with_error(QueryResultError {
+                        status: QueryStatus::Failed,
+                        message: err.to_string(),
+                        diagnostic_message: format!("{err:?}"),
+                    }),
+                },
+                Err(execution_err) => query_record.finished_with_error(execution_err),
+            }
         }
 
         if let Err(err) = self.add_query(query_record).await {

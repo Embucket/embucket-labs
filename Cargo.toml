@@ -16,7 +16,7 @@ members = [
   "crates/core-history",
   "crates/core-metastore",
   "crates/core-utils",
-  "crates/api-sessions",
+  "crates/api-sessions"
 ]
 resolver = "2"
 package.license-file = "LICENSE"
@@ -97,6 +97,8 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
 mockall = "0.13.1"
+reqwest = "0.12.14"
+insta = { version = "1.42.0", features = ["json", "filters", "redactions"] }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "181a1321415727472f0e70cdf024e91b81cc2b47" }

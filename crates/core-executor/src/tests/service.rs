@@ -669,9 +669,14 @@ async fn test_submitted_query_timeout() {
         .wait_async_query_completion(query_handle)
         .await
         .expect_err("Query should not succeed");
+
+    let query_result_str = format!("{query_result:?}");
     match query_result {
-        Error::QueryTimeout { .. } => {}
-        _ => panic!("Expected query execution exceeded timeout error but got {query_result:?}"),
+        Error::QueryExecution { source, .. } => match *source {
+            Error::QueryTimeout { .. } => {}
+            _ => panic!("Expected query status: Canceled, but got {query_result_str}"),
+        },
+        _ => panic!("Expected outer QueryExecution error, but got {query_result_str}"),
     }
 
     let query_record = history_store
@@ -726,9 +731,13 @@ async fn test_submitted_query_cancellation() {
         .wait_async_query_completion(query_handle)
         .await
         .expect_err("Query should not succeed");
+    let query_result_str = format!("{query_result:?}");
     match query_result {
-        Error::QueryCancelled { .. } => {}
-        _ => panic!("Expected query status: Canceled, but got {query_result:?}"),
+        Error::QueryExecution { source, .. } => match *source {
+            Error::QueryCancelled { .. } => {}
+            _ => panic!("Expected query status: Canceled, but got {query_result_str}"),
+        },
+        _ => panic!("Expected outer QueryExecution error, but got {query_result_str}"),
     }
 
     let query_record = history_store

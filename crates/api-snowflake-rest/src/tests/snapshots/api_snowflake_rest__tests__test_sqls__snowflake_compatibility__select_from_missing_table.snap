@@ -1,0 +1,21 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_sqls.rs
+description: "select * from foo\nSnowflake:\n002003 (42S02): UUID: SQL compilation error:\nObject 'FOO' does not exist or not authorized."
+expression: snapshot
+info: "historical codes: sqlState: 02000, errorCode: "
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "errorCode": "002003",
+    "sqlState": "42000",
+    "queryId": "UUID"
+  },
+  "success": false,
+  "message": "SQL compilation error: table 'embucket.public.foo' not found",
+  "code": "002003"
+}

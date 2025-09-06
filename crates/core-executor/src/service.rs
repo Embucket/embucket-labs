@@ -35,6 +35,7 @@ use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
 use tokio_util::sync::CancellationToken;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -58,7 +59,7 @@ pub trait ExecutionService: Send + Sync {
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult>;
-    async fn query_result(&self, query_id: QueryRecordId) -> Result<QueryResult>;
+    async fn query_result(&self, query_id: QueryRecordId) -> Result<Result<QueryResult>>;
     async fn query(
         &self,
         session_id: &str,
@@ -387,20 +388,35 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::query_result",
         level = "debug",
         skip(self),
+        fields(queries_count = self.queries.len()),
         err
     )]
-    async fn query_result(&self, query_id: QueryRecordId) -> Result<QueryResult> {
-        let query_record_res = self
+    async fn query_result(&self, query_id: QueryRecordId) -> Result<Result<QueryResult>> {
+        let query_record = self
             .history_store
             .get_query(query_id)
             .await
-            .context(ex_error::QueryHistorySnafu);
+            .context(ex_error::QueryHistorySnafu)
+            .context(ex_error::QueryExecutionSnafu { query_id })?;
 
-        let query_record = query_record_res.context(ex_error::QueryExecutionSnafu { query_id })?;
-
-        Ok(query_record
-            .try_into()
-            .context(ex_error::QueryExecutionSnafu { query_id })?)
+        if query_record.status == QueryStatus::Running {
+            ex_error::QueryIsRunningSnafu { query_id }
+                .fail()
+                .context(ex_error::QueryExecutionSnafu { query_id })
+        } else {
+            let fetched_query_result: Result<QueryResult> = if query_record.error.is_some() {
+                // convert saved query error to result
+                Err(query_record
+                    .try_into()
+                    .context(ex_error::QueryExecutionSnafu { query_id })?)
+            } else {
+                // convert saved ResultSet to result
+                Ok(query_record
+                    .try_into()
+                    .context(ex_error::QueryExecutionSnafu { query_id })?)
+            };
+            Ok(fetched_query_result)
+        }
     }
 
     #[tracing::instrument(
@@ -443,6 +459,11 @@ impl ExecutionService for CoreExecutionService {
         self.queries.insert(query_id.into(), cancel_token.clone());
         // eprintln!("submit_query: {query_id}, {}, {}", self.queries.len(), chrono::Utc::now());
 
+        // Add query to history with status: Running
+        self.history_store
+            .save_query_record(&mut history_record, None)
+            .await;
+
         let query_timeout_secs = self.config.query_timeout_secs;
 
         let history_store_ref = self.history_store.clone();
@@ -450,8 +471,19 @@ impl ExecutionService for CoreExecutionService {
 
         let (tx, rx) = oneshot::channel();
 
+        let cx = tracing::Span::current().context();
+
         tokio::spawn(async move {
             let mut query_obj = query_obj;
+
+            // {
+            //     // attach parent context inside this task
+            //     let _guard = cx.attach();
+
+            //     // Create a new tracing span AFTER attaching
+            //     let child = tracing::info_span!("submit_query_spawned");
+            //     let _enter = child.enter();
+            // }
 
             // Execute the query with a timeout to prevent long-running or stuck queries
             // from blocking system resources indefinitely. If the timeout is exceeded,
@@ -464,16 +496,19 @@ impl ExecutionService for CoreExecutionService {
                 finished = result_fut => {
                     match finished {
                         Ok(inner_result) => {
+                            let status = inner_result.as_ref().map_or_else(|_| QueryStatus::Failed, |_| QueryStatus::Successful);
                             QueryResultStatus {
                                 query_result: inner_result.context(ex_error::QueryExecutionSnafu {
                                     query_id,
                                 }),
-                                status: QueryStatus::Successful,
+                                status: status.clone(),
                             }
                         },
                         Err(_) => {
                             QueryResultStatus {
-                                query_result: Err(ex_error::QueryTimeoutSnafu.build()),
+                                query_result: ex_error::QueryTimeoutSnafu.fail().context(ex_error::QueryExecutionSnafu {
+                                    query_id,
+                                }),
                                 status: QueryStatus::TimedOut,
                             }
                         },
@@ -481,7 +516,9 @@ impl ExecutionService for CoreExecutionService {
                 },
                 () = cancel_token.cancelled() => {
                     QueryResultStatus {
-                        query_result: Err(ex_error::QueryCancelledSnafu { query_id }.build()),
+                        query_result: ex_error::QueryCancelledSnafu { query_id }.fail().context(ex_error::QueryExecutionSnafu {
+                            query_id,
+                        }),
                         status: QueryStatus::Canceled,
                     }
                 }
@@ -501,7 +538,7 @@ impl ExecutionService for CoreExecutionService {
             history_store_ref
                 .save_query_record(
                     &mut history_record,
-                    query_result_to_history(&query_result_status.query_result),
+                    Some(query_result_to_history(&query_result_status.query_result)),
                 )
                 .await;
 
