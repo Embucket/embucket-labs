@@ -261,7 +261,7 @@ mod tests {
         ClientEnvironment, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
         QueryRequestBody,
     };
-    use crate::server::test_server::run_test_server_with_demo_auth;
+    use crate::server::test_server::run_test_server;
     use axum::body::Bytes;
     use axum::http;
     use flate2::Compression;
@@ -275,7 +275,7 @@ mod tests {
     #[tokio::test]
     async fn test_login() {
         let addr =
-            run_test_server_with_demo_auth("embucket".to_string(), "embucket".to_string()).await;
+            run_test_server("embucket", "embucket").await;
         let client = reqwest::Client::new();
         let login_url = format!("http://{addr}/session/v1/login-request");
         let query_url = format!("http://{addr}/queries/v1/query-request");

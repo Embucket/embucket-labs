@@ -476,14 +476,14 @@ impl ExecutionService for CoreExecutionService {
         tokio::spawn(async move {
             let mut query_obj = query_obj;
 
-            // {
-            //     // attach parent context inside this task
-            //     let _guard = cx.attach();
+            {
+                // attach parent context inside this task
+                let _guard = cx.attach();
 
-            //     // Create a new tracing span AFTER attaching
-            //     let child = tracing::info_span!("submit_query_spawned");
-            //     let _enter = child.enter();
-            // }
+                // Create a new tracing span AFTER attaching
+                let child = tracing::info_span!("submit_query_spawned");
+                let _enter = child.enter();
+            }
 
             // Execute the query with a timeout to prevent long-running or stuck queries
             // from blocking system resources indefinitely. If the timeout is exceeded,

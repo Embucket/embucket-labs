@@ -41,10 +41,10 @@ impl Display for SqlState {
             let value = &serialized[1..serialized.len() - 1];
             let parsed = value.parse::<u32>();
             if let Ok(parsed) = parsed {
-                return parsed.fmt(f);
+                return write!(f, "{parsed:05}");
             }
         }
         // serde serialized just name of enum variant, get number instead
-        write!(f, "{}", *self as u32)
+        write!(f, "{:05}", *self as u32)
     }
 }

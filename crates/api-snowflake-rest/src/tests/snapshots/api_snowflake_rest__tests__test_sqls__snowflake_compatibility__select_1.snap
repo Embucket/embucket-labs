@@ -1,8 +1,8 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_sqls.rs
-description: "select 1\nSnowflake: \n+---+\n| 1 |\n|---|\n| 1 |\n+---+"
+description: "select 1\nQuery UUID: 00000000-0000-0000-0000-077f2f5f98c3\nSnowflake: \n+---+\n| 1 |\n|---|\n| 1 |\n+---+"
 expression: snapshot
-info: "historical codes: sqlState: 02000, errorCode: "
+info: "historical codes: sqlState: 02000, errorCode: 010001"
 ---
 {
   "data": {
@@ -34,5 +34,5 @@ info: "historical codes: sqlState: 02000, errorCode: "
   },
   "success": true,
   "message": "successfully executed",
-  "code": "000200"
+  "code": null
 }

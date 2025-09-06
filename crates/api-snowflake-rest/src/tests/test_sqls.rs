@@ -29,7 +29,7 @@ macro_rules! sql_test {
                     .map(|line| line.trim_start())
                     .collect::<Vec<_>>()
                     .join("\n");
-            let server_addr = run_test_server().await;
+            let server_addr = run_test_server(DEMO_USER, DEMO_PASSWORD).await;
             let (snapshot, query_record) = snow_sql(&server_addr, $sql).await;
 
             let query_id = &snapshot.data.as_ref().map_or_else(
