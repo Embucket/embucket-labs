@@ -5,16 +5,28 @@ from config import get_snowflake_config
 from tpcds_queries import TPCDS_QUERIES
 
 
-def run_on_sf(cursor):
+def run_on_sf(cursor, sf_config):
     """Run TPCDS queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     all_results = []
+    warehouse_name = sf_config.get("warehouse")
 
     # Execute queries
     for query_number, query in TPCDS_QUERIES:
         try:
             print(f"Executing query {query_number}...")
+            
+            # Suspend warehouse before each query to ensure clean state
+            if warehouse_name:
+                try:
+                    cursor.execute(f"ALTER WAREHOUSE {warehouse_name} SUSPEND;")
+                    cursor.execute("SELECT SYSTEM$WAIT(2);")
+                    cursor.execute(f"ALTER WAREHOUSE {warehouse_name} RESUME;")
+                except Exception as e:
+                    print(f"Warning: Could not suspend/resume warehouse for query {query_number}: {e}")
+            
+            # Execute the actual query
             cursor.execute(query)
             _ = cursor.fetchall()
             cursor.execute("SELECT LAST_QUERY_ID()")
@@ -115,7 +127,7 @@ def run_benchmark():
     # Disable query result caching for benchmark
     cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
-    run_on_sf(cursor)
+    run_on_sf(cursor, sf_config)
 
     cursor.close()
     sf_connection.close()
