@@ -113,8 +113,10 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
+use datafusion_common::tree_node::TransformedResult;
 use tracing_attributes::instrument;
 use url::Url;
+use crate::datafusion::logical_analyzer::like_ilike_type_analyzer::LikeILikeTypeAnalyzer;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -2112,14 +2114,6 @@ impl UserQuery {
             .executor
             .spawn(async move {
                 let mut schema = plan.schema().as_arrow().clone();
-                tracing::error!("Plan should be1: {:?}", plan);
-                let plan = session
-                    .ctx
-                    .state()
-                    .analyzer()
-                    .execute_and_check(plan, session.ctx.state().config_options(), |_, _| ())
-                    .context(ex_error::DataFusionSnafu)?;
-                tracing::error!("Plan should be2: {:?}", plan);
                 let records = session
                     .ctx
                     .execute_logical_plan(plan)

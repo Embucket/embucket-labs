@@ -16,13 +16,20 @@ use std::sync::Arc;
 pub struct LikeILikeTypeAnalyzer;
 
 impl LikeILikeTypeAnalyzer {
+    fn varchar_expr_from(expr: Expr) -> Box<Expr> {
+        Box::new(Expr::ScalarFunction(ScalarFunction {
+            func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
+            args: vec![expr],
+        }))
+    }
+}
+
+impl LikeILikeTypeAnalyzer {
     fn analyze_internal(plan: &LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
         let name_preserver = NamePreserver::new(plan);
         let new_plan = plan.clone().map_expressions(|expr| {
             let original_name = name_preserver.save(&expr);
-            tracing::error!("Expr1: {:?}", expr);
             let transformed_expr = expr.transform_up(|e| {
-                tracing::error!("Expr2: {:?}", e);
                 match &e {
                     Expr::Like(Like {
                                    negated,
@@ -40,11 +47,7 @@ impl LikeILikeTypeAnalyzer {
                                 DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8
                             ) => Ok(Transformed::no(e)),
                             (_, DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8) => {
-                                tracing::error!("HEY2");
-                                let udf = Box::new(Expr::ScalarFunction(ScalarFunction {
-                                    func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
-                                    args: vec![*expr.clone()],
-                                }));
+                                let udf = Self::varchar_expr_from(*expr.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
                                     expr: udf,
@@ -54,11 +57,7 @@ impl LikeILikeTypeAnalyzer {
                                 })))
                             }
                             (DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8, _) => {
-                                tracing::error!("HEY2");
-                                let udf = Box::new(Expr::ScalarFunction(ScalarFunction {
-                                    func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
-                                    args: vec![*pattern.clone()],
-                                }));
+                                let udf = Self::varchar_expr_from(*pattern.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
                                     expr: expr.clone(),
@@ -68,15 +67,8 @@ impl LikeILikeTypeAnalyzer {
                                 })))
                             }
                             (_, _) => {
-                                tracing::error!("HEY3");
-                                let udf1 = Box::new(Expr::ScalarFunction(ScalarFunction {
-                                    func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
-                                    args: vec![*expr.clone()],
-                                }));
-                                let udf2 = Box::new(Expr::ScalarFunction(ScalarFunction {
-                                    func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
-                                    args: vec![*pattern.clone()],
-                                }));
+                                let udf1 = Self::varchar_expr_from(*expr.clone());
+                                let udf2 = Self::varchar_expr_from(*pattern.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
                                     expr: udf1,
