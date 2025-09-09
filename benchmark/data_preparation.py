@@ -105,6 +105,6 @@ def prepare_data_for_embucket():
 
 
 if __name__ == "__main__":
-    # generate_tpcds_data()
+    generate_tpcds_data()
     prepare_data_for_embucket()
-    # prepare_data_for_snowflake()
+    prepare_data_for_snowflake()
