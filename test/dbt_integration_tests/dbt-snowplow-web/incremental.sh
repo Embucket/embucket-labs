@@ -51,6 +51,8 @@ check_docker_container() {
         return 0
     else
         echo "⚠ Docker container 'em' is not running"
+        echo "Docker logs for container 'em':"
+        docker logs em 2>&1 | tail -20
         return 1
     fi
 }
