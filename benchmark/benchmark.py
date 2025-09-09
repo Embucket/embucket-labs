@@ -1,16 +1,15 @@
 import csv
-from snowflake.connector import connect
 from tabulate import tabulate
-from config import get_snowflake_config
+
+from utils import create_snowflake_connection
 from tpcds_queries import TPCDS_QUERIES
 
 
-def run_on_sf(cursor, sf_config):
+def run_on_sf(cursor, sf_warehouse):
     """Run TPCDS queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     all_results = []
-    warehouse_name = sf_config.get("warehouse")
 
     # Execute queries
     for query_number, query in TPCDS_QUERIES:
@@ -18,11 +17,11 @@ def run_on_sf(cursor, sf_config):
             print(f"Executing query {query_number}...")
             
             # Suspend warehouse before each query to ensure clean state
-            if warehouse_name:
+            if sf_warehouse:
                 try:
-                    cursor.execute(f"ALTER WAREHOUSE {warehouse_name} SUSPEND;")
+                    cursor.execute(f"ALTER WAREHOUSE {sf_warehouse} SUSPEND;")
                     cursor.execute("SELECT SYSTEM$WAIT(2);")
-                    cursor.execute(f"ALTER WAREHOUSE {warehouse_name} RESUME;")
+                    cursor.execute(f"ALTER WAREHOUSE {sf_warehouse} RESUME;")
                 except Exception as e:
                     print(f"Warning: Could not suspend/resume warehouse for query {query_number}: {e}")
             
@@ -120,14 +119,14 @@ def run_on_sf(cursor, sf_config):
 
 def run_benchmark():
     """Main function to run the benchmark."""
-    sf_config = get_snowflake_config()
-    sf_connection = connect(**sf_config)
+    sf_connection = create_snowflake_connection()
+    sf_warehouse = sf_connection.warehouse
     cursor = sf_connection.cursor()
 
     # Disable query result caching for benchmark
     cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
-    run_on_sf(cursor, sf_config)
+    run_on_sf(cursor, sf_warehouse)
 
     cursor.close()
     sf_connection.close()

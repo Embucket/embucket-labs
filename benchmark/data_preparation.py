@@ -1,8 +1,10 @@
 import os
 import glob
 import subprocess
-from config import DDL_DIR, PARQUET_DIR, get_snowflake_config
-from snowflake.connector import connect
+from utils import create_embucket_connection, create_snowflake_connection
+
+DDL_DIR = "tpcds_ddl"
+PARQUET_DIR = "tpcds_data"
 
 
 def check_tpcds_data_exists():
@@ -31,10 +33,8 @@ def generate_tpcds_data():
             raise
 
 
-def create_tables(cursor, config):
+def create_tables(cursor):
     """Create tables in Snowflake using SQL files."""
-    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {config.get('schema')}")
-    cursor.execute(f"USE SCHEMA {config.get('schema')}")
     sql_files = glob.glob(f"{DDL_DIR}/*_embucket.sql")
     print("Creating tables...")
     for sql_file in sql_files:
@@ -47,44 +47,64 @@ def create_tables(cursor, config):
             cursor.execute(sql)
 
 
-def upload_parquet_to_tables(cursor):
-    """Upload parquet files to Snowflake tables."""
-    # Create stage if not exists
-    cursor.execute("CREATE OR REPLACE FILE FORMAT sf_tut_parquet_format TYPE = parquet;")
-    cursor.execute("CREATE OR REPLACE TEMPORARY STAGE sf_tut_stage FILE_FORMAT = sf_tut_parquet_format;")
+def upload_parquet_to_embucket_tables(cursor):
+    """Upload parquet files to Embucket tables using COPY INTO."""
+    parquet_files = glob.glob(f"{PARQUET_DIR}/*.parquet")
 
+    for parquet_file in parquet_files:
+        table_name = os.path.basename(parquet_file).replace(".parquet", "")
+        file_path = os.path.abspath(parquet_file)
+
+        print(f"Loading {parquet_file} into Embucket table {table_name}...")
+
+        copy_sql = f"COPY INTO {table_name} FROM 'file://{file_path}' STORAGE_INTEGRATION = local FILE_FORMAT = (TYPE = PARQUET)"
+        cursor.execute(copy_sql)
+
+
+def upload_parquet_to_snowflake_tables(cursor):
+    """Upload parquet files to Snowflake tables."""
     parquet_files = glob.glob(f"{PARQUET_DIR}/*.parquet")
     for parquet_file in parquet_files:
         table_name = os.path.basename(parquet_file).replace(".parquet", "")
         # Upload file to stage
         print("uploading: ", parquet_file)
-        cursor.execute(f"PUT file://{parquet_file} @sf_tut_stage;")
+        cursor.execute(f"PUT file://{parquet_file} @sf_prep_stage;")
         # Load data into table
         cursor.execute(f"""
                     COPY INTO {table_name}
-                    FROM @sf_tut_stage/{os.path.basename(parquet_file)}
+                    FROM @sf_prep_stage/{os.path.basename(parquet_file)}
                     FILE_FORMAT = (TYPE = PARQUET)
                     MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
                 """)
 
 
-def prepare_data():
+def prepare_data_for_snowflake():
     """Main function to prepare data, create tables, and load data for Snowflake"""
-    generate_tpcds_data()
-
-    # Connect to Snowflake and prepare data
-    sf_config = get_snowflake_config()
-    sf_connection = connect(**sf_config)
-    cursor = sf_connection.cursor()
-
-    create_tables(cursor, sf_config)
-    upload_parquet_to_tables(cursor)
+    # Connect to Snowflake
+    cursor = create_snowflake_connection().cursor()
+    # Create tables
+    create_tables(cursor)
+    # Load data into Snowflake tables
+    upload_parquet_to_snowflake_tables(cursor)
 
     cursor.close()
-    sf_connection.close()
+    print("Snowflake data preparation completed successfully.")
 
-    print("Data preparation completed successfully.")
+
+def prepare_data_for_embucket():
+    """Prepare data for Embucket: generate data, create tables, and load data."""
+    # Connect to Embucket
+    cursor = create_embucket_connection().cursor()
+    # Create tables
+    create_tables(cursor)
+    # Load data into Embucket tables
+    upload_parquet_to_embucket_tables(cursor)
+
+    cursor.close()
+    print("Embucket data preparation completed successfully.")
 
 
 if __name__ == "__main__":
-    prepare_data()
+    # generate_tpcds_data()
+    prepare_data_for_embucket()
+    # prepare_data_for_snowflake()
