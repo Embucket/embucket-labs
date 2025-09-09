@@ -13,9 +13,9 @@ use std::sync::Arc;
 
 /// TODO DOCS
 #[derive(Debug, Default)]
-pub struct LikeILikeTypeAnalyzer;
+pub struct LikeTypeAnalyzer;
 
-impl LikeILikeTypeAnalyzer {
+impl LikeTypeAnalyzer {
     fn varchar_expr_from(expr: Expr) -> Box<Expr> {
         Box::new(Expr::ScalarFunction(ScalarFunction {
             func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
@@ -24,7 +24,7 @@ impl LikeILikeTypeAnalyzer {
     }
 }
 
-impl LikeILikeTypeAnalyzer {
+impl LikeTypeAnalyzer {
     fn analyze_internal(plan: &LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
         let name_preserver = NamePreserver::new(plan);
         let new_plan = plan.clone().map_expressions(|expr| {
@@ -32,19 +32,19 @@ impl LikeILikeTypeAnalyzer {
             let transformed_expr = expr.transform_up(|e| {
                 match &e {
                     Expr::Like(Like {
-                                   negated,
-                                   expr,
-                                   pattern,
-                                   escape_char,
-                                   case_insensitive,
-                               }) => {
+                        negated,
+                        expr,
+                        pattern,
+                        escape_char,
+                        case_insensitive,
+                    }) => {
                         let (expr_type, _) = expr.data_type_and_nullable(plan.schema())?;
                         let (pattern_type, _) = pattern.data_type_and_nullable(plan.schema())?;
                         match (expr_type, pattern_type) {
                             //No need to coerce if both types are a string
                             (
                                 DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8,
-                                DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8
+                                DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8,
                             ) => Ok(Transformed::no(e)),
                             (_, DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8) => {
                                 let udf = Self::varchar_expr_from(*expr.clone());
@@ -89,7 +89,7 @@ impl LikeILikeTypeAnalyzer {
     }
 }
 
-impl AnalyzerRule for LikeILikeTypeAnalyzer {
+impl AnalyzerRule for LikeTypeAnalyzer {
     fn analyze(&self, plan: LogicalPlan, _: &ConfigOptions) -> DFResult<LogicalPlan> {
         plan.transform_up_with_subqueries(|plan| Self::analyze_internal(&plan))
             .data()?

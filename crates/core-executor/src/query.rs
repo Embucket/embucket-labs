@@ -113,10 +113,8 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
-use datafusion_common::tree_node::TransformedResult;
 use tracing_attributes::instrument;
 use url::Url;
-use crate::datafusion::logical_analyzer::like_ilike_type_analyzer::LikeILikeTypeAnalyzer;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,

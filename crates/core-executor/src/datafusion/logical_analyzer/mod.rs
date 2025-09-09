@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 pub mod cast_analyzer;
 pub mod iceberg_types_analyzer;
-pub mod like_ilike_type_analyzer;
+pub mod like_type_analyzer;
 pub mod union_schema_analyzer;
 
 #[must_use]
@@ -12,21 +12,24 @@ pub fn analyzer_rules(
     session_params: Arc<SessionParams>,
 ) -> Vec<Arc<dyn AnalyzerRule + Send + Sync>> {
     //Ordering matters a lot, including `.extend(...)`
-    let mut rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
-        Arc::new(like_ilike_type_analyzer::LikeILikeTypeAnalyzer {}),
+    let before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> =
+        vec![Arc::new(like_type_analyzer::LikeTypeAnalyzer {})];
+
+    let base_rules = Analyzer::new().rules;
+
+    let after_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
         Arc::new(iceberg_types_analyzer::IcebergTypesAnalyzer {}),
         Arc::new(cast_analyzer::CastAnalyzer::new(session_params)),
-    ];
-
-    let after_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
         // Must be registered after CastAnalyzer because it introduces function calls
         // that can change the schema
         Arc::new(union_schema_analyzer::UnionSchemaAnalyzer::new()),
     ];
 
-    rules.extend(Analyzer::new().rules);
+    let mut rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![];
 
-    rules.extend(after_rules);
+    rules.extend(before_base_rules);
+    rules.extend(base_rules);
+    rules.extend(after_base_rules);
 
     rules
 }
