@@ -41,11 +41,11 @@ else
     echo "⚠ Warning: events_today.csv not found"
 fi
 
-# Check if at least one events file exists
-if [ ! -f "./datasets/events_yesterday.csv" ] && [ ! -f "./datasets/events_today.csv" ]; then
-    echo "Error: No events files found. Please run gen_events.py first to generate the events files."
-    exit 1
-fi
+# # Check if at least one events file exists
+# if [ ! -f "./datasets/events_yesterday.csv" ] && [ ! -f "./datasets/events_today.csv" ]; then
+#     echo "Error: No events files found. Please run gen_events.py first to generate the events files."
+#     exit 1
+# fi
 
 # Start Embucket container with NO persistent storage
 echo "Starting Embucket container with clean environment..."
