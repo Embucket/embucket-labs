@@ -914,6 +914,8 @@ impl UserQuery {
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
 
+        tracing::error!("Schema: {}", schema);
+
         let mut create_table = CreateTableBuilder::default();
         create_table
             .with_name(ident.table)
@@ -2110,6 +2112,14 @@ impl UserQuery {
             .executor
             .spawn(async move {
                 let mut schema = plan.schema().as_arrow().clone();
+                tracing::error!("Plan should be1: {:?}", plan);
+                let plan = session
+                    .ctx
+                    .state()
+                    .analyzer()
+                    .execute_and_check(plan, session.ctx.state().config_options(), |_, _| ())
+                    .context(ex_error::DataFusionSnafu)?;
+                tracing::error!("Plan should be2: {:?}", plan);
                 let records = session
                     .ctx
                     .execute_logical_plan(plan)

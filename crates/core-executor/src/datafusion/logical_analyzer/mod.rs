@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub mod cast_analyzer;
 pub mod iceberg_types_analyzer;
+pub mod like_ilike_type_analyzer;
 pub mod union_schema_analyzer;
 
 #[must_use]
@@ -12,6 +13,7 @@ pub fn analyzer_rules(
 ) -> Vec<Arc<dyn AnalyzerRule + Send + Sync>> {
     let mut base_rules = Analyzer::new().rules;
     let rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
+        Arc::new(like_ilike_type_analyzer::LikeILikeTypeAnalyzer {}),
         Arc::new(iceberg_types_analyzer::IcebergTypesAnalyzer {}),
         Arc::new(cast_analyzer::CastAnalyzer::new(session_params)),
         // Must be registered after CastAnalyzer because it introduces function calls
