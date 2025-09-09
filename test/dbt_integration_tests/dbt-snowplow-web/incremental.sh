@@ -40,14 +40,15 @@ is_incremental=${1:-false}
 # Set number of rows to generate, default to 1000
 num_rows=${2:-10000}
 
+# FIRST RUN
+echo "Generating events"
+$PYTHON_CMD gen_events.py $num_rows
+
 echo "Setting up Docker container"
 ./setup_docker.sh
 
 sleep 20
 
-# FIRST RUN
-echo "Generating events"
-$PYTHON_CMD gen_events.py $num_rows
 
 echo "Loading events"
 $PYTHON_CMD load_events.py events_yesterday.csv
