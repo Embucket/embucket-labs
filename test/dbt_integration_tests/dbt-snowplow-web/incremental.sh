@@ -43,53 +43,7 @@ num_rows=${2:-10000}
 echo "Setting up Docker container"
 ./setup_docker.sh
 
-# Function to check if Docker container is running
-check_docker_container() {
-    echo "Checking if Docker container 'em' is running..."
-    if docker ps --format "table {{.Names}}" | grep -q "^em$"; then
-        echo "✓ Docker container 'em' is running"
-        return 0
-    else
-        echo "⚠ Docker container 'em' is not running"
-        echo "Docker logs for container 'em':"
-        docker logs em 2>&1 | tail -20
-        return 1
-    fi
-}
-
-# Function to wait for container to be running
-wait_for_container() {
-    local max_attempts=30  # Wait up to 5 minutes (30 * 10 seconds)
-    local attempt=1
-    
-    echo "Waiting for Docker container 'em' to be in running state..."
-    
-    while [ $attempt -le $max_attempts ]; do
-        if check_docker_container; then
-            echo "✓ Docker container 'em' is now running (attempt $attempt/$max_attempts)"
-            return 0
-        else
-            echo "⏳ Container not ready yet, waiting 10 seconds... (attempt $attempt/$max_attempts)"
-            sleep 10
-            attempt=$((attempt + 1))
-        fi
-    done
-    
-    echo "❌ Error: Docker container 'em' failed to start within 5 minutes"
-    return 1
-}
-
-# Wait for container to be running
-if wait_for_container; then
-    echo "✓ Docker container setup completed successfully"
-else
-    echo "❌ Error: Docker container failed to start after waiting"
-    exit 1
-fi
-echo ""
-echo "###############################"
-echo ""
-
+sleep 20
 
 # FIRST RUN
 echo "Generating events"
