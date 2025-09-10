@@ -12,7 +12,7 @@ pub fn analyzer_rules(
     session_params: Arc<SessionParams>,
 ) -> Vec<Arc<dyn AnalyzerRule + Send + Sync>> {
     //Ordering matters a lot, including `.extend(...)`
-    let before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> =
+    let mut before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> =
         vec![Arc::new(like_type_analyzer::LikeTypeAnalyzer {})];
 
     let base_rules = Analyzer::new().rules;
@@ -25,11 +25,8 @@ pub fn analyzer_rules(
         Arc::new(union_schema_analyzer::UnionSchemaAnalyzer::new()),
     ];
 
-    let mut rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![];
+    before_base_rules.extend(base_rules);
+    before_base_rules.extend(after_base_rules);
 
-    rules.extend(before_base_rules);
-    rules.extend(base_rules);
-    rules.extend(after_base_rules);
-
-    rules
+    before_base_rules
 }
