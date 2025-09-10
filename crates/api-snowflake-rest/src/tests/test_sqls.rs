@@ -1,8 +1,8 @@
-#[cfg(not(feature = "external-server"))]
+#[cfg(feature = "default-server")]
 use crate::server::test_server::run_test_server;
 
 // External server should be already running, we just return its address
-#[cfg(feature = "external-server")]
+#[cfg(not(feature = "default-server"))]
 use crate::tests::external_server::run_test_server;
 
 use super::client::{get_query_result, login, query};
