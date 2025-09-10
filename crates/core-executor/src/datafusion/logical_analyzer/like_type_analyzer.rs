@@ -11,7 +11,17 @@ use embucket_functions::conversion::ToVarcharFunc;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-/// TODO DOCS
+/// Rewrites `LIKE` expressions in the logical plan for `subject` and `pattern` expressions as
+/// a `TO_CHAR` function call if needed, to be of the same Utf8 type.
+///
+/// Note: if we can't get a `DataType` by column from the plan schema, we rewrite the expression
+/// as `TO_CHAR` call to be sure, even if the type later be revealed to be a Utf8.
+///
+/// Currently supported variants:
+/// - `SELECT column1 FROM VALUES (910), (256) WHERE column1 LIKE '%http'`
+/// - `SELECT column1 FROM VALUES (910), (256) WHERE '%http' LIKE column1`
+/// - `SELECT column1 FROM VALUES (910), (256) WHERE column1 LIKE column1`
+/// - `SELECT column1 FROM VALUES (910), (256) WHERE '%http' LIKE '%http'`
 #[derive(Debug, Default)]
 pub struct LikeTypeAnalyzer;
 
