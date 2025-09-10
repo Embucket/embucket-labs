@@ -38,15 +38,15 @@ impl LikeTypeAnalyzer {
                         escape_char,
                         case_insensitive,
                     }) => {
-                        let (expr_type, _) = expr.data_type_and_nullable(plan.schema())?;
-                        let (pattern_type, _) = pattern.data_type_and_nullable(plan.schema())?;
+                        let expr_type = expr.get_type(plan.schema());
+                        let pattern_type = expr.get_type(plan.schema());
                         match (expr_type, pattern_type) {
                             //No need to coerce if both types are a string
                             (
-                                DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8,
-                                DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8,
+                                Ok(DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8),
+                                Ok(DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8)
                             ) => Ok(Transformed::no(e)),
-                            (_, DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8) => {
+                            (_, Ok(DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8)) => {
                                 let udf = Self::varchar_expr_from(*expr.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
@@ -56,7 +56,7 @@ impl LikeTypeAnalyzer {
                                     case_insensitive: *case_insensitive,
                                 })))
                             }
-                            (DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8, _) => {
+                            (Ok(DataType::Utf8 | DataType::Utf8View | DataType::LargeUtf8), _) => {
                                 let udf = Self::varchar_expr_from(*pattern.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
@@ -66,6 +66,7 @@ impl LikeTypeAnalyzer {
                                     case_insensitive: *case_insensitive,
                                 })))
                             }
+                            //Not Utf8 type or `Err(...)`, call to_cahr just in case
                             (_, _) => {
                                 let udf1 = Self::varchar_expr_from(*expr.clone());
                                 let udf2 = Self::varchar_expr_from(*pattern.clone());
@@ -92,10 +93,9 @@ impl LikeTypeAnalyzer {
 impl AnalyzerRule for LikeTypeAnalyzer {
     fn analyze(&self, plan: LogicalPlan, _: &ConfigOptions) -> DFResult<LogicalPlan> {
         plan.transform_up_with_subqueries(|plan| Self::analyze_internal(&plan))
-            .data()?
-            .recompute_schema()
+            .data()
     }
     fn name(&self) -> &'static str {
-        "LikeILikeTypeAnalyzer"
+        "LikeTypeAnalyzer"
     }
 }
