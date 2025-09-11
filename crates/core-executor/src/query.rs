@@ -914,8 +914,6 @@ impl UserQuery {
             .map_err(|err| DataFusionError::External(Box::new(err)))
             .context(ex_error::DataFusionSnafu)?;
 
-        tracing::error!("Schema: {}", schema);
-
         let mut create_table = CreateTableBuilder::default();
         create_table
             .with_name(ident.table)
