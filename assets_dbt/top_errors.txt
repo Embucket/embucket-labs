@@ -1,8 +1,8 @@
 # DBT Run Summary
-PASS: 1532
+PASS: 1533
 WARN: 0
 ERROR: 67
-SKIP: 63
+SKIP: 62
 TOTAL: 1662
 
 
@@ -13,7 +13,7 @@ TOTAL: 1662
      67 Other error
 
 # Total top 10 errors (full messages)
-      6 010001 (02000): type_coercion
+      5 010001 (02000): type_coercion
       3 010001 (02000): SQL compilation error: column 'metric_value' not found
       3 010001 (02000): SQL compilation error: column 'DEFAULT' not found
       3 010001 (02000): Cannot resolve view reference 'embucket.public.flatten'
@@ -23,7 +23,7 @@ TOTAL: 1662
       2 010001 (02000): Error during planning: Function 'replace' expects 3 arguments but received 2 No function matches the given name and argument types 'replace(Utf8, Utf8)'. You might need to add explicit type casts.
 
 # Total top 10 errors (truncated to 50 chars)
-      6 010001 (02000): type_coercion
+      5 010001 (02000): type_coercion
       5 010001 (02000): Error during planning: Internal er
       4 010001 (02000): SQL compilation error: error line 
       3 010001 (02000): Schema error: No field named day. 
