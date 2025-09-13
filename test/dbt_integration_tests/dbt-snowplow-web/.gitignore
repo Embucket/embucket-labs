@@ -10,3 +10,5 @@ datasets/
 events_day_before_yesterday.csv
 events_yesterday.csv
 events_today.csv
+env_example
+dbt_output.log

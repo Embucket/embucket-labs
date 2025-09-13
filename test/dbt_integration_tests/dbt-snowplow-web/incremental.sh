@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Load environment variables
+source env_example
+
 # Parse command line arguments
 DBT_TARGET="embucket"  # default
 is_incremental=false
@@ -104,7 +107,15 @@ echo "###############################"
 echo ""
 
 echo "Running dbt"
-./run_snowplow_web.sh --target "$DBT_TARGET"
+./run_snowplow_web.sh --target "$DBT_TARGET" 2>&1 | tee dbt_output.log
+
+echo ""
+echo "###############################"
+echo ""
+
+# Parse dbt results and load into Snowflake
+echo "Parsing dbt results..."
+$PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
 
 echo ""
 echo "###############################"
