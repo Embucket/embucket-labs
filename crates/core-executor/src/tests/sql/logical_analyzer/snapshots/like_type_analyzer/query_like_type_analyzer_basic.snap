@@ -1,0 +1,10 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/like_type_analyzer.rs
+description: "\"SELECT column1 FROM VALUES (910), (256) WHERE '%http' LIKE column1\""
+---
+Ok(
+    [
+        "++",
+        "++",
+    ],
+)
