@@ -1,7 +1,64 @@
 #!/bin/bash
 
-# Set DBT_TARGET environment variable
-export DBT_TARGET="embucket"
+# Parse command line arguments
+DBT_TARGET="embucket"  # default
+is_incremental=false
+num_rows=10000  # default
+
+# Parse arguments in order: incremental rows target
+if [[ "$1" == "true" || "$1" == "false" ]]; then
+  is_incremental="$1"
+  shift
+fi
+
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+  num_rows="$1"
+  shift
+fi
+
+if [[ -n "$1" && "$1" != "--"* ]]; then
+  DBT_TARGET="$1"
+  shift
+fi
+
+# Parse any remaining --flags
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --target) 
+      DBT_TARGET="$2"
+      shift 2 
+      ;;
+    --incremental)
+      is_incremental=true
+      shift
+      ;;
+    --rows)
+      num_rows="$2"
+      shift 2
+      ;;
+    true)
+      is_incremental=true
+      shift
+      ;;
+    false)
+      is_incremental=false
+      shift
+      ;;
+    *) 
+      # Check if it's a number (for rows)
+      if [[ "$1" =~ ^[0-9]+$ ]]; then
+        num_rows="$1"
+        shift
+      else
+        echo "Unknown parameter: $1"; exit 1
+      fi
+      ;;
+  esac
+done
+
+echo "Using DBT_TARGET: $DBT_TARGET"
+echo "Incremental mode: $is_incremental"
+echo "Number of rows to generate: $num_rows"
 
 # Determine which Python command to use
 echo "###############################"
@@ -36,9 +93,6 @@ echo ""
 echo "###############################"
 echo ""
 # Set incremental flag from command line argument, default to true
-is_incremental=${1:-false}
-# Set number of rows to generate, default to 1000
-num_rows=${2:-10000}
 
 # FIRST RUN
 echo "Generating events"
@@ -53,8 +107,9 @@ sleep 20
 echo "Loading events"
 $PYTHON_CMD load_events.py events_yesterday.csv
 
-echo "Running dbt"
-./run_snowplow_web.sh
+echo "Running dbt with target: $DBT_TARGET"
+echo "Calling: ./run_snowplow_web.sh --target $DBT_TARGET"
+./run_snowplow_web.sh --target "$DBT_TARGET"
 
 # Update the errors log and run results
 echo "###############################"
@@ -83,8 +138,9 @@ if [ "$is_incremental" == true ]; then
 echo "Loading events"
 $PYTHON_CMD load_events.py events_today.csv
 
-echo "Running dbt"
-./run_snowplow_web.sh
+echo "Running dbt with target: $DBT_TARGET"
+echo "Calling: ./run_snowplow_web.sh --target $DBT_TARGET"
+./run_snowplow_web.sh --target "$DBT_TARGET"
 
 # Update the errors log and run results
 echo "###############################"

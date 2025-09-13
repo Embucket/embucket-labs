@@ -7,8 +7,8 @@ snowplow_web:
       threads: 4
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PASS') }}"
-      database: EMBUCKET
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
       schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
@@ -22,7 +22,7 @@ snowplow_web:
       user: "{{ env_var('EMBUCKET_USER') }}"
       password: "{{ env_var('EMBUCKET_PASSWORD') }}"
       role: "{{ env_var('EMBUCKET_ROLE') }}"
-      database: EMBUCKET
+      database: "{{ env_var('EMBUCKET_DATABASE') }}"  
       warehouse: "{{ env_var('EMBUCKET_WAREHOUSE') }}"
       schema: "{{ env_var('EMBUCKET_SCHEMA') }}"
       threads: 4

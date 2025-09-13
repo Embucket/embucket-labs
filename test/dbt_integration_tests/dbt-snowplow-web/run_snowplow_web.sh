@@ -33,34 +33,38 @@ echo "###############################"
 echo ""
 echo "Run dbt-snowplow-web"
 
+# Copy env_example to the cloned directory before changing into it
+cp env_example dbt-snowplow-web/
 cd dbt-snowplow-web/
 # Parse --target and --model arguments
+echo "Arguments received: $@"
 while [[ "$#" -gt 0 ]]; do
+  echo "Processing argument: $1"
   case $1 in
-    --target) DBT_TARGET="$2"; shift ;;
-    --model) DBT_MODEL="$2"; shift ;;
+    --target) 
+      DBT_TARGET="$2"
+      echo "Set DBT_TARGET to: $DBT_TARGET"
+      shift 2 
+      ;;
+    --model) 
+      DBT_MODEL="$2"
+      echo "Set DBT_MODEL to: $DBT_MODEL"
+      shift 2 
+      ;;
     *) echo "Unknown parameter: $1"; exit 1 ;;
   esac
-  shift
 done
 # Set DBT_TARGET to "embucket" if not provided
 export DBT_TARGET=${DBT_TARGET:-"embucket"}
+echo "Final DBT_TARGET: $DBT_TARGET"
 echo ""
 
 # Add env's
 echo "###############################"
 echo ""
 echo "Adding environment variables"
-export EMBUCKET_HOST=localhost
-export EMBUCKET_PORT=3000
-export EMBUCKET_PROTOCOL=http
-export EMBUCKET_ACCOUNT=test
-export EMBUCKET_USER=${EMBUCKET_USER:-embucket}
-export EMBUCKET_PASSWORD=${EMBUCKET_PASSWORD:-embucket}
-export EMBUCKET_ROLE=SYSADMIN
-export EMBUCKET_DATABASE=EMBUCKET
-export EMBUCKET_WAREHOUSE=COMPUTE_WH
-export EMBUCKET_SCHEMA=public
+cp env_example .env
+source .env
 
 echo ""
 # Install DBT dependencies
@@ -77,16 +81,17 @@ mkdir -p logs
 # Run DBT commands
 echo "###############################"
 echo ""
-    dbt debug
-    dbt clean
-    dbt deps
+echo "Running dbt debug with target: $DBT_TARGET"
+    dbt debug --target "$DBT_TARGET"
+    dbt clean --target "$DBT_TARGET"
+    dbt deps --target "$DBT_TARGET"
 # dbt seed
-        dbt seed --full-refresh
+        dbt seed --full-refresh --target "$DBT_TARGET"
 #  dbt run
     if [ -n "$DBT_MODEL" ]; then
-        dbt run --select +"$DBT_MODEL" 2>&1 | tee assets/run.log
+        dbt run --select +"$DBT_MODEL" --target "$DBT_TARGET" 2>&1 | tee assets/run.log
     else
-        dbt run  2>&1 | tee assets/run.log
+        dbt run --target "$DBT_TARGET" 2>&1 | tee assets/run.log
 	#dbt run --full-refresh
     fi 
     # dbt test
