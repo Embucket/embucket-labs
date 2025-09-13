@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to load Snowplow events data into Embucket database using Snowflake connector.
+Script to load Snowplow events data into Embucket or Snowflake database using Snowflake connector.
 """
 
 import os
@@ -8,39 +8,56 @@ import sys
 import snowflake.connector
 from pathlib import Path
 
-def get_connection_config():
-    """Get connection configuration for Embucket."""
-    return {
-        'host': os.getenv('EMBUCKET_HOST', 'localhost'),
-        'port': int(os.getenv('EMBUCKET_PORT', 3000)),
-        'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
-        'user': os.getenv('EMBUCKET_USER', 'embucket'),
-        'password': os.getenv('EMBUCKET_PASSWORD', 'embucket'),
-        'account': os.getenv('EMBUCKET_ACCOUNT', 'acc'),
-        'warehouse': os.getenv('EMBUCKET_WAREHOUSE', ''),
-        'database': os.getenv('EMBUCKET_DATABASE', 'embucket'),
-        'schema': os.getenv('EMBUCKET_SCHEMA', 'public_snowplow_manifest'),
-    }
+def get_connection_config(target='embucket'):
+    """Get connection configuration for Embucket or Snowflake."""
+    if target.lower() == 'snowflake':
+        return {
+            'account': os.getenv('SNOWFLAKE_ACCOUNT', ''),
+            'user': os.getenv('SNOWFLAKE_USER', ''),
+            'password': os.getenv('SNOWFLAKE_PASSWORD', ''),
+            'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE', 'BENCHMARK_WH'),
+            'database': os.getenv('SNOWFLAKE_DATABASE', 'benchmark_db'),
+            'schema': os.getenv('SNOWFLAKE_SCHEMA', 'public'),
+            'role': os.getenv('SNOWFLAKE_ROLE', 'SYSADMIN'),
+        }
+    else:  # embucket
+        return {
+            'host': os.getenv('EMBUCKET_HOST', 'localhost'),
+            'port': int(os.getenv('EMBUCKET_PORT', 3000)),
+            'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
+            'user': os.getenv('EMBUCKET_USER', 'embucket'),
+            'password': os.getenv('EMBUCKET_PASSWORD', 'embucket'),
+            'account': os.getenv('EMBUCKET_ACCOUNT', 'acc'),
+            'warehouse': os.getenv('EMBUCKET_WAREHOUSE', 'COMPUTE_WH'),
+            'database': os.getenv('EMBUCKET_DATABASE', 'embucket'),
+            'schema': os.getenv('EMBUCKET_SCHEMA', 'public_snowplow_manifest'),
+            'role': os.getenv('EMBUCKET_ROLE', 'SYSADMIN'),
+        }
 
-def copy_file_to_data_dir(source_file, data_dir="./datasets"):
+def copy_file_to_data_dir(source_file, data_dir="./datasets", target='embucket'):
     """Copy the events.csv file to the data directory."""
     import shutil
     import subprocess
     
-    # Create data directory if it doesn't exist
-    os.makedirs(data_dir, exist_ok=True)
-    
-    # Copy file to app data directory
-    target_file = os.path.join(data_dir, "events.csv")
-    try:
-        shutil.copy2(source_file, target_file)
-        print(f"✓ Copied {source_file} to {target_file}")
-    except PermissionError:
-        # Use sudo if permission denied
-        import subprocess
-        subprocess.run(['sudo', 'cp', source_file, target_file], check=True)
-        subprocess.run(['sudo', 'chmod', '644', target_file], check=True)
-        print(f"✓ Copied {source_file} to {target_file} (with sudo)")
+    if target.lower() == 'snowflake':
+        # For Snowflake, we don't need to copy to a specific data directory
+        # The file will be uploaded directly via Snowflake's PUT command
+        print(f"✓ File {source_file} ready for Snowflake upload")
+        return source_file
+    else:
+        # For Embucket, copy to data directory
+        os.makedirs(data_dir, exist_ok=True)
+        target_file = os.path.join(data_dir, "events.csv")
+        try:
+            shutil.copy2(source_file, target_file)
+            print(f"✓ Copied {source_file} to {target_file}")
+            return target_file
+        except PermissionError:
+            # Use sudo if permission denied
+            subprocess.run(['sudo', 'cp', source_file, target_file], check=True)
+            subprocess.run(['sudo', 'chmod', '644', target_file], check=True)
+            print(f"✓ Copied {source_file} to {target_file} (with sudo)")
+            return target_file
 
 def execute_sql_script(conn, script_path):
     """Execute SQL script against the database."""
@@ -112,17 +129,29 @@ def verify_data_load(conn):
 
 def main():
     """Main function to load events data."""
-    print("=== Loading Snowplow Events Data into Embucket Database ===")
+    # Parse command line arguments
+    target = 'embucket'  # default
+    input_file = None
+    
+    # Simple argument parsing
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg in ['--target', '-t']:
+            if i + 1 < len(args):
+                target = args[i + 1]
+        elif arg in ['snowflake', 'embucket']:
+            target = arg
+        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket']:
+            input_file = arg
+    
+    print(f"=== Loading Snowplow Events Data into {target.upper()} Database ===")
     
     # Configuration
     script_dir = Path(__file__).parent
     
-    # Check if a file argument was provided
-    if len(sys.argv) > 1:
-        input_file = sys.argv[1]
+    # Determine input file
+    if input_file:
         events_file = Path(input_file)
-        
-        # Check if the input file exists
         if not events_file.exists():
             print(f"Error: {events_file} not found")
             sys.exit(1)
@@ -130,7 +159,11 @@ def main():
         # Default behavior - use events.csv in script directory
         events_file = script_dir / "events.csv"
     
-    sql_script = script_dir / "load_events_data.sql"
+    # Determine SQL script based on target
+    if target.lower() == 'snowflake':
+        sql_script = script_dir / "load_events_data_snowflake.sql"
+    else:
+        sql_script = script_dir / "load_events_data.sql"
     
     # Check if required files exist
     if not events_file.exists():
@@ -141,17 +174,17 @@ def main():
         print(f"Error: {sql_script} not found")
         sys.exit(1)
     
-    # Copy file to data directory
-    print(f"Copying {events_file} to data directory...")
-    copy_file_to_data_dir(str(events_file))
+    # Copy file to data directory (or prepare for Snowflake)
+    print(f"Preparing {events_file} for {target}...")
+    copy_file_to_data_dir(str(events_file), target=target)
     
-    # Connect to Embucket
-    print("Connecting to Embucket...")
-    config = get_connection_config()
+    # Connect to database
+    print(f"Connecting to {target.upper()}...")
+    config = get_connection_config(target)
     
     try:
         conn = snowflake.connector.connect(**config)
-        print("✓ Connected to Embucket successfully")
+        print(f"✓ Connected to {target.upper()} successfully")
         
         # Execute SQL script
         print("Executing SQL script...")
@@ -168,12 +201,7 @@ def main():
         print(f"Error: {e}")
         sys.exit(1)
     
-    print("\n=== Data Load Process Complete ===")
-    print("\nTo verify the data was loaded correctly, you can run:")
-    print("python3 -c \"import snowflake.connector; conn = snowflake.connector.connect(host='localhost', port=3000, protocol='http', user='embucket', password='embucket', account='acc', database='embucket', schema='public_snowplow_manifest'); cursor = conn.cursor(); cursor.execute('SELECT COUNT(*) as total_rows FROM events'); print(cursor.fetchone()[0]); conn.close()\"")
-    
-    print("\nTo view sample data:")
-    print("python3 -c \"import snowflake.connector; conn = snowflake.connector.connect(host='localhost', port=3000, protocol='http', user='embucket', password='embucket', account='acc', database='embucket', schema='public_snowplow_manifest'); cursor = conn.cursor(); cursor.execute('SELECT event_id, event, user_id, collector_tstamp, page_url FROM events LIMIT 5'); [print(row) for row in cursor.fetchall()]; conn.close()\"")
+    print(f"\n=== Data Load Process Complete ===")
 
 if __name__ == "__main__":
     main() 

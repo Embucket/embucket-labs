@@ -36,14 +36,6 @@ while [[ "$#" -gt 0 ]]; do
       num_rows="$2"
       shift 2
       ;;
-    true)
-      is_incremental=true
-      shift
-      ;;
-    false)
-      is_incremental=false
-      shift
-      ;;
     *) 
       # Check if it's a number (for rows)
       if [[ "$1" =~ ^[0-9]+$ ]]; then
@@ -56,9 +48,6 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-echo "Using DBT_TARGET: $DBT_TARGET"
-echo "Incremental mode: $is_incremental"
-echo "Number of rows to generate: $num_rows"
 
 # Determine which Python command to use
 echo "###############################"
@@ -103,13 +92,23 @@ echo "Setting up Docker container"
 
 sleep 20
 
+echo ""
+echo "###############################"
+echo ""
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv
+$PYTHON_CMD load_events.py events_yesterday.csv $DBT_TARGET
 
-echo "Running dbt with target: $DBT_TARGET"
-echo "Calling: ./run_snowplow_web.sh --target $DBT_TARGET"
+echo ""
+echo "###############################"
+echo ""
+
+echo "Running dbt"
 ./run_snowplow_web.sh --target "$DBT_TARGET"
+
+echo ""
+echo "###############################"
+echo ""
 
 # Update the errors log and run results
 echo "###############################"
@@ -136,10 +135,9 @@ if [ "$is_incremental" == true ]; then
 # SECOND RUN INCEREMENTAL
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_today.csv
+$PYTHON_CMD load_events.py events_today.csv $DBT_TARGET
 
-echo "Running dbt with target: $DBT_TARGET"
-echo "Calling: ./run_snowplow_web.sh --target $DBT_TARGET"
+echo "Running dbt"
 ./run_snowplow_web.sh --target "$DBT_TARGET"
 
 # Update the errors log and run results

@@ -37,18 +37,14 @@ echo "Run dbt-snowplow-web"
 cp env_example dbt-snowplow-web/
 cd dbt-snowplow-web/
 # Parse --target and --model arguments
-echo "Arguments received: $@"
 while [[ "$#" -gt 0 ]]; do
-  echo "Processing argument: $1"
   case $1 in
     --target) 
       DBT_TARGET="$2"
-      echo "Set DBT_TARGET to: $DBT_TARGET"
       shift 2 
       ;;
     --model) 
       DBT_MODEL="$2"
-      echo "Set DBT_MODEL to: $DBT_MODEL"
       shift 2 
       ;;
     *) echo "Unknown parameter: $1"; exit 1 ;;
@@ -56,7 +52,6 @@ while [[ "$#" -gt 0 ]]; do
 done
 # Set DBT_TARGET to "embucket" if not provided
 export DBT_TARGET=${DBT_TARGET:-"embucket"}
-echo "Final DBT_TARGET: $DBT_TARGET"
 echo ""
 
 # Add env's
@@ -81,7 +76,6 @@ mkdir -p logs
 # Run DBT commands
 echo "###############################"
 echo ""
-echo "Running dbt debug with target: $DBT_TARGET"
     dbt debug --target "$DBT_TARGET"
     dbt clean --target "$DBT_TARGET"
     dbt deps --target "$DBT_TARGET"
