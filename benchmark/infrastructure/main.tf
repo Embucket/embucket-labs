@@ -63,56 +63,6 @@ resource "aws_s3_bucket_public_access_block" "embucket_benchmark_pab" {
   restrict_public_buckets = true
 }
 
-# Note: IAM resources commented out due to PowerUser permission limitations
-# Using direct AWS credentials instead of roles
-
-# Placeholder for future IAM role implementation when full permissions are available
-# resource "aws_iam_role" "embucket_benchmark_role" {
-#   name = "embucket-benchmark-role"
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Action = "sts:AssumeRole"
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "ec2.amazonaws.com"
-#         }
-#       }
-#     ]
-#   })
-# }
-
-# Note: IAM policies commented out due to PowerUser permission limitations
-# Using direct AWS credentials instead of IAM roles
-
-# Placeholder for future IAM policy implementation when full permissions are available
-# resource "aws_iam_policy" "embucket_benchmark_s3_policy" {
-#   name        = "embucket-benchmark-s3-access"
-#   description = "Policy for Embucket benchmark to access S3 buckets with embucket-benchmark prefix"
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "s3:GetObject",
-#           "s3:PutObject",
-#           "s3:DeleteObject"
-#         ]
-#         Resource = "arn:aws:s3:::embucket-benchmark-*/*"
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "s3:ListBucket"
-#         ]
-#         Resource = "arn:aws:s3:::embucket-benchmark-*"
-#       }
-#     ]
-#   })
-# }
-
 # Create key pair for EC2 access
 resource "aws_key_pair" "embucket_benchmark_key" {
   key_name   = "${var.instance_name}-key"
@@ -185,7 +135,6 @@ resource "aws_instance" "embucket_benchmark" {
   instance_type          = var.instance_type
   key_name              = aws_key_pair.embucket_benchmark_key.key_name
   vpc_security_group_ids = [aws_security_group.embucket_benchmark_sg.id]
-  # iam_instance_profile removed due to PowerUser limitations
 
   user_data = file("${path.module}/user_data.sh")
 

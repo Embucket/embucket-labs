@@ -43,21 +43,6 @@ variable "benchmark_s3_user_access_key" {
   sensitive   = true
 }
 
-
-
-# Option to create IAM user automatically
-variable "create_iam_user" {
-  description = "Whether to create IAM user and policy automatically (requires IAM permissions)"
-  type        = bool
-  default     = false
-}
-
-variable "iam_user_name" {
-  description = "Name for the IAM user to create (if create_iam_user is true)"
-  type        = string
-  default     = "embucket-benchmark-user"
-}
-
 variable "private_key_path" {
   description = "Path to the private key file for SSH access"
   type        = string
