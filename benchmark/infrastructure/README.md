@@ -5,7 +5,7 @@ This directory contains Terraform configuration to set up AWS infrastructure for
 ## Quick Start
 
 1. **Prerequisites**
-   - AWS CLI configured with appropriate credentials
+   - AWS CLI configured with appropriate credentials (PowerUser permissions sufficient)
    - Terraform installed (>= 1.0)
    - SSH key pair for EC2 access
 
@@ -60,11 +60,26 @@ instance_type = "m7i.4xlarge"  # 16 vCPU, 64 GB RAM (memory optimized)
 ## Infrastructure Components
 
 ### AWS Resources Created
-- **EC2 Instance**: Runs Embucket and benchmarking tools
+- **EC2 Instance**: Runs Embucket and benchmarking tools with IAM instance profile
 - **S3 Bucket**: Stores Embucket data with versioning and encryption
-- **IAM User & Policy**: Service account for S3 access
+- **IAM Roles & Policies**: Role-based access for S3 (PowerUser compatible)
 - **Security Group**: Allows SSH and Embucket ports
 - **Key Pair**: For SSH access to the instance
+
+### IAM Role-Based Authentication
+
+This infrastructure uses **IAM roles instead of IAM users** to provide AWS credentials to Embucket. This approach:
+
+- ✅ **Works with PowerUser permissions** (doesn't require IAM user creation privileges)
+- ✅ **More secure** - no long-lived access keys stored on disk
+- ✅ **Automatic credential rotation** - temporary credentials expire and refresh automatically
+- ✅ **Follows AWS best practices** for EC2-to-AWS service authentication
+
+**How it works:**
+1. EC2 instance has an IAM instance profile attached
+2. Instance profile allows assuming a dedicated Embucket application role
+3. Bootstrap script generates temporary credentials by assuming the role
+4. Embucket uses these temporary credentials to access S3
 
 ### Embucket Configuration
 - **API Port**: 3000

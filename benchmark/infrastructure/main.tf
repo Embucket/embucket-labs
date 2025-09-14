@@ -31,9 +31,9 @@ resource "random_string" "bucket_suffix" {
   upper   = false
 }
 
-# Create S3 bucket for Embucket data
+# Create S3 bucket for Embucket data with randomized suffix
 resource "aws_s3_bucket" "embucket_benchmark" {
-  bucket        = "embucket-benchmark-${random_string.bucket_suffix.result}"
+  bucket        = "embucket-benchmark-${var.aws_region}-${random_string.bucket_suffix.result}"
   force_destroy = true  # Allow deletion even if bucket contains objects
 }
 
@@ -63,50 +63,55 @@ resource "aws_s3_bucket_public_access_block" "embucket_benchmark_pab" {
   restrict_public_buckets = true
 }
 
-# Create IAM user for Embucket
-resource "aws_iam_user" "embucket_benchmark_user" {
-  name = "embucket-benchmark-user"
-  path = "/"
-}
+# Note: IAM resources commented out due to PowerUser permission limitations
+# Using direct AWS credentials instead of roles
 
-# Create access key for the IAM user
-resource "aws_iam_access_key" "embucket_benchmark_user_key" {
-  user = aws_iam_user.embucket_benchmark_user.name
-}
+# Placeholder for future IAM role implementation when full permissions are available
+# resource "aws_iam_role" "embucket_benchmark_role" {
+#   name = "embucket-benchmark-role"
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = "sts:AssumeRole"
+#         Effect = "Allow"
+#         Principal = {
+#           Service = "ec2.amazonaws.com"
+#         }
+#       }
+#     ]
+#   })
+# }
 
-# Create IAM policy for S3 bucket access
-resource "aws_iam_policy" "embucket_benchmark_s3_policy" {
-  name        = "embucket-benchmark-s3-access"
-  description = "Policy for Embucket benchmark to access S3 bucket"
+# Note: IAM policies commented out due to PowerUser permission limitations
+# Using direct AWS credentials instead of IAM roles
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject"
-        ]
-        Resource = "${aws_s3_bucket.embucket_benchmark.arn}/*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:ListBucket"
-        ]
-        Resource = aws_s3_bucket.embucket_benchmark.arn
-      }
-    ]
-  })
-}
-
-# Attach policy to user
-resource "aws_iam_user_policy_attachment" "embucket_benchmark_user_policy_attachment" {
-  user       = aws_iam_user.embucket_benchmark_user.name
-  policy_arn = aws_iam_policy.embucket_benchmark_s3_policy.arn
-}
+# Placeholder for future IAM policy implementation when full permissions are available
+# resource "aws_iam_policy" "embucket_benchmark_s3_policy" {
+#   name        = "embucket-benchmark-s3-access"
+#   description = "Policy for Embucket benchmark to access S3 buckets with embucket-benchmark prefix"
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "s3:GetObject",
+#           "s3:PutObject",
+#           "s3:DeleteObject"
+#         ]
+#         Resource = "arn:aws:s3:::embucket-benchmark-*/*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "s3:ListBucket"
+#         ]
+#         Resource = "arn:aws:s3:::embucket-benchmark-*"
+#       }
+#     ]
+#   })
+# }
 
 # Create key pair for EC2 access
 resource "aws_key_pair" "embucket_benchmark_key" {
@@ -180,7 +185,8 @@ resource "aws_instance" "embucket_benchmark" {
   instance_type          = var.instance_type
   key_name              = aws_key_pair.embucket_benchmark_key.key_name
   vpc_security_group_ids = [aws_security_group.embucket_benchmark_sg.id]
-  
+  # iam_instance_profile removed due to PowerUser limitations
+
   user_data = file("${path.module}/user_data.sh")
 
   root_block_device {
@@ -196,11 +202,22 @@ resource "aws_instance" "embucket_benchmark" {
   }
 }
 
-# Generate .env file locally
+# Generate credential setup script for PowerUser workaround
+resource "local_file" "credential_script" {
+  content = templatefile("${path.module}/setup_credentials.sh.tpl", {
+    aws_region = var.aws_region
+    s3_bucket = aws_s3_bucket.embucket_benchmark.bucket
+  })
+  filename = "${path.module}/setup_credentials.sh"
+  file_permission = "0755"
+}
+
+# Generate .env file locally with existing AWS user credentials
 resource "local_file" "env_file" {
   content = templatefile("${path.module}/env.tpl", {
-    aws_access_key_id     = aws_iam_access_key.embucket_benchmark_user_key.id
-    aws_secret_access_key = aws_iam_access_key.embucket_benchmark_user_key.secret
+    aws_access_key_id     = var.benchmark_s3_user_key_id
+    aws_secret_access_key = var.benchmark_s3_user_access_key
+    aws_session_token     = var.existing_aws_session_token
     s3_bucket            = aws_s3_bucket.embucket_benchmark.bucket
     aws_region           = var.aws_region
     cors_allow_origin    = "http://${aws_instance.embucket_benchmark.public_ip}:8080"
@@ -262,10 +279,17 @@ resource "null_resource" "upload_files" {
     destination = "/home/ec2-user/bootstrap.sh"
   }
 
+  # Upload credential setup script
+  provisioner "file" {
+    source      = "${path.module}/setup_credentials.sh"
+    destination = "/home/ec2-user/setup_credentials.sh"
+  }
+
   # Run bootstrap script
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ec2-user/bootstrap.sh",
+      "chmod +x /home/ec2-user/setup_credentials.sh",
       "sudo /home/ec2-user/bootstrap.sh"
     ]
   }

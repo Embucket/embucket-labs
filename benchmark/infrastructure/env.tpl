@@ -1,5 +1,7 @@
+# AWS credentials from your local environment (PowerUser workaround)
 AWS_ACCESS_KEY_ID=${aws_access_key_id}
 AWS_SECRET_ACCESS_KEY=${aws_secret_access_key}
+%{ if aws_session_token != "" }AWS_SESSION_TOKEN=${aws_session_token}%{ endif }
 S3_BUCKET=${s3_bucket}
 AWS_REGION=${aws_region}
 CORS_ALLOW_ORIGIN=${cors_allow_origin}

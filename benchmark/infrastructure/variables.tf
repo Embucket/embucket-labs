@@ -28,6 +28,41 @@ variable "environment" {
   default     = "benchmark"
 }
 
+# PowerUser workaround: Use existing AWS user credentials
+variable "benchmark_s3_user_key_id" {
+  description = "AWS Access Key ID for existing user with S3 access (PowerUser workaround)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "benchmark_s3_user_access_key" {
+  description = "AWS Secret Access Key for existing user with S3 access (PowerUser workaround)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "existing_aws_session_token" {
+  description = "AWS Session Token (optional, for temporary credentials)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# Option to create IAM user automatically
+variable "create_iam_user" {
+  description = "Whether to create IAM user and policy automatically (requires IAM permissions)"
+  type        = bool
+  default     = false
+}
+
+variable "iam_user_name" {
+  description = "Name for the IAM user to create (if create_iam_user is true)"
+  type        = string
+  default     = "embucket-benchmark-user"
+}
+
 variable "private_key_path" {
   description = "Path to the private key file for SSH access"
   type        = string

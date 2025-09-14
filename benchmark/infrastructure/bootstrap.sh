@@ -2,15 +2,21 @@
 
 set -e
 
+echo "========================================="
 echo "Starting Embucket benchmark bootstrap process..."
+echo "Timestamp: $(date)"
+echo "========================================="
 
 # Update system (Amazon Linux 2023 uses dnf)
 dnf update -y
 
-# Install Docker if not already installed
-if ! command -v docker &> /dev/null; then
-    echo "Installing Docker..."
-    dnf install -y docker
+# Install required packages
+echo "Installing required packages..."
+dnf install -y docker awscli jq
+
+# Start and enable Docker if not already running
+if ! systemctl is-active --quiet docker; then
+    echo "Starting Docker..."
     systemctl start docker
     systemctl enable docker
     usermod -a -G docker ec2-user
@@ -31,10 +37,54 @@ docker-compose --version
 # Change ownership of files to ec2-user
 chown -R ec2-user:ec2-user /home/ec2-user/
 
-# Start the Docker Compose stack with database initialization
+# Start Embucket with pre-configured AWS credentials
 cd /home/ec2-user
-echo "Starting Embucket with automatic database initialization..."
-sudo -u ec2-user docker-compose up -d
+echo "========================================="
+echo "Starting Embucket with existing AWS user credentials..."
+echo "Current directory: $(pwd)"
+echo "========================================="
+
+# Show .env file contents (masked)
+echo "Checking .env file contents..."
+if [ -f .env ]; then
+    echo "✅ .env file exists"
+    echo "File size: $(wc -l < .env) lines"
+    # Show AWS_ACCESS_KEY_ID but mask the value
+    if grep -q "AWS_ACCESS_KEY_ID=" .env; then
+        echo "✅ AWS_ACCESS_KEY_ID found in .env"
+    else
+        echo "❌ AWS_ACCESS_KEY_ID not found in .env"
+    fi
+else
+    echo "❌ .env file not found"
+fi
+
+# Verify credentials are in .env file and not empty
+if grep -q "AWS_ACCESS_KEY_ID=" .env && [ "$(grep AWS_ACCESS_KEY_ID= .env | cut -d= -f2)" != "" ]; then
+    echo "✅ AWS credentials found in .env file"
+    echo "========================================="
+    echo "Starting Embucket with automatic database initialization..."
+    echo "Running: docker-compose up -d"
+    echo "========================================="
+    sudo -u ec2-user docker-compose up -d
+
+    echo "========================================="
+    echo "Checking container status..."
+    sudo -u ec2-user docker-compose ps
+    echo "========================================="
+else
+    echo "⚠️  No AWS credentials found in .env file."
+    echo ""
+    echo "It looks like you haven't provided existing AWS user credentials."
+    echo "Please either:"
+    echo "1. Add credentials to terraform.tfvars:"
+    echo "   benchmark_s3_user_key_id = \"your-access-key\""
+    echo "   benchmark_s3_user_access_key = \"your-secret-key\""
+    echo "   Then run 'terraform apply' again"
+    echo ""
+    echo "2. Or SSH to this instance and run './setup_credentials.sh' to configure manually"
+    echo "   Then run 'docker-compose up -d'"
+fi
 
 # Wait for containers to start and initialization to complete
 echo "Waiting for containers to start..."

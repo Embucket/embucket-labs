@@ -23,21 +23,23 @@ output "s3_bucket_arn" {
   value       = aws_s3_bucket.embucket_benchmark.arn
 }
 
-output "iam_user_name" {
-  description = "Name of the IAM user for Embucket"
-  value       = aws_iam_user.embucket_benchmark_user.name
+output "credential_setup_script" {
+  description = "Path to the credential setup script (PowerUser workaround)"
+  value       = "${path.module}/setup_credentials.sh"
 }
 
-output "iam_access_key_id" {
-  description = "Access key ID for the IAM user"
-  value       = aws_iam_access_key.embucket_benchmark_user_key.id
-  sensitive   = true
+output "setup_status" {
+  description = "Setup status and access information"
+  value = var.benchmark_s3_user_key_id != "" && var.benchmark_s3_user_key_id != "AKIA_YOUR_ACCESS_KEY_ID_HERE" ? "✅ Setup Complete! Embucket is starting automatically. Access URLs: API: http://${aws_instance.embucket_benchmark.public_ip}:3000, UI: http://${aws_instance.embucket_benchmark.public_ip}:8080" : "⚠️ Please update terraform.tfvars with your actual AWS credentials and run terraform apply"
 }
 
-output "iam_secret_access_key" {
-  description = "Secret access key for the IAM user"
-  value       = aws_iam_access_key.embucket_benchmark_user_key.secret
-  sensitive   = true
+output "access_urls" {
+  description = "Access URLs for Embucket"
+  value = {
+    api_url = "http://${aws_instance.embucket_benchmark.public_ip}:3000"
+    ui_url  = "http://${aws_instance.embucket_benchmark.public_ip}:8080"
+    ssh_command = "ssh -i ~/.ssh/id_rsa ec2-user@${aws_instance.embucket_benchmark.public_ip}"
+  }
 }
 
 output "ssh_command" {

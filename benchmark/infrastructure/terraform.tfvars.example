@@ -22,3 +22,10 @@ public_key_path  = "~/.ssh/id_rsa.pub"
 
 # Environment
 environment = "benchmark"
+
+# PowerUser Workaround: Existing AWS User Credentials
+# If you have PowerUser permissions (can't create IAM users), provide existing user credentials
+# that have S3 access to the benchmark bucket
+benchmark_s3_user_key_id     = ""  # Your existing AWS user's access key ID
+benchmark_s3_user_access_key = ""  # Your existing AWS user's secret access key
+existing_aws_session_token   = ""  # Optional: session token for temporary credentials
