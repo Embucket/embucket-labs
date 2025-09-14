@@ -18,9 +18,8 @@ Each deployment creates a unique S3 bucket (e.g., `embucket-benchmark-us-east-2-
    ```
 
    **Required variables to set:**
-   - `benchmark_s3_user_key_id` - Your AWS Access Key ID
-   - `benchmark_s3_user_access_key` - Your AWS Secret Access Key
-   - `existing_aws_session_token` - Optional, for temporary credentials
+   - `benchmark_s3_user_key_id` - benchmark-s3 user
+   - `benchmark_s3_user_access_key` - benchmark-s3 user
    - `private_key_path` / `public_key_path` - SSH key paths
 
 3. **Deploy Infrastructure**
