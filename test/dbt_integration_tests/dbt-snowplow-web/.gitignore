@@ -1,14 +1,28 @@
 
+# Environment files
 env/
 .env
+.env.*
+*.env
+
+# Logs and outputs
 run.log
 logs/
+dbt_output.log
+
+# Generated assets
 assets/
 dbt-snowplow-web/
+
+# User-specific files
 .user.yml
+
+# Data files
 datasets/
 events_day_before_yesterday.csv
 events_yesterday.csv
 events_today.csv
-env_example
-dbt_output.log
+
+# Temporary files
+*.tmp
+*.temp

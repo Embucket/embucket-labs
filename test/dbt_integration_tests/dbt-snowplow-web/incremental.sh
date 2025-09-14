@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Load environment variables
-source env_example
+# Load environment variables if .env exists
+if [ -f .env ]; then
+    source .env
+else
+    echo "Warning: .env file not found. Using default values."
+fi
 
 # Parse command line arguments
 DBT_TARGET="embucket"  # default

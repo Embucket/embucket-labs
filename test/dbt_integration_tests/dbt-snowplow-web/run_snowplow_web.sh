@@ -33,8 +33,10 @@ echo "###############################"
 echo ""
 echo "Run dbt-snowplow-web"
 
-# Copy env_example to the cloned directory before changing into it
-cp env_example dbt-snowplow-web/
+# Copy .env to the cloned directory before changing into it (if it exists)
+if [ -f .env ]; then
+    cp .env dbt-snowplow-web/
+fi
 cd dbt-snowplow-web/
 # Parse --target and --model arguments
 while [[ "$#" -gt 0 ]]; do
@@ -57,9 +59,12 @@ echo ""
 # Add env's
 echo "###############################"
 echo ""
-echo "Adding environment variables"
-cp env_example .env
-source .env
+echo "Loading environment variables"
+if [ -f .env ]; then
+    source .env
+else
+    echo "Warning: .env file not found. Using default values."
+fi
 
 echo ""
 # Install DBT dependencies
