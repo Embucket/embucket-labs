@@ -26,6 +26,30 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Create .env file
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        run: |
+          cat > .env << 'EOF'
+          export SNOWFLAKE_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT }}
+          export SNOWFLAKE_USER=${{ secrets.SNOWFLAKE_USER }}
+          export SNOWFLAKE_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD }}
+          export SNOWFLAKE_DATABASE=${{ secrets.SNOWFLAKE_DATABASE }}
+          export SNOWFLAKE_SCHEMA=${{ secrets.SNOWFLAKE_SCHEMA }}
+          export SNOWFLAKE_WAREHOUSE=${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          export SNOWFLAKE_ROLE=${{ secrets.SNOWFLAKE_ROLE }}
+
+          export EMBUCKET_HOST=localhost
+          export EMBUCKET_PORT=3000
+          export EMBUCKET_PROTOCOL=http
+          export EMBUCKET_ACCOUNT=test
+          export EMBUCKET_USER=embucket
+          export EMBUCKET_PASSWORD=embucket
+          export EMBUCKET_ROLE=SYSADMIN
+          export EMBUCKET_DATABASE=embucket
+          export EMBUCKET_WAREHOUSE=COMPUTE_WH
+          export EMBUCKET_SCHEMA=public
+          EOF
+
       - name: DBT Snowplow Web Inceremental run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
