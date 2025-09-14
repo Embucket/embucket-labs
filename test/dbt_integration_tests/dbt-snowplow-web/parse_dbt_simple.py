@@ -52,7 +52,7 @@ def parse_duration(duration_str):
     else:
         return float(duration_str) if duration_str else 0.0
 
-def parse_dbt_output(dbt_output):
+def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=False):
     """Parse dbt output and extract model information."""
     results = []
     
@@ -84,6 +84,8 @@ def parse_dbt_output(dbt_output):
     error_count = 0
     skip_count = 0
     
+    # Use the provided incremental run flag
+    
     for line in joined_lines:
         # Extract dbt version
         if "Running with dbt=" in line:
@@ -97,6 +99,8 @@ def parse_dbt_output(dbt_output):
             if adapter_match:
                 adapter_type = adapter_match.group(1)
         
+        # Note: incremental run detection is now handled via command line parameter
+        
         # Extract total counts
         if "Done. PASS=" in line:
             counts_match = re.search(r'PASS=(\d+) WARN=(\d+) ERROR=(\d+) SKIP=(\d+) TOTAL=(\d+)', line)
@@ -107,7 +111,7 @@ def parse_dbt_output(dbt_output):
                 skip_count = int(counts_match.group(4))
                 total_models = int(counts_match.group(5))
     
-    # Simple patterns that should work
+    # Parse all model results
     for line in joined_lines:
         line = line.strip()
         
@@ -166,7 +170,9 @@ def parse_dbt_output(dbt_output):
                 'pass_count': pass_count,
                 'warn_count': warn_count,
                 'error_count': error_count,
-                'skip_count': skip_count
+                'skip_count': skip_count,
+                'number_of_rows_generated': total_rows_generated,
+                'is_incremental_run': is_incremental_run
             })
         
         # Look for ERROR lines
@@ -201,7 +207,9 @@ def parse_dbt_output(dbt_output):
                 'pass_count': pass_count,
                 'warn_count': warn_count,
                 'error_count': error_count,
-                'skip_count': skip_count
+                'skip_count': skip_count,
+                'number_of_rows_generated': total_rows_generated,
+                'is_incremental_run': is_incremental_run
             })
         
         # Look for SKIP lines
@@ -228,7 +236,9 @@ def parse_dbt_output(dbt_output):
                 'pass_count': pass_count,
                 'warn_count': warn_count,
                 'error_count': error_count,
-                'skip_count': skip_count
+                'skip_count': skip_count,
+                'number_of_rows_generated': total_rows_generated,
+                'is_incremental_run': is_incremental_run
             })
     
     return results
@@ -254,6 +264,8 @@ def create_results_table(conn, cursor):
         warn_count INTEGER,
         error_count INTEGER,
         skip_count INTEGER,
+        number_of_rows_generated INTEGER,
+        is_incremental_run BOOLEAN,
         downloaded_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """
@@ -286,8 +298,8 @@ def load_results_to_snowflake(results, target='snowflake'):
         # Insert results
         insert_sql = """
         INSERT INTO dbt_snowplow_results_models 
-        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, downloaded_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, number_of_rows_generated, is_incremental_run, downloaded_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         for result in results:
@@ -309,6 +321,8 @@ def load_results_to_snowflake(results, target='snowflake'):
                 result['warn_count'],
                 result['error_count'],
                 result['skip_count'],
+                result['number_of_rows_generated'],
+                result['is_incremental_run'],
                 downloaded_at
             ))
         
@@ -326,7 +340,9 @@ def load_results_to_snowflake(results, target='snowflake'):
                 result,
                 COUNT(*) as count,
                 AVG(duration_seconds) as avg_duration,
-                SUM(rows_affected) as total_rows
+                SUM(rows_affected) as total_rows,
+                MAX(number_of_rows_generated) as total_rows_generated,
+                MAX(is_incremental_run) as is_incremental_run
             FROM dbt_snowplow_results_models 
             WHERE run_id = %s
             GROUP BY result
@@ -335,8 +351,8 @@ def load_results_to_snowflake(results, target='snowflake'):
         
         print("\n=== Results Summary ===")
         for row in cursor.fetchall():
-            result, count, avg_duration, total_rows = row
-            print(f"{result}: {count} models, avg duration: {avg_duration:.2f}s, total rows: {total_rows}")
+            result, count, avg_duration, total_rows, total_rows_generated, is_incremental_run = row
+            print(f"{result}: {count} models, avg duration: {avg_duration:.2f}s, total rows: {total_rows}, total rows generated: {total_rows_generated}, incremental run: {is_incremental_run}")
         
         cursor.close()
         conn.close()
@@ -347,13 +363,15 @@ def load_results_to_snowflake(results, target='snowflake'):
         sys.exit(1)
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 parse_dbt_simple.py <dbt_output_file> [target]")
-        print("Example: python3 parse_dbt_simple.py dbt_output.log snowflake")
+    if len(sys.argv) < 4:
+        print("Usage: python3 parse_dbt_simple.py <dbt_output_file> <number_of_rows_generated> <is_incremental_run> [target]")
+        print("Example: python3 parse_dbt_simple.py dbt_output.log 100 false snowflake")
         sys.exit(1)
     
     dbt_output_file = sys.argv[1]
-    target = sys.argv[2] if len(sys.argv) > 2 else 'snowflake'
+    total_rows_generated = int(sys.argv[2])
+    is_incremental_run = sys.argv[3].lower() == 'true'
+    target = sys.argv[4] if len(sys.argv) > 4 else 'snowflake'
     
     # Read dbt output from file
     try:
@@ -365,7 +383,7 @@ def main():
     
     # Parse the output
     print("Parsing dbt output...")
-    results = parse_dbt_output(dbt_output)
+    results = parse_dbt_output(dbt_output, total_rows_generated, is_incremental_run)
     print(f"✓ Parsed {len(results)} model results")
     
     # Load to Snowflake

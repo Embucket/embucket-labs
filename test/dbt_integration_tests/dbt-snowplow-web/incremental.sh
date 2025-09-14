@@ -90,10 +90,15 @@ echo ""
 echo "Generating events"
 $PYTHON_CMD gen_events.py "$num_rows"
 
-echo "Setting up Docker container"
-./setup_docker.sh
+if [ "$DBT_TARGET" = "embucket" ]; then
 
-sleep 20
+    echo "Setting up Docker container"
+        ./setup_docker.sh
+
+
+    sleep 20
+
+fi
 
 echo ""
 echo "###############################"
@@ -116,7 +121,7 @@ echo ""
 if [ "$is_incremental" == false ]; then
     # Parse dbt results and load into Snowflake
     echo "Parsing dbt results..."
-    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET"
 
     echo ""
 
@@ -148,9 +153,9 @@ if [ "$is_incremental" == false ]; then
 
 fi
 
-if [ "$is_incremental" == true ]; then
 
-    # SECOND RUN INCEREMENTAL
+# SECOND RUN INCEREMENTAL
+if [ "$is_incremental" == true ]; then
 
     echo "Loading events"
     $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET"
@@ -160,7 +165,7 @@ if [ "$is_incremental" == true ]; then
 
     # Parse dbt results and load into Snowflake
     echo "Parsing dbt results..."
-    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET"
 
     if [ "$DBT_TARGET" = "embucket" ]; then
     # Update the errors log and run results
