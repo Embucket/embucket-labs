@@ -97,15 +97,15 @@ This project contains integration tests for running dbt-snowplow-web with both E
 - Protocol: `http`
 - User: `embucket`
 - Password: `embucket`
-- Database: `embucket`
-- Schema: `public`
+- Database: `dbt_snowplow_web` (recreated on each run)
+- Schema: `public_snowplow_manifest`
 
 ### Snowflake
 - Account: Your Snowflake account
 - User: Your Snowflake username
 - Password: Your Snowflake password
-- Database: `embucket`
-- Schema: `public`
+- Database: `dbt_snowplow_web` (recreated on each run)
+- Schema: `public_snowplow_manifest`
 - Warehouse: `COMPUTE_WH`
 - Role: `ACCOUNTADMIN`
 

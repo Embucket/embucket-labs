@@ -69,8 +69,8 @@ export EMBUCKET_ROLE=SYSADMIN
 export SNOWFLAKE_ACCOUNT=your_account
 export SNOWFLAKE_USER=your_user
 export SNOWFLAKE_PASSWORD=your_password
-export SNOWFLAKE_DATABASE=embucket
-export SNOWFLAKE_SCHEMA=public
+export SNOWFLAKE_DATABASE=dbt_snowplow_web  # Recreated on each run
+export SNOWFLAKE_SCHEMA=public_snowplow_manifest
 export SNOWFLAKE_WAREHOUSE=COMPUTE_WH
 export SNOWFLAKE_ROLE=ACCOUNTADMIN
 ```
@@ -89,6 +89,17 @@ The following scripts have been updated to use the centralized connection module
 3. **Easy Maintenance**: Changes to connection logic only need to be made in one file
 4. **Environment Variable Management**: Automatic loading of environment variables with fallback defaults
 5. **Connection Testing**: Built-in connection testing functionality
+6. **Clean State**: Snowflake database is recreated on each run for consistent testing
+
+## Database Recreation
+
+The Snowflake connection automatically:
+- **Drops** the `dbt_snowplow_web` database if it exists
+- **Creates** a fresh `dbt_snowplow_web` database
+- **Creates** the `public_snowplow_manifest` schema
+- **Ensures** a clean state for each test run
+
+This prevents issues with stale data or schema changes between test runs.
 
 ## Dependencies
 

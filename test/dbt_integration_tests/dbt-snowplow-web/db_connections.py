@@ -66,8 +66,8 @@ def create_snowflake_connection():
     user = os.getenv("SNOWFLAKE_USER")
     password = os.getenv("SNOWFLAKE_PASSWORD")
     account = os.getenv("SNOWFLAKE_ACCOUNT")
-    database = os.getenv("SNOWFLAKE_DATABASE", "embucket")
-    schema = os.getenv("SNOWFLAKE_SCHEMA", "public")
+    database = os.getenv("SNOWFLAKE_DATABASE", "dbt_snowplow_web")
+    schema = os.getenv("SNOWFLAKE_SCHEMA", "public_snowplow_manifest")
     warehouse = os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH")
     role = os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN")
 
@@ -84,11 +84,19 @@ def create_snowflake_connection():
         "role": role,
     }
 
-    conn = sf.connect(**connect_args)
-
-    # Setup schema and file format
-    conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
-    conn.cursor().execute(f"USE SCHEMA {database}.{schema}")
+    # First try to connect without specifying database
+    connect_args_no_db = connect_args.copy()
+    connect_args_no_db.pop('database', None)
+    connect_args_no_db.pop('schema', None)
+    
+    conn = sf.connect(**connect_args_no_db)
+    
+    # Drop and recreate database for clean state
+    conn.cursor().execute(f"DROP DATABASE IF EXISTS {database}")
+    conn.cursor().execute(f"CREATE DATABASE {database}")
+    conn.cursor().execute(f"USE DATABASE {database}")
+    conn.cursor().execute(f"CREATE SCHEMA {schema}")
+    conn.cursor().execute(f"USE SCHEMA {schema}")
 
     # Create stage if not exists
     conn.cursor().execute("CREATE OR REPLACE FILE FORMAT sf_parquet_format TYPE = parquet;")
@@ -112,8 +120,8 @@ def get_connection_config(target='embucket'):
             'user': os.getenv('SNOWFLAKE_USER', ''),
             'password': os.getenv('SNOWFLAKE_PASSWORD', ''),
         'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH'),
-        'database': os.getenv('SNOWFLAKE_DATABASE', 'embucket'),
-        'schema': os.getenv('SNOWFLAKE_SCHEMA', 'public'),
+        'database': os.getenv('SNOWFLAKE_DATABASE', 'dbt_snowplow_web'),
+        'schema': os.getenv('SNOWFLAKE_SCHEMA', 'public_snowplow_manifest'),
         'role': os.getenv('SNOWFLAKE_ROLE', 'ACCOUNTADMIN'),
         }
     else:  # embucket

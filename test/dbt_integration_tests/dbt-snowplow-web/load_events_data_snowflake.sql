@@ -1,15 +1,13 @@
 -- Load Snowplow Events Data into Snowflake Database
 -- This script creates the necessary infrastructure and loads the events data
 
--- Step 1: Use existing database and create schema if needed
-USE DATABASE benchmark_db;
-CREATE SCHEMA IF NOT EXISTS public;
-USE SCHEMA public;
+-- Step 1: Database and schema are created by the connection function
+-- The connection will automatically drop and recreate dbt_snowplow_web database and public_snowplow_manifest schema
 
 -- Drop existing table if it exists
 DROP TABLE IF EXISTS events;
 
--- Step 2: Create the events table with appropriate data types
+-- Step 1: Create the events table with appropriate data types
 CREATE TABLE IF NOT EXISTS events (
     app_id STRING,
     platform STRING,
@@ -140,28 +138,28 @@ CREATE TABLE IF NOT EXISTS events (
     event_fingerprint STRING,
     true_tstamp TIMESTAMP_NTZ,
     load_tstamp TIMESTAMP_NTZ,
-    contexts_com_snowplowanalytics_snowplow_web_page_1 STRING,
-    unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1 STRING,
-    unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1 STRING,
-    contexts_com_iab_snowplow_spiders_and_robots_1 STRING,
-    contexts_com_snowplowanalytics_snowplow_ua_parser_context_1 STRING,
-    contexts_nl_basjes_yauaa_context_1 STRING,
-    unstruct_event_com_snowplowanalytics_snowplow_web_vitals_1 STRING
+    contexts_com_snowplowanalytics_snowplow_web_page_1 VARIANT,
+    unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1 VARIANT,
+    unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1 VARIANT,
+    contexts_com_iab_snowplow_spiders_and_robots_1 VARIANT,
+    contexts_com_snowplowanalytics_snowplow_ua_parser_context_1 VARIANT,
+    contexts_nl_basjes_yauaa_context_1 VARIANT,
+    unstruct_event_com_snowplowanalytics_snowplow_web_vitals_1 VARIANT
 );
 
--- Step 3: Create a stage for file uploads
+-- Step 2: Create a stage for file uploads
 CREATE OR REPLACE STAGE my_stage;
 
--- Step 4: Upload the CSV file to the stage
+-- Step 3: Upload the CSV file to the stage
 PUT file://events.csv @my_stage;
 
--- Step 5: Load data from the stage into the table
+-- Step 4: Load data from the stage into the table
 COPY INTO events
 FROM @my_stage/events.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' RECORD_DELIMITER = '\n' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"' ESCAPE_UNENCLOSED_FIELD = NONE ESCAPE = NONE ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE REPLACE_INVALID_CHARACTERS = TRUE DATE_FORMAT = 'AUTO' TIMESTAMP_FORMAT = 'AUTO' BINARY_FORMAT = 'HEX' TRIM_SPACE = TRUE)
 ON_ERROR = 'CONTINUE';
 
--- Step 6: Verify the data was loaded
+-- Step 5: Verify the data was loaded
 SELECT 
     COUNT(*) as total_rows,
     COUNT(DISTINCT event_id) as unique_events,
@@ -170,7 +168,7 @@ SELECT
     MAX(collector_tstamp) as latest_event
 FROM events;
 
--- Step 7: Show sample data
+-- Step 6: Show sample data
 SELECT 
     event_id,
     event,
