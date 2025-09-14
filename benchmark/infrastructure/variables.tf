@@ -43,12 +43,7 @@ variable "benchmark_s3_user_access_key" {
   sensitive   = true
 }
 
-variable "existing_aws_session_token" {
-  description = "AWS Session Token (optional, for temporary credentials)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
+
 
 # Option to create IAM user automatically
 variable "create_iam_user" {

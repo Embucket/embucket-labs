@@ -217,7 +217,6 @@ resource "local_file" "env_file" {
   content = templatefile("${path.module}/env.tpl", {
     aws_access_key_id     = var.benchmark_s3_user_key_id
     aws_secret_access_key = var.benchmark_s3_user_access_key
-    aws_session_token     = var.existing_aws_session_token
     s3_bucket            = aws_s3_bucket.embucket_benchmark.bucket
     aws_region           = var.aws_region
     cors_allow_origin    = "http://${aws_instance.embucket_benchmark.public_ip}:8080"

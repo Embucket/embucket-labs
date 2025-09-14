@@ -10,7 +10,6 @@ echo "You have several options:"
 echo ""
 echo "1. Use your current AWS CLI credentials (if configured)"
 echo "2. Enter AWS credentials manually"
-echo "3. Use AWS SSO/Identity Center credentials"
 echo ""
 
 AWS_REGION="${aws_region}"
@@ -30,15 +29,13 @@ if aws sts get-caller-identity --region "$AWS_REGION" >/dev/null 2>&1; then
         # Get current credentials from AWS CLI
         AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
         AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
-        AWS_SESSION_TOKEN=$(aws configure get aws_session_token)
-        
-        # If using SSO, we need to get temporary credentials
+
+        # Check if we have static credentials configured
         if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-            echo "Detected AWS SSO/Identity Center. Getting temporary credentials..."
-            TEMP_CREDS=$(aws sts get-session-token --region "$AWS_REGION" --output json)
-            AWS_ACCESS_KEY_ID=$(echo "$TEMP_CREDS" | jq -r '.Credentials.AccessKeyId')
-            AWS_SECRET_ACCESS_KEY=$(echo "$TEMP_CREDS" | jq -r '.Credentials.SecretAccessKey')
-            AWS_SESSION_TOKEN=$(echo "$TEMP_CREDS" | jq -r '.Credentials.SessionToken')
+            echo "❌ No static AWS credentials found in AWS CLI configuration."
+            echo "Please configure static credentials using: aws configure"
+            echo "Note: This setup requires static AWS Access Key ID and Secret Access Key (not temporary/SSO credentials)"
+            exit 1
         fi
         
     else
@@ -55,14 +52,14 @@ else
     echo ""
     echo "Please choose an option:"
     echo "1. Configure AWS CLI: aws configure"
-    echo "2. Use AWS SSO: aws sso login --profile your-profile"
-    echo "3. Enter credentials manually below"
+    echo "2. Enter credentials manually below"
     echo ""
-    
+    echo "Note: This setup requires static AWS credentials (Access Key ID and Secret Access Key)"
+    echo ""
+
     read -p "Enter AWS Access Key ID: " AWS_ACCESS_KEY_ID
     read -s -p "Enter AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
     echo ""
-    read -p "Enter AWS Session Token (optional, press Enter to skip): " AWS_SESSION_TOKEN
 fi
 
 # Write credentials to environment file
@@ -71,10 +68,6 @@ export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
 export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
 EOF
 
-if [ -n "$AWS_SESSION_TOKEN" ]; then
-    echo "export AWS_SESSION_TOKEN=\"$AWS_SESSION_TOKEN\"" >> /tmp/aws_credentials.env
-fi
-
 echo ""
 echo "✅ Credentials configured successfully!"
 echo "Credentials written to /tmp/aws_credentials.env"
@@ -82,5 +75,3 @@ echo ""
 echo "Next steps:"
 echo "1. Source the credentials: source /tmp/aws_credentials.env"
 echo "2. Start Embucket: docker-compose up -d"
-echo ""
-echo "Note: If using temporary credentials, they will expire and need to be refreshed."
