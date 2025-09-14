@@ -1,5 +1,5 @@
 export SNOWFLAKE_ACCOUNT=
-export SNOWFLAKE_USER=
+export SNOWFLAKE_USER=Oleksandr
 export SNOWFLAKE_PASSWORD=
 export SNOWFLAKE_DATABASE=embucket
 export SNOWFLAKE_SCHEMA=public

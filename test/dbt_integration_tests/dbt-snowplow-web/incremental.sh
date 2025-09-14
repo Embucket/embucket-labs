@@ -88,7 +88,7 @@ echo ""
 
 # FIRST RUN
 echo "Generating events"
-$PYTHON_CMD gen_events.py $num_rows
+$PYTHON_CMD gen_events.py "$num_rows"
 
 echo "Setting up Docker container"
 ./setup_docker.sh
@@ -100,7 +100,7 @@ echo "###############################"
 echo ""
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv $DBT_TARGET
+$PYTHON_CMD load_events.py events_yesterday.csv "$DBT_TARGET"
 
 echo ""
 echo "###############################"
@@ -113,62 +113,73 @@ echo ""
 echo "###############################"
 echo ""
 
-# Parse dbt results and load into Snowflake
-echo "Parsing dbt results..."
-$PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
+if [ "$is_incremental" == false ]; then
+    # Parse dbt results and load into Snowflake
+    echo "Parsing dbt results..."
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
 
-echo ""
-echo "###############################"
-echo ""
+    echo ""
 
-# Update the errors log and run results
-echo "###############################"
-echo ""
-echo "Updating the errors log and total results"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   ./statistics.sh
+    
+    if [ "$DBT_TARGET" = "embucket" ]; then
+    # Update the errors log and run results
+        echo "###############################"
+        echo ""
+        echo "Updating the errors log and total results"
+        ./statistics.sh
+        echo ""
+
+    # Generate assets after the run
+        echo "###############################"
+        echo ""
+        echo "Updating the chart result"
+            $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
+        echo ""
+        echo "###############################"
+        echo ""
+    else
+        echo "###############################"
+        echo ""
+        echo "It was snowflake run, no assets will be generated"
+        echo ""
+        echo "###############################"
+        echo ""
+    fi
+
 fi
-echo ""
-
-# Generate assets after the run
-echo "###############################"
-echo ""
-echo "Updating the chart result"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
-fi
-echo ""
-echo "###############################"
-echo ""
 
 if [ "$is_incremental" == true ]; then
 
-# SECOND RUN INCEREMENTAL
+    # SECOND RUN INCEREMENTAL
 
-echo "Loading events"
-$PYTHON_CMD load_events.py events_today.csv $DBT_TARGET
+    echo "Loading events"
+    $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET"
 
-echo "Running dbt"
-./run_snowplow_web.sh --target "$DBT_TARGET"
+    echo "Running dbt"
+    ./run_snowplow_web.sh --target "$DBT_TARGET"
 
-# Update the errors log and run results
-echo "###############################"
-echo ""
-echo "Updating the errors log and total results"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   ./statistics.sh
-fi
-echo ""
+    # Parse dbt results and load into Snowflake
+    echo "Parsing dbt results..."
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$DBT_TARGET"
 
-# Generate assets after the run
-echo "###############################"
-echo ""
-echo "Updating the chart result"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
-fi
-echo ""
-echo "###############################"
-echo ""
+    if [ "$DBT_TARGET" = "embucket" ]; then
+    # Update the errors log and run results
+        echo "###############################"
+        echo ""
+        echo "Updating the errors log and total results"
+        ./statistics.sh
+        echo ""
+
+    # Generate assets after the run
+        echo "###############################"
+        echo ""
+        echo "Updating the chart result"
+            $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
+        echo ""
+        echo "###############################"
+        echo ""
+    else
+        echo "It was snowflake run, no assets will be generated"
+    fi
 
 fi
