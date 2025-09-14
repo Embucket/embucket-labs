@@ -8,18 +8,7 @@ import sys
 import re
 import snowflake.connector
 from datetime import datetime
-
-def get_connection_config():
-    """Get Snowflake connection configuration."""
-    return {
-        'account': os.getenv('SNOWFLAKE_ACCOUNT', ''),
-        'user': os.getenv('SNOWFLAKE_USER', ''),
-        'password': os.getenv('SNOWFLAKE_PASSWORD', ''),
-        'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE', 'BENCHMARK_WH'),
-        'database': os.getenv('SNOWFLAKE_DATABASE', 'benchmark_db'),
-        'schema': os.getenv('SNOWFLAKE_SCHEMA', 'public'),
-        'role': os.getenv('SNOWFLAKE_ROLE', 'SYSADMIN'),
-    }
+from db_connections import create_snowflake_connection
 
 def parse_duration(duration_str):
     """Parse duration string and convert to seconds"""
@@ -276,13 +265,11 @@ def create_results_table(conn, cursor):
 
 def load_results_to_snowflake(results, target='snowflake'):
     """Load parsed results into Snowflake."""
-    config = get_connection_config()
-    
     print(f"=== Loading dbt Results into SNOWFLAKE Database ===")
     print(f"Connecting to SNOWFLAKE...")
     
     try:
-        conn = snowflake.connector.connect(**config)
+        conn = create_snowflake_connection()
         cursor = conn.cursor()
         print("✓ Connected to SNOWFLAKE successfully")
         
