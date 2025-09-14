@@ -6,10 +6,7 @@
 echo "=== Embucket Benchmark AWS Credential Setup ==="
 echo ""
 echo "Due to PowerUser permission limitations, we need to set up AWS credentials manually."
-echo "You have several options:"
-echo ""
-echo "1. Use your current AWS CLI credentials (if configured)"
-echo "2. Enter AWS credentials manually"
+echo "This script will help you configure your static AWS credentials."
 echo ""
 
 AWS_REGION="${aws_region}"
@@ -48,13 +45,10 @@ if aws sts get-caller-identity --region "$AWS_REGION" >/dev/null 2>&1; then
         exit 1
     fi
 else
-    echo "❌ AWS CLI not configured or credentials expired."
+    echo "❌ AWS CLI not configured or no static credentials found."
     echo ""
-    echo "Please choose an option:"
-    echo "1. Configure AWS CLI: aws configure"
-    echo "2. Enter credentials manually below"
-    echo ""
-    echo "Note: This setup requires static AWS credentials (Access Key ID and Secret Access Key)"
+    echo "Please configure AWS CLI first: aws configure"
+    echo "Or enter your static AWS credentials below:"
     echo ""
 
     read -p "Enter AWS Access Key ID: " AWS_ACCESS_KEY_ID
