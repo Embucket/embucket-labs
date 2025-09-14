@@ -16,11 +16,7 @@ This project contains integration tests for running dbt-snowplow-web with both E
 
 ### Prerequisites
 
-1. **Snowflake Connection Details** (if using Snowflake)
-   - Snowflake account identifier
-   - Snowflake username and password
-   - Access to create databases and schemas
-   - Warehouse with appropriate permissions
+1. Create .env file based on env.template with you creds.
 
 ### Quick Start (Recommended)
 
@@ -41,8 +37,47 @@ This project contains integration tests for running dbt-snowplow-web with both E
    - Generate sample data
    - Load data into the specified database (Embucket or Snowflake)
    - Run dbt-snowplow-web
+   - Load run results into Snowflake
    - Clean up containers (if using embucket target)
 
+
+### Run results in embucket.public.dbt_snowplow_results_models both embucket and snowflake.
+
+The `dbt_snowplow_results_models` table stores comprehensive information about each dbt model execution, providing detailed insights into model performance, data quality, and execution statistics.
+
+#### Table Schema
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER | Auto-incrementing primary key |
+| `timestamp` | TIMESTAMP_NTZ | Timestamp of the dbt model execution |
+| `model_name` | STRING | Name of the dbt model that was executed |
+| `model_type` | STRING | Type of dbt model (table, view, etc.) |
+| `result` | STRING | Execution result (`success`, `error`, `skipped`) |
+| `duration_seconds` | FLOAT | Time taken to execute the model in seconds |
+| `rows_affected` | INTEGER | Number of rows processed/affected by the model |
+| `order_sequence` | STRING | Order in which the model was executed |
+| `target` | STRING | Target database used for the run (`embucket` or `snowflake`) |
+| `run_id` | STRING | Unique identifier for each test run (format: `run_YYYYMMDD_HHMMSS`) |
+| `dbt_version` | STRING | Version of dbt used for the execution |
+| `adapter_type` | STRING | Database adapter type used |
+| `total_models` | INTEGER | Total number of models in the run |
+| `pass_count` | INTEGER | Number of models that passed |
+| `warn_count` | INTEGER | Number of models with warnings |
+| `error_count` | INTEGER | Number of models that failed |
+| `skip_count` | INTEGER | Number of models that were skipped |
+| `number_of_rows_generated` | INTEGER | Total number of sample rows generated for the test |
+| `is_incremental_run` | BOOLEAN | Whether this was an incremental run (`true`) or full run (`false`) |
+| `downloaded_at` | TIMESTAMP_NTZ | Timestamp when the record was created (defaults to current timestamp) |
+
+#### Sample Queries
+
+```sql
+-- Get latest run results
+SELECT * FROM embucket.public.dbt_snowplow_results_models 
+ORDER BY downloaded_at DESC 
+LIMIT 32;
+```
 
 ## File Structure
 
