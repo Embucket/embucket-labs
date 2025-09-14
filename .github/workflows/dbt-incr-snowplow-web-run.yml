@@ -30,13 +30,13 @@ jobs:
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
           cat > .env << 'EOF'
-          export SNOWFLAKE_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT }}
-          export SNOWFLAKE_USER=${{ secrets.SNOWFLAKE_USER }}
-          export SNOWFLAKE_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD }}
-          export SNOWFLAKE_DATABASE=${{ secrets.SNOWFLAKE_DATABASE }}
-          export SNOWFLAKE_SCHEMA=${{ secrets.SNOWFLAKE_SCHEMA }}
-          export SNOWFLAKE_WAREHOUSE=${{ secrets.SNOWFLAKE_WAREHOUSE }}
-          export SNOWFLAKE_ROLE=${{ secrets.SNOWFLAKE_ROLE }}
+          export SNOWFLAKE_ACCOUNT=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_ACCOUNT }}
+          export SNOWFLAKE_USER=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_USER }}
+          export SNOWFLAKE_PASSWORD=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_PASSWORD }}
+          export SNOWFLAKE_DATABASE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_DATABASE }}
+          export SNOWFLAKE_SCHEMA=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_SCHEMA }}
+          export SNOWFLAKE_WAREHOUSE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_WAREHOUSE }}
+          export SNOWFLAKE_ROLE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_ROLE }}
 
           export EMBUCKET_HOST=localhost
           export EMBUCKET_PORT=3000
