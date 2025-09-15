@@ -3,19 +3,19 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::optimizer::AnalyzerRule;
-use datafusion_common::{DFSchemaRef, ScalarValue};
 use datafusion_common::config::ConfigOptions;
 use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
+use datafusion_common::{DFSchemaRef, ScalarValue};
 use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::expr_rewriter::NamePreserver;
 use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnTypeArgs, ScalarUDF, TryCast};
 use embucket_functions::conversion::to_array::ToArrayFunc;
 use embucket_functions::conversion::to_date::ToDateFunc;
+use embucket_functions::conversion::to_decimal::ToDecimalFunc;
 use embucket_functions::conversion::to_timestamp::ToTimestampFunc;
 use embucket_functions::session_params::SessionParams;
 use std::fmt::Debug;
 use std::sync::Arc;
-use embucket_functions::conversion::to_decimal::ToDecimalFunc;
 
 /// Rewrites expressions in the logical plan with explicit casts `...::*` or `CAST(... AS *)`
 /// as an `TO_*` function call, where `*` is the `DataType` and corresponding function name respectively.
@@ -55,10 +55,16 @@ impl CastAnalyzer {
             let original_name = name_preserver.save(&expr);
 
             let transformed_expr = expr.transform_up(|e| match &e {
-                Expr::Cast(cast) => self.rewrite_cast_to(plan.schema(), &cast.data_type, &cast.expr, &e, false),
-                Expr::TryCast(try_cast) => {
-                    self.rewrite_cast_to(plan.schema(), &try_cast.data_type, &try_cast.expr, &e, true)
+                Expr::Cast(cast) => {
+                    self.rewrite_cast_to(plan.schema(), &cast.data_type, &cast.expr, &e, false)
                 }
+                Expr::TryCast(try_cast) => self.rewrite_cast_to(
+                    plan.schema(),
+                    &try_cast.data_type,
+                    &try_cast.expr,
+                    &e,
+                    true,
+                ),
                 _ => Ok(Transformed::no(e)),
             })?;
 
@@ -99,7 +105,7 @@ impl CastAnalyzer {
                 })))
             }
             data_type @ (DataType::Int32 | DataType::Int64) => {
-                if let Ok(DataType::Utf8) = expr.get_type(schema) {
+                if matches!(expr.get_type(schema), Ok(DataType::Utf8)) {
                     Self::rewrite_integer_cast(expr, data_type, try_mode)
                 } else {
                     Ok(Transformed::no(original_expr.clone()))
@@ -110,7 +116,12 @@ impl CastAnalyzer {
     }
 
     //TODO: support `to_double` instead of `to_decimal`
-    fn rewrite_integer_cast(expr: &Expr, data_type: DataType, try_mode: bool) -> DFResult<Transformed<Expr>> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn rewrite_integer_cast(
+        expr: &Expr,
+        data_type: DataType,
+        try_mode: bool,
+    ) -> DFResult<Transformed<Expr>> {
         let new_expr = if try_mode {
             let internal = Expr::ScalarFunction(ScalarFunction {
                 func: Arc::new(ScalarUDF::from(ToDecimalFunc::new(try_mode))),
