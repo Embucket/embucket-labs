@@ -24,8 +24,8 @@ provider "aws" {
   profile = var.aws_profile
 }
 
-# Generate random suffix for S3 bucket
-resource "random_string" "bucket_suffix" {
+# Generate random suffix for all resources (S3 bucket and instance resources)
+resource "random_string" "suffix" {
   length  = 8
   special = false
   upper   = false
@@ -33,7 +33,7 @@ resource "random_string" "bucket_suffix" {
 
 # Create S3 bucket for Embucket data with randomized suffix
 resource "aws_s3_bucket" "embucket_benchmark" {
-  bucket        = "embucket-benchmark-${var.aws_region}-${random_string.bucket_suffix.result}"
+  bucket        = "embucket-benchmark-${var.aws_region}-${random_string.suffix.result}"
   force_destroy = true  # Allow deletion even if bucket contains objects
 }
 
@@ -65,13 +65,13 @@ resource "aws_s3_bucket_public_access_block" "embucket_benchmark_pab" {
 
 # Create key pair for EC2 access
 resource "aws_key_pair" "embucket_benchmark_key" {
-  key_name   = "${var.instance_name}-key"
+  key_name   = "${var.instance_name}-${random_string.suffix.result}-key"
   public_key = file("${var.public_key_path}")
 }
 
 # Create security group for EC2 instance
 resource "aws_security_group" "embucket_benchmark_sg" {
-  name        = "${var.instance_name}-sg"
+  name        = "${var.instance_name}-${random_string.suffix.result}-sg"
   description = "Security group for Embucket benchmark instance"
 
   # SSH access
@@ -107,7 +107,7 @@ resource "aws_security_group" "embucket_benchmark_sg" {
   }
 
   tags = {
-    Name        = "${var.instance_name}-sg"
+    Name        = "${var.instance_name}-${random_string.suffix.result}-sg"
     Environment = var.environment
     Project     = "embucket-benchmark"
   }
@@ -145,7 +145,7 @@ resource "aws_instance" "embucket_benchmark" {
   }
 
   tags = {
-    Name        = var.instance_name
+    Name        = "${var.instance_name}-${random_string.suffix.result}"
     Environment = var.environment
     Project     = "embucket-benchmark"
   }

@@ -1,8 +1,17 @@
 # Embucket Benchmarking Infrastructure
 
-This directory contains Terraform configuration to set up AWS infrastructure for benchmarking Embucket performance. The infrastructure includes an EC2 instance, S3 bucket with randomized name, and automated Embucket installation with database initialization.
+This directory contains Terraform configuration to set up AWS infrastructure for benchmarking Embucket performance. The infrastructure includes an EC2 instance, S3 bucket, and automated Embucket installation with database initialization.
 
-Each deployment creates a unique S3 bucket (e.g., `embucket-benchmark-us-east-2-a1b2c3d4`) allowing multiple team members to deploy independent benchmark environments using shared AWS credentials.
+## Team-Friendly Design
+
+Each deployment creates unique resources with the same randomized suffix to prevent conflicts when multiple team members deploy infrastructure:
+
+- **S3 Bucket**: `embucket-benchmark-us-east-2-a1b2c3d4`
+- **EC2 Instance**: `embucket-benchmark-a1b2c3d4`
+- **Security Group**: `embucket-benchmark-a1b2c3d4-sg`
+- **Key Pair**: `embucket-benchmark-a1b2c3d4-key`
+
+All resources share the same 8-character random suffix (e.g., `a1b2c3d4`), making it easy to identify which resources belong to the same deployment. This allows multiple team members to deploy independent benchmark environments using shared AWS credentials without resource naming conflicts.
 
 ## Quick Start
 

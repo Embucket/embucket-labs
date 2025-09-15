@@ -3,6 +3,11 @@ output "instance_id" {
   value       = aws_instance.embucket_benchmark.id
 }
 
+output "instance_name" {
+  description = "Name of the EC2 instance (with random suffix)"
+  value       = "${var.instance_name}-${random_string.suffix.result}"
+}
+
 output "instance_public_ip" {
   description = "Public IP address of the EC2 instance"
   value       = aws_instance.embucket_benchmark.public_ip
@@ -65,4 +70,19 @@ output "instance_type" {
 output "aws_region" {
   description = "AWS region used"
   value       = var.aws_region
+}
+
+output "security_group_name" {
+  description = "Name of the security group (with random suffix)"
+  value       = "${var.instance_name}-${random_string.suffix.result}-sg"
+}
+
+output "key_pair_name" {
+  description = "Name of the key pair (with random suffix)"
+  value       = "${var.instance_name}-${random_string.suffix.result}-key"
+}
+
+output "random_suffix" {
+  description = "Random suffix used for all resource naming (S3 bucket and EC2 resources)"
+  value       = random_string.suffix.result
 }
