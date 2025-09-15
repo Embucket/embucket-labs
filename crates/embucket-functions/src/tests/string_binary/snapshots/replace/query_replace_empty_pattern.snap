@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/string_binary/replace.rs
+description: "\"SELECT REPLACE('abcd', 'bc');\""
+---
+Ok(
+    [
+        "+----------------------------------+",
+        "| replace(Utf8(\"abcd\"),Utf8(\"bc\")) |",
+        "+----------------------------------+",
+        "| ad                               |",
+        "+----------------------------------+",
+    ],
+)
