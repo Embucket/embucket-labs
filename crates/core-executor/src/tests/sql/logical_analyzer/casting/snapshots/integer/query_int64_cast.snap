@@ -1,7 +1,7 @@
 ---
-source: crates/core-executor/src/tests/sql/logical_analyzer/casting/int32_int64.rs
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/integer.rs
 description: "\"SELECT * FROM test\""
-info: "Setup queries: CREATE TABLE test (a INT32); INSERT INTO test VALUES ('50'), ('50.0'), ('50.9'), ('50.5'), ('50.45'), ('50.459')"
+info: "Setup queries: CREATE TABLE test (a INT64); INSERT INTO test VALUES ('50'), ('50.0'), ('50.9'), ('50.5'), ('50.45'), ('50.459')"
 ---
 Ok(
     [
