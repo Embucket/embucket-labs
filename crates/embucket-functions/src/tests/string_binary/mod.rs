@@ -6,6 +6,7 @@ mod length;
 mod lower;
 mod parse_ip;
 mod randstr;
+mod replace;
 mod sha2;
 mod split;
 mod substr;
