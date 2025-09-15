@@ -10,9 +10,9 @@ def create_embucket_connection():
     """Create Embucket connection with environment-based config."""
 
     # Connection config with defaults
-    host = os.getenv("EMBUCKET_SQL_HOST", "localhost")
-    port = os.getenv("EMBUCKET_SQL_PORT", "3000")
-    protocol = os.getenv("EMBUCKET_SQL_PROTOCOL", "http")
+    host = os.getenv("EMBUCKET_HOST", "localhost")
+    port = os.getenv("EMBUCKET_PORT", "3000")
+    protocol = os.getenv("EMBUCKET_PROTOCOL", "http")
     user = os.getenv("EMBUCKET_USER", "embucket")
     password = os.getenv("EMBUCKET_PASSWORD", "embucket")
     account = os.getenv("EMBUCKET_ACCOUNT") or f"acc_{uuid.uuid4().hex[:10]}"
@@ -32,13 +32,6 @@ def create_embucket_connection():
     }
 
     conn = sf.connect(**connect_args)
-    conn.cursor().execute(
-        f"""CREATE EXTERNAL VOLUME IF NOT EXISTS local 
-            STORAGE_LOCATIONS = ((NAME = 'local' STORAGE_PROVIDER = 'FILE' 
-            STORAGE_BASE_URL = '{os.getcwd()}'))"""
-    )
-    conn.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {database} EXTERNAL_VOLUME = 'local'")
-    conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
     return conn
 
 

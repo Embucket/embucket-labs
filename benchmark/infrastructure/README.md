@@ -210,6 +210,21 @@ terraform destroy
 5. **Empty credentials**: Make sure you've set `benchmark_s3_user_key_id` and `benchmark_s3_user_access_key` in `terraform.tfvars`
 6. **Performance issues**: Consider upgrading instance type
 
+### Apple Silicon Troubleshooting
+
+When running Terraform on Apple Silicon processors, you may encounter plugin loading issues with errors like:
+```
+Error: Failed to load plugin schemas Error while loading schemas for plugin components: Failed to obtain provider schema: Could not load the schema for provider...
+```
+This is related to Go's asynchronous preemption which can interfere with Terraform plugin loading on ARM processors. To resolve this issue:
+
+1. Set the following environment variable before running any Terraform commands:
+
+```bash
+export GODEBUG=asyncpreemptoff=1
+```
+
+
 ### Logs and Debugging
 
 ```bash

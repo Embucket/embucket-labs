@@ -53,11 +53,10 @@ def upload_parquet_to_embucket_tables(cursor):
 
     for parquet_file in parquet_files:
         table_name = os.path.basename(parquet_file).replace(".parquet", "")
-        file_path = os.path.abspath(parquet_file)
 
         print(f"Loading {parquet_file} into Embucket table {table_name}...")
 
-        copy_sql = f"COPY INTO {table_name} FROM 'file://{file_path}' STORAGE_INTEGRATION = local FILE_FORMAT = (TYPE = PARQUET)"
+        copy_sql = f"COPY INTO {table_name} FROM 's3://embucket-testdata/tpcds_data/{table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
         cursor.execute(copy_sql)
 
 

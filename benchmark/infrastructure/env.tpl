@@ -9,8 +9,8 @@ SERVER_ADDRESS=${server_address}
 VITE_API_URL=${vite_api_url}
 
 # Database initialization configuration
-DATABASE_NAME=benchmark_db
-SCHEMA_NAME=benchmark_schema
+DATABASE_NAME=embucket
+SCHEMA_NAME=public
 VOLUME_NAME=benchmark_volume
 EMBUCKET_HOST=localhost
 EMBUCKET_PORT=3000

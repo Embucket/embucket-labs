@@ -36,6 +36,7 @@ output "credential_setup_script" {
 output "setup_status" {
   description = "Setup status and access information"
   value = var.benchmark_s3_user_key_id != "" && var.benchmark_s3_user_key_id != "AKIA_YOUR_ACCESS_KEY_ID_HERE" ? "✅ Setup Complete! Embucket is starting automatically. Access URLs: API: http://${aws_instance.embucket_benchmark.public_ip}:3000, UI: http://${aws_instance.embucket_benchmark.public_ip}:8080" : "⚠️ Please update terraform.tfvars with your actual AWS credentials and run terraform apply"
+  sensitive = true
 }
 
 output "access_urls" {
