@@ -91,11 +91,10 @@ def create_snowflake_connection():
     
     conn = sf.connect(**connect_args_no_db)
     
-    # Drop and recreate database for clean state
-    conn.cursor().execute(f"DROP DATABASE IF EXISTS {database}")
-    conn.cursor().execute(f"CREATE DATABASE {database}")
+    # Create database and schema if they don't exist (don't drop existing ones)
+    conn.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {database}")
     conn.cursor().execute(f"USE DATABASE {database}")
-    conn.cursor().execute(f"CREATE SCHEMA {schema}")
+    conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
     conn.cursor().execute(f"USE SCHEMA {schema}")
 
     # Create stage if not exists
@@ -140,7 +139,7 @@ def get_connection_config(target='embucket'):
 
 
 def copy_file_to_data_dir(source_file, data_dir="./datasets", target='embucket'):
-    """Copy the events.csv file to the data directory.
+    """Copy the source file to the data directory, preserving the original filename.
     
     Args:
         source_file (str): Path to source file
@@ -159,9 +158,10 @@ def copy_file_to_data_dir(source_file, data_dir="./datasets", target='embucket')
         print(f"✓ File {source_file} ready for Snowflake upload")
         return source_file
     else:
-        # For Embucket, copy to data directory
+        # For Embucket, copy to data directory preserving original filename
         os.makedirs(data_dir, exist_ok=True)
-        target_file = os.path.join(data_dir, "events.csv")
+        source_filename = os.path.basename(source_file)
+        target_file = os.path.join(data_dir, source_filename)
         
         if os.path.exists(source_file):
             shutil.copy2(source_file, target_file)

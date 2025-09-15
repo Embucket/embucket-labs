@@ -5,6 +5,11 @@
 -- The connection will automatically drop and recreate dbt_snowplow_web database and public_snowplow_manifest schema
 
 -- Drop existing table if it exists
+USE DATABASE DBT_SNOWPLOW_WEB;
+CREATE SCHEMA IF NOT EXISTS public_snowplow_manifest;
+USE SCHEMA public_snowplow_manifest;
+
+-- Drop existing table if it exists
 DROP TABLE IF EXISTS events;
 
 -- Step 1: Create the events table with appropriate data types
@@ -151,11 +156,11 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE OR REPLACE STAGE my_stage;
 
 -- Step 3: Upload the CSV file to the stage
-PUT file://events.csv @my_stage;
+PUT file://events_yesterday.csv @my_stage;
 
 -- Step 4: Load data from the stage into the table
 COPY INTO events
-FROM @my_stage/events.csv
+FROM @my_stage/events_yesterday.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' RECORD_DELIMITER = '\n' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"' ESCAPE_UNENCLOSED_FIELD = NONE ESCAPE = NONE ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE REPLACE_INVALID_CHARACTERS = TRUE DATE_FORMAT = 'AUTO' TIMESTAMP_FORMAT = 'AUTO' BINARY_FORMAT = 'HEX' TRIM_SPACE = TRUE)
 ON_ERROR = 'CONTINUE';
 

@@ -109,7 +109,7 @@ echo "###############################"
 echo ""
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv "$DBT_TARGET"
+$PYTHON_CMD load_events.py "$is_incremental" "$DBT_TARGET"
 
 echo ""
 echo "###############################"

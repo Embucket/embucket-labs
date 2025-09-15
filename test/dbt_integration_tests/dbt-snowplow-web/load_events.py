@@ -10,10 +10,15 @@ from pathlib import Path
 from db_connections import create_embucket_connection, create_snowflake_connection, get_connection_config, copy_file_to_data_dir
 
 
-def execute_sql_script(conn, script_path):
+def execute_sql_script(conn, script_path, filename=None):
     """Execute SQL script against the database."""
     with open(script_path, 'r') as f:
         sql_content = f.read()
+    
+    # Replace filename placeholders if filename is provided
+    if filename:
+        sql_content = sql_content.replace('events_yesterday.csv', filename)
+        sql_content = sql_content.replace('events_today.csv', filename)
     
     # Split by semicolon and execute each statement
     statements = []
@@ -84,6 +89,7 @@ def main():
     """Main function to load events data."""
     # Parse command line arguments
     target = 'embucket'  # default
+    is_incremental = False
     input_file = None
     
     # Simple argument parsing
@@ -94,8 +100,22 @@ def main():
                 target = args[i + 1]
         elif arg in ['snowflake', 'embucket']:
             target = arg
-        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket']:
-            input_file = arg
+        elif arg in ['true', 'false']:
+            is_incremental = (arg == 'true')
+        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket', 'true', 'false']:
+            if input_file is None:
+                input_file = arg
+            elif target == 'embucket':  # If target is still default, treat second arg as target
+                target = arg
+    
+    # Determine input file based on incremental flag
+    if not input_file:
+        if is_incremental:
+            input_file = 'events_today.csv'
+            print("Incremental run - using events_today.csv")
+        else:
+            input_file = 'events_yesterday.csv'
+            print("First run - using events_yesterday.csv")
     
     print(f"=== Loading Snowplow Events Data into {target.upper()} Database ===")
     
@@ -144,7 +164,7 @@ def main():
         
         # Execute SQL script
         print("Executing SQL script...")
-        execute_sql_script(conn, sql_script)
+        execute_sql_script(conn, sql_script, events_file.name)
         
         # Verify data load
         print("Verifying data load...")

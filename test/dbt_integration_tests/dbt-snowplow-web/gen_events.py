@@ -50,6 +50,7 @@ def generate_event_data(target_date, num_events=1000):
         
         # Generate event data
         event_id = str(uuid.uuid4())
+        user_id = str(uuid.uuid4())
         domain_userid = str(uuid.uuid4())
         domain_sessionid = str(uuid.uuid4())
         network_userid = str(uuid.uuid4())
@@ -97,7 +98,7 @@ def generate_event_data(target_date, num_events=1000):
             'js-2.17.2',  # v_tracker
             'ssc-2.1.2-googlepubsub',  # v_collector
             'beam-enrich-1.4.2-rc1-common-1.4.2-rc1',  # v_etl
-            '',  # user_id
+            user_id,  # user_id
             '',  # user_ipaddress
             str(uuid.uuid4()),  # user_fingerprint
             domain_userid,  # domain_userid
