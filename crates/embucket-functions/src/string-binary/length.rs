@@ -136,11 +136,11 @@ impl ScalarUDFImpl for LengthFunc {
                 let strs = as_string_array(&casted)?;
                 let new_array = strs
                     .iter()
-                    .map(|array_elem| array_elem.map(|value| value.chars().count() as u64))
+                    .map(|array_elem| array_elem.map(|value| value.len() as u64))
                     .collect::<UInt64Array>();
                 Arc::new(new_array)
             }
-            DataType::Null => Arc::new((0..arr.len()).map(|_| None).collect::<UInt64Array>()),
+            DataType::Null => Arc::new(UInt64Array::new_null(arr.len())),
             _ => {
                 return exec_err!("Invalid datatype");
             }
