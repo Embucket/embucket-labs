@@ -17,6 +17,7 @@ use datafusion_iceberg::{
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PhysicalExpr, PlanProperties,
     RecordBatchStream, SendableRecordBatchStream,
+    coalesce_partitions::CoalescePartitionsExec,
     execution_plan::{Boundedness, EmissionType},
     expressions::Column,
     projection::ProjectionExec,
@@ -32,6 +33,7 @@ use std::{
     num::NonZeroUsize,
     sync::{Arc, Mutex},
     task::Poll,
+    thread::available_parallelism,
 };
 
 use crate::error;
@@ -40,7 +42,7 @@ pub(crate) static TARGET_EXISTS_COLUMN: &str = "__target_exists";
 pub(crate) static SOURCE_EXISTS_COLUMN: &str = "__source_exists";
 pub(crate) static DATA_FILE_PATH_COLUMN: &str = "__data_file_path";
 pub(crate) static MANIFEST_FILE_PATH_COLUMN: &str = "__manifest_file_path";
-static BUFFER_SIZE: usize = 2;
+static THREAD_FILE_RATIO: usize = 4;
 
 #[derive(Debug)]
 pub struct MergeIntoCOWSinkExec {
@@ -136,9 +138,11 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
 
         let matching_files: Arc<Mutex<Option<ManifestAndDataFiles>>> = Arc::default();
 
+        let coalesce = CoalescePartitionsExec::new(self.input.clone());
+
         // Filter out rows whoose __data_file_path doesn't have a matching row
         let filtered: Arc<dyn ExecutionPlan> = Arc::new(MergeCOWFilterExec::new(
-            self.input.clone(),
+            Arc::new(coalesce),
             matching_files.clone(),
         ));
 
@@ -321,11 +325,14 @@ impl MergeCOWFilterStream {
         input: SendableRecordBatchStream,
         matching_files_ref: Arc<Mutex<Option<ManifestAndDataFiles>>>,
     ) -> Self {
+        let buffer_size = (available_parallelism().map(NonZeroUsize::get).unwrap_or(1)
+            / THREAD_FILE_RATIO)
+            .max(1);
         Self {
             matching_files: HashMap::new(),
             not_matching_files: HashMap::new(),
             #[allow(clippy::unwrap_used)]
-            not_matched_buffer: LruCache::new(NonZeroUsize::new(BUFFER_SIZE).unwrap()),
+            not_matched_buffer: LruCache::new(NonZeroUsize::new(buffer_size).unwrap()),
             ready_batches: Vec::new(),
             matching_files_ref,
             input,
