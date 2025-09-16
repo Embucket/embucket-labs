@@ -140,6 +140,7 @@ impl ScalarUDFImpl for LengthFunc {
                     .collect::<UInt64Array>();
                 Arc::new(new_array)
             }
+            DataType::Null => Arc::new((0..arr.len()).map(|_| None).collect::<UInt64Array>()),
             _ => {
                 return exec_err!("Invalid datatype");
             }
