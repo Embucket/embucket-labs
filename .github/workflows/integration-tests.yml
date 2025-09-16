@@ -116,7 +116,7 @@ jobs:
           echo "LOCAL_BASE_PATH=/app/datasets" >> $GITHUB_ENV
 
       - name: Set up DuckDB
-        uses: opt-nc/setup-duckdb-action@v1.1.2
+        uses: opt-nc/setup-duckdb-action@v1.1.3
 
       - name: Download and Prepare Datasets
         working-directory: ./test/integration
