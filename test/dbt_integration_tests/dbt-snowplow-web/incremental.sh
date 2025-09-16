@@ -91,8 +91,8 @@ echo ""
 # Set incremental flag from command line argument, default to true
 
 # FIRST RUN
-echo "Generating events"
-$PYTHON_CMD gen_events.py "$num_rows"
+#echo "Generating events"
+#$PYTHON_CMD gen_events.py "$num_rows"
 
 if [ "$DBT_TARGET" = "embucket" ]; then
 

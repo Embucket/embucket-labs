@@ -90,6 +90,7 @@ def main():
     # Parse command line arguments
     target = 'embucket'  # default
     is_incremental = False
+    run_number = 1
     input_file = None
     
     # Simple argument parsing
@@ -102,17 +103,23 @@ def main():
             target = arg
         elif arg in ['true', 'false']:
             is_incremental = (arg == 'true')
-        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket', 'true', 'false']:
+        elif arg in ['1', '2']:
+            run_number = int(arg)
+        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket', 'true', 'false', '1', '2']:
             if input_file is None:
                 input_file = arg
             elif target == 'embucket':  # If target is still default, treat second arg as target
                 target = arg
     
-    # Determine input file based on incremental flag
+    # Determine input file based on incremental flag and run number
     if not input_file:
         if is_incremental:
-            input_file = 'events_today.csv'
-            print("Incremental run - using events_today.csv")
+            if run_number == 1:
+                input_file = 'events_yesterday.csv'
+                print("Incremental run - First run - using events_yesterday.csv")
+            else:  # run_number == 2
+                input_file = 'events_today.csv'
+                print("Incremental run - Second run - using events_today.csv")
         else:
             input_file = 'events_yesterday.csv'
             print("First run - using events_yesterday.csv")
