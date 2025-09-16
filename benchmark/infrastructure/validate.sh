@@ -76,8 +76,8 @@ if echo "$AUTH_RESPONSE" | grep -q "accessToken"; then
             -H "authorization: Bearer $TOKEN" \
             -d '{"query":"SHOW DATABASES"}' 2>/dev/null || echo "")
 
-        if echo "$DB_RESPONSE" | grep -q "benchmark_db"; then
-            echo -e "${GREEN}✅ Database 'benchmark_db' is accessible${NC}"
+        if echo "$DB_RESPONSE" | grep -q "embucket"; then
+            echo -e "${GREEN}✅ Database 'embucket' is accessible${NC}"
         else
             echo -e "${YELLOW}⚠️ Database query executed but benchmark database not clearly found${NC}"
         fi

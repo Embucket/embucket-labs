@@ -27,8 +27,8 @@ EMBUCKET_USER = os.getenv('EMBUCKET_USER', 'embucket')
 EMBUCKET_PASSWORD = os.getenv('EMBUCKET_PASSWORD', 'embucket')
 
 # Database configuration
-DATABASE_NAME = os.getenv('DATABASE_NAME', 'benchmark_db')
-SCHEMA_NAME = os.getenv('SCHEMA_NAME', 'benchmark_schema')
+DATABASE_NAME = os.getenv('DATABASE_NAME', 'embucket')
+SCHEMA_NAME = os.getenv('SCHEMA_NAME', 'public')
 VOLUME_NAME = os.getenv('VOLUME_NAME', 'benchmark_volume')
 
 # S3 configuration
