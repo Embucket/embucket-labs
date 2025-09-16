@@ -327,7 +327,7 @@ impl MergeCOWFilterStream {
     ) -> Self {
         let buffer_size = (available_parallelism().map(NonZeroUsize::get).unwrap_or(1)
             / THREAD_FILE_RATIO)
-            .max(1);
+            .max(2);
         Self {
             matching_files: HashMap::new(),
             not_matching_files: HashMap::new(),
