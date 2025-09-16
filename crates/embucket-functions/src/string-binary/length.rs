@@ -1,16 +1,13 @@
 use datafusion::arrow::array::{Array, AsArray};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::{array::UInt64Array, datatypes::DataType};
 use datafusion::error::Result as DFResult;
-use datafusion::logical_expr::{
-    Coercion, Signature, TypeSignature, TypeSignatureClass, Volatility,
-};
+use datafusion::logical_expr::{Signature, TypeSignature, Volatility};
 use datafusion_common::cast::{
     as_binary_array, as_large_binary_array, as_large_string_array, as_string_array,
     as_string_view_array,
 };
 use datafusion_common::exec_err;
-use datafusion_common::types::logical_binary;
-use datafusion_common::types::logical_string;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
 use std::any::Any;
 use std::sync::Arc;
@@ -44,17 +41,10 @@ impl LengthFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::one_of(
-                vec![
-                    TypeSignature::Coercible(vec![Coercion::new_exact(
-                        TypeSignatureClass::Native(logical_string()),
-                    )]),
-                    TypeSignature::Coercible(vec![Coercion::new_exact(
-                        TypeSignatureClass::Native(logical_binary()),
-                    )]),
-                ],
-                Volatility::Immutable,
-            ),
+            signature: Signature {
+                type_signature: TypeSignature::Any(1),
+                volatility: Volatility::Immutable,
+            },
             aliases: vec![String::from("len")],
         }
     }
@@ -141,6 +131,15 @@ impl ScalarUDFImpl for LengthFunc {
                     .collect::<UInt64Array>();
                 Arc::new(new_array)
             }
+            v if v.is_numeric() => {
+                let casted = cast(&arr, &DataType::Utf8)?;
+                let strs = as_string_array(&casted)?;
+                let new_array = strs
+                    .iter()
+                    .map(|array_elem| array_elem.map(|value| value.chars().count() as u64))
+                    .collect::<UInt64Array>();
+                Arc::new(new_array)
+            }
             _ => {
                 return exec_err!("Invalid datatype");
             }
@@ -222,6 +221,26 @@ mod tests {
                 "+-------+--------------------------+",
                 "| hello | 5                        |",
                 "+-------+--------------------------+",
+            ],
+            &result
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_numeric_length() -> DFResult<()> {
+        let ctx = SessionContext::new();
+        ctx.register_udf(ScalarUDF::from(LengthFunc::new()));
+        let q = "SELECT LENGTH(1) as int_v, LENGTH(1.222) as float_v";
+        let result = ctx.sql(q).await?.collect().await?;
+
+        assert_batches_eq!(
+            &[
+                "+-------+---------+",
+                "| int_v | float_v |",
+                "+-------+---------+",
+                "| 1     | 5       |",
+                "+-------+---------+",
             ],
             &result
         );
