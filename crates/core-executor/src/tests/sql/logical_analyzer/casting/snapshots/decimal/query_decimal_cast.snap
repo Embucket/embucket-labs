@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/decimal.rs
+description: "\"SELECT a::NUMBER FROM test\""
+info: "Setup queries: CREATE TABLE test (a INT32); INSERT INTO test VALUES (50), (60)"
+---
+Ok(
+    [
+        "+------------------------+",
+        "| embucket.public.test.a |",
+        "+------------------------+",
+        "| 50                     |",
+        "| 60                     |",
+        "+------------------------+",
+    ],
+)

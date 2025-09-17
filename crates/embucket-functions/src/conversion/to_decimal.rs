@@ -1,6 +1,6 @@
 use super::errors as conv_errors;
 use datafusion::arrow::array::Decimal128Array;
-use datafusion::arrow::compute::cast_with_options;
+use datafusion::arrow::compute::{cast, cast_with_options};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
@@ -348,6 +348,16 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 &DataType::Decimal128(*precision, *scale),
                 &cast_options,
             )?,
+            // TRUE -> 1, FALSE -> 0
+            DataType::Boolean => {
+                // Cast boolean to integer first if possible
+                let casted = cast(array, &DataType::Int64)?;
+                cast_with_options(
+                    &casted,
+                    &DataType::Decimal128(*precision, *scale),
+                    &cast_options,
+                )?
+            }
             other => self.error_or_null_array(
                 args.number_rows,
                 conv_errors::UnsupportedInputTypeWithPositionSnafu {

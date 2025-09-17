@@ -104,18 +104,21 @@ impl CastAnalyzer {
                     args: vec![expr.clone()],
                 })))
             }
+            data_type @ (DataType::Decimal128(_, _) | DataType::Decimal256(_, _)) => {
+                Self::rewrite_numeric_cast(expr, data_type, try_mode)
+            }
             data_type @ (DataType::Int32 | DataType::Int64)
                 if matches!(expr.get_type(schema), Ok(DataType::Utf8)) =>
             {
-                Self::rewrite_integer_cast(expr, data_type, try_mode)
+                Self::rewrite_numeric_cast(expr, data_type, try_mode)
             }
             _ => Ok(Transformed::no(original_expr.clone())),
         }
     }
 
-    //TODO: support `to_double` instead of `to_decimal`
+    // TODO: support `to_double` instead of `to_decimal`
     #[allow(clippy::unnecessary_wraps)]
-    fn rewrite_integer_cast(
+    fn rewrite_numeric_cast(
         expr: &Expr,
         data_type: DataType,
         try_mode: bool,
