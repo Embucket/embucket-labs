@@ -3,6 +3,7 @@ use embucket_functions::session_params::SessionParams;
 use std::sync::Arc;
 
 pub mod cast_analyzer;
+mod custom_type_coercion;
 pub mod iceberg_types_analyzer;
 pub mod like_type_analyzer;
 pub mod union_schema_analyzer;
@@ -12,8 +13,10 @@ pub fn analyzer_rules(
     session_params: Arc<SessionParams>,
 ) -> Vec<Arc<dyn AnalyzerRule + Send + Sync>> {
     //Ordering matters a lot, including `.extend(...)`
-    let mut before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> =
-        vec![Arc::new(like_type_analyzer::LikeTypeAnalyzer {})];
+    let mut before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
+        Arc::new(like_type_analyzer::LikeTypeAnalyzer {}),
+        Arc::new(custom_type_coercion::CustomTypeCoercionRewriter::new()),
+    ];
 
     let base_rules = Analyzer::new().rules;
 

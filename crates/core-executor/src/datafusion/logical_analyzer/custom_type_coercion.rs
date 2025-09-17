@@ -2,9 +2,9 @@ use arrow_schema::DataType::{Boolean, Utf8};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{LogicalPlan, Operator};
 use datafusion::optimizer::AnalyzerRule;
+use datafusion_common::DFSchema;
 use datafusion_common::config::ConfigOptions;
 use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
-use datafusion_common::DFSchema;
 use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::expr_rewriter::NamePreserver;
 use datafusion_expr::utils::merge_schema;
@@ -25,43 +25,43 @@ impl CustomTypeCoercionRewriter {
     pub const fn new() -> Self {
         Self {}
     }
-
-    fn analyze_internal(&self, plan: &LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
-        // get schema representing all available input fields. This is used for data type
-        // resolution only, so order does not matter here
-        let schema = merge_schema(&plan.inputs());
-
-        let name_preserver = NamePreserver::new(plan);
-        let new_plan = plan.clone().map_expressions(|expr| {
-            let original_name = name_preserver.save(&expr);
-
-            let transformed_expr = expr.transform_up(|e| match e {
-                Expr::BinaryExpr(BinaryExpr { left, op, right }) => {
-                    let (left, right) = coerce_binary_op(*left, &schema, op, *right, &schema)?;
-                    Ok(Transformed::yes(Expr::BinaryExpr(BinaryExpr::new(
-                        Box::new(left),
-                        op,
-                        Box::new(right),
-                    ))))
-                }
-                _ => Ok(Transformed::no(e)),
-            })?;
-
-            Ok(transformed_expr.update_data(|data| original_name.restore(data)))
-        })?;
-        Ok(new_plan)
-    }
 }
 
 impl AnalyzerRule for CustomTypeCoercionRewriter {
     fn analyze(&self, plan: LogicalPlan, _: &ConfigOptions) -> DFResult<LogicalPlan> {
-        plan.transform_up_with_subqueries(|plan| self.analyze_internal(&plan))
+        plan.transform_up_with_subqueries(|plan| analyze_internal(&plan))
             .data()
     }
 
     fn name(&self) -> &'static str {
         "CustomTypeCoercion"
     }
+}
+
+fn analyze_internal(plan: &LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
+    // get schema representing all available input fields. This is used for data type
+    // resolution only, so order does not matter here
+    let schema = merge_schema(&plan.inputs());
+
+    let name_preserver = NamePreserver::new(plan);
+    let new_plan = plan.clone().map_expressions(|expr| {
+        let original_name = name_preserver.save(&expr);
+
+        let transformed_expr = expr.transform_up(|e| match e {
+            Expr::BinaryExpr(BinaryExpr { left, op, right }) => {
+                let (left, right) = coerce_binary_op(*left, &schema, op, *right, &schema)?;
+                Ok(Transformed::yes(Expr::BinaryExpr(BinaryExpr::new(
+                    Box::new(left),
+                    op,
+                    Box::new(right),
+                ))))
+            }
+            _ => Ok(Transformed::no(e)),
+        })?;
+
+        Ok(transformed_expr.update_data(|data| original_name.restore(data)))
+    })?;
+    Ok(new_plan)
 }
 
 fn coerce_binary_op(
