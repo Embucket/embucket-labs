@@ -34,7 +34,7 @@ impl AnalyzerRule for CustomTypeCoercionRewriter {
     }
 
     fn name(&self) -> &'static str {
-        "CustomTypeCoercion"
+        "custom_type_coercion"
     }
 }
 
