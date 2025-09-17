@@ -79,7 +79,7 @@ fn coerce_binary_op(
     match (lhs_type, rhs_type) {
         (Boolean, Utf8) => {
             let right_expr = Expr::ScalarFunction(ScalarFunction {
-                func: Arc::new(ScalarUDF::from(ToBooleanFunc::new(false))),
+                func: Arc::new(ScalarUDF::from(ToBooleanFunc::new(true))),
                 args: vec![right],
             });
             Ok((left, right_expr))
