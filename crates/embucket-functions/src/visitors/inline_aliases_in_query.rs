@@ -16,23 +16,13 @@ use std::ops::ControlFlow;
 /// - Normalization before query analysis or serialization
 ///
 /// # Behavior
-/// - It processes only the `SELECT` projection (i.e. the expressions in the `SELECT ...` list).
-/// - For each alias defined via `AS`, it stores the original expression.
-/// - While processing other projection expressions, any reference to an alias is replaced with its full expression.
+/// - Processes:
+///   - `SELECT` projection
+///   - `WHERE`
+///   - `QUALIFY`
 /// - Aliases are only substituted **within the same query block** (i.e., not across subqueries or CTE boundaries).
-///
-/// # Subqueries
-/// - Subqueries inside projections are processed recursively.
-/// - Each subquery has its own independent alias scope.
-///
-/// # Self-reference protection
-/// - The alias being defined is protected from self-replacement during its own expansion to avoid infinite recursion.
-/// - Example: `SELECT a AS x, x + 1` → `SELECT a AS x, a + 1`.
-///
-/// # Limitations (By Design)
-/// - Only processes projection (`SELECT ...`) — does not modify `WHERE`, `HAVING`, `ORDER BY`, `JOIN`, `GROUP BY`, etc.
-/// - Window functions are not treated specially — all expressions inside projections are uniformly processed.
-/// - No alias expansion is performed for `USING` or `NATURAL JOIN` clauses.
+/// - Subqueries have independent alias scopes.
+/// - Self-references are protected to avoid infinite recursion.
 ///
 /// # Example
 /// Input:
@@ -53,16 +43,11 @@ impl VisitorMut for InlineAliasesInSelect {
         if let SetExpr::Select(select) = &mut *query.body {
             let mut alias_expr_map = HashMap::new();
 
-            for item in &select.projection {
-                if let SelectItem::ExprWithAlias { expr, alias } = item {
-                    alias_expr_map.insert(alias.value.clone(), expr.clone());
-                }
-            }
-
             for item in &mut select.projection {
                 match item {
                     SelectItem::ExprWithAlias { expr, alias } => {
                         substitute_aliases(expr, &alias_expr_map, Some(&alias.value));
+                        alias_expr_map.insert(alias.value.clone(), expr.clone());
                     }
                     SelectItem::UnnamedExpr(expr) => {
                         substitute_aliases(expr, &alias_expr_map, None);
@@ -71,6 +56,12 @@ impl VisitorMut for InlineAliasesInSelect {
                 }
             }
 
+            // Rewrite WHERE
+            if let Some(selection) = select.selection.as_mut() {
+                substitute_aliases(selection, &alias_expr_map, None);
+            }
+
+            // Rewrite QUALIFY
             if let Some(qualify) = select.qualify.as_mut() {
                 substitute_aliases(qualify, &alias_expr_map, None);
             }

@@ -357,6 +357,20 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             "with test as (select 122 as b) SELECT b as c FROM test QUALIFY ROW_NUMBER() OVER(PARTITION BY c) = 1",
             "WITH test AS (SELECT 122 AS b) SELECT b AS c FROM test QUALIFY ROW_NUMBER() OVER (PARTITION BY b) = 1"
         ),
+        (
+            "SELECT 123 AS a WHERE a > 100",
+            "SELECT 123 AS a WHERE 123 > 100"
+        ),
+        (
+            "WITH data_points AS (
+                SELECT
+                  SPLIT_PART(metric_name, '.', 14)::VARCHAR AS aggregation_name,
+                  SPLIT_PART(metric_name, '.', 6)::VARCHAR AS metric_name
+                FROM some_table
+            )
+            SELECT * FROM data_points",
+            "WITH data_points AS (SELECT SPLIT_PART(metric_name, '.', 14)::VARCHAR AS aggregation_name, SPLIT_PART(metric_name, '.', 6)::VARCHAR AS metric_name FROM some_table) SELECT * FROM data_points"
+        ),
     ];
 
     for (input, expected) in cases {
