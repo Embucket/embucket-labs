@@ -2,13 +2,13 @@ use crate::df_error;
 use crate::json::{PathToken, get_json_value};
 use crate::table::errors;
 use crate::table::flatten::func::{FlattenTableFunc, path_to_string};
-use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::arrow::array::{
     Array, ArrayRef, StringArray, StringBuilder, UInt64Array, UInt64Builder,
 };
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion::datasource::provider_as_source;

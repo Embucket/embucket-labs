@@ -6,13 +6,13 @@ use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
 use datafusion::datasource::memory::MemTable;
 use datafusion::execution::DiskManager;
-use datafusion::execution::disk_manager::DiskManagerConfig;
+use datafusion::execution::disk_manager::DiskManagerMode;
 use datafusion::execution::memory_pool::{
     FairSpillPool, GreedyMemoryPool, MemoryPool, TrackConsumersPool,
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 use std::vec;
@@ -248,18 +248,10 @@ impl CoreExecutionService {
         // set disk limit
         if let Some(disk_limit) = config.disk_pool_size_mb {
             let disk_limit_bytes = (disk_limit as u64) * 1024 * 1024;
-
-            let disk_manager = DiskManager::try_new(DiskManagerConfig::NewOs)
-                .context(ex_error::DataFusionSnafu)?;
-
-            let disk_manager = Arc::try_unwrap(disk_manager)
-                .ok()
-                .context(ex_error::DataFusionDiskManagerSnafu)?
-                .with_max_temp_directory_size(disk_limit_bytes)
-                .context(ex_error::DataFusionSnafu)?;
-
-            let disk_config = DiskManagerConfig::new_existing(Arc::new(disk_manager));
-            rt_builder = rt_builder.with_disk_manager(disk_config);
+            let disk_builder = DiskManager::builder()
+                .with_mode(DiskManagerMode::OsTmpDirectory)
+                .with_max_temp_directory_size(disk_limit_bytes);
+            rt_builder = rt_builder.with_disk_manager_builder(disk_builder);
         }
 
         rt_builder.build_arc().context(ex_error::DataFusionSnafu)

@@ -76,7 +76,11 @@ impl WindowUDFImpl for ConditionalTrueEvent {
     }
 
     fn field(&self, field_args: WindowUDFFieldArgs) -> Result<Arc<Field>> {
-        Ok(Arc::new(Field::new(field_args.name(), DataType::UInt64, false)))
+        Ok(Arc::new(Field::new(
+            field_args.name(),
+            DataType::UInt64,
+            false,
+        )))
     }
 
     fn sort_options(&self) -> Option<datafusion_common::arrow::compute::SortOptions> {

@@ -11,6 +11,7 @@ use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::datatypes::{
     DataType, Date32Type, Int32Type, Int64Type, Time64NanosecondType, TimestampNanosecondType,
 };
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::{logical_date, logical_int64, logical_string};
@@ -18,7 +19,6 @@ use datafusion_common::{_exec_datafusion_err, Result, ScalarValue, exec_err, int
 use datafusion_expr::{
     Coercion, ColumnarValue, ReturnFieldArgs, ScalarUDFImpl, Signature, Volatility,
 };
-use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion_macros::user_doc;
 
 pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
@@ -437,12 +437,12 @@ mod test {
     use super::{TimestampFromPartsFunc, to_primitive_array};
     use chrono::DateTime;
     use datafusion::arrow::datatypes::TimestampNanosecondType;
+    use datafusion::arrow::datatypes::{DataType, Field};
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_common::config::ConfigOptions;
-    use datafusion::arrow::datatypes::{DataType, Field};
-    use std::sync::Arc;
     use datafusion_expr::ScalarUDFImpl;
+    use std::sync::Arc;
 
     #[allow(clippy::unwrap_used)]
     fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
@@ -571,8 +571,12 @@ mod test {
                 let arg_fields = fn_args
                     .iter()
                     .map(|cv| match cv {
-                        ColumnarValue::Array(a) => Arc::new(Field::new("arg", a.data_type().clone(), true)),
-                        ColumnarValue::Scalar(s) => Arc::new(Field::new("arg", s.data_type(), true)),
+                        ColumnarValue::Array(a) => {
+                            Arc::new(Field::new("arg", a.data_type().clone(), true))
+                        }
+                        ColumnarValue::Scalar(s) => {
+                            Arc::new(Field::new("arg", s.data_type(), true))
+                        }
                     })
                     .collect();
                 let return_field = Arc::new(Field::new(
@@ -617,8 +621,12 @@ mod test {
                 let arg_fields = fn_args
                     .iter()
                     .map(|cv| match cv {
-                        ColumnarValue::Array(a) => Arc::new(Field::new("arg", a.data_type().clone(), true)),
-                        ColumnarValue::Scalar(s) => Arc::new(Field::new("arg", s.data_type(), true)),
+                        ColumnarValue::Array(a) => {
+                            Arc::new(Field::new("arg", a.data_type().clone(), true))
+                        }
+                        ColumnarValue::Scalar(s) => {
+                            Arc::new(Field::new("arg", s.data_type(), true))
+                        }
                     })
                     .collect();
                 let return_field = Arc::new(Field::new(

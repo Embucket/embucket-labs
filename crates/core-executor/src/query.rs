@@ -19,7 +19,6 @@ use crate::datafusion::physical_plan::merge::{
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use datafusion::arrow::datatypes::{Fields, SchemaBuilder};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
@@ -29,6 +28,7 @@ use core_metastore::{
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
+use datafusion::arrow::datatypes::{Fields, SchemaBuilder};
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::catalog::{MemoryCatalogProvider, TableProvider};
 use datafusion::datasource::DefaultTableSource;
@@ -104,9 +104,9 @@ use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
     AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
-    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType,
-    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
-    ShowStatementInParentType as ShowType, TruncateTableTarget, Use, Value, visit_relations_mut,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource, ShowObjects,
+    ShowStatementFilter, ShowStatementIn, ShowStatementInParentType as ShowType,
+    TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -360,7 +360,9 @@ impl UserQuery {
                 Statement::Set(statement) => {
                     use datafusion::sql::sqlparser::ast::Set;
                     match statement {
-                        Set::SingleAssignment { variable, values, .. } => {
+                        Set::SingleAssignment {
+                            variable, values, ..
+                        } => {
                             return self.set_variable(variable, values).await;
                         }
                         _ => return self.status_response(),

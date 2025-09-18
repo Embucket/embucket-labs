@@ -148,25 +148,36 @@ mod tests {
         let props = ExecutionProps::new();
         let context = SimplifyContext::new(&props).with_schema(schema);
         let resp = f.simplify(
-            vec![Expr::Literal(ScalarValue::Utf8(Some("ABC".to_string())), None)],
+            vec![Expr::Literal(
+                ScalarValue::Utf8(Some("ABC".to_string())),
+                None,
+            )],
             &context,
         )?;
 
-        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp else {
+        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp
+        else {
             panic!("Expected simplified expression");
         };
 
         assert_eq!(v, "abc".to_string());
 
-        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(Some(123)), None)], &context)?;
+        let resp = f.simplify(
+            vec![Expr::Literal(ScalarValue::Int64(Some(123)), None)],
+            &context,
+        )?;
 
-        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp else {
+        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp
+        else {
             panic!("Expected simplified expression");
         };
 
         assert_eq!(v, "123".to_string());
 
-        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(None), None)], &context)?;
+        let resp = f.simplify(
+            vec![Expr::Literal(ScalarValue::Int64(None), None)],
+            &context,
+        )?;
 
         let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Null, _)) = resp else {
             panic!("Expected simplified expression");

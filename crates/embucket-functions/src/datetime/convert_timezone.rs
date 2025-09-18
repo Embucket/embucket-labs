@@ -3,12 +3,13 @@ use crate::datetime_errors::{
     CantGetNanosecondsSnafu, CantParseTimezoneSnafu, InvalidDatetimeSnafu, InvalidTimestampSnafu,
 };
 use crate::session_params::SessionParams;
-use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
-use datafusion::arrow::datatypes::{DataType, TimeUnit};
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use datafusion::arrow::array::{ArrayRef, TimestampNanosecondBuilder};
 use datafusion::arrow::compute::cast_with_options;
+use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{ColumnarValue, Signature, TIMEZONE_WILDCARD, Volatility};
@@ -16,7 +17,6 @@ use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
 use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
-use datafusion::arrow::datatypes::{Field, FieldRef};
 use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::sync::Arc;
@@ -133,10 +133,7 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                 match &args.arg_fields[1].data_type() {
                     Timestamp(_, _) => Ok(Arc::new(Field::new(
                         self.name(),
-                        Timestamp(
-                            TimeUnit::Nanosecond,
-                            Some(Arc::from(tz.into_boxed_str())),
-                        ),
+                        Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str()))),
                         false,
                     ))),
                     _ => internal_err!("Invalid source_timestamp_tz type"),

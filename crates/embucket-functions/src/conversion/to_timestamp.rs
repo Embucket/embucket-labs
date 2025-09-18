@@ -14,6 +14,7 @@ use datafusion::arrow::array::{
 use datafusion::arrow::compute::cast_with_options;
 use datafusion::arrow::compute::kernels::cast_utils::string_to_timestamp_nanos;
 use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::ColumnarValue;
 use datafusion_common::arrow::array::{
@@ -22,10 +23,7 @@ use datafusion_common::arrow::array::{
 use datafusion_common::cast::{as_int64_array, as_string_array};
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
-use datafusion_expr::{
-    ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
-};
-use datafusion::arrow::datatypes::{Field, FieldRef};
+use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use regex::Regex;
 use snafu::{OptionExt, ResultExt};
 use std::any::Any;

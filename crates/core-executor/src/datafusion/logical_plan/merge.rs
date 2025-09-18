@@ -57,10 +57,7 @@ impl UserDefinedLogicalNode for MergeIntoCOWSink {
         &self.schema
     }
 
-    fn check_invariants(
-        &self,
-        _check: InvariantLevel,
-    ) -> datafusion_common::Result<()> {
+    fn check_invariants(&self, _check: InvariantLevel) -> datafusion_common::Result<()> {
         Ok(())
     }
 

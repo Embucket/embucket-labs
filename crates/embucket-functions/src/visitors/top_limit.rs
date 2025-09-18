@@ -18,13 +18,17 @@ impl TopLimitVisitor {
         }
         match limit_clause.as_mut().unwrap() {
             LimitClause::LimitOffset { limit, .. } => limit,
-            LimitClause::OffsetCommaLimit { .. } => unreachable!(
-                "OffsetCommaLimit should not be constructed by this visitor"
-            ),
+            LimitClause::OffsetCommaLimit { .. } => {
+                unreachable!("OffsetCommaLimit should not be constructed by this visitor")
+            }
         }
     }
 
-    fn process_set_expr(&mut self, set_expr: &mut SetExpr, outer_limit_clause: &mut Option<LimitClause>) {
+    fn process_set_expr(
+        &mut self,
+        set_expr: &mut SetExpr,
+        outer_limit_clause: &mut Option<LimitClause>,
+    ) {
         match set_expr {
             SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {

@@ -59,7 +59,11 @@ impl AggregateUDFImpl for ListAggUDAF {
 
     fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
         Ok(vec![
-            Arc::new(Field::new(format_state_name(args.name, "agg"), DataType::Utf8, true)),
+            Arc::new(Field::new(
+                format_state_name(args.name, "agg"),
+                DataType::Utf8,
+                true,
+            )),
             Arc::new(Field::new(
                 format_state_name(args.name, "delimiter"),
                 DataType::Utf8,

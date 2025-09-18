@@ -1,8 +1,8 @@
 use super::errors as conv_errors;
-use datafusion::arrow::datatypes::DataType;
 use chrono::{DateTime, Datelike, NaiveDate};
 use datafusion::arrow::array::Date32Array;
 use datafusion::arrow::compute::{CastOptions, cast_with_options};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::util::display::FormatOptions;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, TypeSignatureClass};

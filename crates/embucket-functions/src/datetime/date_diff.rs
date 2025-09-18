@@ -1,10 +1,10 @@
 use super::errors as dtime_errors;
 use crate::session_params::SessionParams;
-use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef, DurationNanosecondArray, Int32Array, Int64Array};
 use datafusion::arrow::compute::kernels::numeric::sub;
 use datafusion::arrow::compute::{DatePart, cast, date_part};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::common::Result;
 use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, Volatility};
 use datafusion::scalar::ScalarValue;

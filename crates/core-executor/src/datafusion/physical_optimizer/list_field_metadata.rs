@@ -1,6 +1,6 @@
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Array, ArrayData, ListArray};
 use datafusion::arrow::buffer::Buffer;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::error::Result as DFResult;
 use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{CastExpr, Literal};
@@ -81,7 +81,10 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                             if let Some(lit) = expr.as_any().downcast_ref::<Literal>()
                                 && let Some(new_lit) = rebuild_list_literal(lit, target_field)
                             {
-                                return Ok(ProjectionExpr::new(Arc::new(new_lit) as Arc<dyn PhysicalExpr>, name));
+                                return Ok(ProjectionExpr::new(
+                                    Arc::new(new_lit) as Arc<dyn PhysicalExpr>,
+                                    name,
+                                ));
                             }
 
                             // If the expression is a List type but the element type or metadata

@@ -2,6 +2,7 @@ use super::errors as conv_errors;
 use datafusion::arrow::array::Decimal128Array;
 use datafusion::arrow::compute::{cast, cast_with_options};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
 use datafusion_common::arrow::array::{Array, ArrayRef, StringArray};
@@ -9,7 +10,6 @@ use datafusion_common::arrow::compute::CastOptions;
 use datafusion_common::arrow::util::display::FormatOptions;
 use datafusion_common::{DataFusionError, ScalarValue};
 use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
-use datafusion::arrow::datatypes::{Field, FieldRef};
 use snafu::prelude::*;
 use std::any::Any;
 use std::fmt::Debug;
@@ -237,14 +237,24 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 at_least: 1usize,
             }
             .fail()?,
-            1 => Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(38, 0), true))),
+            1 => Ok(Arc::new(Field::new(
+                self.name(),
+                DataType::Decimal128(38, 0),
+                true,
+            ))),
             2 => match &args.scalar_arguments[1] {
-                Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)) => {
-                    Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(38, 0), true)))
-                }
+                Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)) => Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Decimal128(38, 0),
+                    true,
+                ))),
                 Some(precision) => {
                     let p = Self::get_precision_checked(precision)?;
-                    Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(p, 0), true)))
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        DataType::Decimal128(p, 0),
+                        true,
+                    )))
                 }
                 None => {
                     conv_errors::NoInputArgumentOnPositionsSnafu { positions: vec![2] }.fail()?
@@ -253,12 +263,20 @@ impl ScalarUDFImpl for ToDecimalFunc {
             3 => match (&args.scalar_arguments[1], &args.scalar_arguments[2]) {
                 (Some(Utf8(..) | Utf8View(..) | LargeUtf8(..)), Some(precision)) => {
                     let p = Self::get_precision_checked(precision)?;
-                    Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(p, 0), true)))
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        DataType::Decimal128(p, 0),
+                        true,
+                    )))
                 }
                 (Some(precision), Some(scale)) => {
                     let p = Self::get_precision_checked(precision)?;
                     let s = Self::get_scale_checked(scale, p)?;
-                    Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(p, s), true)))
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        DataType::Decimal128(p, s),
+                        true,
+                    )))
                 }
                 _ => conv_errors::NoInputArgumentOnPositionsSnafu {
                     positions: vec![1, 2],
@@ -269,7 +287,11 @@ impl ScalarUDFImpl for ToDecimalFunc {
                 (Some(precision), Some(scale)) => {
                     let p = Self::get_precision_checked(precision)?;
                     let s = Self::get_scale_checked(scale, p)?;
-                    Ok(Arc::new(Field::new(self.name(), DataType::Decimal128(p, s), true)))
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        DataType::Decimal128(p, s),
+                        true,
+                    )))
                 }
                 _ => conv_errors::NoInputArgumentOnPositionsSnafu {
                     positions: vec![3, 4],

@@ -1,14 +1,14 @@
 use super::errors as conv_errors;
 use crate::macros::make_udf_function;
-use datafusion::arrow::datatypes::Field;
 use datafusion::arrow::array::{Array, ListArray, new_empty_array};
 use datafusion::arrow::buffer::OffsetBuffer;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::Field;
+use datafusion::arrow::datatypes::FieldRef;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::{ScalarValue, internal_err};
 use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
-use datafusion::arrow::datatypes::FieldRef;
 use serde_json::Value;
 use snafu::ResultExt;
 use std::any::Any;
@@ -72,10 +72,7 @@ impl ScalarUDFImpl for ToArrayFunc {
         let return_type = match input_type {
             DataType::List(_) => input_type,
             DataType::Null => DataType::Null,
-            _ => DataType::List(Arc::new(Field::new_list_field(
-                input_type,
-                true,
-            ))),
+            _ => DataType::List(Arc::new(Field::new_list_field(input_type, true))),
         };
         Ok(Arc::new(Field::new(self.name(), return_type, true)))
     }

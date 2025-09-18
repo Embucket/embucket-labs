@@ -1,6 +1,6 @@
 use crate::numeric::errors;
-use datafusion::arrow::datatypes::DECIMAL128_MAX_PRECISION;
 use datafusion::arrow::array::{Array, ArrowNativeTypeOp, Decimal128Array, Float64Array};
+use datafusion::arrow::datatypes::DECIMAL128_MAX_PRECISION;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
 use datafusion::logical_expr::{

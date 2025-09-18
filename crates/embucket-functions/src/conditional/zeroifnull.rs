@@ -1,10 +1,10 @@
-use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::array::{
     Decimal128Array, Decimal128Builder, Float32Array, Float32Builder, Float64Array, Float64Builder,
     Int8Array, Int8Builder, Int16Array, Int16Builder, Int32Array, Int32Builder, Int64Array,
     Int64Builder, UInt8Array, UInt8Builder, UInt16Array, UInt16Builder, UInt32Array, UInt32Builder,
     UInt64Array, UInt64Builder,
 };
+use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};

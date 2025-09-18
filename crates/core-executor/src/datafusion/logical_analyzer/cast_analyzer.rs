@@ -1,6 +1,6 @@
-use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::Field;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::optimizer::AnalyzerRule;

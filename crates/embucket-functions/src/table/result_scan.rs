@@ -145,7 +145,8 @@ impl std::hash::Hash for ResultScanFunc {
         // Hash the data pointer of the trait object to get a stable identity per instance
         let trait_obj_ptr = Arc::as_ptr(&self.history_store);
         // SAFETY: converting fat pointer to (data, vtable) pair and hashing data pointer
-        let (data_ptr, _vtable_ptr): (*const (), *const ()) = unsafe { std::mem::transmute(trait_obj_ptr) };
+        let (data_ptr, _vtable_ptr): (*const (), *const ()) =
+            unsafe { std::mem::transmute(trait_obj_ptr) };
         state.write_usize(data_ptr as usize);
         state.write(b"ResultScanFunc");
     }

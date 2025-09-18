@@ -137,7 +137,9 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                 _ => None,
             };
             if let Some(value) = scalar_value {
-                return Ok(Transformed::yes(Expr::Literal(value, None).alias(fun.name())));
+                return Ok(Transformed::yes(
+                    Expr::Literal(value, None).alias(fun.name()),
+                ));
             }
         }
 

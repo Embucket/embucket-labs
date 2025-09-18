@@ -250,7 +250,7 @@ make_udaf_function!(ObjectAggUDAF);
 mod tests {
     use super::*;
     use datafusion::arrow::datatypes::{Field, Schema};
-    
+
     use datafusion_common::{Result, internal_err};
     use datafusion_physical_plan::Accumulator;
     use datafusion_physical_plan::expressions::Column;
@@ -283,7 +283,8 @@ mod tests {
         }
 
         fn build(&self) -> Result<Box<dyn Accumulator>> {
-            let return_field: FieldRef = Arc::new(Field::new("result", self.data_type.clone(), true));
+            let return_field: FieldRef =
+                Arc::new(Field::new("result", self.data_type.clone(), true));
             ObjectAggUDAF::default().accumulator(AccumulatorArgs {
                 return_field,
                 schema: &self.schema,

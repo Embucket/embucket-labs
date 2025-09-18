@@ -1,6 +1,5 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
-use datafusion::arrow::error::ArrowError;
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
 use core_history::result_set::{Column, ResultSet, Row};
@@ -19,6 +18,7 @@ use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
+use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
