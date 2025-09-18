@@ -68,7 +68,7 @@ use utoipa_swagger_ui::SwaggerUi;
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
-const TARGETS: [&str; 12] = [
+const TARGETS: [&str; 13] = [
     "embucketd",
     "api_ui",
     "api_sessions",
