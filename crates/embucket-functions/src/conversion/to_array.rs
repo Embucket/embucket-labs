@@ -1,13 +1,14 @@
 use super::errors as conv_errors;
 use crate::macros::make_udf_function;
-use arrow_schema::Field;
+use datafusion::arrow::datatypes::Field;
 use datafusion::arrow::array::{Array, ListArray, new_empty_array};
 use datafusion::arrow::buffer::OffsetBuffer;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::{ScalarValue, internal_err};
-use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use datafusion::arrow::datatypes::FieldRef;
 use serde_json::Value;
 use snafu::ResultExt;
 use std::any::Any;
@@ -29,7 +30,7 @@ use std::sync::Arc;
 /// - If the input is an ARRAY or a VARIANT holding an ARRAY, it returns the value as-is.
 /// - If the input is NULL or a JSON null, the function returns NULL.
 /// - For all other input types, the function returns a single-element ARRAY containing the input value.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToArrayFunc {
     signature: Signature,
 }
@@ -66,16 +67,17 @@ impl ScalarUDFImpl for ToArrayFunc {
         internal_err!("return_type_from_args should be called")
     }
 
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
-        let return_type = match args.arg_types[0] {
-            DataType::List(_) => args.arg_types[0].clone(),
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> DFResult<FieldRef> {
+        let input_type = args.arg_fields[0].data_type().clone();
+        let return_type = match input_type {
+            DataType::List(_) => input_type,
             DataType::Null => DataType::Null,
             _ => DataType::List(Arc::new(Field::new_list_field(
-                args.arg_types[0].clone(),
+                input_type,
                 true,
             ))),
         };
-        Ok(ReturnInfo::new_nullable(return_type))
+        Ok(Arc::new(Field::new(self.name(), return_type, true)))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

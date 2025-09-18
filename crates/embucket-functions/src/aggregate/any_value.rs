@@ -20,7 +20,7 @@
 use crate::macros::make_udaf_function;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::{ArrayRef, AsArray};
-use datafusion::arrow::datatypes::{DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion_common::utils::get_row_at_idx;
 use datafusion_common::{Result, ScalarValue};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -30,6 +30,7 @@ use datafusion_macros::user_doc;
 use std::any::Any;
 use std::fmt::Debug;
 use std::mem::size_of_val;
+use std::sync::Arc;
 
 #[user_doc(
     doc_section(label = "General Functions"),
@@ -47,6 +48,7 @@ use std::mem::size_of_val;
 ```",
     standard_argument(name = "expression",)
 )]
+#[derive(PartialEq, Eq, Hash)]
 pub struct AnyValue {
     signature: Signature,
 }
@@ -94,19 +96,19 @@ impl AggregateUDFImpl for AnyValue {
 
     fn accumulator(&self, acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
         Ok(Box::new(AnyValueAccumulator::try_new(
-            acc_args.return_type,
+            acc_args.return_type(),
         )?))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
-        let fields = vec![
-            Field::new(
+    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
+        let fields: Vec<FieldRef> = vec![
+            Arc::new(Field::new(
                 format_state_name(args.name, "any_value"),
-                args.return_type.clone(),
+                args.return_type().clone(),
                 true,
-            ),
+            )),
             // is_set flag to track whether a value has been set
-            Field::new("is_set", DataType::Boolean, true),
+            Arc::new(Field::new("is_set", DataType::Boolean, true)),
         ];
         Ok(fields)
     }

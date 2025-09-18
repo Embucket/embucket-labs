@@ -1,5 +1,5 @@
 use crate::datetime_errors::{InvalidArgumentSnafu, ReturnTypeFromArgsShouldBeCalledSnafu};
-use arrow_schema::TimeUnit;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef, Int64Array, Int64Builder};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::compute::kernels::numeric::add_wrapping;
@@ -10,12 +10,13 @@ use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature};
 use datafusion::scalar::ScalarValue;
 use datafusion_common::cast::{as_float64_array, as_int64_array};
 use datafusion_common::utils::take_function_args;
-use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs};
+use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs};
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use rust_decimal::prelude::ToPrimitive;
 use std::any::Any;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct DateAddFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -165,20 +166,20 @@ impl ScalarUDFImpl for DateAddFunc {
         ReturnTypeFromArgsShouldBeCalledSnafu.fail()?
     }
 
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
-        if args.arg_types.len() != 3 {
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> Result<FieldRef> {
+        if args.arg_fields.len() != 3 {
             return InvalidArgumentSnafu {
                 description: "function requires three arguments",
             }
             .fail()?;
         }
-        let base_type = &args.arg_types[2];
+        let base_type = args.arg_fields[2].data_type();
         let mut return_type = base_type.clone();
 
         if let Some(Some(ScalarValue::Utf8(Some(part_str)))) = args.scalar_arguments.first() {
             return_type = Self::check_return_type(part_str.as_str(), base_type);
         }
-        Ok(ReturnInfo::new_nullable(return_type))
+        Ok(Arc::new(Field::new(self.name(), return_type, true)))
     }
 
     fn coerce_types(&self, arg_types: &[DataType]) -> Result<Vec<DataType>> {

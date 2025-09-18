@@ -10,7 +10,7 @@ use datafusion::arrow::array::StringArray;
 use datafusion::arrow::array::as_list_array;
 use datafusion::arrow::array::{Array, new_empty_array};
 use datafusion::arrow::array::{ArrayRef, StructArray};
-use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Fields};
 use datafusion::common::ScalarValue;
 
 use datafusion_common::utils::SingleRowListArrayBuilder;
@@ -20,7 +20,7 @@ use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
 use datafusion_expr::{Accumulator, AggregateUDFImpl, Signature};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ObjectAggUDAF {
     signature: Signature,
 }
@@ -57,19 +57,20 @@ impl AggregateUDFImpl for ObjectAggUDAF {
         Ok(DataType::Utf8)
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
+    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
         // one field: a List<Struct<key,value>>
-        let entry_struct = Field::new_list(
+        let value_dt = args.input_fields[1].data_type().clone();
+        let entry_struct = Arc::new(Field::new_list(
             format_state_name(args.name, "object_agg"),
             Field::new_list_field(
                 DataType::Struct(Fields::from(vec![
                     Field::new("key", DataType::Utf8, false),
-                    Field::new("value", args.input_types[1].clone(), true),
+                    Field::new("value", value_dt, true),
                 ])),
                 true,
             ),
             true,
-        );
+        ));
         Ok(vec![entry_struct])
     }
 
@@ -78,7 +79,7 @@ impl AggregateUDFImpl for ObjectAggUDAF {
             return exec_err!("OBJECT_AGG does not yet support DISTINCT");
         }
 
-        if !acc_args.ordering_req.is_empty() {
+        if !acc_args.order_bys.is_empty() {
             return exec_err!("OBJECT_AGG does not yet support ORDER BY");
         }
 
@@ -249,7 +250,7 @@ make_udaf_function!(ObjectAggUDAF);
 mod tests {
     use super::*;
     use datafusion::arrow::datatypes::{Field, Schema};
-    use datafusion::physical_expr::LexOrdering;
+    
     use datafusion_common::{Result, internal_err};
     use datafusion_physical_plan::Accumulator;
     use datafusion_physical_plan::expressions::Column;
@@ -260,7 +261,6 @@ mod tests {
     struct ObjectAggAccumulatorBuilder {
         data_type: DataType,
         distinct: bool,
-        ordering: LexOrdering,
         schema: Schema,
     }
 
@@ -278,17 +278,17 @@ mod tests {
             Self {
                 data_type: value_type,
                 distinct: Default::default(),
-                ordering: LexOrdering::default(),
                 schema,
             }
         }
 
         fn build(&self) -> Result<Box<dyn Accumulator>> {
+            let return_field: FieldRef = Arc::new(Field::new("result", self.data_type.clone(), true));
             ObjectAggUDAF::default().accumulator(AccumulatorArgs {
-                return_type: &self.data_type,
+                return_field,
                 schema: &self.schema,
                 ignore_nulls: false,
-                ordering_req: &self.ordering,
+                order_bys: &[],
                 is_reversed: false,
                 name: "",
                 is_distinct: self.distinct,

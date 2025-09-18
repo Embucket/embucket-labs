@@ -24,7 +24,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns a date or timestamp with the specified number of months added.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct AddMonthsFunc {
     signature: Signature,
 }

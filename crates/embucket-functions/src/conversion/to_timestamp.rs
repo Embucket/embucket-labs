@@ -23,8 +23,9 @@ use datafusion_common::cast::{as_int64_array, as_string_array};
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
 use datafusion_expr::{
-    ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
+    ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility,
 };
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use regex::Regex;
 use snafu::{OptionExt, ResultExt};
 use std::any::Any;
@@ -45,7 +46,7 @@ static TIMESTAMP_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToTimestampFunc {
     signature: Signature,
     session_params: Arc<SessionParams>,
@@ -134,89 +135,94 @@ impl ScalarUDFImpl for ToTimestampFunc {
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> DFResult<FieldRef> {
+        // prefer value-dependent resolution similar to prior logic
         if args.scalar_arguments.len() == 1 {
-            if args.arg_types[0].is_numeric() {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Second,
-                    self.timezone(),
+            if args.arg_fields[0].data_type().is_numeric() {
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(TimeUnit::Second, self.timezone()),
+                    true,
                 )));
             } else if let Some(ScalarValue::Utf8(Some(v))) = args.scalar_arguments[0] {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    self.unit_for_string_input(v),
-                    self.timezone(),
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(self.unit_for_string_input(v), self.timezone()),
+                    true,
                 )));
             }
         } else if args.scalar_arguments.len() == 2 {
-            if args.arg_types[0].is_numeric() {
+            if args.arg_fields[0].data_type().is_numeric() {
                 if let Some(v) = args.scalar_arguments[1] {
                     let scale = v.cast_to(&DataType::Int64)?;
                     let ScalarValue::Int64(Some(s)) = &scale else {
                         return ArgumentTwoNeedsToBeIntegerSnafu.fail()?;
                     };
                     let s = *s;
-                    return match s {
-                        0 => Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                            TimeUnit::Second,
-                            self.timezone(),
-                        ))),
-                        3 => Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                            TimeUnit::Millisecond,
-                            self.timezone(),
-                        ))),
-                        6 => Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                            TimeUnit::Microsecond,
-                            self.timezone(),
-                        ))),
-                        9 => Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                            TimeUnit::Nanosecond,
-                            self.timezone(),
-                        ))),
+                    let unit = match s {
+                        0 => TimeUnit::Second,
+                        3 => TimeUnit::Millisecond,
+                        6 => TimeUnit::Microsecond,
+                        9 => TimeUnit::Nanosecond,
                         _ => return InvalidValueForFunctionAtPositionTwoSnafu.fail()?,
                     };
+                    return Ok(Arc::new(Field::new(
+                        self.name(),
+                        DataType::Timestamp(unit, self.timezone()),
+                        true,
+                    )));
                 }
             } else if let Some(ScalarValue::TimestampSecond(_, Some(tz))) = args.scalar_arguments[0]
             {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Second,
-                    Some(tz.to_owned()),
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(TimeUnit::Second, Some(tz.to_owned())),
+                    true,
                 )));
             } else if let Some(ScalarValue::TimestampMillisecond(_, Some(tz))) =
                 args.scalar_arguments[0]
             {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Millisecond,
-                    Some(tz.to_owned()),
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(TimeUnit::Millisecond, Some(tz.to_owned())),
+                    true,
                 )));
             } else if let Some(ScalarValue::TimestampMicrosecond(_, Some(tz))) =
                 args.scalar_arguments[0]
             {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Microsecond,
-                    Some(tz.to_owned()),
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(TimeUnit::Microsecond, Some(tz.to_owned())),
+                    true,
                 )));
             } else if let Some(ScalarValue::TimestampNanosecond(_, Some(tz))) =
                 args.scalar_arguments[0]
             {
-                return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                    TimeUnit::Nanosecond,
-                    Some(tz.to_owned()),
+                return Ok(Arc::new(Field::new(
+                    self.name(),
+                    DataType::Timestamp(TimeUnit::Nanosecond, Some(tz.to_owned())),
+                    true,
                 )));
             }
         }
 
         // If the first argument is already a timestamp type, return it as is (with its timezone).
         if matches!(
-            args.arg_types[0],
+            args.arg_fields[0].data_type(),
             DataType::Timestamp(TimeUnit::Microsecond, _)
                 | DataType::Timestamp(TimeUnit::Nanosecond, Some(_))
         ) {
-            return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
+            return Ok(Arc::new(Field::new(
+                self.name(),
+                args.arg_fields[0].data_type().clone(),
+                true,
+            )));
         }
 
-        Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-            TimeUnit::Nanosecond,
-            self.timezone(),
+        Ok(Arc::new(Field::new(
+            self.name(),
+            DataType::Timestamp(TimeUnit::Nanosecond, self.timezone()),
+            true,
         )))
     }
     #[allow(

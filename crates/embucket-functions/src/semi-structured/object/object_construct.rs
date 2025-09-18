@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use serde_json::{Number, Value};
 use snafu::ResultExt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ObjectConstructUDF {
     signature: Signature,
     aliases: Vec<String>,

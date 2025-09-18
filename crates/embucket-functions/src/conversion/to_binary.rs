@@ -29,7 +29,7 @@ use std::sync::Arc;
 ///   - 'UTF-8': Interprets the input as a UTF-8 string
 ///
 /// Example: `TO_BINARY('SNOW', 'UTF-8')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToBinaryFunc {
     signature: Signature,
     try_mode: bool,

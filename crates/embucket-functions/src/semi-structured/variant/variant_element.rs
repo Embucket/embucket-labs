@@ -18,7 +18,7 @@ use datafusion_expr::{
 use serde_json::Value;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct VariantArrayElementUDF {
     signature: Signature,
     aliases: Vec<String>,

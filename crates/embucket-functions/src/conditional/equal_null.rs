@@ -26,7 +26,7 @@ use std::sync::Arc;
 // In all other cases:
 // EQUAL_NULL(<expr1>, <expr2>) behaves the same as <expr1> = <expr2>.
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct EqualNullFunc {
     signature: Signature,
 }

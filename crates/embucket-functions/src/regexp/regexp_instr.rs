@@ -57,7 +57,7 @@ use std::sync::Arc;
 ///   The e option is implied.
 ///
 /// Example: `REGEXP_INSTR('nevermore1, nevermore2, nevermore3.', 'nevermore')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RegexpInstrFunc {
     signature: Signature,
 }

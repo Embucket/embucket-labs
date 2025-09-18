@@ -12,7 +12,7 @@ use serde_json::{Value, to_string};
 use snafu::ResultExt;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayInsertUDF {
     signature: Signature,
 }

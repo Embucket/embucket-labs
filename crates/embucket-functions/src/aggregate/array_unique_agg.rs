@@ -2,7 +2,7 @@ use crate::aggregate::macros::make_udaf_function;
 use crate::json::encode_array;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
-use datafusion::arrow::datatypes::{DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
 use datafusion_common::ScalarValue;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 //
 // NULL values in the column are ignored. If the column contains only NULL values or if the table
 // is empty, the function returns an empty ARRAY.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ArrayUniqueAggUDAF {
     signature: Signature,
 }
@@ -68,12 +68,13 @@ impl AggregateUDFImpl for ArrayUniqueAggUDAF {
         )))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<Field>> {
-        let values = Field::new_list(
+    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<FieldRef>> {
+        let input_dt = args.input_fields[0].data_type().clone();
+        let values = Arc::new(Field::new_list(
             format_state_name(args.name, "values"),
-            Field::new_list_field(args.input_types[0].clone(), true),
+            Field::new_list_field(input_dt, true),
             false,
-        );
+        ));
 
         Ok(vec![values])
     }

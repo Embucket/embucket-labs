@@ -12,7 +12,7 @@ use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct GetPathFunc {
     signature: Signature,
     aliases: Vec<String>,

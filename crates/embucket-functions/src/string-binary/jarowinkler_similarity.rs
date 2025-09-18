@@ -8,7 +8,7 @@ use std::any::Any;
 use std::sync::Arc;
 use strsim::jaro_winkler;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct JarowinklerSimilarityFunc {
     signature: Signature,
 }

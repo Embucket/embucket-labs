@@ -585,7 +585,7 @@ pub fn encode_interval_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a List Arrow array into a JSON array
+// Encodes a List Arrow array into a JSON array
 pub fn encode_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_list::<i32>();
     let mut values = Vec::with_capacity(array.len());
@@ -881,7 +881,9 @@ pub fn encode_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         DataType::FixedSizeList(_, _) => encode_fixed_size_list_array(array),
         DataType::LargeList(_) | DataType::LargeListView(_) => encode_large_list_array(array),
         DataType::Struct(_) => encode_struct_array(array),
-        DataType::Decimal128(_, _) => encode_decimal128_array(array),
+        DataType::Decimal32(_, _) | DataType::Decimal64(_, _) | DataType::Decimal128(_, _) => {
+            encode_decimal128_array(array)
+        }
         DataType::Decimal256(_, _) => encode_decimal256_array(array),
         DataType::FixedSizeBinary(_) => encode_fixed_size_binary_array(array),
         DataType::BinaryView => encode_binary_view_array(array),

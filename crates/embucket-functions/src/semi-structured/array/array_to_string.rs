@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// - NULL elements within the array are converted to empty strings in the result.
 /// - To include a space between values, make sure to include the space in the separator itself
 ///   (e.g., ', '). See the examples below.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayToStringFunc {
     signature: Signature,
 }

@@ -15,7 +15,7 @@ use std::any::Any;
 ///
 /// Syntax: `booland_agg(<expr>)`
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BoolAndAggUDAF {
     signature: Signature,
 }

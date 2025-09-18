@@ -32,6 +32,7 @@ impl VisitorMut for TimestampVisitor {
                             _ => expr.clone(),
                         }
                     }
+                    ObjectNamePart::Function(_) => expr.clone(),
                 },
                 _ => expr.clone(),
             },

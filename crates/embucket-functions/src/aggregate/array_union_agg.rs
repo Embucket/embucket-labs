@@ -2,7 +2,7 @@ use super::errors;
 use crate::aggregate::macros::make_udaf_function;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
-use datafusion::arrow::datatypes::{DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
 use datafusion_common::ScalarValue;
@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 // array_union_agg function
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ArrayUnionAggUDAF {
     signature: Signature,
 }
@@ -58,18 +58,18 @@ impl AggregateUDFImpl for ArrayUnionAggUDAF {
         Ok(Box::new(ArrayUniqueAggAccumulator::new()))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<Field>> {
-        let values = Field::new_list(
+    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<FieldRef>> {
+        let values = Arc::new(Field::new_list(
             format_state_name(args.name, "values"),
             Field::new_list_field(DataType::Utf8, true),
             false,
-        );
+        ));
 
-        let dt = Field::new(
+        let dt = Arc::new(Field::new(
             format_state_name(args.name, "data_type"),
             DataType::UInt64,
             true,
-        );
+        ));
         Ok(vec![values, dt])
     }
 }

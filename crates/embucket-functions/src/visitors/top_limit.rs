@@ -1,6 +1,6 @@
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
-    Expr, Query, SetExpr, Statement, TableFactor, TopQuantity, Value, VisitorMut,
+    Expr, LimitClause, Query, SetExpr, Statement, TableFactor, TopQuantity, Value, VisitorMut,
 };
 use std::ops::ControlFlow;
 
@@ -8,7 +8,23 @@ use std::ops::ControlFlow;
 pub struct TopLimitVisitor;
 
 impl TopLimitVisitor {
-    fn process_set_expr(&mut self, set_expr: &mut SetExpr, outer_limit: &mut Option<Expr>) {
+    fn ensure_limit_clause(limit_clause: &mut Option<LimitClause>) -> &mut Option<Expr> {
+        if limit_clause.is_none() {
+            *limit_clause = Some(LimitClause::LimitOffset {
+                limit: None,
+                offset: None,
+                limit_by: vec![],
+            });
+        }
+        match limit_clause.as_mut().unwrap() {
+            LimitClause::LimitOffset { limit, .. } => limit,
+            LimitClause::OffsetCommaLimit { .. } => unreachable!(
+                "OffsetCommaLimit should not be constructed by this visitor"
+            ),
+        }
+    }
+
+    fn process_set_expr(&mut self, set_expr: &mut SetExpr, outer_limit_clause: &mut Option<LimitClause>) {
         match set_expr {
             SetExpr::Select(select) => {
                 for table_with_joins in &mut select.from {
@@ -19,15 +35,21 @@ impl TopLimitVisitor {
 
                 if let Some(top) = select.top.take() {
                     if !top.percent && !top.with_ties {
-                        if outer_limit.is_none()
-                            && let Some(expr) = top.quantity.map(|q| match q {
-                                TopQuantity::Expr(expr) => expr,
+                        let out_limit_ref = Self::ensure_limit_clause(outer_limit_clause);
+                        if out_limit_ref.is_none() {
+                            let maybe_expr = top.quantity.as_ref().map(|q| match q {
+                                TopQuantity::Expr(expr) => expr.clone(),
                                 TopQuantity::Constant(n) => Expr::Value(
                                     Value::Number(n.to_string(), false).with_empty_span(),
                                 ),
-                            })
-                        {
-                            *outer_limit = Some(expr);
+                            });
+                            if let Some(expr) = maybe_expr {
+                                *out_limit_ref = Some(expr);
+                            } else {
+                                select.top = Some(top);
+                            }
+                        } else {
+                            select.top = Some(top);
                         }
                     } else {
                         select.top = Some(top);
@@ -36,8 +58,8 @@ impl TopLimitVisitor {
             }
             SetExpr::Query(q) => self.process_query(q),
             SetExpr::SetOperation { left, right, .. } => {
-                self.process_set_expr(left, outer_limit);
-                self.process_set_expr(right, outer_limit);
+                self.process_set_expr(left, outer_limit_clause);
+                self.process_set_expr(right, outer_limit_clause);
             }
             _ => {}
         }
@@ -50,7 +72,7 @@ impl TopLimitVisitor {
             }
         }
 
-        self.process_set_expr(&mut query.body, &mut query.limit);
+        self.process_set_expr(&mut query.body, &mut query.limit_clause);
     }
 }
 

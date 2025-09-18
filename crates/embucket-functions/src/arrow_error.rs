@@ -8,7 +8,7 @@ pub enum ArrowInvalidArgumentError {
     #[snafu(display("{data_type} arrays only support Second and Millisecond units, got {unit:?}"))]
     ArraysSupportSecondAndMillisecondUnits {
         data_type: String,
-        unit: arrow_schema::TimeUnit,
+        unit: datafusion::arrow::datatypes::TimeUnit,
         #[snafu(implicit)]
         location: Location,
     },
@@ -16,19 +16,19 @@ pub enum ArrowInvalidArgumentError {
     #[snafu(display("Expected {data_type} array, got {actual_type:?}"))]
     ExpectedArrayOfType {
         data_type: String,
-        actual_type: arrow_schema::DataType,
+        actual_type: datafusion::arrow::datatypes::DataType,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Unsupported primitive type: {data_type:?}"))]
     UnsupportedPrimitiveType {
-        data_type: arrow_schema::DataType,
+        data_type: datafusion::arrow::datatypes::DataType,
         #[snafu(implicit)]
         location: Location,
     },
 }
 
-impl From<ArrowInvalidArgumentError> for arrow_schema::ArrowError {
+impl From<ArrowInvalidArgumentError> for datafusion::arrow::error::ArrowError {
     fn from(value: ArrowInvalidArgumentError) -> Self {
         Self::InvalidArgumentError(value.to_string())
     }

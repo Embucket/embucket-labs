@@ -33,7 +33,7 @@ use std::sync::Arc;
 /// - `<expr>`: The expression to convert to string (any data type)
 /// - `<format>`: Optional format specifier for numeric, date, or time formatting
 ///
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToVarcharFunc {
     signature: Signature,
     try_mode: bool,

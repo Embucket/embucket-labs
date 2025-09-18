@@ -8,7 +8,7 @@ use datafusion_common::cast::{
 
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use rand::SeedableRng;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 use rand::rngs::StdRng;
 use std::any::Any;
 use std::sync::Arc;
@@ -34,7 +34,7 @@ use crate::string_binary::errors::{
 ///
 /// Returns:
 /// - A string consisting of characters [0-9a-zA-Z] of the requested length.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RandStrFunc {
     signature: Signature,
 }

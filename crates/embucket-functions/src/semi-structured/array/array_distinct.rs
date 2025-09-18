@@ -13,7 +13,7 @@ use serde_json::{Value, from_slice, to_string};
 use snafu::ResultExt;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayDistinctUDF {
     signature: Signature,
 }

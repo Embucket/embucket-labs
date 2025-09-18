@@ -27,7 +27,7 @@ use std::sync::Arc;
 /// - For strings: lower string.
 /// - For numeric values: the value itself as a string.
 /// - For NULL: NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LowerFunc {
     signature: Signature,
 }
@@ -112,15 +112,17 @@ impl ScalarUDFImpl for LowerFunc {
 
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
         if args.len() == 1
-            && let Expr::Literal(scalar) = &args[0]
+            && let Expr::Literal(scalar, _) = &args[0]
         {
             if scalar.is_null() {
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                     ScalarValue::Null,
+                    None,
                 )));
             }
             return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                 ScalarValue::Utf8(Some(scalar.to_string().to_lowercase())),
+                None,
             )));
         }
 
@@ -133,7 +135,7 @@ crate::macros::make_udf_function!(LowerFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrow_schema::{Field, Schema};
+    use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion_common::ToDFSchema;
     use datafusion_expr::execution_props::ExecutionProps;
     use datafusion_expr::simplify::SimplifyContext;
@@ -146,27 +148,27 @@ mod tests {
         let props = ExecutionProps::new();
         let context = SimplifyContext::new(&props).with_schema(schema);
         let resp = f.simplify(
-            vec![Expr::Literal(ScalarValue::Utf8(Some("ABC".to_string())))],
+            vec![Expr::Literal(ScalarValue::Utf8(Some("ABC".to_string())), None)],
             &context,
         )?;
 
-        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)))) = resp else {
+        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp else {
             panic!("Expected simplified expression");
         };
 
         assert_eq!(v, "abc".to_string());
 
-        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(Some(123)))], &context)?;
+        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(Some(123)), None)], &context)?;
 
-        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)))) = resp else {
+        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = resp else {
             panic!("Expected simplified expression");
         };
 
         assert_eq!(v, "123".to_string());
 
-        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(None))], &context)?;
+        let resp = f.simplify(vec![Expr::Literal(ScalarValue::Int64(None), None)], &context)?;
 
-        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Null)) = resp else {
+        let ExprSimplifyResult::Simplified(Expr::Literal(ScalarValue::Null, _)) = resp else {
             panic!("Expected simplified expression");
         };
 

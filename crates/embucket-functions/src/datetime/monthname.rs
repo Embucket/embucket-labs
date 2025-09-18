@@ -23,7 +23,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns a string representing the three-letter month name
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct MonthNameFunc {
     signature: Signature,
 }

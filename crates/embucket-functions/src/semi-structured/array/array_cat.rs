@@ -11,7 +11,7 @@ use serde_json::{Value, from_str, to_string};
 use snafu::ResultExt;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayCatUDF {
     signature: Signature,
 }

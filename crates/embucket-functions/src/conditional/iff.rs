@@ -14,7 +14,7 @@ use std::any::Any;
 // Syntax: IFF( <condition> , <true_value> , <false_value> )
 // Note: `iff` returns
 // - This function is capable of returning a value of any data type. If the expression being returned has a value of NULL, then the function will also return NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IffFunc {
     signature: Signature,
 }

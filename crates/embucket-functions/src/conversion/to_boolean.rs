@@ -22,7 +22,7 @@ const FALSE: [&str; 6] = ["false", "f", "no", "n", "off", "0"];
 // - Returns TRUE if string_or_numeric_expr evaluates to TRUE.
 // - Returns FALSE if string_or_numeric_expr evaluates to FALSE.
 // If the input is NULL, returns NULL without reporting an error.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToBooleanFunc {
     signature: Signature,
     try_: bool,

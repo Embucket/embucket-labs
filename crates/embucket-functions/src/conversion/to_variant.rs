@@ -3,10 +3,12 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion::physical_plan::internal_err;
-use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use datafusion::arrow::datatypes::{Field, FieldRef};
+use std::sync::Arc;
 use std::any::Any;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToVariantFunc {
     signature: Signature,
 }
@@ -42,8 +44,8 @@ impl ScalarUDFImpl for ToVariantFunc {
     fn return_type(&self, _arg_types: &[DataType]) -> datafusion_common::Result<DataType> {
         internal_err!("return_type_from_args should be called")
     }
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> datafusion_common::Result<ReturnInfo> {
-        Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()))
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> datafusion_common::Result<FieldRef> {
+        Ok(Arc::new(Field::new(self.name(), args.arg_fields[0].data_type().clone(), true)))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

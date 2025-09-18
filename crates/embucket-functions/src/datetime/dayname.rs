@@ -22,7 +22,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns a string representing the three-letter day-of-week name (e.g., "Mon", "Tue", "Wed", etc.).
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DayNameFunc {
     signature: Signature,
 }

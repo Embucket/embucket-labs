@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::json::encode_scalar;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayPrependUDF {
     signature: Signature,
 }

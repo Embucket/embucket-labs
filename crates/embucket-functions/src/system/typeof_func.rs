@@ -3,7 +3,7 @@ use datafusion_common::{Result as DFResult, ScalarValue};
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use std::any::Any;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct SystemTypeofFunc {
     signature: Signature,
 }

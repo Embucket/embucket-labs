@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::{ArrayRef, RecordBatch};
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
 use datafusion_common::{Result, ScalarValue, plan_err};
 use datafusion_common::{internal_err, not_impl_datafusion_err, not_impl_err};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
@@ -28,6 +28,7 @@ use crate::macros::make_udaf_function;
     syntax_example = "percentile_cont(percentile) WITHIN GROUP (ORDER BY expression)",
     standard_argument(name = "expression",)
 )]
+#[derive(PartialEq, Eq, Hash)]
 pub struct PercentileCont {
     signature: Signature,
 }
@@ -120,7 +121,7 @@ impl AggregateUDFImpl for PercentileCont {
 
         // Handle descending order if specified
         let is_descending = acc_args
-            .ordering_req
+            .order_bys
             .first()
             .is_some_and(|sort_expr| sort_expr.options.descending);
 
@@ -135,18 +136,18 @@ impl AggregateUDFImpl for PercentileCont {
         )))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
-        let fields = vec![
-            Field::new(
+    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
+        let fields: Vec<FieldRef> = vec![
+            Arc::new(Field::new(
                 format_state_name(args.name, "percentile"),
                 DataType::Float64,
                 false,
-            ),
-            Field::new(
+            )),
+            Arc::new(Field::new(
                 format_state_name(args.name, "values"),
-                args.return_type.clone(),
+                args.return_type().clone(),
                 true,
-            ),
+            )),
         ];
         Ok(fields)
     }

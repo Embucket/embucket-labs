@@ -28,7 +28,7 @@ static RE_NULL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bnull\b").u
 ///
 /// Returns:
 /// This function produces a single ARRAY by joining together all the ARRAYs within the input array. If the input array is NULL or contains any NULL elements, the function returns NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayFlattenFunc {
     signature: Signature,
 }

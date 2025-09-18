@@ -48,7 +48,7 @@ impl SplitFunc {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SplitFunc {
     signature: Signature,
 }

@@ -25,14 +25,13 @@ pub fn query_with_body(inner_select: Select) -> Query {
         with: None,
         body: Box::new(SetExpr::Select(Box::new(inner_select))),
         order_by: None,
-        limit: None,
-        limit_by: vec![],
-        offset: None,
+        limit_clause: None,
         fetch: None,
         locks: vec![],
         for_clause: None,
         settings: None,
         format_clause: None,
+        pipe_operators: vec![],
     }
 }
 
@@ -48,6 +47,7 @@ pub fn select_with_body(
         top: None,
         top_before_distinct: false,
         projection,
+        exclude: None,
         into: None,
         from: vec![TableWithJoins {
             relation,

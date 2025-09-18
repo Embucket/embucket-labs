@@ -1,5 +1,5 @@
 use datafusion::logical_expr::sqlparser::ast::VisitMut;
-use datafusion::sql::sqlparser::ast::{Query, Statement, VisitorMut};
+use datafusion::sql::sqlparser::ast::{LimitClause, Query, Statement, VisitorMut};
 use datafusion::sql::sqlparser::parser::ParserError;
 use std::ops::ControlFlow;
 
@@ -15,7 +15,11 @@ impl VisitorMut for FetchToLimit {
     fn pre_visit_query(&mut self, query: &mut Query) -> ControlFlow<Self::Break> {
         if let Some(fetch) = query.fetch.take() {
             if let Some(quantity) = fetch.quantity {
-                query.limit = Some(quantity);
+                query.limit_clause = Some(LimitClause::LimitOffset {
+                    limit: Some(quantity),
+                    offset: None,
+                    limit_by: vec![],
+                });
             } else {
                 return ControlFlow::Break(ParserError::ParserError(
                     "FETCH requires a quantity to be specified. The number of rows returned must be a non-negative integer constant.".to_string(),

@@ -2,7 +2,7 @@ use crate::df_error;
 use crate::json::{PathToken, get_json_value};
 use crate::table::errors;
 use crate::table::flatten::func::{FlattenTableFunc, path_to_string};
-use arrow_schema::{Field, Schema, SchemaRef};
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::arrow::array::{
     Array, ArrayRef, StringArray, StringBuilder, UInt64Array, UInt64Builder,
@@ -218,7 +218,7 @@ impl ExecutionPlan for FlattenExec {
         let projection = self.projection.clone();
 
         let stream = futures::stream::once(async move {
-            let batches = if let Expr::Literal(ScalarValue::Utf8(Some(s))) = &args.input_expr {
+            let batches = if let Expr::Literal(ScalarValue::Utf8(Some(s)), _) = &args.input_expr {
                 let array: ArrayRef = Arc::new(StringArray::from(vec![s.clone()]));
                 let batch = RecordBatch::try_from_iter(vec![("input", array)])?;
                 vec![batch]
@@ -438,12 +438,12 @@ pub fn inline_scalar_subqueries_in_expr<'a>(
                     if batch.num_rows() > 0 && batch.num_columns() > 0 {
                         let array = batch.column(0);
                         let scalar = ScalarValue::try_from_array(array.as_ref(), 0)?;
-                        Expr::Literal(scalar)
+                        Expr::Literal(scalar, None)
                     } else {
-                        Expr::Literal(ScalarValue::Null)
+                        Expr::Literal(ScalarValue::Null, None)
                     }
                 } else {
-                    Expr::Literal(ScalarValue::Null)
+                    Expr::Literal(ScalarValue::Null, None)
                 };
 
                 Ok(value)

@@ -40,7 +40,7 @@ type Aes192Gcm = AesGcm<Aes192, aes_gcm::aead::consts::U12>;
 ///
 /// Returns:
 /// - JSON string containing `ciphertext`, `iv` and `tag` fields encoded in HEX.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct EncryptRawFunc {
     signature: Signature,
 }
@@ -290,7 +290,7 @@ impl ScalarUDFImpl for EncryptRawFunc {
 
 fn generate_random_iv() -> Vec<u8> {
     let mut iv = vec![0u8; 12]; // 96-bit IV for AES-GCM
-    rand::thread_rng().fill_bytes(&mut iv);
+    rand::rng().fill_bytes(&mut iv);
     iv
 }
 

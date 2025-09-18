@@ -1,6 +1,6 @@
 use super::errors as conv_errors;
 use crate::macros::make_udf_function;
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::array::{Array, StringArray, StringBuilder};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -23,7 +23,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// This function returns either an OBJECT or NULL:
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToObjectFunc {
     signature: Signature,
 }

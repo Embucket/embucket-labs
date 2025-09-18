@@ -1,7 +1,7 @@
 use crate::aggregate::macros::make_udaf_function;
 use datafusion::arrow::array::{Array, ArrayRef, as_string_array};
 use datafusion::arrow::compute;
-use datafusion::arrow::datatypes::{DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion_common::{Result, ScalarValue, exec_err};
 use datafusion_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion_expr::utils::format_state_name;
@@ -9,8 +9,9 @@ use datafusion_expr::{Accumulator, AggregateUDFImpl, Signature, Volatility};
 use std::any::Any;
 use std::collections::HashSet;
 use std::mem::size_of_val;
+use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ListAggUDAF {
     signature: Signature,
 }
@@ -56,19 +57,19 @@ impl AggregateUDFImpl for ListAggUDAF {
         Ok(Box::new(ListAggAccumulator::new(acc_args.is_distinct)))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<Field>> {
+    fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
         Ok(vec![
-            Field::new(format_state_name(args.name, "agg"), DataType::Utf8, true),
-            Field::new(
+            Arc::new(Field::new(format_state_name(args.name, "agg"), DataType::Utf8, true)),
+            Arc::new(Field::new(
                 format_state_name(args.name, "delimiter"),
                 DataType::Utf8,
                 false,
-            ),
-            Field::new(
+            )),
+            Arc::new(Field::new(
                 format_state_name(args.name, "seen_values"),
                 DataType::Utf8,
                 true,
-            ),
+            )),
         ])
     }
 }

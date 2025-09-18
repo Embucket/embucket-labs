@@ -1,4 +1,4 @@
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::array::{
     Decimal128Array, Decimal128Builder, Float32Array, Float32Builder, Float64Array, Float64Builder,
     Int8Array, Int8Builder, Int16Array, Int16Builder, Int32Array, Int32Builder, Int64Array,
@@ -40,7 +40,7 @@ macro_rules! handle_numeric_type {
 /// Returns:
 /// - Returns 0 if the input expression is NULL.
 /// - Returns the value of the input expression if it is not NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ZeroIfNullFunc {
     signature: Signature,
 }

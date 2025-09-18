@@ -29,7 +29,7 @@ use super::errors::{
 ///
 /// Returns:
 /// A string or binary value containing the specified substring
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct SubstrFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -161,22 +161,24 @@ impl ScalarUDFImpl for SubstrFunc {
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
         if args.len() >= 2
             && args.len() <= 3
-            && let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) =
+            && let (Expr::Literal(string_scalar, _), Expr::Literal(start_scalar, _)) =
                 (&args[0], &args[1])
         {
             if string_scalar.is_null() || start_scalar.is_null() {
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                     ScalarValue::Null,
+                    None,
                 )));
             }
 
             let string_val = string_scalar.to_string();
             if let Ok(start_val) = start_scalar.to_string().parse::<i64>() {
                 let length_val = if args.len() == 3 {
-                    if let Expr::Literal(length_scalar) = &args[2] {
+                    if let Expr::Literal(length_scalar, _) = &args[2] {
                         if length_scalar.is_null() {
                             return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                                 ScalarValue::Null,
+                                None,
                             )));
                         }
                         length_scalar.to_string().parse::<i64>().ok()
@@ -194,6 +196,7 @@ impl ScalarUDFImpl for SubstrFunc {
                 );
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                     ScalarValue::Utf8View(Some(result)),
+                    None,
                 )));
             }
         }

@@ -17,7 +17,7 @@ use std::sync::Arc;
 // - <object>
 // The input must be a JSON object.
 // Returns an ARRAY containing the keys.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ObjectKeysFunc {
     signature: Signature,
 }

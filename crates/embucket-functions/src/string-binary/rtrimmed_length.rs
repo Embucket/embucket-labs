@@ -8,7 +8,7 @@ use std::sync::Arc;
 // rtrimmed_length SQL function
 // Returns the length of its argument, minus trailing whitespace, but including leading whitespace.
 // Syntax: RTRIMMED_LENGTH( <string_expr> )
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RTrimmedLengthFunc {
     signature: Signature,
 }

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(EnumIter, Debug, Clone)]
+#[derive(EnumIter, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Interval {
     Year,
     YearOfWeek,
@@ -52,7 +52,7 @@ pub enum Interval {
 ///
 /// Returns:
 /// - Returns an integer representing the specified part of the date or timestamp.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DatePartExtractFunc {
     signature: Signature,
     interval: Interval,

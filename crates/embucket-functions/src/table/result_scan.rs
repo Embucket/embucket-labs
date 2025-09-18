@@ -111,11 +111,11 @@ impl ResultScanFunc {
 impl TableFunctionImpl for ResultScanFunc {
     fn call(&self, args: &[(Expr, Option<String>)]) -> DFResult<Arc<dyn TableProvider>> {
         let query_id = match args.first() {
-            Some((Expr::Literal(ScalarValue::Utf8(Some(query_id))), _)) => utf8_val(query_id),
+            Some((Expr::Literal(ScalarValue::Utf8(Some(query_id)), _), _)) => utf8_val(query_id),
             Some((Expr::ScalarFunction(fun), _)) => {
                 if fun.name().to_lowercase() == "last_query_id" {
                     let index = match fun.args.first() {
-                        Some(Expr::Literal(value)) => value.clone().try_into().unwrap_or(-1),
+                        Some(Expr::Literal(value, _)) => value.clone().try_into().unwrap_or(-1),
                         _ => -1,
                     };
                     self.last_query_id(index)?
@@ -129,6 +129,25 @@ impl TableFunctionImpl for ResultScanFunc {
         };
         let (schema, record_batches) = self.read_query_batches(&query_id.to_string())?;
         Ok(Arc::new(MemTable::try_new(schema, vec![record_batches])?))
+    }
+}
+
+impl PartialEq for ResultScanFunc {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.history_store, &other.history_store)
+    }
+}
+
+impl Eq for ResultScanFunc {}
+
+impl std::hash::Hash for ResultScanFunc {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the data pointer of the trait object to get a stable identity per instance
+        let trait_obj_ptr = Arc::as_ptr(&self.history_store);
+        // SAFETY: converting fat pointer to (data, vtable) pair and hashing data pointer
+        let (data_ptr, _vtable_ptr): (*const (), *const ()) = unsafe { std::mem::transmute(trait_obj_ptr) };
+        state.write_usize(data_ptr as usize);
+        state.write(b"ResultScanFunc");
     }
 }
 

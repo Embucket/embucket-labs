@@ -35,7 +35,7 @@ type Aes192Gcm = AesGcm<Aes192, aes_gcm::aead::consts::U12>;
 /// - `tag`: authentication tag.
 ///
 /// Returns: decrypted binary data.
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct DecryptRawFunc {
     signature: Signature,
 }

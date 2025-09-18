@@ -49,7 +49,7 @@ Additional examples can be found [here](https://docs.snowflake.com/en/sql-refere
         description = "An integer expression to use as a day for building a timestamp, usually in the 1-31 range."
     )
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DateFromPartsFunc {
     signature: Signature,
     aliases: Vec<String>,

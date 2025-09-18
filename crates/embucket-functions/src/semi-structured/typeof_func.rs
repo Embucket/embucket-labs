@@ -17,7 +17,7 @@ use std::sync::Arc;
 ///   An expression that evaluates to a value of type VARIANT.
 ///   Example SELECT TYPEOF('{"a":1}') as v;
 ///   Returns a STRING value or NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TypeofFunc {
     signature: Signature,
 }

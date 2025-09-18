@@ -15,7 +15,7 @@ use crate::conversion::to_date::ToDateFunc;
 use crate::conversion::to_decimal::ToDecimalFunc;
 use crate::conversion::to_timestamp::ToTimestampFunc;
 use crate::session_params::SessionParams;
-use arrow_schema::TimeUnit;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::array::{ArrayRef, TimestampMicrosecondBuilder, TimestampNanosecondBuilder};
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;

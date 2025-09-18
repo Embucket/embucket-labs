@@ -1,6 +1,6 @@
 use super::errors as dtime_errors;
 use crate::session_params::SessionParams;
-use arrow_schema::TimeUnit;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::array::{Array, ArrayRef, DurationNanosecondArray, Int32Array, Int64Array};
 use datafusion::arrow::compute::kernels::numeric::sub;
 use datafusion::arrow::compute::{DatePart, cast, date_part};
@@ -32,7 +32,7 @@ const SECOND: i64 = 1_000_000_000;
 ///
 /// Returns:
 /// - This function returns a value of type DATE, even if `date_or_time_part` is a time.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DateDiffFunc {
     signature: Signature,
     #[allow(dead_code)]

@@ -1,5 +1,5 @@
 use super::errors as conv_errors;
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use chrono::{DateTime, Datelike, NaiveDate};
 use datafusion::arrow::array::Date32Array;
 use datafusion::arrow::compute::{CastOptions, cast_with_options};
@@ -37,7 +37,7 @@ const MM_DD_YYYY_SLASH_FORMAT: &str = "%m/%d/%Y";
 /// - Optional `<format>` date format specifier for `string_expr` or AUTO, which specifies that Snowflake automatically detects the format to use.
 ///
 /// Example: `TO_DATE('2024-05-10')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToDateFunc {
     signature: Signature,
     aliases: Vec<String>,

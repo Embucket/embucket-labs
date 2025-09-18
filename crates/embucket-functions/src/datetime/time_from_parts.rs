@@ -44,7 +44,7 @@ use datafusion_macros::user_doc;
          usually in the 0-999999999 range."
     )
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TimeFromPartsFunc {
     signature: Signature,
     aliases: Vec<String>,

@@ -10,7 +10,7 @@ use serde_json::{Value, from_slice};
 use snafu::ResultExt;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayExceptUDF {
     signature: Signature,
 }
