@@ -1,8 +1,7 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_sqls.rs
-description: "select * from foo\nSnowflake:\n002003 (42S02): UUID: SQL compilation error:\nObject 'FOO' does not exist or not authorized."
+description: "select * from foo\nQuery UUID: 00000000-0000-0000-0000-077ef7421800"
 expression: snapshot
-info: "historical codes: sqlState: 02000, errorCode: "
 ---
 {
   "data": {

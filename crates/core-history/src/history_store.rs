@@ -19,7 +19,7 @@ pub enum SortOrder {
     Descending,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QueryResultError {
     // additional error status like: cancelled, timeout, etc
     pub status: QueryStatus,

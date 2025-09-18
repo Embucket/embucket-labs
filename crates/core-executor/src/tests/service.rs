@@ -1,5 +1,6 @@
 use crate::Error;
 use crate::models::{QueryContext, QueryResult};
+use crate::running_queries::AbortQuery;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::tests::sleep_udf;
 use crate::utils::Config;
@@ -666,7 +667,7 @@ async fn test_submitted_query_timeout() {
     let query_id = query_handle.query_id;
 
     let query_result = execution_svc
-        .wait_async_query_completion(query_handle)
+        .wait_submitted_query_result(query_handle)
         .await
         .expect_err("Query should not succeed");
 
@@ -723,12 +724,11 @@ async fn test_submitted_query_cancellation() {
     let query_id = query_handle.query_id;
 
     execution_svc
-        .cancel_query(query_id)
-        .await
+        .abort_query(AbortQuery::ByQueryId(query_id))
         .expect("Failed to cancel query");
 
     let query_result = execution_svc
-        .wait_async_query_completion(query_handle)
+        .wait_submitted_query_result(query_handle)
         .await
         .expect_err("Query should not succeed");
     let query_result_str = format!("{query_result:?}");
@@ -758,7 +758,7 @@ async fn test_submitted_query_ok() {
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
-        Arc::new(Config::default().with_query_timeout(1)),
+        Arc::new(Config::default().with_query_timeout(2)),
     )
     .await
     .expect("Failed to create execution service");
@@ -771,16 +771,25 @@ async fn test_submitted_query_ok() {
     // register sleep UDF for testing purposes
     session.ctx.register_udf(sleep_udf());
 
-    // test cancel query
+    let start = std::time::Instant::now();
     let query_handle = execution_svc
-        .submit_query("test_session_id", "SELECT 1", QueryContext::default())
+        .submit_query(
+            "test_session_id",
+            "SELECT sleep(1)",
+            QueryContext::default(),
+        )
         .await
         .expect("Failed to submit query");
+
+    let duration = start.elapsed();
+    assert!(duration < std::time::Duration::from_secs(1));
+    // check if query submitted significantly faster than it executes
+    assert!(duration < std::time::Duration::from_micros(300));
 
     let query_id = query_handle.query_id;
 
     let _query_result = execution_svc
-        .wait_async_query_completion(query_handle)
+        .wait_submitted_query_result(query_handle)
         .await
         .expect("Query should be completed successfully");
 

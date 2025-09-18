@@ -1,0 +1,37 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_sqls.rs
+description: "SELECT SYSTEM$CANCEL_QUERY('1');\nQuery UUID: 00000000-0000-0000-0000-077ef74217f1"
+expression: snapshot
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "system$cancel_query",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "text",
+        "byteLength": 16777216,
+        "length": 16777216,
+        "scale": null,
+        "precision": null,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": null,
+    "rowset": [
+      [
+        "Invalid UUID."
+      ]
+    ],
+    "total": 1,
+    "queryResultFormat": "json",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

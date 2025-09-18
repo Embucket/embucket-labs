@@ -1,12 +1,15 @@
 use crate::models::QueryContext;
-use core_history::{GetQueriesParams, HistoryStore};
+use crate::running_queries::{AbortQuery, RunningQueries};
+use core_history::{GetQueriesParams, HistoryStore, QueryRecordId};
 use datafusion::arrow::array::{ListArray, ListBuilder, StringBuilder};
 use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRewriter};
 use datafusion_common::{DataFusionError, Result, ScalarValue};
 use df_catalog::block_in_new_runtime;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct SessionContextExprRewriter {
     pub database: String,
@@ -17,6 +20,7 @@ pub struct SessionContextExprRewriter {
     pub version: String,
     pub query_context: QueryContext,
     pub history_store: Arc<dyn HistoryStore>,
+    pub running_queries: Arc<dyn RunningQueries>,
 }
 
 impl SessionContextExprRewriter {
@@ -65,6 +69,29 @@ impl SessionContextExprRewriter {
         .map_err(|e| DataFusionError::Execution(e.to_string()))??;
         Ok(utf8_val(&id))
     }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn cancel_query(&self, query_id: String) -> Result<ScalarValue> {
+        let Ok(query_uuid) = Uuid::from_str(&query_id) else {
+            return Ok(utf8_val("Invalid UUID."));
+        };
+
+        let query_id = QueryRecordId::from(query_uuid);
+        if self
+            .running_queries
+            .abort(AbortQuery::ByQueryId(query_id))
+            .is_err()
+        {
+            Ok(utf8_val(
+                "Identified SQL statement is not currently executing.",
+            ))
+        } else {
+            Ok(utf8_val(format!(
+                "query [{}] terminated.",
+                query_id.as_uuid()
+            )))
+        }
+    }
 }
 struct ExprRewriter<'a> {
     rewriter: &'a SessionContextExprRewriter,
@@ -100,6 +127,13 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                         .unwrap_or_default(),
                 )),
                 "current_schemas" => Some(list_val(&self.rewriter.schemas)),
+                "system$cancel_query" => {
+                    let query_id = match fun.args.first() {
+                        Some(Expr::Literal(ScalarValue::Utf8(Some(value)))) => value.clone(),
+                        _ => String::default(),
+                    };
+                    Some(self.rewriter.cancel_query(query_id)?)
+                }
                 _ => None,
             };
             if let Some(value) = scalar_value {

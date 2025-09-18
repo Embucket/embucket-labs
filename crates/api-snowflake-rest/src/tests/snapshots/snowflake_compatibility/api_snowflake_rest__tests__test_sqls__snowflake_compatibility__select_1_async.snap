@@ -1,8 +1,7 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_sqls.rs
-description: "select 1;>\nQuery UUID: 00000000-0000-0000-0000-077f31d91936\nSnowflake: scheduled query ID"
+description: "select 1;>\nQuery UUID: 00000000-0000-0000-0000-077ef7448873"
 expression: snapshot
-info: "historical codes: sqlState: 2000, errorCode: 10001"
 ---
 {
   "data": {

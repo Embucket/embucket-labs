@@ -6,6 +6,7 @@ pub mod error;
 pub mod error_code;
 pub mod models;
 pub mod query;
+pub mod running_queries;
 pub mod service;
 pub mod session;
 pub mod snowflake_error;
@@ -16,6 +17,7 @@ pub mod tests;
 
 use crate::service::ExecutionService;
 pub use error::{Error, Result};
+pub use running_queries::AbortQuery;
 pub use snowflake_error::SnowflakeError;
 
 pub trait ExecutionAppState {

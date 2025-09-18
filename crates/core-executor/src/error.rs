@@ -1,6 +1,7 @@
 use super::snowflake_error::SnowflakeError;
 use core_history::QueryRecord;
 use core_history::QueryRecordId;
+use core_history::QueryStatus;
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -584,10 +585,36 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Query result recv error: {error}"))]
+    #[snafu(display("Query [{query_id}] result sending error"))]
+    QueryResultSend {
+        query_id: QueryRecordId,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query [{query_id}] result recv error: {error}"))]
     QueryResultRecv {
+        query_id: QueryRecordId,
         #[snafu(source)]
         error: tokio::sync::oneshot::error::RecvError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query [{query_id}] result notify error: {error}"))]
+    QueryStatusRecv {
+        query_id: QueryRecordId,
+        #[snafu(source)]
+        error: tokio::sync::watch::error::RecvError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Query [{query_id}] status notify error: {error}"))]
+    NotifyQueryStatus {
+        query_id: QueryRecordId,
+        #[snafu(source)]
+        error: tokio::sync::watch::error::SendError<QueryStatus>,
         #[snafu(implicit)]
         location: Location,
     },

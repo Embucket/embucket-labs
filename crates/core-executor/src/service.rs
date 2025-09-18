@@ -21,7 +21,9 @@ use time::{Duration as DateTimeDuration, OffsetDateTime};
 
 use super::error::{self as ex_error, Result};
 use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
+use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
 use super::session::UserSession;
+use crate::running_queries::AbortQuery;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
@@ -29,12 +31,10 @@ use core_history::store::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryStatus};
 use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
 use core_utils::Db;
-use dashmap::DashMap;
 use df_catalog::catalog_list::EmbucketCatalogList;
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
-use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 use uuid::Uuid;
 
@@ -48,24 +48,89 @@ pub trait ExecutionService: Send + Sync {
     // Currently delete_session function is not used
     // async fn delete_session(&self, session_id: String) -> Result<()>;
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
+
+    /// Aborts a query by `query_id` or `request_id`.
+    ///
+    /// # Arguments
+    ///
+    /// * `abort_query` - The query to abort. Provided either `query_id` or `request_id` and `sql_text`.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` of type `()`. The `Ok` variant contains an empty tuple,
+    /// and the `Err` variant contains an `Error`.
+    fn abort_query(&self, abort_query: AbortQuery) -> Result<()>;
+
+    /// Submits a query to be executed asynchronously. Query result can be consumed with
+    /// `wait_submitted_query_result`.
+    ///
+    /// # Arguments
+    ///
+    /// * `session_id` - The ID of the user session.
+    /// * `query` - The SQL query to be executed.
+    /// * `query_context` - The context of the query execution.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` of type `AsyncQueryHandle`. The `Ok` variant contains the query handle,
+    /// to be used with `wait_submitted_query_result`. The `Err` variant contains submission `Error`.
     async fn submit_query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
     ) -> Result<AsyncQueryHandle>;
-    async fn cancel_query(&self, query_id: QueryRecordId) -> Result<()>;
-    async fn wait_async_query_completion(
+
+    /// Wait while sabmitted query finished, it returns query result or real context rich error
+    /// # Arguments
+    ///
+    /// * `query_handle` - The handle of the submitted query.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` of type `QueryResult`. The `Ok` variant contains the query result,
+    /// and the `Err` variant contains a real context rich error.
+    async fn wait_submitted_query_result(
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult>;
-    async fn query_result(&self, query_id: QueryRecordId) -> Result<Result<QueryResult>>;
+
+    /// Wait while any running query finished, it returns query result loaded from query history
+    /// or error which is just a simple wrapper around stringified error loaded from history
+    /// # Arguments
+    ///
+    /// * `query_id` - The ID of the query to wait for.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` of type `Result<QueryResult>`. The `Ok` variant contains nested Result loaded from
+    /// query history including query result / error. The `Err` variant is a simple error wrapper
+    /// `Error::QueryExecution` with `query_id`.
+    async fn wait_historical_query_result(
+        &self,
+        query_id: QueryRecordId,
+    ) -> Result<Result<QueryResult>>;
+
+    /// Synchronously executes a query and returns the result.
+    /// It is a wrapper around `submit_query` and `wait_submitted_query_result`.
+    ///
+    /// # Arguments
+    ///
+    /// * `session_id` - The ID of the user session.
+    /// * `query` - The SQL query to be executed.
+    /// * `query_context` - The context of the query execution.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` of type `QueryResult`. The `Ok` variant contains the query result,
+    /// and the `Err` variant contains a real context rich error.
     async fn query(
         &self,
         session_id: &str,
         query: &str,
         query_context: QueryContext,
     ) -> Result<QueryResult>;
+
     async fn upload_data_to_table(
         &self,
         session_id: &str,
@@ -83,7 +148,7 @@ pub struct CoreExecutionService {
     config: Arc<Config>,
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
-    pub queries: Arc<DashMap<i64, CancellationToken>>,
+    queries: Arc<RunningQueriesRegistry>,
 }
 
 impl CoreExecutionService {
@@ -107,7 +172,7 @@ impl CoreExecutionService {
             config,
             catalog_list,
             runtime_env,
-            queries: Arc::new(DashMap::new()),
+            queries: Arc::new(RunningQueriesRegistry::new()),
         })
     }
 
@@ -220,6 +285,7 @@ impl ExecutionService for CoreExecutionService {
         let user_session: Arc<UserSession> = Arc::new(UserSession::new(
             self.metastore.clone(),
             self.history_store.clone(),
+            self.queries.clone(),
             self.config.clone(),
             self.catalog_list.clone(),
             self.runtime_env.clone(),
@@ -345,53 +411,76 @@ impl ExecutionService for CoreExecutionService {
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::cancel_query",
+        name = "ExecutionService::query",
         level = "debug",
         skip(self),
+        fields(query_id),
         err
     )]
-    async fn cancel_query(&self, query_id: QueryRecordId) -> Result<()> {
-        let cancel_token = self
-            .queries
-            .get(&query_id.into())
-            .context(ex_error::QueryIsntRunningSnafu { query_id })?;
-        cancel_token.cancel();
-        Ok(())
+    #[allow(clippy::large_futures)]
+    async fn query(
+        &self,
+        session_id: &str,
+        query: &str,
+        query_context: QueryContext,
+    ) -> Result<QueryResult> {
+        let query_handle = self.submit_query(session_id, query, query_context).await?;
+        self.wait_submitted_query_result(query_handle).await
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::wait_async_query_completion",
+        name = "ExecutionService::wait_submitted_query_result",
         level = "debug",
         skip(self, query_handle),
         fields(query_id = query_handle.query_id.as_i64(), query_uuid = query_handle.query_id.as_uuid().to_string()),
         err
     )]
-    async fn wait_async_query_completion(
+    async fn wait_submitted_query_result(
         &self,
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult> {
         let query_id = query_handle.query_id;
-        let _ = self
-            .queries
-            .get(&query_id.into())
-            .context(ex_error::QueryIsntRunningSnafu { query_id })?;
+        if !self.queries.is_running(query_id) {
+            return ex_error::QueryIsntRunningSnafu { query_id }.fail();
+        }
 
-        let query_status = query_handle
-            .rx
-            .await
-            .context(ex_error::QueryResultRecvSnafu)?;
+        let recv_result = query_handle.rx.await;
+        // do some handling on result recv error
+        if recv_result.is_err() {
+            // just in case, log error in this way
+            tracing::error_span!(
+                "error_receiving_query_result_status",
+                query_id = query_id.as_i64(),
+                query_uuid = query_id.as_uuid().to_string(),
+            );
+        }
 
-        Ok(query_status.query_result?)
+        let query_result_status =
+            recv_result.context(ex_error::QueryResultRecvSnafu { query_id })?;
+
+        Ok(query_result_status.query_result?)
     }
 
     #[tracing::instrument(
         name = "ExecutionService::query_result",
         level = "debug",
         skip(self),
-        fields(queries_count = self.queries.len()),
+        fields(query_status, query_uuid = query_id.as_uuid().to_string(), running_queries_count = self.queries.count()),
         err
     )]
-    async fn query_result(&self, query_id: QueryRecordId) -> Result<Result<QueryResult>> {
+    async fn wait_historical_query_result(
+        &self,
+        query_id: QueryRecordId,
+    ) -> Result<Result<QueryResult>> {
+        if let Ok(mut running_query) = self.queries.get(query_id) {
+            let query_status = running_query
+                .recv_query_finished()
+                .await
+                .context(ex_error::QueryStatusRecvSnafu { query_id })?;
+            tracing::Span::current().record("query_status", query_status.to_string());
+        }
+
+        // query is not running or not running anymore, get the result from history
         let query_record = self
             .history_store
             .get_query(query_id)
@@ -420,10 +509,21 @@ impl ExecutionService for CoreExecutionService {
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::async_query",
+        name = "ExecutionService::abort_query",
         level = "debug",
         skip(self),
-        fields(query_id, query_uuid, old_queries_count = self.queries.len()),
+        fields(old_queries_count = self.queries.count()),
+        err
+    )]
+    fn abort_query(&self, abort_query: AbortQuery) -> Result<()> {
+        self.queries.abort(abort_query)
+    }
+
+    #[tracing::instrument(
+        name = "ExecutionService::submit_query",
+        level = "debug",
+        skip(self),
+        fields(query_id, query_uuid, old_queries_count = self.queries.count()),
         err
     )]
     async fn submit_query(
@@ -434,7 +534,7 @@ impl ExecutionService for CoreExecutionService {
     ) -> Result<AsyncQueryHandle> {
         let user_session = self.get_session(session_id).await?;
 
-        if self.queries.len() >= self.config.max_concurrency_level {
+        if self.queries.count() >= self.config.max_concurrency_level {
             return ex_error::ConcurrencyLimitSnafu.fail();
         }
 
@@ -456,9 +556,7 @@ impl ExecutionService for CoreExecutionService {
 
         // add cancellation token to the map, so it can be cancelled if needed
         // also presence in this map means that query is running
-        let cancel_token = CancellationToken::new();
-        self.queries.insert(query_id.into(), cancel_token.clone());
-        // eprintln!("submit_query: {query_id}, {}, {}", self.queries.len(), chrono::Utc::now());
+        let cancel_token = self.queries.add(RunningQuery::new(query_id));
 
         // Add query to history with status: Running
         self.history_store
@@ -488,6 +586,7 @@ impl ExecutionService for CoreExecutionService {
                 finished = result_fut => {
                     match finished {
                         Ok(inner_result) => {
+                            // set query execution status to successful or failed
                             let status = inner_result.as_ref().map_or_else(|_| QueryStatus::Failed, |_| QueryStatus::Successful);
                             QueryResultStatus {
                                 query_result: inner_result.context(ex_error::QueryExecutionSnafu {
@@ -516,48 +615,47 @@ impl ExecutionService for CoreExecutionService {
                 }
             };
 
-            let _ = tracing::debug_span!("spawned_query_task_result",
-                query_id = query_id.as_i64(),
-                query_uuid = query_id.as_uuid().to_string(),
-                query_status = format!("{:?}", query_result_status.status),
-            )
-            .entered();
+            let query_status = query_result_status.status.clone();
 
             let result = query_result_status.to_result_set();
             history_record.set_result(&result);
-            history_record.set_status(query_result_status.status.clone());
+            history_record.set_status(query_status.clone());
+
+            let _ = tracing::debug_span!("spawned_query_task_result",
+                query_id = query_id.as_i64(),
+                query_uuid = query_id.as_uuid().to_string(),
+                query_status = format!("{:?}", query_status),
+                query_result_status = format!("{:#?}", query_result_status),
+                result = format!("{:#?}", result),
+            )
+            .entered();
 
             // Record the query in the session’s history, including result count or error message.
             // This ensures all queries are traceable and auditable within a session, which enables
             // features like `last_query_id()` and enhances debugging and observability.
             history_store_ref.save_query_record(&mut history_record).await;
 
-            // save result to the query histore before transfering ownership to the channel
-            let _ = tx.send(query_result_status);
+            // remove query from running queries registry
+            let running_query = queries_ref.remove(query_id);
 
-            // cleanup: remove from map when done
-            queries_ref.remove(&query_id.into());
+            // Send result to the result owner
+            if tx.send(query_result_status).is_err() {
+                // Error happens if receiver is dropped 
+                // (natural in case if query submitted result owner doesn't listen)
+                tracing::error_span!("error_query_result_status_cant_be_received",
+                    query_id = query_id.as_i64(),
+                    query_uuid = query_id.as_uuid().to_string(),
+                );
+            }
+
+            // notify listeners that historical result is ready
+            if let Ok(running_query) = running_query {
+                let _ = running_query.notify_query_finished(query_status.clone());
+            }
         }.instrument(child));
 
+        // return handle of the query we just submit
         Ok(AsyncQueryHandle { query_id, rx })
-    }
-
-    #[tracing::instrument(
-        name = "ExecutionService::query",
-        level = "debug",
-        skip(self),
-        fields(query_id),
-        err
-    )]
-    #[allow(clippy::large_futures)]
-    async fn query(
-        &self,
-        session_id: &str,
-        query: &str,
-        query_context: QueryContext,
-    ) -> Result<QueryResult> {
-        let query_handle = self.submit_query(session_id, query, query_context).await?;
-        self.wait_async_query_completion(query_handle).await
     }
 
     #[tracing::instrument(

@@ -1,16 +1,19 @@
 use super::state::AppState;
 use crate::SqlState;
 use crate::models::{
-    JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse, LoginResponseData,
-    QueryRequest, QueryRequestBody, ResponseData,
+    AbortRequestBody, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
+    LoginResponseData, QueryRequest, QueryRequestBody, ResponseData,
 };
-use crate::server::error::{self as api_snowflake_rest_error, Error, Result};
+use crate::server::error::{
+    self as api_snowflake_rest_error, Error, InvalidUuidFormatSnafu, Result,
+};
 use api_sessions::DFSessionId;
 use axum::Json;
 use axum::extract::{ConnectInfo, Path, Query, State};
 use base64;
 use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
+use core_executor::AbortQuery;
 use core_executor::error as ex_error;
 use core_executor::models::{QueryContext, QueryResult};
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
@@ -23,6 +26,7 @@ use datafusion::arrow::record_batch::RecordBatch;
 use indexmap::IndexMap;
 use snafu::{ResultExt, location};
 use std::net::SocketAddr;
+use std::str::FromStr;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -33,34 +37,6 @@ use uuid::Uuid;
 // communication, these alignment and padding requirements are enforced.
 // For more info see issue #115
 const ARROW_IPC_ALIGNMENT: usize = 8;
-
-#[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn login(
-    State(state): State<AppState>,
-    // Query(_query_params): Query<LoginRequestQueryParams>,
-    Json(LoginRequestBody {
-        data:
-            LoginRequestData {
-                login_name,
-                password,
-                ..
-            },
-    }): Json<LoginRequestBody>,
-) -> Result<Json<LoginResponse>> {
-    if login_name != *state.config.auth.demo_user || password != *state.config.auth.demo_password {
-        return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
-    }
-
-    let session_id = uuid::Uuid::new_v4().to_string();
-
-    let _ = state.execution_svc.create_session(&session_id).await?;
-
-    Ok(Json(LoginResponse {
-        data: Option::from(LoginResponseData { token: session_id }),
-        success: true,
-        message: Option::from("successfully executed".to_string()),
-    }))
-}
 
 fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> std::result::Result<String, Error> {
     let mut buf = Vec::new();
@@ -166,6 +142,34 @@ pub fn prepare_query_ok_response(
     Ok(json_resp)
 }
 
+#[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn login(
+    State(state): State<AppState>,
+    // Query(_query_params): Query<LoginRequestQueryParams>,
+    Json(LoginRequestBody {
+        data:
+            LoginRequestData {
+                login_name,
+                password,
+                ..
+            },
+    }): Json<LoginRequestBody>,
+) -> Result<Json<LoginResponse>> {
+    if login_name != *state.config.auth.demo_user || password != *state.config.auth.demo_password {
+        return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
+    }
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+
+    let _ = state.execution_svc.create_session(&session_id).await?;
+
+    Ok(Json(LoginResponse {
+        data: Option::from(LoginResponseData { token: session_id }),
+        success: true,
+        message: Option::from("successfully executed".to_string()),
+    }))
+}
+
 #[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -178,7 +182,10 @@ pub async fn query(
     }): Json<QueryRequestBody>,
 ) -> Result<Json<JsonResponse>> {
     let serialization_format = state.config.dbt_serialization_format;
-    let query_context = QueryContext::default().with_ip_address(addr.ip().to_string());
+    let query_context = QueryContext::default()
+        .with_ip_address(addr.ip().to_string())
+        .with_async_query(async_exec)
+        .with_request_id(Uuid::from_str(&query.request_id).context(InvalidUuidFormatSnafu)?);
 
     if async_exec {
         let query_handle = state
@@ -227,7 +234,10 @@ pub async fn get_query(
         .record("query_id", query_id.as_i64())
         .record("query_uuid", query_uuid.to_string());
 
-    let query_result = state.execution_svc.query_result(query_id).await?;
+    let query_result = state
+        .execution_svc
+        .wait_historical_query_result(query_id)
+        .await?;
     match query_result {
         Ok(query_result) => {
             prepare_query_ok_response("", query_result, state.config.dbt_serialization_format)
@@ -249,8 +259,17 @@ pub async fn get_query(
     }
 }
 
-pub async fn abort() -> Result<Json<serde_json::value::Value>> {
-    api_snowflake_rest_error::NotImplementedSnafu.fail()
+#[tracing::instrument(name = "api_snowflake_rest::abort", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn abort(
+    State(state): State<AppState>,
+    Query(QueryRequest { request_id }): Query<QueryRequest>,
+    Json(AbortRequestBody { sql_text, .. }): Json<AbortRequestBody>,
+) -> Result<Json<serde_json::value::Value>> {
+    let request_id = Uuid::from_str(&request_id).context(InvalidUuidFormatSnafu)?;
+    state
+        .execution_svc
+        .abort_query(AbortQuery::ByRequestId(request_id, sql_text))?;
+    Ok(Json(serde_json::value::Value::Null))
 }
 
 #[cfg(test)]
@@ -271,6 +290,7 @@ mod tests {
     use serde::Serialize;
     use std::collections::HashMap;
     use std::io::Write;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_login() {
@@ -293,7 +313,10 @@ mod tests {
 
         //Check before login without an auth header
         let res = client
-            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .request(
+                Method::POST,
+                format!("{query_url}?requestId={}", Uuid::new_v4()),
+            )
             .header("Content-Type", "application/json")
             .header("Content-Encoding", "gzip")
             .body(query_compressed_bytes.clone())
@@ -356,7 +379,10 @@ mod tests {
 
         //Check after login without an auth header
         let res = client
-            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .request(
+                Method::POST,
+                format!("{query_url}?requestId={}", Uuid::new_v4()),
+            )
             .header("Content-Type", "application/json")
             .header("Content-Encoding", "gzip")
             .body(query_compressed_bytes.clone())
@@ -367,7 +393,10 @@ mod tests {
 
         //Check after login with an auth header
         let res = client
-            .request(Method::POST, format!("{query_url}?requestId=123"))
+            .request(
+                Method::POST,
+                format!("{query_url}?requestId={}", Uuid::new_v4()),
+            )
             .header(
                 AUTHORIZATION,
                 format!("Snowflake Token=\"{}\"", login_response.data.unwrap().token),

@@ -3,6 +3,7 @@ use core_executor::models::ColumnInfo as ColumnInfoModel;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,6 +71,13 @@ pub struct QueryRequest {
 pub struct QueryRequestBody {
     pub sql_text: String,
     pub async_exec: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AbortRequestBody {
+    pub sql_text: String,
+    pub request_id: Uuid, // duplicate in body, taken from snowflake connector
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]

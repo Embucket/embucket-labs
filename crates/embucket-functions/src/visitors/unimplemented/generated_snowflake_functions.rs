@@ -2499,12 +2499,6 @@ pub const SYSTEM_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_cancel_all_queries")
     ),
-    ("SYSTEM$CANCEL_QUERY", FunctionInfo::new(
-        "SYSTEM$CANCEL_QUERY",
-        "Cancels the specified query (or statement) if it is currently active/running."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/system_cancel_query")
-    ),
     ("SYSTEM$CLEANUP_DATABASE_ROLE_GRANTS", FunctionInfo::new(
         "SYSTEM$CLEANUP_DATABASE_ROLE_GRANTS",
         "Revokes privileges on dropped objects from the share and grants the database role to the share."

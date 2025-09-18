@@ -1,0 +1,18 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_sqls.rs
+description: "select 1;>\nQuery UUID: 00000000-0000-0000-0000-077ef7448877"
+expression: snapshot
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

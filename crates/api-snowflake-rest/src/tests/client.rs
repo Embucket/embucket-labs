@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::models::AbortRequestBody;
 use crate::models::{ClientEnvironment, LoginRequestBody, LoginRequestData, QueryRequestBody};
 use reqwest;
 use reqwest::Method;
@@ -10,6 +11,7 @@ use reqwest::header::HeaderValue;
 use serde_json::json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct TestHttpError {
@@ -88,8 +90,13 @@ pub fn login_url(addr: &SocketAddr) -> String {
 }
 
 #[must_use]
-pub fn query_url(addr: &SocketAddr) -> String {
-    format!("http://{addr}/queries/v1/query-request?requestId=123")
+pub fn query_url(addr: &SocketAddr, request_id: Uuid) -> String {
+    format!("http://{addr}/queries/v1/query-request?requestId={request_id}")
+}
+
+#[must_use]
+pub fn abort_url(addr: &SocketAddr, request_id: Uuid) -> String {
+    format!("http://{addr}/queries/v1/abort-request?requestId={request_id}")
 }
 
 #[must_use]
@@ -150,6 +157,7 @@ pub async fn query<T>(
     client: &reqwest::Client,
     addr: &SocketAddr,
     access_token: &str,
+    request_id: Uuid,
     query: &str,
     async_exec: bool,
 ) -> std::result::Result<(HeaderMap, T), TestHttpError>
@@ -170,10 +178,44 @@ where
                     .expect("Can't convert to HeaderValue"),
             ),
         ]),
-        &query_url(addr),
+        &query_url(addr, request_id),
         json!(QueryRequestBody {
             sql_text: query.to_string(),
             async_exec,
+        })
+        .to_string(),
+    )
+    .await
+}
+
+pub async fn abort<T>(
+    client: &reqwest::Client,
+    addr: &SocketAddr,
+    access_token: &str,
+    request_id: Uuid,
+    query: &str,
+) -> std::result::Result<(HeaderMap, T), TestHttpError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    http_req_with_headers::<T>(
+        client,
+        Method::POST,
+        HeaderMap::from_iter(vec![
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            ),
+            (
+                header::AUTHORIZATION,
+                HeaderValue::from_str(format!("Snowflake Token=\"{access_token}\"").as_str())
+                    .expect("Can't convert to HeaderValue"),
+            ),
+        ]),
+        &abort_url(addr, request_id),
+        json!(AbortRequestBody {
+            sql_text: query.to_string(),
+            request_id,
         })
         .to_string(),
     )

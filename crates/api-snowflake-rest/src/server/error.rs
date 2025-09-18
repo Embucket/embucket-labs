@@ -54,8 +54,8 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Invalid warehouse_id format"))]
-    InvalidWarehouseIdFormat {
+    #[snafu(display("Invalid uuid format"))]
+    InvalidUuidFormat {
         #[snafu(source)]
         error: uuid::Error,
         #[snafu(implicit)]
@@ -208,7 +208,7 @@ impl Error {
             Self::GZipDecompress { .. }
             | Self::LoginRequestParse { .. }
             | Self::QueryBodyParse { .. }
-            | Self::InvalidWarehouseIdFormat { .. } => {
+            | Self::InvalidUuidFormat { .. } => {
                 // TODO: Is this need a fix? Bad request return retriable http code
                 (
                     http::StatusCode::BAD_REQUEST,

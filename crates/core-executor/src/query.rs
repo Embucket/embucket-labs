@@ -9,6 +9,7 @@ use super::error::{
     self as ex_error, Error, InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu,
     ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
+use super::running_queries::RunningQueries;
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
@@ -115,6 +116,7 @@ use url::Url;
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
     pub history_store: Arc<dyn HistoryStore>,
+    pub running_queries: Arc<dyn RunningQueries>,
     pub raw_query: String,
     pub query: String,
     pub session: Arc<UserSession>,
@@ -134,6 +136,7 @@ impl UserQuery {
         Self {
             metastore: session.metastore.clone(),
             history_store: session.history_store.clone(),
+            running_queries: session.running_queries.clone(),
             raw_query: query.clone().into(),
             query: query.into(),
             session,
@@ -256,6 +259,7 @@ impl UserQuery {
             version: self.session.config.embucket_version.clone(),
             query_context: self.query_context.clone(),
             history_store: self.history_store.clone(),
+            running_queries: self.running_queries.clone(),
         }
     }
 
