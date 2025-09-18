@@ -1,5 +1,4 @@
-use arrow_schema::{DECIMAL128_MAX_PRECISION, Field, Fields};
-use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::arrow::datatypes::{DataType, TimeUnit, DECIMAL128_MAX_PRECISION, Field, Fields};
 use datafusion::common::Result;
 use datafusion::logical_expr::planner::TypePlanner;
 use datafusion::logical_expr::sqlparser::ast;

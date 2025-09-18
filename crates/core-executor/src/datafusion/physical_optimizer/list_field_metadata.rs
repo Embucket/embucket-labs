@@ -1,4 +1,4 @@
-use arrow_schema::{DataType, Field, Schema};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Array, ArrayData, ListArray};
 use datafusion::arrow::buffer::Buffer;
 use datafusion::error::Result as DFResult;

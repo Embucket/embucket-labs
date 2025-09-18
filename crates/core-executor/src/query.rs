@@ -19,7 +19,7 @@ use crate::datafusion::physical_plan::merge::{
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use arrow_schema::{Fields, SchemaBuilder};
+use datafusion::arrow::datatypes::{Fields, SchemaBuilder};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,

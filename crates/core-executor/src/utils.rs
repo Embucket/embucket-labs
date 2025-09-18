@@ -1,6 +1,6 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
-use arrow_schema::ArrowError;
+use datafusion::arrow::error::ArrowError;
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
 use core_history::result_set::{Column, ResultSet, Row};
@@ -111,7 +111,7 @@ pub fn is_logical_plan_effectively_empty(plan: &LogicalPlan) -> bool {
         LogicalPlan::Filter(filter) => {
             let is_false_predicate = matches!(
                 filter.predicate,
-                Expr::Literal(ScalarValue::Boolean(Some(false)))
+                Expr::Literal(ScalarValue::Boolean(Some(false)), _)
             );
             is_false_predicate || is_logical_plan_effectively_empty(&filter.input)
         }

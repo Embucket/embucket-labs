@@ -5,7 +5,7 @@ mod remove_exec_above_empty;
 use super::physical_optimizer::eliminate_empty_datasource_exec::EliminateEmptyDataSourceExec;
 use super::physical_optimizer::list_field_metadata::ListFieldMetadataRule;
 use super::physical_optimizer::remove_exec_above_empty::RemoveExecAboveEmpty;
-use arrow_schema::Schema;
+use datafusion::arrow::datatypes::Schema;
 use datafusion::physical_optimizer::optimizer::{PhysicalOptimizer, PhysicalOptimizerRule};
 use std::sync::Arc;
 

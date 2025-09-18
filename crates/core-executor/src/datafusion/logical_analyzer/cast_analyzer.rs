@@ -1,4 +1,4 @@
-use arrow_schema::TimeUnit;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
@@ -147,7 +147,7 @@ impl CastAnalyzer {
         expr: Expr,
         try_mode: bool,
     ) -> DFResult<Option<Transformed<Expr>>> {
-        if let Expr::Literal(ScalarValue::Utf8(Some(v))) = expr.clone() {
+        if let Expr::Literal(ScalarValue::Utf8(Some(v)), _) = expr.clone() {
             let udf = self.to_timestamp_udf(try_mode);
 
             // Infer the return type of the UDF for the given literal
