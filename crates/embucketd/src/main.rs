@@ -79,6 +79,7 @@ const TARGETS: [&str; 12] = [
     "core_history",
     "core_metastore",
     "df_catalog",
+    "datafusion",
     "iceberg_rust",
     "datafusion_iceberg",
 ];
