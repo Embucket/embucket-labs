@@ -224,7 +224,7 @@ fn ordering_signature(order_by: &[ExprSort]) -> String {
 
 fn find_ordering_in_aggregate(expr: &Expr) -> Option<&[ExprSort]> {
     match expr {
-        Expr::AggregateFunction(af) => af.params.order_by.as_deref(),
+        Expr::AggregateFunction(af) => Some(&af.params.order_by),
         Expr::Alias(a) => find_ordering_in_aggregate(&a.expr),
         Expr::Cast(c) => find_ordering_in_aggregate(&c.expr),
         Expr::TryCast(c) => find_ordering_in_aggregate(&c.expr),

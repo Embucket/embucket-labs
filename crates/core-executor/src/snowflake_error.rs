@@ -343,7 +343,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
     let message = df_error.to_string();
     match df_error {
         DataFusionError::ArrowError(arrow_error, ..) => {
-            match arrow_error {
+            match &**arrow_error {
                 ArrowError::ExternalError(err) => {
                     // Accidently CustomSnafu can't see internal field, so create error manually!
                     SnowflakeError::Custom {
@@ -432,7 +432,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             status_code,
         }
         .build(),
-        DataFusionError::SQL(sql_error, _backtrace) => match sql_error {
+        DataFusionError::SQL(sql_error, _backtrace) => match &**sql_error {
             ParserError::TokenizerError(error) | ParserError::ParserError(error) =>
             // Can't produce message like this: "syntax error line 1 at position 27 unexpected 'XXXX'"
             // since parse error is just a text and not a structure

@@ -44,12 +44,10 @@ where
                 name,
                 columns,
                 constraints,
-                table_properties,
-                with_options,
                 if_not_exists,
                 or_replace,
                 ..
-            }) if table_properties.is_empty() && with_options.is_empty() => {
+            }) => {
                 // Merge inline constraints and existing constraints
                 let mut all_constraints = constraints;
                 let inline_constraints = calc_inline_constraints_from_columns(&columns);

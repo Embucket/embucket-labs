@@ -9,7 +9,7 @@ use datafusion_common::ScalarValue;
 use datafusion_common::config::ConfigOptions;
 use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion_physical_plan::ExecutionPlan;
-use datafusion_physical_plan::projection::ProjectionExec;
+use datafusion_physical_plan::projection::{ProjectionExec, ProjectionExpr};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -65,13 +65,14 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                 let proj_schema = proj.schema();
 
                 if proj_schema.fields() != self.target_schema.fields() {
-                    let new_exprs: DFResult<Vec<(Arc<dyn PhysicalExpr>, String)>> = proj
+                    let new_exprs: DFResult<Vec<ProjectionExpr>> = proj
                         .expr()
                         .iter()
-                        .map(|(expr, name)| {
-                            let name = name.to_string();
+                        .map(|proj_expr| {
+                            let expr = &proj_expr.expr;
+                            let name = proj_expr.alias.clone();
                             let Ok(target_field) = self.target_schema.field_with_name(&name) else {
-                                return Ok((expr.clone(), name));
+                                return Ok(ProjectionExpr::new(expr.clone(), name));
                             };
 
                             // If the expression is a literal containing a ListArray,
@@ -80,7 +81,7 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                             if let Some(lit) = expr.as_any().downcast_ref::<Literal>()
                                 && let Some(new_lit) = rebuild_list_literal(lit, target_field)
                             {
-                                return Ok((Arc::new(new_lit) as Arc<dyn PhysicalExpr>, name));
+                                return Ok(ProjectionExpr::new(Arc::new(new_lit) as Arc<dyn PhysicalExpr>, name));
                             }
 
                             // If the expression is a List type but the element type or metadata
@@ -95,10 +96,10 @@ impl PhysicalOptimizerRule for ListFieldMetadataRule {
                                     target_field.data_type().clone(),
                                     None,
                                 ));
-                                return Ok((casted, name));
+                                return Ok(ProjectionExpr::new(casted, name));
                             }
 
-                            Ok((expr.clone(), name))
+                            Ok(ProjectionExpr::new(expr.clone(), name))
                         })
                         .collect();
 

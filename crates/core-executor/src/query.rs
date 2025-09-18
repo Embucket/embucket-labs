@@ -104,7 +104,7 @@ use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
     AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
-    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType,
     PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
     ShowStatementInParentType as ShowType, TruncateTableTarget, Use, Value, visit_relations_mut,
 };
@@ -357,9 +357,15 @@ impl UserQuery {
                     self.session.set_session_variable(true, params)?;
                     return self.status_response();
                 }
-                Statement::SetVariable {
-                    variables, value, ..
-                } => return self.set_variable(variables, value).await,
+                Statement::Set(statement) => {
+                    use datafusion::sql::sqlparser::ast::Set;
+                    match statement {
+                        Set::SingleAssignment { variable, values, .. } => {
+                            return self.set_variable(variable, values).await;
+                        }
+                        _ => return self.status_response(),
+                    }
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
@@ -522,19 +528,16 @@ impl UserQuery {
     #[instrument(name = "UserQuery::set_variable", level = "trace", skip(self), err)]
     pub async fn set_variable(
         &self,
-        variables: OneOrManyWithParens<ObjectName>,
+        variable: ObjectName,
         values: Vec<Expr>,
     ) -> Result<QueryResult> {
-        let params = variables
-            .iter()
-            .map(ToString::to_string)
-            .zip(values.into_iter());
-
         let mut session_params = HashMap::new();
-        for (name, value) in params {
+        let name = variable.to_string();
+        for value in values.into_iter() {
+            let key = name.clone();
             let session_value = match value {
                 Expr::Value(v) => Ok(SessionProperty::from_value(
-                    name.clone(),
+                    key.clone(),
                     &v.value,
                     self.session.ctx.session_id(),
                 )),
@@ -542,7 +545,7 @@ impl UserQuery {
                     let query_str = query.to_string();
                     let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
-                        name.clone(),
+                        key.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
@@ -551,14 +554,14 @@ impl UserQuery {
                     let query_str = format!("SELECT {value}");
                     let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
-                        name.clone(),
+                        key.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
                 }
                 _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
             }?;
-            session_params.insert(name, session_value);
+            session_params.insert(key, session_value);
         }
         self.session.set_session_variable(true, session_params)?;
         self.status_response()
@@ -1582,6 +1585,7 @@ impl UserQuery {
         let Statement::CreateSchema {
             schema_name,
             if_not_exists,
+            ..
         } = statement.clone()
         else {
             return ex_error::OnlyCreateSchemaStatementsSnafu.fail();
@@ -1921,7 +1925,9 @@ impl UserQuery {
                         ObjectNamePart::Identifier(ident) => {
                             self.normalize_ident(ident).to_string()
                         }
+                        ObjectNamePart::Function(_) => String::new(),
                     })
+                    .filter(|s| !s.is_empty())
                     .collect()
             })
             .unwrap_or_default();
@@ -2481,10 +2487,12 @@ impl UserQuery {
                         // Extract the database and schema names
                         let db_name = match &name.0[0] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         let schema_name = match &name.0[1] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         Some(TableReference::full(db_name, schema_name, empty()))
@@ -2492,6 +2500,7 @@ impl UserQuery {
                         // Extract just the schema name
                         let schema_name = match &name.0[0] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         Some(TableReference::full(empty(), schema_name, empty()))
@@ -2549,7 +2558,9 @@ impl UserQuery {
             .into_iter()
             .map(|part| match part {
                 ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
+                ObjectNamePart::Function(_) => Ident::new(String::new()),
             })
+            .filter(|ident| !ident.value.is_empty())
             .collect();
         Ok(NormalizedIdent(normalized_idents))
     }
@@ -2582,7 +2593,9 @@ impl UserQuery {
             .into_iter()
             .map(|part| match part {
                 ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
+                ObjectNamePart::Function(_) => Ident::new(String::new()),
             })
+            .filter(|ident| !ident.value.is_empty())
             .collect();
         Ok(NormalizedIdent(normalized_idents))
     }
