@@ -443,17 +443,40 @@ fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
 #[test]
 fn test_table_function_cte() -> DFResult<()> {
     let state = SessionContext::new().state();
-    let cases = vec![(
-        r#"WITH base AS (SELECT '{"a": 1}' AS jsontext),
+    let cases = vec![
+        (
+            r#"WITH base AS (SELECT '{"a": 1}' AS jsontext),
             intermediate AS (
               SELECT value
               FROM base, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d
             )
             SELECT * FROM intermediate;"#,
-        "WITH base AS (SELECT '{\"a\": 1}' AS jsontext), intermediate AS \
+            "WITH base AS (SELECT '{\"a\": 1}' AS jsontext), intermediate AS \
            (SELECT value FROM base, LATERAL FLATTEN(INPUT => parse_json((SELECT jsontext FROM \
            (SELECT '{\"a\": 1}' AS jsontext) AS base))) AS d) SELECT * FROM intermediate",
-    )];
+        ),
+        (
+            "WITH source AS (
+                  SELECT jsontext FROM test
+                ),
+                metric_per_row AS (
+                  SELECT value AS datapoints
+                  FROM source, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d
+                ),
+                data_points_flushed_out AS (
+                  SELECT metric_value
+                  FROM metric_per_row,
+                       LATERAL FLATTEN(INPUT => datapoints) dp
+                )
+                SELECT * FROM data_points_flushed_out;",
+            "WITH source AS (SELECT jsontext FROM test), metric_per_row AS \
+            (SELECT value AS datapoints FROM source, LATERAL FLATTEN(INPUT => parse_json(\
+            (SELECT jsontext FROM (SELECT jsontext FROM test) AS source))) AS d), data_points_flushed_out AS \
+            (SELECT metric_value FROM metric_per_row, LATERAL FLATTEN(INPUT => \
+            (SELECT datapoints FROM (SELECT value AS datapoints FROM (SELECT jsontext FROM test), LATERAL FLATTEN(INPUT => parse_json(jsontext)) AS d) AS metric_per_row)) AS dp) \
+            SELECT * FROM data_points_flushed_out",
+        ),
+    ];
 
     for (input, expected) in cases {
         let mut statement = state.sql_to_statement(input, "snowflake")?;
