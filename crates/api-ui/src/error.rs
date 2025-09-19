@@ -141,7 +141,7 @@ impl IntoResponse for Error {
 impl Error {
     pub fn query_id(&self) -> QueryRecordId {
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
@@ -156,7 +156,7 @@ impl Error {
         // acquire error str as later it will be moved
         let error_str = self.to_string();
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
@@ -173,7 +173,7 @@ impl Error {
 
     pub fn debug_error_message(&self) -> String {
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
