@@ -2,11 +2,10 @@ name: DBT Snowplow Web run
 
 permissions:
   contents: write
-  
+
 on:
   schedule:
-    # Runs every day at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: '0 4 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -22,24 +21,15 @@ jobs:
         with:
           submodules: true
 
-      - name: Start Embucket Server (Docker)
-        run: |
-          docker run -d \
-            --name embucket-server \
-            -p 3000:3000 \
-            embucket/embucket
-          echo "Starting Embucket server..."
-          sleep 20
-
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./run_snowplow_web.sh
+          ./incremental.sh false 10000
 
       # Generate Test Assets
       - name: Generate data for commit message

@@ -38,7 +38,7 @@ jobs:
           git fetch origin ${{ github.base_ref }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -166,7 +166,7 @@ jobs:
           sleep 20
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -188,7 +188,7 @@ jobs:
           retention-days: 7
 
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         if: always()
         with:
           script: |
@@ -220,7 +220,7 @@ jobs:
     name: Comment No Tests Selected
     steps:
       - name: Comment on PR - No Tests
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.createComment({

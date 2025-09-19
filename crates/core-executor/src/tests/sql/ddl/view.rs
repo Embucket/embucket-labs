@@ -24,3 +24,14 @@ test_query!(
     ],
     snapshot_path = "view"
 );
+
+test_query!(
+    view_from_table,
+    "SELECT * FROM view ORDER BY id",
+    setup_queries = [
+        "CREATE TABLE view_source (ID INTEGER, name VARCHAR)",
+        "CREATE OR REPLACE VIEW view AS SELECT * FROM view_source",
+        "INSERT INTO view_source VALUES (1, 'Alice'), (2, 'Bob')",
+    ],
+    snapshot_path = "view"
+);

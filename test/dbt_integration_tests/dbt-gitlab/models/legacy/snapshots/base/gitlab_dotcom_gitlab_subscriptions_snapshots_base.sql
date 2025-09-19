@@ -25,8 +25,8 @@ WITH source AS (
     trial::BOOLEAN                                AS is_trial,
     created_at::TIMESTAMP                         AS gitlab_subscription_created_at,
     updated_at::TIMESTAMP                         AS gitlab_subscription_updated_at,
-    "DBT_VALID_FROM"::TIMESTAMP                   AS valid_from,
-    "DBT_VALID_TO"::TIMESTAMP                     AS valid_to
+    dbt_valid_from::TIMESTAMP                   AS valid_from,
+    dbt_valid_to::TIMESTAMP                     AS valid_to
   
   FROM source
     

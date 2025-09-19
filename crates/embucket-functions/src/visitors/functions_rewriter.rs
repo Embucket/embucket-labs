@@ -3,7 +3,7 @@ use datafusion_expr::sqlparser::ast::Value::SingleQuotedString;
 use datafusion_expr::sqlparser::ast::VisitMut;
 use datafusion_expr::sqlparser::ast::{
     Expr, FunctionArg, FunctionArgExpr, FunctionArgumentList, FunctionArguments, Ident, ObjectName,
-    Statement, VisitorMut,
+    Statement, Value, VisitorMut,
 };
 
 #[derive(Debug, Default)]
@@ -23,9 +23,40 @@ impl VisitorMut for FunctionsRewriter {
                     if let FunctionArguments::List(FunctionArgumentList { args, .. }) = args
                         && let Some(FunctionArg::Unnamed(FunctionArgExpr::Expr(ident))) =
                             args.iter_mut().next()
-                        && let Expr::Identifier(Ident { value, .. }) = ident
                     {
-                        *ident = Expr::Value(SingleQuotedString(value.clone()).into());
+                        match ident {
+                            Expr::Identifier(Ident { value, .. }) => {
+                                let transformed_value = match value.as_str() {
+                                    "epoch_second" | "epoch_seconds" => "epoch".to_string(),
+                                    _ => value.clone(),
+                                };
+                                *ident = Expr::Value(SingleQuotedString(transformed_value).into());
+                            }
+
+                            Expr::Value(ValueWithSpan {
+                                value: Value::SingleQuotedString(value),
+                                ..
+                            }) => {
+                                // Handle already quoted strings
+                                let transformed_value = match value.as_str() {
+                                    "epoch_second" | "epoch_seconds" => "epoch".to_string(),
+                                    _ => value.clone(),
+                                };
+                                *value = transformed_value;
+                            }
+                            Expr::Value(ValueWithSpan {
+                                value: Value::DoubleQuotedString(value),
+                                ..
+                            }) => {
+                                // Handle already quoted strings
+                                let transformed_value = match value.as_str() {
+                                    "epoch_second" | "epoch_seconds" => "epoch".to_string(),
+                                    _ => value.clone(),
+                                };
+                                *value = transformed_value;
+                            }
+                            _ => {}
+                        }
                     }
                     func_name
                 }

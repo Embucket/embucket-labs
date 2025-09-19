@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/union_schema_analyzer.rs
+description: "\"WITH res AS (\n        SELECT '2024-12-31 10:00:00.000'::TIMESTAMP as t\n        UNION ALL\n        SELECT '9999-12-31 00:00:00.000 +0000'\n    )\n    SELECT t FROM res\n    ORDER BY t\""
+---
+Ok(
+    [
+        "+---------------------+",
+        "| t                   |",
+        "+---------------------+",
+        "| 2024-12-31T10:00:00 |",
+        "| 9999-12-31T00:00:00 |",
+        "+---------------------+",
+    ],
+)

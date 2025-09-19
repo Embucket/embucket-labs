@@ -546,6 +546,16 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                         status_code,
                     }
                     .build(),
+                    DFCatalogExternalDFError::CannotResolveViewReference { .. } => CustomSnafu {
+                        message,
+                        status_code,
+                    }
+                    .build(),
+                    DFCatalogExternalDFError::SessionDowncast { .. } => CustomSnafu {
+                        message,
+                        status_code,
+                    }
+                    .build(),
                     DFCatalogExternalDFError::ObjectStoreNotFound { .. } => CustomSnafu {
                         message,
                         status_code,

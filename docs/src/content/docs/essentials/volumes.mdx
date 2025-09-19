@@ -5,7 +5,7 @@ description: Configure volumes to store data and metadata in Embucket
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-Volumes define where Embucket stores your data. You configure volumes that reference object storage locations. Object storage uses cloud-based storage systems like Amazon S3. You then create databases that use those volumes. This document covers how to configure and manage volumes in your Embucket deployment.
+Volumes define storage locations for your data in Embucket as database objects. A volume contains configuration settings that reference object storage systems like Amazon S3, along with access credentials and backend specifications. You create databases that use these volumes to store their tables and metadata. This document covers how to configure and manage volumes in your Embucket deployment.
 
 **Key topics covered:**
 
@@ -15,7 +15,7 @@ Volumes define where Embucket stores your data. You configure volumes that refer
 
 ## Overview
 
-A volume contains a storage configuration with:
+Each volume serves as a storage configuration object that contains:
 
 - **Storage location**: The object storage bucket or path where Embucket stores data
 - **Access credentials**: Authentication information for the storage system
@@ -29,7 +29,7 @@ Embucket supports three volume types:
 
 ### S3 volumes
 
-S3 volumes store data in S3-compatible object storage. S3-compatible means storage systems that use the Amazon S3 API standard for data access and management. Use S3 volumes for production deployments.
+S3 volumes store data in S3-compatible object storage systems as database objects. S3-compatible systems use the Amazon S3 API standard for data access and management. Use S3 volumes for production deployments.
 
 **Supported storage systems:**
 
@@ -38,7 +38,7 @@ S3 volumes store data in S3-compatible object storage. S3-compatible means stora
 
 ### S3 tables volumes
 
-S3 tables volumes store data in S3-compatible object storage. S3-compatible means storage systems that use the Amazon S3 API standard for data access and management. Use S3 volumes for production deployments.
+S3 tables volumes store data in AWS S3 table buckets as database objects. Unlike standard S3 volumes that work with any S3-compatible storage, S3 tables volumes specifically integrate with AWS S3 table buckets for optimized performance. Use S3 tables volumes for AWS-native production deployments.
 
 **Supported storage systems:**
 
@@ -46,7 +46,7 @@ S3 tables volumes store data in S3-compatible object storage. S3-compatible mean
 
 ### Filesystem volumes
 
-Filesystem volumes store data on local disk. Use filesystem volumes only for development and testing.
+Filesystem volumes store data on the local file system as database objects. Unlike cloud-based volumes, filesystem volumes write data directly to disk paths on the server where Embucket runs. Use filesystem volumes only for development and testing.
 
 <Aside type="caution">
   Avoid filesystem volumes in production environments as they may not work with distributed
@@ -55,7 +55,7 @@ Filesystem volumes store data on local disk. Use filesystem volumes only for dev
 
 ### Memory volumes
 
-Memory volumes store data in RAM. Use memory volumes only for temporary testing.
+Memory volumes store data entirely in system memory RAM as database objects. Unlike persistent storage volumes, memory volumes lose all data when the system restarts. Use memory volumes only for temporary testing.
 
 <Aside type="danger">
   Memory volumes lose all data when the system restarts or shuts down. Never use memory volumes for

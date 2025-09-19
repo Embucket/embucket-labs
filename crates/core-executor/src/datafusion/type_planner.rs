@@ -28,7 +28,9 @@ impl TypePlanner for CustomTypePlanner {
                 Ok(Some(DataType::new_list(DataType::Utf8, true)))
             }
             SQLDataType::Int32 => Ok(Some(DataType::Int32)),
-            SQLDataType::Int64 => Ok(Some(DataType::Int64)),
+            SQLDataType::Int64 | SQLDataType::Int(_) | SQLDataType::Integer(_) => {
+                Ok(Some(DataType::Int64))
+            }
             SQLDataType::UInt32 => Ok(Some(DataType::UInt32)),
             SQLDataType::Float(_) | SQLDataType::Float32 => Ok(Some(DataType::Float32)),
             SQLDataType::Float64 => Ok(Some(DataType::Float64)),

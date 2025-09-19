@@ -1,2 +1,35 @@
+use datafusion::optimizer::{Analyzer, AnalyzerRule};
+use embucket_functions::session_params::SessionParams;
+use std::sync::Arc;
+
 pub mod cast_analyzer;
+mod custom_type_coercion;
 pub mod iceberg_types_analyzer;
+pub mod like_type_analyzer;
+pub mod union_schema_analyzer;
+
+#[must_use]
+pub fn analyzer_rules(
+    session_params: Arc<SessionParams>,
+) -> Vec<Arc<dyn AnalyzerRule + Send + Sync>> {
+    //Ordering matters a lot, including `.extend(...)`
+    let mut before_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
+        Arc::new(like_type_analyzer::LikeTypeAnalyzer {}),
+        Arc::new(custom_type_coercion::CustomTypeCoercionRewriter::new()),
+    ];
+
+    let base_rules = Analyzer::new().rules;
+
+    let after_base_rules: Vec<Arc<dyn AnalyzerRule + Send + Sync>> = vec![
+        Arc::new(iceberg_types_analyzer::IcebergTypesAnalyzer {}),
+        Arc::new(cast_analyzer::CastAnalyzer::new(session_params)),
+        // Must be registered after CastAnalyzer because it introduces function calls
+        // that can change the schema
+        Arc::new(union_schema_analyzer::UnionSchemaAnalyzer::new()),
+    ];
+
+    before_base_rules.extend(base_rules);
+    before_base_rules.extend(after_base_rules);
+
+    before_base_rules
+}

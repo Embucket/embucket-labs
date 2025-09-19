@@ -42,3 +42,11 @@ test_query!(
     FROM VALUES ('$3,741.72')",
     snapshot_path = "to_decimal"
 );
+
+test_query!(
+    to_decimal_from_bool,
+    "SELECT column1,
+       TO_DECIMAL(column1) as convert_bool
+    FROM VALUES (FALSE), (TRUE)",
+    snapshot_path = "to_decimal"
+);

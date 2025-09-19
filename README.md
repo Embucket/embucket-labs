@@ -1,6 +1,6 @@
 # Embucket
 
-**Run Snowflake SQL on your data lake in 30 seconds. Zero dependencies.**
+**Run Snowflake SQL dialect on your data lake in 30 seconds. Zero dependencies.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![SQL Logic Test Coverage](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/badge.svg)](test/README.md)
@@ -22,24 +22,24 @@ INSERT INTO sales VALUES (1, 'Widget A', 1250.00), (2, 'Widget B', 899.50);
 SELECT product, revenue FROM sales WHERE revenue > 1000;
 ```
 
-**Done.** You just ran Snowflake SQL on Apache Iceberg tables with zero configuration.
+**Done.** You just ran Snowflake SQL dialect on Apache Iceberg tables with zero configuration.
 
 ## What just happened?
 
-Embucket provides a **single binary** that gives you a **Snowflake-compatible lakehouse**:
+Embucket provides a **single binary** that gives you a **wire-compatible Snowflake replacement**:
 
-- **Snowflake SQL & API**: Use your existing queries, dbt projects, and BI tools
+- **Snowflake SQL dialect and API**: Use your existing queries, dbt projects, and BI tools
 - **Apache Iceberg storage**: Your data stays in open formats on object storage  
 - **Zero dependencies**: No databases, no clusters, no configuration files
 - **Query-per-node**: Each instance handles complete queries independently
 
-Perfect for teams who want Snowflake's simplicity without the vendor lock-in.
+Perfect for teams who want Snowflake's simplicity with bring-your-own-cloud control.
 
 ## Architecture
 
 ![Embucket Architecture](architecture.png)
 
-**Zero-disk lakehouse**: all data and metadata live in object storage. Nodes stay stateless and replaceable.
+**Zero-disk lakehouse**: an architectural approach where all data and metadata live in object storage rather than on compute nodes. Nodes stay stateless and replaceable.
 
 Built on proven open source:
 - [Apache DataFusion](https://datafusion.apache.org/) for SQL execution
@@ -48,10 +48,10 @@ Built on proven open source:
 
 ## Why Embucket?
 
-**Escape the dilemma**: choose between vendor lock-in (Snowflake) or operational complexity (do-it-yourself lakehouse).
+**Escape the dilemma**: choose between cloud provider lakehouses (Redshift, BigQuery) or operational complexity (do-it-yourself lakehouse).
 
 - **Radical simplicity** - Single binary deployment  
-- **Snowflake compatibility** - Works with your existing tools  
+- **Snowflake SQL dialect compatibility** - Works with your existing tools  
 - **Open data** - Apache Iceberg format, no lock-in  
 - **Horizontal scaling** - Add nodes for more throughput  
 - **Zero operations** - No external dependencies to manage
@@ -60,10 +60,10 @@ Built on proven open source:
 
 **Ready for more?** Check out the comprehensive documentation:
 
-**[Quick Start Guide](docs/src/content/docs/essentials/quick-start.mdx)** - Detailed setup and first queries  
-**[Architecture Guide](docs/src/content/docs/essentials/architecture.mdx)** - How the zero-disk lakehouse works  
-**[Configuration](docs/src/content/docs/essentials/configuration.mdx)** - Production deployment options  
-**[dbt Integration](docs/src/content/docs/guides/dbt-snowplow.mdx)** - Run existing dbt projects  
+[Quick start](https://docs.embucket.com/essentials/quick-start/) - Detailed setup and first queries  
+[Architecture](https://docs.embucket.com/essentials/architecture/) - How the zero-disk lakehouse works  
+[Configuration](https://docs.embucket.com/essentials/configuration/) - Production deployment options  
+[dbt Integration](https://docs.embucket.com/guides/dbt-snowplow/) - Run existing dbt projects  
 
 **From source:**
 ```bash

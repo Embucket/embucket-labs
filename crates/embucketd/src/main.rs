@@ -71,7 +71,7 @@ use utoipa_swagger_ui::SwaggerUi;
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
-const TARGETS: [&str; 10] = [
+const TARGETS: [&str; 13] = [
     "embucketd",
     "api_ui",
     "api_sessions",
@@ -82,6 +82,9 @@ const TARGETS: [&str; 10] = [
     "core_history",
     "core_metastore",
     "df_catalog",
+    "datafusion",
+    "iceberg_rust",
+    "datafusion_iceberg",
 ];
 
 #[tokio::main]

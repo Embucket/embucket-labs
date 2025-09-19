@@ -1,0 +1,19 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/integer.rs
+description: "\"SELECT * FROM test\""
+info: "Setup queries: CREATE TABLE test (a INT64); INSERT INTO test VALUES ('50'), ('50.0'), ('50.9'), ('50.5'), ('50.45'), ('50.459')"
+---
+Ok(
+    [
+        "+----+",
+        "| a  |",
+        "+----+",
+        "| 50 |",
+        "| 50 |",
+        "| 51 |",
+        "| 51 |",
+        "| 50 |",
+        "| 50 |",
+        "+----+",
+    ],
+)

@@ -5,7 +5,7 @@ use crate::conversion_errors::{
     FailedToParseIntSnafu, InvalidDataTypeSnafu, InvalidValueForFunctionAtPositionTwoSnafu,
 };
 use crate::session_params::SessionParams;
-use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, Month, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc};
 use chrono_tz::Tz;
 use datafusion::arrow::array::{
     Array, Decimal128Array, StringArray, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
@@ -41,7 +41,7 @@ static RE_TIMEZONE: LazyLock<Regex> = LazyLock::new(|| {
 #[allow(clippy::unwrap_used)]
 static TIMESTAMP_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^(\d{1,4})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:\s?(Z|[+-]\d{2}:?\d{2}|[A-Za-z]{2,4}))?$"
+        r"^(\d{1,4})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:\s?(Z|[+-]\d{2}(?::?\d{2})?|[A-Za-z]{2,4}))?$"
     ).unwrap()
 });
 
@@ -205,6 +205,15 @@ impl ScalarUDFImpl for ToTimestampFunc {
             }
         }
 
+        // If the first argument is already a timestamp type, return it as is (with its timezone).
+        if matches!(
+            args.arg_types[0],
+            DataType::Timestamp(TimeUnit::Microsecond, _)
+                | DataType::Timestamp(TimeUnit::Nanosecond, Some(_))
+        ) {
+            return Ok(ReturnInfo::new_nullable(args.arg_types[0].clone()));
+        }
+
         Ok(ReturnInfo::new_nullable(DataType::Timestamp(
             TimeUnit::Nanosecond,
             self.timezone(),
@@ -299,6 +308,14 @@ impl ScalarUDFImpl for ToTimestampFunc {
             };
             Ok(ColumnarValue::Array(Arc::new(arr)))
         } else if matches!(arr.data_type(), DataType::Timestamp(_, _)) {
+            if matches!(
+                arr.data_type(),
+                DataType::Timestamp(TimeUnit::Microsecond, _)
+                    | DataType::Timestamp(TimeUnit::Nanosecond, Some(_))
+            ) {
+                return Ok(ColumnarValue::Array(Arc::new(arr)));
+            }
+
             let DataType::Timestamp(_, tz) = arr.data_type() else {
                 InvalidDataTypeSnafu.fail()?
             };
@@ -522,7 +539,8 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFRe
     }
 }
 
-fn parse_timezone(s: &str) -> Option<FixedOffset> {
+#[must_use]
+pub fn parse_timezone(s: &str) -> Option<FixedOffset> {
     match s.to_uppercase().as_str() {
         "Z" | "UTC" | "GMT" => Some(FixedOffset::east_opt(0)?),
         "CET" => Some(FixedOffset::east_opt(3600)?),
@@ -539,7 +557,16 @@ fn parse_timezone(s: &str) -> Option<FixedOffset> {
         "MDT" => Some(FixedOffset::west_opt(6 * 3600)?),
         "JST" => Some(FixedOffset::east_opt(9 * 3600)?),
         "MSD" => Some(FixedOffset::east_opt(14400)?),
-        other => FixedOffset::from_str(other).ok(),
+        _ => {
+            if let Ok(fixed) = FixedOffset::from_str(s) {
+                return Some(fixed);
+            }
+            if let Ok(tz) = s.parse::<Tz>() {
+                let now = Utc::now().naive_utc();
+                return Some(tz.offset_from_utc_datetime(&now).fix());
+            }
+            None
+        }
     }
 }
 
@@ -632,14 +659,10 @@ fn remove_timezone(datetime_str: &str) -> String {
     if datetime_str.len() < 15 {
         return datetime_str.to_string();
     }
-
-    let s = datetime_str.trim();
-
-    if let Some(caps) = RE_TIMEZONE.find(s) {
-        return s[0..caps.start()].to_string();
+    if let Some(caps) = RE_TIMEZONE.find(datetime_str) {
+        return datetime_str[0..caps.start()].trim().to_string();
     }
-
-    s.to_string()
+    datetime_str.to_string()
 }
 
 fn contains_only_digits(s: &str) -> bool {

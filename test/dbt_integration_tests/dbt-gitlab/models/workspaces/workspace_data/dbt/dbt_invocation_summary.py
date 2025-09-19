@@ -147,6 +147,7 @@ def prepare_dataframe(df, is_incremental: bool, max_from_this: str, session):
 
 def model(dbt, session):
     """Main model function for dbt execution."""
+    dbt.config(enabled=False)
     dbt.config(packages=["networkx"])
     dbt.config(materialized="incremental")
     dbt.config(incremental_strategy="append")

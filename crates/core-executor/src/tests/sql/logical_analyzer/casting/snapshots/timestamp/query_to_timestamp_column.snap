@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/timestamp.rs
+description: "\"SELECT column1::TIMESTAMP as t FROM VALUES ('03-Apr-2024 12:12'), ('2024-04-03T12:12:10'), ('04/03/2024T12:12:10')\""
+---
+Ok(
+    [
+        "+---------------------+",
+        "| t                   |",
+        "+---------------------+",
+        "| 2024-04-03T12:12:00 |",
+        "| 2024-04-03T12:12:10 |",
+        "| 2024-03-04T12:12:10 |",
+        "+---------------------+",
+    ],
+)

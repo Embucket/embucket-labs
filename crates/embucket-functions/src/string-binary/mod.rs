@@ -1,3 +1,5 @@
+use datafusion::logical_expr::{Coercion, TypeSignatureClass};
+use datafusion_common::types::logical_string;
 use datafusion_expr::ScalarUDF;
 use datafusion_expr::registry::FunctionRegistry;
 use std::sync::Arc;
@@ -10,7 +12,9 @@ pub mod insert;
 pub mod jarowinkler_similarity;
 pub mod length;
 pub mod lower;
+pub mod parse_ip;
 pub mod randstr;
+pub mod replace;
 pub mod rtrimmed_length;
 pub mod sha2;
 pub mod split;
@@ -32,12 +36,14 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
         jarowinkler_similarity::get_udf(),
         length::get_udf(),
         lower::get_udf(),
+        parse_ip::get_udf(),
         randstr::get_udf(),
         rtrimmed_length::get_udf(),
         sha2::get_udf(),
         split::get_udf(),
         strtok::get_udf(),
         substr::get_udf(),
+        replace::get_udf(),
     ];
 
     for func in functions {
@@ -45,4 +51,8 @@ pub fn register_udfs(registry: &mut dyn FunctionRegistry) -> datafusion_common::
     }
 
     Ok(())
+}
+
+fn logical_str() -> Coercion {
+    Coercion::new_exact(TypeSignatureClass::Native(logical_string()))
 }

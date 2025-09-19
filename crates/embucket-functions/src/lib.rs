@@ -29,6 +29,7 @@ pub mod df_error;
 // Explicitely disable non-working geospatial, as workaround for cargo test --all-features
 // #[cfg(feature = "geospatial")]
 // pub mod geospatial;
+pub mod crypto;
 pub mod encryption;
 mod errors;
 pub mod expr_planner;
@@ -47,6 +48,7 @@ pub mod table;
 pub mod tests;
 mod utils;
 pub mod visitors;
+pub mod window;
 
 pub fn register_udfs(
     registry: &mut dyn FunctionRegistry,
@@ -54,6 +56,7 @@ pub fn register_udfs(
 ) -> Result<()> {
     conditional::register_udfs(registry)?;
     conversion::register_udfs(registry, session_params)?;
+    crypto::register_udfs(registry)?;
     datetime::register_udfs(registry, session_params)?;
     numeric::register_udfs(registry)?;
     encryption::register_udfs(registry)?;
@@ -62,6 +65,7 @@ pub fn register_udfs(
     regexp::register_udfs(registry)?;
     system::register_udfs(registry)?;
     session::register_session_context_udfs(registry)?;
+    window::register_udwfs(registry)?;
     Ok(())
 }
 

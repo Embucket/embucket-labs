@@ -1,0 +1,13 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/array.rs
+description: "\"SELECT to_array('A')::ARRAY\""
+---
+Ok(
+    [
+        "+---------------------+",
+        "| to_array(Utf8(\"A\")) |",
+        "+---------------------+",
+        "| [A]                 |",
+        "+---------------------+",
+    ],
+)

@@ -1,10 +1,110 @@
 use crate::visitors::{
-    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element,
+    fetch_to_limit, functions_rewriter, inline_aliases_in_query, json_element, like_ilike_any,
     rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation,
 };
 use datafusion::prelude::SessionContext;
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion_common::Result as DFResult;
+
+#[test]
+fn test_like_ilike_any_expr_rewriter() -> DFResult<()> {
+    let state = SessionContext::new().state();
+    let cases = vec![
+        //LIKE ANY
+        (
+            "SELECT * FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%','T%e')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' OR column1 LIKE 'T%e' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%','T%e', '%Tim%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' OR column1 LIKE 'T%e' OR column1 LIKE '%Tim%' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 LIKE ANY ('%Jo%oe%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 LIKE '%Jo%oe%' ORDER BY column1",
+        ),
+        //ILIKE ANY
+        (
+            "SELECT * FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 ILIKE ANY ('%Jo%oe%','T%e')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 ILIKE '%Jo%oe%' OR column1 ILIKE 'T%e' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 ILIKE ANY ('%Jo%oe%','T%e', '%Tim%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 ILIKE '%Jo%oe%' OR column1 ILIKE 'T%e' OR column1 ILIKE '%Tim%' ORDER BY column1",
+        ),
+        (
+            "SELECT *
+             FROM VALUES
+                ('John  Dddoe'),
+                ('Joe   Doe'),
+                ('John_down'),
+                ('Joe down'),
+                ('Tom   Doe'),
+                ('Tim down'),
+                (NULL)
+            WHERE column1 ILIKE ANY ('%Jo%oe%')
+            ORDER BY column1",
+            "SELECT * FROM (VALUES ('John  Dddoe'), ('Joe   Doe'), ('John_down'), ('Joe down'), ('Tom   Doe'), ('Tim down'), (NULL)) WHERE column1 ILIKE '%Jo%oe%' ORDER BY column1",
+        ),
+    ];
+
+    for (input, expected) in cases {
+        let mut statement = state.sql_to_statement(input, "snowflake")?;
+        if let DFStatement::Statement(ref mut stmt) = statement {
+            like_ilike_any::visit(stmt);
+        }
+        assert_eq!(statement.to_string(), expected);
+    }
+    Ok(())
+}
 
 #[test]
 fn test_rlike_regexp_expr_rewriter() -> DFResult<()> {
@@ -94,6 +194,10 @@ fn test_functions_rewriter() -> DFResult<()> {
             "SELECT dateadd('year', 5, '2025-06-01')",
         ),
         (
+            "SELECT dateadd('year', 5, '2025-06-01')",
+            "SELECT dateadd('year', 5, '2025-06-01')",
+        ),
+        (
             "SELECT datediff(day, 5, '2025-06-01')",
             "SELECT datediff('day', 5, '2025-06-01')",
         ),
@@ -116,6 +220,22 @@ fn test_functions_rewriter() -> DFResult<()> {
         (
             "SELECT date_part(year, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
             "SELECT date_part('year', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part(epoch_second, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part(epoch_seconds, TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part('epoch_seconds', TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
+        ),
+        (
+            "SELECT date_part(\"epoch_second\", TO_TIMESTAMP('2024-04-08T23:39:20.123-07:00'))",
+            "SELECT date_part('epoch', to_timestamp('2024-04-08T23:39:20.123-07:00'))",
         ),
         // to_char format replacements
         (

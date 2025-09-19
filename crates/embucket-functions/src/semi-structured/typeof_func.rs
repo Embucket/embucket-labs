@@ -2,21 +2,21 @@ use datafusion::arrow::array::{Array, as_string_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
+use datafusion_common::ScalarValue;
 use datafusion_common::arrow::array::StringBuilder;
-use datafusion_common::{ScalarValue, exec_err};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use std::any::Any;
 use std::sync::Arc;
 
-// typeof SQL function
-// Returns the type of a value stored in a VARIANT column.
-// Syntax: TYPEOF( <variant_expr> )
-// Arguments:
-// - variant_expr
-//   An expression that evaluates to a value of type VARIANT.
-// Example SELECT TYPEOF('{"a":1}') as v;
-// Returns a STRING value or NULL.
+/// typeof SQL function
+/// Returns the type of a value stored in a VARIANT column.
+/// Syntax: TYPEOF( <`variant_expr`> )
+/// Arguments:
+/// - `variant_expr`
+///   An expression that evaluates to a value of type VARIANT.
+///   Example SELECT TYPEOF('{"a":1}') as v;
+///   Returns a STRING value or NULL.
 #[derive(Debug)]
 pub struct TypeofFunc {
     signature: Signature,
@@ -32,7 +32,7 @@ impl TypeofFunc {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            signature: Signature::string(1, Volatility::Immutable),
+            signature: Signature::any(1, Volatility::Immutable),
         }
     }
 }
@@ -63,27 +63,38 @@ impl ScalarUDFImpl for TypeofFunc {
         };
 
         let mut b = StringBuilder::with_capacity(arr.len(), 1024);
-        let input = as_string_array(&arr);
-        for v in input {
-            let Some(v) = v else {
-                b.append_value("NULL");
-                continue;
-            };
 
-            match serde_json::from_str::<Value>(v) {
-                Ok(v) => match v {
-                    Value::Null => b.append_value("NULL_VALUE"),
-                    Value::Bool(_) => b.append_value("BOOLEAN"),
-                    Value::Number(n) => match n {
-                        n if n.is_i64() => b.append_value("INTEGER"),
-                        n if n.is_f64() => b.append_value("DOUBLE"),
-                        _ => b.append_value("NUMBER"),
-                    },
-                    Value::String(_) => b.append_value("VARCHAR"),
-                    Value::Array(_) => b.append_value("ARRAY"),
-                    Value::Object(_) => b.append_value("OBJECT"),
-                },
-                Err(e) => exec_err!("Failed to parse JSON string: {e}")?,
+        match arr.data_type() {
+            v if v.is_integer() => append_all(&mut b, arr.len(), "INTEGER"),
+            v if v.is_floating() => append_all(&mut b, arr.len(), "DOUBLE"),
+            DataType::Boolean => append_all(&mut b, arr.len(), "BOOLEAN"),
+            DataType::Decimal128(_, _) | DataType::Decimal256(_, _) => {
+                append_all(&mut b, arr.len(), "DECIMAL");
+            }
+            v if v.is_nested() => append_all(&mut b, arr.len(), "ARRAY"),
+            _ => {
+                let input = as_string_array(&arr);
+                for v in input {
+                    let Some(v) = v else {
+                        b.append_null();
+                        continue;
+                    };
+                    match serde_json::from_str::<Value>(&v.to_ascii_lowercase()) {
+                        Ok(v) => match v {
+                            Value::Null => b.append_value("NULL_VALUE"),
+                            Value::Bool(_) => b.append_value("BOOLEAN"),
+                            Value::Number(n) => match n {
+                                n if n.is_i64() => b.append_value("INTEGER"),
+                                n if n.is_f64() => b.append_value("DOUBLE"),
+                                _ => b.append_value("NUMBER"),
+                            },
+                            Value::String(_) => b.append_value("VARCHAR"),
+                            Value::Array(_) => b.append_value("ARRAY"),
+                            Value::Object(_) => b.append_value("OBJECT"),
+                        },
+                        Err(_) => b.append_value("VARCHAR"),
+                    }
+                }
             }
         }
 
@@ -93,6 +104,12 @@ impl ScalarUDFImpl for TypeofFunc {
         } else {
             ColumnarValue::Array(Arc::new(res))
         })
+    }
+}
+
+fn append_all(b: &mut StringBuilder, len: usize, v: &str) {
+    for _ in 0..len {
+        b.append_value(v);
     }
 }
 
@@ -125,7 +142,8 @@ mod tests {
                 (6, '1.912e2'),
                 (7, '"Om ara pa ca na dhih"  '), 
                 (8, '[-1, 12, 289, 2188, false]'), 
-                (9, '{ "x" : "abc", "y" : false, "z": 10} ') 
+                (9, '{ "x" : "abc", "y" : false, "z": 10} '),
+                (10, 'Om ara pa ca na dhih')
        AS vals;"#,
         )
         .await?
@@ -144,7 +162,7 @@ mod tests {
                 "| type       |",
                 "+------------+",
                 "| NULL_VALUE |",
-                "| NULL       |",
+                "|            |",
                 "| BOOLEAN    |",
                 "| INTEGER    |",
                 "| DOUBLE     |",
@@ -152,6 +170,7 @@ mod tests {
                 "| VARCHAR    |",
                 "| ARRAY      |",
                 "| OBJECT     |",
+                "| VARCHAR    |",
                 "+------------+",
             ],
             &result

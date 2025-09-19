@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/sql/ddl/view.rs
+description: "\"SELECT * FROM view ORDER BY id\""
+info: "Setup queries: CREATE TABLE view_source (ID INTEGER, name VARCHAR); CREATE OR REPLACE VIEW view AS SELECT * FROM view_source; INSERT INTO view_source VALUES (1, 'Alice'), (2, 'Bob')"
+---
+Ok(
+    [
+        "+----+-------+",
+        "| id | name  |",
+        "+----+-------+",
+        "| 1  | Alice |",
+        "| 2  | Bob   |",
+        "+----+-------+",
+    ],
+)

@@ -5,8 +5,7 @@ use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, Result};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
-use crate::datafusion::logical_analyzer::cast_analyzer::CastAnalyzer;
-use crate::datafusion::logical_analyzer::iceberg_types_analyzer::IcebergTypesAnalyzer;
+use crate::datafusion::logical_analyzer::analyzer_rules;
 use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
@@ -29,11 +28,15 @@ use embucket_functions::session_params::{SessionParams, SessionProperty};
 use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::num::NonZero;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
+use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
+static MINIMUM_PARALLEL_OUTPUT_FILES: usize = 1;
+static PARALLEL_ROW_GROUP_RATIO: usize = 4;
 
 #[must_use]
 pub const fn to_unix(t: OffsetDateTime) -> i64 {
@@ -72,11 +75,14 @@ impl UserSession {
         // That's a hack to use our custom expr planner first and default ones later. We probably need to get rid of default planners at some point.
         expr_planners.insert(0, Arc::new(CustomExprPlanner));
 
+        let parallelism_opt = available_parallelism().ok().map(NonZero::get);
+
         let session_params = SessionParams::default();
+        let session_params_arc = Arc::new(session_params.clone());
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::new()
-                    .with_option_extension(session_params.clone())
+                    .with_option_extension(session_params)
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume
                     .with_create_default_catalog_and_schema(false)
@@ -86,24 +92,34 @@ impl UserSession {
                         "datafusion.execution.skip_physical_aggregate_schema_check",
                         true,
                     )
-                    .set_bool("datafusion.sql_parser.parse_float_as_decimal", true),
+                    .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
+                    .set_usize(
+                        "datafusion.execution.minimum_parallel_output_files",
+                        MINIMUM_PARALLEL_OUTPUT_FILES,
+                    )
+                    .set_usize(
+                        "datafusion.execution.parquet.maximum_parallel_row_group_writers",
+                        parallelism_opt.map_or(1, |x| x / PARALLEL_ROW_GROUP_RATIO),
+                    )
+                    .set_usize(
+                        "datafusion.execution.parquet.maximum_buffered_record_batches_per_stream",
+                        parallelism_opt.map_or(1, |x| 1 + (x / PARALLEL_ROW_GROUP_RATIO)),
+                    ),
             )
             .with_default_features()
             .with_runtime_env(runtime_env)
             .with_catalog_list(catalog_list)
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
-            .with_analyzer_rule(Arc::new(IcebergTypesAnalyzer {}))
-            .with_analyzer_rule(Arc::new(CastAnalyzer::new()))
+            .with_analyzer_rules(analyzer_rules(session_params_arc.clone()))
             .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();
         let mut ctx = SessionContext::new_with_state(state);
-        let session_params = Arc::new(session_params);
         // register sleep UDF for testing purposes
         ctx.register_udf(sleep_udf());
-        register_udfs(&mut ctx, &session_params).context(ex_error::RegisterUDFSnafu)?;
+        register_udfs(&mut ctx, &session_params_arc).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
         register_udtfs(&ctx, history_store.clone());
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
@@ -123,7 +139,7 @@ impl UserSession {
                 OffsetDateTime::now_utc()
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
-            session_params,
+            session_params: session_params_arc,
         };
         Ok(session)
     }

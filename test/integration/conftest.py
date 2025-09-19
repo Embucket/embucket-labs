@@ -1,98 +1,25 @@
 import os
 import uuid
-from dataclasses import dataclass
-from typing import Dict, Any, Callable, List, Optional, Tuple
-
+from typing import Any, Callable
 import pytest
+from dotenv import load_dotenv
+from pathlib import Path
 
+from utils import (
+    _get,
+    create_embucket_connection,
+    _load_dataset_fixture,
+    EmbucketEngine,
+    SparkEngine,
+    MetricsRecorder,
+)
 
-def _get(key: str, default: Optional[str] = None) -> Optional[str]:
-    val = os.getenv(key)
-    return val if val is not None else default
+load_dotenv()
 
 
 @pytest.fixture(scope="session")
 def test_run_id() -> str:
     return uuid.uuid4().hex[:8]
-
-
-@dataclass
-class DatasetConfig:
-    name: str
-    namespace: str
-    table: str
-    ddl: Dict[str, str]
-    format: str
-    sources: List[str]
-    options: Dict[str, Any]
-    first_col: Optional[str] = None
-    numeric_col: Optional[str] = None
-    queries: Optional[List[Dict[str, Any]]] = (
-        None  # [{id: str, sql: str}|{id, sql_path}]
-    )
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "DatasetConfig":
-        return DatasetConfig(
-            name=d["name"],
-            namespace=d["namespace"],
-            table=d.get("table", d["name"]),
-            ddl=d["ddl"],
-            format=d.get("format", "parquet"),
-            sources=d.get("sources", []),
-            options=d.get("options", {}) or {},
-            first_col=d.get("first_col"),
-            numeric_col=d.get("numeric_col"),
-            queries=d.get("queries"),
-        )
-
-
-def load_sql_file(path: str) -> str:
-    """Load SQL content from file."""
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"SQL file not found: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-def create_embucket_connection():
-    """Create Embucket connection with environment-based config."""
-    try:
-        import snowflake.connector as sf
-    except Exception as e:
-        pytest.skip(f"snowflake-connector-python not available: {e}")
-
-    # Connection config with defaults
-    host = _get("EMBUCKET_SQL_HOST", "localhost")
-    port = _get("EMBUCKET_SQL_PORT", "3000")
-    protocol = _get("EMBUCKET_SQL_PROTOCOL", "http")
-    user = _get("EMBUCKET_USER", "embucket")
-    password = _get("EMBUCKET_PASSWORD", "embucket")
-    account = os.getenv("EMBUCKET_ACCOUNT") or f"acc_{uuid.uuid4().hex[:10]}"
-    database = _get("EMBUCKET_DATABASE", "analytics")
-    schema = _get("EMBUCKET_SCHEMA", "public")
-
-    connect_args = {
-        "user": user,
-        "password": password,
-        "account": account,
-        "database": database,
-        "schema": schema,
-        "warehouse": "embucket",
-        "host": host,
-        "protocol": protocol,
-        "port": int(port) if port else 3000,
-    }
-
-    try:
-        conn = sf.connect(**connect_args)
-        if database:
-            conn.cursor().execute(f"USE DATABASE {database}")
-        if schema:
-            conn.cursor().execute(f"USE SCHEMA {schema}")
-        return conn
-    except Exception as e:
-        pytest.skip(f"Failed to connect to Embucket: {e}")
 
 
 @pytest.fixture(scope="session")
@@ -202,252 +129,6 @@ def spark() -> Any:
     return spark
 
 
-def _normalize_value(v: Any) -> Any:
-    import decimal
-    from datetime import datetime, date
-
-    if v is None:
-        return (0, None)
-    if isinstance(v, (bool,)):
-        return (1, bool(v))
-    if isinstance(v, (int,)):
-        return (2, int(v))
-    if isinstance(v, (float,)):
-        # round for sort key; actual compare uses tolerance
-        return (3, round(float(v), 12))
-    if isinstance(v, decimal.Decimal):
-        return (4, str(v))
-    if isinstance(v, (datetime, date)):
-        return (5, v.isoformat())
-    if isinstance(v, (bytes, bytearray)):
-        return (6, v.hex())
-    # Fallback to string repr for order stability
-    return (9, str(v))
-
-
-def _sort_rows(rows: List[Tuple[Any, ...]]) -> List[Tuple[Any, ...]]:
-    return sorted(rows, key=lambda row: tuple(_normalize_value(v) for v in row))
-
-
-def _rows_to_tuples(rows: Any) -> List[Tuple[Any, ...]]:
-    out: List[Tuple[Any, ...]] = []
-    for r in rows:
-        if isinstance(r, (tuple, list)):
-            out.append(tuple(r))
-        else:
-            # Spark Row has .asDict(); but tuple(r) works too
-            try:
-                out.append(tuple(r))
-            except TypeError:
-                try:
-                    d = r.asDict(recursive=True)
-                    out.append(tuple(d.values()))
-                except Exception:
-                    out.append((r,))
-    return out
-
-
-def _is_number(x: Any) -> bool:
-    import decimal
-
-    return isinstance(x, (int, float, decimal.Decimal))
-
-
-def _render_sql_with_table(sql: str, table_fqn: str) -> str:
-    return sql.replace("{{TABLE_FQN}}", table_fqn)
-
-
-def render_sql_with_aliases(sql: str, alias_to_fqn: Dict[str, str]) -> str:
-    out = sql
-    for alias, fqn in alias_to_fqn.items():
-        out = out.replace(f"{{{{TABLE:{alias}}}}}", fqn)
-    return out
-
-
-def _load_dataset_fixture(
-    dataset_name: str, engine, test_run_id: str, engine_name: str
-):
-    """Unified helper function to load datasets for fixtures.
-
-    Args:
-        dataset_name: Name of dataset in datasets.yaml
-        engine: Engine instance (spark_engine or embucket_engine)
-        test_run_id: Unique test run identifier
-        engine_name: Engine name for table naming ("spark" or "embucket")
-
-    Returns:
-        Tuple of (dataset, table_name, engine)
-    """
-    import yaml
-
-    with open("datasets.yaml", "r") as f:
-        cfg = yaml.safe_load(f)
-    dataset_data = next(d for d in cfg["datasets"] if d["name"] == dataset_name)
-    dataset = DatasetConfig.from_dict(dataset_data)
-
-    # Create unique table name
-    table_name = f"{dataset.table}_{test_run_id}_{engine_name}"
-    engine.create_table(dataset, table_name)
-    engine.load_data(dataset, table_name)
-    return (dataset, table_name, engine)
-
-
-def compare_result_sets(
-    a: List[Tuple[Any, ...]],
-    b: List[Tuple[Any, ...]],
-    rel_tol: float = 1e-6,
-    abs_tol: float = 1e-9,
-) -> Tuple[bool, str]:
-    """Compare two result sets with type tolerance and order-insensitive.
-
-    Returns (ok, message). On failure, message contains a small diff.
-    """
-    if len(a) != len(b):
-        return False, f"Row count differs: {len(a)} vs {len(b)}"
-    sa = _sort_rows(a)
-    sb = _sort_rows(b)
-    import math
-
-    for i, (ra, rb) in enumerate(zip(sa, sb)):
-        if len(ra) != len(rb):
-            return False, f"Row {i} length differs: {len(ra)} vs {len(rb)}"
-        for j, (va, vb) in enumerate(zip(ra, rb)):
-            if va == vb:
-                continue
-            # Handle numeric approx
-            if _is_number(va) and _is_number(vb):
-                if math.isclose(float(va), float(vb), rel_tol=rel_tol, abs_tol=abs_tol):
-                    continue
-                return False, f"Row {i}, col {j} numeric mismatch: {va} vs {vb}"
-            # Normalize None vs empty string edge cases cautiously
-            if va in (None, "") and vb in (None, ""):
-                continue
-            if str(va) != str(vb):
-                return False, f"Row {i}, col {j} differs: {va} vs {vb}"
-    return True, "OK"
-
-
-class EmbucketEngine:
-    def __init__(self, exec_fn: Callable[[str], Any]):
-        self._exec = exec_fn
-
-    def table_fqn(self, dataset: DatasetConfig, table_name: str) -> str:
-        # Embucket uses current DB/SCHEMA; unqualified table is fine.
-        _ = dataset  # Keep parameter for interface consistency
-        return table_name
-
-    def create_table(self, dataset: DatasetConfig, table_name: str) -> None:
-        ddl_path = dataset.ddl["embucket"]
-        sql = load_sql_file(ddl_path)
-        # Drop if exists to avoid duplicate loads across tests
-        try:
-            self._exec(f"DROP TABLE IF EXISTS {self.table_fqn(dataset, table_name)}")
-        except Exception:
-            pass
-        sql = _render_sql_with_table(sql, self.table_fqn(dataset, table_name))
-        self._exec(sql)
-
-    def load_data(self, dataset: DatasetConfig, table_name: str) -> None:
-        """Load data using COPY INTO."""
-        table_fqn = self.table_fqn(dataset, table_name)
-        fmt = (dataset.format or "parquet").lower()
-        if fmt not in ("parquet", "csv", "tsv"):
-            raise ValueError(f"Unsupported format for COPY INTO: {fmt}")
-        options = dict(dataset.options or {})
-        if fmt == "tsv":
-            options = {**options, "FIELD_DELIMITER": "\\t"}
-        if fmt == "csv":
-            # default delimiter comma; allow override
-            pass
-
-        # Normalize some common option keys for Snowflake-like COPY INTO
-        if "field_delimiter" in options and "FIELD_DELIMITER" not in options:
-            options["FIELD_DELIMITER"] = options.pop("field_delimiter")
-        if "quote" in options and "QUOTE" not in options:
-            options["QUOTE"] = options.pop("quote")
-        if "escape" in options and "ESCAPE" not in options:
-            options["ESCAPE"] = options.pop("escape")
-        if "header" in options and "HEADER" not in options:
-            # Prefer HEADER=true/false if acceptable; fallback left as-is
-            val = options.pop("header")
-            options["HEADER"] = str(bool(val)).lower()
-
-        ff_parts = [f"TYPE = {fmt.upper()}"]
-        for k, v in options.items():
-            # string-quote non-numeric values
-            vv = v if isinstance(v, (int, float)) else f"'{v}'"
-            ff_parts.append(f"{k} = {vv}")
-        ff = ", ".join(ff_parts)
-
-        for uri in dataset.sources:
-            local_base_path = _get("LOCAL_BASE_PATH", os.getcwd())
-            sql = f"COPY INTO {table_fqn} FROM 'file://{local_base_path}/{uri}' STORAGE_INTEGRATION = local FILE_FORMAT = ({ff})"
-            self._exec(sql)
-
-    def sql(
-        self, sql: str, alias_to_table: Dict[str, Tuple[DatasetConfig, str]]
-    ) -> List[Tuple[Any, ...]]:
-        alias_to_fqn = {
-            alias: self.table_fqn(ds, table)
-            for alias, (ds, table) in alias_to_table.items()
-        }
-        rendered_sql = render_sql_with_aliases(sql, alias_to_fqn)
-        rows = self._exec(rendered_sql) or []
-        return _rows_to_tuples(rows)
-
-
-class SparkEngine:
-    def __init__(self, spark_sess: Any, catalog_alias: str = "emb"):
-        self.spark = spark_sess
-        self.catalog_alias = catalog_alias
-
-    def table_fqn(self, dataset: DatasetConfig, table_name: str) -> str:
-        return f"{self.catalog_alias}.{dataset.namespace}.{table_name}"
-
-    def create_table(self, dataset: DatasetConfig, table_name: str) -> None:
-        ddl_path = dataset.ddl["spark"]
-        sql = load_sql_file(ddl_path)
-        # Drop if exists for idempotence
-        try:
-            self.spark.sql(
-                f"DROP TABLE IF EXISTS {self.table_fqn(dataset, table_name)}"
-            )
-        except Exception:
-            pass
-        sql = _render_sql_with_table(sql, self.table_fqn(dataset, table_name))
-        self.spark.sql(sql)
-
-    def load_data(self, dataset: DatasetConfig, table_name: str) -> None:
-        """Load data using Spark DataFrameReader."""
-        target_table_fqn = self.table_fqn(dataset, table_name)
-        fmt = (dataset.format or "parquet").lower()
-        reader = self.spark.read
-        options = dataset.options or {}
-        if fmt == "tsv":
-            fmt = "csv"
-            options = {**options, "sep": "\t"}
-        if fmt == "csv":
-            # Map field_delimiter to Spark's sep if provided
-            if "sep" not in options and "field_delimiter" in options:
-                options = {**options, "sep": options.get("field_delimiter")}
-            options = {"header": str(options.get("header", True)).lower(), **options}
-
-        df = reader.format(fmt).options(**options).load(dataset.sources)
-        df.createOrReplaceTempView("_src")
-        self.spark.sql(f"INSERT INTO {target_table_fqn} SELECT * FROM _src")
-
-    def sql(
-        self, sql: str, alias_to_table: Dict[str, Tuple[DatasetConfig, str]]
-    ) -> List[Tuple[Any, ...]]:
-        alias_to_fqn = {
-            alias: self.table_fqn(ds, table)
-            for alias, (ds, table) in alias_to_table.items()
-        }
-        rendered_sql = render_sql_with_aliases(sql, alias_to_fqn)
-        rows = self.spark.sql(rendered_sql).collect()
-        return _rows_to_tuples(rows)
-
-
 @pytest.fixture(scope="session")
 def embucket_engine(embucket_exec) -> EmbucketEngine:
     return EmbucketEngine(embucket_exec)
@@ -460,7 +141,7 @@ def spark_engine(spark) -> SparkEngine:
 
 # NYC Taxi Dataset Fixtures
 @pytest.fixture(scope="session")
-def nyc_taxi(request, test_run_id):
+def nyc_yellow_taxi(request, test_run_id):
     """Parameterized NYC taxi fixture that accepts engine type.
 
     Use with indirect=True parametrization:
@@ -474,6 +155,40 @@ def nyc_taxi(request, test_run_id):
 
     engine = request.getfixturevalue(f"{engine_type}_engine")
     return _load_dataset_fixture("nyc_taxi_yellow", engine, test_run_id, engine_type)
+
+
+@pytest.fixture(scope="session")
+def nyc_green_taxi(request, test_run_id):
+    """Parameterized NYC green taxi fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi_green', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("nyc_taxi_green", engine, test_run_id, engine_type)
+
+
+@pytest.fixture(scope="session")
+def fhv(request, test_run_id):
+    """Parameterized NYC green taxi fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('nyc_taxi_green', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("fhv", engine, test_run_id, engine_type)
 
 
 # TPC-H Dataset Fixtures
@@ -532,3 +247,84 @@ def tpch_full(request, test_run_id):
         )
 
     return loaded_tables
+
+
+@pytest.fixture(scope="session")
+def tpcds_full(request, test_run_id):
+    """Parameterized TPC-DS complete dataset fixture that accepts engine type.
+
+    Loads all TPC-DS tables with the specified engine and returns as dict.
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('tpcds_full', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    tables = [
+        "call_center",
+        "catalog_page",
+        "catalog_returns",
+        "catalog_sales",
+        "customer",
+        "customer_address",
+        "customer_demographics",
+        "date_dim",
+        "household_demographics",
+        "income_band",
+        "inventory",
+        "item",
+        "promotion",
+        "reason",
+        "ship_mode",
+        "store",
+        "store_returns",
+        "store_sales",
+        "time_dim",
+        "warehouse",
+        "web_page",
+        "web_returns",
+        "web_sales",
+        "web_site",
+    ]
+
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+
+    # Load all tables with the specified engine
+    loaded_tables = {}
+    for table in tables:
+        dataset_name = f"tpcds_{table}"
+        loaded_tables[table] = _load_dataset_fixture(
+            dataset_name, engine, test_run_id, engine_type
+        )
+
+    return loaded_tables
+
+
+@pytest.fixture(scope="session")
+def clickbench_hits(request, test_run_id):
+    """Parameterized Clickbench hits fixture that accepts engine type.
+
+    Use with indirect=True parametrization:
+    @pytest.mark.parametrize('clickbench_hits', ['spark', 'embucket'], indirect=True)
+    """
+    engine_type = request.param
+    if engine_type not in ["spark", "embucket"]:
+        raise ValueError(
+            f"Unknown engine type: {engine_type}. Use 'spark' or 'embucket'."
+        )
+
+    engine = request.getfixturevalue(f"{engine_type}_engine")
+    return _load_dataset_fixture("clickbench_hits", engine, test_run_id, engine_type)
+
+
+@pytest.fixture(scope="session")
+def metrics_recorder(test_run_id) -> MetricsRecorder:
+    # You can override paths via env if you like
+    artifacts_dir = Path(os.getenv("INTEGRATION_ARTIFACTS_DIR", "artifacts"))
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    rec = MetricsRecorder(artifacts_dir / f"metrics_{test_run_id}.csv", test_run_id)
+    yield rec
+    rec.flush()

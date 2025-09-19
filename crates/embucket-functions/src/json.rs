@@ -6,12 +6,13 @@ use datafusion::arrow::array::AsArray;
 use datafusion::arrow::array::{
     Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
 };
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{
-    ArrowNativeType, DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type,
-    DurationMicrosecondType, DurationMillisecondType, DurationNanosecondType, DurationSecondType,
-    Float16Type, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type, Int64Type,
-    IntervalDayTimeType, IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType,
-    Time32MillisecondType, Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
+    ArrowNativeType, DataType, Date32Type, Date64Type, Decimal256Type, DurationMicrosecondType,
+    DurationMillisecondType, DurationNanosecondType, DurationSecondType, Float16Type, Float32Type,
+    Float64Type, Int8Type, Int16Type, Int32Type, Int64Type, IntervalDayTimeType,
+    IntervalMonthDayNanoType, IntervalUnit, IntervalYearMonthType, Time32MillisecondType,
+    Time32SecondType, Time64MicrosecondType, Time64NanosecondType, TimeUnit,
     TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
     TimestampSecondType, UInt8Type, UInt16Type, UInt32Type, UInt64Type,
 };
@@ -681,17 +682,11 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
 
 /// Encodes a Decimal128 Arrow array into a JSON array
 pub fn encode_decimal128_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
-    let array = array.as_primitive::<Decimal128Type>();
-    let mut values = Vec::with_capacity(array.len());
-
-    for i in 0..array.len() {
-        values.push(if array.is_null(i) {
-            JsonValue::Null
-        } else {
-            JsonValue::String(array.value(i).to_string())
-        });
-    }
-    Ok(JsonValue::Array(values))
+    // JSON parser can only handle numeric values as floats or integers.
+    // Therefore, we convert Decimal128 to Float64 to ensure compatibility
+    // with the JSON encoding logic.
+    let array = cast(&array, &DataType::Float64)?;
+    encode_float64_array(array)
 }
 
 /// Encodes a Decimal256 Arrow array into a JSON array

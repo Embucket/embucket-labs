@@ -1,0 +1,13 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/date.rs
+description: "\"SELECT '03-April-2024'::DATE\""
+---
+Ok(
+    [
+        "+-----------------------+",
+        "| Utf8(\"03-April-2024\") |",
+        "+-----------------------+",
+        "| 2024-04-03            |",
+        "+-----------------------+",
+    ],
+)

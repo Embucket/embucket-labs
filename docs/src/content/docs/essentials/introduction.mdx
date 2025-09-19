@@ -1,53 +1,53 @@
 ---
 title: Introduction
-description: Meet Embucket, an open source Snowflake-compatible OLAP lakehouse that marries the simplicity of a single binary with the openness of Apache Iceberg
+description: Meet Embucket, an open source Snowflake-compatible lakehouse that marries the simplicity of a single binary with the openness of Apache Iceberg
 sidebar:
   order: 1
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Embucket provides Snowflake-compatible analytics without vendor lock-in. Snowflake-compatible means Embucket implements the same SQL grammar and REST API semantics as Snowflake, enabling seamless migration of existing tools and workflows. You deploy a single binary that delivers familiar Snowflake SQL and REST API while keeping your data in open Apache Iceberg format.
+Embucket provides Snowflake-compatible analytics with bring-your-own-cloud flexibility. Wire-compatible with Snowflake means Embucket implements Snowflake's SQL dialect, data type system, and wire protocol. For the same query and data, Embucket produces identical results. This enables seamless migration of existing tools and workflows. You deploy a single binary that delivers familiar Snowflake SQL dialect and REST API while keeping your data in open Apache Iceberg format.
 
 This document introduces Embucket's core concepts, architecture, and key features. It doesn't cover installation, configuration, or usage examples.
 
 ## About Embucket
 
-Embucket provides a Snowflake-compatible OLAP lakehouse platform. An OLAP lakehouse combines the performance of traditional data warehouses with the flexibility and cost-effectiveness of data lakes using open formats.
+Embucket provides a Snowflake-compatible lakehouse platform. A lakehouse combines the performance of traditional data warehouses with the flexibility and cost-effectiveness of data lakes using open formats.
 
 Embucket provides the SQL interface and tooling ecosystem you already know from Snowflake. You build on an open lakehouse architecture instead of proprietary systems. Think of it as your "Snowflake bring-your-own-cloud option." You get the same familiar developer experience. Your data stays in open formats. You maintain complete control over your infrastructure.
 
-Embucket serves **data engineers, database operators, and data analysts**. The platform eliminates traditional data platform complexity through two key innovations. First, you deploy a statically linked single binary for effortless deployment. Second, you use a zero-disk architecture—a design where nodes store no data locally and instead rely entirely on object storage for both data and metadata storage.
+Embucket serves **data engineers, DBAs, and data analysts**. The platform eliminates traditional data platform complexity through two key innovations. First, you deploy a statically linked single binary for effortless deployment. Second, you use a zero-disk architecture—an architectural approach where compute nodes store no data locally and instead rely entirely on object storage for both data and metadata storage.
 
 ## Why Embucket?
 
-Modern data teams face an impossible choice. You can accept vendor lock-in with managed cloud warehouses. Instead, you can embrace the operational complexity of building your own lakehouse stack. Embucket solves this dilemma by focusing on three core principles:
+Modern data teams face an impossible choice. You can accept the constraints of fully managed cloud lakehouses like AWS Redshift or Google BigQuery. Or you can embrace the operational complexity of building your own lakehouse stack. Embucket solves this dilemma by focusing on three core principles:
 
 **Radical simplicity:** embucket's single binary architecture eliminates complex, dependency-heavy data stacks. You move from download to query in minutes. Data teams need no external databases, no cluster management, no operational overhead. This statically linked binary contains everything required. The zero-disk architecture uses only object storage for both data and metadata.
 
-**Fanatical Snowflake compatibility:** data teams leverage the ecosystem of tools built for Snowflake without any vendor lock-in. You connect existing BI tools, dbt transformations, and data science workflows to Embucket with zero configuration changes. The platform accepts the exact SQL you already use. Embucket implements Snowflake's SQL grammar and REST semantics to ensure seamless compatibility.
+**Fanatical Snowflake compatibility:** data teams leverage the ecosystem of tools built for Snowflake with bring-your-own-cloud control. You connect existing BI tools, dbt transformations, and data science workflows to Embucket with zero configuration changes. The platform accepts the exact SQL you already use. Embucket implements Snowflake's SQL dialect and REST semantics to ensure seamless compatibility.
 
 **Open source foundation:** embucket builds on proven, best-in-class open source technologies you can trust. The platform leverages [Apache DataFusion](https://datafusion.apache.org/) for lightning-fast query execution, [Apache Iceberg](https://iceberg.apache.org/) for ACID transactions and schema evolution, and [SlateDB](https://slatedb.io/) for metadata management. This avoids proprietary black boxes. Embucket serves as a well-integrated component in the modern open source data stack, with active contributions back to these upstream projects.
 
-The platform provides the interface you already know from Snowflake. Your data stays in open formats. Compute costs remain under your control.
+Your data stays in open formats. Compute costs remain under your control.
 
 ## Key features
 
 ### Stateless compute
 
-Stateless compute means servers keep no local state between queries or sessions. Object storage and the Iceberg catalog handle durability and metadata. This architecture makes upgrades, scaling, and failover trivial.
+Stateless compute represents a computing model where servers maintain no persistent state between queries or sessions. Unlike stateful systems that store data locally, stateless compute nodes rely on external storage systems for all data persistence. Object storage and the Iceberg catalog handle durability and metadata. This architecture makes upgrades, scaling, and failover trivial.
 
 ### Query-per-node architecture
 
-Query-per-node architecture means each node can independently process complete queries without requiring a separate coordinator layer. Each node serves as both coordinator and executor. This design eliminates single points of failure. The architecture provides better fault tolerance and simpler scaling. You add or remove nodes elastically to handle load spikes.
+Query-per-node architecture enables each compute node to independently handle complete queries without requiring a separate coordinator layer. Unlike traditional distributed systems that separate coordinators from executors, each node serves as both coordinator and executor. This design eliminates single points of failure. The architecture provides better fault tolerance and simpler scaling. You add or remove nodes elastically to handle load spikes.
 
 ### Snowflake-first compatibility
 
-Embucket implements Snowflake's SQL grammar and REST semantics instead of inventing a new dialect. You reuse existing drivers, SDK, and workflows with minimal changes.
+Embucket implements Snowflake's SQL dialect and REST semantics instead of inventing a new dialect. You reuse existing drivers, SDK, and workflows with minimal changes.
 
 ### Apache 2.0 license
 
-Embucket operates under the Apache 2.0 license as open source software.
+Embucket uses the Apache 2.0 license as open source software.
 
 ## Architecture
 
@@ -55,4 +55,4 @@ Embucket operates under the Apache 2.0 license as open source software.
 
 ## Summary
 
-Embucket delivers Snowflake-compatible analytics through a single binary deployment. Data teams get familiar SQL interfaces without vendor lock-in. The platform uses open formats like Apache Iceberg for data storage. The zero-disk, stateless architecture simplifies operations while maintaining high performance and reliability.
+Embucket delivers Snowflake-compatible analytics through a single binary deployment. Data teams get familiar SQL interfaces with bring-your-own-cloud flexibility. The platform uses open formats like Apache Iceberg for data storage. The zero-disk, stateless architecture simplifies operations while maintaining high performance and reliability.

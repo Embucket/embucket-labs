@@ -13,12 +13,13 @@ use super::running_queries::RunningQueries;
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
+use crate::datafusion::physical_optimizer::runtime_physical_optimizer_rules;
 use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use arrow_schema::SchemaBuilder;
+use arrow_schema::{Fields, SchemaBuilder};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
@@ -42,6 +43,7 @@ use datafusion::datasource::listing::{
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
+use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
 use datafusion::sql::parser::{CreateExternalTable, Statement as DFStatement};
@@ -52,6 +54,7 @@ use datafusion::sql::sqlparser::ast::{
     Statement, TableFactor,
 };
 use datafusion::sql::statement::object_name_to_string;
+use datafusion_common::config::ConfigOptions;
 use datafusion_common::{
     Column, DFSchema, DataFusionError, ParamValues, ResolvedTableReference, SchemaReference,
     TableReference, plan_datafusion_err,
@@ -62,13 +65,14 @@ use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
     JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
-    build_join_schema, is_null, lit, or, when,
+    build_join_schema, is_null, lit, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
+use datafusion_physical_plan::collect;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -76,8 +80,8 @@ use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
-    rlike_regexp_expr_rewriter, select_expr_aliases, table_functions, table_functions_cte_relation,
-    timestamp, top_limit,
+    like_ilike_any, rlike_regexp_expr_rewriter, select_expr_aliases, table_functions,
+    table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
 use iceberg_rust::catalog::Catalog;
@@ -268,6 +272,7 @@ impl UserQuery {
         if let DFStatement::Statement(value) = statement {
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
+            like_ilike_any::visit(value);
             top_limit::visit(value);
             unimplemented_functions_checker(value).context(ex_error::UnimplementedFunctionSnafu)?;
             copy_into_identifiers::visit(value);
@@ -817,7 +822,12 @@ impl UserQuery {
                 WriteOp::Insert(InsertOp::Append),
                 Arc::new(cast_input_to_target_schema(input, &schema)?),
             ));
-            return self.execute_logical_plan(insert_plan).await;
+            return self
+                .execute_logical_plan_with_custom_rules(
+                    insert_plan,
+                    runtime_physical_optimizer_rules(schema),
+                )
+                .await;
         }
         self.created_entity_response()
     }
@@ -877,7 +887,21 @@ impl UserQuery {
         }
 
         let fields_with_ids = StructType::try_from(&new_fields_with_ids(
-            plan.schema().as_arrow().fields(),
+            &Fields::from(
+                plan.schema()
+                    .as_arrow()
+                    .fields()
+                    .iter()
+                    .map(|field| {
+                        if field.data_type() == &DataType::Null {
+                            let new_field = Field::new(field.name(), DataType::Utf8, true);
+                            Arc::new(new_field)
+                        } else {
+                            field.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            ),
             &mut 0,
         ))
         .map_err(|err| DataFusionError::External(Box::new(err)))
@@ -2112,6 +2136,46 @@ impl UserQuery {
         Ok(stream)
     }
 
+    async fn execute_logical_plan_with_custom_rules(
+        &self,
+        plan: LogicalPlan,
+        rules: Vec<Arc<dyn PhysicalOptimizerRule + Send + Sync>>,
+    ) -> Result<QueryResult> {
+        let session = self.session.clone();
+        let query_id = self.query_context.query_id;
+        let stream = self
+            .session
+            .executor
+            .spawn(async move {
+                let mut schema = plan.schema().as_arrow().clone();
+                let df = session
+                    .ctx
+                    .execute_logical_plan(plan)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                let task_ctx = df.task_ctx();
+                let mut physical_plan = df
+                    .create_physical_plan()
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                for rule in rules {
+                    physical_plan = rule
+                        .optimize(physical_plan, &ConfigOptions::new())
+                        .context(ex_error::DataFusionSnafu)?;
+                }
+                let records = collect(physical_plan, Arc::new(task_ctx))
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                if !records.is_empty() {
+                    schema = records[0].schema().as_ref().clone();
+                }
+                Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
+            })
+            .await
+            .context(ex_error::JobSnafu)??;
+        Ok(stream)
+    }
+
     #[instrument(
         name = "UserQuery::execute_with_custom_plan",
         level = "trace",
@@ -2964,11 +3028,9 @@ fn collect_merge_clause_expressions(
 fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
     let expr = match merge_clause.clause_kind {
         MergeClauseKind::Matched => Ok(and(col(TARGET_EXISTS_COLUMN), col(SOURCE_EXISTS_COLUMN))),
-        MergeClauseKind::NotMatched => Ok(or(
-            is_null(col(TARGET_EXISTS_COLUMN)),
-            is_null(col(TARGET_EXISTS_COLUMN)),
-        )),
-        MergeClauseKind::NotMatchedByTarget => Ok(is_null(col(TARGET_EXISTS_COLUMN))),
+        MergeClauseKind::NotMatched | MergeClauseKind::NotMatchedByTarget => {
+            Ok(is_null(col(TARGET_EXISTS_COLUMN)))
+        }
         MergeClauseKind::NotMatchedBySource => {
             return Err(ex_error::NotMatchedBySourceNotSupportedSnafu.build());
         }

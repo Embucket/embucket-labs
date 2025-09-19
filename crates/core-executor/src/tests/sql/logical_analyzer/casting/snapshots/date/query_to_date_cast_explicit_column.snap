@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/date.rs
+description: "\"SELECT CAST(column1 AS DATE) FROM VALUES ('03-April-2024'), ('2024-04-03'), ('04/03/2024')\""
+---
+Ok(
+    [
+        "+------------+",
+        "| column1    |",
+        "+------------+",
+        "| 2024-04-03 |",
+        "| 2024-04-03 |",
+        "| 2024-04-03 |",
+        "+------------+",
+    ],
+)

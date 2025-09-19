@@ -97,6 +97,7 @@ chr
 coalesce
 concat
 concat_ws
+conditional_true_event
 contains
 convert_timezone
 corr
@@ -181,6 +182,7 @@ insert
 instr
 is_array
 is_boolean
+is_decimal
 is_double
 is_integer
 is_null_value
@@ -211,6 +213,7 @@ lcm
 lead
 least
 left
+len
 length
 levenshtein
 list_any_value
@@ -297,6 +300,7 @@ object_keys
 object_pick
 octet_length
 overlay
+parse_ip
 parse_json
 percent_rank
 percentile_cont
@@ -308,6 +312,7 @@ previous_day
 quarter
 radians
 random
+randstr
 range
 rank
 regexp_count

@@ -819,12 +819,6 @@ pub const GENERATION_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/normal")
     ),
-    ("RANDSTR", FunctionInfo::new(
-        "RANDSTR",
-        "Returns a random string of specified length."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/randstr")
-    ),
     ("SEQ1", FunctionInfo::new(
         "SEQ1",
         "Returns a sequence of monotonically increasing integers, with wrap-around."
@@ -1967,12 +1961,6 @@ pub const SEMISTRUCTURED_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_date-value")
     ),
-    ("IS_DECIMAL", FunctionInfo::new(
-        "IS_DECIMAL",
-        "Returns TRUE if its VARIANT argument contains a fixed-point number or integer value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/is_decimal")
-    ),
     ("IS_TIME", FunctionInfo::new(
         "IS_TIME",
         "Verifies whether a VARIANT argument contains a TIME value."
@@ -2234,12 +2222,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/ilike_any")
     ),
-    ("LEN", FunctionInfo::new(
-        "LEN",
-        "Returns the length of an input string or binary value."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/length")
-    ),
     ("LIKE ALL", FunctionInfo::new(
         "LIKE ALL",
         "Performs a case-sensitive comparison to match a string against all of one or more specified patterns."
@@ -2281,12 +2263,6 @@ pub const STRING_BINARY_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Returns the extracted content from a document on a Snowflake stage as an OBJECT that contains JSON-encoded objects as strings."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_document-snowflake-cortex")
-    ),
-    ("PARSE_IP", FunctionInfo::new(
-        "PARSE_IP",
-        "Returns a JSON object consisting of all the components from a valid INET (Internet Protocol) or CIDR (Classless Internet Domain Routing) IPv4 or IPv6 string."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/parse_ip")
     ),
     ("PARSE_URL", FunctionInfo::new(
         "PARSE_URL",
@@ -3190,12 +3166,6 @@ pub const WINDOW_FUNCTIONS: &[(&str, FunctionInfo)] = &[
         "Returns a window event number for each row within a window partition when the value of the argument expr1 in the current row is different from the value of expr1 in the previous row."
     )
     .with_docs("https://docs.snowflake.com/en/sql-reference/functions/conditional_change_event")
-    ),
-    ("CONDITIONAL_TRUE_EVENT", FunctionInfo::new(
-        "CONDITIONAL_TRUE_EVENT",
-        "Returns a window event number for each row within a window partition based on the result of the boolean argument expr1."
-    )
-    .with_docs("https://docs.snowflake.com/en/sql-reference/functions/conditional_true_event")
     ),
     ("RATIO_TO_REPORT", FunctionInfo::new(
         "RATIO_TO_REPORT",

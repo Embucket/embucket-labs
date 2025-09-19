@@ -20,8 +20,8 @@ WITH source AS (
       seat_utilization_reminder_sent_at                       AS seat_utilization_reminder_sent_at,
       created_at::TIMESTAMP                                   AS cloud_activation_created_at,
       updated_at::TIMESTAMP                                   AS cloud_activation_updated_at,
-      "DBT_VALID_FROM"::TIMESTAMP                             AS valid_from,
-      "DBT_VALID_TO"::TIMESTAMP                               AS valid_to
+      dbt_valid_from::TIMESTAMP                             AS valid_from,
+      dbt_valid_to::TIMESTAMP                               AS valid_to
     FROM source
 
 )

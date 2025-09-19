@@ -451,6 +451,22 @@ test_query!(
 );
 
 test_query!(
+    merge_into_ctas_source_multi_insert_target,
+    "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR)",
+        "INSERT INTO embucket.public.merge_target VALUES (1, 'existing row'), (2, 'existing row'), (3, 'existing row'), (4, 'existing row'), (5, 'existing row')",
+        "INSERT INTO embucket.public.merge_target VALUES (6, 'existing row'), (7, 'existing row'), (8, 'existing row'), (9, 'existing row')",
+        "INSERT INTO embucket.public.merge_target VALUES (11, 'existing row'), (12, 'existing row'), (13, 'existing row'), (14, 'existing row'), (15, 'existing row')",
+        "INSERT INTO embucket.public.merge_target VALUES (16, 'existing row'), (17, 'existing row'), (18, 'existing row'), (19, 'existing row')",
+        "CREATE OR REPLACE TABLE embucket.public.merge_source AS SELECT column1 as id, column2 as description FROM VALUES (1, 'updated row'), (10, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
+        "CREATE OR REPLACE TABLE embucket.public.merge_source AS SELECT column1 as id, column2 as description FROM VALUES (11, 'updated row'), (20, 'new row')",
+        "MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)",
+    ]
+);
+
+test_query!(
     merge_into_ambigious_insert,
     "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
     setup_queries = [
@@ -616,6 +632,11 @@ test_query!(
     timestamp_timezone,
     "SELECT TO_TIMESTAMP(1000000000)",
     setup_queries = ["ALTER SESSION SET timestamp_input_mapping = 'timestamp_tz'"]
+);
+
+test_query!(
+    timestamp_with_timezone_to_timestamp,
+    "SELECT TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', '2024-12-31 10:00:00.000'::TIMESTAMP)) as model_tstamp;"
 );
 
 // Basic date part extraction tests

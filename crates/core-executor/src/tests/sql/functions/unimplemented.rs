@@ -154,10 +154,3 @@ test_query!(
     "SELECT VECTOR_COSINE_SIMILARITY(ARRAY[1, 2], ARRAY[3, 4])",
     snapshot_path = "unimplemented"
 );
-
-// WINDOW_FUNCTIONS
-test_query!(
-    unimplemented_window_function,
-    "SELECT CONDITIONAL_TRUE_EVENT() OVER (ORDER BY column1) FROM employee_table",
-    snapshot_path = "unimplemented"
-);
