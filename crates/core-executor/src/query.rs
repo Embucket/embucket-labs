@@ -535,7 +535,7 @@ impl UserQuery {
     ) -> Result<QueryResult> {
         let mut session_params = HashMap::new();
         let name = variable.to_string();
-        for value in values.into_iter() {
+        for value in values {
             let key = name.clone();
             let session_value = match value {
                 Expr::Value(v) => Ok(SessionProperty::from_value(

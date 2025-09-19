@@ -33,7 +33,7 @@ fn test_datafusion_errors() {
     let err = DataFusionError::External(Box::new(DFExternalError::Numeric {
         source: embucket_functions::numeric::Error::CastToType {
             target_type: "int".to_string(),
-            error: arrow_schema::ArrowError::DivideByZero,
+            error: datafusion::arrow::error::ArrowError::DivideByZero,
             location: location!(),
         },
     }));

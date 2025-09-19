@@ -130,23 +130,27 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     _ => return internal_err!("Invalid target_tz type"),
                 };
 
-                match &args.arg_fields[1].data_type() {
-                    Timestamp(_, _) => Ok(Arc::new(Field::new(
+                if let Timestamp(_, _) = &args.arg_fields[1].data_type() {
+                    Ok(Arc::new(Field::new(
                         self.name(),
                         Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str()))),
                         false,
-                    ))),
-                    _ => internal_err!("Invalid source_timestamp_tz type"),
+                    )))
+                } else {
+                    internal_err!("Invalid source_timestamp_tz type")
                 }
             }
-            3 => match &args.arg_fields[2].data_type() {
-                Timestamp(_, _) => Ok(Arc::new(Field::new(
-                    self.name(),
-                    Timestamp(TimeUnit::Nanosecond, None),
-                    false,
-                ))),
-                _ => internal_err!("Invalid source_timestamp_ntz type"),
-            },
+            3 => {
+                if let Timestamp(_, _) = &args.arg_fields[2].data_type() {
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        Timestamp(TimeUnit::Nanosecond, None),
+                        false,
+                    )))
+                } else {
+                    internal_err!("Invalid source_timestamp_ntz type")
+                }
+            }
             other => {
                 internal_err!(
                     "This function can only take two or three arguments, got {}",

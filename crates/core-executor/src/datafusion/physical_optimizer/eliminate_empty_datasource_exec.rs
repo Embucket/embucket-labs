@@ -153,7 +153,7 @@ mod tests {
         );
         let data_source_exec = Arc::new(DataSourceExec::new(file_scan_config));
 
-        let sort_exprs = LexOrdering::from(vec![PhysicalSortExpr {
+        let sort_exprs = LexOrdering::from([PhysicalSortExpr {
             expr: col("id", &schema())?,
             options: SortOptions::default(),
         }]);

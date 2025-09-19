@@ -16,11 +16,10 @@ impl TopLimitVisitor {
                 limit_by: vec![],
             });
         }
-        match limit_clause.as_mut().unwrap() {
-            LimitClause::LimitOffset { limit, .. } => limit,
-            LimitClause::OffsetCommaLimit { .. } => {
-                unreachable!("OffsetCommaLimit should not be constructed by this visitor")
-            }
+        if let Some(LimitClause::LimitOffset { limit, .. }) = limit_clause.as_mut() {
+            limit
+        } else {
+            unreachable!("OffsetCommaLimit should not be constructed by this visitor")
         }
     }
 

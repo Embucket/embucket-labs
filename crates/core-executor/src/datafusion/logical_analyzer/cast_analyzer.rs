@@ -154,7 +154,7 @@ impl CastAnalyzer {
             // Infer the return field of the UDF for the given literal
             let return_field = udf.return_field_from_args(ReturnFieldArgs {
                 arg_fields: &[Arc::new(Field::new("arg0", DataType::Utf8, true))],
-                scalar_arguments: &[Some(&ScalarValue::Utf8(Some(v.clone())))],
+                scalar_arguments: &[Some(&ScalarValue::Utf8(Some(v)))],
             })?;
             let func_return_type = return_field.data_type().clone();
             let mut expr = Expr::ScalarFunction(ScalarFunction {

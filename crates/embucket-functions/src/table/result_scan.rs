@@ -140,6 +140,7 @@ impl PartialEq for ResultScanFunc {
 
 impl Eq for ResultScanFunc {}
 
+#[allow(clippy::transmute_undefined_repr, clippy::as_conversions)]
 impl std::hash::Hash for ResultScanFunc {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // Hash the data pointer of the trait object to get a stable identity per instance

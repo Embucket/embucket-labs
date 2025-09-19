@@ -33,7 +33,7 @@ impl PartialEq for SessionParams {
         // Take a stable snapshot of both maps and compare
         let to_btree = |m: &DashMap<String, SessionProperty>| {
             let mut map: BTreeMap<String, SessionProperty> = BTreeMap::new();
-            for entry in m.iter() {
+            for entry in m {
                 map.insert(entry.key().clone(), entry.value().clone());
             }
             map
