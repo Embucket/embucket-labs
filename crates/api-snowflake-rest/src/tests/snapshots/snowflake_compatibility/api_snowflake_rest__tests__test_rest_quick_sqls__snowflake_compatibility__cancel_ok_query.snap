@@ -1,6 +1,6 @@
 ---
-source: crates/api-snowflake-rest/src/tests/test_sqls.rs
-description: "select 1;>\nQuery UUID: 00000000-0000-0000-0000-077ef7448873"
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "Async SQL #1 [spent: 101/101ms]: SELECT sleep(1);>\nQuery UUID: 00000000-0000-0000-0000-077eef9dbb49"
 expression: snapshot
 ---
 {

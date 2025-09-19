@@ -1,0 +1,18 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_generic_sqls.rs
+description: "Async SQL #1 [spent: 106/106ms]: SELECT sleep(1);>\nQuery UUID: 00000000-0000-0000-0000-077eefa8fd5c"
+expression: snapshot
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

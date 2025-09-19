@@ -13,6 +13,7 @@ use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::running_queries::RunningQueries;
+use crate::sleep_udf;
 use crate::utils::Config;
 use core_history::history_store::HistoryStore;
 use core_metastore::Metastore;
@@ -100,6 +101,8 @@ impl UserSession {
             .build();
         let mut ctx = SessionContext::new_with_state(state);
         let session_params = Arc::new(session_params);
+        // register sleep UDF for testing purposes
+        ctx.register_udf(sleep_udf());
         register_udfs(&mut ctx, &session_params).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
         register_udtfs(&ctx, history_store.clone());

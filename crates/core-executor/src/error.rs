@@ -562,6 +562,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Query with request_id {request_id} isn't running"))]
+    QueryByRequestIdIsntRunning {
+        request_id: uuid::Uuid,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     // When user tried to get result before query finished
     #[snafu(display("Query {} is running", query_id.as_uuid()))]
     QueryIsRunning {

@@ -1,6 +1,6 @@
 ---
-source: crates/api-snowflake-rest/src/tests/test_sqls.rs
-description: "show schemas in database foo\nQuery UUID: 00000000-0000-0000-0000-077ef7448875"
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "SQL #1 [spent: 163/163ms]: show schemas in database foo\nQuery UUID: 00000000-0000-0000-0000-077eefaf4a82"
 expression: snapshot
 ---
 {

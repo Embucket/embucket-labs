@@ -1,5 +1,6 @@
 pub mod error;
 pub mod handlers;
+pub mod helpers;
 pub mod layer;
 pub mod router;
 pub mod server_models;

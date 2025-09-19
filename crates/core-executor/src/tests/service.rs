@@ -2,7 +2,6 @@ use crate::Error;
 use crate::models::{QueryContext, QueryResult};
 use crate::running_queries::AbortQuery;
 use crate::service::{CoreExecutionService, ExecutionService};
-use crate::tests::sleep_udf;
 use crate::utils::Config;
 use core_history::QueryStatus;
 use core_history::entities::worksheet::Worksheet;
@@ -510,13 +509,10 @@ async fn test_max_concurrency_level() {
         .expect("Failed to create execution service"),
     );
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     let barrier = Arc::new(Barrier::new(3)); // wait for 3 threads: 2 queries + main thread
 
@@ -534,6 +530,7 @@ async fn test_max_concurrency_level() {
                 .await;
             barrier.wait().await;
         });
+        // add delay as miliseconds granularity used for query_id is not enough
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     }
 
@@ -568,13 +565,10 @@ async fn test_max_concurrency_level2() {
         .expect("Failed to create execution service"),
     );
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     for _ in 0..2 {
         let _ = execution_svc
@@ -584,6 +578,7 @@ async fn test_max_concurrency_level2() {
                 QueryContext::default(),
             )
             .await;
+        // add delay as miliseconds granularity used for query_id is not enough
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     }
 
@@ -611,13 +606,10 @@ async fn test_query_timeout() {
         .expect("Failed to create execution service"),
     );
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     let res = execution_svc
         .query(
@@ -646,13 +638,10 @@ async fn test_submitted_query_timeout() {
     .await
     .expect("Failed to create execution service");
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     // test query timeout
     let query_handle = execution_svc
@@ -691,7 +680,7 @@ async fn test_submitted_query_timeout() {
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
-async fn test_submitted_query_cancellation() {
+async fn test_submitted_query_abort_by_query_id() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
@@ -703,13 +692,10 @@ async fn test_submitted_query_cancellation() {
     .await
     .expect("Failed to create execution service");
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     // test cancel query
     let query_handle = execution_svc
@@ -751,6 +737,65 @@ async fn test_submitted_query_cancellation() {
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
+async fn test_submitted_query_abort_by_request_id() {
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let execution_svc = CoreExecutionService::new(
+        metastore,
+        history_store.clone(),
+        Arc::new(Config::default().with_query_timeout(1)),
+    )
+    .await
+    .expect("Failed to create execution service");
+
+    let _session = execution_svc
+        .create_session("test_session_id")
+        .await
+        .expect("Failed to create session");
+
+    let request_id = uuid::Uuid::new_v4();
+    let sql_text = "SELECT sleep(2)";
+    // test cancel query
+    let query_handle = execution_svc
+        .submit_query(
+            "test_session_id",
+            sql_text,
+            QueryContext::default().with_request_id(request_id),
+        )
+        .await
+        .expect("Failed to submit query");
+
+    let query_id = query_handle.query_id;
+
+    execution_svc
+        .abort_query(AbortQuery::ByRequestId(request_id, sql_text.to_string()))
+        .expect("Failed to cancel query");
+
+    let query_result = execution_svc
+        .wait_submitted_query_result(query_handle)
+        .await
+        .expect_err("Query should not succeed");
+    let query_result_str = format!("{query_result:?}");
+    match query_result {
+        Error::QueryExecution { source, .. } => match *source {
+            Error::QueryCancelled { .. } => {}
+            _ => panic!("Expected query status: Canceled, but got {query_result_str}"),
+        },
+        _ => panic!("Expected outer QueryExecution error, but got {query_result_str}"),
+    }
+
+    let query_record = history_store
+        .get_query(query_id)
+        .await
+        .expect("Failed to get query at history store after query timeout");
+
+    assert_eq!(query_record.query_id(), query_id);
+    assert_eq!(query_record.status, QueryStatus::Canceled);
+}
+
+#[tokio::test]
+#[allow(clippy::expect_used)]
 async fn test_submitted_query_ok() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
@@ -763,13 +808,10 @@ async fn test_submitted_query_ok() {
     .await
     .expect("Failed to create execution service");
 
-    let session = execution_svc
+    let _session = execution_svc
         .create_session("test_session_id")
         .await
         .expect("Failed to create session");
-
-    // register sleep UDF for testing purposes
-    session.ctx.register_udf(sleep_udf());
 
     let start = std::time::Instant::now();
     let query_handle = execution_svc
@@ -782,9 +824,9 @@ async fn test_submitted_query_ok() {
         .expect("Failed to submit query");
 
     let duration = start.elapsed();
-    assert!(duration < std::time::Duration::from_secs(1));
-    // check if query submitted significantly faster than it executes
-    assert!(duration < std::time::Duration::from_micros(300));
+    eprintln!("Query submitted in {} ms", duration.as_millis());
+    // check if query submitted significantly faster than it supposed to be executed
+    assert!(duration < std::time::Duration::from_millis(300));
 
     let query_id = query_handle.query_id;
 

@@ -36,7 +36,8 @@ impl RunningQuery {
             rx,
         }
     }
-    pub const fn with_request_id(&mut self, request_id: Uuid) -> &mut Self {
+    #[must_use]
+    pub const fn with_request_id(mut self, request_id: Uuid) -> Self {
         self.request_id = Some(request_id);
         self
     }
@@ -172,11 +173,10 @@ impl RunningQueries for RunningQueriesRegistry {
             }
             // sql_text is not realy used for aborting query. Should it be checked too?
             AbortQuery::ByRequestId(request_id, _sql_text) => {
-                let query_record_id = self.requests_ids.get(&request_id).context(
-                    ex_error::QueryIsntRunningSnafu {
-                        query_id: request_id,
-                    },
-                )?;
+                let query_record_id = self
+                    .requests_ids
+                    .get(&request_id)
+                    .context(ex_error::QueryByRequestIdIsntRunningSnafu { request_id })?;
                 self.abort(AbortQuery::ByQueryId(*query_record_id))?;
             }
         }

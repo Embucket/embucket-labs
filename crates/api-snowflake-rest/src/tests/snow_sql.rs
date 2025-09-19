@@ -48,6 +48,13 @@ pub async fn snow_sql(
                     (sql.as_str(), false)
                 };
 
+                let sql = if sql.starts_with("!abort") {
+                    let query_id = sql.trim_start_matches("!abort ");
+                    &format!("SELECT SYSTEM$CANCEL_QUERY('{query_id}');")
+                } else {
+                    sql
+                };
+
                 let request_id = Uuid::new_v4();
                 let (_headers, res) = query::<JsonResponse>(
                     &client,

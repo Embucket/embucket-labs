@@ -17,7 +17,6 @@ use tower_http::compression::CompressionLayer;
 use tower_http::decompression::RequestDecompressionLayer;
 
 pub fn create_auth_router() -> Router<AppState> {
-    // TODO: move this to the layer.rs
     Router::new().route("/session/v1/login-request", post(login))
 }
 
@@ -28,15 +27,16 @@ pub fn create_router() -> Router<AppState> {
         .route("/queries/{queryId}/result", get(get_query))
 }
 
-// TODO: We should consider using this by both ain and tests
+// TODO: We should consider using this by both main and tests
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
     metastore: Arc<SlateDBMetastore>,
     history_store: Arc<SlateDBHistoryStore>,
     snowflake_rest_cfg: Config,
+    execution_cfg: UtilsConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_svc = Arc::new(
-        CoreExecutionService::new(metastore, history_store, Arc::new(UtilsConfig::default()))
+        CoreExecutionService::new(metastore, history_store, Arc::new(execution_cfg))
             .await
             .expect("Failed to create execution service"),
     );

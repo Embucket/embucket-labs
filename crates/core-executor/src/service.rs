@@ -550,13 +550,18 @@ impl ExecutionService for CoreExecutionService {
             .record("query_id", query_id.as_i64())
             .record("query_uuid", query_id.as_uuid().to_string());
 
+        // Create RunningQuery before query execution as query_context is then transfered to the query object
+        let running_query = if let Some(request_id) = &query_context.request_id {
+            RunningQuery::new(query_id).with_request_id(*request_id)
+        } else {
+            RunningQuery::new(query_id)
+        };
+
         // Attach the generated query ID to the query context before execution.
         // This ensures consistent tracking and logging of the query across all layers.
         let query_obj = user_session.query(query, query_context.with_query_id(query_id));
 
-        // add cancellation token to the map, so it can be cancelled if needed
-        // also presence in this map means that query is running
-        let cancel_token = self.queries.add(RunningQuery::new(query_id));
+        let cancel_token = self.queries.add(running_query);
 
         // Add query to history with status: Running
         self.history_store
@@ -625,7 +630,6 @@ impl ExecutionService for CoreExecutionService {
                 query_id = query_id.as_i64(),
                 query_uuid = query_id.as_uuid().to_string(),
                 query_status = format!("{:?}", query_status),
-                query_result_status = format!("{:#?}", query_result_status),
                 result = format!("{:#?}", result),
             )
             .entered();
@@ -642,7 +646,7 @@ impl ExecutionService for CoreExecutionService {
             if tx.send(query_result_status).is_err() {
                 // Error happens if receiver is dropped 
                 // (natural in case if query submitted result owner doesn't listen)
-                tracing::error_span!("error_query_result_status_cant_be_received",
+                tracing::error_span!("no_receiver_on_query_result_status",
                     query_id = query_id.as_i64(),
                     query_uuid = query_id.as_uuid().to_string(),
                 );
