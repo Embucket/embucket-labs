@@ -10,7 +10,7 @@ core-metastore = { path = "../core-metastore" }
 core-history = {  path = "../core-history" }
 df-catalog = { path = "../df-catalog" }
 embucket-functions = { path = "../embucket-functions" } # features = ["geospatial"] 
-arrow-schema = { version = "55", features = ["serde"] }
+arrow-schema = { version = "56.1.0", features = ["serde"] }
 async-trait = { workspace = true }
 aws-config = { workspace = true }
 aws-credential-types = { workspace = true }
@@ -25,7 +25,7 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "75ce913994c7bf8e1e9122f836da882302673bde", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "605f99b80557bd5a537a150e8d5152727816ec5a", features = [
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
