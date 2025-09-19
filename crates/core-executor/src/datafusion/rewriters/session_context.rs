@@ -129,7 +129,7 @@ impl TreeNodeRewriter for ExprRewriter<'_> {
                 "current_schemas" => Some(list_val(&self.rewriter.schemas)),
                 "system$cancel_query" => {
                     let query_id = match fun.args.first() {
-                        Some(Expr::Literal(ScalarValue::Utf8(Some(value)))) => value.clone(),
+                        Some(Expr::Literal(ScalarValue::Utf8(Some(value)), _)) => value.clone(),
                         _ => String::default(),
                     };
                     Some(self.rewriter.cancel_query(query_id)?)

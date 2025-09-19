@@ -367,7 +367,7 @@ impl ExecutionService for CoreExecutionService {
         let sessions = self.df_sessions.read().await;
         let session = sessions
             .get(session_id)
-            .context(ex_error::MissingDataFusionSessionSnafu { id: session_id })?;
+            .ok_or_else(|| ex_error::MissingDataFusionSessionSnafu { id: session_id }.build())?;
         Ok(session.clone())
     }
 

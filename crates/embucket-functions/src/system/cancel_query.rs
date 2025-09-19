@@ -28,7 +28,7 @@ use std::any::Any;
 /// - The function is marked as `Volatile`, indicating that it has side effects
 ///   (i.e., returns different results depending on target query is running or not)
 ///   and cannot be optimized away by the query planner.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SystemCancelQuery {
     signature: Signature,
 }
