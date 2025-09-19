@@ -523,3 +523,127 @@ async fn test_ui_worksheets_ops() {
     .expect_err("Should fail with NOT_FOUND");
     assert_eq!(http::StatusCode::NOT_FOUND, resp.status);
 }
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_ui_worksheets_search() {
+    let addr = run_test_server().await;
+    let client = reqwest::Client::new();
+
+    let templates = vec![
+        ("work1", ""),
+        ("work2", "select 2"),
+        ("work3", ""),
+        ("sheet1", "select 4"),
+        ("work4", ""),
+    ];
+    let _ = create_worksheets(&client, &addr, templates).await;
+
+    // no search
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work1", "work2", "work3", "sheet1", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // limit + offset
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(3),
+            search: None,
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work2", "work3", "sheet1"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: Some("work".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work1", "work2", "work3", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search + offset + limit
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(3),
+            search: Some("work".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work2", "work3", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search other
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: Some("sheet".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["sheet1"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search + offset + limit + order by + order direction
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(2),
+            search: Some("work".to_string()),
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work3", "work2"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+}
