@@ -39,6 +39,7 @@ use utoipa::OpenApi;
         WorksheetCreateResponse,
         WorksheetResponse,
         WorksheetsResponse,
+        OrderDirection,
     )),
     tags(
         (name = "worksheets", description = "Worksheets endpoints"),
