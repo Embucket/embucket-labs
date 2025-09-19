@@ -26,11 +26,11 @@ use std::sync::Arc;
 pub struct LikeTypeAnalyzer;
 
 impl LikeTypeAnalyzer {
-    fn varchar_expr_from(expr: Expr) -> Box<Expr> {
-        Box::new(Expr::ScalarFunction(ScalarFunction {
+    fn varchar_expr_from(expr: Expr) -> Expr {
+        Expr::ScalarFunction(ScalarFunction {
             func: Arc::new(ScalarUDF::from(ToVarcharFunc::new(false))),
             args: vec![expr],
-        }))
+        })
     }
 }
 
@@ -60,7 +60,7 @@ impl LikeTypeAnalyzer {
                                 let udf = Self::varchar_expr_from(*expr.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
-                                    expr: udf,
+                                    expr: Box::new(udf),
                                     pattern: pattern.clone(),
                                     escape_char: *escape_char,
                                     case_insensitive: *case_insensitive,
@@ -71,7 +71,7 @@ impl LikeTypeAnalyzer {
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
                                     expr: expr.clone(),
-                                    pattern: udf,
+                                    pattern: Box::new(udf),
                                     escape_char: *escape_char,
                                     case_insensitive: *case_insensitive,
                                 })))
@@ -82,8 +82,8 @@ impl LikeTypeAnalyzer {
                                 let udf2 = Self::varchar_expr_from(*pattern.clone());
                                 Ok(Transformed::yes(Expr::Like(Like {
                                     negated: *negated,
-                                    expr: udf1,
-                                    pattern: udf2,
+                                    expr: Box::new(udf1),
+                                    pattern: Box::new(udf2),
                                     escape_char: *escape_char,
                                     case_insensitive: *case_insensitive,
                                 })))

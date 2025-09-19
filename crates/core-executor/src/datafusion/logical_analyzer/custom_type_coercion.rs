@@ -1,4 +1,4 @@
-use arrow_schema::DataType::{Boolean, Utf8};
+use datafusion::arrow::datatypes::DataType::{Boolean, Utf8};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{LogicalPlan, Operator};
 use datafusion::optimizer::AnalyzerRule;

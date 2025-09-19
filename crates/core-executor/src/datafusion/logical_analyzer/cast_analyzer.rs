@@ -9,7 +9,7 @@ use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion_common::{DFSchemaRef, ScalarValue};
 use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::expr_rewriter::NamePreserver;
-use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnFieldArgs, ScalarUDF};
+use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnFieldArgs, ScalarUDF, TryCast};
 use embucket_functions::conversion::to_array::ToArrayFunc;
 use embucket_functions::conversion::to_date::ToDateFunc;
 use embucket_functions::conversion::to_decimal::ToDecimalFunc;
