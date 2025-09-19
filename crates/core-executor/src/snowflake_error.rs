@@ -516,6 +516,11 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                         status_code: ErrorCode::DatafusionEmbucketFnRegexp,
                     }
                     .build(),
+                    EmubucketFunctionsExternalDFError::System { .. } => CustomSnafu {
+                        message,
+                        status_code: ErrorCode::DatafusionEmbucketFnSystem,
+                    }
+                    .build(),
                 }
             } else if let Some(e) = err.downcast_ref::<DFCatalogExternalDFError>() {
                 let message = e.to_string();

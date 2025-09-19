@@ -31,6 +31,8 @@ pub enum DFExternalError {
     Crate { source: CrateError },
     #[snafu(transparent)]
     Regexp { source: crate::regexp::Error },
+    #[snafu(transparent)]
+    System { source: crate::system::Error },
 }
 
 impl From<DFExternalError> for datafusion_common::DataFusionError {

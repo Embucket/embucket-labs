@@ -250,5 +250,3 @@ where
     )
     .await
 }
-
-// TODO: Add get_query

@@ -21,6 +21,7 @@ pub enum ErrorCode {
     DatafusionEmbucketFnTable,
     DatafusionEmbucketFnCrate,
     DatafusionEmbucketFnRegexp,
+    DatafusionEmbucketFnSystem,
     Arrow = 601,
     Catalog = 701,
     Iceberg = 801,
