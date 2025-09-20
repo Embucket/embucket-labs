@@ -4,14 +4,14 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches:
-      - osmazur/snowplow-benchmark
-  pull_request:
-    branches:
-      - osmazur/snowplow-benchmark
-  # schedule:
-  #   - cron: '0 3 * * *'
+  # push:
+  #   branches:
+  #     - osmazur/snowplow-benchmark
+  # pull_request:
+  #   branches:
+  #     - osmazur/snowplow-benchmark
+  schedule:
+    - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
