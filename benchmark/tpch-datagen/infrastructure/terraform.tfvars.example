@@ -1,0 +1,27 @@
+# AWS Configuration
+aws_region  = "us-east-2"
+aws_profile = "AdministratorAccess-767397688925"  # Your AWS SSO profile
+
+# Instance Configuration for SF=100 TPC-H Data Generation
+instance_type = "c7i.4xlarge"   # 16 vCPU, 32 GB RAM - optimized for SF=100
+root_volume_size = 300          # GB - sufficient for SF=100 with buffer
+root_volume_iops = 3000         # IOPS for good I/O performance
+root_volume_throughput = 250    # MB/s throughput
+
+# Alternative instance types if needed:
+# instance_type = "c7i.2xlarge"   # 8 vCPU, 16 GB RAM - for testing/smaller SF
+# instance_type = "c7i.8xlarge"   # 32 vCPU, 64 GB RAM - for faster generation
+
+# SSH Key Configuration
+public_key_path  = "~/.ssh/id_rsa.pub"
+private_key_path = "~/.ssh/id_rsa"
+
+# Scale factors to generate (will be passed to the generation script)
+scale_factors = [100]
+
+# S3 Configuration - Use existing bucket
+existing_s3_bucket = "embucket-testdata"
+s3_prefix = "tpch_data"
+
+# Environment
+environment = "tpch-datagen"
