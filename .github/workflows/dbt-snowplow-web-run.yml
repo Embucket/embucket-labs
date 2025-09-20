@@ -4,7 +4,10 @@ permissions:
   contents: write
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - osmazur/snowplow-benchmark
+  pull_request:
     branches:
       - osmazur/snowplow-benchmark
   # schedule:
