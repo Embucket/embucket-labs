@@ -60,7 +60,7 @@ jobs:
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./incremental.sh true 10000 embucket
+          ./incremental.sh false 10000 embucket
 
       # Generate Test Assets
       - name: Generate data for commit message
