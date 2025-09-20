@@ -4,8 +4,11 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
+  workflow_dispatch:
+    branches:
+      - osmazur/snowplow-benchmark
+  # schedule:
+  #   - cron: '0 3 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -48,6 +51,7 @@ jobs:
           export EMBUCKET_DATABASE=embucket
           export EMBUCKET_WAREHOUSE=COMPUTE_WH
           export EMBUCKET_SCHEMA=public
+          export RUN_TYPE=github_actions
           EOF
 
       - name: DBT Snowplow Web Inceremental run
