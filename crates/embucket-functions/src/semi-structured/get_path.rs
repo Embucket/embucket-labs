@@ -64,13 +64,10 @@ impl ScalarUDFImpl for GetPathFunc {
                 "get_path function requires the second argument to be a scalar string"
             );
         };
-        let path = match path_scalar.cast_to(&DataType::Utf8)? {
-            ScalarValue::Utf8(Some(s)) => s,
-            _ => {
-                return exec_err!(
-                    "get_path function requires the second argument to be a scalar string"
-                );
-            }
+        let ScalarValue::Utf8(Some(path)) = path_scalar.cast_to(&DataType::Utf8)? else {
+            return exec_err!(
+                "get_path function requires the second argument to be a scalar string"
+            );
         };
 
         // Normalize to Utf8 to support Utf8View/LargeUtf8

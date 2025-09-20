@@ -153,8 +153,10 @@ make_udaf_function!(ArrayUniqueAggUDAF);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::AsArray;
     use datafusion::prelude::{SessionConfig, SessionContext};
     use datafusion_expr::AggregateUDF;
+    use std::collections::HashSet;
 
     #[tokio::test]
     async fn test_sql() -> DFResult<()> {
@@ -178,18 +180,18 @@ mod tests {
             .await?;
 
         // Check content irrespective of order: must contain unique {5,2,1}
-        use datafusion::arrow::array::AsArray;
-        use std::collections::HashSet;
         let batch = &result[0];
         let col = batch.column(0).as_string::<i32>();
         let json_str = col.value(0);
-        let parsed: serde_json::Value = serde_json::from_str(json_str).unwrap();
-        assert!(parsed.is_array());
-        let arr = parsed.as_array().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(json_str)
+            .expect("ARRAY_UNIQUE_AGG should produce valid JSON array for integers");
+        let arr = parsed
+            .as_array()
+            .expect("result should be an array of integers");
         let mut set: HashSet<i64> = HashSet::new();
         for v in arr {
-            assert!(v.is_number());
-            set.insert(v.as_i64().unwrap());
+            let n = v.as_i64().expect("array element should be a JSON number");
+            set.insert(n);
         }
         assert_eq!(arr.len(), set.len());
         assert_eq!(set, HashSet::from_iter([5_i64, 2, 1]));
@@ -219,17 +221,20 @@ mod tests {
         let batch = &result[0];
         let col = batch.column(0).as_string::<i32>();
         let json_str = col.value(0);
-        let parsed: serde_json::Value = serde_json::from_str(json_str).unwrap();
-        assert!(parsed.is_array());
-        let arr = parsed.as_array().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(json_str)
+            .expect("ARRAY_UNIQUE_AGG should produce valid JSON array for arrays");
+        let arr = parsed
+            .as_array()
+            .expect("result should be an array of arrays");
         // Expect three elements: [1], [2], [null] in any order
         assert_eq!(arr.len(), 3);
         let mut seen_one = false;
         let mut seen_two = false;
         let mut seen_null = false;
         for v in arr {
-            assert!(v.is_array());
-            let inner = v.as_array().unwrap();
+            let inner = v
+                .as_array()
+                .expect("outer array element should be an array");
             assert_eq!(inner.len(), 1);
             if inner[0].is_null() {
                 seen_null = true;
@@ -238,7 +243,7 @@ mod tests {
             } else if inner[0] == serde_json::json!(2) {
                 seen_two = true;
             } else {
-                panic!("unexpected element: {:?}", v);
+                panic!("unexpected element: {v:?}");
             }
         }
         assert!(seen_one && seen_two && seen_null);

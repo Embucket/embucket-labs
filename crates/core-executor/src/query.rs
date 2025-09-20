@@ -592,10 +592,7 @@ impl UserQuery {
             // Evaluate each value expression independently (supports subqueries and expressions)
             let mut session_params = HashMap::new();
             // Normalize variables to strings
-            let names: Vec<String> = variables
-                .iter()
-                .map(|obj_name| object_name_to_string(obj_name))
-                .collect();
+            let names: Vec<String> = variables.iter().map(object_name_to_string).collect();
 
             // Values can be either a list of SQL expressions or a single row expression
             // Values are represented as a list expression
@@ -605,24 +602,21 @@ impl UserQuery {
             }
 
             for (name, value) in names.into_iter().zip(value_list.into_iter()) {
-                let session_value = match value {
-                    SqlExpr::Value(ValueWithSpan { value: v, .. }) => {
-                        Ok(SessionProperty::from_value(
-                            name.clone(),
-                            &v,
-                            self.session.ctx.session_id(),
-                        ))
-                    }
-                    _ => {
-                        // Evaluate as scalar by running a SELECT
-                        let query_str = format!("SELECT {value}");
-                        let scalar = self.execute_scalar_query(&query_str).await?;
-                        Ok(SessionProperty::from_scalar_value(
-                            name.clone(),
-                            &scalar,
-                            self.session.ctx.session_id(),
-                        ))
-                    }
+                let session_value = if let SqlExpr::Value(ValueWithSpan { value: v, .. }) = value {
+                    Ok(SessionProperty::from_value(
+                        name.clone(),
+                        &v,
+                        self.session.ctx.session_id(),
+                    ))
+                } else {
+                    // Evaluate as scalar by running a SELECT
+                    let query_str = format!("SELECT {value}");
+                    let scalar = self.execute_scalar_query(&query_str).await?;
+                    Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
+                        &scalar,
+                        self.session.ctx.session_id(),
+                    ))
                 }?;
                 session_params.insert(name, session_value);
             }
