@@ -191,4 +191,5 @@ if [ "$is_incremental" == true ]; then
         echo "It was snowflake run, no assets will be generated"
     fi
 
+
 fi

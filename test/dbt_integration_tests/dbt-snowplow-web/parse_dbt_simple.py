@@ -8,7 +8,7 @@ import sys
 import re
 import snowflake.connector
 from datetime import datetime
-from db_connections import create_snowflake_connection
+from db_connections import create_snowflake_connection, create_embucket_connection
 
 def parse_duration(duration_str):
     """Parse duration string and convert to seconds"""
@@ -232,6 +232,134 @@ def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=Fals
     
     return results
 
+def get_row_count_queries():
+    """Get SQL queries to count rows for all dbt models from count_table_rows.sql file."""
+    try:
+        with open('count_table_rows.sql', 'r') as f:
+            sql_content = f.read()
+        
+        # Split by UNION ALL to get individual queries
+        queries = []
+        lines = sql_content.split('\n')
+        current_query = ""
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('SELECT') and 'COUNT(*)' in line:
+                # Start of a new query
+                current_query = line
+            elif line.startswith('FROM') and current_query:
+                # Complete the query
+                current_query += " " + line
+                queries.append(current_query)
+                current_query = ""
+            elif current_query and not line.startswith('UNION ALL') and not line.startswith('--') and line:
+                # Continue building the query
+                current_query += " " + line
+        
+        return queries
+    except FileNotFoundError:
+        print("⚠ count_table_rows.sql file not found, using fallback queries")
+        return [
+            "SELECT 'PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_ga4_source_categories' AS table_name, COUNT(*) AS row_count FROM PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_ga4_source_categories",
+            "SELECT 'PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_geo_country_mapping' AS table_name, COUNT(*) AS row_count FROM PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_geo_country_mapping",
+            "SELECT 'PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_rfc_5646_language_mapping' AS table_name, COUNT(*) AS row_count FROM PUBLIC_SNOWPLOW_MANIFEST_SNOWPLOW_MANIFEST.snowplow_web_dim_rfc_5646_language_mapping"
+        ]
+
+def execute_row_count_queries(conn, queries):
+    """Execute row count queries and return results."""
+    cursor = conn.cursor()
+    results = []
+    
+    try:
+        for query in queries:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            if result:
+                table_name, row_count = result
+                results.append((table_name, row_count))
+                print(f"✓ {table_name}: {row_count} rows")
+            else:
+                print(f"⚠ No result for query: {query}")
+    except Exception as e:
+        print(f"⚠ Error executing row count queries: {e}")
+    
+    cursor.close()
+    return results
+
+def add_row_count_column_if_not_exists(conn, target):
+    """Add row_count column to dbt_snowplow_results_models if it doesn't exist."""
+    cursor = conn.cursor()
+    
+    try:
+        # Check if column exists - use different parameter placeholders for different databases
+        if target.lower() == 'snowflake':
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'DBT_SNOWPLOW_RESULTS_MODELS' 
+                AND COLUMN_NAME = 'ROW_COUNT'
+            """)
+        else:  # embucket
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'DBT_SNOWPLOW_RESULTS_MODELS' 
+                AND COLUMN_NAME = 'ROW_COUNT'
+            """)
+        
+        column_exists = cursor.fetchone()[0] > 0
+        
+        if not column_exists:
+            print("Adding row_count column to dbt_snowplow_results_models...")
+            cursor.execute("ALTER TABLE dbt_snowplow_results_models ADD COLUMN row_count INTEGER")
+            conn.commit()
+            print("✓ row_count column added successfully")
+        else:
+            print("✓ row_count column already exists")
+            
+    except Exception as e:
+        print(f"⚠ Error adding row_count column: {e}")
+    
+    cursor.close()
+
+def update_row_counts_in_results_table(conn, results, target, run_id):
+    """Update existing records in dbt_snowplow_results_models table with row counts."""
+    cursor = conn.cursor()
+    
+    try:
+        # Update each row count result
+        for table_name, row_count in results:
+            # Convert table name to match dbt model name format
+            # e.g., "PUBLIC_SNOWPLOW_MANIFEST_DERIVED.snowplow_web_sessions" -> "public_snowplow_manifest_derived.snowplow_web_sessions"
+            model_name = table_name.lower()
+            
+            # Both Snowflake and Embucket use Snowflake connector, so use %s placeholders
+            update_query = """
+            UPDATE dbt_snowplow_results_models 
+            SET row_count = %s
+            WHERE model_name = %s AND target = %s AND run_id = %s
+            """
+            
+            cursor.execute(update_query, (
+                row_count,
+                model_name,
+                target,
+                run_id
+            ))
+            
+            if cursor.rowcount > 0:
+                print(f"✓ Updated {model_name}: {row_count} rows")
+            else:
+                print(f"⚠ No matching record found for {model_name}")
+        
+        print(f"✓ Updated row counts for {len(results)} models in dbt_snowplow_results_models")
+        
+    except Exception as e:
+        print(f"⚠ Error updating row counts: {e}")
+    
+    cursor.close()
+
 def create_results_table(conn, cursor):
     """Create the dbt_snowplow_results_models table if it doesn't exist."""
     create_table_sql = """
@@ -255,6 +383,7 @@ def create_results_table(conn, cursor):
         skip_count INTEGER,
         number_of_rows_generated INTEGER,
         is_incremental_run BOOLEAN,
+        row_count INTEGER,
         downloaded_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """
@@ -263,15 +392,16 @@ def create_results_table(conn, cursor):
     conn.commit()
     print("✓ dbt_snowplow_results_models table created/verified")
 
-def load_results_to_snowflake(results, target='snowflake'):
-    """Load parsed results into Snowflake."""
+def load_results_to_database(results, target='snowflake'):
+    """Load parsed results into Snowflake database (always use Snowflake for storage)."""
     print(f"=== Loading dbt Results into SNOWFLAKE Database ===")
     print(f"Connecting to SNOWFLAKE...")
     
     try:
+        # Always use Snowflake for storing results
         conn = create_snowflake_connection()
         cursor = conn.cursor()
-        print("✓ Connected to SNOWFLAKE successfully")
+        print(f"✓ Connected to SNOWFLAKE successfully")
         
         # Create table
         create_results_table(conn, cursor)
@@ -282,41 +412,48 @@ def load_results_to_snowflake(results, target='snowflake'):
         # Set the same downloaded_at timestamp for all models in this run
         downloaded_at = datetime.now()
         
-        # Insert results
+        # Insert results - both Snowflake and Embucket use Snowflake connector, so use %s placeholders
         insert_sql = """
         INSERT INTO dbt_snowplow_results_models 
-        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, number_of_rows_generated, is_incremental_run, downloaded_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, number_of_rows_generated, is_incremental_run, row_count, downloaded_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         for result in results:
             result['target'] = target
-            cursor.execute(insert_sql, (
-                result['timestamp'],
-                result['model_name'],
-                result['model_type'],
-                result['result'],
-                result['duration'],
-                result['rows_affected'],
-                result['order'],
-                result['target'],
-                run_id,
-                result['dbt_version'],
-                result['adapter_type'],
-                result['total_models'],
-                result['pass_count'],
-                result['warn_count'],
-                result['error_count'],
-                result['skip_count'],
-                result['number_of_rows_generated'],
-                result['is_incremental_run'],
-                downloaded_at
-            ))
+            try:
+                cursor.execute(insert_sql, (
+                    result['timestamp'],
+                    result['model_name'],
+                    result['model_type'],
+                    result['result'],
+                    result['duration'],
+                    result['rows_affected'],
+                    result['order'],
+                    result['target'],
+                    run_id,
+                    result['dbt_version'],
+                    result['adapter_type'],
+                    result['total_models'],
+                    result['pass_count'],
+                    result['warn_count'],
+                    result['error_count'],
+                    result['skip_count'],
+                    result['number_of_rows_generated'],
+                    result['is_incremental_run'],
+                    None,  # row_count will be updated later
+                    downloaded_at
+                ))
+            except Exception as e:
+                print(f"Error inserting result for {result['model_name']}: {e}")
+                print(f"Target: {target}")
+                print(f"Insert SQL: {insert_sql}")
+                raise
         
         conn.commit()
-        print(f"✓ Loaded {len(results)} dbt results into Snowflake")
+        print(f"✓ Loaded {len(results)} dbt results into {target.upper()}")
         
-        # Verify data
+        # Verify data - both Snowflake and Embucket use Snowflake connector, so use %s placeholders
         cursor.execute("SELECT COUNT(*) FROM dbt_snowplow_results_models WHERE run_id = %s", (run_id,))
         count = cursor.fetchone()[0]
         print(f"✓ Verification: {count} records loaded for run_id: {run_id}")
@@ -340,6 +477,32 @@ def load_results_to_snowflake(results, target='snowflake'):
         for row in cursor.fetchall():
             result, count, avg_duration, total_rows, total_rows_generated, is_incremental_run = row
             print(f"{result}: {count} models, avg duration: {avg_duration:.2f}s, total rows: {total_rows}, total rows generated: {total_rows_generated}, incremental run: {is_incremental_run}")
+        
+        # Add row_count column if it doesn't exist
+        print("\n=== Adding Row Count Column ===")
+        add_row_count_column_if_not_exists(conn, 'snowflake')  # Always use snowflake for storage
+        
+        # Get row count queries
+        print("\n=== Counting Table Rows ===")
+        queries = get_row_count_queries()
+        print(f"Found {len(queries)} tables to count")
+        
+        # Execute row count queries on the target database
+        print(f"Executing row count queries on {target.upper()}...")
+        if target.lower() == 'snowflake':
+            row_count_conn = conn  # Use the same Snowflake connection
+        else:
+            row_count_conn = create_embucket_connection()  # Create new Embucket connection for counting
+        
+        row_count_results = execute_row_count_queries(row_count_conn, queries)
+        
+        # Close the row counting connection if it's different
+        if target.lower() != 'snowflake':
+            row_count_conn.close()
+        
+        # Update existing records in dbt_snowplow_results_models table with row counts (always in Snowflake)
+        print("\n=== Updating Row Counts ===")
+        update_row_counts_in_results_table(conn, row_count_results, target, run_id)
         
         cursor.close()
         conn.close()
@@ -373,8 +536,8 @@ def main():
     results = parse_dbt_output(dbt_output, total_rows_generated, is_incremental_run)
     print(f"✓ Parsed {len(results)} model results")
     
-    # Load to Snowflake
-    load_results_to_snowflake(results, target)
+    # Load to database
+    load_results_to_database(results, target)
 
 if __name__ == "__main__":
     main()
