@@ -4,12 +4,6 @@ permissions:
   contents: write
 
 on:
-  # push:
-  #   branches:
-  #     - osmazur/snowplow-benchmark
-  # pull_request:
-  #   branches:
-  #     - osmazur/snowplow-benchmark
   schedule:
     - cron: '0 3 * * *'
 

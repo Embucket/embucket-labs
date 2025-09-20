@@ -270,24 +270,47 @@ def get_row_count_queries():
         ]
 
 def execute_row_count_queries(conn, queries):
-    """Execute row count queries and return results."""
+    """Execute row count queries and return results. Handle missing tables gracefully."""
     cursor = conn.cursor()
     results = []
+    successful_queries = 0
+    failed_queries = 0
     
-    try:
-        for query in queries:
+    for query in queries:
+        try:
             cursor.execute(query)
             result = cursor.fetchone()
             if result:
                 table_name, row_count = result
                 results.append((table_name, row_count))
                 print(f"✓ {table_name}: {row_count} rows")
+                successful_queries += 1
             else:
                 print(f"⚠ No result for query: {query}")
-    except Exception as e:
-        print(f"⚠ Error executing row count queries: {e}")
+                failed_queries += 1
+        except Exception as e:
+            # Extract table name from query for better error reporting
+            table_name = "unknown"
+            if "FROM" in query:
+                try:
+                    # Extract table name from SELECT ... FROM table_name
+                    parts = query.split("FROM")
+                    if len(parts) > 1:
+                        table_part = parts[1].strip().split()[0]
+                        table_name = table_part
+                except:
+                    pass
+            
+            print(f"⚠ Table not found (skipping): {table_name} - {str(e).split('(')[0].strip()}")
+            failed_queries += 1
+            continue
     
     cursor.close()
+    
+    print(f"✓ Successfully counted {successful_queries} tables")
+    if failed_queries > 0:
+        print(f"⚠ Skipped {failed_queries} tables (not found or failed to create)")
+    
     return results
 
 def add_row_count_column_if_not_exists(conn, target):
