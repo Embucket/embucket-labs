@@ -1,7 +1,7 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
-description: "Async SQL #1 [spent: 53/53ms]: select sleep(1);>\nQuery UUID: 00000000-0000-0000-0000-077eefaf5217"
-expression: snapshot
+description: "Async SQL #1 [spent: 102/102ms]: select sleep(1);>\nQuery UUID: 00000000-0000-0000-0000-077ee5805321"
+expression: pretty_json
 ---
 {
   "data": {

@@ -1,7 +1,7 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
-description: "SQL #1 [spent: 217/217ms]: create table foo\nQuery UUID: 00000000-0000-0000-0000-077eefaf4d8f"
-expression: snapshot
+description: "SQL #1 [spent: 202/202ms]: create table foo\nQuery UUID: 00000000-0000-0000-0000-077ee5805263"
+expression: pretty_json
 ---
 {
   "data": {
@@ -10,11 +10,11 @@ expression: snapshot
     "rowset": null,
     "total": null,
     "queryResultFormat": null,
-    "errorCode": "001003",
-    "sqlState": "42000",
+    "errorCode": "010001",
+    "sqlState": "02000",
     "queryId": "UUID"
   },
   "success": false,
-  "message": "SQL compilation error: syntax error unexpected end of input",
-  "code": "001003"
+  "message": "SQL parser error: sql parser error: syntax error unexpected end of input",
+  "code": "010001"
 }
