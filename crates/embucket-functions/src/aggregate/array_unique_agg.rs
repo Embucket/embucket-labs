@@ -154,7 +154,6 @@ make_udaf_function!(ArrayUniqueAggUDAF);
 mod tests {
     use super::*;
     use datafusion::prelude::{SessionConfig, SessionContext};
-    use datafusion_common::assert_batches_eq;
     use datafusion_expr::AggregateUDF;
 
     #[tokio::test]
@@ -178,16 +177,22 @@ mod tests {
             .collect()
             .await?;
 
-        assert_batches_eq!(
-            &[
-                "+-----------------+",
-                "| distinct_values |",
-                "+-----------------+",
-                "| [5,2,1]         |",
-                "+-----------------+",
-            ],
-            &result
-        );
+        // Check content irrespective of order: must contain unique {5,2,1}
+        use datafusion::arrow::array::AsArray;
+        use std::collections::HashSet;
+        let batch = &result[0];
+        let col = batch.column(0).as_string::<i32>();
+        let json_str = col.value(0);
+        let parsed: serde_json::Value = serde_json::from_str(json_str).unwrap();
+        assert!(parsed.is_array());
+        let arr = parsed.as_array().unwrap();
+        let mut set: HashSet<i64> = HashSet::new();
+        for v in arr {
+            assert!(v.is_number());
+            set.insert(v.as_i64().unwrap());
+        }
+        assert_eq!(arr.len(), set.len());
+        assert_eq!(set, HashSet::from_iter([5_i64, 2, 1]));
 
         let config = SessionConfig::new()
             .with_batch_size(1)
@@ -210,16 +215,33 @@ mod tests {
             .collect()
             .await?;
 
-        assert_batches_eq!(
-            &[
-                "+------------------+",
-                "| distinct_values  |",
-                "+------------------+",
-                "| [[1],[2],[null]] |",
-                "+------------------+",
-            ],
-            &result
-        );
+        // Validate uniqueness and membership ignoring order for arrays input
+        let batch = &result[0];
+        let col = batch.column(0).as_string::<i32>();
+        let json_str = col.value(0);
+        let parsed: serde_json::Value = serde_json::from_str(json_str).unwrap();
+        assert!(parsed.is_array());
+        let arr = parsed.as_array().unwrap();
+        // Expect three elements: [1], [2], [null] in any order
+        assert_eq!(arr.len(), 3);
+        let mut seen_one = false;
+        let mut seen_two = false;
+        let mut seen_null = false;
+        for v in arr {
+            assert!(v.is_array());
+            let inner = v.as_array().unwrap();
+            assert_eq!(inner.len(), 1);
+            if inner[0].is_null() {
+                seen_null = true;
+            } else if inner[0] == serde_json::json!(1) {
+                seen_one = true;
+            } else if inner[0] == serde_json::json!(2) {
+                seen_two = true;
+            } else {
+                panic!("unexpected element: {:?}", v);
+            }
+        }
+        assert!(seen_one && seen_two && seen_null);
 
         Ok(())
     }

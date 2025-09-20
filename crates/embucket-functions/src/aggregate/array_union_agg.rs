@@ -2,6 +2,7 @@ use super::errors;
 use crate::aggregate::macros::make_udaf_function;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
@@ -102,7 +103,9 @@ impl ArrayUniqueAggAccumulator {
 impl Accumulator for ArrayUniqueAggAccumulator {
     fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
         let arr = &values[0];
-        let arr = as_string_array(arr)?;
+        // Normalize to Utf8 (handles Utf8View/LargeUtf8)
+        let arr = cast(arr, &DataType::Utf8)?;
+        let arr = as_string_array(&arr)?;
         let mut buf = Vec::with_capacity(arr.len());
         for v in arr.into_iter().flatten() {
             let json: Value =

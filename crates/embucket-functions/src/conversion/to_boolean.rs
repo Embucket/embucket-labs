@@ -3,6 +3,7 @@ use crate::array_to_boolean;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::BooleanBuilder;
 use datafusion::arrow::array::cast::as_string_array;
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
@@ -81,7 +82,9 @@ impl ScalarUDFImpl for ToBooleanFunc {
         };
 
         let arr = match arr.data_type() {
-            DataType::Utf8 => {
+            DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
+                // Normalize any string-like input to Utf8 and parse textual booleans
+                let arr = cast(&arr, &DataType::Utf8)?;
                 let arr = as_string_array(&arr);
                 let mut res = BooleanBuilder::with_capacity(arr.len());
                 for i in 0..arr.len() {

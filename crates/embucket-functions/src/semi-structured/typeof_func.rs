@@ -1,4 +1,5 @@
 use datafusion::arrow::array::{Array, as_string_array};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -73,6 +74,8 @@ impl ScalarUDFImpl for TypeofFunc {
             }
             v if v.is_nested() => append_all(&mut b, arr.len(), "ARRAY"),
             _ => {
+                // Normalize to Utf8 for string parsing
+                let arr = cast(&arr, &DataType::Utf8)?;
                 let input = as_string_array(&arr);
                 for v in input {
                     let Some(v) = v else {

@@ -86,7 +86,11 @@ macro_rules! sql_test {
                     filters => insta_replace_filiters(),
                     // info => &info,
                 }, {
-                    insta::assert_json_snapshot!(snapshot);
+                    let normalized: serde_json::Value = serde_json::from_str(
+                        &serde_json::to_string(&snapshot).expect("serialize snapshot"),
+                    )
+                    .expect("normalize snapshot to value");
+                    insta::assert_json_snapshot!(normalized);
                 });
 
                 prev_response = Some(snapshot);

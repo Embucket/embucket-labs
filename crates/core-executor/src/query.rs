@@ -99,7 +99,7 @@ use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
 use object_store::{ClientOptions, ObjectStore};
-use snafu::{OptionExt, ResultExt};
+use snafu::{OptionExt, ResultExt, location};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
@@ -739,6 +739,17 @@ impl UserQuery {
         let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
             return ex_error::OnlyCreateTableStatementsSnafu.fail();
         };
+        // Guard: if both column list and query are absent, treat as SQL parse error (syntax)
+        // e.g., "create table foo" should map to Snowflake-like syntax error
+        if create_table_statement.columns.is_empty() && create_table_statement.query.is_none() {
+            return Err(ex_error::Error::SqlParser {
+                error: datafusion::sql::sqlparser::parser::ParserError::ParserError(
+                    "syntax error unexpected end of input".to_string(),
+                ),
+                location: location!(),
+            });
+        }
+
         let table_location = create_table_statement
             .location
             .clone()

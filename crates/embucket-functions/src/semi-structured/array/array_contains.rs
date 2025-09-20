@@ -87,7 +87,9 @@ impl ScalarUDFImpl for ArrayContainsUDF {
 
         match (value, array) {
             (ColumnarValue::Array(value_array), ColumnarValue::Array(array_array)) => {
-                let array_strings = array_array.as_string::<i32>();
+                // Normalize array to Utf8 for iteration
+                let casted = datafusion::arrow::compute::cast(array_array, &DataType::Utf8)?;
+                let array_strings = casted.as_string::<i32>();
                 let value_array = encode_array(value_array.clone())?;
                 let mut results = Vec::new();
                 for (search_val, col_val) in value_array

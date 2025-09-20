@@ -2,6 +2,7 @@ use crate::json;
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors;
 use datafusion::arrow::array::{Array, StringBuilder, as_string_array};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
@@ -58,12 +59,22 @@ impl ScalarUDFImpl for GetPathFunc {
             ColumnarValue::Array(arr) => arr,
             ColumnarValue::Scalar(v) => v.to_array()?,
         };
-        let ColumnarValue::Scalar(ScalarValue::Utf8(Some(path))) = args[1].clone() else {
+        let ColumnarValue::Scalar(path_scalar) = args[1].clone() else {
             return exec_err!(
                 "get_path function requires the second argument to be a scalar string"
             );
         };
+        let path = match path_scalar.cast_to(&DataType::Utf8)? {
+            ScalarValue::Utf8(Some(s)) => s,
+            _ => {
+                return exec_err!(
+                    "get_path function requires the second argument to be a scalar string"
+                );
+            }
+        };
 
+        // Normalize to Utf8 to support Utf8View/LargeUtf8
+        let arr = cast(&arr, &DataType::Utf8)?;
         let input = as_string_array(&arr);
         let mut res = StringBuilder::new();
         for v in input {

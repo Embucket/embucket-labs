@@ -22,6 +22,8 @@ impl VisitorMut for TimestampVisitor {
                 DataType::Timestamp(_, TimezoneInfo::None) => {
                     func("to_timestamp".to_string(), *cast_expr)
                 }
+                // Handle explicit NTZ variant if available; other flavors fall through to Custom
+                DataType::TimestampNtz => func("to_timestamp_ntz".to_string(), *cast_expr),
                 DataType::Custom(ObjectName(v), ..) => match &v[0] {
                     ObjectNamePart::Identifier(ident) => {
                         let name = ident.value.to_ascii_lowercase();

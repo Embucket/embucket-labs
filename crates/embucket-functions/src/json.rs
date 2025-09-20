@@ -4,7 +4,7 @@ use crate::json::PathToken::{Index, Key};
 use base64::engine::Engine;
 use datafusion::arrow::array::AsArray;
 use datafusion::arrow::array::{
-    Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
+    Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringViewArray,
 };
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{
@@ -744,7 +744,7 @@ pub fn encode_utf8_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> 
     let array = array
         .as_ref()
         .as_any()
-        .downcast_ref::<StringArray>()
+        .downcast_ref::<StringViewArray>()
         .ok_or_else(|| ArrowError::InvalidArgumentError("Expected utf8 view array".into()))?;
     let mut values = Vec::with_capacity(array.len());
 

@@ -3,6 +3,7 @@ use crate::semi_structured::errors;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::array::builder::StringBuilder;
 use datafusion::arrow::array::cast::AsArray;
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion_common::{
     Result as DFResult, ScalarValue,
@@ -122,6 +123,8 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
                         false
                     };
 
+                // Normalize to Utf8 to support Utf8View/LargeUtf8 uniformly
+                let array = cast(&array, &DataType::Utf8)?;
                 let string_array = array.as_string::<i32>();
                 let mut builder = StringBuilder::new();
 

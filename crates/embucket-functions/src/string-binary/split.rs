@@ -66,10 +66,11 @@ impl ScalarUDFImpl for SplitFunc {
         &self.signature
     }
 
-    fn return_type(&self, arg_types: &[DataType]) -> datafusion_common::Result<DataType> {
+    fn return_type(&self, _arg_types: &[DataType]) -> datafusion_common::Result<DataType> {
+        // Always return a list of Utf8 to avoid mismatches when planner expects Utf8View
         Ok(DataType::List(Arc::new(Field::new(
             "item",
-            arg_types[0].clone(),
+            DataType::Utf8,
             true,
         ))))
     }
