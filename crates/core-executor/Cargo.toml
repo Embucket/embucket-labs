@@ -25,7 +25,7 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "605f99b80557bd5a537a150e8d5152727816ec5a", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "7dbb724b8173db35363fa07a2bb2b8bef35ac098", features = [
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
