@@ -365,7 +365,12 @@ impl UserQuery {
                         } => {
                             return self.set_variable(variable, values).await;
                         }
-                        _ => return self.status_response(),
+                        // Handle tuple / multiple assignment variants such as
+                        //   SET (min, max) = (50, 2 * $min)
+                        //   SET (v1, v2) = (10, 'example')
+                        _ => {
+                            return self.set_tuple_variables_from_sql(&self.raw_query).await;
+                        }
                     }
                 }
                 Statement::CreateTable { .. } => {
@@ -566,6 +571,61 @@ impl UserQuery {
             session_params.insert(key, session_value);
         }
         self.session.set_session_variable(true, session_params)?;
+        self.status_response()
+    }
+
+    /// Parses and executes tuple assignment style SET statements from the original SQL text,
+    /// e.g. `SET (min, max) = (50, 2 * $min)`
+    async fn set_tuple_variables_from_sql(&self, sql: &str) -> Result<QueryResult> {
+        use datafusion::sql::sqlparser::ast::{Expr as SqlExpr, Set, ValueWithSpan};
+
+        let state = self.session.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        let mut stmt = state.sql_to_statement(sql, dialect).context(ex_error::DataFusionSnafu)?;
+        let DFStatement::Statement(inner) = &mut stmt else {
+            return self.status_response();
+        };
+
+        if let Statement::Set(Set::ParenthesizedAssignments { variables, values }) = &**inner {
+            // Evaluate each value expression independently (supports subqueries and expressions)
+            let mut session_params = HashMap::new();
+            // Normalize variables to strings
+            let names: Vec<String> = variables
+                .iter()
+                .map(|obj_name| object_name_to_string(obj_name))
+                .collect();
+
+            // Values can be either a list of SQL expressions or a single row expression
+            // Values are represented as a list expression
+            let value_list: Vec<SqlExpr> = values.clone();
+            if names.len() != value_list.len() {
+                return ex_error::OnlyPrimitiveStatementsSnafu.fail();
+            }
+
+            for (name, value) in names.into_iter().zip(value_list.into_iter()) {
+                let session_value = match value {
+                    SqlExpr::Value(ValueWithSpan { value: v, .. }) => Ok(SessionProperty::from_value(
+                        name.clone(),
+                        &v,
+                        self.session.ctx.session_id(),
+                    )),
+                    _ => {
+                        // Evaluate as scalar by running a SELECT
+                        let query_str = format!("SELECT {value}");
+                        let scalar = self.execute_scalar_query(&query_str).await?;
+                        Ok(SessionProperty::from_scalar_value(
+                            name.clone(),
+                            &scalar,
+                            self.session.ctx.session_id(),
+                        ))
+                    }
+                }?;
+                session_params.insert(name, session_value);
+            }
+
+            self.session.set_session_variable(true, session_params)?;
+        }
+
         self.status_response()
     }
 
@@ -1845,7 +1905,7 @@ impl UserQuery {
                         type,
                         description as comment,
                         created_on,
-                        updated_on,
+                        updated_on
                     FROM {}.information_schema.df_settings",
                     self.current_database()
                 );
