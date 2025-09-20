@@ -20,8 +20,8 @@ dbt-snowplow-web/
 # Data files
 datasets/
 events_day_before_yesterday.csv
-events_yesterday.csv
-events_today.csv
+#events_yesterday.csv
+#events_today.csv
 
 # Temporary files
 *.tmp

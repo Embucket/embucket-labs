@@ -41,7 +41,7 @@ def parse_duration(duration_str):
     else:
         return float(duration_str) if duration_str else 0.0
 
-def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=False):
+def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=False, run_type='manual'):
     """Parse dbt output and extract model information."""
     results = []
     
@@ -161,7 +161,8 @@ def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=Fals
                 'error_count': error_count,
                 'skip_count': skip_count,
                 'number_of_rows_generated': total_rows_generated,
-                'is_incremental_run': is_incremental_run
+                'is_incremental_run': is_incremental_run,
+                'run_type': run_type
             })
         
         # Look for ERROR lines
@@ -198,7 +199,8 @@ def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=Fals
                 'error_count': error_count,
                 'skip_count': skip_count,
                 'number_of_rows_generated': total_rows_generated,
-                'is_incremental_run': is_incremental_run
+                'is_incremental_run': is_incremental_run,
+                'run_type': run_type
             })
         
         # Look for SKIP lines
@@ -227,7 +229,8 @@ def parse_dbt_output(dbt_output, total_rows_generated=0, is_incremental_run=Fals
                 'error_count': error_count,
                 'skip_count': skip_count,
                 'number_of_rows_generated': total_rows_generated,
-                'is_incremental_run': is_incremental_run
+                'is_incremental_run': is_incremental_run,
+                'run_type': run_type
             })
     
     return results
@@ -384,6 +387,7 @@ def create_results_table(conn, cursor):
         number_of_rows_generated INTEGER,
         is_incremental_run BOOLEAN,
         row_count INTEGER,
+        run_type STRING DEFAULT 'manual',
         downloaded_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     )
     """
@@ -415,8 +419,8 @@ def load_results_to_database(results, target='snowflake'):
         # Insert results - both Snowflake and Embucket use Snowflake connector, so use %s placeholders
         insert_sql = """
         INSERT INTO dbt_snowplow_results_models 
-        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, number_of_rows_generated, is_incremental_run, row_count, downloaded_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (timestamp, model_name, model_type, result, duration_seconds, rows_affected, order_sequence, target, run_id, dbt_version, adapter_type, total_models, pass_count, warn_count, error_count, skip_count, number_of_rows_generated, is_incremental_run, row_count, run_type, downloaded_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         for result in results:
@@ -442,6 +446,7 @@ def load_results_to_database(results, target='snowflake'):
                     result['number_of_rows_generated'],
                     result['is_incremental_run'],
                     None,  # row_count will be updated later
+                    result['run_type'],
                     downloaded_at
                 ))
             except Exception as e:
@@ -514,14 +519,16 @@ def load_results_to_database(results, target='snowflake'):
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: python3 parse_dbt_simple.py <dbt_output_file> <number_of_rows_generated> <is_incremental_run> [target]")
-        print("Example: python3 parse_dbt_simple.py dbt_output.log 100 false snowflake")
+        print("Usage: python3 parse_dbt_simple.py <dbt_output_file> <number_of_rows_generated> <is_incremental_run> [target] [run_type]")
+        print("Example: python3 parse_dbt_simple.py dbt_output.log 100 false snowflake manual")
+        print("Example: python3 parse_dbt_simple.py dbt_output.log 100 false snowflake github_actions")
         sys.exit(1)
     
     dbt_output_file = sys.argv[1]
     total_rows_generated = int(sys.argv[2])
     is_incremental_run = sys.argv[3].lower() == 'true'
     target = sys.argv[4] if len(sys.argv) > 4 else 'snowflake'
+    run_type = sys.argv[5] if len(sys.argv) > 5 else 'manual'
     
     # Read dbt output from file
     try:
@@ -533,7 +540,7 @@ def main():
     
     # Parse the output
     print("Parsing dbt output...")
-    results = parse_dbt_output(dbt_output, total_rows_generated, is_incremental_run)
+    results = parse_dbt_output(dbt_output, total_rows_generated, is_incremental_run, run_type)
     print(f"✓ Parsed {len(results)} model results")
     
     # Load to database

@@ -11,6 +11,7 @@ fi
 DBT_TARGET="embucket"  # default
 is_incremental=false
 num_rows=10000  # default
+run_type="manual"  # default, can be overridden by environment variable RUN_TYPE
 
 # Parse arguments in order: incremental rows target
 if [[ "$1" == "true" || "$1" == "false" ]]; then
@@ -26,6 +27,11 @@ fi
 if [[ -n "$1" && "$1" != "--"* ]]; then
   DBT_TARGET="$1"
   shift
+fi
+
+# Check for RUN_TYPE environment variable (for GitHub Actions)
+if [[ -n "$RUN_TYPE" ]]; then
+  run_type="$RUN_TYPE"
 fi
 
 # Parse any remaining --flags
@@ -125,7 +131,7 @@ echo ""
 if [ "$is_incremental" == false ]; then
     # Parse dbt results and load into Snowflake
     echo "Parsing dbt results..."
-    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET"
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET" "$run_type"
 
     echo ""
 
@@ -169,7 +175,7 @@ if [ "$is_incremental" == true ]; then
 
     # Parse dbt results and load into Snowflake
     echo "Parsing dbt results..."
-    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET"
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET" "$run_type"
 
     if [ "$DBT_TARGET" = "embucket" ]; then
     # Update the errors log and run results
