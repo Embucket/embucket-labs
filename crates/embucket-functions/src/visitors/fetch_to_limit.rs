@@ -19,18 +19,16 @@ impl VisitorMut for FetchToLimit {
             if let Some(quantity) = fetch.quantity {
                 // Preserve existing OFFSET (and LIMIT BY) if present
                 let (existing_offset, existing_limit_by) = match &query.limit_clause {
-                    Some(LimitClause::LimitOffset { offset, limit_by, .. }) => {
-                        (offset.clone(), limit_by.clone())
-                    }
-                    Some(LimitClause::OffsetCommaLimit { offset, .. }) => {
-                        (
-                            Some(Offset {
-                                value: offset.clone(),
-                                rows: OffsetRows::None,
-                            }),
-                            vec![],
-                        )
-                    }
+                    Some(LimitClause::LimitOffset {
+                        offset, limit_by, ..
+                    }) => (offset.clone(), limit_by.clone()),
+                    Some(LimitClause::OffsetCommaLimit { offset, .. }) => (
+                        Some(Offset {
+                            value: offset.clone(),
+                            rows: OffsetRows::None,
+                        }),
+                        vec![],
+                    ),
                     None => (None, vec![]),
                 };
 

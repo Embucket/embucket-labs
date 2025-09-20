@@ -581,7 +581,9 @@ impl UserQuery {
 
         let state = self.session.ctx.state();
         let dialect = state.config().options().sql_parser.dialect.as_str();
-        let mut stmt = state.sql_to_statement(sql, dialect).context(ex_error::DataFusionSnafu)?;
+        let mut stmt = state
+            .sql_to_statement(sql, dialect)
+            .context(ex_error::DataFusionSnafu)?;
         let DFStatement::Statement(inner) = &mut stmt else {
             return self.status_response();
         };
@@ -604,11 +606,13 @@ impl UserQuery {
 
             for (name, value) in names.into_iter().zip(value_list.into_iter()) {
                 let session_value = match value {
-                    SqlExpr::Value(ValueWithSpan { value: v, .. }) => Ok(SessionProperty::from_value(
-                        name.clone(),
-                        &v,
-                        self.session.ctx.session_id(),
-                    )),
+                    SqlExpr::Value(ValueWithSpan { value: v, .. }) => {
+                        Ok(SessionProperty::from_value(
+                            name.clone(),
+                            &v,
+                            self.session.ctx.session_id(),
+                        ))
+                    }
                     _ => {
                         // Evaluate as scalar by running a SELECT
                         let query_str = format!("SELECT {value}");
