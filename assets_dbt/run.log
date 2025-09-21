@@ -1,27 +1,27 @@
-[0m03:15:02  Running with dbt=1.9.8
-[0m03:15:03  Registered adapter: snowflake=1.9.1
-[0m03:15:06  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+[0m03:22:52  Running with dbt=1.9.8
+[0m03:22:53  Registered adapter: snowflake=1.9.1
+[0m03:22:56  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
 There are 14 unused configuration paths:
 - models.dbt_artifacts
-- models.gitlab_snowflake.workspaces.workspace_product.snowplow
-- models.gitlab_snowflake.legacy.snowplow.month_partition
-- models.gitlab_snowflake.common_prep.month_partition.snowplow
 - models.gitlab_snowflake.sources.snowplow
+- models.gitlab_snowflake.legacy.snowplow.month_partition
 - models.gitlab_snowflake.legacy.snowplow
-- models.snowflake_spend
 - models.dbt_artifacts.staging
-- models.gitlab_snowflake.sources.runner_usage
+- models.gitlab_snowflake.workspaces.workspace_product.snowplow
+- models.snowflake_spend
+- models.gitlab_snowflake.common_prep.month_partition.snowplow
 - models.dbt_artifacts.sources
-- seeds.gitlab_snowflake.zoominfo
+- models.gitlab_snowflake.sources.runner_usage
 - seeds.gitlab_snowflake.snowplow
 - seeds.gitlab_snowflake.seed_customer_success
+- seeds.gitlab_snowflake.zoominfo
 - snapshots.gitlab_snowflake.sfdc_sandbox
-[0m03:15:15  Found 2987 models, 107 snapshots, 1182 seeds, 4 operations, 5147 data tests, 1162 sources, 13 exposures, 847 macros
-[0m03:15:15  
-[0m03:15:15  Concurrency: 4 threads (target='embucket')
-[0m03:15:15  
-[0m03:15:32  
-[0m03:15:32  Finished running  in 0 hours 0 minutes and 17.11 seconds (17.11s).
-[0m03:15:32  Encountered an error:
+[0m03:23:06  Found 2987 models, 107 snapshots, 1182 seeds, 4 operations, 5147 data tests, 1162 sources, 13 exposures, 847 macros
+[0m03:23:06  
+[0m03:23:06  Concurrency: 4 threads (target='embucket')
+[0m03:23:06  
+[0m03:23:23  
+[0m03:23:23  Finished running  in 0 hours 0 minutes and 17.37 seconds (17.37s).
+[0m03:23:23  Encountered an error:
 Database Error
-  002043 (42502): SQL compilation error: Schema 'embucket.dotcom_usage_events_2025_09' does not exist or not authorized
+  002043 (42502): SQL compilation error: Schema 'embucket.restricted_safe_common_mart_marketing' does not exist or not authorized
