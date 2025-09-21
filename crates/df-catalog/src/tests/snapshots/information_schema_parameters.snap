@@ -1,7 +1,6 @@
 ---
 source: crates/df-catalog/src/tests/information_schema.rs
-description: "SELECT specific_name FROM embucket.information_schema.parameters\n     GROUP BY specific_name ORDER BY specific_name"
-snapshot_kind: text
+description: "SELECT specific_name FROM  embucket.information_schema.parameters\n     GROUP BY specific_name ORDER BY specific_name"
 ---
 +------------------------------------+
 | specific_name                      |
@@ -84,6 +83,7 @@ snapshot_kind: text
 | power                              |
 | radians                            |
 | regexp_count                       |
+| regexp_instr                       |
 | regexp_like                        |
 | regexp_match                       |
 | regexp_replace                     |
