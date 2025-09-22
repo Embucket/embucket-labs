@@ -28,10 +28,7 @@ output "s3_bucket_arn" {
   value       = aws_s3_bucket.embucket_benchmark.arn
 }
 
-output "credential_setup_script" {
-  description = "Path to the credential setup script (PowerUser workaround)"
-  value       = "${path.module}/setup_credentials.sh"
-}
+
 
 output "setup_status" {
   description = "Setup status and access information"

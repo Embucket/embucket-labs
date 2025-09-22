@@ -1,10 +1,12 @@
 import glob
 import os
+import logging
 
 from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
 from tpch_queries import TPCH_QUERIES
+from docker_manager import create_docker_manager
 
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
@@ -12,6 +14,13 @@ import numpy as np
 import csv
 
 load_dotenv()
+
+# Configure logging for benchmark operations
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def save_results_to_csv(results, is_embucket=True, filename="query_results.csv"):
@@ -180,25 +189,55 @@ def run_on_sf(cursor, sf_warehouse):
 
 
 def run_on_emb(cursor):
-    """Run TPCDS queries on Embucket and measure performance."""
+    """Run TPCH queries on Embucket with container restart before each query."""
+    docker_manager = create_docker_manager()
     executed_query_ids = []
     query_id_to_number = {}
 
     for query_number, query in TPCH_QUERIES:
         try:
             print(f"Executing query {query_number}...")
-            cursor.execute(query)
-            _ = cursor.fetchall()  # Fetch results but don't store them
+
+            # Restart Embucket container before each query
+            print(f"Restarting Embucket container before query {query_number}...")
+
+            if not docker_manager.restart_embucket_container():
+                print(f"Failed to restart Embucket container for query {query_number}")
+                continue
+
+            print(f"Container restart completed")
+
+            # Create fresh connection after restart
+            embucket_connection = create_embucket_connection()
+            fresh_cursor = embucket_connection.cursor()
+
+            # Execute the query
+            fresh_cursor.execute(query)
+            _ = fresh_cursor.fetchall()  # Fetch results but don't store them
 
             # Get query ID
-            cursor.execute("SELECT LAST_QUERY_ID()")
-            query_id = cursor.fetchone()[0]
+            fresh_cursor.execute("SELECT LAST_QUERY_ID()")
+            query_id = fresh_cursor.fetchone()[0]
 
             if query_id:
                 executed_query_ids.append(query_id)
                 query_id_to_number[query_id] = query_number
+
+            # Close fresh connection after each query
+            fresh_cursor.close()
+            embucket_connection.close()
+
         except Exception as e:
             print(f"Error executing query {query_number}: {e}")
+
+            # Try to close connection if it exists
+            try:
+                if 'fresh_cursor' in locals():
+                    fresh_cursor.close()
+                if 'embucket_connection' in locals():
+                    embucket_connection.close()
+            except:
+                pass
 
     # Retrieve query history data from Embucket
     query_results = []
@@ -209,8 +248,12 @@ def run_on_emb(cursor):
         history_query = f"SELECT id, Duration_ms, Result_count FROM slatedb.history.queries WHERE id IN ('{query_ids_str}')"
 
         try:
-            cursor.execute(history_query)
-            history_results = cursor.fetchall()
+            # Always create fresh connection for history retrieval
+            history_connection = create_embucket_connection()
+            history_cursor = history_connection.cursor()
+
+            history_cursor.execute(history_query)
+            history_results = history_cursor.fetchall()
 
             # Format the results and calculate total time
             for record in history_results:
@@ -229,6 +272,10 @@ def run_on_emb(cursor):
                         duration_ms,
                         result_count
                     ])
+
+            history_cursor.close()
+            history_connection.close()
+
         except Exception as e:
             print(f"Error retrieving query history: {e}")
 
@@ -265,19 +312,28 @@ def run_snowflake_benchmark(run_number):
 
 
 def run_embucket_benchmark(run_number):
-    """Run benchmark on Embucket."""
-    embucket_instance = os.getenv("EMBUCKET_INSTANCE")
-    embucket_dataset = os.getenv("EMBUCKET_DATASET")
+    """Run benchmark on Embucket with container restarts."""
+    embucket_instance = os.environ["EMBUCKET_INSTANCE"]
+    embucket_dataset = os.environ["EMBUCKET_DATASET"]
+
+    print(f"Starting Embucket benchmark run {run_number}")
+    print(f"Instance: {embucket_instance}")
+    print(f"Dataset: {embucket_dataset}")
+
+    # Create connection for history retrieval (the original cursor parameter)
     embucket_connection = create_embucket_connection()
     embucket_cursor = embucket_connection.cursor()
 
     emb_results = run_on_emb(embucket_cursor)
+
+    embucket_cursor.close()
+    embucket_connection.close()
+
     emb_output_path = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}/embucket_results_run_{embucket_instance}_{run_number}.csv"
     os.makedirs(os.path.dirname(emb_output_path), exist_ok=True)
     save_results_to_csv(emb_results, is_embucket=True, filename=emb_output_path)
 
-    embucket_cursor.close()
-    embucket_connection.close()
+    print(f"Embucket benchmark results saved to: {emb_output_path}")
 
     # Check if we have 5 CSV files ready and calculate averages if so
     search_dir = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}"
@@ -285,6 +341,7 @@ def run_embucket_benchmark(run_number):
     if len(csv_files) == 5:
         print(f"Found 5 CSV files. Calculating averages...")
         calculate_benchmark_averages(embucket_dataset, embucket_instance, is_embucket=True)
+
     return emb_results
 
 
@@ -301,6 +358,6 @@ def run_benchmark(run_number):
 
 
 if __name__ == "__main__":
-    for i in range(5):
+    for i in range(1):
         print(f"Run {i + 1} of 5")
-        run_benchmark(i + 1)
+        run_embucket_benchmark(i + 1)

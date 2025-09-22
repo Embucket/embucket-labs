@@ -1,6 +1,6 @@
 ## Overview
 
-This benchmark tool executes queries derived from TPC-DS against Snowflake with warehouse suspend/resume operations to ensure clean, cache-free performance measurements. It provides detailed timing metrics including compilation time, execution time, and total elapsed time.
+This benchmark tool executes queries derived from TPC-H against both Snowflake and Embucket with cache-clearing operations to ensure clean, cache-free performance measurements. For Snowflake, it uses warehouse suspend/resume operations. For Embucket, it restarts the Docker container before each query to eliminate internal caching. It provides detailed timing metrics including compilation time, execution time, and total elapsed time.
 
 ## TPC Legal Considerations
 
@@ -14,11 +14,14 @@ Throughout this document and when talking about these benchmarks, you will see t
 
 ## Features
 
-- **Cache Isolation**: Suspends and resumes warehouse before each query to eliminate caching effects
+- **Cache Isolation**:
+  - **Snowflake**: Suspends and resumes warehouse before each query
+  - **Embucket**: Restarts Docker container before each query to clear internal cache
 - **Result Cache Disabled**: Ensures no result caching affects benchmark results
 - **Comprehensive Metrics**: Tracks compilation time, execution time, and row counts
-- **CSV Export**: Saves results to `query_results.csv` for further analysis
+- **CSV Export**: Saves results to CSV files for further analysis
 - **Error Handling**: Graceful handling of warehouse operations and query failures
+- **Dual Platform Support**: Benchmarks both Snowflake and Embucket with appropriate cache-clearing strategies
 
 ## Setup
 
@@ -33,8 +36,10 @@ source env/bin/activate  # On Windows: env\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure Snowflake Connection
-Create a `.env` file with your Snowflake credentiale using env_example:
+### 3. Configure Connections
+Create a `.env` file with your credentials:
+
+**For Snowflake:**
 ```bash
 SNOWFLAKE_USER=your_username
 SNOWFLAKE_PASSWORD=your_password
@@ -42,6 +47,13 @@ SNOWFLAKE_ACCOUNT=your_account
 SNOWFLAKE_DATABASE=your_database
 SNOWFLAKE_SCHEMA=your_schema
 SNOWFLAKE_WAREHOUSE=your_warehouse
+```
+
+**For Embucket (when using infrastructure):**
+```bash
+EMBUCKET_HOST=your_ec2_instance_ip
+EMBUCKET_PORT=3000
+SSH_KEY_PATH=~/.ssh/id_rsa
 ```
 
 ## Usage
@@ -52,30 +64,55 @@ python benchmark.py
 ```
 
 The benchmark will:
-1. Connect to Snowflake using your configuration
-2. Execute each query derived from TPC-DS with warehouse restart for cache isolation
+1. Connect to the configured platform (Snowflake and/or Embucket)
+2. Execute each query derived from TPC-H with cache-clearing operations:
+   - **Snowflake**: Warehouse suspend/resume before each query
+   - **Embucket**: Docker container restart before each query
 3. Collect performance metrics from query history
-4. Display results in a formatted table
-5. Save detailed results to `query_results.csv`
+4. Display results and comparisons
+5. Save detailed results to CSV files
+
+## Embucket Container Restart Functionality
+
+For Embucket benchmarks, the system automatically restarts the Docker container before each query to eliminate internal caching and ensure accurate performance measurements.
+
+**How it works:**
+- Before each query execution, the benchmark connects to the EC2 instance via SSH
+- Stops the Embucket Docker container: `docker-compose stop embucket`
+- Starts the container: `docker-compose start embucket`
+- Waits for the health check to pass (~30-60 seconds)
+- Creates a fresh database connection and executes the query
+
+**Requirements:**
+- `EMBUCKET_HOST` set to your EC2 instance IP
+- `SSH_KEY_PATH` pointing to your private key (default: `~/.ssh/id_rsa`)
+- SSH access to the EC2 instance running Embucket
+
+**Performance Impact:**
+- Adds ~30-60 seconds per query for container restart
+- Significantly increases total benchmark time
+- Provides cache-free, accurate performance measurements
 
 ## Output
 
 The benchmark provides:
 - **Console Output**: Formatted table with timing metrics for each query
-- **CSV File**: `query_results.csv` with detailed results for analysis
+- **CSV Files**: Separate result files for Snowflake and Embucket with detailed analysis
+- **Comparison Charts**: Visual comparisons between platforms when both are run
 - **Total Times**: Aggregated compilation and execution times
 
 ## Files
 
-- `benchmark.py` - Main benchmark script
-- `config.py` - Snowflake configuration management
-- `tpcds_queries.py` - Query definitions derived from TPC-DS
-- `data_preparation.py` - Data setup utilities
+- `benchmark.py` - Main benchmark script with restart functionality
+- `docker_manager.py` - Docker container management for Embucket restarts
+- `utils.py` - Connection utilities for Snowflake and Embucket
+- `tpch_queries.py` - Query definitions derived from TPC-H
+- `calculate_average.py` - Result averaging and analysis
 - `requirements.txt` - Python dependencies
-- `tpcds_ddl/` - DDL scripts derived from TPC-DS
+- `infrastructure/` - Terraform infrastructure for EC2/Embucket deployment
 
 ## Requirements
 
 - Python 3.8+
-- Snowflake account with appropriate permissions
-- Warehouse with suspend/resume capabilities
+- **For Snowflake**: Account with appropriate permissions and warehouse with suspend/resume capabilities
+- **For Embucket**: EC2 instance with Docker Compose and SSH access for container restarts
