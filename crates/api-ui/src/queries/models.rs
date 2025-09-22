@@ -1,4 +1,4 @@
-use super::error::{QueryError, QueryRecordResult, ResultParseSnafu};
+use super::error::{QueryError, QueryRecordResult, QueryStatusParseSnafu, ResultParseSnafu};
 use crate::default_limit;
 use chrono::{DateTime, Utc};
 use core_history::{QueryStatus as QueryStatusItem, WorksheetId};
@@ -66,6 +66,24 @@ impl From<QueryStatusItem> for QueryStatus {
             QueryStatusItem::Failed => Self::Failed,
             QueryStatusItem::Canceled => Self::Canceled,
             QueryStatusItem::TimedOut => Self::TimedOut,
+        }
+    }
+}
+
+impl TryFrom<&str> for QueryStatus {
+    type Error = QueryError;
+
+    fn try_from(value: &str) -> QueryRecordResult<Self> {
+        match value.to_lowercase().as_str() {
+            "running" => Ok(Self::Running),
+            "successful" => Ok(Self::Successful),
+            "failed" => Ok(Self::Failed),
+            "canceled" => Ok(Self::Canceled),
+            "timedout" => Ok(Self::TimedOut),
+            other => QueryStatusParseSnafu {
+                got: other.to_string(),
+            }
+            .fail(),
         }
     }
 }

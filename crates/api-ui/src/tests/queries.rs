@@ -228,10 +228,7 @@ async fn test_ui_queries_with_worksheet() {
     let queries2 = http_req::<QueriesResponse>(
         &client,
         Method::GET,
-        &format!(
-            "http://{addr}/ui/queries?worksheetId={}&cursor={}",
-            worksheet.id, queries_response.next_cursor
-        ),
+        &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
         String::new(),
     )
     .await
