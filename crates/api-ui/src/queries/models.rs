@@ -123,8 +123,6 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
 #[serde(rename_all = "camelCase")]
 pub struct QueriesResponse {
     pub items: Vec<QueryRecord>,
-    pub current_cursor: Option<QueryRecordId>,
-    pub next_cursor: QueryRecordId,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]

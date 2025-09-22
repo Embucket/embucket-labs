@@ -5,11 +5,7 @@ use crate::queries::models::{
     QueryRecord, QueryRecordId,
 };
 use crate::state::AppState;
-use crate::{
-    error::ErrorResponse,
-    error::Result,
-    queries::error::{self as queries_errors, QueryError},
-};
+use crate::{apply_parameters, downcast_int64_column, downcast_string_column, error::ErrorResponse, error::Result, queries::error::{self as queries_errors, QueryError}, SearchParameters};
 use api_sessions::DFSessionId;
 use axum::extract::ConnectInfo;
 use axum::extract::Path;
@@ -23,7 +19,11 @@ use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use chrono::{DateTime, Utc};
 use utoipa::OpenApi;
+use crate::worksheets::error::ListSnafu;
+use crate::worksheets::Worksheet;
+
 #[derive(OpenApi)]
 #[openapi(
     paths(query, queries, get_query),
@@ -197,45 +197,44 @@ pub async fn get_query(
 )]
 #[tracing::instrument(name = "api_ui::queries", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn queries(
-    Query(params): Query<GetQueriesParams>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> Result<Json<QueriesResponse>> {
-    let cursor = params.cursor;
-    let result = state.history_store.get_queries(params.into()).await;
-
-    match result
-        .context(queries_errors::StoreSnafu)
-        .context(queries_errors::QueriesSnafu)
-    {
-        Ok(recs) => {
-            let next_cursor = if let Some(last_item) = recs.last() {
-                last_item.next_cursor()
-            } else {
-                core_history::QueryRecord::min_cursor() // no items in range -> go to beginning
-            };
-            let queries: Vec<QueryRecord> = recs
-                .clone()
-                .into_iter()
-                .map(QueryRecord::try_from)
-                .filter_map(QueryRecordResult::ok)
-                .collect();
-
-            let queries_failed_to_load: Vec<QueryError> = recs
-                .into_iter()
-                .map(QueryRecord::try_from)
-                .filter_map(QueryRecordResult::err)
-                .collect();
-            if !queries_failed_to_load.is_empty() {
-                // TODO: fix tracing output
-                tracing::error!("Queries: failed to load queries: {queries_failed_to_load:?}");
-            }
-
-            Ok(Json(QueriesResponse {
-                items: queries,
-                current_cursor: cursor,
-                next_cursor,
-            }))
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
+    let sql_string = apply_parameters(&sql_string, parameters, &["id", "worksheet_id", "query", "status"]);
+    let QueryResult { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
+        .await
+        .context(ListSnafu)?;
+    let mut items = Vec::new();
+    for record in records {
+        let ids = downcast_int64_column(&record, "id").context(ListSnafu)?;
+        let names = downcast_string_column(&record, "name").context(ListSnafu)?;
+        let contents = downcast_string_column(&record, "content").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+        for i in 0..record.num_rows() {
+            items.push(Worksheet {
+                id: ids.value(i),
+                name: names.value(i).to_string(),
+                content: contents.value(i).to_string(),
+                created_at: created_at_timestamps
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)?,
+                updated_at: updated_at_timestamps
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)?,
+            });
         }
-        Err(e) => Err(e.into()), // convert query Error to crate Error
     }
+    Ok(Json(QueriesResponse {
+        items,
+    }))
 }
