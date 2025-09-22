@@ -22,7 +22,7 @@ use std::sync::Arc;
 // This function returns a value of type ARRAY or NULL.
 // The function returns an empty array if tokenization produces no tokens.
 // If either argument is a NULL or JSON null value, the function returns NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct StrtokToArrayFunc {
     signature: Signature,
 }

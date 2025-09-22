@@ -2,6 +2,7 @@ use crate::session::UserSession;
 use std::collections::HashMap;
 
 use crate::models::QueryContext;
+use crate::running_queries::RunningQueriesRegistry;
 use crate::service::CoreExecutionService;
 use crate::utils::Config;
 #[cfg(test)]
@@ -90,12 +91,13 @@ pub async fn create_df_session() -> Arc<UserSession> {
         let mut records = Vec::new();
         for i in 0..3 {
             let mut q = QueryRecord::new("query", None);
-            q.id = i;
+            q.id = i.into();
             records.push(q);
         }
         Ok(records)
     });
     let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
+    let running_queries = Arc::new(RunningQueriesRegistry::new());
 
     metastore
         .create_volume(
@@ -142,6 +144,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
         UserSession::new(
             metastore,
             history_store,
+            running_queries, // queries aborting will not work, unless its properly used (as in ExecutionService)
             Arc::new(Config::default()),
             catalog_list,
             runtime_env,

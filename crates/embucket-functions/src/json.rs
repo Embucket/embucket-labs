@@ -4,7 +4,7 @@ use crate::json::PathToken::{Index, Key};
 use base64::engine::Engine;
 use datafusion::arrow::array::AsArray;
 use datafusion::arrow::array::{
-    Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringArray,
+    Array, ArrayRef, BooleanArray, NullArray, PrimitiveArray, StringViewArray,
 };
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::{
@@ -585,7 +585,7 @@ pub fn encode_interval_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     Ok(JsonValue::Array(values))
 }
 
-/// Encodes a List Arrow array into a JSON array
+// Encodes a List Arrow array into a JSON array
 pub fn encode_list_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
     let array = array.as_list::<i32>();
     let mut values = Vec::with_capacity(array.len());
@@ -744,7 +744,7 @@ pub fn encode_utf8_view_array(array: ArrayRef) -> Result<JsonValue, ArrowError> 
     let array = array
         .as_ref()
         .as_any()
-        .downcast_ref::<StringArray>()
+        .downcast_ref::<StringViewArray>()
         .ok_or_else(|| ArrowError::InvalidArgumentError("Expected utf8 view array".into()))?;
     let mut values = Vec::with_capacity(array.len());
 
@@ -881,7 +881,9 @@ pub fn encode_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
         DataType::FixedSizeList(_, _) => encode_fixed_size_list_array(array),
         DataType::LargeList(_) | DataType::LargeListView(_) => encode_large_list_array(array),
         DataType::Struct(_) => encode_struct_array(array),
-        DataType::Decimal128(_, _) => encode_decimal128_array(array),
+        DataType::Decimal32(_, _) | DataType::Decimal64(_, _) | DataType::Decimal128(_, _) => {
+            encode_decimal128_array(array)
+        }
         DataType::Decimal256(_, _) => encode_decimal256_array(array),
         DataType::FixedSizeBinary(_) => encode_fixed_size_binary_array(array),
         DataType::BinaryView => encode_binary_view_array(array),

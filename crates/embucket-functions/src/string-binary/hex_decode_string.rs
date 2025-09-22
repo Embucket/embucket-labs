@@ -28,7 +28,7 @@ use std::sync::Arc;
 ///
 /// Example: `HEX_DECODE_STRING('534E4F57')` returns string data for 'SNOW'
 /// Example: `HEX_DECODE_STRING('48656C6C6F')` returns string data for 'Hello'
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct HexDecodeStringFunc {
     signature: Signature,
     try_mode: bool,

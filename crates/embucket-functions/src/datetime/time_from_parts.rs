@@ -44,7 +44,7 @@ use datafusion_macros::user_doc;
          usually in the 0-999999999 range."
     )
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TimeFromPartsFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -167,10 +167,11 @@ mod test {
     use super::TimeFromPartsFunc;
     use crate::datetime::timestamp_from_parts::to_primitive_array;
     use chrono::NaiveTime;
-    use datafusion::arrow::datatypes::Time64NanosecondType;
+    use datafusion::arrow::datatypes::{DataType, Field, Time64NanosecondType, TimeUnit};
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
     use datafusion_expr::ScalarUDFImpl;
+    use std::sync::Arc;
 
     #[allow(clippy::unwrap_used)]
     fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
@@ -213,9 +214,15 @@ mod test {
                 let result = TimeFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
+                        arg_fields: vec![],
                         number_rows: 1,
-                        return_type: &datafusion::arrow::datatypes::DataType::Time64(
-                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
+                        return_field: Arc::new(Field::new(
+                            "time_from_parts",
+                            DataType::Time64(TimeUnit::Nanosecond),
+                            true,
+                        )),
+                        config_options: Arc::new(
+                            datafusion_common::config::ConfigOptions::default(),
                         ),
                     })
                     .unwrap();

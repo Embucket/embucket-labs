@@ -26,7 +26,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - This function returns a value of type DATE, even if `date_or_timetamp_expr` is a timestamp.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PreviousDayFunc {
     signature: Signature,
 }

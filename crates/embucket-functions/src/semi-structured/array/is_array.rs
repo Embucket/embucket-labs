@@ -20,7 +20,7 @@ use std::sync::Arc;
 //
 // - Returns TRUE if the VARIANT value contains an ARRAY value. Otherwise, returns FALSE.
 // - If the input is NULL, returns NULL without reporting an error.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IsArrayFunc {
     signature: Signature,
 }

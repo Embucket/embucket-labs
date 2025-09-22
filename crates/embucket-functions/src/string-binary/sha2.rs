@@ -24,7 +24,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns a hex-encoded string (VARCHAR) containing the SHA-2 message digest
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Sha2Func {
     signature: Signature,
     aliases: Vec<String>,

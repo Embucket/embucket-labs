@@ -49,7 +49,7 @@ use std::sync::Arc;
 // SS - Two digits for second (00 through 59).
 // FF[0-9] - Fractional seconds with precision 0 (seconds) to 9 (nanoseconds), e.g. FF, FF0, FF3, FF9. Specifying FF is equivalent to FF9 (nanoseconds).
 // Example: TO_TIME('11.15.00', 'HH24.MI.SS')
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ToTimeFunc {
     signature: Signature,
     aliases: Vec<String>,

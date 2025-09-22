@@ -1,10 +1,17 @@
+import glob
+import os
+
+from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
-from tpcds_queries import TPCDS_QUERIES
+from tpch_queries import TPCH_QUERIES
 
+from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
+
+load_dotenv()
 
 
 def save_results_to_csv(results, is_embucket=True, filename="query_results.csv"):
@@ -109,7 +116,7 @@ def run_on_sf(cursor, sf_warehouse):
     results = []
 
     # Execute queries
-    for query_number, query in TPCDS_QUERIES:
+    for query_number, query in TPCH_QUERIES:
         try:
             print(f"Executing query {query_number}...")
 
@@ -177,7 +184,7 @@ def run_on_emb(cursor):
     executed_query_ids = []
     query_id_to_number = {}
 
-    for query_number, query in TPCDS_QUERIES:
+    for query_number, query in TPCH_QUERIES:
         try:
             print(f"Executing query {query_number}...")
             cursor.execute(query)
@@ -228,31 +235,63 @@ def run_on_emb(cursor):
     return query_results, total_time
 
 
-def run_benchmark():
-    """Main function to run the benchmark."""
+def run_snowflake_benchmark(run_number):
+    """Run benchmark on Snowflake."""
     # Run Snowflake benchmark
     sf_connection = create_snowflake_connection()
     sf_warehouse = sf_connection.warehouse
+    sf_schema = sf_connection.schema
     sf_cursor = sf_connection.cursor()
 
     # Disable query result caching for benchmark
     sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
     sf_results = run_on_sf(sf_cursor, sf_warehouse)
-    save_results_to_csv(sf_results, is_embucket=False, filename="snowflake_results.csv")
+    output_path = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}/snowflake_results_run_{run_number}.csv"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    save_results_to_csv(sf_results, is_embucket=False, filename=output_path)
 
     sf_cursor.close()
     sf_connection.close()
 
-    # Run Embucket benchmark
+    # Check if we have 5 CSV files ready and calculate averages if so
+    search_dir = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}"
+    csv_files = glob.glob(os.path.join(search_dir, "snowflake_results_run_*.csv"))
+    if len(csv_files) == 5:
+        print(f"Found 5 CSV files. Calculating averages...")
+        calculate_benchmark_averages(sf_schema, sf_warehouse, is_embucket=False)
+
+    return sf_results
+
+
+def run_embucket_benchmark(run_number):
+    """Run benchmark on Embucket."""
+    embucket_instance = os.getenv("EMBUCKET_INSTANCE")
+    embucket_dataset = os.getenv("EMBUCKET_DATASET")
     embucket_connection = create_embucket_connection()
     embucket_cursor = embucket_connection.cursor()
 
     emb_results = run_on_emb(embucket_cursor)
-    save_results_to_csv(emb_results, is_embucket=True, filename="embucket_results.csv")
+    emb_output_path = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}/embucket_results_run_{embucket_instance}_{run_number}.csv"
+    os.makedirs(os.path.dirname(emb_output_path), exist_ok=True)
+    save_results_to_csv(emb_results, is_embucket=True, filename=emb_output_path)
 
     embucket_cursor.close()
     embucket_connection.close()
+
+    # Check if we have 5 CSV files ready and calculate averages if so
+    search_dir = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}"
+    csv_files = glob.glob(os.path.join(search_dir, "embucket_*.csv"))
+    if len(csv_files) == 5:
+        print(f"Found 5 CSV files. Calculating averages...")
+        calculate_benchmark_averages(embucket_dataset, embucket_instance, is_embucket=True)
+    return emb_results
+
+
+def run_benchmark(run_number):
+    """Main function to run benchmarks on both platforms."""
+    emb_results = run_embucket_benchmark(run_number)
+    sf_results = run_snowflake_benchmark(run_number)
 
     # Display comparison only if Snowflake results exist
     if sf_results:
@@ -262,4 +301,6 @@ def run_benchmark():
 
 
 if __name__ == "__main__":
-    run_benchmark()
+    for i in range(5):
+        print(f"Run {i + 1} of 5")
+        run_benchmark(i + 1)

@@ -19,6 +19,7 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
 mockall = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

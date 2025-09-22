@@ -9,6 +9,7 @@ use super::error::{
     self as ex_error, Error, InvalidColumnIdentifierSnafu, MergeSourceNotSupportedSnafu,
     ObjectType as ExistingObjectType, RefreshCatalogListSnafu, Result,
 };
+use super::running_queries::RunningQueries;
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
@@ -18,7 +19,6 @@ use crate::datafusion::physical_plan::merge::{
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::models::{QueryContext, QueryResult};
-use arrow_schema::{Fields, SchemaBuilder};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
@@ -28,6 +28,7 @@ use core_metastore::{
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
+use datafusion::arrow::datatypes::{Fields, SchemaBuilder};
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use datafusion::catalog::{MemoryCatalogProvider, TableProvider};
 use datafusion::datasource::DefaultTableSource;
@@ -98,14 +99,14 @@ use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
 use object_store::{ClientOptions, ObjectStore};
-use snafu::{OptionExt, ResultExt};
+use snafu::{OptionExt, ResultExt, location};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
 use sqlparser::ast::{
     AlterTableOperation, AssignmentTarget, CloudProviderParams, MergeAction, MergeClause,
-    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, OneOrManyWithParens,
-    PivotValueSource, ShowObjects, ShowStatementFilter, ShowStatementIn,
-    ShowStatementInParentType as ShowType, TruncateTableTarget, Use, Value, visit_relations_mut,
+    MergeClauseKind, MergeInsertKind, ObjectNamePart, ObjectType, PivotValueSource, ShowObjects,
+    ShowStatementFilter, ShowStatementIn, ShowStatementInParentType as ShowType,
+    TruncateTableTarget, Use, Value, visit_relations_mut,
 };
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -119,6 +120,7 @@ use url::Url;
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
     pub history_store: Arc<dyn HistoryStore>,
+    pub running_queries: Arc<dyn RunningQueries>,
     pub raw_query: String,
     pub query: String,
     pub session: Arc<UserSession>,
@@ -138,6 +140,7 @@ impl UserQuery {
         Self {
             metastore: session.metastore.clone(),
             history_store: session.history_store.clone(),
+            running_queries: session.running_queries.clone(),
             raw_query: query.clone().into(),
             query: query.into(),
             session,
@@ -260,6 +263,7 @@ impl UserQuery {
             version: self.session.config.embucket_version.clone(),
             query_context: self.query_context.clone(),
             history_store: self.history_store.clone(),
+            running_queries: self.running_queries.clone(),
         }
     }
 
@@ -288,7 +292,11 @@ impl UserQuery {
         name = "UserQuery::execute",
         level = "debug",
         skip(self),
-        fields(statement),
+        fields(
+            statement,
+            query_id = self.query_context.query_id.as_i64(),
+            query_uuid = self.query_context.query_id.as_uuid().to_string(),
+        ),
         err
     )]
     pub async fn execute(&mut self) -> Result<QueryResult> {
@@ -349,9 +357,22 @@ impl UserQuery {
                     self.session.set_session_variable(true, params)?;
                     return self.status_response();
                 }
-                Statement::SetVariable {
-                    variables, value, ..
-                } => return self.set_variable(variables, value).await,
+                Statement::Set(statement) => {
+                    use datafusion::sql::sqlparser::ast::Set;
+                    match statement {
+                        Set::SingleAssignment {
+                            variable, values, ..
+                        } => {
+                            return self.set_variable(variable, values).await;
+                        }
+                        // Handle tuple / multiple assignment variants such as
+                        //   SET (min, max) = (50, 2 * $min)
+                        //   SET (v1, v2) = (10, 'example')
+                        _ => {
+                            return self.set_tuple_variables_from_sql(&self.raw_query).await;
+                        }
+                    }
+                }
                 Statement::CreateTable { .. } => {
                     return Box::pin(self.create_table_query(*s)).await;
                 }
@@ -514,19 +535,16 @@ impl UserQuery {
     #[instrument(name = "UserQuery::set_variable", level = "trace", skip(self), err)]
     pub async fn set_variable(
         &self,
-        variables: OneOrManyWithParens<ObjectName>,
+        variable: ObjectName,
         values: Vec<Expr>,
     ) -> Result<QueryResult> {
-        let params = variables
-            .iter()
-            .map(ToString::to_string)
-            .zip(values.into_iter());
-
         let mut session_params = HashMap::new();
-        for (name, value) in params {
+        let name = variable.to_string();
+        for value in values {
+            let key = name.clone();
             let session_value = match value {
                 Expr::Value(v) => Ok(SessionProperty::from_value(
-                    name.clone(),
+                    key.clone(),
                     &v.value,
                     self.session.ctx.session_id(),
                 )),
@@ -534,7 +552,7 @@ impl UserQuery {
                     let query_str = query.to_string();
                     let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
-                        name.clone(),
+                        key.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
@@ -543,16 +561,69 @@ impl UserQuery {
                     let query_str = format!("SELECT {value}");
                     let scalar = self.execute_scalar_query(&query_str).await?;
                     Ok(SessionProperty::from_scalar_value(
-                        name.clone(),
+                        key.clone(),
                         &scalar,
                         self.session.ctx.session_id(),
                     ))
                 }
                 _ => ex_error::OnlyPrimitiveStatementsSnafu.fail(),
             }?;
-            session_params.insert(name, session_value);
+            session_params.insert(key, session_value);
         }
         self.session.set_session_variable(true, session_params)?;
+        self.status_response()
+    }
+
+    /// Parses and executes tuple assignment style SET statements from the original SQL text,
+    /// e.g. `SET (min, max) = (50, 2 * $min)`
+    async fn set_tuple_variables_from_sql(&self, sql: &str) -> Result<QueryResult> {
+        use datafusion::sql::sqlparser::ast::{Expr as SqlExpr, Set, ValueWithSpan};
+
+        let state = self.session.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        let mut stmt = state
+            .sql_to_statement(sql, dialect)
+            .context(ex_error::DataFusionSnafu)?;
+        let DFStatement::Statement(inner) = &mut stmt else {
+            return self.status_response();
+        };
+
+        if let Statement::Set(Set::ParenthesizedAssignments { variables, values }) = &**inner {
+            // Evaluate each value expression independently (supports subqueries and expressions)
+            let mut session_params = HashMap::new();
+            // Normalize variables to strings
+            let names: Vec<String> = variables.iter().map(object_name_to_string).collect();
+
+            // Values can be either a list of SQL expressions or a single row expression
+            // Values are represented as a list expression
+            let value_list: Vec<SqlExpr> = values.clone();
+            if names.len() != value_list.len() {
+                return ex_error::OnlyPrimitiveStatementsSnafu.fail();
+            }
+
+            for (name, value) in names.into_iter().zip(value_list.into_iter()) {
+                let session_value = if let SqlExpr::Value(ValueWithSpan { value: v, .. }) = value {
+                    Ok(SessionProperty::from_value(
+                        name.clone(),
+                        &v,
+                        self.session.ctx.session_id(),
+                    ))
+                } else {
+                    // Evaluate as scalar by running a SELECT
+                    let query_str = format!("SELECT {value}");
+                    let scalar = self.execute_scalar_query(&query_str).await?;
+                    Ok(SessionProperty::from_scalar_value(
+                        name.clone(),
+                        &scalar,
+                        self.session.ctx.session_id(),
+                    ))
+                }?;
+                session_params.insert(name, session_value);
+            }
+
+            self.session.set_session_variable(true, session_params)?;
+        }
+
         self.status_response()
     }
 
@@ -726,6 +797,17 @@ impl UserQuery {
         let Statement::CreateTable(mut create_table_statement) = statement.clone() else {
             return ex_error::OnlyCreateTableStatementsSnafu.fail();
         };
+        // Guard: if both column list and query are absent, treat as SQL parse error (syntax)
+        // e.g., "create table foo" should map to Snowflake-like syntax error
+        if create_table_statement.columns.is_empty() && create_table_statement.query.is_none() {
+            return Err(ex_error::Error::SqlParser {
+                error: datafusion::sql::sqlparser::parser::ParserError::ParserError(
+                    "syntax error unexpected end of input".to_string(),
+                ),
+                location: location!(),
+            });
+        }
+
         let table_location = create_table_statement
             .location
             .clone()
@@ -1574,6 +1656,7 @@ impl UserQuery {
         let Statement::CreateSchema {
             schema_name,
             if_not_exists,
+            ..
         } = statement.clone()
         else {
             return ex_error::OnlyCreateSchemaStatementsSnafu.fail();
@@ -1820,7 +1903,7 @@ impl UserQuery {
                         type,
                         description as comment,
                         created_on,
-                        updated_on,
+                        updated_on
                     FROM {}.information_schema.df_settings",
                     self.current_database()
                 );
@@ -1913,7 +1996,9 @@ impl UserQuery {
                         ObjectNamePart::Identifier(ident) => {
                             self.normalize_ident(ident).to_string()
                         }
+                        ObjectNamePart::Function(_) => String::new(),
                     })
+                    .filter(|s| !s.is_empty())
                     .collect()
             })
             .unwrap_or_default();
@@ -2473,10 +2558,12 @@ impl UserQuery {
                         // Extract the database and schema names
                         let db_name = match &name.0[0] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         let schema_name = match &name.0[1] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         Some(TableReference::full(db_name, schema_name, empty()))
@@ -2484,6 +2571,7 @@ impl UserQuery {
                         // Extract just the schema name
                         let schema_name = match &name.0[0] {
                             ObjectNamePart::Identifier(ident) => ident.value.clone(),
+                            ObjectNamePart::Function(_) => String::new(),
                         };
 
                         Some(TableReference::full(empty(), schema_name, empty()))
@@ -2541,7 +2629,9 @@ impl UserQuery {
             .into_iter()
             .map(|part| match part {
                 ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
+                ObjectNamePart::Function(_) => Ident::new(String::new()),
             })
+            .filter(|ident| !ident.value.is_empty())
             .collect();
         Ok(NormalizedIdent(normalized_idents))
     }
@@ -2574,7 +2664,9 @@ impl UserQuery {
             .into_iter()
             .map(|part| match part {
                 ObjectNamePart::Identifier(ident) => self.normalize_ident(ident),
+                ObjectNamePart::Function(_) => Ident::new(String::new()),
             })
+            .filter(|ident| !ident.value.is_empty())
             .collect();
         Ok(NormalizedIdent(normalized_idents))
     }

@@ -357,6 +357,20 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             "with test as (select 122 as b) SELECT b as c FROM test QUALIFY ROW_NUMBER() OVER(PARTITION BY c) = 1",
             "WITH test AS (SELECT 122 AS b) SELECT b AS c FROM test QUALIFY ROW_NUMBER() OVER (PARTITION BY b) = 1"
         ),
+        (
+            "SELECT 123 AS a WHERE a > 100",
+            "SELECT 123 AS a WHERE 123 > 100"
+        ),
+        (
+            "WITH data_points AS (
+                SELECT
+                  SPLIT_PART(metric_name, '.', 14)::VARCHAR AS aggregation_name,
+                  SPLIT_PART(metric_name, '.', 6)::VARCHAR AS metric_name
+                FROM some_table
+            )
+            SELECT * FROM data_points",
+            "WITH data_points AS (SELECT SPLIT_PART(metric_name, '.', 14)::VARCHAR AS aggregation_name, SPLIT_PART(metric_name, '.', 6)::VARCHAR AS metric_name FROM some_table) SELECT * FROM data_points"
+        ),
     ];
 
     for (input, expected) in cases {
@@ -429,17 +443,40 @@ fn test_fetch_to_limit_error_on_missing_quantity() -> DFResult<()> {
 #[test]
 fn test_table_function_cte() -> DFResult<()> {
     let state = SessionContext::new().state();
-    let cases = vec![(
-        r#"WITH base AS (SELECT '{"a": 1}' AS jsontext),
+    let cases = vec![
+        (
+            r#"WITH base AS (SELECT '{"a": 1}' AS jsontext),
             intermediate AS (
               SELECT value
               FROM base, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d
             )
             SELECT * FROM intermediate;"#,
-        "WITH base AS (SELECT '{\"a\": 1}' AS jsontext), intermediate AS \
+            "WITH base AS (SELECT '{\"a\": 1}' AS jsontext), intermediate AS \
            (SELECT value FROM base, LATERAL FLATTEN(INPUT => parse_json((SELECT jsontext FROM \
            (SELECT '{\"a\": 1}' AS jsontext) AS base))) AS d) SELECT * FROM intermediate",
-    )];
+        ),
+        (
+            "WITH source AS (
+                  SELECT jsontext FROM test
+                ),
+                metric_per_row AS (
+                  SELECT value AS datapoints
+                  FROM source, LATERAL FLATTEN(INPUT => parse_json(jsontext)) d
+                ),
+                data_points_flushed_out AS (
+                  SELECT metric_value
+                  FROM metric_per_row,
+                       LATERAL FLATTEN(INPUT => datapoints) dp
+                )
+                SELECT * FROM data_points_flushed_out;",
+            "WITH source AS (SELECT jsontext FROM test), metric_per_row AS \
+            (SELECT value AS datapoints FROM source, LATERAL FLATTEN(INPUT => parse_json(\
+            (SELECT jsontext FROM (SELECT jsontext FROM test) AS source))) AS d), data_points_flushed_out AS \
+            (SELECT metric_value FROM metric_per_row, LATERAL FLATTEN(INPUT => \
+            (SELECT datapoints FROM (SELECT value AS datapoints FROM (SELECT jsontext FROM test), LATERAL FLATTEN(INPUT => parse_json(jsontext)) AS d) AS metric_per_row)) AS dp) \
+            SELECT * FROM data_points_flushed_out",
+        ),
+    ];
 
     for (input, expected) in cases {
         let mut statement = state.sql_to_statement(input, "snowflake")?;

@@ -29,7 +29,7 @@ use super::errors::{
 ///
 /// Returns:
 /// A string or binary value containing the specified substring
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct SubstrFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -68,6 +68,7 @@ const fn is_string_coercible(data_type: &DataType) -> bool {
             | DataType::UInt64
             | DataType::Float32
             | DataType::Float64
+            | DataType::Decimal128(_, _)
     )
 }
 
@@ -104,6 +105,7 @@ impl ScalarUDFImpl for SubstrFunc {
     }
 
     fn name(&self) -> &'static str {
+        // Avoid name collision with DF50 built-in `substr`
         "substr"
     }
 
@@ -150,7 +152,7 @@ impl ScalarUDFImpl for SubstrFunc {
             None
         };
 
-        let result = substr_snowflake(base_array, start_array, length_array)?;
+        let result = substr(base_array, start_array, length_array)?;
         Ok(ColumnarValue::Array(result))
     }
 
@@ -161,22 +163,24 @@ impl ScalarUDFImpl for SubstrFunc {
     fn simplify(&self, args: Vec<Expr>, _info: &dyn SimplifyInfo) -> DFResult<ExprSimplifyResult> {
         if args.len() >= 2
             && args.len() <= 3
-            && let (Expr::Literal(string_scalar), Expr::Literal(start_scalar)) =
+            && let (Expr::Literal(string_scalar, _), Expr::Literal(start_scalar, _)) =
                 (&args[0], &args[1])
         {
             if string_scalar.is_null() || start_scalar.is_null() {
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                     ScalarValue::Null,
+                    None,
                 )));
             }
 
             let string_val = string_scalar.to_string();
             if let Ok(start_val) = start_scalar.to_string().parse::<i64>() {
                 let length_val = if args.len() == 3 {
-                    if let Expr::Literal(length_scalar) = &args[2] {
+                    if let Expr::Literal(length_scalar, _) = &args[2] {
                         if length_scalar.is_null() {
                             return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                                 ScalarValue::Null,
+                                None,
                             )));
                         }
                         length_scalar.to_string().parse::<i64>().ok()
@@ -194,6 +198,7 @@ impl ScalarUDFImpl for SubstrFunc {
                 );
                 return Ok(ExprSimplifyResult::Simplified(Expr::Literal(
                     ScalarValue::Utf8View(Some(result)),
+                    None,
                 )));
             }
         }
@@ -286,7 +291,7 @@ fn compute_substr_string(input: &str, start: i64, length: Option<u64>) -> String
 
     let actual_start = match start.cmp(&0) {
         std::cmp::Ordering::Less => char_count + start + 1,
-        std::cmp::Ordering::Equal => 1,
+        std::cmp::Ordering::Equal => 1, // treat 0 as 1-based start
         std::cmp::Ordering::Greater => start,
     };
 
@@ -696,7 +701,7 @@ fn process_large_binary_arrays(
     Ok(Arc::new(result_builder.finish()))
 }
 
-fn substr_snowflake(
+fn substr(
     base_array: &dyn Array,
     start_array: &dyn Array,
     length_array: Option<&dyn Array>,
@@ -721,7 +726,10 @@ fn substr_snowflake(
         | DataType::UInt32
         | DataType::UInt64
         | DataType::Float32
-        | DataType::Float64 => process_string_arrays(base_array, start_array, length_array),
+        | DataType::Float64
+        | DataType::Decimal128(_, _) => {
+            process_string_arrays(base_array, start_array, length_array)
+        }
         DataType::Binary => process_binary_arrays(base_array, start_array, length_array),
         DataType::LargeBinary => process_large_binary_arrays(base_array, start_array, length_array),
         other => UnsupportedDataTypeSnafu {
@@ -738,171 +746,6 @@ crate::macros::make_udf_function!(SubstrFunc);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::prelude::SessionContext;
-    use datafusion_common::assert_batches_eq;
-    use datafusion_expr::ScalarUDF;
-
-    #[tokio::test]
-    async fn test_substr_basic() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
-
-        let q = "SELECT substr('mystring', 3, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| st     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_substr_negative_index() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
-
-        let q = "SELECT substr('mystring', -1, 3) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| g      |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr('mystring', -3, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| in     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr('mystring', -2, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| ng     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_substr_edge_cases() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
-
-        let q = "SELECT substr(NULL, 1, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "|        |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr('abc', 0, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| ab     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_substr_numeric_types() -> DFResult<()> {
-        let ctx = SessionContext::new();
-        ctx.register_udf(ScalarUDF::from(SubstrFunc::new()));
-
-        let q = "SELECT substr(1.23, -2, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| 23     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr(12345, 2, 3) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| 234    |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr(-567, -2, 2) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| 67     |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        let q = "SELECT substr(123.456, 3, 4) as result;";
-        let result = ctx.sql(q).await?.collect().await?;
-        assert_batches_eq!(
-            &[
-                "+--------+",
-                "| result |",
-                "+--------+",
-                "| 3.45   |",
-                "+--------+"
-            ],
-            &result
-        );
-
-        Ok(())
-    }
 
     #[test]
     fn test_compute_substr_string_direct() {

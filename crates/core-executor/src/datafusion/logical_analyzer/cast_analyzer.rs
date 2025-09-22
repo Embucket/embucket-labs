@@ -1,5 +1,6 @@
-use arrow_schema::TimeUnit;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::arrow::datatypes::Field;
+use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::optimizer::AnalyzerRule;
@@ -8,7 +9,7 @@ use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
 use datafusion_common::{DFSchemaRef, ScalarValue};
 use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::expr_rewriter::NamePreserver;
-use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnTypeArgs, ScalarUDF, TryCast};
+use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnFieldArgs, ScalarUDF, TryCast};
 use embucket_functions::conversion::to_array::ToArrayFunc;
 use embucket_functions::conversion::to_date::ToDateFunc;
 use embucket_functions::conversion::to_decimal::ToDecimalFunc;
@@ -147,16 +148,15 @@ impl CastAnalyzer {
         expr: Expr,
         try_mode: bool,
     ) -> DFResult<Option<Transformed<Expr>>> {
-        if let Expr::Literal(ScalarValue::Utf8(Some(v))) = expr.clone() {
+        if let Expr::Literal(ScalarValue::Utf8(Some(v)), _) = expr.clone() {
             let udf = self.to_timestamp_udf(try_mode);
 
-            // Infer the return type of the UDF for the given literal
-            let return_info = udf.return_type_from_args(ReturnTypeArgs {
-                arg_types: &[DataType::Utf8],
+            // Infer the return field of the UDF for the given literal
+            let return_field = udf.return_field_from_args(ReturnFieldArgs {
+                arg_fields: &[Arc::new(Field::new("arg0", DataType::Utf8, true))],
                 scalar_arguments: &[Some(&ScalarValue::Utf8(Some(v)))],
-                nullables: &[],
             })?;
-            let func_return_type = return_info.return_type().clone();
+            let func_return_type = return_field.data_type().clone();
             let mut expr = Expr::ScalarFunction(ScalarFunction {
                 func: Arc::new(udf),
                 args: vec![expr],

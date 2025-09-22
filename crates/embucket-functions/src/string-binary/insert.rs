@@ -40,7 +40,7 @@ use std::sync::Arc;
 // Returns a string or BINARY that is equivalent to making a copy of <base_expr>, deleting <len> characters
 // starting at <pos>, and then inserting <insert_expr> at <pos>.
 // Note that the original input base_expr is not changed; the function returns a separate (modified) copy.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Insert {
     signature: Signature,
 }

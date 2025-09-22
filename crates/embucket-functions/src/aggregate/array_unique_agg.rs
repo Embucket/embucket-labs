@@ -2,7 +2,7 @@ use crate::aggregate::macros::make_udaf_function;
 use crate::json::encode_array;
 use ahash::RandomState;
 use datafusion::arrow::array::{Array, ArrayRef, as_list_array};
-use datafusion::arrow::datatypes::{DataType, Field};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion::common::error::Result as DFResult;
 use datafusion::logical_expr::{Accumulator, Signature, Volatility};
 use datafusion_common::ScalarValue;
@@ -26,7 +26,7 @@ use std::sync::Arc;
 //
 // NULL values in the column are ignored. If the column contains only NULL values or if the table
 // is empty, the function returns an empty ARRAY.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ArrayUniqueAggUDAF {
     signature: Signature,
 }
@@ -68,12 +68,13 @@ impl AggregateUDFImpl for ArrayUniqueAggUDAF {
         )))
     }
 
-    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<Field>> {
-        let values = Field::new_list(
+    fn state_fields(&self, args: StateFieldsArgs) -> DFResult<Vec<FieldRef>> {
+        let input_dt = args.input_fields[0].data_type().clone();
+        let values = Arc::new(Field::new_list(
             format_state_name(args.name, "values"),
-            Field::new_list_field(args.input_types[0].clone(), true),
+            Field::new_list_field(input_dt, true),
             false,
-        );
+        ));
 
         Ok(vec![values])
     }
@@ -152,9 +153,10 @@ make_udaf_function!(ArrayUniqueAggUDAF);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datafusion::arrow::array::AsArray;
     use datafusion::prelude::{SessionConfig, SessionContext};
-    use datafusion_common::assert_batches_eq;
     use datafusion_expr::AggregateUDF;
+    use std::collections::HashSet;
 
     #[tokio::test]
     async fn test_sql() -> DFResult<()> {
@@ -177,16 +179,22 @@ mod tests {
             .collect()
             .await?;
 
-        assert_batches_eq!(
-            &[
-                "+-----------------+",
-                "| distinct_values |",
-                "+-----------------+",
-                "| [5,2,1]         |",
-                "+-----------------+",
-            ],
-            &result
-        );
+        // Check content irrespective of order: must contain unique {5,2,1}
+        let batch = &result[0];
+        let col = batch.column(0).as_string::<i32>();
+        let json_str = col.value(0);
+        let parsed: serde_json::Value = serde_json::from_str(json_str)
+            .expect("ARRAY_UNIQUE_AGG should produce valid JSON array for integers");
+        let arr = parsed
+            .as_array()
+            .expect("result should be an array of integers");
+        let mut set: HashSet<i64> = HashSet::new();
+        for v in arr {
+            let n = v.as_i64().expect("array element should be a JSON number");
+            set.insert(n);
+        }
+        assert_eq!(arr.len(), set.len());
+        assert_eq!(set, HashSet::from_iter([5_i64, 2, 1]));
 
         let config = SessionConfig::new()
             .with_batch_size(1)
@@ -209,16 +217,36 @@ mod tests {
             .collect()
             .await?;
 
-        assert_batches_eq!(
-            &[
-                "+------------------+",
-                "| distinct_values  |",
-                "+------------------+",
-                "| [[1],[2],[null]] |",
-                "+------------------+",
-            ],
-            &result
-        );
+        // Validate uniqueness and membership ignoring order for arrays input
+        let batch = &result[0];
+        let col = batch.column(0).as_string::<i32>();
+        let json_str = col.value(0);
+        let parsed: serde_json::Value = serde_json::from_str(json_str)
+            .expect("ARRAY_UNIQUE_AGG should produce valid JSON array for arrays");
+        let arr = parsed
+            .as_array()
+            .expect("result should be an array of arrays");
+        // Expect three elements: [1], [2], [null] in any order
+        assert_eq!(arr.len(), 3);
+        let mut seen_one = false;
+        let mut seen_two = false;
+        let mut seen_null = false;
+        for v in arr {
+            let inner = v
+                .as_array()
+                .expect("outer array element should be an array");
+            assert_eq!(inner.len(), 1);
+            if inner[0].is_null() {
+                seen_null = true;
+            } else if inner[0] == serde_json::json!(1) {
+                seen_one = true;
+            } else if inner[0] == serde_json::json!(2) {
+                seen_two = true;
+            } else {
+                panic!("unexpected element: {v:?}");
+            }
+        }
+        assert!(seen_one && seen_two && seen_null);
 
         Ok(())
     }

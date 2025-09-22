@@ -70,15 +70,20 @@ impl DFSessionId {
         session_id: String,
     ) -> Result<Self, session_error::Error> {
         if !execution_svc
-            .update_session_expiry(session_id.clone())
+            .update_session_expiry(&session_id)
             .await
             .context(session_error::ExecutionSnafu)?
         {
             let _ = execution_svc
-                .create_session(session_id.clone())
+                .create_session(&session_id)
                 .await
                 .context(session_error::ExecutionSnafu)?;
         }
+
+        let sessions_count = execution_svc.get_sessions().read().await.len();
+        // Record the result as part of the current span.
+        tracing::Span::current().record("sessions_count", sessions_count);
+
         Ok(Self(session_id))
     }
 }
@@ -145,7 +150,7 @@ mod tests {
 
         let df_session_id = "fasfsafsfasafsass".to_string();
         let user_session = execution_svc
-            .create_session(df_session_id.clone())
+            .create_session(&df_session_id)
             .await
             .expect("Failed to create a session");
 

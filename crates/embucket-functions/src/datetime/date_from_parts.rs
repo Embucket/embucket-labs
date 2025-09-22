@@ -49,7 +49,7 @@ Additional examples can be found [here](https://docs.snowflake.com/en/sql-refere
         description = "An integer expression to use as a day for building a timestamp, usually in the 1-31 range."
     )
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DateFromPartsFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -141,9 +141,10 @@ mod test {
     use super::DateFromPartsFunc;
     use crate::datetime::timestamp_from_parts::{UNIX_DAYS_FROM_CE, to_primitive_array};
     use chrono::NaiveDate;
-    use datafusion::arrow::datatypes::Date32Type;
+    use datafusion::arrow::datatypes::{DataType, Date32Type, Field};
     use datafusion_common::ScalarValue;
     use datafusion_expr::{ColumnarValue, ScalarUDFImpl};
+    use std::sync::Arc;
 
     #[allow(clippy::unwrap_used)]
     fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
@@ -184,8 +185,16 @@ mod test {
                 let result = DateFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
+                        arg_fields: vec![],
                         number_rows: 1,
-                        return_type: &datafusion::arrow::datatypes::DataType::Date32,
+                        return_field: Arc::new(Field::new(
+                            "date_from_parts",
+                            DataType::Date32,
+                            true,
+                        )),
+                        config_options: Arc::new(
+                            datafusion_common::config::ConfigOptions::default(),
+                        ),
                     })
                     .unwrap();
                 let result = to_primitive_array::<Date32Type>(&result).unwrap();

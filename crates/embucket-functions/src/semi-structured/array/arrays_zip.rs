@@ -11,7 +11,7 @@ use serde_json::Value;
 use snafu::ResultExt;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArraysZipUDF {
     signature: Signature,
 }

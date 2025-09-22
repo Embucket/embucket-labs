@@ -1,7 +1,66 @@
 #!/bin/bash
 
-# Set DBT_TARGET environment variable
-export DBT_TARGET="embucket"
+# Load environment variables if .env exists
+if [ -f .env ]; then
+    source .env
+else
+    echo "Warning: .env file not found. Using default values."
+fi
+
+# Parse command line arguments
+DBT_TARGET="embucket"  # default
+is_incremental=false
+num_rows=10000  # default
+run_type="manual"  # default, can be overridden by environment variable RUN_TYPE
+
+# Parse arguments in order: incremental rows target
+if [[ "$1" == "true" || "$1" == "false" ]]; then
+  is_incremental="$1"
+  shift
+fi
+
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+  num_rows="$1"
+  shift
+fi
+
+if [[ -n "$1" && "$1" != "--"* ]]; then
+  DBT_TARGET="$1"
+  shift
+fi
+
+# Check for RUN_TYPE environment variable (for GitHub Actions)
+if [[ -n "$RUN_TYPE" ]]; then
+  run_type="$RUN_TYPE"
+fi
+
+# Parse any remaining --flags
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --target) 
+      DBT_TARGET="$2"
+      shift 2 
+      ;;
+    --incremental)
+      is_incremental=true
+      shift
+      ;;
+    --rows)
+      num_rows="$2"
+      shift 2
+      ;;
+    *) 
+      # Check if it's a number (for rows)
+      if [[ "$1" =~ ^[0-9]+$ ]]; then
+        num_rows="$1"
+        shift
+      else
+        echo "Unknown parameter: $1"; exit 1
+      fi
+      ;;
+  esac
+done
+
 
 # Determine which Python command to use
 echo "###############################"
@@ -36,74 +95,107 @@ echo ""
 echo "###############################"
 echo ""
 # Set incremental flag from command line argument, default to true
-is_incremental=${1:-false}
-# Set number of rows to generate, default to 1000
-num_rows=${2:-10000}
 
 # FIRST RUN
-echo "Generating events"
-$PYTHON_CMD gen_events.py $num_rows
+#echo "Generating events"
+#$PYTHON_CMD gen_events.py "$num_rows"
 
-echo "Setting up Docker container"
-./setup_docker.sh
+if [ "$DBT_TARGET" = "embucket" ]; then
 
-sleep 20
+    echo "Setting up Docker container"
+        ./setup_docker.sh
 
+
+    sleep 20
+
+fi
+
+echo ""
+echo "###############################"
+echo ""
 
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv
+$PYTHON_CMD load_events.py "$is_incremental" "$DBT_TARGET"
+
+echo ""
+echo "###############################"
+echo ""
 
 echo "Running dbt"
-./run_snowplow_web.sh
+./run_snowplow_web.sh --target "$DBT_TARGET" 2>&1 | tee dbt_output.log
 
-# Update the errors log and run results
+echo ""
 echo "###############################"
 echo ""
-echo "Updating the errors log and total results"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   ./statistics.sh
+
+if [ "$is_incremental" == false ]; then
+    # Parse dbt results and load into Snowflake
+    echo "Parsing dbt results..."
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET" "$run_type"
+
+    echo ""
+
+    
+    if [ "$DBT_TARGET" = "embucket" ]; then
+    # Update the errors log and run results
+        echo "###############################"
+        echo ""
+        echo "Updating the errors log and total results"
+        ./statistics.sh
+        echo ""
+
+    # Generate assets after the run
+        echo "###############################"
+        echo ""
+        echo "Updating the chart result"
+            $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
+        echo ""
+        echo "###############################"
+        echo ""
+    else
+        echo "###############################"
+        echo ""
+        echo "It was snowflake run, no assets will be generated"
+        echo ""
+        echo "###############################"
+        echo ""
+    fi
+
 fi
-echo ""
 
-# Generate assets after the run
-echo "###############################"
-echo ""
-echo "Updating the chart result"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
-fi
-echo ""
-echo "###############################"
-echo ""
-
-if [ "$is_incremental" == true ]; then
 
 # SECOND RUN INCEREMENTAL
+if [ "$is_incremental" == true ]; then
 
-echo "Loading events"
-$PYTHON_CMD load_events.py events_today.csv
+    echo "Loading events"
+    $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET"
 
-echo "Running dbt"
-./run_snowplow_web.sh
+    echo "Running dbt"
+    ./run_snowplow_web.sh --target "$DBT_TARGET"
 
-# Update the errors log and run results
-echo "###############################"
-echo ""
-echo "Updating the errors log and total results"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   ./statistics.sh
-fi
-echo ""
+    # Parse dbt results and load into Snowflake
+    echo "Parsing dbt results..."
+    $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET" "$run_type"
 
-# Generate assets after the run
-echo "###############################"
-echo ""
-echo "Updating the chart result"
-if [ "$DBT_TARGET" = "embucket" ]; then
-   $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
-fi
-echo ""
-echo "###############################"
-echo ""
+    if [ "$DBT_TARGET" = "embucket" ]; then
+    # Update the errors log and run results
+        echo "###############################"
+        echo ""
+        echo "Updating the errors log and total results"
+        ./statistics.sh
+        echo ""
+
+    # Generate assets after the run
+        echo "###############################"
+        echo ""
+        echo "Updating the chart result"
+            $PYTHON_CMD generate_dbt_test_assets.py --output-dir dbt-snowplow-web/assets --errors-file dbt-snowplow-web/assets/top_errors.txt
+        echo ""
+        echo "###############################"
+        echo ""
+    else
+        echo "It was snowflake run, no assets will be generated"
+    fi
+
 
 fi

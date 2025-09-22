@@ -16,7 +16,7 @@ use std::sync::Arc;
 // Retrieves a value from a JSON object or array based on the provided key or index.
 // Syntax: GET(<json>, <key_or_index>)
 // The function returns NULL if either of the arguments is NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct GetFunc {
     signature: Signature,
     ignore_case: bool,

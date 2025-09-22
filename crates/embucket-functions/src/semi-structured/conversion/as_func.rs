@@ -23,7 +23,7 @@ use std::sync::Arc;
 /// - If the value of the `variant_expr` argument is of type ARRAY, the function returns a value of type ARRAY.
 /// - If the type of `variant_expr` does not match the expected output type, the function returns NULL.
 /// - If `variant_expr` is NULL, the function returns NULL as well.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct AsFunc {
     signature: Signature,
     aliases: Vec<String>,

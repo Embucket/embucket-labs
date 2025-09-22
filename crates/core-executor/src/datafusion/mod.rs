@@ -1,5 +1,3 @@
-//pub mod analyzer;
-//pub mod error;
 pub mod error;
 pub mod extension_planner;
 pub mod logical_analyzer;

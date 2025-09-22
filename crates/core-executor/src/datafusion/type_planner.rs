@@ -1,5 +1,4 @@
-use arrow_schema::{DECIMAL128_MAX_PRECISION, Field, Fields};
-use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::arrow::datatypes::{DECIMAL128_MAX_PRECISION, DataType, Field, Fields, TimeUnit};
 use datafusion::common::Result;
 use datafusion::logical_expr::planner::TypePlanner;
 use datafusion::logical_expr::sqlparser::ast;
@@ -45,9 +44,10 @@ impl TypePlanner for CustomTypePlanner {
                 let time_unit = parse_timestamp_precision(*precision)?;
                 Ok(Some(DataType::Timestamp(time_unit, None)))
             }
+            SQLDataType::TimestampNtz => Ok(Some(DataType::Timestamp(TimeUnit::Microsecond, None))),
             SQLDataType::Custom(a, b) => match a.to_string().to_ascii_uppercase().as_str() {
                 "VARIANT" => Ok(Some(DataType::Utf8)),
-                "TIMESTAMP_NTZ" | "TIMESTAMP_LTZ" | "TIMESTAMP_TZ" => {
+                "TIMESTAMP_LTZ" | "TIMESTAMP_TZ" => {
                     let parsed_b: Option<u64> = b.iter().next().and_then(|s| s.parse().ok());
                     let time_unit = parse_timestamp_precision(parsed_b)?;
                     Ok(Some(DataType::Timestamp(time_unit, None)))

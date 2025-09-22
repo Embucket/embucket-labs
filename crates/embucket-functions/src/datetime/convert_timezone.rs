@@ -3,19 +3,20 @@ use crate::datetime_errors::{
     CantGetNanosecondsSnafu, CantParseTimezoneSnafu, InvalidDatetimeSnafu, InvalidTimestampSnafu,
 };
 use crate::session_params::SessionParams;
-use arrow_schema::DataType::{Timestamp, Utf8};
-use arrow_schema::{DataType, TimeUnit};
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use datafusion::arrow::array::{ArrayRef, TimestampNanosecondBuilder};
 use datafusion::arrow::compute::cast_with_options;
+use datafusion::arrow::datatypes::DataType::{Timestamp, Utf8};
+use datafusion::arrow::datatypes::{DataType, TimeUnit};
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::TypeSignature::Exact;
 use datafusion::logical_expr::{ColumnarValue, Signature, TIMEZONE_WILDCARD, Volatility};
 use datafusion_common::cast::as_timestamp_nanosecond_array;
 use datafusion_common::format::DEFAULT_CAST_OPTIONS;
 use datafusion_common::{ScalarValue, internal_err};
-use datafusion_expr::{ReturnInfo, ReturnTypeArgs, ScalarFunctionArgs, ScalarUDFImpl};
+use datafusion_expr::{ReturnFieldArgs, ScalarFunctionArgs, ScalarUDFImpl};
 use snafu::{OptionExt, ResultExt};
 use std::any::Any;
 use std::sync::Arc;
@@ -47,7 +48,7 @@ use std::sync::Arc;
 /// If the value is of type `TIMESTAMP_TZ`, the time zone is taken from its value. Otherwise, the current session time zone is used.
 ///
 ///
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ConvertTimezoneFunc {
     signature: Signature,
     session_params: Arc<SessionParams>,
@@ -117,8 +118,8 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
         internal_err!("return_type_from_args should be called")
     }
 
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> DFResult<ReturnInfo> {
-        match args.arg_types.len() {
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> DFResult<FieldRef> {
+        match args.arg_fields.len() {
             2 => {
                 let tz = match &args.scalar_arguments[0] {
                     Some(
@@ -129,21 +130,27 @@ impl ScalarUDFImpl for ConvertTimezoneFunc {
                     _ => return internal_err!("Invalid target_tz type"),
                 };
 
-                match &args.arg_types[1] {
-                    Timestamp(_, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
-                        TimeUnit::Nanosecond,
-                        Some(Arc::from(tz.into_boxed_str())),
-                    ))),
-                    _ => internal_err!("Invalid source_timestamp_tz type"),
+                if let Timestamp(_, _) = &args.arg_fields[1].data_type() {
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.into_boxed_str()))),
+                        false,
+                    )))
+                } else {
+                    internal_err!("Invalid source_timestamp_tz type")
                 }
             }
-            3 => match &args.arg_types[2] {
-                Timestamp(_, _) => Ok(ReturnInfo::new_non_nullable(Timestamp(
-                    TimeUnit::Nanosecond,
-                    None,
-                ))),
-                _ => internal_err!("Invalid source_timestamp_ntz type"),
-            },
+            3 => {
+                if let Timestamp(_, _) = &args.arg_fields[2].data_type() {
+                    Ok(Arc::new(Field::new(
+                        self.name(),
+                        Timestamp(TimeUnit::Nanosecond, None),
+                        false,
+                    )))
+                } else {
+                    internal_err!("Invalid source_timestamp_ntz type")
+                }
+            }
             other => {
                 internal_err!(
                     "This function can only take two or three arguments, got {}",

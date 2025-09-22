@@ -25,5 +25,5 @@ uuid = { workspace = true }
 workspace = true
 
 [dev-dependencies]
-insta = "1.42.1"
+insta = { workspace = true }
 tokio = { workspace = true }

@@ -39,7 +39,7 @@ use crate::string_binary::errors::{
 ///
 /// Returns:
 /// - A JSON string with address components and network range.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ParseIpFunc {
     signature: Signature,
 }

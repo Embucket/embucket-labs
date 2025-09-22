@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// - `msg`: A string expression, the message to be hashed.
 ///
 /// Returns a 32-character hex-encoded string.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Md5Func {
     signature: Signature,
     aliases: Vec<String>,

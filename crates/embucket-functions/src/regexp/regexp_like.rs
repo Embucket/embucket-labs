@@ -43,7 +43,7 @@ use std::sync::Arc;
 ///   Default: `c`
 ///
 /// Example: `REGEXP_LIKE('nevermore1, nevermore2, nevermore3.', 'nevermore')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RegexpLikeFunc {
     signature: Signature,
     aliases: Vec<String>,

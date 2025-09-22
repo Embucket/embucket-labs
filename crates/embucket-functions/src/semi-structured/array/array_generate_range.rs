@@ -8,7 +8,7 @@ use datafusion_expr::{
 use serde_json::{Value, to_string};
 use snafu::ResultExt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayGenerateRangeUDF {
     signature: Signature,
     aliases: Vec<String>,

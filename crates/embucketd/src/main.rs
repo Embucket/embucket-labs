@@ -11,11 +11,11 @@ use api_internal_rest::router::create_router as create_internal_router;
 use api_internal_rest::state::State as InternalAppState;
 use api_sessions::layer::propagate_session_cookie;
 use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
-use api_snowflake_rest::auth::create_router as create_snowflake_auth_router;
-use api_snowflake_rest::layer::require_auth as snowflake_require_auth;
-use api_snowflake_rest::router::create_router as create_snowflake_router;
-use api_snowflake_rest::schemas::Config;
-use api_snowflake_rest::state::AppState as SnowflakeAppState;
+use api_snowflake_rest::server::layer::require_auth as snowflake_require_auth;
+use api_snowflake_rest::server::router::create_auth_router as create_snowflake_auth_router;
+use api_snowflake_rest::server::router::create_router as create_snowflake_router;
+use api_snowflake_rest::server::server_models::Config;
+use api_snowflake_rest::server::state::AppState as SnowflakeAppState;
 use api_ui::auth::layer::require_auth as ui_require_auth;
 use api_ui::auth::router::create_router as create_ui_auth_router;
 use api_ui::config::AuthConfig as UIAuthConfig;
@@ -55,7 +55,10 @@ use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
+use tower::ServiceBuilder;
 use tower_http::catch_panic::CatchPanicLayer;
+use tower_http::compression::CompressionLayer;
+use tower_http::decompression::RequestDecompressionLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::filter::{LevelFilter, Targets};
@@ -207,13 +210,19 @@ async fn main() {
         execution_svc,
         config: snowflake_rest_cfg,
     };
+    let compression_layer = ServiceBuilder::new()
+        .layer(CompressionLayer::new())
+        .layer(RequestDecompressionLayer::new());
     let snowflake_router = create_snowflake_router()
         .with_state(snowflake_state.clone())
+        .layer(compression_layer.clone())
         .layer(middleware::from_fn_with_state(
             snowflake_state.clone(),
             snowflake_require_auth,
         ));
-    let snowflake_auth_router = create_snowflake_auth_router().with_state(snowflake_state.clone());
+    let snowflake_auth_router = create_snowflake_auth_router()
+        .with_state(snowflake_state.clone())
+        .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
         metastore,

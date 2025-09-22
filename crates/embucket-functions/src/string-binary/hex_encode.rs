@@ -32,7 +32,7 @@ use std::sync::Arc;
 ///
 /// Example: `HEX_ENCODE('SNOW')` returns `'534E4F57'`
 /// Example: `HEX_ENCODE('SNOW', 0)` returns `'534e4f57'`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct HexEncodeFunc {
     signature: Signature,
 }

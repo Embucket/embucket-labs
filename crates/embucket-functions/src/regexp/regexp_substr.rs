@@ -54,7 +54,7 @@ use std::sync::Arc;
 ///   The e option is implied.
 ///
 /// Example: `REGEXP_SUBSTR('nevermore1, nevermore2, nevermore3.', 'nevermore')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RegexpSubstrFunc {
     signature: Signature,
 }

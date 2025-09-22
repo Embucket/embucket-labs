@@ -11,7 +11,7 @@ fn test_datafusion_errors() {
     let err = DataFusionError::Internal("1".into());
     assert_eq!(
         err.to_string(),
-        "Internal error: 1.\nThis was likely caused by a bug in DataFusion's code and we would welcome that you file an bug report in our issue tracker"
+        "Internal error: 1.\nThis issue was likely caused by a bug in DataFusion's code. Please help us to resolve this by filing a bug report in our issue tracker: https://github.com/apache/datafusion/issues"
     );
 
     // Execution error
@@ -33,7 +33,7 @@ fn test_datafusion_errors() {
     let err = DataFusionError::External(Box::new(DFExternalError::Numeric {
         source: embucket_functions::numeric::Error::CastToType {
             target_type: "int".to_string(),
-            error: arrow_schema::ArrowError::DivideByZero,
+            error: datafusion::arrow::error::ArrowError::DivideByZero,
             location: location!(),
         },
     }));

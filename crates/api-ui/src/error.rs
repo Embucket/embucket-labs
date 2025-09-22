@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::response::IntoResponse;
+use core_history::QueryRecordId;
 use error_stack::ErrorChainExt;
 use error_stack::ErrorExt;
 use http::StatusCode;
@@ -112,7 +113,8 @@ impl IntoResponse for Error {
         tracing::Span::current()
             .record("error_stack_trace", self.output_msg())
             .record("error_chain", self.error_chain())
-            .record("query_id", self.query_id())
+            .record("query_id", self.query_id().as_i64().to_string())
+            .record("query_uuid", self.query_id().as_uuid().to_string())
             .record("status_code", self.status_code().as_u16());
 
         let code = self.status_code();
@@ -137,16 +139,16 @@ impl IntoResponse for Error {
 }
 
 impl Error {
-    pub fn query_id(&self) -> String {
+    pub fn query_id(&self) -> QueryRecordId {
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
                 } => source.query_id(),
-                _ => String::new(),
+                _ => QueryRecordId::default(),
             },
-            _ => String::new(),
+            _ => QueryRecordId::default(),
         }
     }
 
@@ -154,7 +156,7 @@ impl Error {
         // acquire error str as later it will be moved
         let error_str = self.to_string();
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..
@@ -171,7 +173,7 @@ impl Error {
 
     pub fn debug_error_message(&self) -> String {
         match self {
-            Self::QueriesError { source, .. } => match &**source {
+            Self::QueriesError { source, .. } => match source.as_ref() {
                 crate::queries::Error::Query {
                     source: crate::queries::error::QueryError::Execution { source, .. },
                     ..

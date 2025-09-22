@@ -29,7 +29,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns a date representing the last day of the specified part (day, month, or year).
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LastDayFunc {
     signature: Signature,
     session_params: Arc<SessionParams>,

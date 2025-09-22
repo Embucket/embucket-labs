@@ -18,6 +18,7 @@ serde_json = { workspace = true }
 snafu = { workspace = true }
 validator = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
 
 [lints]
 workspace = true

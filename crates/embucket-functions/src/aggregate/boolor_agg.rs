@@ -16,7 +16,7 @@ use std::any::Any;
 ///
 /// Syntax: `boolor_agg(<expr>)`
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BoolOrAggUDAF {
     signature: Signature,
 }

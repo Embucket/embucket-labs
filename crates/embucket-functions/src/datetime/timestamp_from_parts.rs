@@ -11,12 +11,13 @@ use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::arrow::datatypes::{
     DataType, Date32Type, Int32Type, Int64Type, Time64NanosecondType, TimestampNanosecondType,
 };
+use datafusion::arrow::datatypes::{Field, FieldRef};
 use datafusion::logical_expr::TypeSignature::Coercible;
 use datafusion::logical_expr::TypeSignatureClass;
 use datafusion_common::types::{logical_date, logical_int64, logical_string};
 use datafusion_common::{_exec_datafusion_err, Result, ScalarValue, exec_err, internal_err};
 use datafusion_expr::{
-    Coercion, ColumnarValue, ReturnInfo, ReturnTypeArgs, ScalarUDFImpl, Signature, Volatility,
+    Coercion, ColumnarValue, ReturnFieldArgs, ScalarUDFImpl, Signature, Volatility,
 };
 use datafusion_macros::user_doc;
 
@@ -84,7 +85,7 @@ pub const UNIX_DAYS_FROM_CE: i32 = 719_163;
         description = "A string expression to use as a time zone for building a timestamp (e.g. America/Los_Angeles)."
     )
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TimestampFromPartsFunc {
     signature: Signature,
     aliases: Vec<String>,
@@ -161,18 +162,20 @@ impl ScalarUDFImpl for TimestampFromPartsFunc {
         internal_err!("return_type_from_args should be called")
     }
 
-    fn return_type_from_args(&self, args: ReturnTypeArgs) -> Result<ReturnInfo> {
-        if args.arg_types.len() == 8
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> Result<FieldRef> {
+        if args.arg_fields.len() == 8
             && let Some(ScalarValue::Utf8(Some(tz))) = args.scalar_arguments[7]
         {
-            return Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-                TimeUnit::Nanosecond,
-                Some(Arc::from(tz.clone())),
+            return Ok(Arc::new(Field::new(
+                self.name(),
+                DataType::Timestamp(TimeUnit::Nanosecond, Some(Arc::from(tz.clone()))),
+                true,
             )));
         }
-        Ok(ReturnInfo::new_nullable(DataType::Timestamp(
-            TimeUnit::Nanosecond,
-            None,
+        Ok(Arc::new(Field::new(
+            self.name(),
+            DataType::Timestamp(TimeUnit::Nanosecond, None),
+            true,
         )))
     }
 
@@ -434,9 +437,12 @@ mod test {
     use super::{TimestampFromPartsFunc, to_primitive_array};
     use chrono::DateTime;
     use datafusion::arrow::datatypes::TimestampNanosecondType;
+    use datafusion::arrow::datatypes::{DataType, Field};
     use datafusion::logical_expr::ColumnarValue;
     use datafusion_common::ScalarValue;
+    use datafusion_common::config::ConfigOptions;
     use datafusion_expr::ScalarUDFImpl;
+    use std::sync::Arc;
 
     #[allow(clippy::unwrap_used)]
     fn columnar_value_fn<T>(is_scalar: bool, v: T) -> ColumnarValue
@@ -562,14 +568,29 @@ mod test {
                 if let Some(t) = tz {
                     fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
                 }
+                let arg_fields = fn_args
+                    .iter()
+                    .map(|cv| match cv {
+                        ColumnarValue::Array(a) => {
+                            Arc::new(Field::new("arg", a.data_type().clone(), true))
+                        }
+                        ColumnarValue::Scalar(s) => {
+                            Arc::new(Field::new("arg", s.data_type(), true))
+                        }
+                    })
+                    .collect();
+                let return_field = Arc::new(Field::new(
+                    "result",
+                    DataType::Timestamp(datafusion::arrow::datatypes::TimeUnit::Nanosecond, None),
+                    true,
+                ));
                 let result = TimestampFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
+                        arg_fields,
                         number_rows: 1,
-                        return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
-                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
-                            None,
-                        ),
+                        return_field,
+                        config_options: Arc::new(ConfigOptions::default()),
                     })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();
@@ -597,14 +618,29 @@ mod test {
                     columnar_value_fn(is_scalar, ScalarValue::Date32(Some(*date))),
                     columnar_value_fn(is_scalar, ScalarValue::Time64Nanosecond(Some(*time))),
                 ];
+                let arg_fields = fn_args
+                    .iter()
+                    .map(|cv| match cv {
+                        ColumnarValue::Array(a) => {
+                            Arc::new(Field::new("arg", a.data_type().clone(), true))
+                        }
+                        ColumnarValue::Scalar(s) => {
+                            Arc::new(Field::new("arg", s.data_type(), true))
+                        }
+                    })
+                    .collect();
+                let return_field = Arc::new(Field::new(
+                    "result",
+                    DataType::Timestamp(datafusion::arrow::datatypes::TimeUnit::Nanosecond, None),
+                    true,
+                ));
                 let result = TimestampFromPartsFunc::new()
                     .invoke_with_args(datafusion_expr::ScalarFunctionArgs {
                         args: fn_args,
+                        arg_fields,
                         number_rows: 1,
-                        return_type: &datafusion::arrow::datatypes::DataType::Timestamp(
-                            datafusion::arrow::datatypes::TimeUnit::Nanosecond,
-                            None,
-                        ),
+                        return_field,
+                        config_options: Arc::new(ConfigOptions::default()),
                     })
                     .unwrap();
                 let result = to_primitive_array::<TimestampNanosecondType>(&result).unwrap();

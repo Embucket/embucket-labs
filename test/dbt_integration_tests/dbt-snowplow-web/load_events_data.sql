@@ -156,16 +156,9 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- Step 4: Load data using COPY INTO with CSV file format
--- Load yesterday's events
+-- Load the specified events file
 COPY INTO events
 FROM 'file:///app/data/events_yesterday.csv'
-STORAGE_INTEGRATION = local
-FILE_FORMAT = (TYPE = CSV, SKIP_HEADER = 1)
-ON_ERROR = 'CONTINUE';
-
--- Load today's events
-COPY INTO events
-FROM 'file:///app/data/events_today.csv'
 STORAGE_INTEGRATION = local
 FILE_FORMAT = (TYPE = CSV, SKIP_HEADER = 1)
 ON_ERROR = 'CONTINUE';

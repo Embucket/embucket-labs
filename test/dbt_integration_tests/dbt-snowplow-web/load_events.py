@@ -1,51 +1,24 @@
 #!/usr/bin/env python3
 """
-Script to load Snowplow events data into Embucket database using Snowflake connector.
+Script to load Snowplow events data into Embucket or Snowflake database using Snowflake connector.
 """
 
 import os
 import sys
 import snowflake.connector
 from pathlib import Path
+from db_connections import create_embucket_connection, create_snowflake_connection, get_connection_config, copy_file_to_data_dir
 
-def get_connection_config():
-    """Get connection configuration for Embucket."""
-    return {
-        'host': os.getenv('EMBUCKET_HOST', 'localhost'),
-        'port': int(os.getenv('EMBUCKET_PORT', 3000)),
-        'protocol': os.getenv('EMBUCKET_PROTOCOL', 'http'),
-        'user': os.getenv('EMBUCKET_USER', 'embucket'),
-        'password': os.getenv('EMBUCKET_PASSWORD', 'embucket'),
-        'account': os.getenv('EMBUCKET_ACCOUNT', 'acc'),
-        'warehouse': os.getenv('EMBUCKET_WAREHOUSE', ''),
-        'database': os.getenv('EMBUCKET_DATABASE', 'embucket'),
-        'schema': os.getenv('EMBUCKET_SCHEMA', 'public_snowplow_manifest'),
-    }
 
-def copy_file_to_data_dir(source_file, data_dir="./datasets"):
-    """Copy the events.csv file to the data directory."""
-    import shutil
-    import subprocess
-    
-    # Create data directory if it doesn't exist
-    os.makedirs(data_dir, exist_ok=True)
-    
-    # Copy file to app data directory
-    target_file = os.path.join(data_dir, "events.csv")
-    try:
-        shutil.copy2(source_file, target_file)
-        print(f"✓ Copied {source_file} to {target_file}")
-    except PermissionError:
-        # Use sudo if permission denied
-        import subprocess
-        subprocess.run(['sudo', 'cp', source_file, target_file], check=True)
-        subprocess.run(['sudo', 'chmod', '644', target_file], check=True)
-        print(f"✓ Copied {source_file} to {target_file} (with sudo)")
-
-def execute_sql_script(conn, script_path):
+def execute_sql_script(conn, script_path, filename=None):
     """Execute SQL script against the database."""
     with open(script_path, 'r') as f:
         sql_content = f.read()
+    
+    # Replace filename placeholders if filename is provided
+    if filename:
+        sql_content = sql_content.replace('events_yesterday.csv', filename)
+        sql_content = sql_content.replace('events_today.csv', filename)
     
     # Split by semicolon and execute each statement
     statements = []
@@ -76,6 +49,7 @@ def execute_sql_script(conn, script_path):
                 # Continue with next statement
     
     cursor.close()
+
 
 def verify_data_load(conn):
     """Verify that data was loaded successfully."""
@@ -110,19 +84,54 @@ def verify_data_load(conn):
     
     cursor.close()
 
+
 def main():
     """Main function to load events data."""
-    print("=== Loading Snowplow Events Data into Embucket Database ===")
+    # Parse command line arguments
+    target = 'embucket'  # default
+    is_incremental = False
+    run_number = 1
+    input_file = None
+    
+    # Simple argument parsing
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg in ['--target', '-t']:
+            if i + 1 < len(args):
+                target = args[i + 1]
+        elif arg in ['snowflake', 'embucket']:
+            target = arg
+        elif arg in ['true', 'false']:
+            is_incremental = (arg == 'true')
+        elif arg in ['1', '2']:
+            run_number = int(arg)
+        elif not arg.startswith('-') and not arg in ['snowflake', 'embucket', 'true', 'false', '1', '2']:
+            if input_file is None:
+                input_file = arg
+            elif target == 'embucket':  # If target is still default, treat second arg as target
+                target = arg
+    
+    # Determine input file based on incremental flag and run number
+    if not input_file:
+        if is_incremental:
+            if run_number == 1:
+                input_file = 'events_yesterday.csv'
+                print("Incremental run - First run - using events_yesterday.csv")
+            else:  # run_number == 2
+                input_file = 'events_today.csv'
+                print("Incremental run - Second run - using events_today.csv")
+        else:
+            input_file = 'events_yesterday.csv'
+            print("First run - using events_yesterday.csv")
+    
+    print(f"=== Loading Snowplow Events Data into {target.upper()} Database ===")
     
     # Configuration
     script_dir = Path(__file__).parent
     
-    # Check if a file argument was provided
-    if len(sys.argv) > 1:
-        input_file = sys.argv[1]
+    # Determine input file
+    if input_file:
         events_file = Path(input_file)
-        
-        # Check if the input file exists
         if not events_file.exists():
             print(f"Error: {events_file} not found")
             sys.exit(1)
@@ -130,7 +139,11 @@ def main():
         # Default behavior - use events.csv in script directory
         events_file = script_dir / "events.csv"
     
-    sql_script = script_dir / "load_events_data.sql"
+    # Determine SQL script based on target
+    if target.lower() == 'snowflake':
+        sql_script = script_dir / "load_events_data_snowflake.sql"
+    else:
+        sql_script = script_dir / "load_events_data.sql"
     
     # Check if required files exist
     if not events_file.exists():
@@ -141,21 +154,24 @@ def main():
         print(f"Error: {sql_script} not found")
         sys.exit(1)
     
-    # Copy file to data directory
-    print(f"Copying {events_file} to data directory...")
-    copy_file_to_data_dir(str(events_file))
+    # Copy file to data directory (or prepare for Snowflake)
+    print(f"Preparing {events_file} for {target}...")
+    copy_file_to_data_dir(str(events_file), target=target)
     
-    # Connect to Embucket
-    print("Connecting to Embucket...")
-    config = get_connection_config()
+    # Connect to database
+    print(f"Connecting to {target.upper()}...")
     
     try:
-        conn = snowflake.connector.connect(**config)
-        print("✓ Connected to Embucket successfully")
+        if target.lower() == 'snowflake':
+            conn = create_snowflake_connection()
+        else:
+            conn = create_embucket_connection()
+        
+        print(f"✓ Connected to {target.upper()} successfully")
         
         # Execute SQL script
         print("Executing SQL script...")
-        execute_sql_script(conn, sql_script)
+        execute_sql_script(conn, sql_script, events_file.name)
         
         # Verify data load
         print("Verifying data load...")
@@ -168,12 +184,8 @@ def main():
         print(f"Error: {e}")
         sys.exit(1)
     
-    print("\n=== Data Load Process Complete ===")
-    print("\nTo verify the data was loaded correctly, you can run:")
-    print("python3 -c \"import snowflake.connector; conn = snowflake.connector.connect(host='localhost', port=3000, protocol='http', user='embucket', password='embucket', account='acc', database='embucket', schema='public_snowplow_manifest'); cursor = conn.cursor(); cursor.execute('SELECT COUNT(*) as total_rows FROM events'); print(cursor.fetchone()[0]); conn.close()\"")
-    
-    print("\nTo view sample data:")
-    print("python3 -c \"import snowflake.connector; conn = snowflake.connector.connect(host='localhost', port=3000, protocol='http', user='embucket', password='embucket', account='acc', database='embucket', schema='public_snowplow_manifest'); cursor = conn.cursor(); cursor.execute('SELECT event_id, event, user_id, collector_tstamp, page_url FROM events LIMIT 5'); [print(row) for row in cursor.fetchall()]; conn.close()\"")
+    print(f"\n=== Data Load Process Complete ===")
+
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -7,7 +7,7 @@ use std::any::Any;
 
 /// Returns the ID of a specified query in the current session.
 /// If no query is specified, the most recently-executed query is returned.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LastQueryId {
     signature: Signature,
 }

@@ -1,10 +1,9 @@
 use super::models::QueryResult;
 use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
-use arrow_schema::ArrowError;
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
-use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
+use core_history::{QueryResultError, QueryStatus};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::timezone::Tz;
@@ -19,6 +18,7 @@ use datafusion::arrow::array::{ArrayRef, Date32Array, Date64Array};
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
+use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -75,7 +75,7 @@ impl Config {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, EnumString, Display, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, EnumString, Debug, Display, Default)]
 #[strum(ascii_case_insensitive)]
 pub enum DataSerializationFormat {
     Arrow,
@@ -111,7 +111,7 @@ pub fn is_logical_plan_effectively_empty(plan: &LogicalPlan) -> bool {
         LogicalPlan::Filter(filter) => {
             let is_false_predicate = matches!(
                 filter.predicate,
-                Expr::Literal(ScalarValue::Boolean(Some(false)))
+                Expr::Literal(ScalarValue::Boolean(Some(false)), _)
             );
             is_false_predicate || is_logical_plan_effectively_empty(&filter.input)
         }
@@ -832,7 +832,8 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_result_to_history(
+pub fn query_status_result_to_history(
+    status: QueryStatus,
     result: &Result<QueryResult>,
 ) -> std::result::Result<ResultSet, QueryResultError> {
     match result {
@@ -840,12 +841,14 @@ pub fn query_result_to_history(
             query_result_to_result_set(query_result)
                 // ResultSet creation failed from Ok(QueryResult)
                 .map_err(|err| QueryResultError {
+                    status: QueryStatus::Failed,
                     message: err.to_string(),
                     diagnostic_message: format!("{err:?}"),
                 })
         }
         // Query failed
         Err(err) => Err(QueryResultError {
+            status,
             message: err.to_snowflake_error().to_string(),
             diagnostic_message: format!("{err:?}"),
         }),
@@ -908,6 +911,7 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSe
 mod tests {
     use super::*;
     use crate::models::ColumnInfo;
+    use core_history::QueryRecordId;
     use datafusion::arrow::array::{
         ArrayRef, BooleanArray, Float64Array, Int32Array, TimestampSecondArray, UInt64Array,
         UnionArray,
@@ -1163,7 +1167,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let result = QueryResult::new(vec![batch], schema, 0);
+        let result = QueryResult::new(vec![batch], schema, QueryRecordId(0));
         let column_infos = result.column_info();
 
         // === JSON conversion ===
@@ -1346,7 +1350,7 @@ mod tests {
             )
             .unwrap(),
         ];
-        let query_result = QueryResult::new(record_batches.clone(), schema, 0);
+        let query_result = QueryResult::new(record_batches.clone(), schema, QueryRecordId(0));
         let column_infos = query_result.column_info();
         let converted_batches =
             convert_record_batches(query_result, DataSerializationFormat::Arrow).unwrap();
@@ -1371,7 +1375,7 @@ mod tests {
 
         let record_batch =
             RecordBatch::try_new(schema.clone(), vec![date32_array, date64_array]).unwrap();
-        let query_result = QueryResult::new(vec![record_batch], schema, 0);
+        let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
         let converted_batches =
             convert_record_batches(query_result, DataSerializationFormat::Json).unwrap();
         let converted_batch = &converted_batches[0];

@@ -55,7 +55,7 @@ use std::sync::Arc;
 ///   The e option is implied.
 ///
 /// Example: `REGEXP_SUBSTR_ALL('nevermore1, nevermore2, nevermore3.', 'nevermore')`
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RegexpSubstrAllFunc {
     signature: Signature,
     aliases: Vec<String>,

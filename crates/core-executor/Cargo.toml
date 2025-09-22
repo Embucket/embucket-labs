@@ -10,12 +10,13 @@ core-metastore = { path = "../core-metastore" }
 core-history = {  path = "../core-history" }
 df-catalog = { path = "../df-catalog" }
 embucket-functions = { path = "../embucket-functions" } # features = ["geospatial"] 
-arrow-schema = { version = "55", features = ["serde"] }
+arrow-schema = { version = "56.1.0", features = ["serde"] }
 async-trait = { workspace = true }
 aws-config = { workspace = true }
 aws-credential-types = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
+dashmap = { workspace = true }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-doc = { workspace = true }
@@ -24,7 +25,7 @@ datafusion-functions-json = { workspace = true }
 datafusion-physical-plan = { workspace = true }
 datafusion_iceberg = { workspace = true }
 futures = { workspace = true }
-sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "8d9cbc2669d7fc3d79d7d1d725ac20f1e9bfe10e", features = [
+sqlparser = { git = "https://github.com/Embucket/datafusion-sqlparser-rs.git", rev = "7dbb724b8173db35363fa07a2bb2b8bef35ac098", features = [
   "visitor",
 ] }
 iceberg-rust = { workspace = true }
@@ -46,6 +47,7 @@ tracing = { workspace = true }
 tracing-attributes = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = "0.1.17"
+tokio-util = { workspace = true }
 
 url = { workspace = true }
 uuid = { workspace = true }
@@ -59,10 +61,10 @@ slatedb = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }
+reqwest = { workspace = true }
 insta = { version = "1.42.0", features = ["yaml", "filters"] }
 paste = "1"
 dotenv = "0.15.0"
-reqwest = "0.12.14"
 aws-config = { version = "1.8.3", features = ["behavior-version-latest"] }
 aws-sdk-s3tables = { version = "1.32.0", features = ["behavior-version-latest"] }
 aws-sdk-sts = { version = "1.80.0", features = ["behavior-version-latest"] }

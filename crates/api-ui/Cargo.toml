@@ -38,7 +38,7 @@ uuid = { workspace = true }
 validator = { workspace = true }
 
 [dev-dependencies]
-reqwest = "0.12.14"
+reqwest = { workspace = true }
 
 [lints]
 workspace = true

@@ -39,5 +39,5 @@ workspace = true
 
 [dev-dependencies]
 bytes = { workspace = true }
-insta = { version = "1.42.0", features = ["yaml", "filters", "redactions"] }
+insta = { workspace = true }
 paste = "1.0.15"

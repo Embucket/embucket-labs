@@ -35,7 +35,7 @@ use crate::{StringBuildLike, Utf8LikeArray};
     ),
     argument(name = "partNr", description = "Requested token, which is 1-based.")
 )]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct StrtokFunc {
     signature: Signature,
 }

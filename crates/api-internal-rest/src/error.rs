@@ -75,6 +75,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("[InternalAPI] Get query error: {error}"))]
+    GetQueryId {
+        #[snafu(source)]
+        error: core_history::QueryIdError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -95,6 +102,7 @@ impl IntoResponse for Error {
         let message = self.to_string();
         let code = match self {
             Self::GetQuery { .. } => http::StatusCode::NOT_FOUND,
+            Self::GetQueryId { .. } => http::StatusCode::BAD_REQUEST,
             Self::ListVolumes { error, .. }
             | Self::GetVolume { error, .. }
             | Self::CreateVolume { error, .. }

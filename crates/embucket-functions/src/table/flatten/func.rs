@@ -159,6 +159,22 @@ impl FlattenTableFunc {
     }
 }
 
+impl PartialEq for FlattenTableFunc {
+    fn eq(&self, _other: &Self) -> bool {
+        // All instances have identical semantics regardless of internal counter state
+        true
+    }
+}
+
+impl Eq for FlattenTableFunc {}
+
+impl std::hash::Hash for FlattenTableFunc {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash by type identity; internal counter is runtime state and should not affect identity
+        "FlattenTableFunc".hash(state);
+    }
+}
+
 impl TableFunctionImpl for FlattenTableFunc {
     fn call(&self, args: &[(Expr, Option<String>)]) -> DFResult<Arc<dyn TableProvider>> {
         let named_args_count = args.iter().filter(|(_, name)| name.is_some()).count();
@@ -226,7 +242,7 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<FlattenArgs> {
     };
 
     // path
-    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = get_arg(args, "path") {
+    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = get_arg(args, "path") {
         path = if let Some(p) = tokenize_path(&v) {
             p
         } else {
@@ -235,17 +251,17 @@ fn get_named_args(args: &[(Expr, Option<String>)]) -> DFResult<FlattenArgs> {
     }
 
     // is_outer
-    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = get_arg(args, "is_outer") {
+    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)), _)) = get_arg(args, "is_outer") {
         is_outer = v;
     }
 
     // is_recursive
-    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = get_arg(args, "is_recursive") {
+    if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)), _)) = get_arg(args, "is_recursive") {
         is_recursive = v;
     }
 
     // mode
-    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = get_arg(args, "mode") {
+    if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = get_arg(args, "mode") {
         mode = match v.to_lowercase().as_str() {
             "object" => FlattenMode::Object,
             "array" => FlattenMode::Array,
@@ -269,7 +285,7 @@ fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
     }
 
     // path
-    let path = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = args.get(1) {
+    let path = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = args.get(1) {
         if let Some(p) = tokenize_path(v) {
             p
         } else {
@@ -280,21 +296,21 @@ fn get_args(args: &[&Expr]) -> DFResult<FlattenArgs> {
     };
 
     // is_outer
-    let is_outer = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = &args.get(2) {
+    let is_outer = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)), _)) = &args.get(2) {
         *v
     } else {
         false
     };
 
     // is_recursive
-    let is_recursive = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)))) = &args.get(3) {
+    let is_recursive = if let Some(Expr::Literal(ScalarValue::Boolean(Some(v)), _)) = &args.get(3) {
         *v
     } else {
         false
     };
 
     // mode
-    let mode = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)))) = &args.get(4) {
+    let mode = if let Some(Expr::Literal(ScalarValue::Utf8(Some(v)), _)) = &args.get(4) {
         match v.to_lowercase().as_str() {
             "object" => FlattenMode::Object,
             "array" => FlattenMode::Array,

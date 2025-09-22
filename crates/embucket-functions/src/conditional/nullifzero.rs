@@ -40,7 +40,7 @@ macro_rules! build_array {
 //
 // For fixed-point numbers, the precision (p) and scale (s) of the return type depend on the input expression.
 // For example, if the input is 3.14159, the return type will be NUMBER(7, 5).
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct NullIfZeroFunc {
     signature: Signature,
 }

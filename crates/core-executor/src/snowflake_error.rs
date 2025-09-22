@@ -1,7 +1,7 @@
 #![allow(clippy::redundant_else)]
 #![allow(clippy::match_same_arms)]
 use crate::error::Error;
-use crate::status_code::StatusCode;
+use crate::error_code::ErrorCode;
 use core_metastore::error::Error as MetastoreError;
 use core_utils::errors::Error as DbError;
 use datafusion::arrow::error::ArrowError;
@@ -26,12 +26,14 @@ pub enum SnowflakeError {
     #[snafu(display("SQL compilation error: {error}"))]
     SqlCompilation {
         error: SqlCompilationError,
-        status_code: StatusCode,
+        // TODO: rename to error_code
+        status_code: ErrorCode,
     },
     #[snafu(display("{message}"))]
     Custom {
         message: String,
-        status_code: StatusCode,
+        // TODO: rename to error_code
+        status_code: ErrorCode,
         #[snafu(implicit)]
         internal: InternalMessage,
         #[snafu(implicit)]
@@ -41,7 +43,7 @@ pub enum SnowflakeError {
 
 impl SnowflakeError {
     #[must_use]
-    pub const fn status_code(&self) -> StatusCode {
+    pub const fn error_code(&self) -> ErrorCode {
         match self {
             Self::SqlCompilation { status_code, .. } => *status_code,
             Self::Custom { status_code, .. } => *status_code,
@@ -112,6 +114,13 @@ pub enum SqlCompilationError {
         location: Location,
     },
 
+    #[snafu(display("syntax error {error}"))]
+    CompilationParse {
+        error: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("{error}"))]
     CompilationGeneric {
         error: String,
@@ -177,7 +186,7 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                 entity_type: Entity::Table,
             }
             .build(),
-            status_code: StatusCode::NotFound,
+            status_code: ErrorCode::TableNotFound,
         },
         Error::SchemaNotFoundInDatabase { schema, db, .. } => SnowflakeError::SqlCompilation {
             error: EntityDoesntExistSnafu {
@@ -185,7 +194,7 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                 entity_type: Entity::Schema,
             }
             .build(),
-            status_code: StatusCode::NotFound,
+            status_code: ErrorCode::SchemaNotFound,
         },
         Error::DatabaseNotFound { db: catalog, .. } | Error::CatalogNotFound { catalog, .. } => {
             SnowflakeError::SqlCompilation {
@@ -194,13 +203,20 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
                     entity_type: Entity::Database,
                 }
                 .build(),
-                status_code: StatusCode::NotFound,
+                status_code: ErrorCode::DatabaseNotFound,
             }
         }
         Error::NotSupportedStatement { statement, .. } => SnowflakeError::SqlCompilation {
             error: CompilationUnsupportedFeatureSnafu { error: statement }.build(),
-            status_code: StatusCode::UnsupportedFeature,
+            status_code: ErrorCode::UnsupportedFeature,
         },
+        Error::HistoricalQueryError { error: message } => CustomSnafu {
+            // Has no query error type neither status code for queries errors fetched from history
+            // So use some generic error type and introduce ErrorCode::History
+            message,
+            status_code: ErrorCode::HistoricalQueryError,
+        }
+        .build(),
         Error::Arrow { .. }
         | Error::SerdeParse { .. }
         | Error::CatalogListDowncast { .. }
@@ -210,12 +226,12 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
         | Error::MatchingFilesAlreadyConsumed { .. }
         | Error::MissingFilterPredicates { .. } => CustomSnafu {
             message,
-            status_code: StatusCode::Internal,
+            status_code: ErrorCode::Internal,
         }
         .build(),
         _ => CustomSnafu {
             message,
-            status_code: StatusCode::Other,
+            status_code: ErrorCode::Other,
         }
         .build(),
     }
@@ -227,7 +243,7 @@ fn catalog_error(error: &CatalogError, subtext: &[&str]) -> SnowflakeError {
         CatalogError::Metastore { source, .. } => metastore_error(source, &subtext),
         _ => CustomSnafu {
             message: format_message(&subtext, error.to_string()),
-            status_code: StatusCode::Catalog,
+            status_code: ErrorCode::Catalog,
         }
         .build(),
     }
@@ -235,7 +251,7 @@ fn catalog_error(error: &CatalogError, subtext: &[&str]) -> SnowflakeError {
 
 fn core_utils_error(error: &core_utils::Error, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Db"]].concat();
-    let status_code = StatusCode::Db;
+    let status_code = ErrorCode::Db;
     match error {
         DbError::Database { error, .. }
         | DbError::KeyGet { error, .. }
@@ -272,11 +288,11 @@ fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
                 entity_type: Entity::Schema,
             }
             .build(),
-            status_code: StatusCode::NotFound,
+            status_code: ErrorCode::SchemaNotFound,
         },
         _ => CustomSnafu {
             message: format_message(&subtext, message),
-            status_code: StatusCode::Metastore,
+            status_code: ErrorCode::Metastore,
         }
         .build(),
     }
@@ -286,14 +302,14 @@ fn object_store_error(error: &object_store::Error, subtext: &[&str]) -> Snowflak
     let subtext = [subtext, &["Object store"]].concat();
     CustomSnafu {
         message: format_message(&subtext, error.to_string()),
-        status_code: StatusCode::ObjectStore,
+        status_code: ErrorCode::ObjectStore,
     }
     .build()
 }
 
 fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Iceberg"]].concat();
-    let status_code = StatusCode::Iceberg;
+    let status_code = ErrorCode::Iceberg;
     match error {
         IcebergError::ObjectStore(error) => object_store_error(error, &subtext),
         IcebergError::External(err) => {
@@ -323,16 +339,16 @@ fn iceberg_error(error: &IcebergError, subtext: &[&str]) -> SnowflakeError {
 #[allow(clippy::too_many_lines)]
 fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["DataFusion"]].concat();
-    let status_code = StatusCode::Datafusion;
+    let status_code = ErrorCode::Datafusion;
     let message = df_error.to_string();
     match df_error {
         DataFusionError::ArrowError(arrow_error, ..) => {
-            match arrow_error {
+            match arrow_error.as_ref() {
                 ArrowError::ExternalError(err) => {
                     // Accidently CustomSnafu can't see internal field, so create error manually!
                     SnowflakeError::Custom {
                         message: err.to_string(),
-                        status_code: StatusCode::Arrow,
+                        status_code: ErrorCode::Arrow,
                         // Add downcast warning separately as this is internal message
                         internal: InternalMessage(format!("Warning: Didn't downcast error: {err}")),
                         location: location!(),
@@ -340,7 +356,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                 }
                 _ => CustomSnafu {
                     message,
-                    status_code: StatusCode::Arrow,
+                    status_code: ErrorCode::Arrow,
                 }
                 .build(),
             }
@@ -378,12 +394,12 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             };
             SnowflakeError::SqlCompilation {
                 error: diagn_error,
-                status_code: StatusCode::Datafusion,
+                status_code: ErrorCode::DataFusionSql,
             }
         }
         DataFusionError::Execution(error) => SnowflakeError::SqlCompilation {
             error: CompilationGenericSnafu { error }.build(),
-            status_code: StatusCode::Datafusion,
+            status_code: ErrorCode::DataFusionSql,
         },
         DataFusionError::IoError(_io_error) => CustomSnafu {
             message,
@@ -394,7 +410,7 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
         // no feature name, no parser data: line, column
         DataFusionError::NotImplemented(error) => SnowflakeError::SqlCompilation {
             error: CompilationUnsupportedFeatureSnafu { error }.build(),
-            status_code: StatusCode::Datafusion,
+            status_code: ErrorCode::Datafusion,
         },
         DataFusionError::ObjectStore(_object_store_error) => CustomSnafu {
             message,
@@ -416,19 +432,19 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             status_code,
         }
         .build(),
-        DataFusionError::SQL(sql_error, Some(_backtrace)) => match sql_error {
+        DataFusionError::SQL(sql_error, Some(_backtrace)) => match sql_error.as_ref() {
             ParserError::TokenizerError(error) | ParserError::ParserError(error) =>
-            // Can produce message like this: "syntax error line 1 at position 27 unexpected 'XXXX'"
+            // Can't produce message like this: "syntax error line 1 at position 27 unexpected 'XXXX'"
             // since parse error is just a text and not a structure
             {
                 SnowflakeError::SqlCompilation {
-                    error: CompilationGenericSnafu { error }.build(),
-                    status_code: StatusCode::DataFusionSql,
+                    error: CompilationParseSnafu { error }.build(),
+                    status_code: ErrorCode::DataFusionSqlParse,
                 }
             }
             ParserError::RecursionLimitExceeded => CustomSnafu {
                 message,
-                status_code,
+                status_code: ErrorCode::DataFusionSqlParse,
             }
             .build(),
         },
@@ -457,53 +473,58 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                 match e {
                     EmubucketFunctionsExternalDFError::Aggregate { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnAggregate,
+                        status_code: ErrorCode::DatafusionEmbucketFnAggregate,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::Conversion { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnConversion,
+                        status_code: ErrorCode::DatafusionEmbucketFnConversion,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::DateTime { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnDateTime,
+                        status_code: ErrorCode::DatafusionEmbucketFnDateTime,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::Numeric { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnNumeric,
+                        status_code: ErrorCode::DatafusionEmbucketFnNumeric,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::SemiStructured { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnSemiStructured,
+                        status_code: ErrorCode::DatafusionEmbucketFnSemiStructured,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::StringBinary { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnStringBinary,
+                        status_code: ErrorCode::DatafusionEmbucketFnStringBinary,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::Table { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnTable,
+                        status_code: ErrorCode::DatafusionEmbucketFnTable,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::Crate { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnCrate,
+                        status_code: ErrorCode::DatafusionEmbucketFnCrate,
                     }
                     .build(),
                     EmubucketFunctionsExternalDFError::Regexp { .. } => CustomSnafu {
                         message,
-                        status_code: StatusCode::DatafusionEmbucketFnRegexp,
+                        status_code: ErrorCode::DatafusionEmbucketFnRegexp,
+                    }
+                    .build(),
+                    EmubucketFunctionsExternalDFError::System { .. } => CustomSnafu {
+                        message,
+                        status_code: ErrorCode::DatafusionEmbucketFnSystem,
                     }
                     .build(),
                 }
             } else if let Some(e) = err.downcast_ref::<DFCatalogExternalDFError>() {
                 let message = e.to_string();
-                let status_code = StatusCode::Catalog;
+                let status_code = ErrorCode::Catalog;
                 match e {
                     DFCatalogExternalDFError::OrdinalPositionParamOverflow { .. } => CustomSnafu {
                         message,
@@ -549,14 +570,14 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             } else if let Some(e) = err.downcast_ref::<ArrowError>() {
                 CustomSnafu {
                     message: e.to_string(),
-                    status_code: StatusCode::Arrow,
+                    status_code: ErrorCode::Arrow,
                 }
                 .build()
             } else {
                 // Accidently CustomSnafu can't see internal field, so create error manually!
                 SnowflakeError::Custom {
                     message,
-                    status_code: StatusCode::Other,
+                    status_code: ErrorCode::Other,
                     // Add downcast warning separately as this is internal message
                     internal: InternalMessage(format!("Warning: Didn't downcast error: {err}")),
                     location: location!(),

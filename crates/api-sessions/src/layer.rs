@@ -20,13 +20,8 @@ pub async fn propagate_session_cookie(
     if let Some(token) = extract_token_from_cookie(req.headers()) {
         tracing::debug!("Found DF session_id in cookie header: {}", token);
 
-        let sessions = state.execution_svc.get_sessions();
-
-        let sessions = sessions.read().await;
-
         //session_id is expired and deleted
-        if !sessions.contains_key(&token) {
-            drop(sessions);
+        if !state.execution_svc.session_exists(&token).await {
             tracing::debug!("This DF session_id is expired or deleted.");
 
             let session_id = uuid::Uuid::new_v4().to_string();

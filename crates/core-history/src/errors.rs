@@ -1,3 +1,4 @@
+use crate::QueryRecordId;
 use error_stack_trace;
 use slatedb::SlateDBError;
 use snafu::Location;
@@ -59,9 +60,9 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Can't locate query record by key: {key}"))]
+    #[snafu(display("Can't locate query record by query_id: {} ({})", query_id.as_uuid(), query_id.as_i64()))]
     QueryNotFound {
-        key: String,
+        query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
@@ -127,6 +128,13 @@ pub enum Error {
     #[snafu(display("Query execution error: {message}"))]
     ExecutionResult {
         message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("No result set for QueryRecord: {}", query_id.as_uuid()))]
+    NoResultSet {
+        query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },

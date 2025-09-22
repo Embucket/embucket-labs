@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// - NULL elements within the array are converted to empty strings in the result.
 /// - To include a space between values, make sure to include the space in the separator itself
 ///   (e.g., ', '). See the examples below.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ArrayToStringFunc {
     signature: Signature,
 }
@@ -165,8 +165,8 @@ mod tests {
                 "| []                                                                        |                                                             |                                                                       |",
                 "| [1]                                                                       | 1                                                           | 1                                                                     |",
                 "| [1, 2]                                                                    | 12                                                          | 1, 2                                                                  |",
-                r#"| [true, 1, -1.2e-3, "Abc", ["x","y"], { "a":1 }]                           | true1-0.0012Abc["x","y"]{"a":1}                             | true, 1, -0.0012, Abc, ["x","y"], {"a":1}                             |"#,
-                r#"| [true, 1, -1.2e-3, "Abc", ["x","y"], {"a":{"b":"c"},"c":1,"d":[1,2,"3"]}] | true1-0.0012Abc["x","y"]{"a":{"b":"c"},"c":1,"d":[1,2,"3"]} | true, 1, -0.0012, Abc, ["x","y"], {"a":{"b":"c"},"c":1,"d":[1,2,"3"]} |"#,
+                r#"| [true, 1, -1.2e-3, "Abc", ["x","y"], { "a":1 }]                           | true1-1.2e-3Abc["x","y"]{"a":1}                             | true, 1, -1.2e-3, Abc, ["x","y"], {"a":1}                             |"#,
+                r#"| [true, 1, -1.2e-3, "Abc", ["x","y"], {"a":{"b":"c"},"c":1,"d":[1,2,"3"]}] | true1-1.2e-3Abc["x","y"]{"a":{"b":"c"},"c":1,"d":[1,2,"3"]} | true, 1, -1.2e-3, Abc, ["x","y"], {"a":{"b":"c"},"c":1,"d":[1,2,"3"]} |"#,
                 "+---------------------------------------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------------------+",
             ],
             &result
@@ -187,7 +187,7 @@ mod tests {
                 "+---------------------------------+",
                 "| no_separation                   |",
                 "+---------------------------------+",
-                r#"| true1-0.0012Abc["x","y"]{"a":1} |"#,
+                r#"| true1-1.2e-3Abc["x","y"]{"a":1} |"#,
                 "+---------------------------------+",
             ],
             &result

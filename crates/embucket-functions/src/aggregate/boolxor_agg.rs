@@ -16,7 +16,7 @@ use std::any::Any;
 ///
 /// Syntax: `boolxor_agg(<expr>)`
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BoolXorAggUDAF {
     signature: Signature,
 }

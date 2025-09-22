@@ -26,10 +26,35 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Create .env file
+        working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
+        run: |
+          cat > .env << 'EOF'
+          export SNOWFLAKE_ACCOUNT=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_ACCOUNT }}
+          export SNOWFLAKE_USER=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_USER }}
+          export SNOWFLAKE_PASSWORD=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_PASSWORD }}
+          export SNOWFLAKE_DATABASE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_DATABASE }}
+          export SNOWFLAKE_SCHEMA=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_SCHEMA }}
+          export SNOWFLAKE_WAREHOUSE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_WAREHOUSE }}
+          export SNOWFLAKE_ROLE=${{ secrets.DBT_SNOWPLOW_WEB_SNOWFLAKE_ROLE }}
+
+          export EMBUCKET_HOST=localhost
+          export EMBUCKET_PORT=3000
+          export EMBUCKET_PROTOCOL=http
+          export EMBUCKET_ACCOUNT=test
+          export EMBUCKET_USER=embucket
+          export EMBUCKET_PASSWORD=embucket
+          export EMBUCKET_ROLE=SYSADMIN
+          export EMBUCKET_DATABASE=embucket
+          export EMBUCKET_WAREHOUSE=COMPUTE_WH
+          export EMBUCKET_SCHEMA=public
+          export RUN_TYPE=github_actions
+          EOF
+
       - name: DBT Snowplow Web run
         working-directory: ./test/dbt_integration_tests/dbt-snowplow-web
         run: |
-          ./incremental.sh false 10000
+          ./incremental.sh false 10000 embucket
 
       # Generate Test Assets
       - name: Generate data for commit message

@@ -1,7 +1,6 @@
 ---
 source: crates/df-catalog/src/tests/information_schema.rs
 description: SELECT name FROM embucket.information_schema.df_settings
-snapshot_kind: text
 ---
 +-------------------------------------------------------------------------+
 | name                                                                    |
@@ -20,10 +19,12 @@ snapshot_kind: text
 | datafusion.execution.enable_recursive_ctes                              |
 | datafusion.execution.enforce_batch_size_in_joins                        |
 | datafusion.execution.keep_partition_by_columns                          |
+| datafusion.execution.listing_table_factory_infer_partitions             |
 | datafusion.execution.listing_table_ignore_subdirectory                  |
 | datafusion.execution.max_buffered_batches_per_output_file               |
 | datafusion.execution.meta_fetch_concurrency                             |
 | datafusion.execution.minimum_parallel_output_files                      |
+| datafusion.execution.objectstore_writer_buffer_size                     |
 | datafusion.execution.parquet.allow_single_file_parallelism              |
 | datafusion.execution.parquet.binary_as_string                           |
 | datafusion.execution.parquet.bloom_filter_fpp                           |
@@ -41,7 +42,6 @@ snapshot_kind: text
 | datafusion.execution.parquet.enable_page_index                          |
 | datafusion.execution.parquet.encoding                                   |
 | datafusion.execution.parquet.max_row_group_size                         |
-| datafusion.execution.parquet.max_statistics_size                        |
 | datafusion.execution.parquet.maximum_buffered_record_batches_per_stream |
 | datafusion.execution.parquet.maximum_parallel_row_group_writers         |
 | datafusion.execution.parquet.metadata_size_hint                         |
@@ -62,6 +62,7 @@ snapshot_kind: text
 | datafusion.execution.soft_max_rows_per_output_file                      |
 | datafusion.execution.sort_in_place_threshold_bytes                      |
 | datafusion.execution.sort_spill_reservation_bytes                       |
+| datafusion.execution.spill_compression                                  |
 | datafusion.execution.split_file_groups_by_statistics                    |
 | datafusion.execution.target_partitions                                  |
 | datafusion.execution.time_zone                                          |
@@ -72,11 +73,23 @@ snapshot_kind: text
 | datafusion.explain.show_schema                                          |
 | datafusion.explain.show_sizes                                           |
 | datafusion.explain.show_statistics                                      |
+| datafusion.explain.tree_maximum_render_width                            |
+| datafusion.format.date_format                                           |
+| datafusion.format.datetime_format                                       |
+| datafusion.format.duration_format                                       |
+| datafusion.format.null                                                  |
+| datafusion.format.safe                                                  |
+| datafusion.format.time_format                                           |
+| datafusion.format.timestamp_format                                      |
+| datafusion.format.timestamp_tz_format                                   |
+| datafusion.format.types_info                                            |
 | datafusion.optimizer.allow_symmetric_joins_without_pruning              |
 | datafusion.optimizer.default_filter_selectivity                         |
 | datafusion.optimizer.enable_distinct_aggregation_soft_limit             |
+| datafusion.optimizer.enable_dynamic_filter_pushdown                     |
 | datafusion.optimizer.enable_round_robin_repartition                     |
 | datafusion.optimizer.enable_topk_aggregation                            |
+| datafusion.optimizer.enable_window_limits                               |
 | datafusion.optimizer.expand_views_at_output                             |
 | datafusion.optimizer.filter_null_join_keys                              |
 | datafusion.optimizer.hash_join_single_partition_threshold               |
@@ -94,10 +107,11 @@ snapshot_kind: text
 | datafusion.optimizer.skip_failed_rules                                  |
 | datafusion.optimizer.top_down_join_key_reordering                       |
 | datafusion.sql_parser.collect_spans                                     |
+| datafusion.sql_parser.default_null_ordering                             |
 | datafusion.sql_parser.dialect                                           |
 | datafusion.sql_parser.enable_ident_normalization                        |
 | datafusion.sql_parser.enable_options_value_normalization                |
-| datafusion.sql_parser.map_varchar_to_utf8view                           |
+| datafusion.sql_parser.map_string_types_to_utf8view                      |
 | datafusion.sql_parser.parse_float_as_decimal                            |
 | datafusion.sql_parser.recursion_limit                                   |
 | datafusion.sql_parser.support_varchar_with_length                       |

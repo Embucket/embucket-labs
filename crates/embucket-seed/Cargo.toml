@@ -25,8 +25,8 @@ serde_yaml = { workspace = true }
 serde = { workspace = true }
 snafu = { workspace = true }
 fake = { version = "4.3.0", features = ["chrono"] }
-reqwest = "0.12.14"
-rand = "0.9.1"
+reqwest = { workspace = true }
+rand = "0.9.2"
 serde_json = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }

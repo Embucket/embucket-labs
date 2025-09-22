@@ -29,7 +29,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - The returned value is the string after all replacements have been done.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ReplaceFunc {
     signature: Signature,
 }
@@ -77,17 +77,15 @@ impl ScalarUDFImpl for ReplaceFunc {
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs {
-            args,
-            number_rows,
-            return_type,
-        } = args;
+        let return_dtype = args.return_field.data_type().clone();
+        let number_rows = args.number_rows;
         let arrays: Vec<_> = args
-            .into_iter()
-            .map(|arg| arg.into_array(number_rows))
-            .collect::<Result<_, _>>()?;
+            .args
+            .iter()
+            .map(|arg| arg.to_array(number_rows))
+            .collect::<DFResult<_>>()?;
 
-        match return_type {
+        match return_dtype {
             DataType::Utf8 | DataType::Utf8View => replace::<i32>(&arrays),
             DataType::LargeUtf8 => replace::<i64>(&arrays),
             _ => errors::ExpectedUtf8StringSnafu.fail()?,

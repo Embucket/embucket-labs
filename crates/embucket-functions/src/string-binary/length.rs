@@ -25,7 +25,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - Returns the length of the string or binary value.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LengthFunc {
     signature: Signature,
     aliases: Vec<String>,

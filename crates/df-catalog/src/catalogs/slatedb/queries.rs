@@ -91,7 +91,7 @@ impl QueriesViewBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn add_query(&mut self, query_record: QueryRecord) {
         // Note: append_value is actually infallible.
-        self.query_ids.append_value(query_record.id);
+        self.query_ids.append_value(query_record.id.into());
         self.worksheet_ids.append_option(query_record.worksheet_id);
         self.queries.append_value(query_record.query);
         self.start_time_timestamps

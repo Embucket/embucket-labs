@@ -11,6 +11,7 @@ use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
+use crate::running_queries::RunningQueries;
 use crate::utils::Config;
 use core_history::history_store::HistoryStore;
 use core_metastore::Metastore;
@@ -45,6 +46,8 @@ pub const fn to_unix(t: OffsetDateTime) -> i64 {
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
     pub history_store: Arc<dyn HistoryStore>,
+    // running_queries contains all the queries running across sessions
+    pub running_queries: Arc<dyn RunningQueries>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
     pub executor: DedicatedExecutor,
@@ -57,6 +60,7 @@ impl UserSession {
     pub fn new(
         metastore: Arc<dyn Metastore>,
         history_store: Arc<dyn HistoryStore>,
+        running_queries: Arc<dyn RunningQueries>,
         config: Arc<Config>,
         catalog_list: Arc<EmbucketCatalogList>,
         runtime_env: Arc<RuntimeEnv>,
@@ -123,6 +127,7 @@ impl UserSession {
         let session = Self {
             metastore,
             history_store,
+            running_queries,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
             executor: DedicatedExecutor::builder().build(),

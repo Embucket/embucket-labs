@@ -28,7 +28,7 @@ use std::sync::Arc;
 ///
 /// Returns:
 /// - A non-negative integer representing the number of true events encountered so far in the partition.
-#[derive(Debug)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct ConditionalTrueEvent {
     signature: Signature,
 }
@@ -75,8 +75,12 @@ impl WindowUDFImpl for ConditionalTrueEvent {
         Ok(Box::<ConditionalTrueEventEvaluator>::default())
     }
 
-    fn field(&self, field_args: WindowUDFFieldArgs) -> Result<Field> {
-        Ok(Field::new(field_args.name(), DataType::UInt64, false))
+    fn field(&self, field_args: WindowUDFFieldArgs) -> Result<Arc<Field>> {
+        Ok(Arc::new(Field::new(
+            field_args.name(),
+            DataType::UInt64,
+            false,
+        )))
     }
 
     fn sort_options(&self) -> Option<datafusion_common::arrow::compute::SortOptions> {

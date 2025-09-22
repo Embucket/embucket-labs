@@ -12,7 +12,7 @@ use snafu::OptionExt;
 use std::any::Any;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Kind {
     Null,
     Boolean,
@@ -35,7 +35,7 @@ pub enum Kind {
 ///   An expression that evaluates to a value of type VARIANT.
 ///   Example: `SELECT is_integer('123') AS is_int, is_null_value(NULL) AS is_null`;
 ///   Returns a BOOLEAN value indicating whether the value is of the specified type or NULL if the input is NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IsTypeofFunc {
     signature: Signature,
     kind: Kind,

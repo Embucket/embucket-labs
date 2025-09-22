@@ -3,7 +3,7 @@ use crate::session::register_session_context_udfs;
 use crate::session_params::SessionParams;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
-use core_history::{HistoryStore, MockHistoryStore, QueryRecord};
+use core_history::{HistoryStore, MockHistoryStore, QueryRecord, QueryRecordId};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use snafu::Location;
@@ -36,7 +36,7 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
         let mut records = Vec::new();
         for i in 0..4 {
             let mut q = QueryRecord::new("query", None);
-            q.id = i;
+            q.id = i.into();
             records.push(q);
         }
         Ok(records)
@@ -51,13 +51,13 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
             "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
         }"#;
         record.result = Some(buf.to_string());
-        if id == 500 {
+        if id == QueryRecordId(500) {
             return Err(core_history::Error::ExecutionResult {
                 message: "Query not found".to_string(),
                 location: Location::default(),
             });
         }
-        if id == 100 {
+        if id == QueryRecordId(100) {
             record.error = Some("query error".to_string());
         }
         Ok(record)

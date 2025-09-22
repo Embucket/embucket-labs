@@ -12,14 +12,14 @@ docker rm em 2>/dev/null || true
 
 # Remove all embucket-related volumes (optional - be careful!)
 echo "Removing all Docker volumes (this will delete ALL persistent data)..."
-docker volume prune -f
+docker volume prune -f >/dev/null 2>&1
 
 # Remove Docker images (choose one of the options below)
 echo "Removing Docker images..."
 
 # Option 1: Remove only the embucket image
 echo "Removing embucket image..."
-docker rmi embucket/embucket 2>/dev/null || true
+docker rmi embucket/embucket >/dev/null 2>&1 || true
 
 # Create datasets directory if it doesn't exist
 echo "Creating datasets directory..."
@@ -56,7 +56,7 @@ docker run -d --rm --name em \
   --env OBJECT_STORE_BACKEND=memory \
   --env SLATEDB_PREFIX=memory \
   --env DATA_FORMAT=arrow \
-  embucket/embucket
+  embucket/embucket >/dev/null 2>&1
 
 echo "✓ Embucket container started successfully with CLEAN environment!"
 echo ""

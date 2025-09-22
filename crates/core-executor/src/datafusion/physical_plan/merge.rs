@@ -560,10 +560,16 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
 
     let first = downcast_array::<StringArray>(array).value(0).to_owned();
 
+    let init = if first.is_empty() {
+        HashSet::new()
+    } else {
+        HashSet::from_iter([first])
+    };
+
     let slice_len = array.len() - 1;
 
     if slice_len == 0 {
-        return Ok(HashSet::from_iter([first]));
+        return Ok(init);
     }
 
     let v1 = array.slice(0, slice_len);
@@ -577,12 +583,6 @@ fn unique_values(array: &dyn Array) -> Result<HashSet<String>, DataFusionError> 
     let unique = filter(&v2, &mask)?;
 
     let strings = downcast_array::<StringArray>(&unique);
-
-    let init = if first.is_empty() {
-        HashSet::new()
-    } else {
-        HashSet::from_iter([first])
-    };
 
     let result = strings.iter().fold(init, |mut acc, x| {
         if let Some(x) = x
@@ -623,10 +623,16 @@ fn unique_files_and_manifests(
     let first_file = downcast_array::<StringArray>(files).value(0).to_owned();
     let first_manifest = downcast_array::<StringArray>(manifests).value(0).to_owned();
 
+    let init = if first_file.is_empty() {
+        HashMap::new()
+    } else {
+        HashMap::from_iter([(first_file, first_manifest)])
+    };
+
     let slice_len = files.len() - 1;
 
     if slice_len == 0 {
-        return Ok(HashMap::from_iter([(first_file, first_manifest)]));
+        return Ok(init);
     }
 
     let v1 = files.slice(0, slice_len);
@@ -645,12 +651,6 @@ fn unique_files_and_manifests(
 
     let file_strings = downcast_array::<StringArray>(&unique_files);
     let manifest_strings = downcast_array::<StringArray>(&unique_manifests);
-
-    let init = if first_file.is_empty() {
-        HashMap::new()
-    } else {
-        HashMap::from_iter([(first_file, first_manifest)])
-    };
 
     let result =
         manifest_strings

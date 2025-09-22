@@ -8,7 +8,8 @@ use datafusion::logical_expr::sqlparser::ast::helpers::key_value_options::{
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_common::{ParamValues, ScalarValue};
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -20,6 +21,41 @@ impl Default for SessionParams {
     fn default() -> Self {
         Self {
             properties: Arc::new(DashMap::new()),
+        }
+    }
+}
+
+impl PartialEq for SessionParams {
+    fn eq(&self, other: &Self) -> bool {
+        if Arc::ptr_eq(&self.properties, &other.properties) {
+            return true;
+        }
+        // Take a stable snapshot of both maps and compare
+        let to_btree = |m: &DashMap<String, SessionProperty>| {
+            let mut map: BTreeMap<String, SessionProperty> = BTreeMap::new();
+            for entry in m {
+                map.insert(entry.key().clone(), entry.value().clone());
+            }
+            map
+        };
+        to_btree(&self.properties) == to_btree(&other.properties)
+    }
+}
+
+impl Eq for SessionParams {}
+
+impl Hash for SessionParams {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Produce a deterministic hash by iterating in key order
+        let mut items: Vec<(String, SessionProperty)> = self
+            .properties
+            .iter()
+            .map(|e| (e.key().clone(), e.value().clone()))
+            .collect();
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+        for (k, v) in items {
+            k.hash(state);
+            v.hash(state);
         }
     }
 }
@@ -38,7 +74,7 @@ impl From<SessionParams> for ParamValues {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct SessionProperty {
     pub session_id: Option<String>,
     pub created_on: DateTime<Utc>,

@@ -1,7 +1,6 @@
 ---
 source: crates/df-catalog/src/tests/information_schema.rs
 description: "SELECT routine_name FROM embucket.information_schema.routines\n    GROUP BY routine_name ORDER BY routine_name"
-snapshot_kind: text
 ---
 +------------------------------------+
 | routine_name                       |
@@ -34,6 +33,7 @@ snapshot_kind: text
 | array_join                         |
 | array_length                       |
 | array_max                          |
+| array_min                          |
 | array_ndims                        |
 | array_pop_back                     |
 | array_pop_front                    |
@@ -185,6 +185,7 @@ snapshot_kind: text
 | make_date                          |
 | make_list                          |
 | map                                |
+| map_entries                        |
 | map_extract                        |
 | map_keys                           |
 | map_values                         |
@@ -213,6 +214,7 @@ snapshot_kind: text
 | range                              |
 | rank                               |
 | regexp_count                       |
+| regexp_instr                       |
 | regexp_like                        |
 | regexp_match                       |
 | regexp_replace                     |
@@ -276,6 +278,7 @@ snapshot_kind: text
 | trim                               |
 | trunc                              |
 | union_extract                      |
+| union_tag                          |
 | upper                              |
 | uuid                               |
 | var                                |

@@ -16,7 +16,7 @@ use std::sync::Arc;
 // - True if one expression is non-zero and the other expression is zero.
 // - False if both expressions are non-zero or both expressions are zero.
 // - NULL if one or both expressions are NULL.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct BoolXorFunc {
     signature: Signature,
 }

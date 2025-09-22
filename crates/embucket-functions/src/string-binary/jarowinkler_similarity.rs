@@ -1,3 +1,4 @@
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::{array::UInt64Array, datatypes::DataType};
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{Coercion, TypeSignature, TypeSignatureClass};
@@ -8,7 +9,7 @@ use std::any::Any;
 use std::sync::Arc;
 use strsim::jaro_winkler;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct JarowinklerSimilarityFunc {
     signature: Signature,
 }
@@ -69,8 +70,13 @@ impl ScalarUDFImpl for JarowinklerSimilarityFunc {
             ColumnarValue::Scalar(v) => &v.to_array()?,
         };
 
-        let left = as_string_array(left_arr)?;
-        let right = as_string_array(right_arr)?;
+        // In DataFusion 50 strings may be Utf8, LargeUtf8, or Utf8View.
+        // Cast both inputs to Utf8 to handle all logical string representations uniformly.
+        let left_casted = cast(left_arr, &DataType::Utf8)?;
+        let right_casted = cast(right_arr, &DataType::Utf8)?;
+
+        let left = as_string_array(&left_casted)?;
+        let right = as_string_array(&right_casted)?;
 
         let result = crate::macros::izip!(left.iter(), right.iter())
             .map(|(l, r)| {

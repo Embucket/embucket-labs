@@ -1,4 +1,4 @@
-use arrow_schema::DataType;
+use datafusion::arrow::datatypes::DataType;
 use snafu::{Location, Snafu};
 use std::num::TryFromIntError;
 
