@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/restrict-plus-operands */
 import type { Cell } from '@tanstack/react-table';
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 
@@ -67,11 +66,8 @@ export function DataTable<T>({
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id} className="text-nowrap hover:bg-inherit">
-            {headerGroup.headers.map((header, hgIndex) => (
-              <TableHead
-                key={header.id + hgIndex}
-                className={header.column.columnDef.meta?.headerClassName}
-              >
+            {headerGroup.headers.map((header) => (
+              <TableHead key={header.id} className={header.column.columnDef.meta?.headerClassName}>
                 {flexRender(header.column.columnDef.header, header.getContext())}
               </TableHead>
             ))}
