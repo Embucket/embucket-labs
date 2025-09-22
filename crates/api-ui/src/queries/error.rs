@@ -71,6 +71,13 @@ pub enum QueryError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Failed to parse DateTime: {error}"))]
+    Datetime {
+        #[snafu(source)]
+        error: chrono::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.

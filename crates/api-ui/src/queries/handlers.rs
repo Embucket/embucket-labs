@@ -1,9 +1,6 @@
 #![allow(clippy::needless_for_each)]
-use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult, StoreSnafu};
-use crate::queries::models::{
-    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
-    QueryRecord, QueryRecordId,
-};
+use crate::queries::error::{DatetimeSnafu, ExecutionSnafu, GetQueryRecordSnafu, QueriesSnafu, QueryRecordResult, StoreSnafu};
+use crate::queries::models::{GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord, QueryRecordId, QueryStatus, ResultSet};
 use crate::state::AppState;
 use crate::{apply_parameters, downcast_int64_column, downcast_string_column, error::ErrorResponse, error::Result, queries::error::{self as queries_errors, QueryError}, SearchParameters};
 use api_sessions::DFSessionId;
@@ -19,7 +16,9 @@ use core_utils::iterable::IterableEntity;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use datafusion::arrow::array::{Array, ArrayAccessor};
+use snafu::futures::TryFutureExt;
 use utoipa::OpenApi;
 use crate::worksheets::error::ListSnafu;
 use crate::worksheets::Worksheet;
@@ -208,29 +207,36 @@ pub async fn queries(
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
         .await
-        .context(ListSnafu)?;
+        .context(ExecutionSnafu)
+        .context(QueriesSnafu)?;
     let mut items = Vec::new();
     for record in records {
-        let ids = downcast_int64_column(&record, "id").context(ListSnafu)?;
-        let names = downcast_string_column(&record, "name").context(ListSnafu)?;
-        let contents = downcast_string_column(&record, "content").context(ListSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(ListSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+        let ids = downcast_int64_column(&record, "id").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let worksheet_ids = downcast_int64_column(&record, "worksheet_id").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let queries = downcast_string_column(&record, "query").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let start_times = downcast_int64_column(&record, "start_time").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let end_times = downcast_int64_column(&record, "end_time").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let duration_ms_values = downcast_int64_column(&record, "duration_ms").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let result_counts = downcast_int64_column(&record, "result_count").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let results = downcast_string_column(&record, "result").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let status = downcast_string_column(&record, "status").context(ExecutionSnafu).context(QueriesSnafu)?;
+        let errors = downcast_string_column(&record, "error").context(ExecutionSnafu).context(QueriesSnafu)?;
         for i in 0..record.num_rows() {
-            items.push(Worksheet {
+            items.push(QueryRecord {
                 id: ids.value(i),
-                name: names.value(i).to_string(),
-                content: contents.value(i).to_string(),
-                created_at: created_at_timestamps
-                    .value(i)
-                    .parse::<DateTime<Utc>>()
-                    .context(DatetimeSnafu)?,
-                updated_at: updated_at_timestamps
-                    .value(i)
-                    .parse::<DateTime<Utc>>()
-                    .context(DatetimeSnafu)?,
+                worksheet_id: if worksheet_ids.is_null(i) {
+                    Some(worksheet_ids.value(i))
+                } else {
+                    None
+                },
+                query: queries.value(i).to_string(),
+                start_time: DateTime::from_timestamp_millis(start_times.value(i)).unwrap(),
+                end_time: DateTime::from_timestamp_millis(end_times.value(i)).unwrap(),
+                duration_ms: duration_ms_values.value(i),
+                result_count: result_counts.value(i),
+                result: ResultSet::try_from(results.value(i)).unwrap(),
+                status: QueryStatus,
+                error: "".to_string(),
             });
         }
     }

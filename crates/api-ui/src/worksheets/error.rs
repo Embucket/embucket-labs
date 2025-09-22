@@ -33,7 +33,7 @@ pub enum Error {
     },
     #[snafu(display("Get worksheets error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: WorksheetError,
         #[snafu(implicit)]
         location: Location,
     },
