@@ -72,25 +72,21 @@ def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
                 total_value = total_row['Total (ms)'].values[0]
                 total_values.append((i, total_value))
 
-        if len(total_values) >= 3:  # Only remove if we have enough files with TOTAL rows
-            # Sort by total values
-            total_values.sort(key=lambda x: x[1])
+        # Sort by total values
+        total_values.sort(key=lambda x: x[1])
 
-            # Get indices of min and max files
-            min_idx = total_values[0][0]
-            max_idx = total_values[-1][0]
+        # Get indices of min and max files
+        min_idx = total_values[0][0]
+        max_idx = total_values[-1][0]
 
-            print(f"Removing file with lowest TOTAL: {csv_files[min_idx]} (value: {total_values[0][1]})")
-            print(f"Removing file with highest TOTAL: {csv_files[max_idx]} (value: {total_values[-1][1]})")
+        print(f"Removing file with lowest TOTAL: {csv_files[min_idx]} (value: {total_values[0][1]})")
+        print(f"Removing file with highest TOTAL: {csv_files[max_idx]} (value: {total_values[-1][1]})")
 
-            # Filter out min and max files
-            filtered_indices = [i for i in range(len(all_dfs)) if i != min_idx and i != max_idx]
-            dfs = [all_dfs[i] for i in filtered_indices]
-            used_files = [csv_files[i] for i in filtered_indices]
-            print(f"Using {len(dfs)} files for averaging: {used_files}")
-        else:
-            dfs = all_dfs
-            print(f"Not enough files with TOTAL rows, using all {len(dfs)} files")
+        # Filter out min and max files
+        filtered_indices = [i for i in range(len(all_dfs)) if i != min_idx and i != max_idx]
+        dfs = [all_dfs[i] for i in filtered_indices]
+        used_files = [csv_files[i] for i in filtered_indices]
+        print(f"Using {len(dfs)} files for averaging: {used_files}")
 
         # Sort each DataFrame by 'Query' to align rows
         dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
@@ -98,36 +94,28 @@ def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
         # Concatenate DataFrames along a new axis
         stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
 
-        # Determine columns based on pattern type
-        if pattern_type == 'embucket':
-            numeric_cols = ['Total (ms)']
-        else:  # snowflake
-            numeric_cols = ['Compilation (ms)', 'Execution (ms)', 'Total (ms)']
+        numeric_col = 'Total (ms)'
 
-        # Check which numeric columns are actually present
-        available_numeric_cols = [col for col in numeric_cols if all(col in df.columns for df in dfs)]
+        # Check if all DataFrames have the required column
+        if not all(numeric_col in df.columns for df in dfs):
+            print(f"Not all files contain the '{numeric_col}' column. Skipping.")
+            continue
 
-        averaged = stacked.groupby(level=1)[available_numeric_cols].mean().reset_index(drop=True)
-
-        # Use 'Query' from the first DataFrame
+        # Stack and average
+        dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
+        stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
+        averaged = stacked.groupby(level=1)[[numeric_col]].mean().reset_index(drop=True)
         averaged['Query'] = dfs[0]['Query']
-
-        # Reorder columns to match required structure
-        cols = ['Query']
-        cols.extend(available_numeric_cols)
-        averaged = averaged[cols]
-
-        # Sort by query name numerically
+        averaged = averaged[['Query', numeric_col]]
         averaged = natural_sort_queries(averaged)
 
-        # Handle TOTAL row if it exists - move it to the top
+        # Move TOTAL row to the top if it exists
         if 'TOTAL' in averaged['Query'].values:
             total_row = averaged[averaged['Query'] == 'TOTAL']
             other_rows = averaged[averaged['Query'] != 'TOTAL']
             averaged = pd.concat([total_row, other_rows]).reset_index(drop=True)
 
-        # Save to CSV in the same directory as the input files
-        output_filename = os.path.join(search_dir, f'{pattern_type}_avg_results.csv')
+        # Save to CSV
+        output_filename = os.path.join(search_dir, f'avg_results.csv')
         averaged.to_csv(output_filename, index=False)
         print(f"Created average file: {output_filename}")
-

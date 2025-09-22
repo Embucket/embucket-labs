@@ -29,7 +29,7 @@ def create_embucket_connection():
         "host": host,
         "protocol": protocol,
         "port": int(port) if port else 3000,
-        "socket_timeout": 1200, # connector restarts query if timeout is reached
+        "socket_timeout": 1200, # connector restarts query if timeout (in seconds) is reached
     }
 
     conn = sf.connect(**connect_args)
