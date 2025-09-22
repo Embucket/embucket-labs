@@ -48,3 +48,17 @@ export const transformNavigationTreeToSqlConfigSchema = (
 
   return sqlConfig;
 };
+
+// Cell id helpers centralize how we build and parse unique cell identifiers
+// for data tables. This avoids hard-coded "row:column" strings across the app
+// and lets us change the delimiter/shape in a single place later.
+const CELL_ID_DELIMITER = ':' as const;
+
+export function makeCellId(rowId: string | number, columnId: string | number): string {
+  return `${rowId}${CELL_ID_DELIMITER}${columnId}`;
+}
+
+export function splitCellId(cellId: string): { rowId: string; columnId: string } {
+  const [rowId, columnId] = cellId.split(CELL_ID_DELIMITER);
+  return { rowId, columnId };
+}

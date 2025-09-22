@@ -14,6 +14,7 @@ import { getGetQueriesQueryKey, useCreateQuery } from '@/orval/queries';
 
 import { SqlEditorResizableHandle, SqlEditorResizablePanel } from '../sql-editor-resizable';
 import { useSqlEditorSettingsStore } from '../sql-editor-settings-store';
+import { QUERY_RECORD_MOCK } from '../TEST';
 import { SqlEditorCenterBottomPanel } from './sql-editor-center-bottom-panel/sql-editor-center-bottom-panel';
 import { SqlEditorCenterPanelFooter } from './sql-editor-center-panel-footer';
 import { SqlEditorCenterPanelHeader } from './sql-editor-center-panel-header/sql-editor-center-panel-header';
@@ -57,7 +58,7 @@ export function SqlEditorCenterPanel() {
           }),
         ]);
         if (newQueryRecord) {
-          setSelectedQueryRecord(+worksheetId, newQueryRecord);
+          setSelectedQueryRecord(+worksheetId, QUERY_RECORD_MOCK);
         }
       },
       onError: (error) => {

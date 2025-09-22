@@ -1,12 +1,18 @@
+import { useRef, useState } from 'react';
+
 import { AlertTriangle, ArrowDownToLine, Search, TextSearch } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { Button } from '@/components/ui/button';
+import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { QueryRecord } from '@/orval/models';
 
+import { SqlEditorResizableHandle } from '../../sql-editor-resizable';
 import { SqlEditorCenterBottomPanelQueryResultTable } from './sql-editor-center-bottom-panel-query-result-table';
+import { SqlEditorCenterBottomPanelSelectedCell } from './sql-editor-center-bottom-panel-selected-cell.tsx';
+import { useEditorScrollToSelectedCell } from './use-editor-scroll-to-selected-cell.tsx';
 
 interface SqlEditorCenterPanelQueryColumnsProps {
   isLoading: boolean;
@@ -17,6 +23,11 @@ export function SqlEditorCenterBottomPanel({
   isLoading,
   queryRecord,
 }: SqlEditorCenterPanelQueryColumnsProps) {
+  const [selectedCellId, setSelectedCellId] = useState<string>();
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+
+  useEditorScrollToSelectedCell({ selectedCellId, scrollRootRef });
+
   if (queryRecord?.error) {
     // TODO: EmptyContainer designed to be used for empty states strictly
     return (
@@ -74,14 +85,40 @@ export function SqlEditorCenterBottomPanel({
           </div>
           {/* TODO: Hardcode */}
           <TabsContent value="results" className="m-0 h-[calc(100%-100px)]">
-            <ScrollArea tableViewport className="size-full">
-              <SqlEditorCenterBottomPanelQueryResultTable
-                columns={columns}
-                rows={rows}
-                isLoading={isLoading}
-              />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+            <ResizablePanelGroup direction="horizontal" className="size-full">
+              <ResizablePanel order={1} defaultSize={selectedCellId ? 70 : 100} minSize={50}>
+                <ScrollArea tableViewport className="size-full" ref={scrollRootRef}>
+                  <SqlEditorCenterBottomPanelQueryResultTable
+                    selectedCellId={selectedCellId}
+                    onSelectedCellId={setSelectedCellId}
+                    columns={columns}
+                    rows={rows}
+                    isLoading={isLoading}
+                  />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </ResizablePanel>
+
+              {selectedCellId && <SqlEditorResizableHandle />}
+
+              {selectedCellId && (
+                <ResizablePanel
+                  className="transition-none"
+                  order={2}
+                  collapsible
+                  defaultSize={30}
+                  minSize={20}
+                  onCollapse={() => setSelectedCellId(undefined)}
+                >
+                  <SqlEditorCenterBottomPanelSelectedCell
+                    selectedCellId={selectedCellId}
+                    columns={columns}
+                    rows={rows}
+                    onClose={() => setSelectedCellId(undefined)}
+                  />
+                </ResizablePanel>
+              )}
+            </ResizablePanelGroup>
           </TabsContent>
           <TabsContent value="chart"></TabsContent>
         </Tabs>
