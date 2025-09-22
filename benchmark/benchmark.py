@@ -358,6 +358,6 @@ def run_benchmark(run_number):
 
 
 if __name__ == "__main__":
-    for i in range(1):
+    for i in range(5):
         print(f"Run {i + 1} of 5")
-        run_embucket_benchmark(i + 1)
+        run_benchmark(i + 1)
