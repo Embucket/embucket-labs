@@ -152,4 +152,18 @@ mod snowflake_compatibility {
             "SELECT SYSTEM$CANCEL_QUERY('$LAST_QUERY_ID');",
         ]
     );
+
+    sql_test!(
+        regression_bug_1662_ambiguous_schema,
+        [
+            // +-----+-----+
+            // | COL | COL |
+            // |-----+-----|
+            // |   1 |   2 |
+            // +-----+-----+
+            "select * from 
+                ( select 1 as col ) schema1,
+                ( select 2 as col ) schema2",
+        ]
+    );
 }

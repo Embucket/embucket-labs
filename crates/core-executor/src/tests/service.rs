@@ -3,7 +3,7 @@ use crate::models::{QueryContext, QueryResult};
 use crate::running_queries::AbortQuery;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
-use core_history::QueryStatus;
+use core_history::{QueryStatus, ResultSet};
 use core_history::entities::worksheet::Worksheet;
 use core_history::history_store::{GetQueriesParams, HistoryStore};
 use core_history::store::SlateDBHistoryStore;
@@ -15,6 +15,7 @@ use core_metastore::{
     Volume as MetastoreVolume,
 };
 use core_utils::Db;
+use datafusion::arrow::array::Int64Array;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 use std::sync::Arc;
 

@@ -2,7 +2,7 @@ use super::models::QueryResult;
 use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
-use core_history::result_set::{Column, ResultSet, Row};
+use core_history::result_set::{Column, ResultSet, RowData, Row};
 use core_history::{QueryResultError, QueryStatus};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
@@ -22,6 +22,7 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::arrow::row;
 use datafusion::common::ScalarValue;
 use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
@@ -879,11 +880,12 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSe
     let json_str = String::from_utf8(json_bytes).context(Utf8Snafu)?;
 
     // Deserialize the JSON string into rows of values
-    let raw_rows: Vec<IndexMap<String, Value>> =
-        serde_json::from_str(&json_str).context(SerdeParseSnafu)?;
+    let raw_rows = 
+        serde_json::from_str::<Vec<RowData>>(&json_str).context(SerdeParseSnafu)?;
+
     let rows = raw_rows
         .into_iter()
-        .map(|map| Row::new(map.into_values().collect()))
+        .map(|row| row.0)
         .collect();
 
     // Extract column metadata from the original QueryResult
@@ -1403,4 +1405,41 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_bug_1662_duplicate_columns_names() {
+     // Check if following result is converted to ResultSet correctly:
+        // +-----+-----+
+        // | COL | COL |
+        // +-----+-----+
+        // |   1 |   2 |
+        // +-----+-----+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("col", DataType::Int64, true),
+            Field::new("col", DataType::Int64, true),
+        ]));
+
+        let record_batch =
+            RecordBatch::try_new(schema.clone(), vec![
+                Arc::new(Int64Array::from(vec![Some(1)])),
+                Arc::new(Int64Array::from(vec![Some(2)])),
+            ]).unwrap();
+    
+        // Create QueryResult
+        let query_result = QueryResult::new(vec![record_batch], schema.clone(), QueryRecordId(0));
+
+        // Create ResultSet from QueryResult
+        let result_set = query_result_to_result_set(&query_result)
+            .expect("Failed to convert query result to result set");
+
+        eprintln!("Result set: {result_set:?}");
+        // check if ResultSet is correct
+        assert_eq!(result_set.columns.len(), 2);
+        let columns_names = result_set.columns.iter().map(|col| col.name.clone()).collect::<Vec<_>>();
+        assert_eq!(columns_names, ["col", "col"]);
+        assert_eq!(result_set.rows.len(), 1);
+        let rows = result_set.rows.iter().map(|row| row.0.clone()).collect::<Vec<_>>();
+        let row = rows[0].iter().map(|col| col.as_i64().unwrap()).collect::<Vec<_>>();
+        assert_eq!(row, [1, 2]);
+    } 
 }
