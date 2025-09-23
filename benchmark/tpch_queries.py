@@ -1,4 +1,8 @@
-TPCH_QUERIES = [
+import os
+import re
+
+# Original TPC-H queries with bare table names
+_TPCH_QUERIES_RAW = [
     (
         "tpch-q1",
         """
@@ -738,3 +742,38 @@ TPCH_QUERIES = [
         """
     ),
 ]
+
+
+def parametrize_tpch_queries():
+    """
+    Parametrize TPC-H queries by replacing bare table names with fully qualified names.
+    Returns a list of (query_name, parametrized_query) tuples.
+    """
+    # TPC-H table names that need to be parametrized
+    tpch_table_names = ['customer', 'lineitem', 'nation', 'orders', 'part', 'partsupp', 'region', 'supplier']
+
+    # Get database and schema from environment variables
+    database = os.environ['EMBUCKET_DATABASE']
+    schema = os.environ['EMBUCKET_SCHEMA']
+
+    parametrized_queries = []
+
+    for query_name, query_sql in _TPCH_QUERIES_RAW:
+        parametrized_sql = query_sql
+
+        # Replace each table name with fully qualified name using word boundaries
+        for table_name in tpch_table_names:
+            qualified_name = f"{database}.{schema}.{table_name}"
+
+            # Use word boundaries to match complete table names only
+            # This will match table names in all contexts (FROM, JOIN, comma-separated lists, etc.)
+            pattern = rf'\b{table_name}\b'
+            parametrized_sql = re.sub(pattern, qualified_name, parametrized_sql, flags=re.IGNORECASE)
+
+        parametrized_queries.append((query_name, parametrized_sql))
+
+    return parametrized_queries
+
+
+# Export the parametrized queries
+TPCH_QUERIES = parametrize_tpch_queries()
