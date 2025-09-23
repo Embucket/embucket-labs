@@ -1,5 +1,4 @@
 use super::error::{QueryError, QueryRecordResult, QueryStatusParseSnafu, ResultParseSnafu};
-use crate::default_limit;
 use chrono::{DateTime, Utc};
 use core_history::{QueryStatus as QueryStatusItem, WorksheetId};
 use serde::{Deserialize, Serialize};
@@ -147,24 +146,7 @@ pub struct QueriesResponse {
 #[serde(rename_all = "camelCase")]
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
-    pub sql_text: Option<String>,     // filter by SQL Text
     pub min_duration_ms: Option<i64>, // filter Duration greater than
-    pub cursor: Option<QueryRecordId>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<core_history::GetQueriesParams> for GetQueriesParams {
-    fn into(self) -> core_history::GetQueriesParams {
-        core_history::GetQueriesParams {
-            worksheet_id: self.worksheet_id,
-            sql_text: self.sql_text,
-            min_duration_ms: self.min_duration_ms,
-            cursor: self.cursor.map(Into::into),
-            limit: self.limit,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

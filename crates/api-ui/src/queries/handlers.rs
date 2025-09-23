@@ -2,10 +2,7 @@
 use crate::queries::error::{
     DatetimeSnafu, ExecutionSnafu, GetQueryRecordSnafu, QueriesSnafu, StoreSnafu,
 };
-use crate::queries::models::{
-    QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord,
-    QueryRecordId, QueryStatus, ResultSet,
-};
+use crate::queries::models::{GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord, QueryRecordId, QueryStatus, ResultSet};
 use crate::state::AppState;
 use crate::{
     OrderDirection, SearchParameters, apply_parameters, downcast_int64_column,
@@ -205,14 +202,33 @@ pub async fn get_query(
 pub async fn queries(
     DFSessionId(session_id): DFSessionId,
     Query(parameters): Query<SearchParameters>,
+    Query(special_parameters): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> Result<Json<QueriesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
+    let sql_string = special_parameters.worksheet_id.map_or_else(
+        || sql_string.clone(), 
+        |worksheet_id| {
+        format!(
+            "{sql_string} WHERE worksheet_id = {worksheet_id}"
+        )
+    });
+    let sql_string = special_parameters.min_duration_ms.map_or_else(
+        || sql_string.clone(),
+    |min_duration_ms| {
+        format!(
+            "{sql_string} WHERE duration_ms >= {min_duration_ms}"
+        )
+    });
     let sql_string = apply_parameters(
         &sql_string,
         parameters,
-        &["id", "worksheet_id", "query", "status"],
+        if special_parameters.worksheet_id.is_some() {
+            &["id", "query", "status"]
+        } else {
+            &["id", "worksheet_id", "query", "status"]
+        },
     );
     let QueryResult { records, .. } = state
         .execution_svc
