@@ -3,6 +3,7 @@ import glob
 import re
 import os
 
+COLUMN_TO_AVERAGE = 'Total (ms)'
 
 def natural_sort_queries(df):
     """Sort queries numerically."""
@@ -16,7 +17,7 @@ def natural_sort_queries(df):
 
 def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
     """
-    Calculate average results for benchmark runs, excluding min and max runs.
+    Calculate average results for benchmark runs.
 
     Args:
         schema: The schema/dataset used in the benchmark
@@ -56,37 +57,13 @@ def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
 
         print(f"Processing {pattern_type} with {len(csv_files)} files")
 
-        if len(csv_files) < 3:
-            print(f"Not enough files to remove min/max (found {len(csv_files)})")
+        if len(csv_files) < 1:
+            print(f"No files found for averaging (found {len(csv_files)})")
             continue
 
         # Read all DataFrames
-        all_dfs = [pd.read_csv(f) for f in csv_files]
-
-        # Extract TOTAL values to identify min and max files
-        total_values = []
-        for i, df in enumerate(all_dfs):
-            # Check if TOTAL row exists
-            total_row = df[df['Query'] == 'TOTAL']
-            if not total_row.empty and 'Total (ms)' in df.columns:
-                total_value = total_row['Total (ms)'].values[0]
-                total_values.append((i, total_value))
-
-        # Sort by total values
-        total_values.sort(key=lambda x: x[1])
-
-        # Get indices of min and max files
-        min_idx = total_values[0][0]
-        max_idx = total_values[-1][0]
-
-        print(f"Removing file with lowest TOTAL: {csv_files[min_idx]} (value: {total_values[0][1]})")
-        print(f"Removing file with highest TOTAL: {csv_files[max_idx]} (value: {total_values[-1][1]})")
-
-        # Filter out min and max files
-        filtered_indices = [i for i in range(len(all_dfs)) if i != min_idx and i != max_idx]
-        dfs = [all_dfs[i] for i in filtered_indices]
-        used_files = [csv_files[i] for i in filtered_indices]
-        print(f"Using {len(dfs)} files for averaging: {used_files}")
+        dfs = [pd.read_csv(f) for f in csv_files]
+        print(f"Using all {len(dfs)} files for averaging: {csv_files}")
 
         # Sort each DataFrame by 'Query' to align rows
         dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
@@ -94,19 +71,12 @@ def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
         # Concatenate DataFrames along a new axis
         stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
 
-        numeric_col = 'Total (ms)'
-
-        # Check if all DataFrames have the required column
-        if not all(numeric_col in df.columns for df in dfs):
-            print(f"Not all files contain the '{numeric_col}' column. Skipping.")
-            continue
-
         # Stack and average
         dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
         stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
-        averaged = stacked.groupby(level=1)[[numeric_col]].mean().reset_index(drop=True)
+        averaged = stacked.groupby(level=1)[[COLUMN_TO_AVERAGE]].mean().reset_index(drop=True)
         averaged['Query'] = dfs[0]['Query']
-        averaged = averaged[['Query', numeric_col]]
+        averaged = averaged[['Query', COLUMN_TO_AVERAGE]]
         averaged = natural_sort_queries(averaged)
 
         # Move TOTAL row to the top if it exists

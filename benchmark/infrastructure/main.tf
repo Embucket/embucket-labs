@@ -221,17 +221,12 @@ resource "null_resource" "upload_files" {
     destination = "/home/ec2-user/bootstrap.sh"
   }
 
-  # Upload credential setup script
-  provisioner "file" {
-    source      = "${path.module}/setup_credentials.sh"
-    destination = "/home/ec2-user/setup_credentials.sh"
-  }
+
 
   # Run bootstrap script
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ec2-user/bootstrap.sh",
-      "chmod +x /home/ec2-user/setup_credentials.sh",
       "sudo /home/ec2-user/bootstrap.sh"
     ]
   }

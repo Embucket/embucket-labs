@@ -301,11 +301,11 @@ def run_snowflake_benchmark(run_number):
     sf_cursor.close()
     sf_connection.close()
 
-    # Check if we have 5 CSV files ready and calculate averages if so
+    # Check if we have 3 CSV files ready and calculate averages if so
     search_dir = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}"
     csv_files = glob.glob(os.path.join(search_dir, "snowflake_results_run_*.csv"))
-    if len(csv_files) == 5:
-        print(f"Found 5 CSV files. Calculating averages...")
+    if len(csv_files) == 3:
+        print(f"Found 3 CSV files. Calculating averages...")
         calculate_benchmark_averages(sf_schema, sf_warehouse, is_embucket=False)
 
     return sf_results
@@ -335,11 +335,11 @@ def run_embucket_benchmark(run_number):
 
     print(f"Embucket benchmark results saved to: {emb_output_path}")
 
-    # Check if we have 5 CSV files ready and calculate averages if so
+    # Check if we have 3 CSV files ready and calculate averages if so
     search_dir = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}"
     csv_files = glob.glob(os.path.join(search_dir, "embucket_*.csv"))
-    if len(csv_files) == 5:
-        print(f"Found 5 CSV files. Calculating averages...")
+    if len(csv_files) == 3:
+        print(f"Found 3 CSV files. Calculating averages...")
         calculate_benchmark_averages(embucket_dataset, embucket_instance, is_embucket=True)
 
     return emb_results
@@ -358,6 +358,6 @@ def run_benchmark(run_number):
 
 
 if __name__ == "__main__":
-    for i in range(5):
-        print(f"Run {i + 1} of 5")
-        run_benchmark(i + 1)
+    for i in range(3):
+        print(f"Run {i + 1} of 3")
+        run_embucket_benchmark(i + 1)
