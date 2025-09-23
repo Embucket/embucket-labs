@@ -25,7 +25,6 @@ use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuer
 use super::session::UserSession;
 use crate::running_queries::AbortQuery;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
-use crate::stats::{QueryMemGuard, truncate_sql};
 use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
@@ -628,29 +627,24 @@ impl ExecutionService for CoreExecutionService {
 
         let history_store_ref = self.history_store.clone();
         let queries_ref = self.queries.clone();
-        let runtime_env = self.runtime_env.clone();
 
         let (tx, rx) = oneshot::channel();
 
         let child = tracing::info_span!("spawn_query_task");
 
+        let alloc_span = tracing::info_span!(
+            target: "alloc",
+            "query_alloc",
+            query_id = %history_record.query_id(),
+            session_id = %session_id
+        );
         tokio::spawn(async move {
             let mut query_obj = query_obj;
-
-            let guard = QueryMemGuard::start(
-                history_record.query_id(),
-                runtime_env,
-                truncate_sql(&query_obj.query, 256),
-                /* suspect_mb_per_s = */ 100, // like 512 MB/s
-                /* tick_ms = */ 300,
-                /* log_path */ Some("./query_mem.log".into()),
-            );
             // Execute the query with a timeout to prevent long-running or stuck queries
             // from blocking system resources indefinitely. If the timeout is exceeded,
             // convert the timeout into a standard QueryTimeout error so it can be handled
             // and recorded like any other execution failure.
             let result_fut = timeout(Duration::from_secs(query_timeout_secs), query_obj.execute());
-            guard.finish().await;
 
             // wait for any future to be resolved
             let query_result_status = tokio::select! {
@@ -722,7 +716,7 @@ impl ExecutionService for CoreExecutionService {
             if let Ok(running_query) = running_query {
                 let _ = running_query.notify_query_finished(query_status.clone());
             }
-        }.instrument(child));
+        }.instrument(alloc_span).instrument(child));
 
         // return handle of the query we just submit
         Ok(AsyncQueryHandle { query_id, rx })

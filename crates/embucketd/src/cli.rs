@@ -201,6 +201,14 @@ pub struct CliOpts {
     )]
     pub disk_pool_size_mb: Option<usize>,
 
+    #[arg(
+        long,
+        env = "ALLOC_TRACING",
+        default_value = "false",
+        help = "Enable memory tracing functionality"
+    )]
+    pub alloc_tracing: Option<bool>,
+
     // should unset JWT_SECRET env var after loading
     #[arg(
         long,

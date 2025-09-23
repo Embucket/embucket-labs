@@ -3,6 +3,7 @@
 #![allow(clippy::needless_for_each)]
 pub(crate) mod cli;
 pub(crate) mod helpers;
+pub(crate) mod layers;
 
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
@@ -57,13 +58,24 @@ use tower_http::compression::CompressionLayer;
 use tower_http::decompression::RequestDecompressionLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::filter::{LevelFilter, Targets};
+use tracing_subscriber::filter::{FilterExt, LevelFilter, Targets, filter_fn};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
 
+#[cfg(feature = "alloc-tracing")]
+mod alloc_tracing {
+    pub use crate::layers::AllocLogLayer;
+    pub use tracing_allocations::{TRACE_ALLOCATOR, TracingAllocator};
+
+    #[global_allocator]
+    static ALLOCATOR: TracingAllocator<snmalloc_rs::SnMalloc> =
+        TracingAllocator::new(snmalloc_rs::SnMalloc);
+}
+
+#[cfg(not(feature = "alloc-tracing"))]
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
@@ -83,20 +95,45 @@ const TARGETS: [&str; 13] = [
     "datafusion_iceberg",
 ];
 
-#[tokio::main]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,
     clippy::print_stdout,
     clippy::too_many_lines
 )]
-async fn main() {
+fn main() {
     dotenv().ok();
 
     let opts = cli::CliOpts::parse();
 
-    let tracing_provider = setup_tracing(&opts);
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_start({
+            move || {
+                #[cfg(feature = "alloc-tracing")]
+                if opts.alloc_tracing.unwrap_or(false) {
+                    alloc_tracing::TRACE_ALLOCATOR.with(|cell| *cell.borrow_mut() = true);
+                }
+            }
+        })
+        .build()
+        .expect("build tokio runtime");
 
+    rt.block_on(async move {
+        let tracing_provider = setup_tracing(&opts);
+
+        async_main(opts, tracing_provider).await;
+    });
+}
+
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    clippy::too_many_lines,
+    clippy::cognitive_complexity
+)]
+async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
@@ -293,7 +330,7 @@ async fn main() {
         .expect("TracerProvider should shutdown successfully");
 }
 
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::redundant_closure_for_method_calls)]
 fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     // Initialize OTLP exporter using gRPC (Tonic)
     let exporter = opentelemetry_otlp::SpanExporter::builder()
@@ -326,7 +363,18 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
             targets.iter().map(|t| ((*t), level)).collect()
         };
 
-    tracing_subscriber::registry()
+    // Memory allocations
+    #[cfg(feature = "alloc-tracing")]
+    let alloc_layer =
+        alloc_tracing::AllocLogLayer::write_to_file("./alloc.log").expect("open alloc log");
+
+    #[cfg(feature = "alloc-tracing")]
+    {
+        let alloc_flusher = std::sync::Arc::new(alloc_layer.clone());
+        alloc_flusher.spawn_flusher(std::time::Duration::from_secs(1));
+    }
+
+    let registry = tracing_subscriber::registry()
         // Telemetry filtering
         .with(
             tracing_opentelemetry::OpenTelemetryLayer::new(tracing_provider.tracer("embucket"))
@@ -337,36 +385,45 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
                 ))),
         )
         // Logs filtering
-        .with(
+        .with({
+            let fmt_filter = match std::env::var("RUST_LOG") {
+                Ok(val) => match val.parse::<Targets>() {
+                    Ok(log_targets_from_env) => log_targets_from_env,
+                    Err(err) => {
+                        eprintln!("Failed to parse RUST_LOG: {err:?}");
+                        Targets::default()
+                            .with_targets(targets_with_level(&TARGETS, LevelFilter::DEBUG))
+                            .with_default(LevelFilter::DEBUG)
+                    }
+                },
+                _ => Targets::default()
+                    .with_targets(targets_with_level(&TARGETS, LevelFilter::INFO))
+                    .with_targets(targets_with_level(
+                        &["tower_sessions", "tower_sessions_core", "tower_http"],
+                        LevelFilter::OFF,
+                    ))
+                    .with_default(LevelFilter::INFO),
+            };
+            // Skip memory allocations spans
+            let spans_always = filter_fn(|meta| meta.is_span());
+            let not_alloc_event = filter_fn(|meta| {
+                meta.target() != "alloc" && meta.target() != "tracing_allocations"
+            });
+
             tracing_subscriber::fmt::layer()
                 .with_target(true)
                 .with_level(true)
-                .with_span_events(FmtSpan::CLOSE)
+                .with_span_events(FmtSpan::NONE)
                 .json()
-                .with_filter(match std::env::var("RUST_LOG") {
-                    Ok(val) => match val.parse::<Targets>() {
-                        // env var parse OK
-                        Ok(log_targets_from_env) => log_targets_from_env,
-                        Err(err) => {
-                            eprintln!("Failed to parse RUST_LOG: {err:?}");
-                            Targets::default()
-                                .with_targets(targets_with_level(&TARGETS, LevelFilter::DEBUG))
-                                .with_default(LevelFilter::DEBUG)
-                        }
-                    },
-                    // No var set: use default log level INFO
-                    _ => Targets::default()
-                        .with_targets(targets_with_level(&TARGETS, LevelFilter::INFO))
-                        .with_targets(targets_with_level(
-                            // disable following targets:
-                            &["tower_sessions", "tower_sessions_core", "tower_http"],
-                            LevelFilter::OFF,
-                        ))
-                        .with_default(LevelFilter::INFO),
-                }),
-        )
-        .init();
+                .with_filter(spans_always.or(not_alloc_event.and(fmt_filter)))
+        });
 
+    // Memory allocations layer
+    #[cfg(feature = "alloc-tracing")]
+    let registry = registry.with(alloc_layer.with_filter(filter_fn(|meta| {
+        meta.target() == "tracing_allocations" || meta.target() == "alloc"
+    })));
+    registry.init();
     tracing_provider
 }
 
