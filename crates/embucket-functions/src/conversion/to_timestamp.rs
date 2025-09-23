@@ -543,6 +543,7 @@ fn apply_timezone(ts: i64, tz_str: &str, try_mode: bool, unit: TimeUnit) -> DFRe
     }
 }
 
+#[allow(clippy::match_same_arms)]
 #[must_use]
 pub fn parse_timezone(s: &str) -> Option<FixedOffset> {
     match s.to_uppercase().as_str() {

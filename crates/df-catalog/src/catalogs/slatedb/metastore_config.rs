@@ -112,22 +112,28 @@ impl MetastoreViewConfig {
             .await
             .context(df_error::CoreUtilsSnafu)?;
         for table in tables {
-            let mut total_bytes = 0;
-            let mut total_rows = 0;
-            if let Ok(Some(latest_snapshot)) = table.metadata.current_snapshot(None) {
-                total_bytes = latest_snapshot
-                    .summary()
-                    .other
-                    .get("total-files-size")
-                    .and_then(|value| value.parse::<i64>().ok())
-                    .unwrap_or(0);
-                total_rows = latest_snapshot
-                    .summary()
-                    .other
-                    .get("total-records")
-                    .and_then(|value| value.parse::<i64>().ok())
-                    .unwrap_or(0);
-            }
+            let total_bytes =
+                if let Ok(Some(latest_snapshot)) = table.metadata.current_snapshot(None) {
+                    latest_snapshot
+                        .summary()
+                        .other
+                        .get("total-files-size")
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
+            let total_rows =
+                if let Ok(Some(latest_snapshot)) = table.metadata.current_snapshot(None) {
+                    latest_snapshot
+                        .summary()
+                        .other
+                        .get("total-records")
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
             builder.add_tables(
                 &table.ident.table,
                 &table.ident.schema,

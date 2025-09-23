@@ -3,11 +3,11 @@ use crate::error::StackError;
 // break up error into pieces, it does it more fancy than error_stack_trace
 macro_rules! get_error_chain {
     ($err:expr) => {{
-        let mut err: &(dyn std::error::Error) = $err;
+        let mut err: &dyn std::error::Error = $err;
         let mut i = 0;
         let mut lines = Vec::new();
         loop {
-            lines.push(format!("{}: {}", i, err));
+            lines.push(format!("{i}: {err}"));
             if let Some(source) = err.source() {
                 err = source;
                 i += 1;

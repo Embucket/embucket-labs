@@ -94,22 +94,28 @@ pub async fn get_table_statistics(
     let ident = MetastoreTableIdent::new(&database_name, &schema_name, &table_name);
     let table = match state.metastore.get_table(&ident).await {
         Ok(Some(rw_object)) => {
-            let mut total_bytes = 0;
-            let mut total_rows = 0;
-            if let Ok(Some(latest_snapshot)) = rw_object.metadata.current_snapshot(None) {
-                total_bytes = latest_snapshot
-                    .summary()
-                    .other
-                    .get("total-files-size")
-                    .and_then(|value| value.parse::<i64>().ok())
-                    .unwrap_or(0);
-                total_rows = latest_snapshot
-                    .summary()
-                    .other
-                    .get("total-records")
-                    .and_then(|value| value.parse::<i64>().ok())
-                    .unwrap_or(0);
-            }
+            let total_bytes =
+                if let Ok(Some(latest_snapshot)) = rw_object.metadata.current_snapshot(None) {
+                    latest_snapshot
+                        .summary()
+                        .other
+                        .get("total-files-size")
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
+            let total_rows =
+                if let Ok(Some(latest_snapshot)) = rw_object.metadata.current_snapshot(None) {
+                    latest_snapshot
+                        .summary()
+                        .other
+                        .get("total-records")
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
             Ok(Json(TableStatisticsResponse(TableStatistics {
                 name: rw_object.ident.table.clone(),
                 total_rows,
@@ -223,12 +229,14 @@ pub async fn get_table_preview_data(
 ) -> Result<Json<TablePreviewDataResponse>> {
     let context = QueryContext::new(Some(database.clone()), Some(schema.clone()), None);
     let sql_string = format!("SELECT * FROM {database}.{schema}.{table}");
-    let sql_string = parameters.offset.map_or(sql_string.clone(), |offset| {
-        format!("{sql_string} OFFSET {offset}")
-    });
-    let sql_string = parameters.limit.map_or(sql_string.clone(), |limit| {
-        format!("{sql_string} LIMIT {limit}")
-    });
+    let sql_string = parameters.offset.map_or_else(
+        || sql_string.clone(),
+        |offset| format!("{sql_string} OFFSET {offset}"),
+    );
+    let sql_string = parameters.limit.map_or_else(
+        || sql_string.clone(),
+        |limit| format!("{sql_string} LIMIT {limit}"),
+    );
     let QueryResult {
         records: batches, ..
     } = state
