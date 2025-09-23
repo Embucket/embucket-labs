@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
+import { useEditorSettingsStore } from '@/modules/editor/editor-settings-store';
 import type { WorksheetsResponse } from '@/orval/models';
 import { getGetWorksheetsQueryKey, useDeleteWorksheet } from '@/orval/worksheets';
 
@@ -27,8 +27,8 @@ export const DeleteWorksheetAlertDialog = ({
   opened,
   onSetOpened,
 }: DeleteWorksheetAlertDialogProps) => {
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
-  const removeTab = useSqlEditorSettingsStore((state) => state.removeTab);
+  const addTab = useEditorSettingsStore((state) => state.addTab);
+  const removeTab = useEditorSettingsStore((state) => state.removeTab);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();

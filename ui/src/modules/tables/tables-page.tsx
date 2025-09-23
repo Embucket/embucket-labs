@@ -9,10 +9,10 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useGetTables } from '@/orval/tables';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
+import { useEditorSettingsStore } from '../editor/editor-settings-store';
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
 import { PageScrollArea } from '../shared/page/page-scroll-area';
-import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 import { TablesTable } from './tables-page-table';
 import { TablesPageToolbar } from './tables-page-toolbar';
 
@@ -41,8 +41,8 @@ export function TablesPage() {
   const isTablesEmpty = !tables?.length;
   const isTablesEmptyDueToSearch = isTablesEmpty && search.length > 0;
 
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
-  const setSelectedTree = useSqlEditorSettingsStore((state) => state.setSelectedTree);
+  const addTab = useEditorSettingsStore((state) => state.addTab);
+  const setSelectedTree = useEditorSettingsStore((state) => state.setSelectedTree);
   const queryClient = useQueryClient();
 
   const { mutate, isPending: isPendingCreateWorksheet } = useCreateWorksheet({

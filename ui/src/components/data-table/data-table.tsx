@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { makeCellId } from '@/modules/sql-editor/sql-editor-utils';
+import { makeCellId } from '@/modules/editor/editor-utils';
 
 function DataTableLoadingRows({ columnsLength }: { columnsLength: number }) {
   const rowsLength = 9;

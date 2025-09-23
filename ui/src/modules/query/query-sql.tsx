@@ -1,6 +1,6 @@
 import type { QueryRecord } from '@/orval/models';
 
-import { SQLEditor } from '../sql-editor/sql-editor';
+import { Editor } from '../editor/editor';
 
 interface QuerySQLProps {
   queryRecord: QueryRecord;
@@ -12,7 +12,7 @@ export function QuerySQL({ queryRecord }: QuerySQLProps) {
       {queryRecord.error ? (
         <span className="text-sm text-red-500">{queryRecord.error}</span>
       ) : (
-        <SQLEditor readonly content={queryRecord.query} />
+        <Editor readonly content={queryRecord.query} />
       )}
     </div>
   );

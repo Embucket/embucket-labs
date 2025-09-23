@@ -7,13 +7,13 @@ import { Database, Plus, Upload } from 'lucide-react';
 import { TableDataUploadDialog } from '@/modules/shared/table-data-upload-dialog/table-data-upload-dialog';
 import { getGetWorksheetsQueryKey, useCreateWorksheet } from '@/orval/worksheets';
 
+import { useEditorSettingsStore } from '../editor/editor-settings-store';
 import { CreateDatabaseDialog } from '../shared/create-database-dialog/create-database-dialog';
-import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
 
 export default function HomeActionButtons() {
   const [opened, setOpened] = useState(false);
   const [isUploadFileDialogOpened, setIsUploadFileDialogOpened] = useState(false);
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+  const addTab = useEditorSettingsStore((state) => state.addTab);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();

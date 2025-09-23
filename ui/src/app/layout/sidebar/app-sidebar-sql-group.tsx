@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Activity, SquareTerminal } from 'lucide-react';
 
 import { useSidebar } from '@/components/ui/sidebar';
-import { useSqlEditorSettingsStore } from '@/modules/sql-editor/sql-editor-settings-store';
+import { useEditorSettingsStore } from '@/modules/editor/editor-settings-store';
 import { getGetWorksheetsQueryKey, useCreateWorksheet, useGetWorksheets } from '@/orval/worksheets';
 
 import { AppSidebarGroup } from './app-sidebar-group';
@@ -16,7 +16,7 @@ export function AppSidebarSqlGroup() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+  const addTab = useEditorSettingsStore((state) => state.addTab);
 
   const { mutate, isPending } = useCreateWorksheet({
     mutation: {
