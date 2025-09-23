@@ -637,7 +637,16 @@ pub enum Error {
     #[snafu(display("{error}"))]
     HistoricalQueryError {
         error: String,
-    }
+    },
+
+    #[snafu(display("Failed to bootstrap {entity_type}: {source}"))]
+    Bootstrap {
+        entity_type: String,
+        #[snafu(source(from(core_metastore::error::Error, Box::new)))]
+        source: Box<core_metastore::error::Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl Error {

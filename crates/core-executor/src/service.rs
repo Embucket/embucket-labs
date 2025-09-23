@@ -29,14 +29,19 @@ use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryStatus};
-use core_metastore::{Metastore, SlateDBMetastore, TableIdent as MetastoreTableIdent};
+use core_metastore::{
+    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
+    Volume, VolumeType,
+};
 use core_utils::Db;
-use df_catalog::catalog_list::EmbucketCatalogList;
+use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
 use tracing::Instrument;
 use uuid::Uuid;
+
+const DEFAULT_SCHEMA: &str = "public";
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
@@ -163,6 +168,11 @@ impl CoreExecutionService {
         history_store: Arc<dyn HistoryStore>,
         config: Arc<Config>,
     ) -> Result<Self> {
+        if config.bootstrap_default_entities {
+            // do not fail on bootstrap errors
+            let _ = Self::bootstrap(metastore.clone()).await;
+        }
+
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
@@ -174,6 +184,59 @@ impl CoreExecutionService {
             runtime_env,
             queries: Arc::new(RunningQueriesRegistry::new()),
         })
+    }
+
+    ///This function bootstraps the service if no flag is present (`--no-bootstrap`) with:
+    /// 1. Creation of a default in-memory volume named `embucket`
+    /// 2. Creation of a default database `embucket` in the volume `embucket`
+    /// 3. Creation of a default schema `public` in the database `embucket`
+    ///
+    /// Only traces the errors, doesn't panic.
+    #[tracing::instrument(
+        name = "CoreExecutionService::bootstrap",
+        level = "info",
+        skip(metastore),
+        err
+    )]
+    #[allow(clippy::cognitive_complexity)]
+    async fn bootstrap(metastore: Arc<dyn Metastore>) -> Result<()> {
+        let ident = DEFAULT_CATALOG.to_string();
+        metastore
+            .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
+            .await
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "volume",
+            })?;
+
+        metastore
+            .create_database(
+                &ident,
+                Database {
+                    ident: ident.clone(),
+                    properties: None,
+                    volume: ident.clone(),
+                },
+            )
+            .await
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "database",
+            })?;
+
+        let schema_ident = SchemaIdent::new(ident.clone(), DEFAULT_SCHEMA.to_string());
+        metastore
+            .create_schema(
+                &schema_ident,
+                Schema {
+                    ident: schema_ident.clone(),
+                    properties: None,
+                },
+            )
+            .await
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "schema",
+            })?;
+
+        Ok(())
     }
 
     #[tracing::instrument(
