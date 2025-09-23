@@ -197,7 +197,8 @@ terraform destroy
 - `validate.sh` - Deployment validation script
 - `docker-compose.yml` - Embucket container configuration
 - `env.tpl` - Environment template for Embucket configuration
-- `setup_credentials.sh.tpl` - Template for manual credential setup script
+- `docker/db_init.py` - Database initialization script
+
 
 ## Troubleshooting
 
@@ -241,7 +242,9 @@ htop
 df -h
 
 # If credentials weren't provided during deployment, you can set them up manually:
-./setup_credentials.sh
+# Edit the .env file with your AWS credentials and restart Embucket
+nano .env
+docker-compose up -d
 ```
 
 ### Manual Credential Setup
@@ -249,6 +252,11 @@ df -h
 If you didn't provide AWS credentials in `terraform.tfvars`, you can set them up after deployment:
 
 1. SSH to the instance: `$(terraform output -raw ssh_command)`
-2. Run the credential setup script: `./setup_credentials.sh`
-3. Follow the prompts to enter your AWS credentials
-4. Start Embucket: `docker-compose up -d`
+2. Edit the `.env` file to add your AWS credentials:
+   ```bash
+   nano .env
+   # Add or update these lines:
+   # AWS_ACCESS_KEY_ID=your-access-key-id
+   # AWS_SECRET_ACCESS_KEY=your-secret-access-key
+   ```
+3. Start Embucket: `docker-compose up -d`

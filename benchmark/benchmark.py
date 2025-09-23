@@ -119,7 +119,7 @@ def display_comparison(sf_results, emb_results):
 
 
 def run_on_sf(cursor, sf_warehouse):
-    """Run TPCDS queries on Snowflake and measure performance."""
+    """Run TPC-H queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     results = []
