@@ -5,7 +5,7 @@ use std::{
 };
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 pub struct QueryRecordId(pub i64);
 
 impl QueryRecordId {
