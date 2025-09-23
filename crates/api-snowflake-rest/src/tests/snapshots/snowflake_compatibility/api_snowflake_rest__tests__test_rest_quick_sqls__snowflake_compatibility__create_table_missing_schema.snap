@@ -1,6 +1,6 @@
 ---
 source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
-description: "SQL #1 [spent: 201/201ms]: show schemas in database missing_db\nQuery UUID: 00000000-0000-0000-0000-077ed7b1827e"
+description: "SQL #1 [spent: 195/195ms]: create table missing_schema.foo(a int)\nQuery UUID: 00000000-0000-0000-0000-077ed7b8b86a"
 expression: pretty_json
 ---
 {
@@ -15,6 +15,6 @@ expression: pretty_json
     "queryId": "UUID"
   },
   "success": false,
-  "message": "SQL compilation error: Database 'missing_db' does not exist or not authorized",
+  "message": "SQL compilation error: Schema 'embucket.missing_schema' does not exist or not authorized",
   "code": "002043"
 }

@@ -23,7 +23,7 @@ pub enum SqlState {
     SyntaxError,
     #[serde(rename = "42501")]
     CantLocateQueryResult,
-    #[serde(rename = "42502")]
+    #[serde(rename = "42S02")]
     DoesNotExist,
     // Following code returned from every errored query result loaded from history
     // As currently we don't save SqlState when save result to history

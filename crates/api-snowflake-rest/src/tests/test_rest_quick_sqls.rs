@@ -27,14 +27,13 @@ mod snowflake_compatibility {
         ]
     );
 
-    // incorrect sql_state: 42000, should be: 42502
     sql_test!(
-        select_from_missing_table,
+        create_table_missing_schema,
         [
             // "Snowflake:
-            // 002003 (42S02): UUID: SQL compilation error:
-            // Object 'FOO' does not exist or not authorized."
-            "select * from foo",
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized."
+            "create table missing_schema.foo(a int)",
         ]
     );
 
@@ -44,7 +43,7 @@ mod snowflake_compatibility {
             // "Snowflake:
             // 002043 (02000): UUID: SQL compilation error:
             // Object does not exist, or operation cannot be performed."
-            "show schemas in database foo",
+            "show schemas in database missing_db",
         ]
     );
 
@@ -150,6 +149,51 @@ mod snowflake_compatibility {
             "SELECT SLEEP(1);>",
             // 2: query [UUID] terminated.
             "SELECT SYSTEM$CANCEL_QUERY('$LAST_QUERY_ID');",
+        ]
+    );
+}
+
+// Following tests so far
+mod snowflake_compatibility_issues {
+    use super::*;
+
+    // incorrect sql_state: 42000, should be: 42S02
+    sql_test!(
+        select_from_missing_table,
+        [
+            // "Snowflake:
+            // 002003 (42S02): SQL compilation error
+            // "Embucket:
+            // 002003 (02000): SQL compilation error
+            "select * from missing_table",
+        ]
+    );
+
+    // incorrect message
+    sql_test!(
+        select_from_missing_schema,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized.
+            // "Embucket:
+            // 002003 (02000): SQL compilation error:
+            // table 'embucket.missing_schema.foo' not found
+            "select * from missing_schema.foo",
+        ]
+    );
+
+    // incorrect message
+    sql_test!(
+        select_from_missing_db,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized.
+            // "Embucket:
+            // 002003 (02000): SQL compilation error:
+            // table 'embucket.missing_schema.foo' not found
+            "select * from missing_db.foo.foo",
         ]
     );
 }

@@ -194,13 +194,12 @@ impl Error {
                         SqlState::GenericQueryErrorFromHistory,
                         error_code,
                     ),
-                    ErrorCode::DataFusionSql | ErrorCode::DataFusionSqlParse => {
-                        (http::StatusCode::OK, SqlState::SyntaxError, error_code)
-                    }
-                    ErrorCode::DatabaseNotFound
+                    ErrorCode::DataFusionSql
+                    | ErrorCode::DataFusionSqlParse
+                    | ErrorCode::DatabaseNotFound
                     | ErrorCode::SchemaNotFound
                     | ErrorCode::TableNotFound => {
-                        (http::StatusCode::OK, SqlState::DoesNotExist, error_code)
+                        (http::StatusCode::OK, SqlState::Success, error_code)
                     }
                     _ => (http::StatusCode::OK, SqlState::Success, error_code),
                 }
