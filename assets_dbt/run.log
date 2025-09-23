@@ -1,27 +1,27 @@
-[0m03:22:51  Running with dbt=1.9.8
-[0m03:22:52  Registered adapter: snowflake=1.9.1
-[0m03:22:55  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+[0m03:17:26  Running with dbt=1.9.8
+[0m03:17:27  Registered adapter: snowflake=1.9.1
+[0m03:17:30  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
 There are 14 unused configuration paths:
-- models.snowflake_spend
-- models.gitlab_snowflake.common_prep.month_partition.snowplow
-- models.dbt_artifacts.sources
-- models.gitlab_snowflake.legacy.snowplow.month_partition
 - models.gitlab_snowflake.workspaces.workspace_product.snowplow
+- models.gitlab_snowflake.legacy.snowplow
+- models.gitlab_snowflake.legacy.snowplow.month_partition
+- models.gitlab_snowflake.common_prep.month_partition.snowplow
+- models.gitlab_snowflake.sources.runner_usage
+- models.snowflake_spend
 - models.dbt_artifacts.staging
 - models.dbt_artifacts
-- models.gitlab_snowflake.sources.runner_usage
-- models.gitlab_snowflake.legacy.snowplow
+- models.dbt_artifacts.sources
 - models.gitlab_snowflake.sources.snowplow
 - seeds.gitlab_snowflake.zoominfo
-- seeds.gitlab_snowflake.snowplow
 - seeds.gitlab_snowflake.seed_customer_success
+- seeds.gitlab_snowflake.snowplow
 - snapshots.gitlab_snowflake.sfdc_sandbox
-[0m03:23:05  Found 2987 models, 107 snapshots, 1182 seeds, 4 operations, 5147 data tests, 1162 sources, 13 exposures, 847 macros
-[0m03:23:05  
-[0m03:23:05  Concurrency: 4 threads (target='embucket')
-[0m03:23:05  
-[0m03:23:23  
-[0m03:23:23  Finished running  in 0 hours 0 minutes and 17.43 seconds (17.43s).
-[0m03:23:23  Encountered an error:
+[0m03:17:39  Found 2987 models, 107 snapshots, 1182 seeds, 4 operations, 5147 data tests, 1162 sources, 13 exposures, 847 macros
+[0m03:17:39  
+[0m03:17:39  Concurrency: 4 threads (target='embucket')
+[0m03:17:39  
+[0m03:17:57  
+[0m03:17:57  Finished running  in 0 hours 0 minutes and 17.35 seconds (17.35s).
+[0m03:17:57  Encountered an error:
 Database Error
-  002043 (42502): SQL compilation error: Schema 'embucket.share' does not exist or not authorized
+  002043 (42502): SQL compilation error: Schema 'embucket.dotcom_usage_events_2025_09' does not exist or not authorized
