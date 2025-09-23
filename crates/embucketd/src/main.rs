@@ -413,7 +413,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
             tracing_subscriber::fmt::layer()
                 .with_target(true)
                 .with_level(true)
-                .with_span_events(FmtSpan::CLOSE)
+                .with_span_events(FmtSpan::NONE)
                 .json()
                 .with_filter(spans_always.or(not_alloc_event.and(fmt_filter)))
         });
