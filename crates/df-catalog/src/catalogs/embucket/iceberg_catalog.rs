@@ -39,7 +39,7 @@ pub struct EmbucketIcebergCatalog {
 }
 
 impl EmbucketIcebergCatalog {
-    #[tracing::instrument(name = "EmbucketIcebergCatalog::new", level = "debug", skip(metastore))]
+    #[tracing::instrument(name = "EmbucketIcebergCatalog::new", level = "trace", skip(metastore))]
     pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
         let db = block_on(metastore.get_database(&database))?.ok_or_else(|| {
             metastore_error::DatabaseNotFoundSnafu {

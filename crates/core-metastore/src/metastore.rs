@@ -271,7 +271,7 @@ impl Metastore for SlateDBMetastore {
         Ok(rwobject)
     }
 
-    #[instrument(name = "Metastore::get_volume", level = "debug", skip(self), err)]
+    #[instrument(name = "Metastore::get_volume", level = "trace", skip(self), err)]
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
         let key = format!("{KEY_VOLUME}/{name}");
         self.db
@@ -328,7 +328,7 @@ impl Metastore for SlateDBMetastore {
 
     #[instrument(
         name = "Metastore::volume_object_store",
-        level = "debug",
+        level = "trace",
         skip(self),
         err
     )]
@@ -352,7 +352,7 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::iter_databases", level = "debug", skip(self))]
+    #[instrument(name = "Metastore::iter_databases", level = "trace", skip(self))]
     fn iter_databases(&self) -> VecScanIterator<RwObject<Database>> {
         self.iter_objects(KEY_DATABASE.to_string())
     }
@@ -379,7 +379,7 @@ impl Metastore for SlateDBMetastore {
             .await
     }
 
-    #[instrument(name = "Metastore::get_database", level = "debug", skip(self), err)]
+    #[instrument(name = "Metastore::get_database", level = "trace", skip(self), err)]
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
         let key = format!("{KEY_DATABASE}/{name}");
         self.db

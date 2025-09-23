@@ -75,7 +75,7 @@ impl ResponseData {
     }
 }
 
-#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(name = "prepare_query_ok_response", level = "debug", err, ret(level = tracing::Level::TRACE))]
 pub fn prepare_query_ok_response(
     sql_text: &str,
     query_result: QueryResult,

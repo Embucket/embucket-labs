@@ -107,6 +107,7 @@ fn convert_resultset_to_arrow_json_lines(
     Ok(lines)
 }
 
+/// Convert historical query record to QueryResult
 impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {

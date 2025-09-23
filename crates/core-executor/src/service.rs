@@ -321,7 +321,7 @@ impl ExecutionService for CoreExecutionService {
 
     #[tracing::instrument(
         name = "ExecutionService::delete_expired_sessions",
-        level = "debug",
+        level = "trace",
         skip(self),
         fields(old_sessions_count, new_sessions_count, now),
         err
