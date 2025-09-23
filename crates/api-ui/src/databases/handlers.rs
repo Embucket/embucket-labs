@@ -257,7 +257,7 @@ pub async fn update_database(
         ("offset" = Option<usize>, Query, description = "Databases offset"),
         ("limit" = Option<usize>, Query, description = "Databases limit"),
         ("search" = Option<String>, Query, description = "Databases search"),
-        ("order_by" = Option<String>, Query, description = "Order by: database_name (default), volume_name, created_at, updated_at"),
+        ("order_by" = Option<String>, Query, description = "Order by: database_name, volume_name, created_at (default), updated_at"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["databases"],
@@ -282,7 +282,13 @@ pub async fn list_databases(
 ) -> Result<Json<DatabasesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
-    let sql_string = apply_parameters(&sql_string, parameters, &["database_name", "volume_name"]);
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        &["database_name", "volume_name"],
+        "created_at",
+        OrderDirection::DESC,
+    );
     let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

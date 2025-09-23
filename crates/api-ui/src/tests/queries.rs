@@ -39,7 +39,7 @@ async fn test_ui_queries_no_worksheet() {
     )
     .await
     .unwrap();
-    assert_eq!(history_resp.items.len(), 1);
+    assert_eq!(history_resp.items.len(), 2);
     let query_record_id = history_resp.items[0].id;
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
@@ -228,7 +228,10 @@ async fn test_ui_queries_with_worksheet() {
     let queries2 = http_req::<QueriesResponse>(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/queries?worksheetId={}", worksheet.id),
+        &format!(
+            "http://{addr}/ui/queries?worksheetId={}&offset=2",
+            worksheet.id
+        ),
         String::new(),
     )
     .await

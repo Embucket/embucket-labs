@@ -253,7 +253,7 @@ pub async fn delete_volume(
         ("offset" = Option<usize>, Query, description = "Volumes offset"),
         ("limit" = Option<usize>, Query, description = "Volumes limit"),
         ("search" = Option<String>, Query, description = "Volumes search"),
-        ("order_by" = Option<String>, Query, description = "Order by: volume_name (default), volume_type, created_at, updated_at"),
+        ("order_by" = Option<String>, Query, description = "Order by: volume_name, volume_type, created_at (default), updated_at"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     tags = ["volumes"],
@@ -277,7 +277,13 @@ pub async fn list_volumes(
 ) -> Result<Json<VolumesResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
-    let sql_string = apply_parameters(&sql_string, parameters, &["volume_name", "volume_type"]);
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        &["volume_name", "volume_type"],
+        "created_at",
+        OrderDirection::DESC,
+    );
     let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

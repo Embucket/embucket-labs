@@ -269,7 +269,7 @@ pub async fn update_schema(
         ("offset" = Option<usize>, Query, description = "Schemas offset"),
         ("limit" = Option<u16>, Query, description = "Schemas limit"),
         ("search" = Option<String>, Query, description = "Schemas search"),
-        ("order_by" = Option<String>, Query, description = "Order by: schema_name (default), database_name, created_at, updated_at"),
+        ("order_by" = Option<String>, Query, description = "Order by: schema_name, database_name, created_at (default), updated_at"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
@@ -319,7 +319,13 @@ pub async fn list_schemas(
         sql_string,
         database_name.clone()
     );
-    let sql_string = apply_parameters(&sql_string, parameters, &["schema_name", "database_name"]);
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        &["schema_name", "database_name"],
+        "created_at",
+        OrderDirection::DESC,
+    );
     let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

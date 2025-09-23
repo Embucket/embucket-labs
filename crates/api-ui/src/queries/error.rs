@@ -48,7 +48,7 @@ pub enum QueryError {
         location: Location,
     },
 
-    #[snafu(display("Failed to parse row JSON: {error}"))]
+    #[snafu(display("Failed to parse222 row JSON: {error}"))]
     ResultParse {
         #[snafu(source)]
         error: serde_json::Error,
@@ -71,8 +71,10 @@ pub enum QueryError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Failed to parse DateTime"))]
+    #[snafu(display("Failed to parse DateTime: {error}"))]
     Datetime {
+        #[snafu(source)]
+        error: chrono::ParseError,
         #[snafu(implicit)]
         location: Location,
     },

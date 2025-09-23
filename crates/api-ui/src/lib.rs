@@ -89,7 +89,7 @@ impl Display for SearchParameters {
     }
 }
 
-#[derive(Debug, Deserialize, ToSchema, Clone)]
+#[derive(Debug, Deserialize, ToSchema, Copy, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum OrderDirection {
     ASC,
@@ -135,6 +135,8 @@ fn apply_parameters(
     sql_string: &str,
     parameters: SearchParameters,
     search_columns: &[&str],
+    default_order_by_column: &str,
+    default_order_direction: OrderDirection,
 ) -> String {
     let sql_string = parameters.search.map_or_else(
         || sql_string.to_string(),
@@ -159,11 +161,11 @@ fn apply_parameters(
     );
     //Default order by is the first search column or created at
     let sql_string = parameters.order_by.map_or_else(
-        || format!("{sql_string} ORDER BY created_at"),
+        || format!("{sql_string} ORDER BY {default_order_by_column}"),
         |order_by| format!("{sql_string} ORDER BY {order_by}"),
     );
     let sql_string = parameters.order_direction.map_or_else(
-        || format!("{sql_string} DESC"),
+        || format!("{sql_string} {default_order_direction}"),
         |order_direction| format!("{sql_string} {order_direction}"),
     );
     let sql_string = parameters.offset.map_or_else(

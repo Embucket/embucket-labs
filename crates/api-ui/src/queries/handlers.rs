@@ -2,7 +2,10 @@
 use crate::queries::error::{
     DatetimeSnafu, ExecutionSnafu, GetQueryRecordSnafu, QueriesSnafu, StoreSnafu,
 };
-use crate::queries::models::{GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse, QueryRecord, QueryRecordId, QueryStatus, ResultSet};
+use crate::queries::models::{
+    GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
+    QueryRecord, QueryRecordId, QueryStatus, ResultSet,
+};
 use crate::state::AppState;
 use crate::{
     OrderDirection, SearchParameters, apply_parameters, downcast_int64_column,
@@ -18,10 +21,10 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use core_executor::models::{QueryContext, QueryResult};
 use datafusion::arrow::array::Array;
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
@@ -183,7 +186,7 @@ pub async fn get_query(
         ("offset" = Option<usize>, Query, description = "Queries offset"),
         ("limit" = Option<usize>, Query, description = "Queries limit"),
         ("search" = Option<String>, Query, description = "Queries search"),
-        ("order_by" = Option<String>, Query, description = "Order by: id (default), worksheet_id, result_count, status, start_time, end_time, duration_ms"),
+        ("order_by" = Option<String>, Query, description = "Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
@@ -208,19 +211,13 @@ pub async fn queries(
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
     let sql_string = special_parameters.worksheet_id.map_or_else(
-        || sql_string.clone(), 
-        |worksheet_id| {
-        format!(
-            "{sql_string} WHERE worksheet_id = {worksheet_id}"
-        )
-    });
+        || sql_string.clone(),
+        |worksheet_id| format!("{sql_string} WHERE worksheet_id = {worksheet_id}"),
+    );
     let sql_string = special_parameters.min_duration_ms.map_or_else(
         || sql_string.clone(),
-    |min_duration_ms| {
-        format!(
-            "{sql_string} WHERE duration_ms >= {min_duration_ms}"
-        )
-    });
+        |min_duration_ms| format!("{sql_string} WHERE duration_ms >= {min_duration_ms}"),
+    );
     let sql_string = apply_parameters(
         &sql_string,
         parameters,
@@ -229,6 +226,8 @@ pub async fn queries(
         } else {
             &["id", "worksheet_id", "query", "status"]
         },
+        "start_time",
+        OrderDirection::DESC,
     );
     let QueryResult { records, .. } = state
         .execution_svc
@@ -247,10 +246,10 @@ pub async fn queries(
         let queries = downcast_string_column(&record, "query")
             .context(ExecutionSnafu)
             .context(QueriesSnafu)?;
-        let start_times = downcast_int64_column(&record, "start_time")
+        let start_times = downcast_string_column(&record, "start_time")
             .context(ExecutionSnafu)
             .context(QueriesSnafu)?;
-        let end_times = downcast_int64_column(&record, "end_time")
+        let end_times = downcast_string_column(&record, "end_time")
             .context(ExecutionSnafu)
             .context(QueriesSnafu)?;
         let duration_ms_values = downcast_int64_column(&record, "duration_ms")
@@ -277,17 +276,32 @@ pub async fn queries(
                     Some(worksheet_ids.value(i))
                 },
                 query: queries.value(i).to_string(),
-                start_time: DateTime::from_timestamp_millis(start_times.value(i))
+                start_time: start_times
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
                     .context(DatetimeSnafu)
                     .context(QueriesSnafu)?,
-                end_time: DateTime::from_timestamp_millis(end_times.value(i))
+                end_time: end_times
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
                     .context(DatetimeSnafu)
                     .context(QueriesSnafu)?,
                 duration_ms: duration_ms_values.value(i),
                 result_count: result_counts.value(i),
-                result: ResultSet::try_from(results.value(i)).context(QueriesSnafu)?,
+                result: if results.is_null(i) {
+                    ResultSet {
+                        columns: Vec::new(),
+                        rows: Vec::new(),
+                    }
+                } else {
+                    ResultSet::try_from(results.value(i)).context(QueriesSnafu)?
+                },
                 status: QueryStatus::try_from(status.value(i)).context(QueriesSnafu)?,
-                error: errors.value(i).to_string(),
+                error: if errors.is_null(i) {
+                    "NULL".to_string()
+                } else {
+                    errors.value(i).to_string()
+                },
             });
         }
     }
