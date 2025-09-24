@@ -27,14 +27,23 @@ mod snowflake_compatibility {
         ]
     );
 
-    // incorrect sql_state: 42000, should be: 42502
     sql_test!(
-        select_from_missing_table,
+        create_table_missing_schema,
         [
             // "Snowflake:
-            // 002003 (42S02): UUID: SQL compilation error:
-            // Object 'FOO' does not exist or not authorized."
-            "select * from foo",
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized."
+            "create table missing_schema.foo(a int)",
+        ]
+    );
+
+    sql_test!(
+        create_table_missing_db,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Database 'MISSING_DB' does not exist or not authorized."
+            "create table missing_db.public.foo(a int)",
         ]
     );
 
@@ -44,7 +53,7 @@ mod snowflake_compatibility {
             // "Snowflake:
             // 002043 (02000): UUID: SQL compilation error:
             // Object does not exist, or operation cannot be performed."
-            "show schemas in database foo",
+            "show schemas in database missing_db",
         ]
     );
 
@@ -164,6 +173,77 @@ mod snowflake_compatibility {
             "select * from 
                 ( select 1 as col ) schema1,
                 ( select 2 as col ) schema2",
+        ]
+    );
+
+    sql_test!(
+        alter_missing_table,
+        [
+            // 002003 (42S02): SQL compilation error:
+            // Table 'EMBUCKET.PUBLIC.TEST2' does not exist or not authorized.
+            "ALTER TABLE embucket.public.test ADD COLUMN new_col INT",
+        ]
+    );
+
+    sql_test!(
+        alter_table_schema_missing,
+        [
+            // 002003 (02000): SQL compilation error:
+            // Schema 'EMBUCKET.MISSING_SCHEMA' does not exist or not authorized.
+            "ALTER TABLE embucket.missing_schema.test ADD COLUMN new_col INT",
+        ]
+    );
+
+    sql_test!(
+        alter_table_db_missing,
+        [
+            // 002003 (02000): SQL compilation error:
+            // Database 'MISSING_DB' does not exist or not authorized.
+            "ALTER TABLE missing_db.public.test2 ADD COLUMN new_col INT",
+        ]
+    );
+}
+
+// Following tests so far
+mod snowflake_compatibility_issues {
+    use super::*;
+
+    sql_test!(
+        select_from_missing_table,
+        [
+            // "Snowflake:
+            // 002003 (42S02): SQL compilation error
+            // "Embucket:
+            // 002003 (02000): SQL compilation error
+            "select * from missing_table",
+        ]
+    );
+
+    // incorrect message
+    sql_test!(
+        select_from_missing_schema,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized.
+            // "Embucket:
+            // 002003 (02000): SQL compilation error:
+            // table 'embucket.missing_schema.foo' not found
+            "select * from missing_schema.foo",
+        ]
+    );
+
+    // incorrect message
+    sql_test!(
+        select_from_missing_db,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Schema 'TESTS.MISSING_SCHEMA' does not exist or not authorized.
+            // "Embucket:
+            // 002003 (02000): SQL compilation error:
+            // table 'embucket.missing_schema.foo' not found
+            "select * from missing_db.foo.foo",
         ]
     );
 }

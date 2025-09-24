@@ -26,6 +26,7 @@ use iceberg_rust::object_store::ObjectStoreBuilder;
 use iceberg_s3tables_catalog::S3TablesCatalog;
 use object_store::ObjectStore;
 use object_store::local::LocalFileSystem;
+use snafu::OptionExt;
 use snafu::ResultExt;
 use std::any::Any;
 use std::sync::Arc;
@@ -110,13 +111,9 @@ impl EmbucketCatalogList {
             .get_volume(&volume_ident.to_string())
             .await
             .context(MetastoreSnafu)?
-            .map_or(
-                MissingVolumeSnafu {
-                    name: volume_ident.to_string(),
-                }
-                .fail(),
-                Ok,
-            )?;
+            .context(MissingVolumeSnafu {
+                name: volume_ident.to_string(),
+            })?;
 
         let ident = Database {
             ident: catalog_name.to_owned(),
@@ -193,13 +190,9 @@ impl EmbucketCatalogList {
                 .get_volume(&db.volume)
                 .await
                 .context(MetastoreSnafu)?
-                .map_or(
-                    MissingVolumeSnafu {
-                        name: db.volume.clone(),
-                    }
-                    .fail(),
-                    Ok,
-                )?;
+                .context(MissingVolumeSnafu {
+                    name: db.volume.clone(),
+                })?;
             // Create catalog depending on the volume type
             let catalog = match &volume.volume {
                 VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), &db.ident).await?,

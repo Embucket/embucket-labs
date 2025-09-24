@@ -174,11 +174,14 @@ impl ScalarUDFImpl for DateAddFunc {
             .fail()?;
         }
         let base_type = args.arg_fields[2].data_type();
-        let mut return_type = base_type.clone();
 
-        if let Some(Some(ScalarValue::Utf8(Some(part_str)))) = args.scalar_arguments.first() {
-            return_type = Self::check_return_type(part_str.as_str(), base_type);
-        }
+        let return_type =
+            if let Some(Some(ScalarValue::Utf8(Some(part_str)))) = args.scalar_arguments.first() {
+                Self::check_return_type(part_str.as_str(), base_type)
+            } else {
+                base_type.clone()
+            };
+
         Ok(Arc::new(Field::new(self.name(), return_type, true)))
     }
 

@@ -1,3 +1,4 @@
+import type { Cell } from '@tanstack/react-table';
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { makeCellId } from '@/modules/editor/editor-utils';
 
 function DataTableLoadingRows({ columnsLength }: { columnsLength: number }) {
   const rowsLength = 9;
@@ -35,18 +37,23 @@ interface DataTableProps<T> {
   columns: ColumnDef<T, any>[];
   data: T[];
   onRowClick?: (row: T) => void;
+  onCellClick?: (cell: Cell<T, unknown>) => void;
+  selectedCellId?: string;
   isLoading: boolean;
   removeLRBorders?: boolean;
   rounded?: boolean;
 }
 
+// TODO: Double check index keys
 export function DataTable<T>({
   columns,
   data,
   onRowClick,
+  onCellClick,
   isLoading,
   removeLRBorders,
   rounded,
+  selectedCellId,
 }: DataTableProps<T>) {
   const table = useReactTable({
     data,
@@ -77,11 +84,29 @@ export function DataTable<T>({
             key={row.id}
             data-state={row.getIsSelected() && 'selected'}
           >
-            {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
+            {row.getVisibleCells().map((cell) => {
+              const cellId = makeCellId(row.id, cell.column.id);
+
+              return (
+                <TableCell
+                  key={cellId}
+                  className={cn(
+                    cell.column.columnDef.meta?.cellClassName,
+                    Boolean(onCellClick) && 'hover:bg-hover cursor-pointer',
+                    selectedCellId === cellId && 'bg-hover',
+                  )}
+                  data-cell-id={cellId}
+                  onClick={(e) => {
+                    if (onCellClick) {
+                      e.stopPropagation();
+                      onCellClick(cell);
+                    }
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              );
+            })}
           </TableRow>
         ))}
         {isLoading && <DataTableLoadingRows columnsLength={columns.length} />}

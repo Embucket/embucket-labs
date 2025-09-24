@@ -5,7 +5,7 @@ import { DataTable } from '@/components/data-table/data-table';
 import { formatTime } from '@/lib/formatTime';
 import type { Worksheet } from '@/orval/models';
 
-import { useSqlEditorSettingsStore } from '../sql-editor/sql-editor-settings-store';
+import { useEditorSettingsStore } from '../editor/editor-settings-store';
 
 interface HomeWorksheetsTableProps {
   isLoading: boolean;
@@ -14,7 +14,7 @@ interface HomeWorksheetsTableProps {
 
 export function HomeWorksheetsTable({ isLoading, worksheets }: HomeWorksheetsTableProps) {
   const navigate = useNavigate();
-  const addTab = useSqlEditorSettingsStore((state) => state.addTab);
+  const addTab = useEditorSettingsStore((state) => state.addTab);
 
   const handleRowClick = (row: Worksheet) => {
     addTab(row);

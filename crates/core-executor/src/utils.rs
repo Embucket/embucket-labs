@@ -38,6 +38,8 @@ use strum::{Display, EnumString};
 #[derive(Clone, Debug)]
 pub struct Config {
     pub embucket_version: String,
+    /// If true, bootstrap default volume, database and schema
+    pub bootstrap_default_entities: bool,
     pub sql_parser_dialect: Option<String>,
     pub query_timeout_secs: u64,
     pub max_concurrency_level: usize,
@@ -51,6 +53,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             embucket_version: "0.1.0".to_string(),
+            bootstrap_default_entities: true,
             sql_parser_dialect: None,
             query_timeout_secs: 1200, // 20 minutes
             max_concurrency_level: 100,
@@ -72,6 +75,15 @@ impl Config {
     #[must_use]
     pub const fn with_query_timeout(mut self, timeout_secs: u64) -> Self {
         self.query_timeout_secs = timeout_secs;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_bootstrap_default_entities(
+        mut self,
+        bootstrap_default_entities: bool,
+    ) -> Self {
+        self.bootstrap_default_entities = bootstrap_default_entities;
         self
     }
 }

@@ -18,6 +18,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
 use core_metastore::{
@@ -637,11 +638,19 @@ impl UserQuery {
     ) -> Result<QueryResult> {
         let ident = &self.resolve_table_object_name(name.0.clone())?;
         let resolved = self.resolve_table_ref(ident);
-        let catalog = self.get_catalog(&resolved.catalog)?;
+        // Inject more information to to the error
+        let catalog = self.get_catalog(&resolved.catalog).map_err(|_| {
+            ex_error::CatalogNotFoundSnafu {
+                operation_on: OperationOn::Table(OperationType::Alter),
+                catalog: resolved.catalog.to_string(),
+            }
+            .build()
+        })?;
         let schema =
             catalog
                 .schema(&resolved.schema)
                 .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    operation_on: OperationOn::Table(OperationType::Alter),
                     schema: &resolved.schema.to_string(),
                     db: &resolved.catalog.to_string(),
                 })?;
@@ -651,6 +660,7 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?
                 .context(ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                    operation_on: OperationOn::Table(OperationType::Alter),
                     table: &resolved.table.to_string(),
                     schema: &resolved.schema.to_string(),
                     db: &resolved.catalog.to_string(),
@@ -706,7 +716,19 @@ impl UserQuery {
         let schema_name = table_ref.schema.to_string();
         let ident = Identifier::new(std::slice::from_ref(&schema_name), table_ref.table.as_ref());
 
-        let catalog = self.get_catalog(catalog_name)?;
+        // Inject more information to to the error
+        let catalog = self.get_catalog(catalog_name).map_err(|_| {
+            ex_error::CatalogNotFoundSnafu {
+                operation_on: match object_type {
+                    ObjectType::Table | ObjectType::View => OperationOn::Table(OperationType::Drop),
+                    ObjectType::Schema => OperationOn::Schema(OperationType::Drop),
+                    ObjectType::Database => OperationOn::Database(OperationType::Drop),
+                    _ => OperationOn::Unknown,
+                },
+                catalog: catalog_name.to_string(),
+            }
+            .build()
+        })?;
         let iceberg_catalog = match self
             .resolve_iceberg_catalog_or_execute(catalog.clone(), catalog_name.to_string(), plan)
             .await
@@ -739,12 +761,14 @@ impl UserQuery {
                         .is_err()
                     {
                         ex_error::SchemaNotFoundInDatabaseSnafu {
+                            operation_on: OperationOn::Table(OperationType::Drop),
                             schema: schema_name,
                             db: catalog_name.to_string(),
                         }
                         .fail()?;
                     } else if !if_exists {
                         ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                            operation_on: OperationOn::Table(OperationType::Drop),
                             table: ident.name().to_string(),
                             schema: schema_name,
                             db: catalog_name.to_string(),
@@ -843,7 +867,14 @@ impl UserQuery {
         let ident: MetastoreTableIdent = new_table_ident.into();
         let catalog_name = ident.database.clone();
 
-        let catalog = self.get_catalog(&catalog_name)?;
+        // Inject more information to to the error
+        let catalog = self.get_catalog(&catalog_name).map_err(|_| {
+            ex_error::CatalogNotFoundSnafu {
+                operation_on: OperationOn::Table(OperationType::Create),
+                catalog: catalog_name.to_string(),
+            }
+            .build()
+        })?;
         self.create_iceberg_table(
             catalog.clone(),
             catalog_name.clone(),
@@ -880,6 +911,7 @@ impl UserQuery {
             let target_table = catalog
                 .schema(schema_name)
                 .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                    operation_on: OperationOn::Table(OperationType::Create),
                     schema: schema_name.to_string(),
                     db: &catalog_name,
                 })?
@@ -2024,6 +2056,7 @@ impl UserQuery {
                     catalog
                         .schema(&schema)
                         .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            operation_on: OperationOn::Schema(OperationType::Show),
                             schema: schema.clone(),
                             db: database.clone(),
                         })?;
@@ -2046,11 +2079,13 @@ impl UserQuery {
                     catalog
                         .schema(&schema)
                         .context(ex_error::SchemaNotFoundInDatabaseSnafu {
+                            operation_on: OperationOn::Table(OperationType::Show),
                             schema: schema.clone(),
                             db: database.clone(),
                         })?;
                 if !schema_prov.table_exist(&table) {
                     return ex_error::TableNotFoundInSchemaInDatabaseSnafu {
+                        operation_on: OperationOn::Table(OperationType::Show),
                         table,
                         schema: schema.clone(),
                         db: database,

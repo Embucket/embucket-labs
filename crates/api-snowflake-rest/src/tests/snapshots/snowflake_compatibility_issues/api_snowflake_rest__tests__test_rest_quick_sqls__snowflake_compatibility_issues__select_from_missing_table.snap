@@ -1,0 +1,20 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "SQL #1 [spent: 201/201ms]: select * from missing_table\nQuery UUID: 00000000-0000-0000-0000-077ed7a8e503"
+expression: pretty_json
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "errorCode": "002003",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": false,
+  "message": "SQL compilation error: table 'embucket.public.missing_table' not found",
+  "code": "002003"
+}

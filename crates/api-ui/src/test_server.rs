@@ -67,7 +67,7 @@ pub async fn make_app(
         CoreExecutionService::new(
             metastore.clone(),
             history_store.clone(),
-            Arc::new(Config::default()),
+            Arc::new(Config::default().with_bootstrap_default_entities(false)),
         )
         .await
         .expect("Failed to create execution service"),

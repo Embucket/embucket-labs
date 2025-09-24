@@ -8,7 +8,6 @@ use iceberg_rust_spec::{
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
-use utoipa::ToSchema;
 use validator::Validate;
 
 use super::{SchemaIdent, VolumeIdent};
@@ -128,49 +127,6 @@ pub struct TableCreateRequest {
     pub stage_create: Option<bool>,
     pub volume_ident: Option<VolumeIdent>,
     pub is_temporary: Option<bool>,
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-enum MyPrimitive {
-    Int,
-    Str,
-    Decimal { precision: u32, scale: u32 },
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-struct MyMap {
-    key: Box<TypeEnum>,
-    value: Box<TypeEnum>,
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-struct MyList {
-    element: Box<TypeEnum>,
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-struct MyStruct {
-    fields: Vec<MyStructField>,
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-struct MyStructField {
-    #[serde(rename = "type")]
-    field_type: TypeEnum,
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-enum TypeEnum {
-    Struct(MyStruct),
-    List(MyList),
-    Map(MyMap),
-    Primitive(MyPrimitive),
-}
-
-#[derive(ToSchema, Deserialize, Serialize)]
-struct MySchema {
-    #[serde(flatten)]
-    fields: MyStruct,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]

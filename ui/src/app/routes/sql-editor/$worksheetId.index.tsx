@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { SqlEditorPage } from '@/modules/sql-editor/sql-editor-page';
-import { SqlEditorPanelsStateProvider } from '@/modules/sql-editor/sql-editor-panels-state-provider';
+import { EditorPage } from '@/modules/editor/editor-page';
+import { EditorPanelsStateProvider } from '@/modules/editor/editor-panels-state-provider';
 
 export const Route = createFileRoute('/sql-editor/$worksheetId/')({
   component: () => (
-    <SqlEditorPanelsStateProvider>
-      <SqlEditorPage />
-    </SqlEditorPanelsStateProvider>
+    <EditorPanelsStateProvider>
+      <EditorPage />
+    </EditorPanelsStateProvider>
   ),
 });

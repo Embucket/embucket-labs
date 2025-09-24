@@ -1,0 +1,20 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "SQL #1 [spent: 209/209ms]: select * from missing_db.foo.foo\nQuery UUID: 00000000-0000-0000-0000-077ed7988b24"
+expression: pretty_json
+---
+{
+  "data": {
+    "rowtype": [],
+    "rowsetBase64": null,
+    "rowset": null,
+    "total": null,
+    "queryResultFormat": null,
+    "errorCode": "002003",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": false,
+  "message": "SQL compilation error: table 'missing_db.foo.foo' not found",
+  "code": "002003"
+}

@@ -151,15 +151,7 @@ resource "aws_instance" "embucket_benchmark" {
   }
 }
 
-# Generate credential setup script for PowerUser workaround
-resource "local_file" "credential_script" {
-  content = templatefile("${path.module}/setup_credentials.sh.tpl", {
-    aws_region = var.aws_region
-    s3_bucket = aws_s3_bucket.embucket_benchmark.bucket
-  })
-  filename = "${path.module}/setup_credentials.sh"
-  file_permission = "0755"
-}
+
 
 # Generate .env file locally with existing AWS user credentials
 resource "local_file" "env_file" {
@@ -172,6 +164,8 @@ resource "local_file" "env_file" {
     catalog_url          = "http://${aws_instance.embucket_benchmark.public_ip}:3000"
     server_address       = "http://${aws_instance.embucket_benchmark.public_ip}:3000"
     vite_api_url         = "http://${aws_instance.embucket_benchmark.public_ip}:3000"
+    instance_public_ip   = aws_instance.embucket_benchmark.public_ip
+    private_key_path     = var.private_key_path
   })
   filename = "${path.module}/.env"
 }
@@ -227,17 +221,12 @@ resource "null_resource" "upload_files" {
     destination = "/home/ec2-user/bootstrap.sh"
   }
 
-  # Upload credential setup script
-  provisioner "file" {
-    source      = "${path.module}/setup_credentials.sh"
-    destination = "/home/ec2-user/setup_credentials.sh"
-  }
+
 
   # Run bootstrap script
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ec2-user/bootstrap.sh",
-      "chmod +x /home/ec2-user/setup_credentials.sh",
       "sudo /home/ec2-user/bootstrap.sh"
     ]
   }

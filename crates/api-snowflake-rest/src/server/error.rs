@@ -2,7 +2,9 @@ use crate::SqlState;
 use crate::models::JsonResponse;
 use crate::models::ResponseData;
 use axum::{Json, http, response::IntoResponse};
+use core_executor::error::OperationOn;
 use core_executor::error_code::ErrorCode;
+use core_executor::snowflake_error::Entity;
 use core_history::QueryRecordId;
 use datafusion::arrow::error::ArrowError;
 use error_stack::ErrorChainExt;
@@ -194,13 +196,17 @@ impl Error {
                         SqlState::GenericQueryErrorFromHistory,
                         error_code,
                     ),
-                    ErrorCode::DataFusionSql | ErrorCode::DataFusionSqlParse => {
-                        (http::StatusCode::OK, SqlState::SyntaxError, error_code)
+                    ErrorCode::EntityNotFound(entity_type, operation_on) => {
+                        match (entity_type, operation_on) {
+                            // table not found
+                            (Entity::Table, OperationOn::Table(..)) => {
+                                (http::StatusCode::OK, SqlState::DoesNotExist, error_code)
+                            }
+                            _ => (http::StatusCode::OK, SqlState::Success, error_code),
+                        }
                     }
-                    ErrorCode::DatabaseNotFound
-                    | ErrorCode::SchemaNotFound
-                    | ErrorCode::TableNotFound => {
-                        (http::StatusCode::OK, SqlState::DoesNotExist, error_code)
+                    ErrorCode::DataFusionSql | ErrorCode::DataFusionSqlParse => {
+                        (http::StatusCode::OK, SqlState::Success, error_code)
                     }
                     _ => (http::StatusCode::OK, SqlState::Success, error_code),
                 }

@@ -32,14 +32,10 @@ use axum::{
     routing::{get, post},
 };
 use clap::Parser;
-use core_executor::catalog::catalog_list::DEFAULT_CATALOG;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
-use core_metastore::error::Error as MetastoreError;
-use core_metastore::{
-    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, Volume, VolumeType,
-};
+use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
@@ -112,8 +108,15 @@ async fn main() {
             opts.auth_demo_user.clone().unwrap(),
             opts.auth_demo_password.clone().unwrap(),
         );
+
+    // Bootstrap the service if no flag is present (`--no-bootstrap`) with:
+    // 1. Creation of a default in-memory volume named `embucket`
+    // 2. Creation of a default database `embucket` in the volume `embucket`
+    // 3. Creation of a default schema `public` in the database `embucket`
+
     let execution_cfg = ExecutionConfig {
         embucket_version: "0.1.0".to_string(),
+        bootstrap_default_entities: !opts.no_bootstrap,
         sql_parser_dialect: opts.sql_parser_dialect.clone(),
         query_timeout_secs: opts.query_timeout_secs,
         max_concurrency_level: opts.max_concurrency_level,
@@ -139,8 +142,6 @@ async fn main() {
         port: opts.assets_port.unwrap(),
     };
 
-    let no_bootstrap = opts.no_bootstrap;
-
     let object_store = opts
         .object_store_backend()
         .expect("Failed to create object store");
@@ -153,8 +154,6 @@ async fn main() {
     ));
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-
-    bootstrap(metastore.clone(), no_bootstrap).await;
 
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
 
@@ -424,62 +423,4 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
     // Dropping all paths from the original spec
     original_spec.paths = openapi::Paths::new();
     Some(original_spec)
-}
-
-///This function bootstraps the service if no flag is present (`--no-bootstrap`) with:
-/// 1. Creation of a default in-memory volume named `embucket`
-/// 2. Creation of a default database `embucket` in the volume `embucket`
-/// 3. Creation of a default schema `public` in the database `embucket`
-///
-/// Only traces the errors, doesn't panic.
-#[allow(clippy::cognitive_complexity)]
-async fn bootstrap(metastore: Arc<dyn Metastore>, no_bootstrap: bool) {
-    if no_bootstrap {
-        return;
-    }
-    let ident = DEFAULT_CATALOG.to_string();
-    if let Err(error) = metastore
-        .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
-        .await
-    {
-        match error {
-            MetastoreError::VolumeAlreadyExists { .. }
-            | MetastoreError::ObjectAlreadyExists { .. } => {}
-            _ => tracing::error!("Failed to bootstrap volume: {}", error),
-        }
-    }
-    if let Err(error) = metastore
-        .create_database(
-            &ident,
-            Database {
-                ident: ident.clone(),
-                properties: None,
-                volume: ident.clone(),
-            },
-        )
-        .await
-    {
-        match error {
-            MetastoreError::DatabaseAlreadyExists { .. }
-            | MetastoreError::ObjectAlreadyExists { .. } => {}
-            _ => tracing::error!("Failed to bootstrap database: {}", error),
-        }
-    }
-    let schema_ident = SchemaIdent::new(ident.clone(), "public".to_string());
-    if let Err(error) = metastore
-        .create_schema(
-            &schema_ident,
-            Schema {
-                ident: schema_ident.clone(),
-                properties: None,
-            },
-        )
-        .await
-    {
-        match error {
-            MetastoreError::SchemaAlreadyExists { .. }
-            | MetastoreError::ObjectAlreadyExists { .. } => {}
-            _ => tracing::error!("Failed to bootstrap schema: {}", error),
-        }
-    }
 }
