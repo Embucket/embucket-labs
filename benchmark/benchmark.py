@@ -216,14 +216,6 @@ def run_on_emb(cursor, tpch_queries):
             fresh_cursor.execute(query)
             _ = fresh_cursor.fetchall()  # Fetch results but don't store them
 
-            # Get query ID
-            fresh_cursor.execute("SELECT LAST_QUERY_ID()")
-            query_id = fresh_cursor.fetchone()[0]
-
-            if query_id:
-                executed_query_ids.append(query_id)
-                query_id_to_number[query_id] = query_number
-
             # Close fresh connection after each query
             fresh_cursor.close()
             embucket_connection.close()
@@ -244,41 +236,62 @@ def run_on_emb(cursor, tpch_queries):
     query_results = []
     total_time = 0
 
-    if executed_query_ids:
-        query_ids_str = "', '".join(executed_query_ids)
-        history_query = f"SELECT id, Duration_ms, Result_count FROM slatedb.history.queries WHERE id IN ('{query_ids_str}')"
+    # Get the latest N rows where N is number of queries in the benchmark
+    # Filter by successful status and order by start_time
+    num_queries = len(tpch_queries)
+    history_query = f"""
+        SELECT id, duration_ms, result_count, query
+        FROM slatedb.history.queries
+        WHERE status = 'Successful'
+        ORDER BY start_time DESC
+        LIMIT {num_queries}
+    """
 
-        try:
-            # Always create fresh connection for history retrieval
-            history_connection = create_embucket_connection()
-            history_cursor = history_connection.cursor()
+    # Always create fresh connection for history retrieval
+    history_connection = create_embucket_connection()
+    history_cursor = history_connection.cursor()
 
-            history_cursor.execute(history_query)
-            history_results = history_cursor.fetchall()
+    history_cursor.execute(history_query)
+    history_results = history_cursor.fetchall()
 
-            # Format the results and calculate total time
-            for record in history_results:
-                query_id = record[0]
-                duration_ms = record[1]
-                result_count = record[2]
-                query_number = query_id_to_number.get(str(query_id))
+    # Format the results and calculate total time
+    # Results are ordered by start_time DESC, so we reverse to get chronological order
+    reversed_results = list(reversed(history_results))
 
-                # Add to total time
-                total_time += duration_ms
+    # Create a list of expected query texts for validation
+    expected_queries = [query_text for _, query_text in tpch_queries]
 
-                if query_number:
-                    query_results.append([
-                        query_number,
-                        query_id,
-                        duration_ms,
-                        result_count
-                    ])
+    # Validate we got exactly the expected number of results
+    if len(reversed_results) != len(expected_queries):
+        raise Exception(f"Expected {len(expected_queries)} query results, but got {len(reversed_results)}")
 
-            history_cursor.close()
-            history_connection.close()
+    for i, record in enumerate(reversed_results):
+        query_id = record[0]
+        duration_ms = record[1]
+        result_count = record[2]
+        actual_query = record[3]
 
-        except Exception as e:
-            print(f"Error retrieving query history: {e}")
+        query_number = i + 1
+
+        # Validate that the query text matches what we executed
+        expected_query = expected_queries[i]
+        if actual_query.strip() != expected_query.strip():
+            raise Exception(f"Query text mismatch for query {query_number}. "
+                          f"Expected: {expected_query[:100]}... "
+                          f"Actual: {actual_query[:100]}...")
+
+        # Add to total time
+        total_time += duration_ms
+
+        query_results.append([
+            query_number,
+            query_id,
+            duration_ms,
+            result_count
+        ])
+
+    history_cursor.close()
+    history_connection.close()
 
     return query_results, total_time
 
