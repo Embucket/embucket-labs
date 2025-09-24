@@ -476,6 +476,19 @@ fn test_table_function_cte() -> DFResult<()> {
             (SELECT datapoints FROM (SELECT value AS datapoints FROM (SELECT jsontext FROM test), LATERAL FLATTEN(INPUT => parse_json(jsontext)) AS d) AS metric_per_row)) AS dp) \
             SELECT * FROM data_points_flushed_out",
         ),
+        (
+            "WITH recursive_cte AS (
+                  SELECT 1 AS id, '[1,2,3]' AS arr
+                  UNION ALL
+                  SELECT id + 1, arr
+                  FROM recursive_cte,
+                       LATERAL FLATTEN(INPUT => parse_json(arr)) f
+                )
+                SELECT * FROM recursive_cte;",
+            "WITH recursive_cte AS (SELECT 1 AS id, '[1,2,3]' AS arr UNION ALL SELECT id + 1, arr \
+             FROM recursive_cte, LATERAL FLATTEN(INPUT => parse_json(arr)) AS f) \
+             SELECT * FROM recursive_cte",
+        ),
     ];
 
     for (input, expected) in cases {
