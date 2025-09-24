@@ -91,7 +91,7 @@ pub async fn query(
         .query(&session_id, &sql_text, query_context)
         .await?;
 
-    prepare_query_ok_response(&sql_text, query_result, serialization_format)
+    prepare_query_ok_response(&sql_text, query_result, serialization_format, false)
 }
 
 #[tracing::instrument(name = "api_snowflake_rest::get_query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
@@ -112,9 +112,12 @@ pub async fn get_query(
         .wait_historical_query_result(query_id)
         .await?;
     match query_result {
-        Ok(query_result) => {
-            prepare_query_ok_response("", query_result, state.config.dbt_serialization_format)
-        }
+        Ok(query_result) => prepare_query_ok_response(
+            "",
+            query_result,
+            state.config.dbt_serialization_format,
+            true,
+        ),
         // Return the same response as it would be returned when error is propagated
         Err(error) => {
             // Create without using build(), and not using context which works with result

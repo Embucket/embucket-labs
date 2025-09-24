@@ -677,15 +677,13 @@ impl ExecutionService for CoreExecutionService {
 
             let query_status = query_result_status.status.clone();
 
-            let result = query_result_status.to_result_set();
-            history_record.set_result(&result);
+            history_record.set_result(&query_result_status.as_historical_result_set());
             history_record.set_status(query_status.clone());
 
             let _ = tracing::debug_span!("spawned_query_task_result",
                 query_id = query_id.as_i64(),
                 query_uuid = query_id.as_uuid().to_string(),
                 query_status = format!("{:?}", query_status),
-                result = format!("{:#?}", result),
             )
             .entered();
 

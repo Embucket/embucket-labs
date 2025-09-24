@@ -75,13 +75,15 @@ pub fn prepare_query_ok_response(
     sql_text: &str,
     query_result: QueryResult,
     ser_fmt: DataSerializationFormat,
+    from_history: bool,
 ) -> Result<Json<JsonResponse>> {
-    // No need to fetch underlying error for snafu(transparent)
-    let records = convert_record_batches(query_result.clone(), ser_fmt)?;
-    debug!(
-        "serialized json: {}",
-        records_to_json_string(&records)?.as_str()
-    );
+    let records = if from_history {
+        &query_result.records
+    } else {
+        // only use conversion for non historical data
+        &convert_record_batches(&query_result, ser_fmt)?
+    };
+
     let query_uuid: Uuid = query_result.query_id.as_uuid();
     // Record the result as part of the current span.
     tracing::Span::current()
@@ -98,13 +100,13 @@ pub fn prepare_query_ok_response(
             query_result_format: Some(ser_fmt.to_string().to_lowercase()),
             row_set: if ser_fmt == DataSerializationFormat::Json {
                 Option::from(ResponseData::rows_to_vec(
-                    records_to_json_string(&records)?.as_str(),
+                    records_to_json_string(records)?.as_str(),
                 )?)
             } else {
                 None
             },
             row_set_base_64: if ser_fmt == DataSerializationFormat::Arrow {
-                Option::from(records_to_arrow_string(&records)?)
+                Option::from(records_to_arrow_string(records)?)
             } else {
                 None
             },
