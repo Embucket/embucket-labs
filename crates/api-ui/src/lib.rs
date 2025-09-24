@@ -76,7 +76,7 @@ impl Display for SearchParameters {
                 )
             },
         );
-        let str = self.order_direction.clone().map_or_else(
+        let str = self.order_direction.map_or_else(
             || str.to_string(),
             |order_direction| {
                 format!(

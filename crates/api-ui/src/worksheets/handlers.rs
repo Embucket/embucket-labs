@@ -79,7 +79,13 @@ pub async fn worksheets(
 ) -> Result<Json<WorksheetsResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.history.worksheets".to_string();
-    let sql_string = apply_parameters(&sql_string, parameters, &["id", "name", "content"], "created_at", OrderDirection::DESC);
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        &["id", "name", "content"],
+        "created_at",
+        OrderDirection::DESC,
+    );
     let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)
