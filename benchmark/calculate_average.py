@@ -6,14 +6,13 @@ import os
 COLUMN_TO_AVERAGE = 'Total (ms)'
 
 
-def add_query_index(df):
+def sort_by_query_index(df):
     """Add index column to dataframe based on query number."""
     # Add index column
-    df['query_index'] = df['Query'].apply(lambda x:
-                                          int(re.search(r'q(\d+)', x).group(1))
-                                          if re.search(r'q(\d+)',
-                                                       x) else 9999)  # High value for TOTAL or other special rows
-
+    df['query_index'] = df['Query'].apply(
+        lambda x: int(re.search(r'q(\d+)', x).group(1))
+        if re.search(r'q(\d+)', x) else float('inf')
+    )
     # Sort by the new index
     df = df.sort_values('query_index')
 
@@ -84,7 +83,7 @@ def calculate_benchmark_averages(schema, warehouse, database, benchmark_type):
         averaged = stacked.groupby(level=1)[[COLUMN_TO_AVERAGE]].mean().reset_index(drop=True)
         averaged['Query'] = dfs[0]['Query']
         averaged = averaged[['Query', COLUMN_TO_AVERAGE]]
-        averaged = add_query_index(averaged)
+        averaged = sort_by_query_index(averaged)
 
         # Move TOTAL row to the top if it exists
         if 'TOTAL' in averaged['Query'].values:

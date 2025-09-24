@@ -7,17 +7,16 @@ load_dotenv()
 
 
 def create_embucket_connection():
-    """Create Embucket connection with environment-based config."""
+    """Create Embucket connection with required environment variables."""
 
-    # Connection config with defaults
-    host = os.environ.get("EMBUCKET_HOST", "localhost")
-    port = os.environ.get("EMBUCKET_PORT", "3000")
-    protocol = os.environ.get("EMBUCKET_PROTOCOL", "http")
-    user = os.environ.get("EMBUCKET_USER", "embucket")
-    password = os.environ.get("EMBUCKET_PASSWORD", "embucket")
-    account = os.environ.get("EMBUCKET_ACCOUNT") or f"acc_{uuid.uuid4().hex[:10]}"
-    database = os.environ.get("EMBUCKET_DATABASE", "embucket")
-    schema = os.environ.get("EMBUCKET_SCHEMA", "public")
+    host = os.environ["EMBUCKET_HOST"]
+    port = int(os.environ["EMBUCKET_PORT"])
+    protocol = os.environ["EMBUCKET_PROTOCOL"]
+    user = os.environ["EMBUCKET_USER"]
+    password = os.environ["EMBUCKET_PASSWORD"]
+    account = os.environ["EMBUCKET_ACCOUNT"]
+    database = os.environ["EMBUCKET_DATABASE"]
+    schema = os.environ["EMBUCKET_SCHEMA"]
 
     connect_args = {
         "user": user,
@@ -28,12 +27,13 @@ def create_embucket_connection():
         "warehouse": "embucket",
         "host": host,
         "protocol": protocol,
-        "port": int(port) if port else 3000,
+        "port": port,
         "socket_timeout": 1200, # connector restarts query if timeout (in seconds) is reached
     }
 
     conn = sf.connect(**connect_args)
     return conn
+
 
 
 def create_snowflake_connection():
