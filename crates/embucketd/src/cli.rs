@@ -204,7 +204,7 @@ pub struct CliOpts {
     #[arg(
         long,
         env = "ALLOC_TRACING",
-        default_value = "false",
+        default_value = "true",
         help = "Enable memory tracing functionality"
     )]
     pub alloc_tracing: Option<bool>,
