@@ -47,7 +47,5 @@ strum.workspace = true
 [lints]
 workspace = true
 
-
-
 [features]
 alloc-tracing = ["dep:tracing-allocations"]
