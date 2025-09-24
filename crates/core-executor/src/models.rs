@@ -100,7 +100,7 @@ fn convert_resultset_to_arrow_json_lines(
     Ok(lines)
 }
 
-/// Convert historical query record to QueryResult
+/// Convert historical query record to `QueryResult`
 impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {
@@ -181,7 +181,7 @@ impl QueryResultStatus {
                 message: err.to_snowflake_error().to_string(),
                 diagnostic_message: format!("{err:?}"),
             }),
-        }        
+        }
     }
 }
 

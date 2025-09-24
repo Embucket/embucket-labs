@@ -2,8 +2,7 @@ use super::models::QueryResult;
 use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
-use core_history::result_set::{Column, ResultSet, RowData, Row};
-use core_history::{QueryResultError, QueryStatus};
+use core_history::result_set::{Column, ResultSet, Row};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::timezone::Tz;
@@ -866,13 +865,7 @@ pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSe
     let json_str = String::from_utf8(json_bytes).context(Utf8Snafu)?;
 
     // Deserialize the JSON string into rows of values
-    let raw_rows = 
-        serde_json::from_str::<Vec<RowData>>(&json_str).context(SerdeParseSnafu)?;
-
-    let rows = raw_rows
-        .into_iter()
-        .map(|row| row.0)
-        .collect();
+    let rows = serde_json::from_str::<Vec<Row>>(&json_str).context(SerdeParseSnafu)?;
 
     // Extract column metadata from the original QueryResult
     let columns = query_result
@@ -1394,7 +1387,7 @@ mod tests {
 
     #[test]
     fn test_bug_1662_duplicate_columns_names() {
-     // Check if following result is converted to ResultSet correctly:
+        // Check if following result is converted to ResultSet correctly:
         // +-----+-----+
         // | COL | COL |
         // +-----+-----+
@@ -1405,14 +1398,17 @@ mod tests {
             Field::new("col", DataType::Int64, true),
         ]));
 
-        let record_batch =
-            RecordBatch::try_new(schema.clone(), vec![
+        let record_batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
                 Arc::new(Int64Array::from(vec![Some(1)])),
                 Arc::new(Int64Array::from(vec![Some(2)])),
-            ]).unwrap();
-    
+            ],
+        )
+        .unwrap();
+
         // Create QueryResult
-        let query_result = QueryResult::new(vec![record_batch], schema.clone(), QueryRecordId(0));
+        let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
 
         // Create ResultSet from QueryResult
         let result_set = query_result_to_result_set(&query_result)
@@ -1421,11 +1417,22 @@ mod tests {
         eprintln!("Result set: {result_set:?}");
         // check if ResultSet is correct
         assert_eq!(result_set.columns.len(), 2);
-        let columns_names = result_set.columns.iter().map(|col| col.name.clone()).collect::<Vec<_>>();
+        let columns_names = result_set
+            .columns
+            .iter()
+            .map(|col| col.name.clone())
+            .collect::<Vec<_>>();
         assert_eq!(columns_names, ["col", "col"]);
         assert_eq!(result_set.rows.len(), 1);
-        let rows = result_set.rows.iter().map(|row| row.0.clone()).collect::<Vec<_>>();
-        let row = rows[0].iter().map(|col| col.as_i64().unwrap()).collect::<Vec<_>>();
+        let rows = result_set
+            .rows
+            .iter()
+            .map(|row| row.0.clone())
+            .collect::<Vec<_>>();
+        let row = rows[0]
+            .iter()
+            .map(|col| col.as_i64().unwrap())
+            .collect::<Vec<_>>();
         assert_eq!(row, [1, 2]);
-    } 
+    }
 }

@@ -7,12 +7,12 @@ use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::models::QueryResult;
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
+use core_history::Row;
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
-use indexmap::IndexMap;
 use snafu::ResultExt;
 use tracing::debug;
 use uuid::Uuid;
@@ -64,14 +64,9 @@ fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, E
 
 // moved from impl ResponseData, to satisfy features dependencies
 impl ResponseData {
-    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Vec<serde_json::Value>>> {
-        let json_array: Vec<IndexMap<String, serde_json::Value>> =
-            serde_json::from_str(json_rows_string)
-                .context(api_snowflake_rest_error::RowParseSnafu)?;
-        Ok(json_array
-            .into_iter()
-            .map(|obj| obj.values().cloned().collect())
-            .collect())
+    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Row>> {
+        serde_json::from_str::<Vec<Row>>(json_rows_string)
+            .context(api_snowflake_rest_error::RowParseSnafu)
     }
 }
 
