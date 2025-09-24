@@ -1,47 +1,33 @@
 import os
-import glob
-import re
 from utils import create_embucket_connection, create_snowflake_connection
+from tpch import parametrize_tpch_ddl, get_table_names
 from dotenv import load_dotenv
 
 load_dotenv()
 
-DDL_DIR = "tpch_ddl"
-
 
 def create_tables(cursor):
-    """Create tables in Snowflake using SQL files."""
-    sql_files = glob.glob(f"{DDL_DIR}/*_embucket.sql")
+    """Create tables using the consolidated TPC-H DDL statements."""
     print("Creating tables...")
 
-    # TPC-H table names that need to be parametrized
-    tpch_table_names = ['customer', 'lineitem', 'nation', 'orders', 'part', 'partsupp', 'region', 'supplier']
-
-    for sql_file in sql_files:
-        with open(sql_file, "r") as f:
-            lines = f.readlines()
-            if lines and lines[0].strip().startswith("--"):
-                sql = "".join(lines[1:])
-            else:
-                sql = "".join(lines)
-
-            # Parametrize table names with database and schema prefix
-            for table_name in tpch_table_names:
-                # Replace table name in CREATE TABLE statements
-                pattern = rf'\bCREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+{table_name}\b'
-                replacement = f"CREATE OR REPLACE TABLE {os.environ['EMBUCKET_DATABASE']}.{os.environ['EMBUCKET_SCHEMA']}.{table_name}"
-                sql = re.sub(pattern, replacement, sql, flags=re.IGNORECASE)
-
-            cursor.execute(sql)
+    # Get DDL statements with fully qualified names for Embucket
+    tpch_ddl = parametrize_tpch_ddl(fully_qualified_names_for_embucket=True)
+    for table_name, ddl_sql in tpch_ddl:
+        print(f"Creating table: {table_name}")
+        cursor.execute(ddl_sql.strip())
 
 
 def upload_parquet_to_embucket_tables(cursor, dataset):
     """Upload parquet files to Embucket tables using COPY INTO."""
-    tpch_table_names = ['customer', 'lineitem', 'nation', 'orders', 'part', 'partsupp', 'region', 'supplier']
-    for table_name in tpch_table_names:
-        print(f"Loading data into Embucket table {table_name}...")
+    # Get fully qualified table names using the unified logic
+    table_names = get_table_names(fully_qualified_names_for_embucket=True)
 
-        copy_sql = f"COPY INTO {os.environ['EMBUCKET_DATABASE']}.{os.environ['EMBUCKET_SCHEMA']}.{table_name} FROM 's3://embucket-testdata/tpch_data/{dataset}/{table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
+    for placeholder, qualified_table_name in table_names.items():
+        # Extract bare table name for the S3 path (parquet files use bare names)
+        bare_table_name = qualified_table_name.split('.')[-1]
+        print(f"Loading data into Embucket table {qualified_table_name}...")
+
+        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/tpch_data/{dataset}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
         cursor.execute(copy_sql)
 
 

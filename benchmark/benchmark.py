@@ -5,7 +5,7 @@ import logging
 from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
-from tpch_queries import TPCH_QUERIES
+from tpch import parametrize_tpch_queries
 from docker_manager import create_docker_manager
 
 from dotenv import load_dotenv
@@ -118,14 +118,14 @@ def display_comparison(sf_results, emb_results):
     print(f"Ratio (Embucket/Snowflake): {emb_total / sf_total:.2f}x" if sf_total > 0 else "N/A")
 
 
-def run_on_sf(cursor, sf_warehouse):
+def run_on_sf(cursor, sf_warehouse, tpch_queries):
     """Run TPC-H queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     results = []
 
     # Execute queries
-    for query_number, query in TPCH_QUERIES:
+    for query_number, query in tpch_queries:
         try:
             print(f"Executing query {query_number}...")
 
@@ -141,6 +141,7 @@ def run_on_sf(cursor, sf_warehouse):
             # Execute the actual query
             cursor.execute(query)
             _ = cursor.fetchall()
+
             cursor.execute("SELECT LAST_QUERY_ID()")
             query_id = cursor.fetchone()[0]
             if query_id:
@@ -188,13 +189,13 @@ def run_on_sf(cursor, sf_warehouse):
     return results
 
 
-def run_on_emb(cursor):
+def run_on_emb(cursor, tpch_queries):
     """Run TPCH queries on Embucket with container restart before each query."""
     docker_manager = create_docker_manager()
     executed_query_ids = []
     query_id_to_number = {}
 
-    for query_number, query in TPCH_QUERIES:
+    for query_number, query in tpch_queries:
         try:
             print(f"Executing query {query_number}...")
 
@@ -284,6 +285,9 @@ def run_on_emb(cursor):
 
 def run_snowflake_benchmark(run_number):
     """Run benchmark on Snowflake."""
+    # Get TPC-H queries with bare table names for Snowflake
+    tpch_queries = parametrize_tpch_queries(fully_qualified_names_for_embucket=False)
+
     # Run Snowflake benchmark
     sf_connection = create_snowflake_connection()
     sf_warehouse = sf_connection.warehouse
@@ -293,7 +297,7 @@ def run_snowflake_benchmark(run_number):
     # Disable query result caching for benchmark
     sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
-    sf_results = run_on_sf(sf_cursor, sf_warehouse)
+    sf_results = run_on_sf(sf_cursor, sf_warehouse, tpch_queries)
     output_path = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}/snowflake_results_run_{run_number}.csv"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     save_results_to_csv(sf_results, is_embucket=False, filename=output_path)
@@ -313,6 +317,9 @@ def run_snowflake_benchmark(run_number):
 
 def run_embucket_benchmark(run_number):
     """Run benchmark on Embucket with container restarts."""
+    # Get TPC-H queries with fully qualified names for Embucket
+    tpch_queries = parametrize_tpch_queries(fully_qualified_names_for_embucket=True)
+
     embucket_instance = os.environ["EMBUCKET_INSTANCE"]
     embucket_dataset = os.environ["EMBUCKET_DATASET"]
 
@@ -324,7 +331,7 @@ def run_embucket_benchmark(run_number):
     embucket_connection = create_embucket_connection()
     embucket_cursor = embucket_connection.cursor()
 
-    emb_results = run_on_emb(embucket_cursor)
+    emb_results = run_on_emb(embucket_cursor, tpch_queries)
 
     embucket_cursor.close()
     embucket_connection.close()
