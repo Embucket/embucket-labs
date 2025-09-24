@@ -17,7 +17,7 @@ def create_tables(cursor):
         cursor.execute(ddl_sql.strip())
 
 
-def upload_parquet_to_embucket_tables(cursor, dataset):
+def upload_parquet_to_embucket_tables(cursor, dataset, dataset_scale_factor):
     """Upload parquet files to Embucket tables using COPY INTO."""
     # Get fully qualified table names using the unified logic
     table_names = get_table_names(fully_qualified_names_for_embucket=True)
@@ -27,19 +27,20 @@ def upload_parquet_to_embucket_tables(cursor, dataset):
         bare_table_name = qualified_table_name.split('.')[-1]
         print(f"Loading data into Embucket table {qualified_table_name}...")
 
-        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/tpch_data/{dataset}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
+        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset}/{dataset_scale_factor}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
         cursor.execute(copy_sql)
 
 
 def prepare_data_for_embucket():
     """Prepare data for Embucket: generate data, create tables, and load data."""
-    dataset = os.getenv("EMBUCKET_DATASET")
+    dataset = os.getenv("DATASET_NAME")
+    dataset_scale_factor = os.getenv("DATASET_SCALE_FACTOR")
     # Connect to Embucket
     cursor = create_embucket_connection().cursor()
     # Create tables
     create_tables(cursor)
     # Load data into Embucket tables
-    upload_parquet_to_embucket_tables(cursor, dataset)
+    upload_parquet_to_embucket_tables(cursor, dataset, dataset_scale_factor)
 
     cursor.close()
     print("Embucket data preparation completed successfully.")

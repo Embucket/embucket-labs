@@ -148,25 +148,24 @@ def run_on_sf(cursor, warehouse, tpch_queries):
     return results
 
 
-def run_on_emb(docker_manager, tpch_queries):
-    """Run benchmark queries on Embucket with container restart before each query."""
+def run_on_emb(cursor, tpch_queries):
+    """Run TPCH queries on Embucket with container restart before each query."""
+    docker_manager = create_docker_manager()
     executed_query_ids = []
     query_id_to_number = {}
-    query_results = []
-    total_time = 0
 
     for query_number, query in tpch_queries:
         try:
-            logger.info(f"Executing query {query_number}...")
+            print(f"Executing query {query_number}...")
 
             # Restart Embucket container before each query
-            logger.info(f"Restarting Embucket container before query {query_number}...")
+            print(f"Restarting Embucket container before query {query_number}...")
 
             if not docker_manager.restart_embucket_container():
-                logger.error(f"Failed to restart Embucket container for query {query_number}")
+                print(f"Failed to restart Embucket container for query {query_number}")
                 continue
 
-            logger.info("Container restart completed")
+            print(f"Container restart completed")
 
             # Create fresh connection after restart
             embucket_connection = create_embucket_connection()
@@ -174,60 +173,84 @@ def run_on_emb(docker_manager, tpch_queries):
 
             # Execute the query
             fresh_cursor.execute(query)
-            _ = fresh_cursor.fetchall()
+            _ = fresh_cursor.fetchall()  # Fetch results but don't store them
 
-            # Get query ID
-            fresh_cursor.execute("SELECT LAST_QUERY_ID()")
-            query_id = fresh_cursor.fetchone()[0]
-
-            if query_id:
-                executed_query_ids.append(query_id)
-                query_id_to_number[query_id] = query_number
-
+            # Close fresh connection after each query
             fresh_cursor.close()
             embucket_connection.close()
 
         except Exception as e:
-            logger.error(f"Error executing query {query_number}: {e}")
+            print(f"Error executing query {query_number}: {e}")
+
+            # Try to close connection if it exists
             try:
-                if 'fresh_cursor' in locals(): fresh_cursor.close()
-                if 'embucket_connection' in locals(): embucket_connection.close()
+                if 'fresh_cursor' in locals():
+                    fresh_cursor.close()
+                if 'embucket_connection' in locals():
+                    embucket_connection.close()
             except:
                 pass
 
-    # Retrieve query history data
-    if executed_query_ids:
-        query_ids_str = "', '".join(executed_query_ids)
-        history_query = f"SELECT id, Duration_ms, Result_count FROM slatedb.history.queries WHERE id IN ('{query_ids_str}')"
+    # Retrieve query history data from Embucket
+    query_results = []
+    total_time = 0
 
-        try:
-            history_connection = create_embucket_connection()
-            history_cursor = history_connection.cursor()
+    # Get the latest N rows where N is number of queries in the benchmark
+    # Filter by successful status and order by start_time
+    num_queries = len(tpch_queries)
+    history_query = f"""
+        SELECT id, duration_ms, result_count, query
+        FROM slatedb.history.queries
+        WHERE status = 'Successful'
+        ORDER BY start_time DESC
+        LIMIT {num_queries}
+    """
 
-            history_cursor.execute(history_query)
-            history_results = history_cursor.fetchall()
+    # Always create fresh connection for history retrieval
+    history_connection = create_embucket_connection()
+    history_cursor = history_connection.cursor()
 
-            for record in history_results:
-                query_id = record[0]
-                duration_ms = record[1]
-                result_count = record[2]
-                query_number = query_id_to_number.get(str(query_id))
+    history_cursor.execute(history_query)
+    history_results = history_cursor.fetchall()
 
-                total_time += duration_ms
+    # Format the results and calculate total time
+    # Results are ordered by start_time DESC, so we reverse to get chronological order
+    reversed_results = list(reversed(history_results))
 
-                if query_number:
-                    query_results.append([
-                        query_number,
-                        query_id,
-                        duration_ms,
-                        result_count
-                    ])
+    # Create a list of expected query texts for validation
+    expected_queries = [query_text for _, query_text in tpch_queries]
 
-            history_cursor.close()
-            history_connection.close()
+    # Validate we got exactly the expected number of results
+    if len(reversed_results) != len(expected_queries):
+        raise Exception(f"Expected {len(expected_queries)} query results, but got {len(reversed_results)}")
 
-        except Exception as e:
-            logger.error(f"Error retrieving query history: {e}")
+    for i, record in enumerate(reversed_results):
+        query_id = record[0]
+        duration_ms = record[1]
+        result_count = record[2]
+        actual_query = record[3]
+
+        query_number = i + 1
+
+        # Validate that the query text matches what we executed
+        expected_query = expected_queries[i]
+        if actual_query.strip() != expected_query.strip():
+            raise Exception(f"Query text mismatch for query {query_number}. "
+                          f"Expected: {expected_query[:100]}... "
+                          f"Actual: {actual_query[:100]}...")
+
+        # Add to total time
+        total_time += duration_ms
+
+        query_results.append([
+            query_number,
+            query_id,
+            duration_ms,
+            result_count
+        ])
+
+    history_cursor.close()
+    history_connection.close()
 
     return query_results, total_time
 
