@@ -29,38 +29,29 @@ thread_local! {
 struct FieldsGrabber {
     query_id: Option<String>,
     session_id: Option<String>,
-    op: Option<String>, // "alloc"/"dealloc"/"realloc"
+    message: Option<String>, // "alloc"/"dealloc"
     addr: Option<u64>,
     size: Option<u64>,
 }
 
 impl Visit for FieldsGrabber {
-    fn record_i64(&mut self, f: &Field, v: i64) {
-        if f.name() == "size" && v >= 0 {
-            self.size = Some(v as u64);
-        }
-    }
-    fn record_u64(&mut self, f: &Field, v: u64) {
-        match f.name() {
-            "addr" => self.addr = Some(v),
-            "size" => self.size = Some(v),
-            _ => {}
-        }
-    }
-    fn record_str(&mut self, f: &Field, v: &str) {
-        match f.name() {
-            "query_id" => self.query_id = Some(v.to_string()),
-            "session_id" => self.session_id = Some(v.to_string()),
-            "op" => self.op = Some(v.to_string()),
-            _ => {}
-        }
-    }
-
     fn record_debug(&mut self, f: &Field, v: &dyn Debug) {
         let s = format!("{v:?}");
+        let val = s.trim_matches('"');
         match f.name() {
-            "query_id" => self.query_id = Some(s.trim_matches('"').to_string()),
-            "session_id" => self.session_id = Some(s.trim_matches('"').to_string()),
+            "query_id" => self.query_id = Some(val.to_string()),
+            "session_id" => self.session_id = Some(val.to_string()),
+            "message" => self.message = Some(val.to_string()),
+            "size" => {
+                if let Ok(num) = val.parse::<u64>() {
+                    self.size = Some(num);
+                }
+            }
+            "addr" => {
+                if let Ok(num) = val.parse::<u64>() {
+                    self.addr = Some(num);
+                }
+            }
             _ => {}
         }
     }
@@ -192,12 +183,12 @@ where
             .ok()
             .flatten()
         {
-            let op = g.op.as_deref().unwrap_or("alloc");
+            let message = g.message.as_deref().unwrap_or("alloc");
             let size = g.size.unwrap_or(0);
 
             if let Ok(mut map) = self.agg.lock() {
                 let entry = map.entry((qid, sid)).or_default();
-                match op {
+                match message {
                     "alloc" => {
                         entry.allocs += 1;
                         entry.total_bytes += size;

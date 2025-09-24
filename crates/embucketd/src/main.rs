@@ -370,7 +370,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
 
     #[cfg(feature = "alloc-tracing")]
     {
-        let alloc_flusher = std::sync::Arc::new(alloc_layer.clone());
+        let alloc_flusher = Arc::new(alloc_layer.clone());
         alloc_flusher.spawn_flusher(std::time::Duration::from_secs(1));
     }
 

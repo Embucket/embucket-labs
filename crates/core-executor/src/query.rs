@@ -303,6 +303,7 @@ impl UserQuery {
     pub async fn execute(&mut self) -> Result<QueryResult> {
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
+        println!("self.query {:?}", self.query);
 
         // Record the result as part of the current span.
         tracing::Span::current().record("statement", format!("{statement:#?}"));
