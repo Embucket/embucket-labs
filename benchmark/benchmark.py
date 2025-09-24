@@ -1,6 +1,7 @@
 import glob
 import os
 import logging
+from typing import Dict, List, Tuple, Any, Optional
 
 from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
@@ -9,13 +10,12 @@ from tpch import parametrize_tpch_queries
 from docker_manager import create_docker_manager
 
 from dotenv import load_dotenv
-import matplotlib.pyplot as plt
-import numpy as np
 import csv
+import argparse
 
 load_dotenv()
 
-# Configure logging for benchmark operations
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -23,103 +23,70 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def save_results_to_csv(results, is_embucket=True, filename="query_results.csv"):
-    """Save benchmark results to CSV file."""
-    if is_embucket:
-        query_results, total_time = results
-        headers = ["Query", "Query ID", "Total (ms)", "Rows"]
-
-        with open(filename, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
-            for row in query_results:
-                writer.writerow([row[0], row[1], row[2], row[3]])  # query, query_id, query_time, rows
-            writer.writerow(["TOTAL", "", total_time, ""])
+def get_results_path(platform: str, benchmark_type: str, scale_factor: str,
+                     warehouse_or_instance: str, run_number: Optional[int] = None) -> str:
+    """Generate path for storing benchmark results."""
+    if platform.lower() == "snowflake":
+        base_path = f"result/snowflake_{benchmark_type}_results/{scale_factor}/{warehouse_or_instance}"
+    elif platform.lower() == "embucket":
+        base_path = f"result/embucket_{benchmark_type}_results/{scale_factor}/{warehouse_or_instance}"
     else:
-        headers = ["Query", "Query ID", "Compilation (ms)", "Execution (ms)", "Total (ms)", "Rows"]
+        raise ValueError(f"Unsupported platform: {platform}")
 
-        # Calculate totals
-        total_compilation_time = sum(row[2] for row in results)
-        total_execution_time = sum(row[3] for row in results)
-        total_time = total_compilation_time + total_execution_time
-
-        with open(filename, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
-            writer.writerows(results)
-            writer.writerow(["TOTAL", "", total_compilation_time, total_execution_time, total_time, ""])
+    if run_number is not None:
+        return f"{base_path}/{platform.lower()}_results_run_{run_number}.csv"
+    return base_path
 
 
-def display_comparison(sf_results, emb_results):
-    """Display graphical comparison of query times between Snowflake and Embucket."""
+def save_results_to_csv(results, filename="query_results.csv", platform=None):
+    """
+    Save benchmark results to CSV file with standardized headers.
 
-    # Process Snowflake results
-    sf_query_times = {}
-    for row in sf_results:
-        query_number = row[0]
-        total_time = row[4]  # Total time column in Snowflake results
-        sf_query_times[query_number] = total_time
+    Args:
+        results: The query results to save
+        filename: Path to save the CSV file
+        platform: The platform type ("snowflake" or "embucket")
+    """
+    headers = ["Query", "Query ID", "Total (ms)", "Rows"]
 
-    # Process Embucket results
-    emb_query_times = {}
-    query_results, _ = emb_results
-    for row in query_results:
-        query_number = row[0]
-        query_time = row[2]  # Query time column in Embucket results
-        emb_query_times[query_number] = query_time
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
 
-    queries_to_compare = sorted(set(sf_query_times.keys()).intersection(set(emb_query_times.keys())))
-
-    # Prepare data for plotting
-    queries = [str(q) for q in queries_to_compare]
-    sf_times = [sf_query_times.get(q, 0) for q in queries_to_compare]
-    emb_times = [emb_query_times.get(q, 0) for q in queries_to_compare]
-
-    # Create bar chart
-    x = np.arange(len(queries))
-    width = 0.35
-
-    fig, ax = plt.subplots(figsize=(12, 8))
-    sf_bars = ax.bar(x - width / 2, sf_times, width, label='Snowflake')
-    emb_bars = ax.bar(x + width / 2, emb_times, width, label='Embucket')
-
-    # Add labels and title
-    ax.set_xlabel('Query Number')
-    ax.set_ylabel('Execution Time (ms)')
-    ax.set_title('Query Execution Time Comparison: Snowflake vs. Embucket')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-
-    # Add ratio table below the chart
-    ratios = [f"{emb / sf:.2f}x" if sf > 0 else "N/A" for sf, emb in zip(sf_times, emb_times)]
-    table_data = [[f"{sf:.2f}", f"{emb:.2f}", ratio] for sf, emb, ratio in zip(sf_times, emb_times, ratios)]
-
-    the_table = plt.table(
-        cellText=table_data,
-        rowLabels=queries,
-        colLabels=["Snowflake (ms)", "Embucket (ms)", "Ratio (Emb/SF)"],
-        loc='bottom',
-        bbox=[0.0, -0.50, 1.0, 0.3]
-    )
-
-    # Adjust layout for table
-    plt.subplots_adjust(bottom=0.3)
-    plt.tight_layout()
-    plt.savefig("query_comparison.png")
-    plt.show()
-
-    # Print summary
-    sf_total = sum(sf_times)
-    emb_total = sum(emb_times)
-    print(f"\nTotal Time Comparison:")
-    print(f"Snowflake: {sf_total:.2f} ms")
-    print(f"Embucket: {emb_total:.2f} ms")
-    print(f"Ratio (Embucket/Snowflake): {emb_total / sf_total:.2f}x" if sf_total > 0 else "N/A")
+        if platform == "embucket":
+            # Embucket results format
+            query_results, total_time = results
+            for row in query_results:
+                writer.writerow([row[0], row[1], row[2], row[3]])
+            writer.writerow(["TOTAL", "", total_time, ""])
+        elif platform == "snowflake":
+            # Snowflake results format with simplified query
+            total_time = 0
+            for row in results:
+                query_number = row[0]
+                query_id = row[1]
+                total_ms = row[2]
+                rows = row[3]
+                writer.writerow([query_number, query_id, total_ms, rows])
+                total_time += total_ms
+            writer.writerow(["TOTAL", "", total_time, ""])
+        else:
+            # Fallback detection for backward compatibility
+            if isinstance(results, tuple):
+                query_results, total_time = results
+                for row in query_results:
+                    writer.writerow([row[0], row[1], row[2], row[3]])
+                writer.writerow(["TOTAL", "", total_time, ""])
+            else:
+                total_time = 0
+                for row in results:
+                    writer.writerow([row[0], row[1], row[2], row[3]])
+                    total_time += row[2]
+                writer.writerow(["TOTAL", "", total_time, ""])
 
 
-def run_on_sf(cursor, sf_warehouse, tpch_queries):
-    """Run TPC-H queries on Snowflake and measure performance."""
+def run_on_sf(cursor, warehouse, tpch_queries):
+    """Run benchmark queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     results = []
@@ -127,18 +94,17 @@ def run_on_sf(cursor, sf_warehouse, tpch_queries):
     # Execute queries
     for query_number, query in tpch_queries:
         try:
-            print(f"Executing query {query_number}...")
+            logger.info(f"Executing query {query_number}...")
 
             # Suspend warehouse before each query to ensure clean state
-            if sf_warehouse:
+            if warehouse:
                 try:
-                    cursor.execute(f"ALTER WAREHOUSE {sf_warehouse} SUSPEND;")
+                    cursor.execute(f"ALTER WAREHOUSE {warehouse} SUSPEND;")
                     cursor.execute("SELECT SYSTEM$WAIT(2);")
-                    cursor.execute(f"ALTER WAREHOUSE {sf_warehouse} RESUME;")
+                    cursor.execute(f"ALTER WAREHOUSE {warehouse} RESUME;")
                 except Exception as e:
                     print(f"Warning: Could not suspend/resume warehouse for query {query_number}: {e}")
 
-            # Execute the actual query
             cursor.execute(query)
             _ = cursor.fetchall()
 
@@ -148,7 +114,7 @@ def run_on_sf(cursor, sf_warehouse, tpch_queries):
                 executed_query_ids.append(query_id)
                 query_id_to_number[query_id] = query_number
         except Exception as e:
-            print(f"Error executing query {query_number}: {e}")
+            logger.error(f"Error executing query {query_number}: {e}")
 
     # Collect performance metrics
     if executed_query_ids:
@@ -156,8 +122,6 @@ def run_on_sf(cursor, sf_warehouse, tpch_queries):
         cursor.execute(f"""
             SELECT
                 QUERY_ID,
-                COMPILATION_TIME,
-                EXECUTION_TIME,
                 TOTAL_ELAPSED_TIME,
                 ROWS_PRODUCED
             FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY(RESULT_LIMIT => 1000))
@@ -167,21 +131,16 @@ def run_on_sf(cursor, sf_warehouse, tpch_queries):
 
         query_history = cursor.fetchall()
 
-        # Format results as [query_number, query_id, compilation_time, execution_time, total_time, rows]
         for record in query_history:
             query_id = record[0]
-            compilation_time = record[1]
-            execution_time = record[2]
-            total_time = record[3]
-            rows = record[4]
+            total_time = record[1]
+            rows = record[2]
             query_number = query_id_to_number.get(query_id)
 
             if query_number:
                 results.append([
                     query_number,
                     query_id,
-                    compilation_time,
-                    execution_time,
                     total_time,
                     rows
                 ])
@@ -189,24 +148,25 @@ def run_on_sf(cursor, sf_warehouse, tpch_queries):
     return results
 
 
-def run_on_emb(cursor, tpch_queries):
-    """Run TPCH queries on Embucket with container restart before each query."""
-    docker_manager = create_docker_manager()
+def run_on_emb(docker_manager, tpch_queries):
+    """Run benchmark queries on Embucket with container restart before each query."""
     executed_query_ids = []
     query_id_to_number = {}
+    query_results = []
+    total_time = 0
 
     for query_number, query in tpch_queries:
         try:
-            print(f"Executing query {query_number}...")
+            logger.info(f"Executing query {query_number}...")
 
             # Restart Embucket container before each query
-            print(f"Restarting Embucket container before query {query_number}...")
+            logger.info(f"Restarting Embucket container before query {query_number}...")
 
             if not docker_manager.restart_embucket_container():
-                print(f"Failed to restart Embucket container for query {query_number}")
+                logger.error(f"Failed to restart Embucket container for query {query_number}")
                 continue
 
-            print(f"Container restart completed")
+            logger.info("Container restart completed")
 
             # Create fresh connection after restart
             embucket_connection = create_embucket_connection()
@@ -214,7 +174,7 @@ def run_on_emb(cursor, tpch_queries):
 
             # Execute the query
             fresh_cursor.execute(query)
-            _ = fresh_cursor.fetchall()  # Fetch results but don't store them
+            _ = fresh_cursor.fetchall()
 
             # Get query ID
             fresh_cursor.execute("SELECT LAST_QUERY_ID()")
@@ -224,46 +184,35 @@ def run_on_emb(cursor, tpch_queries):
                 executed_query_ids.append(query_id)
                 query_id_to_number[query_id] = query_number
 
-            # Close fresh connection after each query
             fresh_cursor.close()
             embucket_connection.close()
 
         except Exception as e:
-            print(f"Error executing query {query_number}: {e}")
-
-            # Try to close connection if it exists
+            logger.error(f"Error executing query {query_number}: {e}")
             try:
-                if 'fresh_cursor' in locals():
-                    fresh_cursor.close()
-                if 'embucket_connection' in locals():
-                    embucket_connection.close()
+                if 'fresh_cursor' in locals(): fresh_cursor.close()
+                if 'embucket_connection' in locals(): embucket_connection.close()
             except:
                 pass
 
-    # Retrieve query history data from Embucket
-    query_results = []
-    total_time = 0
-
+    # Retrieve query history data
     if executed_query_ids:
         query_ids_str = "', '".join(executed_query_ids)
         history_query = f"SELECT id, Duration_ms, Result_count FROM slatedb.history.queries WHERE id IN ('{query_ids_str}')"
 
         try:
-            # Always create fresh connection for history retrieval
             history_connection = create_embucket_connection()
             history_cursor = history_connection.cursor()
 
             history_cursor.execute(history_query)
             history_results = history_cursor.fetchall()
 
-            # Format the results and calculate total time
             for record in history_results:
                 query_id = record[0]
                 duration_ms = record[1]
                 result_count = record[2]
                 query_number = query_id_to_number.get(str(query_id))
 
-                # Add to total time
                 total_time += duration_ms
 
                 if query_number:
@@ -278,93 +227,196 @@ def run_on_emb(cursor, tpch_queries):
             history_connection.close()
 
         except Exception as e:
-            print(f"Error retrieving query history: {e}")
+            logger.error(f"Error retrieving query history: {e}")
 
     return query_results, total_time
 
 
-def run_snowflake_benchmark(run_number):
-    """Run benchmark on Snowflake."""
-    # Get TPC-H queries with bare table names for Snowflake
-    tpch_queries = parametrize_tpch_queries(fully_qualified_names_for_embucket=False)
+def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool) -> List[Tuple[int, str]]:
+    """Get appropriate queries based on the benchmark type."""
+    if benchmark_type == "tpch":
+        return parametrize_tpch_queries(fully_qualified_names_for_embucket=for_embucket)
+    elif benchmark_type == "tpcds":
+        raise NotImplementedError("TPC-DS benchmarks not yet implemented")
+    else:
+        raise ValueError(f"Unsupported benchmark type: {benchmark_type}")
 
-    # Run Snowflake benchmark
+
+def run_snowflake_benchmark(run_number: int):
+    """Run benchmark on Snowflake."""
+    # Get benchmark configuration from environment variables
+    benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
+    warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
+    dataset = os.environ["DATASET_NAME"]
+    scale_factor = os.environ["DATASET_SCALE_FACTOR"]
+
+    logger.info(f"Starting Snowflake {benchmark_type} benchmark run {run_number}")
+    logger.info(f"Dataset: {dataset}, Schema: {scale_factor}, Warehouse: {warehouse}")
+
+    # Get queries and run benchmark
+    queries = get_queries_for_benchmark(benchmark_type, for_embucket=False)
+
     sf_connection = create_snowflake_connection()
-    sf_warehouse = sf_connection.warehouse
-    sf_schema = sf_connection.schema
     sf_cursor = sf_connection.cursor()
 
     # Disable query result caching for benchmark
     sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
-    sf_results = run_on_sf(sf_cursor, sf_warehouse, tpch_queries)
-    output_path = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}/snowflake_results_run_{run_number}.csv"
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    save_results_to_csv(sf_results, is_embucket=False, filename=output_path)
+    sf_results = run_on_sf(sf_cursor,warehouse, queries)
+
+    results_path = get_results_path("snowflake", benchmark_type, scale_factor, warehouse, run_number)
+    os.makedirs(os.path.dirname(results_path), exist_ok=True)
+    save_results_to_csv(sf_results, filename=results_path, platform="snowflake")
+
+    logger.info(f"Snowflake benchmark results saved to: {results_path}")
 
     sf_cursor.close()
     sf_connection.close()
 
     # Check if we have 3 CSV files ready and calculate averages if so
-    search_dir = f"snowflake_tpch_results/{sf_schema}/{sf_warehouse}"
-    csv_files = glob.glob(os.path.join(search_dir, "snowflake_results_run_*.csv"))
+    results_dir = get_results_path("snowflake", benchmark_type, scale_factor, warehouse)
+    csv_files = glob.glob(os.path.join(results_dir, "snowflake_results_run_*.csv"))
     if len(csv_files) == 3:
-        print(f"Found 3 CSV files. Calculating averages...")
-        calculate_benchmark_averages(sf_schema, sf_warehouse, is_embucket=False)
+        logger.info("Found 3 CSV files. Calculating averages...")
+        calculate_benchmark_averages(
+            scale_factor,
+            warehouse,
+            "snowflake",
+            benchmark_type
+        )
 
     return sf_results
 
 
-def run_embucket_benchmark(run_number):
+def run_embucket_benchmark(run_number: int):
     """Run benchmark on Embucket with container restarts."""
-    # Get TPC-H queries with fully qualified names for Embucket
-    tpch_queries = parametrize_tpch_queries(fully_qualified_names_for_embucket=True)
+    # Get benchmark configuration from environment variables
+    benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
+    instance = os.environ["EMBUCKET_INSTANCE"]
+    dataset = os.environ.get("EMBUCKET_DATASET", os.environ["DATASET_NAME"])
+    scale_factor = os.environ["DATASET_SCALE_FACTOR"]
 
-    embucket_instance = os.environ["EMBUCKET_INSTANCE"]
-    embucket_dataset = os.environ["EMBUCKET_DATASET"]
+    logger.info(f"Starting Embucket {benchmark_type} benchmark run {run_number}")
+    logger.info(f"Instance: {instance}, Dataset: {dataset}, Scale Factor: {scale_factor}")
 
-    print(f"Starting Embucket benchmark run {run_number}")
-    print(f"Instance: {embucket_instance}")
-    print(f"Dataset: {embucket_dataset}")
+    # Get queries and docker manager
+    queries = get_queries_for_benchmark(benchmark_type, for_embucket=True)
+    docker_manager = create_docker_manager()
 
-    # Create connection for history retrieval (the original cursor parameter)
-    embucket_connection = create_embucket_connection()
-    embucket_cursor = embucket_connection.cursor()
+    # Run benchmark
+    emb_results = run_on_emb(docker_manager, queries)
 
-    emb_results = run_on_emb(embucket_cursor, tpch_queries)
+    results_path = get_results_path("embucket", benchmark_type, scale_factor, instance, run_number)
+    os.makedirs(os.path.dirname(results_path), exist_ok=True)
+    save_results_to_csv(emb_results, filename=results_path, platform="embucket")
 
-    embucket_cursor.close()
-    embucket_connection.close()
+    logger.info(f"Embucket benchmark results saved to: {results_path}")
 
-    emb_output_path = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}/embucket_results_run_{embucket_instance}_{run_number}.csv"
-    os.makedirs(os.path.dirname(emb_output_path), exist_ok=True)
-    save_results_to_csv(emb_results, is_embucket=True, filename=emb_output_path)
-
-    print(f"Embucket benchmark results saved to: {emb_output_path}")
-
-    # Check if we have 3 CSV files ready and calculate averages if so
-    search_dir = f"embucket_tpch_results/{embucket_dataset}/{embucket_instance}"
-    csv_files = glob.glob(os.path.join(search_dir, "embucket_*.csv"))
+    # Check if we have 3 CSV files ready and calculate averages
+    results_dir = get_results_path("embucket", benchmark_type, scale_factor, instance)
+    csv_files = glob.glob(os.path.join(results_dir, "embucket_results_run_*.csv"))
     if len(csv_files) == 3:
-        print(f"Found 3 CSV files. Calculating averages...")
-        calculate_benchmark_averages(embucket_dataset, embucket_instance, is_embucket=True)
+        logger.info("Found 3 CSV files. Calculating averages...")
+        calculate_benchmark_averages(
+            scale_factor,
+            instance,
+            "embucket",
+            benchmark_type
+        )
 
     return emb_results
 
 
-def run_benchmark(run_number):
-    """Main function to run benchmarks on both platforms."""
-    emb_results = run_embucket_benchmark(run_number)
-    sf_results = run_snowflake_benchmark(run_number)
+def display_comparison(sf_results, emb_results):
+    """Display comparison of query times between platforms."""
+    # Process Snowflake results
+    sf_query_times = {}
+    for row in sf_results:
+        query_number = row[0]
+        total_time = row[4]  # Total time column
+        sf_query_times[query_number] = total_time
 
-    # Display comparison only if Snowflake results exist
-    if sf_results:
-        display_comparison(sf_results, emb_results)
-    else:
-        print("Skipping comparison as Snowflake benchmark was not run")
+    # Process Embucket results
+    emb_query_times = {}
+    query_results, _ = emb_results
+    for row in query_results:
+        query_number = row[0]
+        query_time = row[2]  # Query time column
+        emb_query_times[query_number] = query_time
+
+    # Check for common queries
+    common_queries = set(sf_query_times.keys()).intersection(set(emb_query_times.keys()))
+    if not common_queries:
+        logger.warning("No common queries to compare between platforms")
+        return
+
+    # Log comparison
+    logger.info("Performance comparison (Snowflake vs Embucket):")
+    for query in sorted(common_queries):
+        sf_time = sf_query_times[query]
+        emb_time = emb_query_times[query]
+        ratio = sf_time / emb_time if emb_time > 0 else float('inf')
+        logger.info(f"Query {query}: Snowflake {sf_time:.2f}ms, Embucket {emb_time:.2f}ms, Ratio: {ratio:.2f}x")
+
+
+def run_benchmark(run_number: int, platforms: List[str] = None):
+    """Main function to run benchmarks on specified platforms."""
+    if not platforms:
+        platforms = ["embucket", "snowflake"]
+
+    if "snowflake" in platforms:
+        run_snowflake_benchmark(run_number)
+
+    if "embucket" in platforms:
+        run_embucket_benchmark(run_number)
+
+
+def parse_args():
+    """Parse command line arguments for benchmark configuration."""
+    parser = argparse.ArgumentParser(description="Run benchmarks on Snowflake and/or Embucket")
+
+    # Platform selection
+    parser.add_argument(
+        "--platform",
+        choices=["snowflake", "embucket", "both"],
+        default="both",
+        help="Which platform to benchmark"
+    )
+
+    # Number of runs
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=3,
+        help="Number of benchmark runs to perform"
+    )
+
+    # Benchmark type
+    parser.add_argument(
+        "--benchmark-type",
+        choices=["tpch", "tpcds"],
+        default=os.environ.get("BENCHMARK_TYPE", "tpch"),
+        help="Type of benchmark to run"
+    )
+
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    for i in range(3):
-        print(f"Run {i + 1} of 3")
-        run_embucket_benchmark(i + 1)
+    args = parse_args()
+
+    # Set up platforms based on command line argument
+    if args.platform == "both":
+        platforms = ["embucket", "snowflake"]
+    else:
+        platforms = [args.platform]
+
+    # Override environment variable for benchmark type if specified
+    if args.benchmark_type != os.environ.get("BENCHMARK_TYPE", "tpch"):
+        os.environ["BENCHMARK_TYPE"] = args.benchmark_type
+
+    # Run benchmarks for specified number of times
+    for i in range(args.runs):
+        run_number = i + 1  # Use 1-based indexing for run numbers
+        logger.info(f"Run {run_number} of {args.runs}")
+        run_benchmark(run_number, platforms)

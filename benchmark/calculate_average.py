@@ -5,30 +5,37 @@ import os
 
 COLUMN_TO_AVERAGE = 'Total (ms)'
 
-def natural_sort_queries(df):
-    """Sort queries numerically."""
-    df['sort_key'] = df['Query'].apply(lambda x:
-                                       int(re.search(r'q(\d+)', x).group(1))
-                                       if re.search(r'q(\d+)', x) else 0)
-    df = df.sort_values('sort_key')
-    df = df.drop('sort_key', axis=1)
+
+def add_query_index(df):
+    """Add index column to dataframe based on query number."""
+    # Add index column
+    df['query_index'] = df['Query'].apply(lambda x:
+                                          int(re.search(r'q(\d+)', x).group(1))
+                                          if re.search(r'q(\d+)',
+                                                       x) else 9999)  # High value for TOTAL or other special rows
+
+    # Sort by the new index
+    df = df.sort_values('query_index')
+
+    # Remove the index column
+    df = df.drop('query_index', axis=1)
     return df
 
 
-def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
+def calculate_benchmark_averages(schema, warehouse, database, benchmark_type):
     """
     Calculate average results for benchmark runs.
-
     Args:
         schema: The schema/dataset used in the benchmark
         warehouse: The warehouse/instance used in the benchmark
-        is_embucket: Flag to indicate if processing Embucket results (True) or Snowflake results (False)
+        database: Database used
     """
-    # Directory where benchmark results are stored
-    if is_embucket:
-        search_dir = f'embucket_tpch_results/{schema}/{warehouse}'
+    if database == 'embucket':
+        search_dir = f'result/embucket_{benchmark_type}_results/{schema}/{warehouse}'
+    elif database == 'snowflake':
+        search_dir = f'result/snowflake_{benchmark_type}_results/{schema}/{warehouse}'
     else:
-        search_dir = f'snowflake_tpch_results/{schema}/{warehouse}'
+        raise ValueError("Unsupported database")
 
     # Get all CSV files from the specified directory
     all_csv_files = glob.glob(os.path.join(search_dir, '*.csv'))
@@ -77,7 +84,7 @@ def calculate_benchmark_averages(schema, warehouse, is_embucket=False):
         averaged = stacked.groupby(level=1)[[COLUMN_TO_AVERAGE]].mean().reset_index(drop=True)
         averaged['Query'] = dfs[0]['Query']
         averaged = averaged[['Query', COLUMN_TO_AVERAGE]]
-        averaged = natural_sort_queries(averaged)
+        averaged = add_query_index(averaged)
 
         # Move TOTAL row to the top if it exists
         if 'TOTAL' in averaged['Query'].values:
