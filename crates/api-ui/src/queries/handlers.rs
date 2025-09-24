@@ -28,11 +28,12 @@ use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
+use core_history::WorksheetId;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(query, queries, get_query),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse)),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection)),
     tags(
       (name = "queries", description = "Queries endpoints"),
     )
