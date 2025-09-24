@@ -48,7 +48,7 @@ pub enum QueryError {
         location: Location,
     },
 
-    #[snafu(display("Failed to parse222 row JSON: {error}"))]
+    #[snafu(display("Failed to parse row JSON: {error}"))]
     ResultParse {
         #[snafu(source)]
         error: serde_json::Error,
