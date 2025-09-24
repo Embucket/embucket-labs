@@ -88,11 +88,7 @@ pub async fn query(
 
     let query_result = state
         .execution_svc
-        .query(
-            &session_id,
-            &sql_text,
-            QueryContext::default().with_ip_address(addr.ip().to_string()),
-        )
+        .query(&session_id, &sql_text, query_context)
         .await?;
 
     prepare_query_ok_response(&sql_text, query_result, serialization_format)
@@ -139,10 +135,14 @@ pub async fn get_query(
 #[tracing::instrument(name = "api_snowflake_rest::abort", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn abort(
     State(state): State<AppState>,
-    Query(QueryRequest { request_id }): Query<QueryRequest>,
-    Json(AbortRequestBody { sql_text, .. }): Json<AbortRequestBody>,
+    Query(QueryRequest {
+        request_id: query_request_id,
+    }): Query<QueryRequest>,
+    Json(AbortRequestBody {
+        sql_text,
+        request_id,
+    }): Json<AbortRequestBody>,
 ) -> Result<Json<serde_json::value::Value>> {
-    let request_id = Uuid::from_str(&request_id).context(InvalidUuidFormatSnafu)?;
     state
         .execution_svc
         .abort_query(AbortQuery::ByRequestId(request_id, sql_text))?;
