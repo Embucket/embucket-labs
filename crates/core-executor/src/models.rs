@@ -1,5 +1,5 @@
 use crate::error;
-use crate::utils::{query_result_to_result_set, query_status_result_to_history};
+use crate::utils::query_result_to_result_set;
 use arrow_schema::SchemaRef;
 use core_history::QueryResultError;
 use core_history::{QueryRecord, QueryRecordId, QueryStatus, result_set::ResultSet};
@@ -88,13 +88,6 @@ pub struct QueryResult {
     pub query_id: QueryRecordId,
 }
 
-impl TryInto<ResultSet> for QueryResult {
-    type Error = crate::Error;
-    fn try_into(self) -> Result<ResultSet, Self::Error> {
-        query_result_to_result_set(&self)
-    }
-}
-
 fn convert_resultset_to_arrow_json_lines(
     result_set: &ResultSet,
 ) -> Result<String, serde_json::Error> {
@@ -172,7 +165,23 @@ pub struct QueryResultStatus {
 
 impl QueryResultStatus {
     pub fn to_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
-        query_status_result_to_history(self.status.clone(), &self.query_result)
+        match &self.query_result {
+            Ok(query_result) => {
+                query_result_to_result_set(query_result)
+                    // ResultSet creation failed from Ok(QueryResult)
+                    .map_err(|err| QueryResultError {
+                        status: QueryStatus::Failed,
+                        message: err.to_string(),
+                        diagnostic_message: format!("{err:?}"),
+                    })
+            }
+            // Query failed
+            Err(err) => Err(QueryResultError {
+                status: self.status.clone(),
+                message: err.to_snowflake_error().to_string(),
+                diagnostic_message: format!("{err:?}"),
+            }),
+        }        
     }
 }
 

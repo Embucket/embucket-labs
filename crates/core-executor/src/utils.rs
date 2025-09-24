@@ -22,13 +22,10 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::arrow::row;
 use datafusion::common::ScalarValue;
 use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
 use embucket_functions::conversion::to_timestamp::parse_timezone;
-use indexmap::IndexMap;
-use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
@@ -842,29 +839,6 @@ impl From<&NormalizedIdent> for TableReference {
 impl std::fmt::Display for NormalizedIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", String::from(self))
-    }
-}
-
-pub fn query_status_result_to_history(
-    status: QueryStatus,
-    result: &Result<QueryResult>,
-) -> std::result::Result<ResultSet, QueryResultError> {
-    match result {
-        Ok(query_result) => {
-            query_result_to_result_set(query_result)
-                // ResultSet creation failed from Ok(QueryResult)
-                .map_err(|err| QueryResultError {
-                    status: QueryStatus::Failed,
-                    message: err.to_string(),
-                    diagnostic_message: format!("{err:?}"),
-                })
-        }
-        // Query failed
-        Err(err) => Err(QueryResultError {
-            status,
-            message: err.to_snowflake_error().to_string(),
-            diagnostic_message: format!("{err:?}"),
-        }),
     }
 }
 
