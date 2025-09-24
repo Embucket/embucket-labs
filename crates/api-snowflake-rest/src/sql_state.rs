@@ -21,30 +21,29 @@ pub enum SqlState {
     // Snowflake return such sqlstate for syntax error
     #[serde(rename = "42000")]
     SyntaxError,
-    #[serde(rename = "42501")]
+    #[serde(rename = "42S01")]
     CantLocateQueryResult,
     #[serde(rename = "42S02")]
     DoesNotExist,
     // Following code returned from every errored query result loaded from history
     // As currently we don't save SqlState when save result to history
-    #[serde(rename = "42503")]
+    #[serde(rename = "42S03")]
     GenericQueryErrorFromHistory,
+    #[serde(rename = "0A000")]
+    FeatureNotSupported,
 }
 
 impl Display for SqlState {
     #[allow(clippy::as_conversions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // check if serializable value has starting, traling double quotes
-        let serialized = serde_json::to_string(self).unwrap_or_default();
-        if serialized.starts_with('"') && serialized.ends_with('"') {
-            // fetch value between double quotes
-            let value = &serialized[1..serialized.len() - 1];
-            let parsed = value.parse::<u32>();
-            if let Ok(parsed) = parsed {
-                return write!(f, "{parsed:05}");
-            }
-        }
-        // serde serialized just name of enum variant, get number instead
-        write!(f, "{:05}", *self as u32)
+        let sql_state: &str = match self {
+            Self::Success => "02000",
+            Self::SyntaxError => "42000",
+            Self::CantLocateQueryResult => "42S01",
+            Self::DoesNotExist => "42S02",
+            Self::GenericQueryErrorFromHistory => "42S03",
+            Self::FeatureNotSupported => "0A000",
+        };
+        write!(f, "{sql_state:05}")
     }
 }

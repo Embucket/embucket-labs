@@ -38,6 +38,16 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        create_table_missing_db,
+        [
+            // "Snowflake:
+            // 002003 (02000): SQL compilation error:
+            // Database 'MISSING_DB' does not exist or not authorized."
+            "create table missing_db.public.foo(a int)",
+        ]
+    );
+
+    sql_test!(
         show_schemas_in_missing_db,
         [
             // "Snowflake:
@@ -151,13 +161,39 @@ mod snowflake_compatibility {
             "SELECT SYSTEM$CANCEL_QUERY('$LAST_QUERY_ID');",
         ]
     );
+
+    sql_test!(
+        alter_missing_table,
+        [
+            // 002003 (42S02): SQL compilation error:
+            // Table 'EMBUCKET.PUBLIC.TEST2' does not exist or not authorized.
+            "ALTER TABLE embucket.public.test ADD COLUMN new_col INT",
+        ]
+    );
+
+    sql_test!(
+        alter_table_schema_missing,
+        [
+            // 002003 (02000): SQL compilation error:
+            // Schema 'EMBUCKET.MISSING_SCHEMA' does not exist or not authorized.
+            "ALTER TABLE embucket.missing_schema.test ADD COLUMN new_col INT",
+        ]
+    );
+
+    sql_test!(
+        alter_table_db_missing,
+        [
+            // 002003 (02000): SQL compilation error:
+            // Database 'MISSING_DB' does not exist or not authorized.
+            "ALTER TABLE missing_db.public.test2 ADD COLUMN new_col INT",
+        ]
+    );
 }
 
 // Following tests so far
 mod snowflake_compatibility_issues {
     use super::*;
 
-    // incorrect sql_state: 42000, should be: 42S02
     sql_test!(
         select_from_missing_table,
         [

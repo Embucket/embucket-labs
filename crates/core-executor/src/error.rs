@@ -198,6 +198,7 @@ pub enum Error {
 
     #[snafu(display("Table {table} not found in {db}.{schema}"))]
     TableNotFoundInSchemaInDatabase {
+        operation_on: OperationOn,
         table: String,
         schema: String,
         db: String,
@@ -207,6 +208,7 @@ pub enum Error {
 
     #[snafu(display("Schema {schema} not found in database {db}"))]
     SchemaNotFoundInDatabase {
+        operation_on: OperationOn,
         schema: String,
         db: String,
         #[snafu(implicit)]
@@ -268,6 +270,7 @@ pub enum Error {
 
     #[snafu(display("Catalog {catalog} not found"))]
     CatalogNotFound {
+        operation_on: OperationOn,
         catalog: String,
         #[snafu(implicit)]
         location: Location,
@@ -688,6 +691,23 @@ impl TryFrom<QueryRecord> for Error {
             |error| Ok(HistoricalQuerySnafu { error }.build()),
         )
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationType {
+    Create,
+    Alter,
+    Drop,
+    Show,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationOn {
+    Database(OperationType),
+    Schema(OperationType),
+    Table(OperationType),
+    Unknown,
 }
 
 #[derive(Debug)]
