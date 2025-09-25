@@ -1,4 +1,5 @@
 use super::errors as conv_errors;
+use crate::utils::to_string_array;
 use chrono::{DateTime, Datelike, NaiveDate};
 use datafusion::arrow::array::Date32Array;
 use datafusion::arrow::compute::{CastOptions, cast_with_options};
@@ -8,7 +9,6 @@ use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, TypeSignatureClass};
 use datafusion_common::ScalarValue;
 use datafusion_common::arrow::array::{Array, ArrayRef, StringArray};
-use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl, Volatility};
 use std::any::Any;
 use std::ops::Add;
@@ -146,7 +146,7 @@ impl ToDateFunc {
     ) -> DFResult<ArrayRef> {
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let string_array: &StringArray = as_generic_string_array(array)?;
+                let string_array: &StringArray = &to_string_array(array)?;
 
                 let mut date32_array_builder = Date32Array::builder(string_array.len());
 

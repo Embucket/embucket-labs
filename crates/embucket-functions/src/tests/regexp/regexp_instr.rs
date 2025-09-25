@@ -5,6 +5,11 @@ test_query!(
     "SELECT REGEXP_INSTR('nevermore1, nevermore2, nevermore3.', 'nevermore\\d')",
     snapshot_path = "regexp_instr"
 );
+test_query!(
+    regexp_instr_basic_utf8_view,
+    "SELECT REGEXP_INSTR('nevermore1, nevermore2, nevermore3.'::VARCHAR, 'nevermore\\d')",
+    snapshot_path = "regexp_instr"
+);
 
 test_query!(
     regexp_instr_position,
