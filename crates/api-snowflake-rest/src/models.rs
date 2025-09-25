@@ -1,13 +1,13 @@
-#[cfg(feature = "default-server")]
-use core_executor::models::ColumnInfo as ColumnInfoModel;
-
-#[cfg(not(feature = "external-server"))]
-use core_history::result_set::Row;
-
-// Define simple representation for Row
-// As with external-server we won't have any dependences (especially trivial)
-#[cfg(feature = "external-server")]
-type Row = Vec<serde_json::Value>;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "default-server")] {
+        use core_executor::models::ColumnInfo as ColumnInfoModel;
+        use core_history::result_set::Row;
+    } else {
+        // Define simple representation for Row
+        // As with external-server we won't have any dependences (especially trivial)
+        type Row = Vec<serde_json::Value>;
+    }
+}
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

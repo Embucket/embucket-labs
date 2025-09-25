@@ -1,10 +1,4 @@
-#[cfg(feature = "default-server")]
-use crate::server::test_server::run_test_rest_api_server;
-
-// External server should be already running, we just return its address
-#[cfg(not(feature = "default-server"))]
-use crate::tests::external_server::run_test_rest_api_server;
-
+use super::run_test_rest_api_server;
 use crate::sql_test;
 
 // This test uses external server if tests were executed with `cargo test-rest`
