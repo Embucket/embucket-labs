@@ -1,6 +1,7 @@
 use super::errors as regexp_errors;
 use crate::utils::{pattern_to_regex, regexp};
 use datafusion::arrow::array::{StringArray, StringBuilder};
+use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{
@@ -262,7 +263,7 @@ impl ScalarUDFImpl for RegexpReplaceFunc {
 
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let string_array: &StringArray = as_generic_string_array(array)?;
+                let string_array = &to_string_array(array)?;
                 let regex = pattern_to_regex(pattern, regex_parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, position)
@@ -293,5 +294,19 @@ impl ScalarUDFImpl for RegexpReplaceFunc {
         }
 
         Ok(ColumnarValue::Array(Arc::new(result_array.finish())))
+    }
+}
+
+fn to_string_array(array: &dyn Array) -> DFResult<StringArray> {
+    match array.data_type() {
+        DataType::Utf8 | DataType::LargeUtf8 => Ok(as_generic_string_array(array)?.clone()),
+        DataType::Utf8View => {
+            let casted = cast(array, &DataType::Utf8)?;
+            Ok(as_generic_string_array(&casted)?.clone())
+        }
+        other => regexp_errors::UnsupportedInputTypeSnafu {
+            data_type: other.clone(),
+        }
+        .fail()?,
     }
 }
