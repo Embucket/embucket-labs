@@ -42,6 +42,8 @@ pub struct QueryRecord {
     pub status: QueryStatus,
     pub error: Option<String>,
     pub diagnostic_error: Option<String>,
+    #[serde(skip)]
+    pub loaded_from_history: bool,
 }
 
 impl QueryRecord {
@@ -61,6 +63,7 @@ impl QueryRecord {
             status: QueryStatus::Running,
             error: None,
             diagnostic_error: None,
+            loaded_from_history: false,
         }
     }
 
@@ -111,6 +114,10 @@ impl QueryRecord {
         self.status = error.status.clone();
         self.error = Some(error.message.clone());
         self.diagnostic_error = Some(error.diagnostic_message.clone());
+    }
+
+    pub const fn set_loaded_from_history(&mut self) {
+        self.loaded_from_history = true;
     }
 
     // Returns a key with inverted id for descending order

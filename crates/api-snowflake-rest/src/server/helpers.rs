@@ -7,14 +7,10 @@ use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::models::QueryResult;
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
-use core_history::Row;
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
-use datafusion::arrow::json::WriterBuilder;
-use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use snafu::ResultExt;
-use tracing::debug;
 use uuid::Uuid;
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
@@ -46,49 +42,13 @@ fn records_to_arrow_string(recs: &Vec<RecordBatch>) -> std::result::Result<Strin
     Ok(engine_base64.encode(buf))
 }
 
-fn records_to_json_string(recs: &[RecordBatch]) -> std::result::Result<String, Error> {
-    let buf = Vec::new();
-    let write_builder = WriterBuilder::new().with_explicit_nulls(true);
-    let mut writer = write_builder.build::<_, JsonArray>(buf);
-    let record_refs: Vec<&RecordBatch> = recs.iter().collect();
-    writer
-        .write_batches(&record_refs)
-        .context(api_snowflake_rest_error::ArrowSnafu)?;
-    writer
-        .finish()
-        .context(api_snowflake_rest_error::ArrowSnafu)?;
-
-    // Get the underlying buffer back,
-    String::from_utf8(writer.into_inner()).context(api_snowflake_rest_error::Utf8Snafu)
-}
-
-// moved from impl ResponseData, to satisfy features dependencies
-impl ResponseData {
-    pub fn rows_to_vec(json_rows_string: &str) -> Result<Vec<Row>> {
-        serde_json::from_str::<Vec<Row>>(json_rows_string)
-            .context(api_snowflake_rest_error::RowParseSnafu)
-    }
-}
-
 #[tracing::instrument(name = "prepare_query_ok_response", level = "debug", err, ret(level = tracing::Level::TRACE))]
 pub fn prepare_query_ok_response(
     sql_text: &str,
     query_result: QueryResult,
     ser_fmt: DataSerializationFormat,
-    from_history: bool,
 ) -> Result<Json<JsonResponse>> {
-    let records = if from_history {
-        &query_result.records
-    } else {
-        // only use conversion for non historical data
-        &convert_record_batches(&query_result, ser_fmt)?
-    };
-
     let query_uuid: Uuid = query_result.query_id.as_uuid();
-    // Record the result as part of the current span.
-    tracing::Span::current()
-        .record("query_id", query_result.query_id.as_i64())
-        .record("query_uuid", query_uuid.to_string());
 
     let json_resp = Json(JsonResponse {
         data: Option::from(ResponseData {
@@ -99,13 +59,18 @@ pub fn prepare_query_ok_response(
                 .collect(),
             query_result_format: Some(ser_fmt.to_string().to_lowercase()),
             row_set: if ser_fmt == DataSerializationFormat::Json {
-                Option::from(ResponseData::rows_to_vec(
-                    records_to_json_string(records)?.as_str(),
-                )?)
+                Option::from(query_result.as_row_set()?)
             } else {
                 None
             },
             row_set_base_64: if ser_fmt == DataSerializationFormat::Arrow {
+                let records = if query_result.from_history {
+                    &query_result.records
+                } else {
+                    // only use conversion for non historical data
+                    &convert_record_batches(&query_result, ser_fmt)?
+                    // Not sue if should call convert_struct_to_timestamp too
+                };
                 Option::from(records_to_arrow_string(records)?)
             } else {
                 None
@@ -119,9 +84,5 @@ pub fn prepare_query_ok_response(
         message: Option::from("successfully executed".to_string()),
         code: None,
     });
-    debug!(
-        "query {:?}, response: {:?}, records: {:?}",
-        sql_text, json_resp, records
-    );
     Ok(json_resp)
 }

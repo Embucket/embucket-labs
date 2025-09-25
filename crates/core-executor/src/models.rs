@@ -90,19 +90,27 @@ pub struct QueryResult {
     /// This is required to construct a valid response even when `records` are empty
     pub schema: Arc<ArrowSchema>,
     pub query_id: QueryRecordId,
+    pub from_history: bool,
 }
 
 impl QueryResult {
-    pub fn as_result_set(&self) -> Result<ResultSet> {
+    pub fn as_row_set(&self) -> Result<Vec<Row>> {
+        // hardcode arrow format here to be consistent with we did it before within `fn as_result_set()`
         let data_format = DataSerializationFormat::Arrow;
 
-        // Convert the QueryResult to RecordBatches using the specified serialization format
-        // Add columns dbt metadata to each field
-        // Since we have to store already converted data to history
-        let mut record_batches = convert_record_batches(self, data_format)?;
-        // Convert struct timestamp columns to string representation
-        record_batches = convert_struct_to_timestamp(record_batches)?;
-        let record_refs: Vec<&RecordBatch> = record_batches.iter().collect();
+        let record_batches = if self.from_history {
+            &self.records
+        } else {
+            // use conversion only for non historical data
+            // Convert the QueryResult to RecordBatches using the specified serialization format
+            // Add columns dbt metadata to each field
+            // Since we have to store already converted data to history
+            let record_batches = convert_record_batches(self, data_format)?;
+            // Convert struct timestamp columns to string representation
+            &convert_struct_to_timestamp(&record_batches)?
+        };
+
+        let record_batches = record_batches.iter().collect::<Vec<_>>();
 
         // Serialize the RecordBatches into a JSON string using Arrow's Writer
         let buffer = Vec::new();
@@ -111,7 +119,7 @@ impl QueryResult {
             .build::<_, JsonArray>(buffer);
 
         writer
-            .write_batches(&record_refs)
+            .write_batches(&record_batches)
             .context(ex_error::ArrowSnafu)?;
         writer.finish().context(ex_error::ArrowSnafu)?;
 
@@ -122,6 +130,10 @@ impl QueryResult {
         let rows =
             serde_json::from_str::<Vec<Row>>(&json_str).context(ex_error::SerdeParseSnafu)?;
 
+        Ok(rows)
+    }
+
+    pub fn as_result_set(&self) -> Result<ResultSet> {
         // Extract column metadata from the original QueryResult
         let columns = self
             .column_info()
@@ -136,8 +148,9 @@ impl QueryResult {
         let schema = serde_json::to_string(&self.schema).context(ex_error::SerdeParseSnafu)?;
         Ok(ResultSet {
             columns,
-            rows,
-            data_format: data_format.to_string(),
+            rows: self.as_row_set()?,
+            // move here value of data_format we  hardcoded earlier
+            data_format: DataSerializationFormat::Arrow.to_string(),
             schema,
         })
     }
@@ -160,6 +173,7 @@ impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: QueryRecord) -> std::result::Result<Self, Self::Error> {
         let query_id = value.id;
+        let from_history = value.loaded_from_history;
         let result_set = ResultSet::try_from(value).context(ex_error::QueryHistorySnafu)?;
 
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)
@@ -183,6 +197,7 @@ impl TryFrom<QueryRecord> for QueryResult {
             records: batches,
             schema: schema_ref,
             query_id,
+            from_history,
         })
     }
 }
@@ -198,6 +213,7 @@ impl QueryResult {
             records,
             schema,
             query_id,
+            from_history: false,
         }
     }
     #[must_use]
@@ -222,7 +238,8 @@ impl QueryResultStatus {
     pub fn as_historical_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
         match &self.query_result {
             Ok(query_result) => {
-                QueryResult::as_result_set(query_result)
+                query_result
+                    .as_result_set()
                     // ResultSet creation failed from Ok(QueryResult)
                     .map_err(|err| QueryResultError {
                         status: QueryStatus::Failed,

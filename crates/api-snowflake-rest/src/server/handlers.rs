@@ -75,7 +75,7 @@ pub async fn query(
             .record("query_id", query_handle.query_id.as_i64())
             .record("query_uuid", query_uuid.to_string());
 
-        return Ok(Json(JsonResponse {
+        Ok(Json(JsonResponse {
             data: Option::from(ResponseData {
                 query_id: Some(query_uuid.to_string()),
                 ..Default::default()
@@ -83,15 +83,15 @@ pub async fn query(
             success: true,
             message: Option::from("successfully executed".to_string()),
             code: None,
-        }));
+        }))
+    } else {
+        let query_result = state
+            .execution_svc
+            .query(&session_id, &sql_text, query_context)
+            .await?;
+
+        prepare_query_ok_response(&sql_text, query_result, serialization_format)
     }
-
-    let query_result = state
-        .execution_svc
-        .query(&session_id, &sql_text, query_context)
-        .await?;
-
-    prepare_query_ok_response(&sql_text, query_result, serialization_format, false)
 }
 
 #[tracing::instrument(name = "api_snowflake_rest::get_query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
@@ -112,12 +112,9 @@ pub async fn get_query(
         .wait_historical_query_result(query_id)
         .await?;
     match query_result {
-        Ok(query_result) => prepare_query_ok_response(
-            "",
-            query_result,
-            state.config.dbt_serialization_format,
-            true,
-        ),
+        Ok(query_result) => {
+            prepare_query_ok_response("", query_result, state.config.dbt_serialization_format)
+        }
         // Return the same response as it would be returned when error is propagated
         Err(error) => {
             // Create without using build(), and not using context which works with result

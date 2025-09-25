@@ -46,7 +46,7 @@ macro_rules! sql_test {
     ($name:ident, $sqls:expr) => {
         #[tokio::test]
         async fn $name() {
-            use $crate::tests::snow_sql::{SnowSqlCommand, snow_sql};
+            use $crate::tests::snow_sql::snow_sql;
             use $crate::models::JsonResponse;
             use $crate::tests::sql_macro::{DEMO_PASSWORD, DEMO_USER,
                 insta_replace_filiters,
@@ -69,7 +69,7 @@ macro_rules! sql_test {
                     sql = sql.replace("$LAST_QUERY_ID", &last_query_id);
                 }
 
-                let snapshot = snow_sql(&server_addr, DEMO_USER, DEMO_PASSWORD, SnowSqlCommand::Query(sql.to_string())).await;
+                let snapshot = snow_sql(&server_addr, DEMO_USER, DEMO_PASSWORD, &sql).await;
                 let test_duration = test_start.elapsed().as_millis();
                 let sql_duration = sql_start.elapsed().as_millis();
                 let async_query = sql.ends_with(";>").then(|| "Async ").unwrap_or("");

@@ -418,7 +418,7 @@ fn encode_tz(tz: Option<Arc<str>>) -> Option<i32> {
 }
 
 #[allow(clippy::as_conversions)]
-pub fn convert_struct_to_timestamp(records: Vec<RecordBatch>) -> Result<Vec<RecordBatch>> {
+pub fn convert_struct_to_timestamp(records: &Vec<RecordBatch>) -> Result<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
 
     for batch in records {
@@ -1362,7 +1362,8 @@ mod tests {
         let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
 
         // Create ResultSet from QueryResult
-        let result_set = QueryResult::as_result_set(&query_result)
+        let result_set = query_result
+            .as_result_set()
             .expect("Failed to convert query result to result set");
 
         eprintln!("Result set: {result_set:?}");
