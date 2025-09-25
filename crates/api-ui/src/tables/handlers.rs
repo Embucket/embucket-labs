@@ -376,7 +376,7 @@ pub async fn upload_file(
         ("offset" = Option<usize>, Query, description = "Tables offset"),
         ("limit" = Option<usize>, Query, description = "Tables limit"),
         ("search" = Option<String>, Query, description = "Tables search"),
-        ("order_by" = Option<String>, Query, description = "Order by: table_name (default), schema_name, database_name, volume_name, table_type, table_format, owner, created_at, updated_at"),
+        ("order_by" = Option<String>, Query, description = "Order by: table_name, schema_name, database_name, volume_name, table_type, table_format, owner, created_at (default), updated_at"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     operation_id = "getTables",
@@ -417,6 +417,8 @@ pub async fn get_tables(
             "table_format",
             "owner",
         ],
+        "created_at",
+        OrderDirection::DESC,
     );
     let QueryResult { records, .. } = state
         .execution_svc

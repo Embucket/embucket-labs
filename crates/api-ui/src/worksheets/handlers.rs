@@ -56,7 +56,7 @@ pub struct ApiDoc;
         ("offset" = Option<usize>, Query, description = "Worksheets offset"),
         ("limit" = Option<usize>, Query, description = "Worksheets limit"),
         ("search" = Option<String>, Query, description = "Worksheets search"),
-        ("order_by" = Option<String>, Query, description = "Order by: id (default), name, content, created_at, updated_at"),
+        ("order_by" = Option<String>, Query, description = "Order by: id, name, content, created_at (default), updated_at"),
         ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
@@ -79,7 +79,13 @@ pub async fn worksheets(
 ) -> Result<Json<WorksheetsResponse>> {
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.history.worksheets".to_string();
-    let sql_string = apply_parameters(&sql_string, parameters, &["id", "name", "content"]);
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        &["id", "name", "content"],
+        "created_at",
+        OrderDirection::DESC,
+    );
     let QueryResult { records, .. } = state
         .execution_svc
         .query(&session_id, sql_string.as_str(), context)

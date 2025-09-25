@@ -71,6 +71,20 @@ pub enum QueryError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Failed to parse DateTime: {error}"))]
+    Datetime {
+        #[snafu(source)]
+        error: chrono::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to parse query status, got: {got}"))]
+    QueryStatusParseError {
+        got: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
@@ -84,7 +98,9 @@ impl IntoStatusCode for Error {
                 QueryError::Store { .. } => StatusCode::BAD_REQUEST,
                 QueryError::ResultParse { .. }
                 | QueryError::Utf8 { .. }
-                | QueryError::CreateResultSet { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+                | QueryError::CreateResultSet { .. }
+                | QueryError::Datetime { .. }
+                | QueryError::QueryStatusParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Queries { source, .. } => match &source {
                 QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,
