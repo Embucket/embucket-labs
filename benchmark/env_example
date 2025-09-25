@@ -11,6 +11,7 @@ DATASET_S3_BUCKET=embucket-testdata
 DATASET_NAME=tpch_data
 DATASET_SCALE_FACTOR=sf_01
 
+EMBUCKET_ACCOUNT=embucket
 EMBUCKET_USER=embucket
 EMBUCKET_PASSWORD=embucket
 EMBUCKET_DATABASE=benchmark_database
@@ -20,3 +21,6 @@ EMBUCKET_ENABLED=true
 EMBUCKET_PROTOCOL=http
 EMBUCKET_HOST=instance_ip_address
 EMBUCKET_PORT=3000
+
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
