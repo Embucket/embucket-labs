@@ -26,15 +26,12 @@ def create_tables(cursor, system):
 def upload_parquet_to_snowflake_tables(cursor, dataset, dataset_scale_factor):
     """Upload parquet files to Snowflake tables from S3 stage."""
     table_names = get_table_names(fully_qualified_names_for_embucket=False)
-    for placeholder, qualified_table_name in table_names.items():
-        # Extract bare table name for the S3 path
-        bare_table_name = qualified_table_name.split('.')[-1]
-        print(f"Loading data into Snowflake table {qualified_table_name}...")
-
+    for table_name in table_names.values():
+        print(f"Loading data into Snowflake table {table_name}...")
         # Load data directly from the S3 stage
-        s3_path = f"s3://embucket-testdata/{dataset}/{dataset_scale_factor}/{bare_table_name}.parquet"
+        s3_path = f"s3://embucket-testdata/{dataset}/{dataset_scale_factor}/{table_name}.parquet"
         cursor.execute(f"""
-            COPY INTO {qualified_table_name}
+            COPY INTO {table_name}
             FROM '{s3_path}'
             CREDENTIALS = (AWS_KEY_ID = '{os.environ["AWS_ACCESS_KEY_ID"]}'
                           AWS_SECRET_KEY = '{os.environ["AWS_SECRET_ACCESS_KEY"]}')
@@ -103,8 +100,8 @@ if __name__ == "__main__":
 
     print(f"Preparing data for dataset: {args.dataset}, scale: {args.scale}")
 
-    if args.system.lower() in ["embucket", "both"]:
-        prepare_data_for_embucket(args.dataset, args.scale)
+    # if args.system.lower() in ["embucket", "both"]:
+    #     prepare_data_for_embucket(args.dataset, args.scale)
 
     if args.system.lower() in ["snowflake", "both"]:
         prepare_data_for_snowflake(args.dataset, args.scale)
