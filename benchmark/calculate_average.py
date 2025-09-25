@@ -3,11 +3,16 @@ import glob
 import re
 import os
 
+from benchmark.benchmark import SystemType
+
 COLUMN_TO_AVERAGE = 'Total (ms)'
 
 
 def sort_by_query_index(df):
-    """Add index column to dataframe based on query number."""
+    """Add index column to dataframe based on query number.
+    If df['Query'] contains ['tpch-q20', 'tpch-q3'],
+    the function extracts the numbers (20, 3) and sorts accordingly
+    """
     # Add index column
     df['query_index'] = df['Query'].apply(
         lambda x: int(re.search(r'q(\d+)', x).group(1))
@@ -21,20 +26,20 @@ def sort_by_query_index(df):
     return df
 
 
-def calculate_benchmark_averages(schema, warehouse, database, benchmark_type):
+def calculate_benchmark_averages(schema, warehouse, system, benchmark_type):
     """
     Calculate average results for benchmark runs.
     Args:
         schema: The schema/dataset used in the benchmark
         warehouse: The warehouse/instance used in the benchmark
-        database: Database used
+        system: system like 'embucket','snowflake',
     """
-    if database == 'embucket':
+    if system == SystemType.EMBUCKET:
         search_dir = f'result/embucket_{benchmark_type}_results/{schema}/{warehouse}'
-    elif database == 'snowflake':
+    elif system == SystemType.SNOWFLAKE:
         search_dir = f'result/snowflake_{benchmark_type}_results/{schema}/{warehouse}'
     else:
-        raise ValueError("Unsupported database")
+        raise ValueError("Unsupported system")
 
     # Get all CSV files from the specified directory
     all_csv_files = glob.glob(os.path.join(search_dir, '*.csv'))

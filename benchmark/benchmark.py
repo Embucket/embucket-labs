@@ -10,6 +10,7 @@ from tpch import parametrize_tpch_queries
 from docker_manager import create_docker_manager
 
 from dotenv import load_dotenv
+from enum import Enum
 import csv
 import argparse
 
@@ -21,6 +22,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+class SystemType(Enum):
+    EMBUCKET = "embucket"
+    SNOWFLAKE = "snowflake"
 
 
 def get_results_path(platform: str, benchmark_type: str, scale_factor: str,
@@ -304,7 +310,7 @@ def run_snowflake_benchmark(run_number: int):
         calculate_benchmark_averages(
             scale_factor,
             warehouse,
-            "snowflake",
+            SystemType.SNOWFLAKE,
             benchmark_type
         )
 
@@ -343,7 +349,7 @@ def run_embucket_benchmark(run_number: int):
         calculate_benchmark_averages(
             scale_factor,
             instance,
-            "embucket",
+            SystemType.EMBUCKET,
             benchmark_type
         )
 
@@ -382,64 +388,36 @@ def display_comparison(sf_results, emb_results):
         logger.info(f"Query {query}: Snowflake {sf_time:.2f}ms, Embucket {emb_time:.2f}ms, Ratio: {ratio:.2f}x")
 
 
-def run_benchmark(run_number: int, platforms: List[str] = None):
-    """Main function to run benchmarks on specified platforms."""
-    if not platforms:
-        platforms = ["embucket", "snowflake"]
-
-    if "snowflake" in platforms:
-        run_snowflake_benchmark(run_number)
-
-    if "embucket" in platforms:
+def run_benchmark(run_number: int, platform_enum: Optional[SystemType]):
+    """Run benchmarks on the specified platform."""
+    if platform_enum == SystemType.EMBUCKET:
         run_embucket_benchmark(run_number)
+    elif platform_enum == SystemType.SNOWFLAKE:
+        run_snowflake_benchmark(run_number)
+    else:
+        raise ValueError("Unsupported or missing platform_enum")
 
 
 def parse_args():
     """Parse command line arguments for benchmark configuration."""
     parser = argparse.ArgumentParser(description="Run benchmarks on Snowflake and/or Embucket")
-
-    # Platform selection
-    parser.add_argument(
-        "--platform",
-        choices=["snowflake", "embucket", "both"],
-        default="both",
-        help="Which platform to benchmark"
-    )
-
-    # Number of runs
-    parser.add_argument(
-        "--runs",
-        type=int,
-        default=3,
-        help="Number of benchmark runs to perform"
-    )
-
-    # Benchmark type
-    parser.add_argument(
-        "--benchmark-type",
-        choices=["tpch", "tpcds"],
-        default=os.environ.get("BENCHMARK_TYPE", "tpch"),
-        help="Type of benchmark to run"
-    )
-
+    parser.add_argument("--platform", choices=["snowflake", "embucket", "both"], default="both")
+    parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--benchmark-type", choices=["tpch", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
+    parser.add_argument("--dataset-name", help="Override the DATASET_NAME environment variable")
+    parser.add_argument("--scale-factor", help="Override the DATASET_SCALE_FACTOR environment variable")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
 
-    # Set up platforms based on command line argument
-    if args.platform == "both":
-        platforms = ["embucket", "snowflake"]
-    else:
-        platforms = [args.platform]
-
-    # Override environment variable for benchmark type if specified
+    # Override environment variables if specified in args
     if args.benchmark_type != os.environ.get("BENCHMARK_TYPE", "tpch"):
         os.environ["BENCHMARK_TYPE"] = args.benchmark_type
 
-    # Run benchmarks for specified number of times
-    for i in range(args.runs):
-        run_number = i + 1  # Use 1-based indexing for run numbers
-        logger.info(f"Run {run_number} of {args.runs}")
-        run_benchmark(run_number, platforms)
+    if args.dataset_name:
+        os.environ["DATASET_NAME"] = args.dataset_name
+
+    if args.scale_factor:
+        os.environ["DATASET_SCALE_FACTOR"] = args.scale_factor
