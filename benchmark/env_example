@@ -18,5 +18,5 @@ EMBUCKET_SCHEMA=benchmark_schema
 
 EMBUCKET_ENABLED=true
 EMBUCKET_PROTOCOL=http
-EMBUCKET_HOST=inctance_ip_address
+EMBUCKET_HOST=instance_ip_address
 EMBUCKET_PORT=3000
