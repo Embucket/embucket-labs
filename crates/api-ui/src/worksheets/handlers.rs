@@ -1,16 +1,22 @@
 #![allow(clippy::needless_for_each)]
 use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
+use crate::worksheets::error::{DatetimeSnafu, ListSnafu};
 use crate::worksheets::{
-    GetWorksheetsParams, SortBy, SortOrder, Worksheet, WorksheetCreatePayload,
-    WorksheetCreateResponse, WorksheetResponse, WorksheetUpdatePayload, WorksheetsResponse,
-    error as worksheets_error,
+    Worksheet, WorksheetCreatePayload, WorksheetCreateResponse, WorksheetResponse,
+    WorksheetUpdatePayload, WorksheetsResponse, error as worksheets_error,
 };
+use crate::{
+    OrderDirection, SearchParameters, apply_parameters, downcast_int64_column,
+    downcast_string_column,
+};
+use api_sessions::DFSessionId;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use core_executor::models::{QueryContext, QueryResult};
 use core_history::WorksheetId;
 use snafu::ResultExt;
 use std::convert::From;
@@ -33,6 +39,7 @@ use utoipa::OpenApi;
         WorksheetCreateResponse,
         WorksheetResponse,
         WorksheetsResponse,
+        OrderDirection,
     )),
     tags(
         (name = "worksheets", description = "Worksheets endpoints"),
@@ -45,7 +52,13 @@ pub struct ApiDoc;
     path = "/ui/worksheets",
     operation_id = "getWorksheets",
     tags = ["worksheets"],
-    params(GetWorksheetsParams),
+    params(
+        ("offset" = Option<usize>, Query, description = "Worksheets offset"),
+        ("limit" = Option<usize>, Query, description = "Worksheets limit"),
+        ("search" = Option<String>, Query, description = "Worksheets search"),
+        ("order_by" = Option<String>, Query, description = "Order by: id (default), name, content, created_at, updated_at"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+    ),
     responses(
         (status = 200, description = "Get list of worksheets", body = WorksheetsResponse),
         (status = 401,
@@ -61,43 +74,42 @@ pub struct ApiDoc;
 #[tracing::instrument(name = "api_ui::worksheets", level = "info", skip(state), err)]
 pub async fn worksheets(
     State(state): State<AppState>,
-    Query(GetWorksheetsParams {
-        sort_order,
-        sort_by,
-    }): Query<GetWorksheetsParams>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
 ) -> Result<Json<WorksheetsResponse>> {
-    let history_worksheets = state
-        .history_store
-        .get_worksheets()
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.history.worksheets".to_string();
+    let sql_string = apply_parameters(&sql_string, parameters, &["id", "name", "content"]);
+    let QueryResult { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
         .await
-        .context(worksheets_error::StoreSnafu)
-        .context(worksheets_error::ListSnafu)?;
-
-    let mut items = history_worksheets
-        .into_iter()
-        .map(Worksheet::from)
-        .collect::<Vec<Worksheet>>();
-
-    let sort_order = sort_order.unwrap_or_default();
-    let sort_by = sort_by.unwrap_or_default();
-
-    items.sort_by(|w1, w2| {
-        let cmp_res = match sort_by {
-            SortBy::Name => w1.name.clone().cmp(&w2.name),
-            SortBy::CreatedAt => w1
-                .created_at
-                .timestamp_millis()
-                .cmp(&w2.created_at.timestamp_millis()),
-            SortBy::UpdatedAt => w1
-                .updated_at
-                .timestamp_millis()
-                .cmp(&w2.updated_at.timestamp_millis()),
-        };
-        match sort_order {
-            SortOrder::Ascending => cmp_res,
-            SortOrder::Descending => cmp_res.reverse(),
+        .context(ListSnafu)?;
+    let mut items = Vec::new();
+    for record in records {
+        let ids = downcast_int64_column(&record, "id").context(ListSnafu)?;
+        let names = downcast_string_column(&record, "name").context(ListSnafu)?;
+        let contents = downcast_string_column(&record, "content").context(ListSnafu)?;
+        let created_at_timestamps =
+            downcast_string_column(&record, "created_at").context(ListSnafu)?;
+        let updated_at_timestamps =
+            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+        for i in 0..record.num_rows() {
+            items.push(Worksheet {
+                id: ids.value(i),
+                name: names.value(i).to_string(),
+                content: contents.value(i).to_string(),
+                created_at: created_at_timestamps
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)?,
+                updated_at: updated_at_timestamps
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)?,
+            });
         }
-    });
+    }
 
     Ok(Json(WorksheetsResponse { items }))
 }

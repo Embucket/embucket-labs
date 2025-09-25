@@ -43,7 +43,53 @@ pub struct SearchParameters {
     pub order_direction: Option<OrderDirection>,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+impl Display for SearchParameters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = "";
+        let str = self
+            .offset
+            .map_or_else(|| str.to_string(), |offset| format!("{str}offset={offset}"));
+        let str = self.limit.map_or_else(
+            || str.to_string(),
+            |limit| {
+                format!(
+                    "{str}{}limit={limit}",
+                    if str.is_empty() { "" } else { "&" }
+                )
+            },
+        );
+        let str = self.search.clone().map_or_else(
+            || str.to_string(),
+            |search| {
+                format!(
+                    "{str}{}search={search}",
+                    if str.is_empty() { "" } else { "&" }
+                )
+            },
+        );
+        let str = self.order_by.clone().map_or_else(
+            || str.to_string(),
+            |order_by| {
+                format!(
+                    "{str}{}orderBy={order_by}",
+                    if str.is_empty() { "" } else { "&" }
+                )
+            },
+        );
+        let str = self.order_direction.clone().map_or_else(
+            || str.to_string(),
+            |order_direction| {
+                format!(
+                    "{str}{}orderDirection={order_direction}",
+                    if str.is_empty() { "" } else { "&" }
+                )
+            },
+        );
+        write!(f, "{str}")
+    }
+}
+
+#[derive(Debug, Deserialize, ToSchema, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum OrderDirection {
     ASC,

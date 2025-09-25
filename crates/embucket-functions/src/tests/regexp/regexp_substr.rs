@@ -7,6 +7,12 @@ test_query!(
 );
 
 test_query!(
+    regexp_substr_basic_scalar_utf8_view,
+    "SELECT REGEXP_SUBSTR('nevermore1, nevermore2, nevermore3.'::VARCHAR, 'nevermore')",
+    snapshot_path = "regexp_substr"
+);
+
+test_query!(
     regexp_substr_basic_column,
     "SELECT REGEXP_SUBSTR(column1, 'the\\W+\\w+')
     FROM VALUES ('It was the best of times, it was the worst of times.'),

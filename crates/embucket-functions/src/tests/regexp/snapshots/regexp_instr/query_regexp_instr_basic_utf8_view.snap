@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/regexp/regexp_instr.rs
+description: "\"SELECT REGEXP_INSTR('nevermore1, nevermore2, nevermore3.'::VARCHAR, 'nevermore\\\\d')\""
+---
+Ok(
+    [
+        "+-------------------------------------------------------------------------------+",
+        "| regexp_instr(Utf8(\"nevermore1, nevermore2, nevermore3.\"),Utf8(\"nevermore\\d\")) |",
+        "+-------------------------------------------------------------------------------+",
+        "| 1                                                                             |",
+        "+-------------------------------------------------------------------------------+",
+    ],
+)

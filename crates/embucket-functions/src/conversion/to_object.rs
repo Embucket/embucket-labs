@@ -1,11 +1,11 @@
 use super::errors as conv_errors;
 use crate::macros::make_udf_function;
+use crate::utils::to_string_array;
 use datafusion::arrow::array::{Array, StringArray, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::ScalarValue;
-use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use serde_json::Value;
 use snafu::OptionExt;
@@ -76,7 +76,7 @@ impl ScalarUDFImpl for ToObjectFunc {
         let array = match array.data_type() {
             DataType::Null => ScalarValue::Utf8(None).to_array_of_size(array.len())?,
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let arr: &StringArray = as_generic_string_array(&array)?;
+                let arr: &StringArray = &to_string_array(&array)?;
                 let mut result = StringBuilder::with_capacity(arr.len(), 1024);
 
                 for opt in arr {

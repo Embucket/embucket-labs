@@ -1,6 +1,11 @@
 use crate::df_error;
-use datafusion::arrow::array::StringArray;
+use crate::errors;
+use arrow_schema::DataType;
+use datafusion::arrow::array::{Array, StringArray};
+use datafusion::arrow::compute::cast;
+use datafusion::error::Result as DFResult;
 use datafusion_common::DataFusionError;
+use datafusion_common::cast::as_generic_string_array;
 use regex::{CaptureMatches, Regex, RegexBuilder};
 use snafu::ResultExt;
 use std::future::Future;
@@ -48,4 +53,18 @@ pub fn regexp<'h, 'r: 'h>(
     array
         .iter()
         .map(move |opt| opt.map(move |s| regex.captures_iter(&s[position.min(s.len())..])))
+}
+
+pub fn to_string_array(array: &dyn Array) -> DFResult<StringArray> {
+    match array.data_type() {
+        DataType::Utf8 => Ok(as_generic_string_array(array)?.clone()),
+        DataType::Utf8View | DataType::LargeUtf8 => {
+            let casted = cast(array, &DataType::Utf8)?;
+            Ok(as_generic_string_array(&casted)?.clone())
+        }
+        other => errors::UnsupportedInputTypeSnafu {
+            data_type: other.clone(),
+        }
+        .fail()?,
+    }
 }

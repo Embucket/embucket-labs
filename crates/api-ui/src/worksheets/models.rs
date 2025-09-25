@@ -1,9 +1,7 @@
 use chrono::{DateTime, Utc};
 use core_history::WorksheetId;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::fmt::Display;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -54,59 +52,6 @@ impl Into<core_history::Worksheet> for Worksheet {
             updated_at: self.updated_at,
         }
     }
-}
-
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum SortOrder {
-    Ascending,
-    #[default]
-    Descending,
-}
-
-impl Display for SortOrder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match *self {
-            Self::Ascending => "ascending",
-            Self::Descending => "descending",
-        };
-        write!(f, "{s}")
-    }
-}
-
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum SortBy {
-    Name,
-    #[default]
-    CreatedAt,
-    UpdatedAt,
-}
-
-impl Display for SortBy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match *self {
-            Self::Name => "name",
-            Self::CreatedAt => "createdAt",
-            Self::UpdatedAt => "updatedAt",
-        };
-        write!(f, "{s}")
-    }
-}
-
-// Use inline attribute as a workaround, for https://github.com/juhaku/utoipa/issues/1284
-// as otherwise it doesn't create schema for enum variants in Query
-
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq, Eq, ToSchema, IntoParams)]
-#[into_params(parameter_in = Query)]
-#[serde(default, rename_all = "camelCase")]
-pub struct GetWorksheetsParams {
-    /// Sort order
-    #[param(inline)]
-    pub sort_order: Option<SortOrder>,
-    /// Sort by
-    #[param(inline)]
-    pub sort_by: Option<SortBy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

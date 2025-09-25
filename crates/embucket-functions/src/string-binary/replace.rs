@@ -1,10 +1,13 @@
-use datafusion::arrow::array::{Array, ArrayRef, GenericStringArray, OffsetSizeTrait};
+use datafusion::arrow::array::{
+    Array, ArrayRef, GenericStringArray, OffsetSizeTrait, StringViewArray,
+};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
-use datafusion_common::cast::as_generic_string_array;
+use datafusion_common::cast::{as_generic_string_array, as_string_view_array};
 
 use crate::semi_structured::errors;
 use crate::string_binary::logical_str;
+use datafusion::arrow::compute::cast;
 use datafusion::logical_expr::TypeSignature;
 use datafusion_expr::binary::string_coercion;
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
@@ -86,7 +89,8 @@ impl ScalarUDFImpl for ReplaceFunc {
             .collect::<DFResult<_>>()?;
 
         match return_dtype {
-            DataType::Utf8 | DataType::Utf8View => replace::<i32>(&arrays),
+            DataType::Utf8 => replace::<i32>(&arrays),
+            DataType::Utf8View => replace_view(&arrays),
             DataType::LargeUtf8 => replace::<i64>(&arrays),
             _ => errors::ExpectedUtf8StringSnafu.fail()?,
         }
@@ -113,6 +117,28 @@ fn replace<T: OffsetSizeTrait>(args: &[ArrayRef]) -> DFResult<ColumnarValue> {
         })
         .collect::<GenericStringArray<T>>();
 
+    Ok(ColumnarValue::Array(Arc::new(result)))
+}
+
+fn replace_view(args: &[ArrayRef]) -> DFResult<ColumnarValue> {
+    let casted: Vec<_> = args
+        .iter()
+        .map(|arr| cast(arr, &DataType::Utf8View))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let string_view_array = as_string_view_array(&casted[0])?;
+    let from_array = as_string_view_array(&casted[1])?;
+    let to_array = as_string_view_array(&casted[2])?;
+
+    let result = string_view_array
+        .iter()
+        .zip(from_array.iter())
+        .zip(to_array.iter())
+        .map(|((string, from), to)| match (string, from, to) {
+            (Some(string), Some(from), Some(to)) => Some(string.replace(from, to)),
+            _ => None,
+        })
+        .collect::<StringViewArray>();
     Ok(ColumnarValue::Array(Arc::new(result)))
 }
 

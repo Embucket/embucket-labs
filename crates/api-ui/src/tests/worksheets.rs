@@ -4,9 +4,9 @@ use crate::error::ErrorResponse;
 use crate::tests::common::http_req;
 use crate::tests::server::run_test_server;
 use crate::worksheets::{
-    SortBy, SortOrder, Worksheet, WorksheetCreatePayload, WorksheetUpdatePayload,
-    WorksheetsResponse,
+    Worksheet, WorksheetCreatePayload, WorksheetUpdatePayload, WorksheetsResponse,
 };
+use crate::{OrderDirection, SearchParameters};
 use http::Method;
 use reqwest;
 use serde_json::json;
@@ -42,13 +42,12 @@ async fn create_worksheets(
 async fn get_worksheets(
     client: &reqwest::Client,
     addr: &SocketAddr,
-    sort_order: SortOrder,
-    sort_by: SortBy,
+    parameters: SearchParameters,
 ) -> Vec<Worksheet> {
     http_req::<WorksheetsResponse>(
         client,
         Method::GET,
-        &format!("http://{addr}/ui/worksheets?sortBy={sort_by}&sortOrder={sort_order}"),
+        &format!("http://{addr}/ui/worksheets?{parameters}"),
         String::new(),
     )
     .await
@@ -87,7 +86,18 @@ async fn test_ui_worksheets_sort() {
     let created = create_worksheets(&client, &addr, templates).await;
 
     // check sort by name
-    let sort_by_name_asc = get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::Name).await;
+    let sort_by_name_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name1", "name2", "name3", "name4"],
         sort_by_name_asc
@@ -96,8 +106,18 @@ async fn test_ui_worksheets_sort() {
             .collect::<Vec<String>>(),
     );
 
-    let sort_by_name_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::Name).await;
+    let sort_by_name_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name4", "name3", "name2", "name1"],
         sort_by_name_desc
@@ -107,8 +127,18 @@ async fn test_ui_worksheets_sort() {
     );
 
     // check sort by created_at
-    let sort_by_created_at_asc =
-        get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::CreatedAt).await;
+    let sort_by_created_at_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("created_at".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name1", "name2", "name3", "name4"],
         sort_by_created_at_asc
@@ -116,8 +146,18 @@ async fn test_ui_worksheets_sort() {
             .map(|w| w.name)
             .collect::<Vec<String>>(),
     );
-    let sort_by_created_at_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::CreatedAt).await;
+    let sort_by_created_at_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("created_at".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name4", "name3", "name2", "name1"],
         sort_by_created_at_desc
@@ -127,8 +167,18 @@ async fn test_ui_worksheets_sort() {
     );
 
     // check sort by updated_at
-    let sort_by_updated_at_asc =
-        get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::UpdatedAt).await;
+    let sort_by_updated_at_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("updated_at".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name1", "name2", "name3", "name4"],
         sort_by_updated_at_asc
@@ -136,8 +186,18 @@ async fn test_ui_worksheets_sort() {
             .map(|w| w.name)
             .collect::<Vec<String>>(),
     );
-    let sort_by_updated_at_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::UpdatedAt).await;
+    let sort_by_updated_at_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("updated_at".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
         vec!["name4", "name3", "name2", "name1"],
         sort_by_updated_at_desc
@@ -152,7 +212,7 @@ async fn test_ui_worksheets_sort() {
         &addr,
         created[0].id,
         WorksheetUpdatePayload {
-            name: Some("name91-updated".to_string()),
+            name: Some("name91updated".to_string()),
             content: None,
         },
     )
@@ -162,26 +222,46 @@ async fn test_ui_worksheets_sort() {
         &addr,
         created[2].id,
         WorksheetUpdatePayload {
-            name: Some("name31-updated".to_string()),
+            name: Some("name31updated".to_string()),
             content: None,
         },
     )
     .await;
 
     // check sort by created_at after update (nothing changed)
-    let upd_sort_by_created_at_asc =
-        get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::CreatedAt).await;
+    let upd_sort_by_created_at_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: Some("name".to_string()),
+            order_by: Some("created_at".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name91-updated", "name2", "name31-updated", "name4"],
+        vec!["name91updated", "name2", "name31updated", "name4"],
         upd_sort_by_created_at_asc
             .into_iter()
             .map(|w| w.name)
             .collect::<Vec<String>>(),
     );
-    let upd_sort_by_created_at_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::CreatedAt).await;
+    let upd_sort_by_created_at_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("created_at".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name4", "name31-updated", "name2", "name91-updated"],
+        vec!["name4", "name31updated", "name2", "name91updated"],
         upd_sort_by_created_at_desc
             .into_iter()
             .map(|w| w.name)
@@ -189,19 +269,39 @@ async fn test_ui_worksheets_sort() {
     );
 
     // check sort by name after update
-    let upd_sort_by_name_asc =
-        get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::Name).await;
+    let upd_sort_by_name_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name2", "name31-updated", "name4", "name91-updated"],
+        vec!["name2", "name31updated", "name4", "name91updated"],
         upd_sort_by_name_asc
             .into_iter()
             .map(|w| w.name)
             .collect::<Vec<String>>(),
     );
-    let upd_sort_by_name_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::Name).await;
+    let upd_sort_by_name_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name91-updated", "name4", "name31-updated", "name2"],
+        vec!["name91updated", "name4", "name31updated", "name2"],
         upd_sort_by_name_desc
             .into_iter()
             .map(|w| w.name)
@@ -209,19 +309,39 @@ async fn test_ui_worksheets_sort() {
     );
 
     // check sort by updated_at after update
-    let upd_sort_by_updated_at_asc =
-        get_worksheets(&client, &addr, SortOrder::Ascending, SortBy::UpdatedAt).await;
+    let upd_sort_by_updated_at_asc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("updated_at".to_string()),
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name2", "name4", "name91-updated", "name31-updated"],
+        vec!["name2", "name4", "name91updated", "name31updated"],
         upd_sort_by_updated_at_asc
             .into_iter()
             .map(|w| w.name)
             .collect::<Vec<String>>(),
     );
-    let upd_sort_by_updated_at_desc =
-        get_worksheets(&client, &addr, SortOrder::Descending, SortBy::UpdatedAt).await;
+    let upd_sort_by_updated_at_desc = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: Some("updated_at".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
     assert_eq!(
-        vec!["name31-updated", "name91-updated", "name4", "name2"],
+        vec!["name31updated", "name91updated", "name4", "name2"],
         upd_sort_by_updated_at_desc
             .into_iter()
             .map(|w| w.name)
@@ -402,4 +522,128 @@ async fn test_ui_worksheets_ops() {
     .await
     .expect_err("Should fail with NOT_FOUND");
     assert_eq!(http::StatusCode::NOT_FOUND, resp.status);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_ui_worksheets_search() {
+    let addr = run_test_server().await;
+    let client = reqwest::Client::new();
+
+    let templates = vec![
+        ("work1", ""),
+        ("work2", "select 2"),
+        ("work3", ""),
+        ("sheet1", "select 4"),
+        ("work4", ""),
+    ];
+    let _ = create_worksheets(&client, &addr, templates).await;
+
+    // no search
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: None,
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work1", "work2", "work3", "sheet1", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // limit + offset
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(3),
+            search: None,
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work2", "work3", "sheet1"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: Some("work".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work1", "work2", "work3", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search + offset + limit
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(3),
+            search: Some("work".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work2", "work3", "work4"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search other
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: None,
+            limit: None,
+            search: Some("sheet".to_string()),
+            order_by: None,
+            order_direction: Some(OrderDirection::ASC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["sheet1"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
+
+    // search + offset + limit + order by + order direction
+    let search = get_worksheets(
+        &client,
+        &addr,
+        SearchParameters {
+            offset: Some(1),
+            limit: Some(2),
+            search: Some("work".to_string()),
+            order_by: Some("name".to_string()),
+            order_direction: Some(OrderDirection::DESC),
+        },
+    )
+    .await;
+    assert_eq!(
+        vec!["work3", "work2"],
+        search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
+    );
 }
