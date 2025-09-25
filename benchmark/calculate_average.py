@@ -3,7 +3,7 @@ import glob
 import re
 import os
 
-from benchmark.benchmark import SystemType
+from constants import SystemType
 
 COLUMN_TO_AVERAGE = 'Total (ms)'
 
