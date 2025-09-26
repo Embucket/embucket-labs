@@ -415,3 +415,16 @@ if __name__ == "__main__":
 
     if args.scale_factor:
         os.environ["DATASET_SCALE_FACTOR"] = args.scale_factor
+
+    # Execute benchmarks based on platform selection
+    if args.platform == "snowflake":
+        for run in range(1, args.runs + 1):
+            run_benchmark(run, SystemType.SNOWFLAKE)
+    elif args.platform == "embucket":
+        for run in range(1, args.runs + 1):
+            run_benchmark(run, SystemType.EMBUCKET)
+    elif args.platform == "both":
+        for run in range(1, args.runs + 1):
+            logger.info(f"Starting benchmark run {run} for both platforms")
+            run_benchmark(run, SystemType.SNOWFLAKE)
+            run_benchmark(run, SystemType.EMBUCKET)
