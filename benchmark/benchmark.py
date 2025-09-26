@@ -150,7 +150,7 @@ def run_on_sf(cursor, warehouse, tpch_queries):
     return results
 
 
-def run_on_emb(cursor, tpch_queries):
+def run_on_emb(tpch_queries):
     """Run TPCH queries on Embucket with container restart before each query."""
     docker_manager = create_docker_manager()
     executed_query_ids = []
@@ -326,12 +326,11 @@ def run_embucket_benchmark(run_number: int):
 
     # Get queries and docker manager
     queries = get_queries_for_benchmark(benchmark_type, for_embucket=True)
-    docker_manager = create_docker_manager()
 
     # Run benchmark
-    emb_results = run_on_emb(docker_manager, queries)
+    emb_results = run_on_emb(queries)
 
-    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance, run_number)
+    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance, run_number=run_number)
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     save_results_to_csv(emb_results, filename=results_path, system=SystemType.EMBUCKET)
     logger.info(f"Embucket benchmark results saved to: {results_path}")
