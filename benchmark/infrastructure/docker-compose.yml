@@ -1,6 +1,6 @@
 services:
   embucket:
-    image: embucket/embucket:latest
+    image: embucket/embucket:0.2.0
     container_name: embucket-benchmark
     environment:
       # Iceberg Catalog settings
