@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/conversion/to_date.rs
+description: "\"SELECT TO_DATE('2024-05-10'::VARCHAR) as to_date, DATE('2024-05-10'::VARCHAR) as date\""
+---
+Ok(
+    [
+        "+------------+------------+",
+        "| to_date    | date       |",
+        "+------------+------------+",
+        "| 2024-05-10 | 2024-05-10 |",
+        "+------------+------------+",
+    ],
+)

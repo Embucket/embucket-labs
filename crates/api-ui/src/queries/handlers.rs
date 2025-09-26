@@ -1,14 +1,18 @@
 #![allow(clippy::needless_for_each)]
-use crate::queries::error::{GetQueryRecordSnafu, QueryRecordResult, StoreSnafu};
+use crate::queries::error::{
+    DatetimeSnafu, ExecutionSnafu, GetQueryRecordSnafu, QueriesSnafu, StoreSnafu,
+};
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
-    QueryRecord, QueryRecordId,
+    QueryRecord, QueryRecordId, QueryStatus, ResultSet,
 };
 use crate::state::AppState;
 use crate::{
+    OrderDirection, SearchParameters, apply_parameters, downcast_int64_column,
+    downcast_string_column,
     error::ErrorResponse,
     error::Result,
-    queries::error::{self as queries_errors, QueryError},
+    queries::error::{self as queries_errors},
 };
 use api_sessions::DFSessionId;
 use axum::extract::ConnectInfo;
@@ -17,17 +21,19 @@ use axum::{
     Json,
     extract::{Query, State},
 };
+use chrono::{DateTime, Utc};
 use core_executor::models::{QueryContext, QueryResult};
 use core_history::WorksheetId;
-use core_utils::iterable::IterableEntity;
+use datafusion::arrow::array::Array;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use utoipa::OpenApi;
+
 #[derive(OpenApi)]
 #[openapi(
     paths(query, queries, get_query),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse)),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection)),
     tags(
       (name = "queries", description = "Queries endpoints"),
     )
@@ -178,10 +184,13 @@ pub async fn get_query(
     operation_id = "getQueries",
     tags = ["queries"],
     params(
-        ("worksheetId" = Option<WorksheetId>, Query, description = "Worksheet id"),
-        ("sqlText" = Option<String>, Query, description = "Sql text filter"),
-        ("cursor" = Option<QueryRecordId>, Query, description = "Cursor"),
-        ("limit" = Option<u16>, Query, description = "Queries limit"),
+        ("min_duration_ms", Query, description = "Minimal duration of queries in milliseconds"),
+        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id of the queries"),
+        ("offset" = Option<usize>, Query, description = "Queries offset"),
+        ("limit" = Option<usize>, Query, description = "Queries limit"),
+        ("search" = Option<String>, Query, description = "Queries search"),
+        ("order_by" = Option<String>, Query, description = "Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms"),
+        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, description = "Returns queries history", body = QueriesResponse),
@@ -197,45 +206,107 @@ pub async fn get_query(
 )]
 #[tracing::instrument(name = "api_ui::queries", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn queries(
-    Query(params): Query<GetQueriesParams>,
+    DFSessionId(session_id): DFSessionId,
+    Query(parameters): Query<SearchParameters>,
+    Query(special_parameters): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> Result<Json<QueriesResponse>> {
-    let cursor = params.cursor;
-    let result = state.history_store.get_queries(params.into()).await;
-
-    match result
-        .context(queries_errors::StoreSnafu)
-        .context(queries_errors::QueriesSnafu)
-    {
-        Ok(recs) => {
-            let next_cursor = if let Some(last_item) = recs.last() {
-                last_item.next_cursor()
-            } else {
-                core_history::QueryRecord::min_cursor() // no items in range -> go to beginning
-            };
-            let queries: Vec<QueryRecord> = recs
-                .clone()
-                .into_iter()
-                .map(QueryRecord::try_from)
-                .filter_map(QueryRecordResult::ok)
-                .collect();
-
-            let queries_failed_to_load: Vec<QueryError> = recs
-                .into_iter()
-                .map(QueryRecord::try_from)
-                .filter_map(QueryRecordResult::err)
-                .collect();
-            if !queries_failed_to_load.is_empty() {
-                // TODO: fix tracing output
-                tracing::error!("Queries: failed to load queries: {queries_failed_to_load:?}");
-            }
-
-            Ok(Json(QueriesResponse {
-                items: queries,
-                current_cursor: cursor,
-                next_cursor,
-            }))
+    let context = QueryContext::default();
+    let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
+    let sql_string = special_parameters.worksheet_id.map_or_else(
+        || sql_string.clone(),
+        |worksheet_id| format!("{sql_string} WHERE worksheet_id = {worksheet_id}"),
+    );
+    let sql_string = special_parameters.min_duration_ms.map_or_else(
+        || sql_string.clone(),
+        |min_duration_ms| format!("{sql_string} WHERE duration_ms >= {min_duration_ms}"),
+    );
+    let sql_string = apply_parameters(
+        &sql_string,
+        parameters,
+        if special_parameters.worksheet_id.is_some() {
+            &["id", "query", "status"]
+        } else {
+            &["id", "worksheet_id", "query", "status"]
+        },
+        "start_time",
+        OrderDirection::DESC,
+    );
+    let QueryResult { records, .. } = state
+        .execution_svc
+        .query(&session_id, sql_string.as_str(), context)
+        .await
+        .context(ExecutionSnafu)
+        .context(QueriesSnafu)?;
+    let mut items = Vec::new();
+    for record in records {
+        let ids = downcast_int64_column(&record, "id")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let worksheet_ids = downcast_int64_column(&record, "worksheet_id")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let queries = downcast_string_column(&record, "query")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let start_times = downcast_string_column(&record, "start_time")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let end_times = downcast_string_column(&record, "end_time")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let duration_ms_values = downcast_int64_column(&record, "duration_ms")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let result_counts = downcast_int64_column(&record, "result_count")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let results = downcast_string_column(&record, "result")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let status = downcast_string_column(&record, "status")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        let errors = downcast_string_column(&record, "error")
+            .context(ExecutionSnafu)
+            .context(QueriesSnafu)?;
+        for i in 0..record.num_rows() {
+            items.push(QueryRecord {
+                id: ids.value(i),
+                worksheet_id: if worksheet_ids.is_null(i) {
+                    None
+                } else {
+                    Some(worksheet_ids.value(i))
+                },
+                query: queries.value(i).to_string(),
+                start_time: start_times
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)
+                    .context(QueriesSnafu)?,
+                end_time: end_times
+                    .value(i)
+                    .parse::<DateTime<Utc>>()
+                    .context(DatetimeSnafu)
+                    .context(QueriesSnafu)?,
+                duration_ms: duration_ms_values.value(i),
+                result_count: result_counts.value(i),
+                result: if results.is_null(i) {
+                    ResultSet {
+                        columns: Vec::new(),
+                        rows: Vec::new(),
+                    }
+                } else {
+                    ResultSet::try_from(results.value(i)).context(QueriesSnafu)?
+                },
+                status: QueryStatus::try_from(status.value(i)).context(QueriesSnafu)?,
+                error: if errors.is_null(i) {
+                    "NULL".to_string()
+                } else {
+                    errors.value(i).to_string()
+                },
+            });
         }
-        Err(e) => Err(e.into()), // convert query Error to crate Error
     }
+    Ok(Json(QueriesResponse { items }))
 }

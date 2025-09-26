@@ -1,12 +1,11 @@
 use super::errors as regexp_errors;
-use crate::utils::{pattern_to_regex, regexp};
+use crate::utils::{pattern_to_regex, regexp, to_string_array};
 use datafusion::arrow::array::{BooleanBuilder, StringArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::{ColumnarValue, Signature, TypeSignature, Volatility};
 use datafusion_common::ScalarValue;
 use datafusion_common::arrow::array::Array;
-use datafusion_common::cast::as_generic_string_array;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use snafu::ResultExt;
 use std::any::Any;
@@ -159,7 +158,7 @@ impl ScalarUDFImpl for RegexpLikeFunc {
 
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let string_array: &StringArray = as_generic_string_array(array)?;
+                let string_array: &StringArray = &to_string_array(&array)?;
                 let regex = pattern_to_regex(&format!("^{pattern}$"), parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, 0).for_each(|opt_iter| {

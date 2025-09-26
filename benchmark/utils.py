@@ -7,17 +7,16 @@ load_dotenv()
 
 
 def create_embucket_connection():
-    """Create Embucket connection with environment-based config."""
+    """Create Embucket connection with required environment variables."""
 
-    # Connection config with defaults
-    host = os.getenv("EMBUCKET_HOST", "localhost")
-    port = os.getenv("EMBUCKET_PORT", "3000")
-    protocol = os.getenv("EMBUCKET_PROTOCOL", "http")
-    user = os.getenv("EMBUCKET_USER", "embucket")
-    password = os.getenv("EMBUCKET_PASSWORD", "embucket")
-    account = os.getenv("EMBUCKET_ACCOUNT") or f"acc_{uuid.uuid4().hex[:10]}"
-    database = os.getenv("EMBUCKET_DATABASE", "embucket")
-    schema = os.getenv("EMBUCKET_SCHEMA", "public")
+    host = os.environ["EMBUCKET_HOST"]
+    port = int(os.environ["EMBUCKET_PORT"])
+    protocol = os.environ["EMBUCKET_PROTOCOL"]
+    user = os.environ["EMBUCKET_USER"]
+    password = os.environ["EMBUCKET_PASSWORD"]
+    account = os.environ["EMBUCKET_ACCOUNT"]
+    database = os.environ["EMBUCKET_DATABASE"]
+    schema = os.environ["EMBUCKET_SCHEMA"]
 
     connect_args = {
         "user": user,
@@ -28,7 +27,7 @@ def create_embucket_connection():
         "warehouse": "embucket",
         "host": host,
         "protocol": protocol,
-        "port": int(port) if port else 3000,
+        "port": port,
         "socket_timeout": 1200, # connector restarts query if timeout (in seconds) is reached
     }
 
@@ -36,14 +35,15 @@ def create_embucket_connection():
     return conn
 
 
+
 def create_snowflake_connection():
     """Create Snowflake connection with environment-based config."""
-    user = os.getenv("SNOWFLAKE_USER")
-    password = os.getenv("SNOWFLAKE_PASSWORD")
-    account = os.getenv("SNOWFLAKE_ACCOUNT")
-    database = os.getenv("SNOWFLAKE_DATABASE")
-    schema = os.getenv("SNOWFLAKE_SCHEMA")
-    warehouse = os.getenv("SNOWFLAKE_WAREHOUSE")
+    user = os.environ["SNOWFLAKE_USER"]
+    password = os.environ["SNOWFLAKE_PASSWORD"]
+    account = os.environ["SNOWFLAKE_ACCOUNT"]
+    database = os.environ["DATASET_NAME"]
+    schema = os.environ["DATASET_SCALE_FACTOR"]
+    warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
 
     if not all([user, password, account, database, schema, warehouse]):
         raise ValueError("Missing one or more required Snowflake environment variables.")
@@ -59,10 +59,10 @@ def create_snowflake_connection():
 
     conn = sf.connect(**connect_args)
 
+    conn.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {database}")
     conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     conn.cursor().execute(f"USE SCHEMA {schema}")
 
-    # Create stage if not exists
     conn.cursor().execute("CREATE OR REPLACE FILE FORMAT sf_parquet_format TYPE = parquet;")
     conn.cursor().execute("CREATE OR REPLACE TEMPORARY STAGE sf_prep_stage FILE_FORMAT = sf_parquet_format;")
 

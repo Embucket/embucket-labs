@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 // See also ErrorCode, which is also returned by this transport
@@ -14,22 +13,13 @@ use std::fmt::Display;
 // "X" denotes "Exception" (all other classes).
 
 // Just mimic snowflake's SQLSTATE, as it looks not much relevant to ANSI standard
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub enum SqlState {
-    #[serde(rename = "02000")]
     Success,
-    // Snowflake return such sqlstate for syntax error
-    #[serde(rename = "42000")]
     SyntaxError,
-    #[serde(rename = "42S01")]
     CantLocateQueryResult,
-    #[serde(rename = "42S02")]
     DoesNotExist,
-    // Following code returned from every errored query result loaded from history
-    // As currently we don't save SqlState when save result to history
-    #[serde(rename = "42S03")]
     GenericQueryErrorFromHistory,
-    #[serde(rename = "0A000")]
     FeatureNotSupported,
 }
 
@@ -41,6 +31,8 @@ impl Display for SqlState {
             Self::SyntaxError => "42000",
             Self::CantLocateQueryResult => "42S01",
             Self::DoesNotExist => "42S02",
+            // Following code returned from every errored query result loaded from history
+            // As currently we don't save SqlState when save result to history
             Self::GenericQueryErrorFromHistory => "42S03",
             Self::FeatureNotSupported => "0A000",
         };

@@ -39,7 +39,7 @@ async fn test_ui_queries_no_worksheet() {
     )
     .await
     .unwrap();
-    assert_eq!(history_resp.items.len(), 1);
+    assert_eq!(history_resp.items.len(), 2);
     let query_record_id = history_resp.items[0].id;
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
@@ -229,8 +229,8 @@ async fn test_ui_queries_with_worksheet() {
         &client,
         Method::GET,
         &format!(
-            "http://{addr}/ui/queries?worksheetId={}&cursor={}",
-            worksheet.id, queries_response.next_cursor
+            "http://{addr}/ui/queries?worksheetId={}&offset=2",
+            worksheet.id
         ),
         String::new(),
     )
@@ -256,4 +256,113 @@ async fn test_ui_queries_with_worksheet() {
     .await
     .expect("Failed to get worksheets");
     assert_eq!(worksheets.items.len(), 1);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_ui_queries_search() {
+    let addr = run_test_server().await;
+    let client = reqwest::Client::new();
+
+    let worksheet = http_req::<Worksheet>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/worksheets"),
+        json!(WorksheetCreatePayload {
+            name: String::new(),
+            content: String::new(),
+        })
+        .to_string(),
+    )
+    .await
+    .expect("Error creating worksheet");
+    assert!(worksheet.id > 0);
+
+    let _ = http_req::<QueryRecord>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries"),
+        json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
+            query: "SELECT 1, 2".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .expect("Create query error");
+
+    let _ = http_req::<QueryRecord>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries"),
+        json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
+            query: "SELECT 2".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .expect("Create query error");
+
+    let _ = http_req::<QueryRecord>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries"),
+        json!(QueryCreatePayload {
+            worksheet_id: Some(worksheet.id),
+            query: "CREATE".to_string(),
+            context: None,
+        })
+        .to_string(),
+    )
+    .await
+    .expect_err("Create query error");
+
+    // get search by query
+    let queries = http_req::<QueriesResponse>(
+        &client,
+        Method::GET,
+        &format!(
+            "http://{addr}/ui/queries?worksheetId={}&search=SELECT&orderDirection=ASC",
+            worksheet.id
+        ),
+        String::new(),
+    )
+    .await
+    .expect("Error getting queries")
+    .items;
+    assert_eq!(queries.len(), 2);
+    assert_eq!(queries[0].query, "SELECT 1, 2");
+    assert_eq!(queries[1].query, "SELECT 2");
+
+    // get search by status
+    let queries = http_req::<QueriesResponse>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries?search=failed",),
+        String::new(),
+    )
+    .await
+    .expect("Failed to get queries")
+    .items;
+    assert_eq!(queries.len(), 2);
+    // since the search itself uses the word `failed` to look for the status, we also get the select search query
+    assert_eq!(queries[0].status, QueryStatus::Running);
+    assert_eq!(queries[1].status, QueryStatus::Failed);
+
+    // get with parameters
+    let queries = http_req::<QueriesResponse>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries?worksheetId={}&search=SELECT&orderBy=start_time&OrderDirection=DESC", worksheet.id),
+        String::new(),
+    )
+        .await
+        .expect("Failed to get queries")
+        .items;
+    // check items returned in descending order
+    assert_eq!(queries.len(), 2);
+    assert!(queries[0].start_time > queries[1].start_time);
 }

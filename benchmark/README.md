@@ -132,7 +132,7 @@ The benchmark provides:
 - `env_example` - Example environment configuration file
 - `infrastructure/` - Terraform infrastructure for EC2/Embucket deployment
 - `tpch-datagen/` - TPC-H data generation infrastructure
-- `tpch_ddl/` - TPC-H table definitions for Embucket
+- `tpch/` - TPC-H benchmark utilities package (queries, DDL, table names)
 - `tpcds_ddl/` - TPC-DS table definitions for Embucket
 
 ## Customizing Benchmark Behavior

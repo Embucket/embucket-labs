@@ -98,11 +98,11 @@ impl UserSession {
                     )
                     .set_usize(
                         "datafusion.execution.parquet.maximum_parallel_row_group_writers",
-                        parallelism_opt.map_or(1, |x| x / PARALLEL_ROW_GROUP_RATIO),
+                        parallelism_opt.map_or(1, |x| (x / PARALLEL_ROW_GROUP_RATIO).max(1)),
                     )
                     .set_usize(
                         "datafusion.execution.parquet.maximum_buffered_record_batches_per_stream",
-                        parallelism_opt.map_or(1, |x| 1 + (x / PARALLEL_ROW_GROUP_RATIO)),
+                        parallelism_opt.map_or(1, |x| 1 + (x / PARALLEL_ROW_GROUP_RATIO).max(1)),
                     ),
             )
             .with_default_features()

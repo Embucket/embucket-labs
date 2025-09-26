@@ -5,6 +5,11 @@ test_query!(
     "SELECT TO_DATE('2024-05-10') as to_date, DATE('2024-05-10') as date",
     snapshot_path = "to_date"
 );
+test_query!(
+    to_date_basic_utf8_view,
+    "SELECT TO_DATE('2024-05-10'::VARCHAR) as to_date, DATE('2024-05-10'::VARCHAR) as date",
+    snapshot_path = "to_date"
+);
 
 test_query!(
     to_date_from_timestamp,

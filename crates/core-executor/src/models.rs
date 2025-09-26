@@ -1,13 +1,17 @@
-use crate::error;
-use crate::utils::{query_result_to_result_set, query_status_result_to_history};
+use crate::Result;
+use crate::error as ex_error;
+use crate::utils::{DataSerializationFormat, convert_record_batches, convert_struct_to_timestamp};
 use arrow_schema::SchemaRef;
 use core_history::QueryResultError;
-use core_history::{QueryRecord, QueryRecordId, QueryStatus, result_set::ResultSet};
+use core_history::result_set::{Column, ResultSet, Row};
+use core_history::{QueryRecord, QueryRecordId, QueryStatus};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
 use datafusion::arrow::json::StructMode;
+use datafusion::arrow::json::WriterBuilder;
 use datafusion::arrow::json::reader::ReaderBuilder;
+use datafusion::arrow::json::writer::JsonArray;
 use datafusion_common::arrow::datatypes::Schema;
 use embucket_functions::to_snowflake_datatype;
 use serde::{Deserialize, Serialize};
@@ -86,18 +90,75 @@ pub struct QueryResult {
     /// This is required to construct a valid response even when `records` are empty
     pub schema: Arc<ArrowSchema>,
     pub query_id: QueryRecordId,
+    pub from_history: bool,
 }
 
-impl TryInto<ResultSet> for QueryResult {
-    type Error = crate::Error;
-    fn try_into(self) -> Result<ResultSet, Self::Error> {
-        query_result_to_result_set(&self)
+impl QueryResult {
+    pub fn as_row_set(&self) -> Result<Vec<Row>> {
+        // hardcode arrow format here to be consistent with we did it before within `fn as_result_set()`
+        let data_format = DataSerializationFormat::Arrow;
+
+        let record_batches = if self.from_history {
+            &self.records
+        } else {
+            // use conversion only for non historical data
+            // Convert the QueryResult to RecordBatches using the specified serialization format
+            // Add columns dbt metadata to each field
+            // Since we have to store already converted data to history
+            let record_batches = convert_record_batches(self, data_format)?;
+            // Convert struct timestamp columns to string representation
+            &convert_struct_to_timestamp(&record_batches)?
+        };
+
+        let record_batches = record_batches.iter().collect::<Vec<_>>();
+
+        // Serialize the RecordBatches into a JSON string using Arrow's Writer
+        let buffer = Vec::new();
+        let mut writer = WriterBuilder::new()
+            .with_explicit_nulls(true)
+            .build::<_, JsonArray>(buffer);
+
+        writer
+            .write_batches(&record_batches)
+            .context(ex_error::ArrowSnafu)?;
+        writer.finish().context(ex_error::ArrowSnafu)?;
+
+        let json_bytes = writer.into_inner();
+        let json_str = String::from_utf8(json_bytes).context(ex_error::Utf8Snafu)?;
+
+        // Deserialize the JSON string into rows of values
+        let rows =
+            serde_json::from_str::<Vec<Row>>(&json_str).context(ex_error::SerdeParseSnafu)?;
+
+        Ok(rows)
+    }
+
+    pub fn as_result_set(&self) -> Result<ResultSet> {
+        // Extract column metadata from the original QueryResult
+        let columns = self
+            .column_info()
+            .iter()
+            .map(|ci| Column {
+                name: ci.name.clone(),
+                r#type: ci.r#type.clone(),
+            })
+            .collect();
+
+        // Serialize original Schema into a JSON string
+        let schema = serde_json::to_string(&self.schema).context(ex_error::SerdeParseSnafu)?;
+        Ok(ResultSet {
+            columns,
+            rows: self.as_row_set()?,
+            // move here value of data_format we  hardcoded earlier
+            data_format: DataSerializationFormat::Arrow.to_string(),
+            schema,
+        })
     }
 }
 
 fn convert_resultset_to_arrow_json_lines(
     result_set: &ResultSet,
-) -> Result<String, serde_json::Error> {
+) -> std::result::Result<String, serde_json::Error> {
     let mut lines = String::new();
     for row in &result_set.rows {
         let json_value = serde_json::Value::Array(row.0.clone());
@@ -107,33 +168,36 @@ fn convert_resultset_to_arrow_json_lines(
     Ok(lines)
 }
 
+/// Convert historical query record to `QueryResult`
 impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
-    fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {
+    fn try_from(value: QueryRecord) -> std::result::Result<Self, Self::Error> {
         let query_id = value.id;
-        let result_set = ResultSet::try_from(value).context(error::QueryHistorySnafu)?;
+        let from_history = value.loaded_from_history;
+        let result_set = ResultSet::try_from(value).context(ex_error::QueryHistorySnafu)?;
 
-        let arrow_json =
-            convert_resultset_to_arrow_json_lines(&result_set).context(error::SerdeParseSnafu)?;
+        let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)
+            .context(ex_error::SerdeParseSnafu)?;
 
         // Parse schema from serialized JSON
         let schema_value =
-            serde_json::from_str(&result_set.schema).context(error::SerdeParseSnafu)?;
+            serde_json::from_str(&result_set.schema).context(ex_error::SerdeParseSnafu)?;
 
         let schema_ref: SchemaRef = schema_value;
         let json_reader = ReaderBuilder::new(schema_ref.clone())
             .with_struct_mode(StructMode::ListOnly)
             .build(Cursor::new(&arrow_json))
-            .context(error::ArrowSnafu)?;
+            .context(ex_error::ArrowSnafu)?;
 
         let batches = json_reader
             .collect::<arrow::error::Result<Vec<RecordBatch>>>()
-            .context(error::ArrowSnafu)?;
+            .context(ex_error::ArrowSnafu)?;
 
         Ok(Self {
             records: batches,
             schema: schema_ref,
             query_id,
+            from_history,
         })
     }
 }
@@ -149,6 +213,7 @@ impl QueryResult {
             records,
             schema,
             query_id,
+            from_history: false,
         }
     }
     #[must_use]
@@ -165,13 +230,30 @@ impl QueryResult {
 
 #[derive(Debug)]
 pub struct QueryResultStatus {
-    pub query_result: Result<QueryResult, crate::Error>,
+    pub query_result: std::result::Result<QueryResult, crate::Error>,
     pub status: QueryStatus,
 }
 
 impl QueryResultStatus {
-    pub fn to_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
-        query_status_result_to_history(self.status.clone(), &self.query_result)
+    pub fn as_historical_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
+        match &self.query_result {
+            Ok(query_result) => {
+                query_result
+                    .as_result_set()
+                    // ResultSet creation failed from Ok(QueryResult)
+                    .map_err(|err| QueryResultError {
+                        status: QueryStatus::Failed,
+                        message: err.to_string(),
+                        diagnostic_message: format!("{err:?}"),
+                    })
+            }
+            // Query failed
+            Err(err) => Err(QueryResultError {
+                status: self.status.clone(),
+                message: err.to_snowflake_error().to_string(),
+                diagnostic_message: format!("{err:?}"),
+            }),
+        }
     }
 }
 

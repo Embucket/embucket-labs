@@ -5,6 +5,11 @@ test_query!(
     "SELECT REPLACE('down', 'down', 'up');",
     snapshot_path = "replace"
 );
+test_query!(
+    replace_utf8_view,
+    "SELECT REPLACE('down'::VARCHAR, 'down', 'up');",
+    snapshot_path = "replace"
+);
 
 test_query!(
     replace_case,

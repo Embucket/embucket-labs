@@ -5,7 +5,11 @@ test_query!(
     "SELECT REGEXP_SUBSTR_ALL('a1_a2a3_a4A5a6', 'a[[:digit:]]')",
     snapshot_path = "regexp_substr_all"
 );
-
+test_query!(
+    regexp_substr_all_basic_utf8_view,
+    "SELECT REGEXP_SUBSTR_ALL('a1_a2a3_a4A5a6'::VARCHAR, 'a[[:digit:]]')",
+    snapshot_path = "regexp_substr_all"
+);
 test_query!(
     regexp_substr_all_position,
     "SELECT REGEXP_SUBSTR_ALL('a1_a2a3_a4A5a6', 'a[[:digit:]]', 2)",

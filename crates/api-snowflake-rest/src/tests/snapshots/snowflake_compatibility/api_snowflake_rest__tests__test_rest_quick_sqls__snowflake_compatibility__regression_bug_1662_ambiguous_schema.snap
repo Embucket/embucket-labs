@@ -1,0 +1,51 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "SQL #1 [spent: 193/193ms]: select * from \n                ( select 1 as col ) schema1,\n                ( select 2 as col ) schema2\nQuery UUID: 00000000-0000-0000-0000-077ed153ce3d"
+expression: pretty_json
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "col",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "fixed",
+        "byteLength": null,
+        "length": null,
+        "scale": 0,
+        "precision": 38,
+        "collation": null
+      },
+      {
+        "name": "col",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "fixed",
+        "byteLength": null,
+        "length": null,
+        "scale": 0,
+        "precision": 38,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": null,
+    "rowset": [
+      [
+        1,
+        2
+      ]
+    ],
+    "total": 1,
+    "queryResultFormat": "json",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

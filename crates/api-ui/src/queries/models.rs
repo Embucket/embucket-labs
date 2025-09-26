@@ -1,5 +1,4 @@
-use super::error::{QueryError, QueryRecordResult, ResultParseSnafu};
-use crate::default_limit;
+use super::error::{QueryError, QueryRecordResult, QueryStatusParseSnafu, ResultParseSnafu};
 use chrono::{DateTime, Utc};
 use core_history::{QueryStatus as QueryStatusItem, WorksheetId};
 use serde::{Deserialize, Serialize};
@@ -70,6 +69,24 @@ impl From<QueryStatusItem> for QueryStatus {
     }
 }
 
+impl TryFrom<&str> for QueryStatus {
+    type Error = QueryError;
+
+    fn try_from(value: &str) -> QueryRecordResult<Self> {
+        match value.to_lowercase().as_str() {
+            "running" => Ok(Self::Running),
+            "successful" => Ok(Self::Successful),
+            "failed" => Ok(Self::Failed),
+            "canceled" => Ok(Self::Canceled),
+            "timedout" => Ok(Self::TimedOut),
+            other => QueryStatusParseSnafu {
+                got: other.to_string(),
+            }
+            .fail(),
+        }
+    }
+}
+
 // Keep own QueryRecordId for compatibility with current open api schema
 // Currently QueryRecordId used in apu-ui support only i64 based query_id
 pub type QueryRecordId = i64;
@@ -123,32 +140,13 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
 #[serde(rename_all = "camelCase")]
 pub struct QueriesResponse {
     pub items: Vec<QueryRecord>,
-    pub current_cursor: Option<QueryRecordId>,
-    pub next_cursor: QueryRecordId,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
 #[serde(rename_all = "camelCase")]
 pub struct GetQueriesParams {
     pub worksheet_id: Option<WorksheetId>,
-    pub sql_text: Option<String>,     // filter by SQL Text
     pub min_duration_ms: Option<i64>, // filter Duration greater than
-    pub cursor: Option<QueryRecordId>,
-    #[serde(default = "default_limit")]
-    pub limit: Option<u16>,
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<core_history::GetQueriesParams> for GetQueriesParams {
-    fn into(self) -> core_history::GetQueriesParams {
-        core_history::GetQueriesParams {
-            worksheet_id: self.worksheet_id,
-            sql_text: self.sql_text,
-            min_duration_ms: self.min_duration_ms,
-            cursor: self.cursor.map(Into::into),
-            limit: self.limit,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

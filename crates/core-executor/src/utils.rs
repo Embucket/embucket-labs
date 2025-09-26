@@ -1,9 +1,7 @@
 use super::models::QueryResult;
-use crate::error::{ArrowSnafu, CantCastToSnafu, Result, SerdeParseSnafu, Utf8Snafu};
+use crate::error::{ArrowSnafu, CantCastToSnafu, Result};
 use chrono::{DateTime, FixedOffset, Offset, TimeZone};
 use clap::ValueEnum;
-use core_history::result_set::{Column, ResultSet, Row};
-use core_history::{QueryResultError, QueryStatus};
 use core_metastore::SchemaIdent as MetastoreSchemaIdent;
 use core_metastore::TableIdent as MetastoreTableIdent;
 use datafusion::arrow::array::timezone::Tz;
@@ -19,15 +17,11 @@ use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
 use datafusion::arrow::error::ArrowError;
-use datafusion::arrow::json::WriterBuilder;
-use datafusion::arrow::json::writer::JsonArray;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
 use datafusion_common::TableReference;
 use datafusion_expr::{Expr, LogicalPlan};
 use embucket_functions::conversion::to_timestamp::parse_timezone;
-use indexmap::IndexMap;
-use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
 use sqlparser::ast::{Ident, ObjectName};
 use std::collections::HashMap;
@@ -203,13 +197,13 @@ pub fn first_non_empty_type(union_array: &UnionArray) -> Option<(DataType, Array
 
 #[allow(clippy::too_many_lines)]
 pub fn convert_record_batches(
-    query_result: QueryResult,
+    query_result: &QueryResult,
     data_format: DataSerializationFormat,
 ) -> Result<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
     let column_infos = query_result.column_info();
 
-    for batch in query_result.records {
+    for batch in &query_result.records {
         let mut columns = Vec::new();
         let mut fields = Vec::new();
         for (i, column) in batch.columns().iter().enumerate() {
@@ -424,7 +418,7 @@ fn encode_tz(tz: Option<Arc<str>>) -> Option<i32> {
 }
 
 #[allow(clippy::as_conversions)]
-pub fn convert_struct_to_timestamp(records: Vec<RecordBatch>) -> Result<Vec<RecordBatch>> {
+pub fn convert_struct_to_timestamp(records: &Vec<RecordBatch>) -> Result<Vec<RecordBatch>> {
     let mut converted_batches = Vec::new();
 
     for batch in records {
@@ -844,80 +838,6 @@ impl std::fmt::Display for NormalizedIdent {
     }
 }
 
-pub fn query_status_result_to_history(
-    status: QueryStatus,
-    result: &Result<QueryResult>,
-) -> std::result::Result<ResultSet, QueryResultError> {
-    match result {
-        Ok(query_result) => {
-            query_result_to_result_set(query_result)
-                // ResultSet creation failed from Ok(QueryResult)
-                .map_err(|err| QueryResultError {
-                    status: QueryStatus::Failed,
-                    message: err.to_string(),
-                    diagnostic_message: format!("{err:?}"),
-                })
-        }
-        // Query failed
-        Err(err) => Err(QueryResultError {
-            status,
-            message: err.to_snowflake_error().to_string(),
-            diagnostic_message: format!("{err:?}"),
-        }),
-    }
-}
-
-pub fn query_result_to_result_set(query_result: &QueryResult) -> Result<ResultSet> {
-    let data_format = DataSerializationFormat::Arrow;
-
-    // Convert the QueryResult to RecordBatches using the specified serialization format
-    // Add columns dbt metadata to each field
-    // Since we have to store already converted data to history
-    let mut record_batches = convert_record_batches(query_result.clone(), data_format)?;
-    // Convert struct timestamp columns to string representation
-    record_batches = convert_struct_to_timestamp(record_batches)?;
-    let record_refs: Vec<&RecordBatch> = record_batches.iter().collect();
-
-    // Serialize the RecordBatches into a JSON string using Arrow's Writer
-    let buffer = Vec::new();
-    let mut writer = WriterBuilder::new()
-        .with_explicit_nulls(true)
-        .build::<_, JsonArray>(buffer);
-
-    writer.write_batches(&record_refs).context(ArrowSnafu)?;
-    writer.finish().context(ArrowSnafu)?;
-
-    let json_bytes = writer.into_inner();
-    let json_str = String::from_utf8(json_bytes).context(Utf8Snafu)?;
-
-    // Deserialize the JSON string into rows of values
-    let raw_rows: Vec<IndexMap<String, Value>> =
-        serde_json::from_str(&json_str).context(SerdeParseSnafu)?;
-    let rows = raw_rows
-        .into_iter()
-        .map(|map| Row::new(map.into_values().collect()))
-        .collect();
-
-    // Extract column metadata from the original QueryResult
-    let columns = query_result
-        .column_info()
-        .iter()
-        .map(|ci| Column {
-            name: ci.name.clone(),
-            r#type: ci.r#type.clone(),
-        })
-        .collect();
-
-    // Serialize original Schema into a JSON string
-    let schema = serde_json::to_string(&query_result.schema).context(SerdeParseSnafu)?;
-    Ok(ResultSet {
-        columns,
-        rows,
-        data_format: data_format.to_string(),
-        schema,
-    })
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::as_conversions, clippy::expect_used)]
 mod tests {
@@ -1184,7 +1104,7 @@ mod tests {
 
         // === JSON conversion ===
         let converted_batches =
-            convert_record_batches(result.clone(), DataSerializationFormat::Json).unwrap();
+            convert_record_batches(&result, DataSerializationFormat::Json).unwrap();
         assert_eq!(converted_batches.len(), 1);
 
         let batch = &converted_batches[0];
@@ -1225,7 +1145,7 @@ mod tests {
 
         // === Arrow conversion ===
         let converted_batches =
-            convert_record_batches(result, DataSerializationFormat::Arrow).unwrap();
+            convert_record_batches(&result, DataSerializationFormat::Arrow).unwrap();
         let converted_batch = &converted_batches[0];
 
         let arr = converted_batch
@@ -1365,7 +1285,7 @@ mod tests {
         let query_result = QueryResult::new(record_batches.clone(), schema, QueryRecordId(0));
         let column_infos = query_result.column_info();
         let converted_batches =
-            convert_record_batches(query_result, DataSerializationFormat::Arrow).unwrap();
+            convert_record_batches(&query_result, DataSerializationFormat::Arrow).unwrap();
 
         let fields_tested =
             check_record_batches_uint_to_int(record_batches, converted_batches, column_infos);
@@ -1389,7 +1309,7 @@ mod tests {
             RecordBatch::try_new(schema.clone(), vec![date32_array, date64_array]).unwrap();
         let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
         let converted_batches =
-            convert_record_batches(query_result, DataSerializationFormat::Json).unwrap();
+            convert_record_batches(&query_result, DataSerializationFormat::Json).unwrap();
         let converted_batch = &converted_batches[0];
 
         let result_date32 = converted_batch
@@ -1414,5 +1334,57 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_bug_1662_duplicate_columns_names() {
+        // Check if following result is converted to ResultSet correctly:
+        // +-----+-----+
+        // | COL | COL |
+        // +-----+-----+
+        // |   1 |   2 |
+        // +-----+-----+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("col", DataType::Int64, true),
+            Field::new("col", DataType::Int64, true),
+        ]));
+
+        let record_batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(Int64Array::from(vec![Some(1)])),
+                Arc::new(Int64Array::from(vec![Some(2)])),
+            ],
+        )
+        .unwrap();
+
+        // Create QueryResult
+        let query_result = QueryResult::new(vec![record_batch], schema, QueryRecordId(0));
+
+        // Create ResultSet from QueryResult
+        let result_set = query_result
+            .as_result_set()
+            .expect("Failed to convert query result to result set");
+
+        eprintln!("Result set: {result_set:?}");
+        // check if ResultSet is correct
+        assert_eq!(result_set.columns.len(), 2);
+        let columns_names = result_set
+            .columns
+            .iter()
+            .map(|col| col.name.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(columns_names, ["col", "col"]);
+        assert_eq!(result_set.rows.len(), 1);
+        let rows = result_set
+            .rows
+            .iter()
+            .map(|row| row.0.clone())
+            .collect::<Vec<_>>();
+        let row = rows[0]
+            .iter()
+            .map(|col| col.as_i64().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(row, [1, 2]);
     }
 }

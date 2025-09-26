@@ -33,7 +33,14 @@ pub enum Error {
     },
     #[snafu(display("Get worksheets error: {source}"))]
     List {
-        source: WorksheetError,
+        source: core_executor::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("Failed to parse DateTime: {error}"))]
+    Datetime {
+        #[snafu(source)]
+        error: chrono::ParseError,
         #[snafu(implicit)]
         location: Location,
     },
@@ -64,8 +71,7 @@ impl IntoStatusCode for Error {
             Self::Create { source, .. }
             | Self::Get { source, .. }
             | Self::Delete { source, .. }
-            | Self::Update { source, .. }
-            | Self::List { source, .. } => match &source {
+            | Self::Update { source, .. } => match &source {
                 WorksheetError::Store { source, .. } => match source {
                     // use `match self` to return different status_code on the same error
                     core_history::Error::WorksheetAdd { .. } => StatusCode::CONFLICT,
@@ -79,6 +85,7 @@ impl IntoStatusCode for Error {
                 },
                 WorksheetError::NothingToUpdate { .. } => StatusCode::BAD_REQUEST,
             },
+            Self::List { .. } | Self::Datetime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

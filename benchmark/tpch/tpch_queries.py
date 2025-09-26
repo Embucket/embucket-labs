@@ -1,6 +1,8 @@
 import os
 import re
 
+from .tpch_table_names import parametrize_tpch_statements
+
 # Original TPC-H queries with bare table names
 _TPCH_QUERIES_RAW = [
     (
@@ -18,7 +20,7 @@ _TPCH_QUERIES_RAW = [
             AVG(l_discount) AS avg_disc,
             COUNT(*) AS count_order
         FROM
-            lineitem
+            {LINEITEM_TABLE}
         WHERE
             l_shipdate <= DATEADD(day, -116, '1998-12-01')
         GROUP BY
@@ -42,11 +44,11 @@ _TPCH_QUERIES_RAW = [
             s_phone,
             s_comment
         FROM
-            part,
-            supplier,
-            partsupp,
-            nation,
-            region
+            {PART_TABLE},
+            {SUPPLIER_TABLE},
+            {PARTSUPP_TABLE},
+            {NATION_TABLE},
+            {REGION_TABLE}
         WHERE
             p_partkey = ps_partkey
           AND s_suppkey = ps_suppkey
@@ -58,10 +60,10 @@ _TPCH_QUERIES_RAW = [
           AND ps_supplycost = (
             SELECT MIN(ps_supplycost)
             FROM
-                partsupp,
-                supplier,
-                nation,
-                region
+                {PARTSUPP_TABLE},
+                {SUPPLIER_TABLE},
+                {NATION_TABLE},
+                {REGION_TABLE}
             WHERE
                 p_partkey = ps_partkey
               AND s_suppkey = ps_suppkey
@@ -86,9 +88,9 @@ _TPCH_QUERIES_RAW = [
             o_orderdate,
             o_shippriority
         FROM
-            customer,
-            orders,
-            lineitem
+            {CUSTOMER_TABLE},
+            {ORDERS_TABLE},
+            {LINEITEM_TABLE}
         WHERE
             c_mktsegment = 'BUILDING'
           AND c_custkey = o_custkey
@@ -112,7 +114,7 @@ _TPCH_QUERIES_RAW = [
             o_orderpriority,
             COUNT(*) AS order_count
         FROM
-            orders
+            {ORDERS_TABLE}
         WHERE
             o_orderdate >= DATE '1993-07-01'
           AND o_orderdate < DATEADD(month, 3, '1993-07-01')
@@ -120,7 +122,7 @@ _TPCH_QUERIES_RAW = [
             SELECT
                 *
             FROM
-                lineitem
+                {LINEITEM_TABLE}
             WHERE
                 l_orderkey = o_orderkey
               AND l_commitdate < l_receiptdate
@@ -138,12 +140,12 @@ _TPCH_QUERIES_RAW = [
             n_name,
             SUM(l_extendedprice * (1 - l_discount)) AS revenue
         FROM
-            customer,
-            orders,
-            lineitem,
-            supplier,
-            nation,
-            region
+            {CUSTOMER_TABLE},
+            {ORDERS_TABLE},
+            {LINEITEM_TABLE},
+            {SUPPLIER_TABLE},
+            {NATION_TABLE},
+            {REGION_TABLE}
         WHERE
             c_custkey = o_custkey
           AND l_orderkey = o_orderkey
@@ -166,7 +168,7 @@ _TPCH_QUERIES_RAW = [
         SELECT
             SUM(l_extendedprice * l_discount) AS revenue
         FROM
-            lineitem
+            {LINEITEM_TABLE}
         WHERE
             l_shipdate >= DATE '1994-01-01'
           AND l_shipdate < DATEADD(year, 1, '1994-01-01')
@@ -190,12 +192,12 @@ _TPCH_QUERIES_RAW = [
                     EXTRACT(year FROM l_shipdate) AS l_year,
                     l_extendedprice * (1 - l_discount) AS volume
                 FROM
-                    supplier,
-                    lineitem,
-                    orders,
-                    customer,
-                    nation n1,
-                    nation n2
+                    {SUPPLIER_TABLE},
+                    {LINEITEM_TABLE},
+                    {ORDERS_TABLE},
+                    {CUSTOMER_TABLE},
+                    {NATION_TABLE} n1,
+                    {NATION_TABLE} n2
                 WHERE
                     s_suppkey = l_suppkey
                   AND o_orderkey = l_orderkey
@@ -234,14 +236,14 @@ _TPCH_QUERIES_RAW = [
                     l_extendedprice * (1 - l_discount) AS volume,
                     n2.n_name AS nation
                 FROM
-                    part,
-                    supplier,
-                    lineitem,
-                    orders,
-                    customer,
-                    nation n1,
-                    nation n2,
-                    region
+                    {PART_TABLE},
+                    {SUPPLIER_TABLE},
+                    {LINEITEM_TABLE},
+                    {ORDERS_TABLE},
+                    {CUSTOMER_TABLE},
+                    {NATION_TABLE} n1,
+                    {NATION_TABLE} n2,
+                    {REGION_TABLE}
                 WHERE
                     p_partkey = l_partkey
                   AND s_suppkey = l_suppkey
@@ -274,12 +276,12 @@ _TPCH_QUERIES_RAW = [
                     EXTRACT(year FROM o_orderdate) AS o_year,
                     l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity AS amount
                 FROM
-                    part,
-                    supplier,
-                    lineitem,
-                    partsupp,
-                    orders,
-                    nation
+                    {PART_TABLE},
+                    {SUPPLIER_TABLE},
+                    {LINEITEM_TABLE},
+                    {PARTSUPP_TABLE},
+                    {ORDERS_TABLE},
+                    {NATION_TABLE}
                 WHERE
                     s_suppkey = l_suppkey
                   AND ps_suppkey = l_suppkey
@@ -304,9 +306,9 @@ _TPCH_QUERIES_RAW = [
             ps_partkey,
             SUM(ps_supplycost * ps_availqty) AS value
         FROM
-            partsupp,
-            supplier,
-            nation
+            {PARTSUPP_TABLE},
+            {SUPPLIER_TABLE},
+            {NATION_TABLE}
         WHERE
             ps_suppkey = s_suppkey
           AND s_nationkey = n_nationkey
@@ -318,9 +320,9 @@ _TPCH_QUERIES_RAW = [
             SELECT
             SUM(ps_supplycost * ps_availqty) * 0.0001
             FROM
-            partsupp,
-            supplier,
-            nation
+            {PARTSUPP_TABLE},
+            {SUPPLIER_TABLE},
+            {NATION_TABLE}
             WHERE
             ps_suppkey = s_suppkey
            AND s_nationkey = n_nationkey
@@ -347,8 +349,8 @@ _TPCH_QUERIES_RAW = [
                     ELSE 0
                 END) AS low_line_count
         FROM
-            orders,
-            lineitem
+            {ORDERS_TABLE},
+            {LINEITEM_TABLE}
         WHERE
             o_orderkey = l_orderkey
           AND l_shipmode IN ('MAIL', 'SHIP')
@@ -374,7 +376,7 @@ _TPCH_QUERIES_RAW = [
                     c_custkey,
                     COUNT(o_orderkey)
                 FROM
-                    customer LEFT OUTER JOIN orders
+                    {CUSTOMER_TABLE} LEFT OUTER JOIN {ORDERS_TABLE}
                                              ON c_custkey = o_custkey
                                                  AND o_comment NOT LIKE '%special%requests%'
                 GROUP BY
@@ -397,8 +399,8 @@ _TPCH_QUERIES_RAW = [
                              ELSE 0
                 END) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue
         FROM
-            lineitem,
-            part
+            {LINEITEM_TABLE},
+            {PART_TABLE}
         WHERE
             l_partkey = p_partkey
           AND l_shipdate >= DATE '1995-09-01'
@@ -413,7 +415,7 @@ _TPCH_QUERIES_RAW = [
                 l_suppkey AS supplier_no,
                 SUM(l_extendedprice * (1 - l_discount)) AS total_revenue
             FROM
-                lineitem
+                {LINEITEM_TABLE}
             WHERE
                 l_shipdate >= TO_DATE('1996-01-01')
               AND l_shipdate < TO_DATE('1996-04-01')
@@ -427,7 +429,7 @@ _TPCH_QUERIES_RAW = [
             s_phone,
             total_revenue
         FROM
-            supplier,
+            {SUPPLIER_TABLE},
             revenue
         WHERE
             s_suppkey = supplier_no
@@ -448,8 +450,8 @@ _TPCH_QUERIES_RAW = [
             p_size,
             COUNT(DISTINCT ps_suppkey) AS supplier_cnt
         FROM
-            partsupp,
-            part
+            {PARTSUPP_TABLE},
+            {PART_TABLE}
         WHERE
             p_partkey = ps_partkey
           AND p_brand <> 'Brand#45'
@@ -459,7 +461,7 @@ _TPCH_QUERIES_RAW = [
             SELECT
                 s_suppkey
             FROM
-                supplier
+                {SUPPLIER_TABLE}
             WHERE
                 s_comment LIKE '%Customer%Complaints%'
         )
@@ -480,8 +482,8 @@ _TPCH_QUERIES_RAW = [
         SELECT
             SUM(l_extendedprice) / 7.0 AS avg_yearly
         FROM
-            lineitem,
-            part
+            {LINEITEM_TABLE},
+            {PART_TABLE}
         WHERE
             p_partkey = l_partkey
           AND p_brand = 'Brand#23'
@@ -490,7 +492,7 @@ _TPCH_QUERIES_RAW = [
             SELECT
                 0.2 * AVG(l_quantity)
             FROM
-                lineitem
+                {LINEITEM_TABLE}
             WHERE
                 l_partkey = p_partkey
         );
@@ -507,15 +509,15 @@ _TPCH_QUERIES_RAW = [
             o_totalprice,
             SUM(l_quantity)
         FROM
-            customer,
-            orders,
-            lineitem
+            {CUSTOMER_TABLE},
+            {ORDERS_TABLE},
+            {LINEITEM_TABLE}
         WHERE
             o_orderkey IN (
                 SELECT
                     l_orderkey
                 FROM
-                    lineitem
+                    {LINEITEM_TABLE}
                 GROUP BY
                     l_orderkey
                 HAVING
@@ -541,8 +543,8 @@ _TPCH_QUERIES_RAW = [
         SELECT
             SUM(l_extendedprice * (1 - l_discount)) AS revenue
         FROM
-            lineitem,
-            part
+            {LINEITEM_TABLE},
+            {PART_TABLE}
         WHERE
             (
                 p_partkey = l_partkey
@@ -582,20 +584,20 @@ _TPCH_QUERIES_RAW = [
             s_name,
             s_address
         FROM
-            supplier,
-            nation
+            {SUPPLIER_TABLE},
+            {NATION_TABLE}
         WHERE
             s_suppkey IN (
                 SELECT
                     ps_suppkey
                 FROM
-                    partsupp
+                    {PARTSUPP_TABLE}
                 WHERE
                     ps_partkey IN (
                         SELECT
                             p_partkey
                         FROM
-                            part
+                            {PART_TABLE}
                         WHERE
                             p_name LIKE 'forest%'
                     )
@@ -603,7 +605,7 @@ _TPCH_QUERIES_RAW = [
                     SELECT
                         0.5 * SUM(l_quantity)
                     FROM
-                        lineitem
+                        {LINEITEM_TABLE}
                     WHERE
                         l_partkey = ps_partkey
                       AND l_suppkey = ps_suppkey
@@ -624,10 +626,10 @@ _TPCH_QUERIES_RAW = [
             s_name,
             COUNT(*) AS numwait
         FROM
-            supplier,
-            lineitem l1,
-            orders,
-            nation
+            {SUPPLIER_TABLE},
+            {LINEITEM_TABLE} l1,
+            {ORDERS_TABLE},
+            {NATION_TABLE}
         WHERE
             s_suppkey = l1.l_suppkey
           AND o_orderkey = l1.l_orderkey
@@ -637,7 +639,7 @@ _TPCH_QUERIES_RAW = [
             SELECT
                 *
             FROM
-                lineitem l2
+                {LINEITEM_TABLE} l2
             WHERE
                 l2.l_orderkey = l1.l_orderkey
               AND l2.l_suppkey <> l1.l_suppkey
@@ -646,7 +648,7 @@ _TPCH_QUERIES_RAW = [
             SELECT
                 *
             FROM
-                lineitem l3
+                {LINEITEM_TABLE} l3
             WHERE
                 l3.l_orderkey = l1.l_orderkey
               AND l3.l_suppkey <> l1.l_suppkey
@@ -675,7 +677,7 @@ _TPCH_QUERIES_RAW = [
                     SUBSTRING(c_phone, 1, 2) AS cntrycode,
                     c_acctbal
                 FROM
-                    customer
+                    {CUSTOMER_TABLE}
                 WHERE
                     SUBSTRING(c_phone, 1, 2) IN
                     ('13', '31', '23', '29', '30', '18', '17')
@@ -683,7 +685,7 @@ _TPCH_QUERIES_RAW = [
                     SELECT
                         AVG(c_acctbal)
                     FROM
-                        customer
+                        {CUSTOMER_TABLE}
                     WHERE
                         c_acctbal > 0.00
                       AND SUBSTRING(c_phone, 1, 2) IN
@@ -693,7 +695,7 @@ _TPCH_QUERIES_RAW = [
                     SELECT
                         *
                     FROM
-                        orders
+                        {ORDERS_TABLE}
                     WHERE
                         o_custkey = c_custkey
                 )
@@ -717,10 +719,10 @@ _TPCH_QUERIES_RAW = [
             c_phone,
             c_comment
         FROM
-            customer,
-            orders,
-            lineitem,
-            nation
+            {CUSTOMER_TABLE},
+            {ORDERS_TABLE},
+            {LINEITEM_TABLE},
+            {NATION_TABLE}
         WHERE
             c_custkey = o_custkey
           AND l_orderkey = o_orderkey
@@ -744,36 +746,15 @@ _TPCH_QUERIES_RAW = [
 ]
 
 
-def parametrize_tpch_queries():
+def parametrize_tpch_queries(fully_qualified_names_for_embucket):
     """
-    Parametrize TPC-H queries by replacing bare table names with fully qualified names.
-    Returns a list of (query_name, parametrized_query) tuples.
+    Replace table name placeholders in TPC-H queries with actual table names.
+
+    Args:
+        fully_qualified_names_for_embucket (bool): Required. If True, use EMBUCKET_DATABASE.EMBUCKET_SCHEMA.tablename format.
+                                                   If False, use just the default table names.
+
+    Returns:
+        list: A list of (query_name, parametrized_query) tuples.
     """
-    # TPC-H table names that need to be parametrized
-    tpch_table_names = ['customer', 'lineitem', 'nation', 'orders', 'part', 'partsupp', 'region', 'supplier']
-
-    # Get database and schema from environment variables
-    database = os.environ['EMBUCKET_DATABASE']
-    schema = os.environ['EMBUCKET_SCHEMA']
-
-    parametrized_queries = []
-
-    for query_name, query_sql in _TPCH_QUERIES_RAW:
-        parametrized_sql = query_sql
-
-        # Replace each table name with fully qualified name using word boundaries
-        for table_name in tpch_table_names:
-            qualified_name = f"{database}.{schema}.{table_name}"
-
-            # Use word boundaries to match complete table names only
-            # This will match table names in all contexts (FROM, JOIN, comma-separated lists, etc.)
-            pattern = rf'\b{table_name}\b'
-            parametrized_sql = re.sub(pattern, qualified_name, parametrized_sql, flags=re.IGNORECASE)
-
-        parametrized_queries.append((query_name, parametrized_sql))
-
-    return parametrized_queries
-
-
-# Export the parametrized queries
-TPCH_QUERIES = parametrize_tpch_queries()
+    return parametrize_tpch_statements(_TPCH_QUERIES_RAW, fully_qualified_names_for_embucket)

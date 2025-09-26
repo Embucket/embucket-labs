@@ -172,7 +172,7 @@ impl EmbucketCatalogList {
 
     #[tracing::instrument(
         name = "EmbucketCatalogList::internal_catalogs",
-        level = "debug",
+        level = "trace",
         skip(self),
         err
     )]

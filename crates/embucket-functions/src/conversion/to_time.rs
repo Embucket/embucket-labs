@@ -1,7 +1,8 @@
+use crate::utils::to_string_array;
 use chrono::{NaiveTime, ParseError, Timelike};
 use datafusion::arrow::array::builder::Time64NanosecondBuilder;
 use datafusion::arrow::array::types::Time64NanosecondType;
-use datafusion::arrow::array::{Array, StringArray, TimestampNanosecondArray};
+use datafusion::arrow::array::{Array, TimestampNanosecondArray};
 use datafusion::arrow::array::{
     TimestampMicrosecondArray, TimestampMillisecondArray, TimestampSecondArray,
 };
@@ -129,7 +130,7 @@ impl ScalarUDFImpl for ToTimeFunc {
         let mut b = Time64NanosecondBuilder::with_capacity(arr.len());
         match arr.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let arr = arr.as_any().downcast_ref::<StringArray>().unwrap();
+                let arr = &to_string_array(&arr)?;
                 for v in arr {
                     if let Some(s) = v {
                         if let Some(format) = &format {

@@ -1,8 +1,8 @@
-#[cfg(feature = "default-server")]
-pub mod server;
-
 pub mod models;
 pub mod sql_state;
+
+#[cfg(feature = "default-server")]
+pub mod server;
 
 #[cfg(test)]
 pub mod tests;

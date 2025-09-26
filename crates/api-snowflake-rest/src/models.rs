@@ -1,5 +1,13 @@
-#[cfg(feature = "default-server")]
-use core_executor::models::ColumnInfo as ColumnInfoModel;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "default-server")] {
+        use core_executor::models::ColumnInfo as ColumnInfoModel;
+        use core_history::result_set::Row;
+    } else {
+        // Define simple representation for Row
+        // As with external-server we won't have any dependences (especially trivial)
+        type Row = Vec<serde_json::Value>;
+    }
+}
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -88,7 +96,7 @@ pub struct ResponseData {
     #[serde(rename = "rowsetBase64")]
     pub row_set_base_64: Option<String>,
     #[serde(rename = "rowset")]
-    pub row_set: Option<Vec<Vec<serde_json::Value>>>,
+    pub row_set: Option<Vec<Row>>,
     pub total: Option<u32>,
     #[serde(rename = "queryResultFormat")]
     pub query_result_format: Option<String>,

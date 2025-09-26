@@ -1,5 +1,5 @@
 use super::errors as regexp_errors;
-use crate::utils::{pattern_to_regex, regexp};
+use crate::utils::{pattern_to_regex, regexp, to_string_array};
 use datafusion::arrow::array::{StringArray, StringBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::error::Result as DFResult;
@@ -8,7 +8,6 @@ use datafusion::logical_expr::{
 };
 use datafusion_common::ScalarValue;
 use datafusion_common::arrow::array::Array;
-use datafusion_common::cast::as_generic_string_array;
 use datafusion_common::types::logical_string;
 use datafusion_expr::{Coercion, ScalarFunctionArgs, ScalarUDFImpl};
 use snafu::ResultExt;
@@ -277,7 +276,7 @@ impl ScalarUDFImpl for RegexpSubstrFunc {
 
         match array.data_type() {
             DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View => {
-                let string_array: &StringArray = as_generic_string_array(array)?;
+                let string_array: &StringArray = &to_string_array(&array)?;
                 let regex = pattern_to_regex(pattern, regex_parameters)
                     .context(regexp_errors::UnsupportedRegexSnafu)?;
                 regexp(string_array, &regex, position).for_each(|opt_iter| {

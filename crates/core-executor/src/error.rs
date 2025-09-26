@@ -588,21 +588,21 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Query {query_id} cancelled"))]
+    #[snafu(display("Query {} cancelled", query_id.as_uuid()))]
     QueryCancelled {
         query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Query [{query_id}] result sending error"))]
+    #[snafu(display("Query [{}] result sending error", query_id.as_uuid()))]
     QueryResultSend {
         query_id: QueryRecordId,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Query [{query_id}] result recv error: {error}"))]
+    #[snafu(display("Query [{}] result recv error: {error}", query_id.as_uuid()))]
     QueryResultRecv {
         query_id: QueryRecordId,
         #[snafu(source)]
@@ -611,7 +611,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Query [{query_id}] result notify error: {error}"))]
+    #[snafu(display("Query [{}] result notify error: {error}", query_id.as_uuid()))]
     QueryStatusRecv {
         query_id: QueryRecordId,
         #[snafu(source)]
@@ -620,7 +620,7 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Query [{query_id}] status notify error: {error}"))]
+    #[snafu(display("Query [{}] status notify error: {error}", query_id.as_uuid()))]
     NotifyQueryStatus {
         query_id: QueryRecordId,
         #[snafu(source)]

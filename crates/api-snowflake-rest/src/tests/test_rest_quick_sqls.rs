@@ -1,10 +1,4 @@
-#[cfg(feature = "default-server")]
-use crate::server::test_server::run_test_rest_api_server;
-
-// External server should be already running, we just return its address
-#[cfg(not(feature = "default-server"))]
-use crate::tests::external_server::run_test_rest_api_server;
-
+use super::run_test_rest_api_server;
 use crate::sql_test;
 
 // This test uses external server if tests were executed with `cargo test-rest`
@@ -159,6 +153,20 @@ mod snowflake_compatibility {
             "SELECT SLEEP(1);>",
             // 2: query [UUID] terminated.
             "SELECT SYSTEM$CANCEL_QUERY('$LAST_QUERY_ID');",
+        ]
+    );
+
+    sql_test!(
+        regression_bug_1662_ambiguous_schema,
+        [
+            // +-----+-----+
+            // | COL | COL |
+            // |-----+-----|
+            // |   1 |   2 |
+            // +-----+-----+
+            "select * from 
+                ( select 1 as col ) schema1,
+                ( select 2 as col ) schema2",
         ]
     );
 

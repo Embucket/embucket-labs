@@ -90,6 +90,8 @@ impl VisitorMut for TableFuncInlineCte {
 /// nested CTE references are also resolved.
 struct CteInliner<'a> {
     ctes: &'a HashMap<String, Query>,
+    // stack of aliases currently being inlined to prevent infinite recursion
+    stack: Vec<String>,
 }
 
 impl VisitorMut for CteInliner<'_> {
@@ -98,10 +100,21 @@ impl VisitorMut for CteInliner<'_> {
     fn post_visit_table_factor(&mut self, tf: &mut TableFactor) -> ControlFlow<()> {
         if let TableFactor::Table { name, alias, .. } = tf {
             let key = name.to_string().to_ascii_lowercase();
+
+            // if this alias is already on the stack, skip to avoid infinite recursion
+            if self.stack.contains(&key) {
+                return ControlFlow::Continue(());
+            }
+
             if let Some(cte_q) = self.ctes.get(&key) {
-                // Clone the CTE query so we can inline inside it recursively
+                // Recursion protection
+                self.stack.push(key.clone());
+
+                // Clone the CTE query and inline inside it recursively
                 let mut subq = cte_q.clone();
                 let _ = subq.visit(self);
+
+                let _ = self.stack.pop();
 
                 *tf = TableFactor::Derived {
                     lateral: false,
@@ -117,7 +130,10 @@ impl VisitorMut for CteInliner<'_> {
 impl TableFuncInlineCte {
     /// Inline CTE references inside the given query.
     fn inline_cte_refs_in_query(&self, q: &mut Query) {
-        let _ = q.visit(&mut CteInliner { ctes: &self.ctes });
+        let _ = q.visit(&mut CteInliner {
+            ctes: &self.ctes,
+            stack: Vec::new(),
+        });
     }
 
     fn collect_ctes_from_query(&mut self, q: &Query) {
@@ -186,6 +202,11 @@ impl TableFuncInlineCte {
                 let column = &ident.value;
 
                 if let Some((alias, query)) = self.extract_projected_columns(column) {
+                    // skip inlining if this CTE is recursive
+                    if cte_is_self_referencing(alias, query) {
+                        return Expr::Identifier(ident);
+                    }
+
                     // Inline CTEs inside the cloned query before using it
                     let mut inlined_query = query.clone();
                     self.inline_cte_refs_in_query(&mut inlined_query);
@@ -259,4 +280,15 @@ impl TableFuncInlineCte {
 
 pub fn visit(stmt: &mut Statement) {
     let _ = stmt.visit(&mut TableFuncInlineCte::default());
+}
+
+fn cte_is_self_referencing(alias: &str, q: &Query) -> bool {
+    if let SetExpr::Select(select) = &*q.body {
+        select.from.iter().any(|tbl| match &tbl.relation {
+            TableFactor::Table { name, .. } => name.to_string().to_ascii_lowercase() == alias,
+            _ => false,
+        })
+    } else {
+        false
+    }
 }

@@ -1,5 +1,4 @@
 #[cfg(test)]
-#[cfg(not(feature = "external-server"))]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::too_many_lines)]
 mod tests {
     use crate::models::{
