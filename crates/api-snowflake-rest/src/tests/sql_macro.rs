@@ -3,11 +3,17 @@ use crate::models::JsonResponse;
 pub const DEMO_USER: &str = "embucket";
 pub const DEMO_PASSWORD: &str = "embucket";
 
+pub const ARROW: &str = "arrow";
+pub const JSON: &str = "json";
+
 #[must_use]
 pub fn insta_replace_filiters() -> Vec<(&'static str, &'static str)> {
     vec![(
         r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}",
         "UUID",
+    ), (
+        r"\/\/\/.+==",
+        "BASE64_DATA",
     )]
 }
 
@@ -43,7 +49,7 @@ impl std::fmt::Display for HistoricalCodes {
 
 #[macro_export]
 macro_rules! sql_test {
-    ($name:ident, $sqls:expr) => {
+    ($data_format:expr, $name:ident, $sqls:expr) => {
         #[tokio::test]
         async fn $name() {
             use $crate::tests::snow_sql::snow_sql;
@@ -54,7 +60,7 @@ macro_rules! sql_test {
             };
 
             let mod_name = module_path!().split("::").last().unwrap();
-            let server_addr = run_test_rest_api_server().await;
+            let server_addr = run_test_rest_api_server($data_format).await;
             let mut prev_response: Option<JsonResponse> = None;
             let test_start = std::time::Instant::now();
             for (idx, sql) in $sqls.iter().enumerate() {
