@@ -9,15 +9,22 @@ COLUMN_TO_AVERAGE = 'Total (ms)'
 
 
 def sort_by_query_index(df):
-    """Add index column to dataframe based on query number.
-    If df['Query'] contains ['tpch-q20', 'tpch-q3'],
-    the function extracts the numbers (20, 3) and sorts accordingly
+    """Sort dataframe by query number.
+    Handles numeric queries like '1', '2', '10' and puts 'TOTAL' at the end.
     """
+    def extract_query_number(query_name):
+        # Handle TOTAL row - should be last
+        if str(query_name).upper() == 'TOTAL':
+            return float('inf')
+
+        # Parse as plain number
+        try:
+            return int(query_name)
+        except (ValueError, TypeError):
+            return float('inf')
+
     # Add index column
-    df['query_index'] = df['Query'].apply(
-        lambda x: int(re.search(r'q(\d+)', x).group(1))
-        if re.search(r'q(\d+)', x) else float('inf')
-    )
+    df['query_index'] = df['Query'].apply(extract_query_number)
     # Sort by the new index
     df = df.sort_values('query_index')
 
@@ -76,12 +83,6 @@ def calculate_benchmark_averages(schema, warehouse, system, benchmark_type):
         dfs = [pd.read_csv(f) for f in csv_files]
         print(f"Using all {len(dfs)} files for averaging: {csv_files}")
 
-        # Sort each DataFrame by 'Query' to align rows
-        dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
-
-        # Concatenate DataFrames along a new axis
-        stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
-
         # Stack and average
         dfs = [df.sort_values('Query').reset_index(drop=True) for df in dfs]
         stacked = pd.concat(dfs, axis=0, keys=range(len(dfs)))
@@ -89,12 +90,6 @@ def calculate_benchmark_averages(schema, warehouse, system, benchmark_type):
         averaged['Query'] = dfs[0]['Query']
         averaged = averaged[['Query', COLUMN_TO_AVERAGE]]
         averaged = sort_by_query_index(averaged)
-
-        # Move TOTAL row to the top if it exists
-        if 'TOTAL' in averaged['Query'].values:
-            total_row = averaged[averaged['Query'] == 'TOTAL']
-            other_rows = averaged[averaged['Query'] != 'TOTAL']
-            averaged = pd.concat([total_row, other_rows]).reset_index(drop=True)
 
         # Save to CSV
         output_filename = os.path.join(search_dir, f'avg_results.csv')
