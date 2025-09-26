@@ -479,7 +479,7 @@ impl EmbucketCatalogList {
                         }
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to refresh internal catalogs: {:?}", e);
+                        tracing::warn!(error = ?e, "Failed to refresh internal catalogs");
                     }
                 }
             }

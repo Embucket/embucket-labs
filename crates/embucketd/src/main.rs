@@ -271,7 +271,7 @@ async fn main() {
         .await
         .expect("Failed to bind to web assets server address");
     let addr = listener.local_addr().expect("Failed to get local address");
-    tracing::info!("Listening on http://{}", addr);
+    tracing::info!(%addr, "Listening on http");
     // Runs web assets server in background
     tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
 
@@ -282,7 +282,7 @@ async fn main() {
         .await
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
-    tracing::info!("Listening on http://{}", addr);
+    tracing::info!(%addr, "Listening on http");
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
         .await

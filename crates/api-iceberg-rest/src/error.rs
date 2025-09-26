@@ -57,7 +57,7 @@ impl IntoResponse for Error {
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
-        tracing::error!("{}", self.output_msg());
+        tracing::error!(error_message = %self.output_msg(), "Iceberg API error");
         let metastore_error = match self {
             Self::Metastore { source, .. } => source,
         };

@@ -18,7 +18,7 @@ pub async fn propagate_session_cookie(
     next: Next,
 ) -> Result<impl IntoResponse> {
     if let Some(token) = extract_token_from_cookie(req.headers()) {
-        tracing::debug!("Found DF session_id in cookie header: {}", token);
+        tracing::debug!(session_id = %token, "Found DF session_id in cookie header");
 
         //session_id is expired and deleted
         if !state.execution_svc.session_exists(&token).await {
@@ -41,7 +41,7 @@ pub async fn propagate_session_cookie(
         req.extensions_mut().insert(DFSessionId(token));
     } else {
         let session_id = uuid::Uuid::new_v4().to_string();
-        tracing::debug!("Created new DF session_id: {}", session_id);
+        tracing::debug!(session_id = %session_id, "Created new DF session_id");
         //Propagate new session_id to the extractor
         req.extensions_mut().insert(DFSessionId(session_id.clone()));
         let mut res = next.run(req).await;

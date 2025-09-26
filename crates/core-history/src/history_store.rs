@@ -336,7 +336,7 @@ impl HistoryStore for SlateDBHistoryStore {
             // Record the result as part of the current span.
             tracing::Span::current().record("save_query_history_error", format!("{err:?}"));
 
-            tracing::error!("Failed to record query history: {err}");
+            tracing::error!(error = %err, "Failed to record query history");
         }
     }
 }
