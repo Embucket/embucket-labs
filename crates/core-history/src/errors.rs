@@ -1,6 +1,5 @@
 use crate::QueryRecordId;
 use error_stack_trace;
-use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::Snafu;
 
@@ -112,7 +111,7 @@ pub enum Error {
     #[snafu(display("Query item seek error: {error}"))]
     Seek {
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },

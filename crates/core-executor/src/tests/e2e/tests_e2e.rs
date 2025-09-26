@@ -1497,6 +1497,8 @@ async fn test_e2e_s3_store_create_volume_with_non_existing_bucket() -> Result<()
     Ok(())
 }
 
+// TODO: Consider what to do with such test
+// we can't verify error type here is objectstore error or not, as of SlteDBError turned private
 #[tokio::test]
 #[ignore = "e2e test"]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
@@ -1552,14 +1554,11 @@ async fn test_e2e_s3_store_single_executor_s3_connection_issues_create_executor_
 
     assert!(res.is_err());
     if let Err(e) = &res {
-        match e {
-            // error happended in creating ExecutionService is internal, so do not check error type itself
-            Error::TestSlatedb {
-                source: slatedb::SlateDBError::ObjectStoreError(_object_store),
-                ..
-            } => (),
-            _ => panic!("Expected other error, Actual error: {e}"),
-        }
+        // Since slatedb v0.8 SlateDbError is private, objectstore error can't be downcasted anymore.
+        // error happended in creating ExecutionService is internal, so do not check error type itself
+        // Error::TestSlatedb {
+        //     source: slatedb::error::SlateDBError::ObjectStoreError(_object_store),
+        panic!("Expected other error, Actual error: {e}");
     }
 
     Ok(())

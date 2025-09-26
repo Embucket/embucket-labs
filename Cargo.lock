@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "addr2line"
-version = "0.24.2"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfbe277e56a376000877090da837660b4427aad530e3028d44e0bffe4f89a1c1"
+checksum = "1b5d307320b3181d6d7954e663bd7c774a838b8220fe0593c86d9fb09f498b4b"
 dependencies = [
  "gimli",
 ]
@@ -391,15 +391,6 @@ name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d62b7694a562cdf5a74227903507c56ab2cc8bdd1f781ed5cb4cf9c9f810bfc"
-
-[[package]]
-name = "array-util"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e509844de8f09b90a2c3444684a2b6695f4071360e13d2fda0af9f749cc2ed6"
-dependencies = [
- "arrayvec",
-]
 
 [[package]]
 name = "arrayref"
@@ -1655,9 +1646,9 @@ dependencies = [
 
 [[package]]
 name = "backtrace"
-version = "0.3.75"
+version = "0.3.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6806a6321ec58106fea15becdad98371e28d92ccbc7c8f1b3b6dd724fe8f1002"
+checksum = "bb531853791a215d7c62a30daf0dde835f381ab5de4589cfe7c649d2cbe92bd6"
 dependencies = [
  "addr2line",
  "cfg-if",
@@ -1665,7 +1656,7 @@ dependencies = [
  "miniz_oxide",
  "object",
  "rustc-demangle",
- "windows-targets 0.52.6",
+ "windows-link 0.2.0",
 ]
 
 [[package]]
@@ -1974,9 +1965,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.38"
+version = "1.2.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80f41ae168f955c12fb8960b057d70d0ca153fb83182b57d86380443527be7e9"
+checksum = "e1354349954c6fc9cb0deab020f27f783cf0b604e8bb754dc4658ecf0d29c35f"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -3871,11 +3862,10 @@ dependencies = [
 
 [[package]]
 name = "foyer"
-version = "0.17.4"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0618db36554a0a5db538d7ff04427571b1f668d3e86a764aabe17985c02ea14c"
+checksum = "642093b1a72c4a0ef89862484d669a353e732974781bb9c49a979526d1e30edc"
 dependencies = [
- "anyhow",
  "equivalent",
  "foyer-common",
  "foyer-memory",
@@ -3884,15 +3874,16 @@ dependencies = [
  "mixtrics",
  "pin-project",
  "serde",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "foyer-common"
-version = "0.17.4"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbf63fd16ba6227de0004472156048338ad7544280d1200c27e4b4a82ca6f075"
+checksum = "9db9c0e4648b13e9216d785b308d43751ca975301aeb83e607ec630b6f956944"
 dependencies = [
  "bincode",
  "bytes",
@@ -3919,9 +3910,9 @@ dependencies = [
 
 [[package]]
 name = "foyer-memory"
-version = "0.17.4"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae8a1c8e263f91cf3abca38bbf6b8f82f34b6cf20fa3a249c90ebfa795e5631"
+checksum = "040dc38acbfca8f1def26bbbd9e9199090884aabb15de99f7bf4060be66ff608"
 dependencies = [
  "arc-swap",
  "bitflags 2.9.4",
@@ -3943,16 +3934,14 @@ dependencies = [
 
 [[package]]
 name = "foyer-storage"
-version = "0.17.4"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d387ab178f8bcb03fe4981766c9f436007234d8ca73080e3ad2c370d8d75113b"
+checksum = "54a77ed888da490e997da6d6d62fcbce3f202ccf28be098c4ea595ca046fc4a9"
 dependencies = [
  "allocator-api2",
  "anyhow",
- "array-util",
  "auto_enums",
  "bytes",
- "clap",
  "equivalent",
  "flume",
  "foyer-common",
@@ -4354,9 +4343,9 @@ dependencies = [
 
 [[package]]
 name = "gimli"
-version = "0.31.1"
+version = "0.32.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "glob"
@@ -5595,7 +5584,7 @@ dependencies = [
  "naive-timer",
  "panic-message",
  "rand 0.8.5",
- "rand_xoshiro",
+ "rand_xoshiro 0.6.0",
  "rustversion",
  "serde",
  "spin 0.9.8",
@@ -5719,9 +5708,9 @@ dependencies = [
 
 [[package]]
 name = "mixtrics"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "749ed12bab176c8a42c13a679dd2de12876d5ad4abe7525548e31ae001a9ebbf"
+checksum = "0ec5632ad552674b1bc37cf2948ac4cecb2e70d94ad7376e30670254999d4cf6"
 dependencies = [
  "itertools 0.14.0",
  "parking_lot",
@@ -5972,9 +5961,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.7"
+version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
+checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
 dependencies = [
  "memchr",
 ]
@@ -7024,21 +7013,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_xorshift"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d25bf25ec5ae4a3f1b92f929810509a2f53d7dca2f50b794ff57e3face536c8f"
-dependencies = [
- "rand_core 0.6.4",
-]
-
-[[package]]
 name = "rand_xoshiro"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
 dependencies = [
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f703f4665700daf5512dcca5f43afa6af89f09db47fb56be587f80636bda2d41"
+dependencies = [
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -7660,9 +7649,9 @@ checksum = "1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc"
 
 [[package]]
 name = "serde"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
+checksum = "80ece43fc6fbed4eb5392ab50c07334d3e577cbf40997ee896fe7af40bba4245"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -7680,18 +7669,18 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba2ba63999edb9dac981fb34b3e5c0d111a69b0924e253ed29d83f7c99e966a4"
+checksum = "7a576275b607a2c86ea29e410193df32bc680303c82f31e275bbfcafe8b33be5"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8db53ae22f34573731bafa1db20f04027b2d25e02d8205921b569171699cdb33"
+checksum = "51e694923b8824cf0e9b382adf0f60d4e05f348f357b38833a3fa5ed7c2ede04"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7909,24 +7898,25 @@ checksum = "7a2ae44ef20feb57a68b23d846850f861394c2e02dc425a50098ae8c90267589"
 
 [[package]]
 name = "slatedb"
-version = "0.7.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f8d8a5ee7c28b2be072c66ab75fd475052fe9ac60703b7b3024ba7d172acd43"
+checksum = "1929df128f27789722644d8e9a68eaddec2e656ed8bac2a088159c8cce423590"
 dependencies = [
+ "anyhow",
  "async-trait",
  "atomic",
+ "backon",
  "bitflags 2.9.4",
  "bytemuck",
  "bytes",
  "chrono",
  "crc32fast",
- "crossbeam-channel",
  "crossbeam-skiplist",
  "dotenvy",
  "duration-str",
  "fail-parallel",
  "figment",
- "flatbuffers 24.12.23",
+ "flatbuffers 25.9.23",
  "foyer",
  "futures",
  "log",
@@ -7936,9 +7926,8 @@ dependencies = [
  "ouroboros",
  "parking_lot",
  "radix_trie",
- "rand 0.8.5",
- "rand_xorshift",
- "rand_xoshiro",
+ "rand 0.9.2",
+ "rand_xoshiro 0.7.0",
  "serde",
  "serde_json",
  "siphasher",
@@ -7948,6 +7937,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "ulid",
+ "url",
  "uuid",
  "walkdir",
 ]
@@ -8961,12 +8951,11 @@ checksum = "2896d95c02a80c6d6a5d6e953d479f5ddf2dfdb6a244441010e373ac0fb88971"
 
 [[package]]
 name = "ulid"
-version = "1.1.3"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04f903f293d11f31c0c29e4148f6dc0d033a7f80cebc0282bea147611667d289"
+checksum = "470dbf6591da1b39d43c14523b2b469c86879a53e8b758c8e090a470fe7b1fbe"
 dependencies = [
- "getrandom 0.2.16",
- "rand 0.8.5",
+ "rand 0.9.2",
  "serde",
  "web-time",
 ]

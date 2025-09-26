@@ -23,7 +23,6 @@ use object_store::{
     aws::AmazonS3Builder, aws::AmazonS3ConfigKey, aws::S3ConditionalPut, local::LocalFileSystem,
 };
 use slatedb::DbBuilder;
-use slatedb::db_cache::moka::MokaCache;
 use snafu::ResultExt;
 use snafu::{Location, Snafu};
 use std::collections::HashMap;
@@ -122,7 +121,7 @@ pub const TEST_DATABASE_NAME: &str = "embucket";
 #[snafu(visibility(pub))]
 pub enum Error {
     TestSlatedb {
-        source: slatedb::SlateDBError,
+        source: slatedb::Error,
         object_store: Arc<dyn ObjectStore>,
         #[snafu(implicit)]
         location: Location,
@@ -659,7 +658,6 @@ impl ObjectStoreType {
                     object_store::path::Path::from(suffix.clone()),
                     self.object_store()?,
                 )
-                .with_block_cache(Arc::new(MokaCache::new()))
                 .build()
                 .await
                 .context(TestSlatedbSnafu {

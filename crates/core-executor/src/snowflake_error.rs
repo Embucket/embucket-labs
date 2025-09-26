@@ -12,7 +12,6 @@ use df_catalog::df_error::DFExternalError as DFCatalogExternalDFError;
 use df_catalog::error::Error as CatalogError;
 use embucket_functions::df_error::DFExternalError as EmubucketFunctionsExternalDFError;
 use iceberg_rust::error::Error as IcebergError;
-use slatedb::SlateDBError;
 use snafu::GenerateImplicitData;
 use snafu::{Location, Snafu, location};
 use sqlparser::parser::ParserError;
@@ -286,16 +285,19 @@ fn core_utils_error(error: &core_utils::Error, subtext: &[&str]) -> SnowflakeErr
         | DbError::KeyGet { error, .. }
         | DbError::KeyDelete { error, .. }
         | DbError::KeyPut { error, .. }
-        | DbError::ScanFailed { error, .. } => match error {
-            SlateDBError::ObjectStoreError(obj_store_error) => {
-                object_store_error(obj_store_error, &subtext)
-            }
-            _ => CustomSnafu {
+        | DbError::ScanFailed { error, .. } =>
+        // Since slatedb v0.8 SlateDbError is private, objectstore error can't be downcasted anymore
+        // Just return generic error, insteead of commented option
+        // slatedb::error::SlateDBError::ObjectStoreError(obj_store_error) => {
+        //     object_store_error(obj_store_error, &subtext)
+        // }
+        {
+            CustomSnafu {
                 message: format_message(&subtext, error.to_string()),
                 error_code,
             }
-            .build(),
-        },
+            .build()
+        }
         _ => CustomSnafu {
             message: format_message(&subtext, error.to_string()),
             error_code,
