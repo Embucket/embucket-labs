@@ -58,7 +58,16 @@ pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
             },
             _ => Err(err),
         },
-        Ok(content) => {
+        Ok(mut content) => {
+            // Replace __API_URL__ placeholder in index.html with the actual API URL
+            if file_name == "index.html" {
+                let api_url = std::env::var("API_URL")
+                    .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                let content_str = String::from_utf8_lossy(&content);
+                let updated_content = content_str.replace("__API_URL__", &api_url);
+                content = updated_content.into_bytes();
+            }
+
             let mime = mime_guess::from_path(path)
                 .first_raw()
                 .unwrap_or("application/octet-stream");
