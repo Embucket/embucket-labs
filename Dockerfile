@@ -25,7 +25,7 @@ WORKDIR /app
 # Copy the compiled binary, API spec, frontend build, and entrypoint script
 COPY --from=builder /app/target/release/embucketd ./embucketd
 COPY --from=builder /app/rest-catalog-open-api.yaml ./rest-catalog-open-api.yaml
-COPY --from=builder /app/frontend/dist ./dist
+COPY --from=builder /app/ui/dist ./dist
 COPY --from=builder /app/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Make the script executable and ensure the nonroot user can modify app files
