@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y \
 # Copy all source code, including the pre-built frontend and entrypoint script
 COPY . .
 
+RUN chmod +x entrypoint.sh
+RUN tar -xf /app/ui/dist.tar -C ui
+
 # Build the application with optimizations
 RUN cargo build --release --bin embucketd
 
@@ -29,7 +32,8 @@ COPY --from=builder /app/ui/dist ./dist
 COPY --from=builder /app/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Make the script executable and ensure the nonroot user can modify app files
-RUN chmod +x /usr/local/bin/entrypoint.sh && chown -R nonroot:nonroot /app
+# no chown chroot executables
+# RUN chown -R nonroot:nonroot /app
 
 # Switch to a non-privileged user
 USER nonroot:nonroot
