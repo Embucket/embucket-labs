@@ -13,6 +13,7 @@ use serde_json::de;
 use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
+use slatedb::config::{PutOptions, WriteOptions};
 use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -136,7 +137,8 @@ impl Db {
         VecScanIterator::new(self.0.clone(), key)
     }
 
-    /// Stores template object in the database.
+    /// Stores template object in the database. This function primarily used by history store
+    /// so we store history objects using quicker but less durable method
     ///
     /// # Errors
     ///
@@ -149,7 +151,14 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(errors::SerializeValueSnafu)?;
         self.0
-            .put(entity.key().as_ref(), serialized)
+            .put_with_options(
+                entity.key().as_ref(),
+                serialized,
+                &PutOptions::default(),
+                &WriteOptions {
+                    await_durable: false,
+                },
+            )
             .await
             .context(errors::DatabaseSnafu)
     }
