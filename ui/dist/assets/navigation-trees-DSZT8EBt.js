@@ -1,1 +1,0 @@
-import{ak as o,al as i}from"./index-Ct9KqqwV.js";const a=(e,n,t)=>i({url:"/ui/navigation-trees",method:"GET",params:e,signal:t},n),y=e=>["/ui/navigation-trees"],q=(e,n)=>{const{query:t,request:r}={};return{queryKey:t?.queryKey??y(),queryFn:({signal:u})=>a(e,r,u),...t}};function p(e,n,t){const r=q(e),s=o(r);return s.queryKey=r.queryKey,s}export{y as g,p as u};
