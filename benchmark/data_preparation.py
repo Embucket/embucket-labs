@@ -23,13 +23,12 @@ def create_tables(cursor, system):
         cursor.execute(ddl_sql.strip())
 
 
-def upload_parquet_to_snowflake_tables(cursor, dataset, dataset_scale_factor):
+def upload_parquet_to_snowflake_tables(cursor, dataset_path):
     """Upload parquet files to Snowflake tables from S3 stage."""
     table_names = get_table_names(fully_qualified_names_for_embucket=False)
     for table_name in table_names.values():
         print(f"Loading data into Snowflake table {table_name}...")
-        # Load data directly from the S3 stage
-        s3_path = f"s3://embucket-testdata/{dataset}/{dataset_scale_factor}/{table_name}.parquet"
+        s3_path = f"s3://embucket-testdata/{dataset_path}/{table_name}.parquet"
         cursor.execute(f"""
             COPY INTO {table_name}
             FROM '{s3_path}'
@@ -38,9 +37,13 @@ def upload_parquet_to_snowflake_tables(cursor, dataset, dataset_scale_factor):
             FILE_FORMAT = (TYPE = PARQUET)
             MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
         """)
+        result = cursor.fetchall()
+        if result and result[0][0] == 'Copy executed with 0 files processed.':
+            raise RuntimeError(f"No files processed for {table_name}. Check S3 path: {s3_path}")
 
 
-def upload_parquet_to_embucket_tables(cursor, dataset, dataset_scale_factor):
+
+def upload_parquet_to_embucket_tables(cursor, dataset_path):
     """Upload parquet files to Embucket tables using COPY INTO."""
     # Get fully qualified table names using the unified logic
     table_names = get_table_names(fully_qualified_names_for_embucket=True)
@@ -50,31 +53,31 @@ def upload_parquet_to_embucket_tables(cursor, dataset, dataset_scale_factor):
         bare_table_name = qualified_table_name.split('.')[-1]
         print(f"Loading data into Embucket table {qualified_table_name}...")
 
-        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset}/{dataset_scale_factor}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
+        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset_path}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
         cursor.execute(copy_sql)
 
 
-def prepare_data_for_embucket(dataset, dataset_scale_factor):
+def prepare_data_for_embucket(dataset_path):
     """Prepare data for Embucket: generate data, create tables, and load data."""
     # Connect to Embucket
     cursor = create_embucket_connection().cursor()
     # Create tables
     create_tables(cursor, SystemType.EMBUCKET)
     # Load data into Embucket tables
-    upload_parquet_to_embucket_tables(cursor, dataset, dataset_scale_factor)
+    upload_parquet_to_embucket_tables(cursor, dataset_path)
 
     cursor.close()
     print("Embucket data preparation completed successfully.")
 
 
-def prepare_data_for_snowflake(dataset, dataset_scale_factor):
+def prepare_data_for_snowflake(dataset_path):
     """Prepare data, create tables, and load data for Snowflake"""
     # Connect to Snowflake
     cursor = create_snowflake_connection().cursor()
     # Create tables
     create_tables(cursor, SystemType.SNOWFLAKE)
     # Load data into Snowflake tables
-    upload_parquet_to_snowflake_tables(cursor, dataset, dataset_scale_factor)
+    upload_parquet_to_snowflake_tables(cursor, dataset_path)
 
     cursor.close()
     print("Snowflake data preparation completed successfully.")
@@ -84,24 +87,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare data for Embucket/Snowflake benchmarks")
     parser.add_argument("--system", type=str, choices=["embucket", "snowflake", "both"],
                         default="both", help="Which system to prepare data for")
-    parser.add_argument("--dataset", type=str, default=os.environ.get("DATASET_NAME", "tpch"),
-                        help="Dataset name (default: from env or 'tpch')")
-    parser.add_argument("--scale", type=str, default=os.environ.get("DATASET_SCALE_FACTOR", "01"),
-                        help="Dataset scale factor (default: from env or '1')")
+    parser.add_argument("--dataset-path", type=str, default=os.environ.get("DATASET_PATH", "tpch/01"),
+                        help="Dataset path in format 'dataset/scale' (default: from env or 'tpch/01')")
 
     args = parser.parse_args()
 
-    # Override environment variables if specified in args
-    if args.dataset is not None:
-        os.environ["DATASET_NAME"] = args.dataset
+    # Override environment variable if specified in args
+    if args.dataset_path:
+        os.environ["DATASET_PATH"] = args.dataset_path
 
-    if args.scale is not None:
-        os.environ["DATASET_SCALE_FACTOR"] = args.scale
+    print(f"Preparing data for dataset path: {args.dataset_path}")
 
-    print(f"Preparing data for dataset: {args.dataset}, scale: {args.scale}")
-
-    # if args.system.lower() in ["embucket", "both"]:
-    #     prepare_data_for_embucket(args.dataset, args.scale)
+    if args.system.lower() in ["embucket", "both"]:
+        prepare_data_for_embucket(args.dataset_path)
 
     if args.system.lower() in ["snowflake", "both"]:
-        prepare_data_for_snowflake(args.dataset, args.scale)
+        prepare_data_for_snowflake(args.dataset_path)
