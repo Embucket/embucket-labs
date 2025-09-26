@@ -287,8 +287,11 @@ pub async fn report_metrics(
     Json(metrics): Json<Value>,
 ) -> Result<StatusCode> {
     tracing::info!(
-        "Received metrics for table {database_name}.{schema_name}.{table_name}: {:?}",
-        metrics
+        database = %database_name,
+        schema = %schema_name,
+        table = %table_name,
+        ?metrics,
+        "Received metrics for table"
     );
     Ok(StatusCode::NO_CONTENT)
 }

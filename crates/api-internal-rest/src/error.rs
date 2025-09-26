@@ -98,7 +98,7 @@ impl IntoResponse for Error {
         skip(self)
     )]
     fn into_response(self) -> axum::response::Response {
-        tracing::error!("{}", self.output_msg());
+        tracing::error!(error_message = %self.output_msg(), "Internal API error");
         let message = self.to_string();
         let code = match self {
             Self::GetQuery { .. } => http::StatusCode::NOT_FOUND,

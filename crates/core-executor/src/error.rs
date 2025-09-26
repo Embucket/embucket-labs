@@ -303,7 +303,7 @@ pub enum Error {
     #[snafu(display("Threaded Job error: {error}: {backtrace}"))]
     JobError {
         #[snafu(source)]
-        error: crate::dedicated_executor::JobError,
+        error: tokio::task::JoinError,
         backtrace: Backtrace,
         #[snafu(implicit)]
         location: Location,

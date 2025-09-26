@@ -24,13 +24,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_results_path(system: SystemType, benchmark_type: str, scale_factor: str,
-                     warehouse_or_instance: str, run_number: Optional[int] = None) -> str:
+def get_results_path(system: SystemType, benchmark_type: str, dataset_path: str,
+                     instance: str, warehouse_size: str = None, run_number: Optional[int] = None) -> str:
     """Generate path for storing benchmark results."""
     if system == SystemType.SNOWFLAKE:
-        base_path = f"result/snowflake_{benchmark_type}_results/{scale_factor}/{warehouse_or_instance}"
+        # Use warehouse size in the path instead of warehouse name
+        base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}"
     elif system == SystemType.EMBUCKET:
-        base_path = f"result/embucket_{benchmark_type}_results/{scale_factor}/{warehouse_or_instance}"
+        base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}"
     else:
         raise ValueError(f"Unsupported system: {system}")
 
@@ -149,7 +150,7 @@ def run_on_sf(cursor, warehouse, tpch_queries):
     return results
 
 
-def run_on_emb(cursor, tpch_queries):
+def run_on_emb(tpch_queries):
     """Run TPCH queries on Embucket with container restart before each query."""
     docker_manager = create_docker_manager()
     executed_query_ids = []
@@ -271,11 +272,11 @@ def run_snowflake_benchmark(run_number: int):
     # Get benchmark configuration from environment variables
     benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
     warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
-    dataset = os.environ["DATASET_NAME"]
-    scale_factor = os.environ["DATASET_SCALE_FACTOR"]
+    warehouse_size = os.environ["SNOWFLAKE_WAREHOUSE_SIZE"]
+    dataset_path = os.environ["DATASET_PATH"]
 
     logger.info(f"Starting Snowflake {benchmark_type} benchmark run {run_number}")
-    logger.info(f"Dataset: {dataset}, Schema: {scale_factor}, Warehouse: {warehouse}")
+    logger.info(f"Dataset: {dataset_path}, Warehouse: {warehouse}, Size: {warehouse_size}")
 
     # Get queries and run benchmark
     queries = get_queries_for_benchmark(benchmark_type, for_embucket=False)
@@ -286,9 +287,9 @@ def run_snowflake_benchmark(run_number: int):
     # Disable query result caching for benchmark
     sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
 
-    sf_results = run_on_sf(sf_cursor,warehouse, queries)
+    sf_results = run_on_sf(sf_cursor, warehouse, queries)
 
-    results_path = get_results_path(SystemType.SNOWFLAKE, benchmark_type, scale_factor, warehouse, run_number)
+    results_path = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path, warehouse, warehouse_size, run_number)
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     save_results_to_csv(sf_results, filename=results_path, system=SystemType.SNOWFLAKE)
 
@@ -298,13 +299,13 @@ def run_snowflake_benchmark(run_number: int):
     sf_connection.close()
 
     # Check if we have 3 CSV files ready and calculate averages if so
-    results_dir = get_results_path(SystemType.SNOWFLAKE, benchmark_type, scale_factor, warehouse)
+    results_dir = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path, warehouse, warehouse_size)
     csv_files = glob.glob(os.path.join(results_dir, "snowflake_results_run_*.csv"))
     if len(csv_files) == 3:
         logger.info("Found 3 CSV files. Calculating averages...")
         calculate_benchmark_averages(
-            scale_factor,
-            warehouse,
+            dataset_path,
+            warehouse_size,  # Pass warehouse size instead of name
             SystemType.SNOWFLAKE,
             benchmark_type
         )
@@ -312,36 +313,35 @@ def run_snowflake_benchmark(run_number: int):
     return sf_results
 
 
+
 def run_embucket_benchmark(run_number: int):
     """Run benchmark on Embucket with container restarts."""
     # Get benchmark configuration from environment variables
     benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
     instance = os.environ["EMBUCKET_INSTANCE"]
-    dataset = os.environ.get("EMBUCKET_DATASET", os.environ["DATASET_NAME"])
-    scale_factor = os.environ["DATASET_SCALE_FACTOR"]
+    dataset_path = os.environ.get("EMBUCKET_DATASET_PATH", os.environ["DATASET_PATH"])
 
     logger.info(f"Starting Embucket {benchmark_type} benchmark run {run_number}")
-    logger.info(f"Instance: {instance}, Dataset: {dataset}, Scale Factor: {scale_factor}")
+    logger.info(f"Instance: {instance}, Dataset: {dataset_path}")
 
     # Get queries and docker manager
     queries = get_queries_for_benchmark(benchmark_type, for_embucket=True)
-    docker_manager = create_docker_manager()
 
     # Run benchmark
-    emb_results = run_on_emb(docker_manager, queries)
+    emb_results = run_on_emb(queries)
 
-    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, scale_factor, instance, run_number)
+    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance, run_number=run_number)
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     save_results_to_csv(emb_results, filename=results_path, system=SystemType.EMBUCKET)
     logger.info(f"Embucket benchmark results saved to: {results_path}")
 
     # Check if we have 3 CSV files ready and calculate averages
-    results_dir = get_results_path(SystemType.EMBUCKET, benchmark_type, scale_factor, instance)
+    results_dir = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance)
     csv_files = glob.glob(os.path.join(results_dir, "embucket_results_run_*.csv"))
     if len(csv_files) == 3:
         logger.info("Found 3 CSV files. Calculating averages...")
         calculate_benchmark_averages(
-            scale_factor,
+            dataset_path,
             instance,
             SystemType.EMBUCKET,
             benchmark_type
@@ -398,8 +398,7 @@ def parse_args():
     parser.add_argument("--platform", choices=["snowflake", "embucket", "both"], default="both")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--benchmark-type", choices=["tpch", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
-    parser.add_argument("--dataset-name", help="Override the DATASET_NAME environment variable")
-    parser.add_argument("--scale-factor", help="Override the DATASET_SCALE_FACTOR environment variable")
+    parser.add_argument("--dataset-path", help="Override the DATASET_PATH environment variable")
     return parser.parse_args()
 
 
@@ -410,8 +409,18 @@ if __name__ == "__main__":
     if args.benchmark_type != os.environ.get("BENCHMARK_TYPE", "tpch"):
         os.environ["BENCHMARK_TYPE"] = args.benchmark_type
 
-    if args.dataset_name:
-        os.environ["DATASET_NAME"] = args.dataset_name
+    if args.dataset_path:
+        os.environ["DATASET_PATH"] = args.dataset_path
 
-    if args.scale_factor:
-        os.environ["DATASET_SCALE_FACTOR"] = args.scale_factor
+    # Execute benchmarks based on platform selection
+    if args.platform == "snowflake":
+        for run in range(1, args.runs + 1):
+            run_benchmark(run, SystemType.SNOWFLAKE)
+    elif args.platform == "embucket":
+        for run in range(1, args.runs + 1):
+            run_benchmark(run, SystemType.EMBUCKET)
+    elif args.platform == "both":
+        for run in range(1, args.runs + 1):
+            logger.info(f"Starting benchmark run {run} for both platforms")
+            run_benchmark(run, SystemType.SNOWFLAKE)
+            run_benchmark(run, SystemType.EMBUCKET)

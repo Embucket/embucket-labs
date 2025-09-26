@@ -35,14 +35,13 @@ def create_embucket_connection():
     return conn
 
 
-
 def create_snowflake_connection():
     """Create Snowflake connection with environment-based config."""
     user = os.environ["SNOWFLAKE_USER"]
     password = os.environ["SNOWFLAKE_PASSWORD"]
     account = os.environ["SNOWFLAKE_ACCOUNT"]
-    database = os.environ["DATASET_NAME"]
-    schema = os.environ["DATASET_SCALE_FACTOR"]
+    database = os.environ["SNOWFLAKE_DATABASE"]
+    schema = os.environ["SNOWFLAKE_SCHEMA"]
     warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
 
     if not all([user, password, account, database, schema, warehouse]):
@@ -59,6 +58,9 @@ def create_snowflake_connection():
 
     conn = sf.connect(**connect_args)
 
+    conn.cursor().execute(f"CREATE OR REPLACE WAREHOUSE {warehouse} WITH WAREHOUSE_SIZE = '{os.environ['SNOWFLAKE_WAREHOUSE_SIZE']}';")
+    conn.cursor().execute(f"USE WAREHOUSE {warehouse};")
+
     conn.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {database}")
     conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     conn.cursor().execute(f"USE SCHEMA {schema}")
@@ -67,3 +69,4 @@ def create_snowflake_connection():
     conn.cursor().execute("CREATE OR REPLACE TEMPORARY STAGE sf_prep_stage FILE_FORMAT = sf_parquet_format;")
 
     return conn
+

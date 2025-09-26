@@ -21,4 +21,13 @@ export default defineConfig({
     tsconfigPaths(),
     ValidateEnv(),
   ],
+  server: {
+    port: 5173,
+    proxy: {
+      '/ui': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
 });

@@ -89,7 +89,7 @@ impl SeedClient {
                 .create_volume(volume)
                 .await
                 .context(RequestSnafu)?;
-            tracing::debug!("Created volume: {}", seed_volume.volume_name);
+            tracing::debug!(volume = %seed_volume.volume_name, "Created volume");
             seeded_entities += 1;
 
             for seed_database in &seed_volume.databases {
@@ -97,7 +97,7 @@ impl SeedClient {
                     .create_database(&seed_volume.volume_name, &seed_database.database_name)
                     .await
                     .context(RequestSnafu)?;
-                tracing::debug!("Created database: {}", seed_database.database_name);
+                tracing::debug!(database = %seed_database.database_name, "Created database");
                 seeded_entities += 1;
 
                 for seed_schema in &seed_database.schemas {
@@ -105,7 +105,7 @@ impl SeedClient {
                         .create_schema(&seed_database.database_name, &seed_schema.schema_name)
                         .await
                         .context(RequestSnafu)?;
-                    tracing::debug!("Created schema: {}", seed_schema.schema_name);
+                    tracing::debug!(schema = %seed_schema.schema_name, "Created schema");
                     seeded_entities += 1;
 
                     for seed_table in &seed_schema.tables {
@@ -124,7 +124,7 @@ impl SeedClient {
                             )
                             .await
                             .context(RequestSnafu)?;
-                        tracing::debug!("Created table: {}", seed_table.table_name);
+                        tracing::debug!(table = %seed_table.table_name, "Created table");
                         seeded_entities += 1;
                     }
                 }
@@ -154,15 +154,15 @@ pub async fn seed_database(
 ) {
     let mut seed_client = SeedClient::new(addr);
 
-    tracing::info!("Preparing seed data variant: {seed_variant:?}...");
+    tracing::info!(?seed_variant, "Preparing seed data variant");
 
     if let Err(err) = seed_client.try_load_seed_template(seed_variant) {
-        tracing::warn!("Seed client failed to load seed template: {err}");
+        tracing::warn!(error = %err, "Seed client failed to load seed template");
         return;
     }
 
     if let Err(err) = seed_client.login(&user, &pass).await {
-        tracing::warn!("Seed client failed to login on server: {err}");
+        tracing::warn!(error = %err, "Seed client failed to login on server");
         return;
     }
 
@@ -170,8 +170,8 @@ pub async fn seed_database(
 
     match seed_client.seed_all().await {
         Ok(seeded_entities_count) => {
-            tracing::info!("Seeding finished, seeded {seeded_entities_count} entities!");
+            tracing::info!(seeded_entities_count, "Seeding finished");
         }
-        Err(err) => tracing::error!("Seeding error: {err}"),
+        Err(err) => tracing::error!(error = %err, "Seeding error"),
     }
 }

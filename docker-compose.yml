@@ -56,6 +56,7 @@ services:
       - 3000:3000
       - 8080:8080
     environment:
+      - API_URL=http://localhost:3000
       - OBJECT_STORE_BACKEND=s3
       - SLATEDB_PREFIX=data/
       - AWS_ACCESS_KEY_ID=minioadmin

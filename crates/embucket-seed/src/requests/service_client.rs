@@ -159,7 +159,7 @@ impl BasicAuthClient {
             );
         }
 
-        tracing::trace!("request headers: {:#?}", headers);
+        tracing::trace!(?headers, "request headers");
 
         let res = http_req_with_headers::<T>(
             client,
@@ -173,7 +173,7 @@ impl BasicAuthClient {
 
         match res {
             Ok((headers, resp_data)) => {
-                tracing::trace!("response headers: {:#?}", headers);
+                tracing::trace!(?headers, "response headers");
                 self.set_session_id_from_response_headers(&headers);
                 Ok(resp_data)
             }
@@ -211,7 +211,7 @@ impl ServiceClient for BasicAuthClient {
 
         match login_result {
             Ok((headers, auth_response)) => {
-                tracing::trace!("login response headers: {:#?}", headers);
+                tracing::trace!(?headers, "login response headers");
                 self.set_tokens_from_auth_response(&headers, &auth_response);
                 Ok(auth_response)
             }
@@ -238,7 +238,7 @@ impl ServiceClient for BasicAuthClient {
             ),
         ]);
 
-        tracing::trace!("refresh request headers: {:#?}", headers);
+        tracing::trace!(?headers, "refresh request headers");
 
         let refresh_result = http_req_with_headers::<AuthResponse>(
             client,
@@ -251,7 +251,7 @@ impl ServiceClient for BasicAuthClient {
 
         match refresh_result {
             Ok((headers, auth_response)) => {
-                tracing::trace!("refresh response headers: {:#?}", headers);
+                tracing::trace!(?headers, "refresh response headers");
                 self.set_tokens_from_auth_response(&headers, &auth_response);
                 Ok(auth_response)
             }

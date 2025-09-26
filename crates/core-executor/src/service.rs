@@ -632,9 +632,14 @@ impl ExecutionService for CoreExecutionService {
 
         let child = tracing::info_span!("spawn_query_task");
 
+        let alloc_span = tracing::info_span!(
+            target: "alloc",
+            "query_alloc",
+            query_id = %history_record.query_id(),
+            session_id = %session_id
+        );
         tokio::spawn(async move {
             let mut query_obj = query_obj;
-
             // Execute the query with a timeout to prevent long-running or stuck queries
             // from blocking system resources indefinitely. If the timeout is exceeded,
             // convert the timeout into a standard QueryTimeout error so it can be handled
@@ -697,7 +702,7 @@ impl ExecutionService for CoreExecutionService {
 
             // Send result to the result owner
             if tx.send(query_result_status).is_err() {
-                // Error happens if receiver is dropped 
+                // Error happens if receiver is dropped
                 // (natural in case if query submitted result owner doesn't listen)
                 tracing::error_span!("no_receiver_on_query_result_status",
                     query_id = query_id.as_i64(),
@@ -709,7 +714,7 @@ impl ExecutionService for CoreExecutionService {
             if let Ok(running_query) = running_query {
                 let _ = running_query.notify_query_finished(query_status.clone());
             }
-        }.instrument(child));
+        }.instrument(alloc_span).instrument(child));
 
         // return handle of the query we just submit
         Ok(AsyncQueryHandle { query_id, rx })

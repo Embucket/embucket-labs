@@ -1,7 +1,6 @@
 //use super::datafusion::functions::geospatial::register_udfs as register_geo_udfs;
 use super::datafusion::functions::register_udfs;
 use super::datafusion::type_planner::CustomTypePlanner;
-use super::dedicated_executor::DedicatedExecutor;
 use super::error::{self as ex_error, Result};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
@@ -50,7 +49,6 @@ pub struct UserSession {
     pub running_queries: Arc<dyn RunningQueries>,
     pub ctx: SessionContext,
     pub ident_normalizer: IdentNormalizer,
-    pub executor: DedicatedExecutor,
     pub config: Arc<Config>,
     pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
@@ -130,7 +128,6 @@ impl UserSession {
             running_queries,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
-            executor: DedicatedExecutor::builder().build(),
             config,
             expiry: AtomicI64::new(to_unix(
                 OffsetDateTime::now_utc()
