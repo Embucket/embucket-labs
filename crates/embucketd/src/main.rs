@@ -47,7 +47,6 @@ use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::DbBuilder;
-use slatedb::db_cache::moka::MokaCache;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -184,7 +183,6 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         .expect("Failed to create object store");
     let db = Db::new(Arc::new(
         DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-            .with_block_cache(Arc::new(MokaCache::new()))
             .build()
             .await
             .expect("Failed to start Slate DB"),

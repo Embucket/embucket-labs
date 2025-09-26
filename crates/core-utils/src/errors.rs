@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use slatedb::SlateDBError;
 use snafu::Location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -13,7 +12,7 @@ pub enum Error {
     #[snafu(display("SlateDB error: {error}"))]
     Database {
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -22,7 +21,7 @@ pub enum Error {
     KeyGet {
         key: String,
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -31,7 +30,7 @@ pub enum Error {
     KeyDelete {
         key: String,
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -40,7 +39,7 @@ pub enum Error {
     KeyPut {
         key: String,
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -71,7 +70,7 @@ pub enum Error {
     #[snafu(display("Scan Failed: {error}"))]
     ScanFailed {
         #[snafu(source)]
-        error: SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },

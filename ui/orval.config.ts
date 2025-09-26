@@ -1,11 +1,7 @@
 import type { ConfigExternal } from '@orval/core';
-import dotenv from 'dotenv';
 import { defineConfig } from 'orval';
 
-dotenv.config();
-
-// eslint-disable-next-line n/no-process-env
-const apiUrl = process.env.VITE_API_URL!;
+const apiUrl = 'http://localhost:3000';
 
 const config = {
   embucket: {

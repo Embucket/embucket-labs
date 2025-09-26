@@ -75,7 +75,7 @@ pub enum Error {
     #[snafu(display("SlateDB error: {error}"))]
     SlateDB {
         #[snafu(source)]
-        error: slatedb::SlateDBError,
+        error: slatedb::Error,
         #[snafu(implicit)]
         location: Location,
     },

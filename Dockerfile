@@ -11,22 +11,28 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy source code
+# Copy all source code, including the pre-built frontend and entrypoint script
 COPY . .
 
 # Build the application with optimizations
 RUN cargo build --release --bin embucketd
 
-# Stage 4: Final runtime image
+# Stage 2: Final runtime image
 FROM gcr.io/distroless/cc-debian12 AS runtime
 
-# Set working directory
-USER nonroot:nonroot
 WORKDIR /app
 
-# Copy the binary and required files
+# Copy the compiled binary, API spec, frontend build, and entrypoint script
 COPY --from=builder /app/target/release/embucketd ./embucketd
 COPY --from=builder /app/rest-catalog-open-api.yaml ./rest-catalog-open-api.yaml
+COPY --from=builder /app/frontend/dist ./dist
+COPY --from=builder /app/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Make the script executable and ensure the nonroot user can modify app files
+RUN chmod +x /usr/local/bin/entrypoint.sh && chown -R nonroot:nonroot /app
+
+# Switch to a non-privileged user
+USER nonroot:nonroot
 
 # Expose port (adjust as needed)
 EXPOSE 8080
@@ -37,5 +43,7 @@ ENV FILE_STORAGE_PATH=data/
 ENV BUCKET_HOST=0.0.0.0
 ENV JWT_SECRET=63f4945d921d599f27ae4fdf5bada3f1
 
-# Default command
+# Set the entrypoint to our script
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 CMD ["./embucketd"]
