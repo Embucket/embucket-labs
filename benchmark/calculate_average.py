@@ -26,18 +26,22 @@ def sort_by_query_index(df):
     return df
 
 
-def calculate_benchmark_averages(schema, warehouse, system, benchmark_type):
+def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cached=False):
     """
     Calculate average results for benchmark runs.
     Args:
-        schema: The schema/dataset used in the benchmark
+        dataset: The dataset used in the benchmark
         warehouse: The warehouse/instance used in the benchmark
-        system: system like 'embucket','snowflake',
+        system: system like 'embucket','snowflake'
+        benchmark_type: The benchmark type ('tpch', 'tpcds')
+        cached: Whether these are cached results (True) or no-cache results (False)
     """
+    cache_folder = "cached" if cached else "no_cache"
+
     if system == SystemType.EMBUCKET:
-        search_dir = f'result/embucket_{benchmark_type}_results/{schema}/{warehouse}'
+        search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
     elif system == SystemType.SNOWFLAKE:
-        search_dir = f'result/snowflake_{benchmark_type}_results/{schema}/{warehouse}'
+        search_dir = f'result/snowflake_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
     else:
         raise ValueError("Unsupported system")
 
