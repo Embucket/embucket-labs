@@ -1,5 +1,6 @@
 use super::run_test_rest_api_server;
 use crate::sql_test;
+use crate::tests::sql_macro::JSON;
 
 // This test uses external server if tests were executed with `cargo test-rest`
 // Or on CI/CD and in all other cases it creates its own server for every test.
@@ -12,6 +13,7 @@ mod snowflake_compatibility {
     use super::*;
 
     sql_test!(
+        JSON,
         create_table_bad_syntax,
         [
             // "Snowflake:
@@ -22,6 +24,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         create_table_missing_schema,
         [
             // "Snowflake:
@@ -32,6 +35,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         create_table_missing_db,
         [
             // "Snowflake:
@@ -42,6 +46,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         show_schemas_in_missing_db,
         [
             // "Snowflake:
@@ -52,6 +57,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         select_1,
         [
             // "Snowflake:
@@ -65,6 +71,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         select_1_async,
         [
             // scheduled query ID
@@ -81,6 +88,7 @@ mod snowflake_compatibility {
     // This test uses non standard "sleep" function, so it should not be executed against Snowflake
     // In Snowflake kind of equivalent is stored procedure: "CALL SYSTEM$WAIT(1);"
     sql_test!(
+        JSON,
         async_sleep_result,
         [
             // scheduled query ID
@@ -95,6 +103,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         cancel_query_bad_id1,
         [
             // Invalid UUID.
@@ -103,6 +112,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         cancel_query_bad_id2,
         [
             // Invalid UUID.
@@ -111,6 +121,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         cancel_query_not_running,
         [
             // Invalid UUID.
@@ -119,6 +130,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         abort_query_bad_id,
         [
             // Invalid UUID.
@@ -127,6 +139,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         abort_ok_query,
         [
             // 1: scheduled query ID
@@ -137,6 +150,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         cancel_ok_query,
         [
             // 1: scheduled query ID
@@ -147,6 +161,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         cancel_ok_sleeping_query,
         [
             // 1: scheduled query ID
@@ -157,6 +172,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         regression_bug_1662_ambiguous_schema,
         [
             // +-----+-----+
@@ -171,6 +187,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         alter_missing_table,
         [
             // 002003 (42S02): SQL compilation error:
@@ -180,6 +197,7 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         alter_table_schema_missing,
         [
             // 002003 (02000): SQL compilation error:
@@ -189,12 +207,19 @@ mod snowflake_compatibility {
     );
 
     sql_test!(
+        JSON,
         alter_table_db_missing,
         [
             // 002003 (02000): SQL compilation error:
             // Database 'MISSING_DB' does not exist or not authorized.
             "ALTER TABLE missing_db.public.test2 ADD COLUMN new_col INT",
         ]
+    );
+
+    sql_test!(
+        JSON,
+        regression_bug_591_date_timestamps,
+        ["SELECT TO_DATE('2022-08-19', 'YYYY-MM-DD'), CAST('2022-08-19-00:00' AS TIMESTAMP)",]
     );
 }
 
@@ -203,6 +228,7 @@ mod snowflake_compatibility_issues {
     use super::*;
 
     sql_test!(
+        JSON,
         select_from_missing_table,
         [
             // "Snowflake:
@@ -215,6 +241,7 @@ mod snowflake_compatibility_issues {
 
     // incorrect message
     sql_test!(
+        JSON,
         select_from_missing_schema,
         [
             // "Snowflake:
@@ -229,6 +256,7 @@ mod snowflake_compatibility_issues {
 
     // incorrect message
     sql_test!(
+        JSON,
         select_from_missing_db,
         [
             // "Snowflake:

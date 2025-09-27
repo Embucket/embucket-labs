@@ -115,6 +115,7 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
+use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
 

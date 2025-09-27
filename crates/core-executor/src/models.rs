@@ -90,25 +90,19 @@ pub struct QueryResult {
     /// This is required to construct a valid response even when `records` are empty
     pub schema: Arc<ArrowSchema>,
     pub query_id: QueryRecordId,
-    pub from_history: bool,
 }
 
 impl QueryResult {
-    pub fn as_row_set(&self) -> Result<Vec<Row>> {
-        // hardcode arrow format here to be consistent with we did it before within `fn as_result_set()`
-        let data_format = DataSerializationFormat::Arrow;
+    pub fn as_row_set(&self, data_format: DataSerializationFormat) -> Result<Vec<Row>> {
+        // Do conversions every time, as currently all the history records had conversions
+        // for arrow format though were saved as json
 
-        let record_batches = if self.from_history {
-            &self.records
-        } else {
-            // use conversion only for non historical data
-            // Convert the QueryResult to RecordBatches using the specified serialization format
-            // Add columns dbt metadata to each field
-            // Since we have to store already converted data to history
-            let record_batches = convert_record_batches(self, data_format)?;
-            // Convert struct timestamp columns to string representation
-            &convert_struct_to_timestamp(&record_batches)?
-        };
+        // Convert the QueryResult to RecordBatches using the specified serialization format
+        // Add columns dbt metadata to each field
+        // Since we have to store already converted data to history
+        let record_batches = convert_record_batches(self, data_format)?;
+        // Convert struct timestamp columns to string representation
+        let record_batches = &convert_struct_to_timestamp(&record_batches)?;
 
         let record_batches = record_batches.iter().collect::<Vec<_>>();
 
@@ -146,11 +140,12 @@ impl QueryResult {
 
         // Serialize original Schema into a JSON string
         let schema = serde_json::to_string(&self.schema).context(ex_error::SerdeParseSnafu)?;
+        let data_format = DataSerializationFormat::Json;
         Ok(ResultSet {
             columns,
-            rows: self.as_row_set()?,
+            rows: self.as_row_set(data_format)?,
             // move here value of data_format we  hardcoded earlier
-            data_format: DataSerializationFormat::Arrow.to_string(),
+            data_format: data_format.to_string(),
             schema,
         })
     }
@@ -173,7 +168,6 @@ impl TryFrom<QueryRecord> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: QueryRecord) -> std::result::Result<Self, Self::Error> {
         let query_id = value.id;
-        let from_history = value.loaded_from_history;
         let result_set = ResultSet::try_from(value).context(ex_error::QueryHistorySnafu)?;
 
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)
@@ -197,7 +191,6 @@ impl TryFrom<QueryRecord> for QueryResult {
             records: batches,
             schema: schema_ref,
             query_id,
-            from_history,
         })
     }
 }
@@ -213,7 +206,6 @@ impl QueryResult {
             records,
             schema,
             query_id,
-            from_history: false,
         }
     }
     #[must_use]

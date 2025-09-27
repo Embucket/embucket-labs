@@ -87,8 +87,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare data for Embucket/Snowflake benchmarks")
     parser.add_argument("--system", type=str, choices=["embucket", "snowflake", "both"],
                         default="both", help="Which system to prepare data for")
-    parser.add_argument("--dataset-path", type=str, default=os.environ.get("DATASET_PATH", "tpch/01"),
-                        help="Dataset path in format 'dataset/scale' (default: from env or 'tpch/01')")
+    parser.add_argument("--dataset-path", type=str, default=os.environ.get("DATASET_PATH", "tpch/1"),
+                        help="Dataset path in format 'dataset/scale' (default: from env or 'tpch/1')")
 
     args = parser.parse_args()
 

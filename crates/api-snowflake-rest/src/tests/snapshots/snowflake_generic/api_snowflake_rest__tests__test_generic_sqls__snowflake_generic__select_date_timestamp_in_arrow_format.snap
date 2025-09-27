@@ -1,0 +1,46 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_generic_sqls.rs
+description: "SQL #1 [spent: 197/197ms]: SELECT TO_DATE('2022-08-19', 'YYYY-MM-DD'), CAST('2022-08-19-00:00' AS TIMESTAMP)\nQuery UUID: 00000000-0000-0000-0000-077ec5cbd2a7\nArrow record batches:\n[\n    RecordBatch {\n        schema: Schema {\n            fields: [\n                Field {\n                    name: \"to_date(Utf8(\\\"2022-08-19\\\"),Utf8(\\\"YYYY-MM-DD\\\"))\",\n                    data_type: Date32,\n                    nullable: false,\n                    dict_id: 0,\n                    dict_is_ordered: false,\n                    metadata: {\n                        \"precision\": \"38\",\n                        \"charLength\": \"0\",\n                        \"scale\": \"0\",\n                        \"logicalType\": \"DATE\",\n                    },\n                },\n                Field {\n                    name: \"to_timestamp(Utf8(\\\"2022-08-19-00:00\\\"))\",\n                    data_type: Int64,\n                    nullable: false,\n                    dict_id: 0,\n                    dict_is_ordered: false,\n                    metadata: {\n                        \"charLength\": \"0\",\n                        \"logicalType\": \"TIMESTAMP_NTZ\",\n                        \"precision\": \"0\",\n                        \"scale\": \"9\",\n                    },\n                },\n            ],\n            metadata: {},\n        },\n        columns: [\n            PrimitiveArray<Date32>\n            [\n              2022-08-19,\n            ],\n            PrimitiveArray<Int64>\n            [\n              1660867200000000000,\n            ],\n        ],\n        row_count: 1,\n    },\n]"
+expression: pretty_json
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "to_date(Utf8(\"2022-08-19\"),Utf8(\"YYYY-MM-DD\"))",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "date",
+        "byteLength": null,
+        "length": null,
+        "scale": null,
+        "precision": null,
+        "collation": null
+      },
+      {
+        "name": "to_timestamp(Utf8(\"2022-08-19-00:00\"))",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "timestamp_ntz",
+        "byteLength": null,
+        "length": null,
+        "scale": 9,
+        "precision": 0,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": "/////2ACAAAQAAAAAAAKAAwACgAJAAQACgAAABAAAAAAAQQACAAIAAAABAAIAAAABAAAAAIAAAAkAQAABAAAAPb+//9YAAAAGAAAACAAAAAAAAACHAAAAAgADAAEAAsACAAAAEAAAAAAAAABAAAAACYAAAB0b190aW1lc3RhbXAoVXRmOCgiMjAyMi0wOC0xOS0wMDowMCIpKQAABAAAAIQAAABQAAAAKAAAAAQAAAB0/v//CAAAAAwAAAABAAAAOQAAAAUAAABzY2FsZQAAAJT+//8IAAAADAAAAAEAAAAwAAAACQAAAHByZWNpc2lvbgAAALj+//8IAAAAGAAAAA0AAABUSU1FU1RBTVBfTlRaAAAACwAAAGxvZ2ljYWxUeXBlAOj+//8IAAAADAAAAAEAAAAwAAAACgAAAGNoYXJMZW5ndGgAAAAAEgAYABQAAAATAAgAAAAMAAQAEgAAAFwAAAAcAAAADAAAAAAAAAgYAAAAAAAAAAAABgAIAAYABgAAAAAAAAAuAAAAdG9fZGF0ZShVdGY4KCIyMDIyLTA4LTE5IiksVXRmOCgiWVlZWS1NTS1ERCIpKQAABAAAAIQAAABQAAAAKAAAAAQAAACU////CAAAAAwAAAABAAAAMAAAAAUAAABzY2FsZQAAALT///8IAAAADAAAAAIAAAAzOAAACQAAAHByZWNpc2lvbgAAANj///8IAAAAEAAAAAQAAABEQVRFAAAAAAsAAABsb2dpY2FsVHlwZQAIAAwACAAEAAgAAAAIAAAADAAAAAEAAAAwAAAACgAAAGNoYXJMZW5ndGgAAP////+4AAAAEAAAAAwAGgAYABcABAAIAAwAAAAgAAAAIAAAAAAAAAAAAAAAAAAAAwQACgAYAAwACAAEAAoAAAA8AAAAEAAAAAEAAAAAAAAAAAAAAAIAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAQAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAP8AAAAAAAAAF0sAAAAAAAD/AAAAAAAAAAAAGTPrlQwX/////wAAAAA=",
+    "rowset": null,
+    "total": 1,
+    "queryResultFormat": "arrow",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}
