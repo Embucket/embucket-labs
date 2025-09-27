@@ -1,1 +1,1 @@
-DBT Gitlab Success Rate: 93.3%
+DBT Gitlab Success Rate: 93.2%

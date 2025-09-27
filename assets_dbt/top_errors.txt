@@ -1,8 +1,8 @@
 # DBT Run Summary
-PASS: 1551
+PASS: 1549
 WARN: 0
-ERROR: 52
-SKIP: 59
+ERROR: 53
+SKIP: 60
 TOTAL: 1662
 
 
@@ -33,6 +33,6 @@ TOTAL: 1662
       2 010001 (02000): Join Error
 
 # Error categorization summary
-DBT total errors: 52
+DBT total errors: 53
 Total error lines analyzed: 52
-Coverage: 52 out of 52 error lines captured
+Coverage: 52 out of 53 error lines captured
