@@ -7,11 +7,11 @@ use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+#[allow(clippy::expect_used)]
 pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
-    let app_cfg =
-        Config::new(data_format)
-            .expect("Failed to create server config")
-            .with_demo_credentials("embucket".to_string(), "embucket".to_string());
+    let app_cfg = Config::new(data_format)
+        .expect("Failed to create server config")
+        .with_demo_credentials("embucket".to_string(), "embucket".to_string());
 
     run_test_rest_api_server_with_config(app_cfg, UtilsConfig::default()).await
 }

@@ -59,18 +59,12 @@ pub fn prepare_query_ok_response(
                 .collect(),
             query_result_format: Some(ser_fmt.to_string().to_lowercase()),
             row_set: if ser_fmt == DataSerializationFormat::Json {
-                Option::from(query_result.as_row_set()?)
+                Option::from(query_result.as_row_set(ser_fmt)?)
             } else {
                 None
             },
             row_set_base_64: if ser_fmt == DataSerializationFormat::Arrow {
-                let records = if query_result.from_history {
-                    &query_result.records
-                } else {
-                    // only use conversion for non historical data
-                    &convert_record_batches(&query_result, ser_fmt)?
-                    // Not sue if should call convert_struct_to_timestamp too
-                };
+                let records = &convert_record_batches(&query_result, ser_fmt)?;
                 Option::from(records_to_arrow_string(records)?)
             } else {
                 None

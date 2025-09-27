@@ -4,7 +4,7 @@ mod tests {
     use crate::models::{JsonResponse, LoginResponse};
     use crate::server::test_server::run_test_rest_api_server;
     use crate::tests::client::{abort, get_query_result, login, query};
-    use crate::tests::sql_macro::{query_id_from_snapshot, JSON};
+    use crate::tests::sql_macro::{JSON, query_id_from_snapshot};
     use http::header;
     use uuid::Uuid;
 

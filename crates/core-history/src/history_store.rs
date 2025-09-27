@@ -9,6 +9,7 @@ use core_utils::iterable::IterableCursor;
 use futures::future::join_all;
 use serde_json::de;
 use slatedb::DbIterator;
+use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
 
@@ -248,10 +249,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .get(key_str)
             .await
             .context(core_history_errors::QueryGetSnafu)?;
-        let mut query_record =
-            res.ok_or_else(|| core_history_errors::QueryNotFoundSnafu { query_id: id }.build())?;
-        query_record.set_loaded_from_history();
-        Ok(query_record)
+        Ok(res.context(core_history_errors::QueryNotFoundSnafu { query_id: id })?)
     }
 
     #[instrument(name = "HistoryStore::get_queries", level = "debug", skip(self), err)]
@@ -289,10 +287,10 @@ impl HistoryStore for SlateDBHistoryStore {
                     .context(core_history_errors::SeekSnafu)?;
                 match queries_iter.next().await {
                     Ok(Some(query_record_kv)) => {
-                        let mut query_record: QueryRecord = de::from_slice(&query_record_kv.value)
-                            .context(core_history_errors::DeserializeValueSnafu)?;
-                        query_record.set_loaded_from_history();
-                        items.push(query_record);
+                        items.push(
+                            de::from_slice(&query_record_kv.value)
+                                .context(core_history_errors::DeserializeValueSnafu)?,
+                        );
                         if items.len() >= usize::from(limit.unwrap_or(u16::MAX)) {
                             break;
                         }

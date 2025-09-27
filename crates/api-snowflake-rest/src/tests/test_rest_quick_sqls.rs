@@ -219,9 +219,7 @@ mod snowflake_compatibility {
     sql_test!(
         JSON,
         regression_bug_591_date_timestamps,
-        [
-            "SELECT CURRENT_DATE(), CAST('2022-08-19-00:00' AS TIMESTAMP)",
-        ]
+        ["SELECT TO_DATE('2022-08-19', 'YYYY-MM-DD'), CAST('2022-08-19-00:00' AS TIMESTAMP)",]
     );
 }
 
