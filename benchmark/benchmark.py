@@ -90,7 +90,7 @@ def save_results_to_csv(results, filename="query_results.csv", system=None):
                 writer.writerow(["TOTAL", "", total_time, ""])
 
 
-def run_on_sf(cursor, warehouse, tpch_queries, cache=False):
+def run_on_sf(cursor, warehouse, tpch_queries, cache=True):
     """Run benchmark queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
