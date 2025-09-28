@@ -62,6 +62,23 @@ fi
 # Verify credentials are in .env file and not empty
 if grep -q "AWS_ACCESS_KEY_ID=" .env && [ "$(grep AWS_ACCESS_KEY_ID= .env | cut -d= -f2)" != "" ]; then
     echo "✅ AWS credentials found in .env file"
+
+    # Authenticate with GitHub Container Registry if credentials are provided
+    if grep -q "GITHUB_TOKEN=" .env && [ "$(grep GITHUB_TOKEN= .env | cut -d= -f2)" != "" ]; then
+        echo "🔐 Authenticating with GitHub Container Registry..."
+        GITHUB_TOKEN=$(grep GITHUB_TOKEN= .env | cut -d= -f2)
+        GITHUB_USERNAME=$(grep GITHUB_USERNAME= .env | cut -d= -f2)
+        echo "$GITHUB_TOKEN" | sudo -u ec2-user docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+        if [ $? -eq 0 ]; then
+            echo "✅ Successfully authenticated with ghcr.io"
+        else
+            echo "❌ Failed to authenticate with ghcr.io"
+            exit 1
+        fi
+    else
+        echo "⚠️  No GitHub credentials found - skipping ghcr.io authentication"
+    fi
+
     echo "========================================="
     echo "Starting Embucket with automatic database initialization..."
     echo "Running: docker-compose up -d"
@@ -102,8 +119,35 @@ for i in {1..30}; do
         break
     fi
     echo "Attempt $i/30: Waiting for Embucket API..."
+
+    # Show container logs if API is not ready after several attempts
+    if [ $i -eq 5 ] || [ $i -eq 15 ] || [ $i -eq 25 ]; then
+        echo "========================================="
+        echo "🔍 Container status and logs (attempt $i):"
+        sudo -u ec2-user docker-compose ps
+        echo ""
+        echo "📋 Embucket container logs (last 20 lines):"
+        sudo -u ec2-user docker-compose logs --tail=20 embucket
+        echo "========================================="
+    fi
+
     sleep 10
 done
+
+# If health check failed, show detailed logs
+if ! curl -s http://localhost:3000/health > /dev/null 2>&1; then
+    echo "❌ Embucket API health check failed after 30 attempts"
+    echo "========================================="
+    echo "🔍 Final container status:"
+    sudo -u ec2-user docker-compose ps
+    echo ""
+    echo "📋 Full Embucket container logs:"
+    sudo -u ec2-user docker-compose logs embucket
+    echo ""
+    echo "📋 Database init container logs:"
+    sudo -u ec2-user docker-compose logs db-init
+    echo "========================================="
+fi
 
 # Check if database initialization was successful
 echo "Checking database initialization..."

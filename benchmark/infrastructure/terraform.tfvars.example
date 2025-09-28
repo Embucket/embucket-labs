@@ -28,3 +28,8 @@ environment = "benchmark"
 # that have S3 access to the benchmark bucket
 benchmark_s3_user_key_id     = ""  # Your existing AWS user's access key ID
 benchmark_s3_user_access_key = ""  # Your existing AWS user's secret access key
+
+# GitHub Container Registry Authentication
+# Required for pulling from ghcr.io/embucket/embucket:experimental
+github_username = ""  # Your GitHub username
+github_token    = ""  # GitHub Personal Access Token with 'read:packages' permission
