@@ -14,3 +14,7 @@ SCHEMA_NAME=benchmark_schema
 VOLUME_NAME=benchmark_volume
 EMBUCKET_HOST=localhost
 EMBUCKET_PORT=3000
+
+# GitHub Container Registry credentials
+GITHUB_TOKEN=${github_token}
+GITHUB_USERNAME=${github_username}

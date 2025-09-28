@@ -166,6 +166,8 @@ resource "local_file" "env_file" {
     vite_api_url         = "http://${aws_instance.embucket_benchmark.public_ip}:3000"
     instance_public_ip   = aws_instance.embucket_benchmark.public_ip
     private_key_path     = var.private_key_path
+    github_token         = var.github_token
+    github_username      = var.github_username
   })
   filename = "${path.module}/.env"
 }

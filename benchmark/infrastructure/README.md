@@ -29,6 +29,8 @@ All resources share the same 8-character random suffix (e.g., `a1b2c3d4`), makin
    **Required variables to set:**
    - `benchmark_s3_user_key_id` - Your AWS Access Key ID
    - `benchmark_s3_user_access_key` - Your AWS Secret Access Key
+   - `github_username` - Your GitHub username
+   - `github_token` - GitHub Personal Access Token with 'read:packages' permission
    - `private_key_path` / `public_key_path` - SSH key paths
 
 3. **Deploy Infrastructure**
@@ -126,6 +128,28 @@ Your AWS user needs a policy that allows access to S3 buckets with the `embucket
 
 This policy allows multiple team members to use the same credentials while each deployment creates its own unique bucket.
 
+### GitHub Container Registry Authentication
+
+The infrastructure automatically authenticates with GitHub Container Registry (ghcr.io) to pull the Embucket Docker image. This requires:
+
+1. **GitHub Personal Access Token**: Create a token with `read:packages` permission
+   - Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Generate new token with `read:packages` scope
+   - Copy the token value
+
+2. **Configuration**: Add your GitHub credentials to `terraform.tfvars`:
+   ```hcl
+   github_username = "your-github-username"
+   github_token    = "ghp_your_personal_access_token"
+   ```
+
+3. **Automatic Authentication**: During deployment, the bootstrap script will:
+   - Extract GitHub credentials from the `.env` file
+   - Authenticate with `ghcr.io` using `docker login`
+   - Pull the `ghcr.io/embucket/embucket:experimental` image
+
+**Note**: If GitHub credentials are not provided, the deployment will skip ghcr.io authentication and may fail when trying to pull the Embucket image.
+
 ### Team Collaboration
 
 - **Shared Credentials**: All team members can use the same AWS user credentials
@@ -176,8 +200,33 @@ Run validation manually:
 Once deployed, you can:
 1. SSH to the instance: `$(terraform output -raw ssh_command)`
 2. Run custom benchmarks against the Embucket API
-3. Monitor performance using AWS CloudWatch
+3. Monitor performance using AWS CloudWatch or the included monitoring script
 4. Scale instance type up/down as needed
+
+### System Monitoring
+
+The infrastructure includes a monitoring script to track system and Embucket container performance:
+
+```bash
+# Real-time monitoring (default)
+./monitor_ram.sh
+
+# Monitor every 5 seconds
+./monitor_ram.sh -i 5
+
+# Monitor for 60 seconds then exit
+./monitor_ram.sh -t 60
+
+# Single snapshot
+./monitor_ram.sh -o
+```
+
+The monitoring script displays:
+- **System RAM**: Memory usage percentage and absolute values
+- **System CPU**: CPU usage percentage across all cores
+- **Embucket Container**: Container-specific RAM and CPU usage
+
+This is particularly useful during benchmarking to ensure the system has adequate resources and to identify performance bottlenecks.
 
 ## Cleanup
 
@@ -195,6 +244,7 @@ terraform destroy
 - `user_data.sh` - EC2 initialization script
 - `bootstrap.sh` - Embucket installation and startup script
 - `validate.sh` - Deployment validation script
+- `monitor_ram.sh` - System and Embucket container monitoring script
 - `docker-compose.yml` - Embucket container configuration
 - `env.tpl` - Environment template for Embucket configuration
 - `docker/db_init.py` - Database initialization script
@@ -209,7 +259,9 @@ terraform destroy
 3. **Database initialization failed**: Verify S3 credentials and permissions
 4. **S3 access denied**: Ensure your AWS user has the required S3 policy (see above)
 5. **Empty credentials**: Make sure you've set `benchmark_s3_user_key_id` and `benchmark_s3_user_access_key` in `terraform.tfvars`
-6. **Performance issues**: Consider upgrading instance type
+6. **GitHub authentication failed**: Verify `github_username` and `github_token` are set correctly
+7. **Docker image pull failed**: Check GitHub token has `read:packages` permission
+8. **Performance issues**: Consider upgrading instance type
 
 ### Apple Silicon Troubleshooting
 
@@ -237,26 +289,36 @@ docker-compose ps
 docker-compose logs embucket
 docker-compose logs db-init
 
+# Check GitHub authentication
+docker images | grep ghcr.io
+docker login ghcr.io  # Test manual login
+
 # Check system resources
 htop
 df -h
 
 # If credentials weren't provided during deployment, you can set them up manually:
-# Edit the .env file with your AWS credentials and restart Embucket
+# Edit the .env file with your AWS and GitHub credentials and restart Embucket
 nano .env
 docker-compose up -d
 ```
 
 ### Manual Credential Setup
 
-If you didn't provide AWS credentials in `terraform.tfvars`, you can set them up after deployment:
+If you didn't provide AWS or GitHub credentials in `terraform.tfvars`, you can set them up after deployment:
 
 1. SSH to the instance: `$(terraform output -raw ssh_command)`
-2. Edit the `.env` file to add your AWS credentials:
+2. Edit the `.env` file to add your credentials:
    ```bash
    nano .env
    # Add or update these lines:
    # AWS_ACCESS_KEY_ID=your-access-key-id
    # AWS_SECRET_ACCESS_KEY=your-secret-access-key
+   # GITHUB_USERNAME=your-github-username
+   # GITHUB_TOKEN=your-github-token
    ```
-3. Start Embucket: `docker-compose up -d`
+3. Authenticate with GitHub Container Registry:
+   ```bash
+   echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+   ```
+4. Start Embucket: `docker-compose up -d`

@@ -7,6 +7,7 @@ from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
 from tpch import parametrize_tpch_queries
+from clickbench import parametrize_clickbench_queries
 from docker_manager import create_docker_manager
 from constants import SystemType
 
@@ -286,6 +287,8 @@ def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool) -> List[T
     """Get appropriate queries based on the benchmark type."""
     if benchmark_type == "tpch":
         return parametrize_tpch_queries(fully_qualified_names_for_embucket=for_embucket)
+    elif benchmark_type == "clickbench":
+        return parametrize_clickbench_queries(fully_qualified_names_for_embucket=for_embucket)
     elif benchmark_type == "tpcds":
         raise NotImplementedError("TPC-DS benchmarks not yet implemented")
     else:
@@ -433,7 +436,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run benchmarks on Snowflake and/or Embucket")
     parser.add_argument("--system", choices=["snowflake", "embucket", "both"], default="both")
     parser.add_argument("--runs", type=int, default=3)
-    parser.add_argument("--benchmark-type", choices=["tpch", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
+    parser.add_argument("--benchmark-type", choices=["tpch", "clickbench", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
     parser.add_argument("--dataset-path", help="Override the DATASET_PATH environment variable")
     parser.add_argument("--no-cache", action="store_true", help="Disable caching (force warehouse suspend and USE_CACHED_RESULT=False for Snowflake, force container restart for Embucket)")
     return parser.parse_args()
