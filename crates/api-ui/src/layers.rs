@@ -4,7 +4,7 @@ use axum::{middleware::Next, response::Response};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http::{HeaderValue, Method};
 use std::str::FromStr;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -56,12 +56,15 @@ pub async fn add_request_metadata(
 
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub fn make_cors_middleware(origin: &str) -> CorsLayer {
-    #[allow(clippy::expect_fun_call)]
-    let origin_value = origin
-        .parse::<HeaderValue>()
-        .expect(&format!("Failed to parse origin value: {origin}"));
+    let origins: Vec<HeaderValue> = origin
+        .split(|c: char| c == ',' || c.is_ascii_whitespace())
+        .filter(|part| !part.is_empty())
+        .map(|part| HeaderValue::from_str(part).expect("Failed to parse origin value"))
+        .collect();
+
+    let allow_origin = AllowOrigin::list(origins);
     CorsLayer::new()
-        .allow_origin(origin_value)
+        .allow_origin(allow_origin)
         .allow_methods(vec![
             Method::GET,
             Method::POST,
@@ -72,4 +75,20 @@ pub fn make_cors_middleware(origin: &str) -> CorsLayer {
         ])
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE])
         .allow_credentials(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_make_cors_middleware() {
+        for origin in [
+            "https://a.example",
+            "https://b.example",
+            "https://c.example http://d.example, http://e.example",
+        ] {
+            let _layer = make_cors_middleware(origin);
+        }
+    }
 }
