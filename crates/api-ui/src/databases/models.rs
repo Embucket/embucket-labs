@@ -22,6 +22,7 @@ use utoipa::ToSchema;
 // }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Database {
     pub name: String,
     pub volume: String,

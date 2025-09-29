@@ -73,6 +73,7 @@ pub(crate) trait IntoStatusCode {
 }
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub message: String,
     pub status_code: u16,
