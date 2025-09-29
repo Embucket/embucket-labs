@@ -190,14 +190,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: database_name, volume_name, created_at (default), updated_at",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -387,14 +387,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: schema_name, database_name, created_at (default), updated_at",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -578,14 +578,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: table_name, schema_name, database_name, volume_name, table_type, table_format, owner, created_at (default), updated_at",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -1010,17 +1010,14 @@
         "operationId": "getQueries",
         "parameters": [
           {
-            "name": "min_duration_ms",
+            "name": "minDurationMs",
             "in": "query",
             "description": "Minimal duration of queries in milliseconds",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
+            "required": false,
+            "schema": { "type": "integer", "format": "int64" }
           },
           {
-            "name": "worksheet_id",
+            "name": "worksheetId",
             "in": "query",
             "description": "Worksheet id of the queries",
             "required": false,
@@ -1048,14 +1045,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -1238,14 +1235,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: volume_name, volume_type, created_at (default), updated_at",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -1444,14 +1441,14 @@
             "schema": { "type": "string" }
           },
           {
-            "name": "order_by",
+            "name": "orderBy",
             "in": "query",
             "description": "Order by: id, name, content, created_at (default), updated_at",
             "required": false,
             "schema": { "type": "string" }
           },
           {
-            "name": "order_direction",
+            "name": "orderDirection",
             "in": "query",
             "description": "Order direction: ASC, DESC (default)",
             "required": false,
@@ -1766,11 +1763,11 @@
       "DashboardResponse": { "$ref": "#/components/schemas/Dashboard" },
       "Database": {
         "type": "object",
-        "required": ["name", "volume", "created_at", "updated_at"],
+        "required": ["name", "volume", "createdAt", "updatedAt"],
         "properties": {
-          "created_at": { "type": "string" },
+          "createdAt": { "type": "string" },
           "name": { "type": "string" },
-          "updated_at": { "type": "string" },
+          "updatedAt": { "type": "string" },
           "volume": { "type": "string" }
         }
       },
@@ -1790,10 +1787,10 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["message", "status_code"],
+        "required": ["message", "statusCode"],
         "properties": {
           "message": { "type": "string" },
-          "status_code": { "type": "integer", "format": "int32", "minimum": 0 }
+          "statusCode": { "type": "integer", "format": "int32", "minimum": 0 }
         }
       },
       "FileVolume": {
@@ -1936,12 +1933,12 @@
       },
       "Schema": {
         "type": "object",
-        "required": ["name", "database", "created_at", "updated_at"],
+        "required": ["name", "database", "createdAt", "updatedAt"],
         "properties": {
-          "created_at": { "type": "string" },
+          "createdAt": { "type": "string" },
           "database": { "type": "string" },
           "name": { "type": "string" },
-          "updated_at": { "type": "string" }
+          "updatedAt": { "type": "string" }
         }
       },
       "SchemaCreatePayload": {
