@@ -184,7 +184,7 @@ pub async fn get_query(
     operation_id = "getQueries",
     tags = ["queries"],
     params(
-        ("min_duration_ms", Query, description = "Minimal duration of queries in milliseconds"),
+        ("min_duration_ms" = Option<i64>, Query, description = "Minimal duration of queries in milliseconds"),
         ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id of the queries"),
         ("offset" = Option<usize>, Query, description = "Queries offset"),
         ("limit" = Option<usize>, Query, description = "Queries limit"),
