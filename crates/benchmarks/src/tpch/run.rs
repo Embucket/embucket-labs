@@ -36,7 +36,7 @@ pub struct RunOpt {
     /// Path to data files
     #[structopt(parse(from_os_str), required = true, short = "p", long = "path")]
     path: PathBuf,
-    /// Path to machine readable output file
+    /// Path to machine-readable output file
     #[structopt(parse(from_os_str), short = "o", long = "output")]
     output_path: Option<PathBuf>,
 }
@@ -64,6 +64,7 @@ impl RunOpt {
         Ok(())
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     async fn benchmark_query(&self, query_id: usize) -> Result<Vec<QueryResult>> {
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;
@@ -109,14 +110,14 @@ impl RunOpt {
         for table in TPCH_TABLES {
             let table_sql = get_tpch_table_sql(table).unwrap();
             let mut table_query = session.query(table_sql, QueryContext::default());
-            table_query.execute().await?.records;
+            table_query.execute().await?;
             let data_sql = format!(
                 "
                 COPY INTO embucket.public.{table}
                 FROM 'file://{path}/{table}' FILE_FORMAT = ( TYPE = PARQUET );"
             );
             let mut data_query = session.query(data_sql, QueryContext::default());
-            data_query.execute().await?.records;
+            data_query.execute().await?;
         }
         Ok(())
     }
