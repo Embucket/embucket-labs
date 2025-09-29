@@ -33,10 +33,7 @@ def get_results_path(system: SystemType, benchmark_type: str, dataset_path: str,
     run_mode = "warm" if cached else "cold"
 
     # Then handle result cache setting separately
-    if system == SystemType.SNOWFLAKE and disable_result_cache:
-        results_folder = f"{run_mode}_no_result_cache"
-    else:
-        results_folder = run_mode
+    results_folder = f"{run_mode}_no_result_cache" if disable_result_cache else run_mode
 
     if system == SystemType.SNOWFLAKE:
         base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}/{results_folder}"
