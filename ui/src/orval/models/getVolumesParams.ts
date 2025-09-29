@@ -25,9 +25,9 @@ export type GetVolumesParams = {
   /**
    * Order by: volume_name, volume_type, created_at (default), updated_at
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };

@@ -9,5 +9,5 @@
 export interface ErrorResponse {
   message: string;
   /** @minimum 0 */
-  status_code: number;
+  statusCode: number;
 }

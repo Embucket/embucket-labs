@@ -12,11 +12,11 @@ export type GetQueriesParams = {
   /**
    * Minimal duration of queries in milliseconds
    */
-  min_duration_ms?: number;
+  minDurationMs?: number;
   /**
    * Worksheet id of the queries
    */
-  worksheet_id?: I64;
+  worksheetId?: I64;
   /**
    * Queries offset
    * @minimum 0
@@ -34,9 +34,9 @@ export type GetQueriesParams = {
   /**
    * Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };

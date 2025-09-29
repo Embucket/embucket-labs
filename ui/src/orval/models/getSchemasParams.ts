@@ -25,9 +25,9 @@ export type GetSchemasParams = {
   /**
    * Order by: schema_name, database_name, created_at (default), updated_at
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };

@@ -7,8 +7,8 @@
  */
 
 export interface Schema {
-  created_at: string;
+  createdAt: string;
   database: string;
   name: string;
-  updated_at: string;
+  updatedAt: string;
 }

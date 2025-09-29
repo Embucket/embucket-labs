@@ -25,9 +25,9 @@ export type GetWorksheetsParams = {
   /**
    * Order by: id, name, content, created_at (default), updated_at
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };

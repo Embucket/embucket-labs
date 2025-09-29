@@ -25,9 +25,9 @@ export type GetTablesParams = {
   /**
    * Order by: table_name, schema_name, database_name, volume_name, table_type, table_format, owner, created_at (default), updated_at
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };

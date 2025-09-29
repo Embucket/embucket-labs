@@ -25,9 +25,9 @@ export type GetDatabasesParams = {
   /**
    * Order by: database_name, volume_name, created_at (default), updated_at
    */
-  order_by?: string;
+  orderBy?: string;
   /**
    * Order direction: ASC, DESC (default)
    */
-  order_direction?: OrderDirection;
+  orderDirection?: OrderDirection;
 };
