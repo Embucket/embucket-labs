@@ -1,0 +1,28 @@
+[package]
+name = "embucket-benchmarks"
+description = "DataFusion Benchmarks"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[features]
+ci = []
+default = ["mimalloc"]
+snmalloc = ["snmalloc-rs"]
+
+[dependencies]
+core-executor = { path = "../core-executor" }
+datafusion = { workspace = true, default-features = true }
+env_logger = { version = "0.11.8" }
+log = { version = "0.4.28" }
+mimalloc = { version = "0.1", optional = true, default-features = false }
+object_store = { workspace = true }
+parquet = { version = "56.2.0"}
+rand = { version = "0.10.0-rc.0" }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { workspace = true }
+snmalloc-rs = { version = "0.3", optional = true }
+structopt = { version = "0.3", default-features = false }
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
+snafu = { workspace = true, optional = true }
