@@ -114,7 +114,56 @@ python benchmark.py --runs 5 --dataset-path tpch/100
 - `--runs`: Number of benchmark runs - default: `3`
 - `--benchmark-type`: Benchmark suite (`tpch`, `clickbench`, `tpcds`) - default: `tpch`
 - `--dataset-path`: Override DATASET_PATH environment variable
-- `--no-cache`: Force cache clearing (warehouse suspend for Snowflake, container restart for Embucket)
+- `--cold-runs`: Force cache clearing (warehouse suspend for Snowflake, container restart for Embucket)
+- `--disable-result-cache`: Disable Snowflake's result cache only (USE_CACHED_RESULT=FALSE), no effect on Embucket
+
+## Caching Configurations
+
+### Snowflake Caching Options
+
+- **Cold run**: `--cold-runs`
+  - Suspends warehouse between queries
+  - Automatically disables result cache
+  - Results stored in `cold/` folder
+
+- **Warm run with result cache**: *(default, no flags)*
+  - Keeps warehouse active between queries
+  - Enables result cache (USE_CACHED_RESULT=TRUE)
+  - Results stored in `warm/` folder
+
+- **Warm run without result cache**: `--disable-result-cache`
+  - Keeps warehouse active between queries
+  - Disables result cache (USE_CACHED_RESULT=FALSE)
+  - Results stored in `warm_no_result_cache/` folder
+
+### Embucket Caching Options
+
+- **Cold run**: `--cold-runs`
+  - Restarts container between queries
+  - Results stored in `cold/` folder
+
+- **Warm run**: *(default, no flags)*
+  - Keeps container running between queries
+  - Results stored in `warm/` folder
+
+### Example Usage
+
+```bash
+# Default: warm run (caching enabled) for both systems
+python benchmark.py
+
+# Cold run (cache clearing) for both systems
+python benchmark.py --cold-runs
+
+# Warm run with result cache disabled for Snowflake
+python benchmark.py --system snowflake --disable-result-cache
+
+# Cold run for Embucket only
+python benchmark.py --system embucket --cold-runs
+
+# Multiple runs with warm caching for both systems
+python benchmark.py --runs 5
+```
 
 ### Benchmark Process
 

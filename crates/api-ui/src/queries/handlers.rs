@@ -24,7 +24,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use core_executor::models::{QueryContext, QueryResult};
 use core_history::WorksheetId;
-use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{Array, Int64Array, RecordBatch, StringArray};
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -184,13 +184,13 @@ pub async fn get_query(
     operation_id = "getQueries",
     tags = ["queries"],
     params(
-        ("min_duration_ms" = Option<i64>, Query, description = "Minimal duration of queries in milliseconds"),
-        ("worksheet_id" = Option<WorksheetId>, Query, description = "Worksheet id of the queries"),
+        ("minDurationMs" = Option<i64>, Query, description = "Minimal duration of queries in milliseconds"),
+        ("worksheetId" = Option<WorksheetId>, Query, description = "Worksheet id of the queries"),
         ("offset" = Option<usize>, Query, description = "Queries offset"),
         ("limit" = Option<usize>, Query, description = "Queries limit"),
         ("search" = Option<String>, Query, description = "Queries search"),
-        ("order_by" = Option<String>, Query, description = "Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms"),
-        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("orderBy" = Option<String>, Query, description = "Order by: id, worksheet_id, result_count, status, start_time (default), end_time, duration_ms"),
+        ("orderDirection" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, description = "Returns queries history", body = QueriesResponse),
@@ -240,36 +240,16 @@ pub async fn queries(
         .context(QueriesSnafu)?;
     let mut items = Vec::new();
     for record in records {
-        let ids = downcast_int64_column(&record, "id")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let worksheet_ids = downcast_int64_column(&record, "worksheet_id")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let queries = downcast_string_column(&record, "query")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let start_times = downcast_string_column(&record, "start_time")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let end_times = downcast_string_column(&record, "end_time")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let duration_ms_values = downcast_int64_column(&record, "duration_ms")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let result_counts = downcast_int64_column(&record, "result_count")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let results = downcast_string_column(&record, "result")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let status = downcast_string_column(&record, "status")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
-        let errors = downcast_string_column(&record, "error")
-            .context(ExecutionSnafu)
-            .context(QueriesSnafu)?;
+        let ids = w_downcast_int64_column(&record, "id")?;
+        let worksheet_ids = w_downcast_int64_column(&record, "worksheet_id")?;
+        let queries = w_downcast_string_column(&record, "query")?;
+        let start_times = w_downcast_string_column(&record, "start_time")?;
+        let end_times = w_downcast_string_column(&record, "end_time")?;
+        let duration_ms_values = w_downcast_int64_column(&record, "duration_ms")?;
+        let result_counts = w_downcast_int64_column(&record, "result_count")?;
+        let results = w_downcast_string_column(&record, "result")?;
+        let status = w_downcast_string_column(&record, "status")?;
+        let errors = w_downcast_string_column(&record, "error")?;
         for i in 0..record.num_rows() {
             items.push(QueryRecord {
                 id: ids.value(i),
@@ -309,4 +289,24 @@ pub async fn queries(
         }
     }
     Ok(Json(QueriesResponse { items }))
+}
+
+#[allow(clippy::result_large_err)]
+fn w_downcast_int64_column<'a>(
+    batch: &'a RecordBatch,
+    name: &str,
+) -> std::result::Result<&'a Int64Array, crate::queries::error::Error> {
+    downcast_int64_column(batch, name)
+        .context(ExecutionSnafu)
+        .context(QueriesSnafu)
+}
+
+#[allow(clippy::result_large_err)]
+fn w_downcast_string_column<'a>(
+    batch: &'a RecordBatch,
+    name: &str,
+) -> std::result::Result<&'a StringArray, crate::queries::error::Error> {
+    downcast_string_column(batch, name)
+        .context(ExecutionSnafu)
+        .context(QueriesSnafu)
 }

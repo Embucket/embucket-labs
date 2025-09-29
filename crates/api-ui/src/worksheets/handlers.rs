@@ -56,8 +56,8 @@ pub struct ApiDoc;
         ("offset" = Option<usize>, Query, description = "Worksheets offset"),
         ("limit" = Option<usize>, Query, description = "Worksheets limit"),
         ("search" = Option<String>, Query, description = "Worksheets search"),
-        ("order_by" = Option<String>, Query, description = "Order by: id, name, content, created_at (default), updated_at"),
-        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("orderBy" = Option<String>, Query, description = "Order by: id, name, content, created_at (default), updated_at"),
+        ("orderDirection" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, description = "Get list of worksheets", body = WorksheetsResponse),
