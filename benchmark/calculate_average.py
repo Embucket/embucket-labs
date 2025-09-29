@@ -49,6 +49,8 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
         search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
     elif system == SystemType.SNOWFLAKE:
         search_dir = f'result/snowflake_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
+    elif system == SystemType.DATAFUSION:
+        search_dir = f'result/datafusion_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
     else:
         raise ValueError("Unsupported system")
 
@@ -66,9 +68,9 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
     instance_files = {}
     for file in all_csv_files:
         # Extract pattern type using regex
-        match = re.search(r'(embucket|snowflake)_results(?:_run_(\d+))?', os.path.basename(file))
+        match = re.search(r'(embucket|snowflake|datafusion)_results(?:_run_(\d+))?', os.path.basename(file))
         if match:
-            pattern_type = match.group(1)  # embucket or snowflake
+            pattern_type = match.group(1)  # embucket, snowflake, or datafusion
             if pattern_type not in instance_files:
                 instance_files[pattern_type] = []
             instance_files[pattern_type].append(file)

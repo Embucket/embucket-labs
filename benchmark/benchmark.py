@@ -6,14 +6,19 @@ from typing import Dict, List, Tuple, Any, Optional
 from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
-from tpch import parametrize_tpch_queries
-from clickbench import parametrize_clickbench_queries
+from tpch import parametrize_tpch_queries, get_table_names as get_tpch_table_names
+from clickbench import (
+    parametrize_clickbench_queries,
+    get_table_names as get_clickbench_table_names,
+)
 from docker_manager import create_docker_manager
 from constants import SystemType
+from datafusion_cursor import create_datafusion_cursor
 
 from dotenv import load_dotenv
 import csv
 import argparse
+import time
 
 load_dotenv()
 
@@ -36,6 +41,8 @@ def get_results_path(system: SystemType, benchmark_type: str, dataset_path: str,
         base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}/{cache_folder}"
     elif system == SystemType.EMBUCKET:
         base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}/{cache_folder}"
+    elif system == SystemType.DATAFUSION:
+        base_path = f"result/datafusion_{benchmark_type}_results/{dataset_path}/{instance}/{cache_folder}"
     else:
         raise ValueError(f"Unsupported system: {system}")
 
@@ -59,8 +66,8 @@ def save_results_to_csv(results, filename="query_results.csv", system=None):
         writer = csv.writer(f)
         writer.writerow(headers)
 
-        if system == SystemType.EMBUCKET:
-            # Embucket results format
+        if system == SystemType.EMBUCKET or system == SystemType.DATAFUSION:
+            # Embucket/DataFusion results format (both use tuple format)
             query_results, total_time = results
             for row in query_results:
                 writer.writerow([row[0], row[1], row[2], row[3]])
@@ -283,7 +290,91 @@ def run_on_emb(tpch_queries, cache=False):
     return query_results, total_time
 
 
-def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool) -> List[Tuple[int, str]]:
+def register_datafusion_external_tables(cursor, dataset_path, benchmark_type):
+    """Register parquet files as external tables in DataFusion."""
+    # Get table names based on benchmark type
+    if benchmark_type == "tpch":
+        table_names = get_tpch_table_names(fully_qualified_names_for_embucket=False)
+    elif benchmark_type == "clickbench":
+        table_names = get_clickbench_table_names(
+            fully_qualified_names_for_embucket=False
+        )
+    else:
+        raise ValueError(f"Unsupported benchmark type: {benchmark_type}")
+
+    # DataFusion can read parquet files directly from S3
+    data_dir = os.environ.get(
+        "DATAFUSION_DATA_DIR", f"s3://embucket-testdata/{dataset_path}"
+    )
+
+    for table_name in table_names.values():
+        parquet_path = f"{data_dir}/{table_name}.parquet"
+        logger.info(
+            f"Registering parquet file for DataFusion table {table_name}: {parquet_path}"
+        )
+
+        # Register the parquet file as an external table
+        register_sql = f"CREATE EXTERNAL TABLE {table_name} STORED AS PARQUET LOCATION '{parquet_path}'"
+        try:
+            cursor.execute(register_sql)
+        except Exception as e:
+            logger.warning(f"Could not register table {table_name}: {e}")
+            # Try alternative approach - direct file registration
+            try:
+                register_sql = f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{parquet_path}')"
+                cursor.execute(register_sql)
+            except Exception as e2:
+                logger.error(
+                    f"Could not register table {table_name} with either method: {e2}"
+                )
+
+
+def run_on_datafusion(queries):
+    """Run benchmark queries on DataFusion and measure performance."""
+    query_results = []
+    total_time = 0
+
+    cursor = create_datafusion_cursor()
+
+    # Register external tables for DataFusion (since they're session-scoped)
+    benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
+    dataset_path = os.environ.get(
+        "DATAFUSION_DATASET_PATH", os.environ.get("DATASET_PATH", "tpch/1")
+    )
+    register_datafusion_external_tables(cursor, dataset_path, benchmark_type)
+
+    for query_number, query in queries:
+        try:
+            logger.info(f"Executing query {query_number}...")
+
+            # Measure execution time manually
+            start_time = time.time()
+            cursor.execute(query)
+            results = cursor.fetchall()
+            end_time = time.time()
+
+            # Calculate duration in milliseconds
+            duration_ms = (end_time - start_time) * 1000
+            result_count = len(results) if results else 0
+
+            # Generate a simple query ID (since DataFusion doesn't provide one)
+            query_id = f"datafusion_query_{query_number}"
+
+            query_results.append([query_number, query_id, duration_ms, result_count])
+
+            total_time += duration_ms
+
+        except Exception as e:
+            logger.error(f"Error executing query {query_number}: {e}")
+
+    cursor.close()
+
+    return query_results, total_time
+
+
+def get_queries_for_benchmark(
+    benchmark_type: str, for_embucket: bool
+) -> List[Tuple[int, str]]:
     """Get appropriate queries based on the benchmark type."""
     if benchmark_type == "tpch":
         return parametrize_tpch_queries(fully_qualified_names_for_embucket=for_embucket)
@@ -349,7 +440,6 @@ def run_snowflake_benchmark(run_number: int, cache: bool = False):
     return sf_results
 
 
-
 def run_embucket_benchmark(run_number: int, cache: bool = True):
     """Run benchmark on Embucket with container restarts."""
     # Get benchmark configuration from environment variables
@@ -387,6 +477,52 @@ def run_embucket_benchmark(run_number: int, cache: bool = True):
         )
 
     return emb_results
+
+
+def run_datafusion_benchmark(run_number: int, cache: bool = True):
+    """Run benchmark on DataFusion."""
+    # Get benchmark configuration from environment variables
+    benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
+    instance = os.environ.get("DATAFUSION_INSTANCE", "local")
+    dataset_path = os.environ.get(
+        "DATAFUSION_DATASET_PATH", os.environ.get("DATASET_PATH", "default")
+    )
+
+    logger.info(f"Starting DataFusion {benchmark_type} benchmark run {run_number}")
+    logger.info(f"Instance: {instance}, Dataset: {dataset_path}")
+
+    # Get queries - DataFusion uses standard SQL format (not Embucket-specific)
+    queries = get_queries_for_benchmark(benchmark_type, for_embucket=False)
+
+    # Run benchmark
+    datafusion_results = run_on_datafusion(queries)
+
+    results_path = get_results_path(
+        SystemType.DATAFUSION,
+        benchmark_type,
+        dataset_path,
+        instance,
+        run_number=run_number,
+        cached=cache,
+    )
+    os.makedirs(os.path.dirname(results_path), exist_ok=True)
+    save_results_to_csv(
+        datafusion_results, filename=results_path, system=SystemType.DATAFUSION
+    )
+    logger.info(f"DataFusion benchmark results saved to: {results_path}")
+
+    # Check if we have 3 CSV files ready and calculate averages
+    results_dir = get_results_path(
+        SystemType.DATAFUSION, benchmark_type, dataset_path, instance, cached=cache
+    )
+    csv_files = glob.glob(os.path.join(results_dir, "datafusion_results_run_*.csv"))
+    if len(csv_files) == 3:
+        logger.info("Found 3 CSV files. Calculating averages...")
+        calculate_benchmark_averages(
+            dataset_path, instance, SystemType.DATAFUSION, benchmark_type, cached=cache
+        )
+
+    return datafusion_results
 
 
 def display_comparison(sf_results, emb_results):
@@ -427,6 +563,8 @@ def run_benchmark(run_number: int, system_enum: Optional[SystemType], no_cache: 
         run_embucket_benchmark(run_number, cache=not no_cache)
     elif system_enum == SystemType.SNOWFLAKE:
         run_snowflake_benchmark(run_number, cache=not no_cache)
+    elif system_enum == SystemType.DATAFUSION:
+        run_datafusion_benchmark(run_number, cache=not no_cache)
     else:
         raise ValueError("Unsupported or missing system_enum")
 
@@ -459,6 +597,9 @@ if __name__ == "__main__":
     elif args.system == "embucket":
         for run in range(1, args.runs + 1):
             run_benchmark(run, SystemType.EMBUCKET, no_cache=args.no_cache)
+    elif args.system == "datafusion":
+        for run in range(1, args.runs + 1):
+            run_benchmark(run, SystemType.DATAFUSION, no_cache=args.no_cache)
     elif args.system == "both":
         for run in range(1, args.runs + 1):
             logger.info(f"Starting benchmark run {run} for both systems")
