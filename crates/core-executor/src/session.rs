@@ -90,6 +90,7 @@ impl UserSession {
                         true,
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
+                    .set_bool("datafusion.optimizer.prefer_hash_join", false)
                     .set_usize(
                         "datafusion.execution.minimum_parallel_output_files",
                         MINIMUM_PARALLEL_OUTPUT_FILES,
