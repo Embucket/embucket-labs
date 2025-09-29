@@ -572,7 +572,7 @@ def run_benchmark(run_number: int, system_enum: Optional[SystemType], no_cache: 
 def parse_args():
     """Parse command line arguments for benchmark configuration."""
     parser = argparse.ArgumentParser(description="Run benchmarks on Snowflake and/or Embucket")
-    parser.add_argument("--system", choices=["snowflake", "embucket", "both"], default="both")
+    parser.add_argument("--system", choices=["snowflake", "embucket", "datafusion", "both"], default="both")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--benchmark-type", choices=["tpch", "clickbench", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
     parser.add_argument("--dataset-path", help="Override the DATASET_PATH environment variable")
