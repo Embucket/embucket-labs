@@ -56,7 +56,7 @@ pub struct ApiDoc;
     operation_id = "createSchema",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name")
+        ("databaseName" = String, Path, description = "Database Name")
     ),
     request_body = SchemaCreatePayload,
     responses(
@@ -127,8 +127,8 @@ pub async fn create_schema(
     operation_id = "deleteSchema",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     responses(
         (status = 204, description = "Successful Response"),
@@ -167,8 +167,8 @@ pub async fn delete_schema(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     operation_id = "getSchema",
     tags = ["schemas"],
@@ -222,8 +222,8 @@ pub async fn get_schema(
     path="/ui/databases/{databaseName}/schemas/{schemaName}",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     request_body = SchemaUpdatePayload,
     responses(
