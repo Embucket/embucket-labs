@@ -12,7 +12,7 @@ export const EditorRightPanelQueries = () => {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
 
   const { data: { items: queries } = {} } = useGetQueries(
-    { worksheetId: +worksheetId },
+    { worksheet_id: +worksheetId },
     { query: { enabled: worksheetId !== 'undefined' } },
   );
 

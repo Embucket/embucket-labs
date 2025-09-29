@@ -13,7 +13,7 @@ export const EditorRightPanel = () => {
   const { toggleRightPanel } = useEditorPanelsState();
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
   const { data: { items: queries } = {}, isFetching: isFetchingQueries } = useGetQueries(
-    { worksheetId: +worksheetId },
+    { worksheet_id: +worksheetId },
     { query: { enabled: worksheetId !== 'undefined' } },
   );
 
