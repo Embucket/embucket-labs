@@ -265,12 +265,12 @@ pub async fn update_schema(
     path="/ui/databases/{databaseName}/schemas",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
+        ("databaseName" = String, Path, description = "Database Name"),
         ("offset" = Option<usize>, Query, description = "Schemas offset"),
         ("limit" = Option<u16>, Query, description = "Schemas limit"),
         ("search" = Option<String>, Query, description = "Schemas search"),
-        ("order_by" = Option<String>, Query, description = "Order by: schema_name, database_name, created_at (default), updated_at"),
-        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("orderBy" = Option<String>, Query, description = "Order by: schema_name, database_name, created_at (default), updated_at"),
+        ("orderDirection" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),
