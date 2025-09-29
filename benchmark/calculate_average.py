@@ -33,7 +33,7 @@ def sort_by_query_index(df):
     return df
 
 
-def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cached=False):
+def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cached=False, disable_result_cache=False):
     """
     Calculate average results for benchmark runs.
     Args:
@@ -43,7 +43,10 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
         benchmark_type: The benchmark type ('tpch', 'tpcds')
         cached: Whether these are cached results (True) or no-cache results (False)
     """
-    cache_folder = "cached" if cached else "no_cache"
+    if disable_result_cache and system == SystemType.SNOWFLAKE:
+        cache_folder = "no_result_cache"
+    else:
+        cache_folder = "cached" if cached else "no_cache"
 
     if system == SystemType.EMBUCKET:
         search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
