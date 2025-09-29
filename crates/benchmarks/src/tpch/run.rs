@@ -69,6 +69,7 @@ impl RunOpt {
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;
 
+        self.create_catalog(&session).await?;
         self.create_tables(&session).await?;
 
         let mut millis = vec![];
@@ -78,12 +79,9 @@ impl RunOpt {
             let start = Instant::now();
 
             let sql = &get_query_sql(query_id)?;
-
-            // query 15 is special, with 3 statements. the second statement is the one from which we
-            // want to capture the results
             let mut result = vec![];
             for query in sql {
-                let mut user_query = session.query(query, QueryContext::default());
+                let mut user_query = session.query(query, query_context());
                 result = user_query.execute().await?.records;
             }
 
@@ -105,23 +103,42 @@ impl RunOpt {
     }
 
     #[allow(clippy::unwrap_used)]
+    async fn create_catalog(&self, session: &Arc<UserSession>) -> Result<()> {
+        let path = self.path.to_str().unwrap();
+
+        let volume_sql = format!(
+            "CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
+        (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{path}/data'))"
+        );
+        let mut volume_query = session.query(volume_sql, query_context());
+        volume_query.execute().await?;
+
+        let database_sql = "CREATE DATABASE IF NOT EXISTS bench EXTERNAL_VOLUME = test";
+        let mut database_query = session.query(database_sql, query_context());
+        database_query.execute().await?;
+
+        let schema_sql = "CREATE SCHEMA IF NOT EXISTS bench.benchmark";
+        let mut schema_query = session.query(schema_sql, query_context());
+        schema_query.execute().await?;
+        Ok(())
+    }
+
+    #[allow(clippy::unwrap_used)]
     async fn create_tables(&self, session: &Arc<UserSession>) -> Result<()> {
         let path = self.path.to_str().unwrap();
         for table in TPCH_TABLES {
             let table_sql = get_tpch_table_sql(table).unwrap();
-            let mut table_query = session.query(table_sql, QueryContext::default());
+            let mut table_query = session.query(table_sql, query_context());
             table_query.execute().await?;
             let data_sql = format!(
-                "
-                COPY INTO embucket.public.{table}
+                "COPY INTO {table}
                 FROM 'file://{path}/{table}' FILE_FORMAT = ( TYPE = PARQUET );"
             );
-            let mut data_query = session.query(data_sql, QueryContext::default());
+            let mut data_query = session.query(data_sql, query_context());
             data_query.execute().await?;
         }
         Ok(())
     }
-
     const fn iterations(&self) -> usize {
         self.common.iterations
     }
@@ -130,4 +147,12 @@ impl RunOpt {
 struct QueryResult {
     elapsed: std::time::Duration,
     row_count: usize,
+}
+
+fn query_context() -> QueryContext {
+    QueryContext::new(
+        Some("bench".to_string()),
+        Some("benchmark".to_string()),
+        None,
+    )
 }
