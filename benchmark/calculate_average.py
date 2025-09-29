@@ -43,10 +43,12 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
         benchmark_type: The benchmark type ('tpch', 'tpcds')
         cached: Whether these are cached results (True) or no-cache results (False)
     """
-    if disable_result_cache and system == SystemType.SNOWFLAKE:
-        cache_folder = "no_result_cache"
+    run_type = "warm" if cached else "cold"
+
+    if system == SystemType.SNOWFLAKE and disable_result_cache:
+        cache_folder = f"{run_type}_no_result_cache"
     else:
-        cache_folder = "cached" if cached else "no_cache"
+        cache_folder = run_type
 
     if system == SystemType.EMBUCKET:
         search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
@@ -55,10 +57,8 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
     else:
         raise ValueError("Unsupported system")
 
-    # Get all CSV files from the specified directory
     all_csv_files = glob.glob(os.path.join(search_dir, '*.csv'))
 
-    # Skip if no files found
     if not all_csv_files:
         print(f"No CSV files found in {search_dir}")
         return
