@@ -30,18 +30,18 @@ def get_results_path(system: SystemType, benchmark_type: str, dataset_path: str,
                      cached: bool = False, disable_result_cache: bool = False) -> str:
     """Generate path for storing benchmark results."""
     # Clearer naming: warm = warehouse kept active, cold = warehouse suspended
-    run_type = "warm" if cached else "cold"
+    run_mode = "warm" if cached else "cold"
 
     # Then handle result cache setting separately
     if system == SystemType.SNOWFLAKE and disable_result_cache:
-        cache_folder = f"{run_type}_no_result_cache"
+        results_folder = f"{run_mode}_no_result_cache"
     else:
-        cache_folder = run_type
+        results_folder = run_mode
 
     if system == SystemType.SNOWFLAKE:
-        base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}/{cache_folder}"
+        base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}/{results_folder}"
     elif system == SystemType.EMBUCKET:
-        base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}/{cache_folder}"
+        base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}/{results_folder}"
     else:
         raise ValueError(f"Unsupported system: {system}")
 
