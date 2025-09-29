@@ -12,7 +12,7 @@ use http::Method;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 #[should_panic(
-    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 122) }"
+    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 120) }"
 )]
 async fn test_ui_databases_metastore_update_bug() {
     let addr = run_test_server().await;
