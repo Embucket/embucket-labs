@@ -746,15 +746,18 @@ _TPCH_QUERIES_RAW = [
 ]
 
 
-def parametrize_tpch_queries(fully_qualified_names_for_embucket):
+def parametrize_tpch_queries(fully_qualified_names_for_embucket, use_custom_dataset=False):
     """
     Replace table name placeholders in TPC-H queries with actual table names.
 
     Args:
         fully_qualified_names_for_embucket (bool): Required. If True, use EMBUCKET_DATABASE.EMBUCKET_SCHEMA.tablename format.
-                                                   If False, use just the default table names.
+                                                   If False, use Snowflake built-in or custom tables based on use_custom_dataset.
+        use_custom_dataset (bool): Only applies when fully_qualified_names_for_embucket=False (Snowflake).
+                                   If False (default), use Snowflake's built-in TPC-H tables.
+                                   If True, use custom tables in user's schema.
 
     Returns:
         list: A list of (query_name, parametrized_query) tuples.
     """
-    return parametrize_tpch_statements(_TPCH_QUERIES_RAW, fully_qualified_names_for_embucket)
+    return parametrize_tpch_statements(_TPCH_QUERIES_RAW, fully_qualified_names_for_embucket, use_custom_dataset)
