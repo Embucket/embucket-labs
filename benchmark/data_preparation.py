@@ -2,6 +2,7 @@ import os
 import argparse
 from utils import create_embucket_connection, create_snowflake_connection
 from tpch import parametrize_tpch_ddl, get_table_names as get_tpch_table_names
+from tpcds import parametrize_tpcds_ddl, get_table_names as get_tpcds_table_names
 from clickbench import parametrize_clickbench_ddl, get_table_names as get_clickbench_table_names
 from dotenv import load_dotenv
 from constants import SystemType
@@ -24,6 +25,13 @@ def create_tables(cursor, system, benchmark_type, use_custom_dataset):
             ddl_statements = parametrize_tpch_ddl(fully_qualified_names_for_embucket=True, use_custom_dataset=False)
         elif system == SystemType.SNOWFLAKE:
             ddl_statements = parametrize_tpch_ddl(fully_qualified_names_for_embucket=False, use_custom_dataset=use_custom_dataset)
+        else:
+            raise ValueError("Unsupported system")
+    elif benchmark_type == "tpcds":
+        if system == SystemType.EMBUCKET:
+            ddl_statements = parametrize_tpcds_ddl(fully_qualified_names_for_embucket=True)
+        elif system == SystemType.SNOWFLAKE:
+            ddl_statements = parametrize_tpcds_ddl(fully_qualified_names_for_embucket=False)
         else:
             raise ValueError("Unsupported system")
     elif benchmark_type == "clickbench":
@@ -50,7 +58,9 @@ def upload_parquet_to_snowflake_tables(cursor, dataset_path, benchmark_type, use
 
     # Get table names based on benchmark type
     if benchmark_type == "tpch":
-        table_names = get_tpch_table_names(fully_qualified_names_for_embucket=False, use_custom_dataset=use_custom_dataset)
+        table_names = get_tpch_table_names(fully_qualified_names_for_embucket=False)
+    elif benchmark_type == "tpcds":
+        table_names = get_tpcds_table_names(fully_qualified_names_for_embucket=False)
     elif benchmark_type == "clickbench":
         table_names = get_clickbench_table_names(fully_qualified_names_for_embucket=False)
     else:
@@ -78,6 +88,8 @@ def upload_parquet_to_embucket_tables(cursor, dataset_path, benchmark_type):
     # Get fully qualified table names based on benchmark type
     if benchmark_type == "tpch":
         table_names = get_tpch_table_names(fully_qualified_names_for_embucket=True)
+    elif benchmark_type == "tpcds":
+        table_names = get_tpcds_table_names(fully_qualified_names_for_embucket=True)
     elif benchmark_type == "clickbench":
         table_names = get_clickbench_table_names(fully_qualified_names_for_embucket=True)
     else:
@@ -122,7 +134,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare data for Embucket/Snowflake benchmarks")
     parser.add_argument("--system", type=str, choices=["embucket", "snowflake", "both"],
                         default="both", help="Which system to prepare data for")
-    parser.add_argument("--benchmark-type", type=str, choices=["tpch", "clickbench"],
+    parser.add_argument("--benchmark-type", type=str, choices=["tpch", "tpcds", "clickbench"],
                         default=os.environ.get("BENCHMARK_TYPE", "tpch"),
                         help="Benchmark type (default: from env or 'tpch')")
     parser.add_argument("--dataset-path", type=str, default=os.environ.get("DATASET_PATH", "tpch/1"),

@@ -8,6 +8,7 @@ from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
 from tpch import parametrize_tpch_queries
+from tpcds import parametrize_tpcds_queries
 from clickbench import parametrize_clickbench_queries
 from docker_manager import create_docker_manager
 from constants import SystemType
@@ -296,7 +297,7 @@ def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool, use_custo
     elif benchmark_type == "clickbench":
         return parametrize_clickbench_queries(fully_qualified_names_for_embucket=for_embucket)
     elif benchmark_type == "tpcds":
-        raise NotImplementedError("TPC-DS benchmarks not yet implemented")
+        return parametrize_tpcds_queries(fully_qualified_names_for_embucket=for_embucket)
     else:
         raise ValueError(f"Unsupported benchmark type: {benchmark_type}")
 
