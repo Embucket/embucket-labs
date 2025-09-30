@@ -38,18 +38,26 @@ jobs:
           git fetch origin main
           git fetch origin experimental
 
-      - name: Rebase experimental onto main and push (force-with-lease)
+      - name: Merge main into experimental
         run: |
           set -euo pipefail
           git checkout -B experimental origin/experimental
-          if git rebase --rebase-merges --no-rebase-merges origin/main; then
-            if ! git diff --quiet origin/experimental...HEAD; then
-              git push --force-with-lease origin experimental
-            else
-              echo "No changes to push."
-            fi
-          else
-            git rebase --abort || true
-            echo "Rebase would conflict. Not pushing."
-            exit 1
-          fi
+          git merge origin/main
+          git commit -n -a -m "Merge main into experimental"
+          git push origin experimental
+
+      # - name: Rebase experimental onto main and push (force-with-lease)
+      #   run: |
+      #     set -euo pipefail
+      #     git checkout -B experimental origin/experimental
+      #     if git rebase --rebase-merges --no-rebase-merges origin/main; then
+      #       if ! git diff --quiet origin/experimental...HEAD; then
+      #         git push --force-with-lease origin experimental
+      #       else
+      #         echo "No changes to push."
+      #       fi
+      #     else
+      #       git rebase --abort || true
+      #       echo "Rebase would conflict. Not pushing."
+      #       exit 1
+      #     fi
