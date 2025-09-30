@@ -12,6 +12,7 @@ pub mod utils;
 
 #[cfg(test)]
 pub mod tests;
+pub mod dedicated_executor;
 
 pub use error::{Error, Result};
 pub use running_queries::AbortQuery;

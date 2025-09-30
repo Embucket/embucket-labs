@@ -32,6 +32,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
+use crate::dedicated_executor::DedicatedExecutor;
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
 static MINIMUM_PARALLEL_OUTPUT_FILES: usize = 1;
@@ -53,6 +54,8 @@ pub struct UserSession {
     pub config: Arc<Config>,
     pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
+    #[cfg(not(feature = "vanilla-tokio-runtime"))]
+    pub executor: DedicatedExecutor,
 }
 
 impl UserSession {
@@ -127,6 +130,22 @@ impl UserSession {
         //register_geo_udfs(&ctx);
 
         let enable_ident_normalization = ctx.enable_ident_normalization();
+        #[cfg(not(feature = "vanilla-tokio-runtime"))]
+        let session = Self {
+            metastore,
+            history_store,
+            running_queries,
+            ctx,
+            ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
+            config,
+            expiry: AtomicI64::new(to_unix(
+                OffsetDateTime::now_utc()
+                    + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
+            )),
+            session_params: session_params_arc,
+            executor: DedicatedExecutor::builder().build(),
+        };
+        #[cfg(feature = "vanilla-tokio-runtime")]
         let session = Self {
             metastore,
             history_store,
