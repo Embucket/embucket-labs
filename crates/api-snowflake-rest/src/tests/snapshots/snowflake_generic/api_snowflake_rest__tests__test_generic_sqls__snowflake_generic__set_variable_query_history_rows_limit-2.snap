@@ -1,0 +1,49 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_generic_sqls.rs
+description: "SQL #2 [spent: 18/219ms]: !result 00000000-0000-0000-0000-077eb3b9b8bb\nQuery UUID: 00000000-0000-0000-0000-077eb3b9b8bb"
+expression: pretty_json
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "column1",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": true,
+        "type": "fixed",
+        "byteLength": null,
+        "length": null,
+        "scale": 0,
+        "precision": 38,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": null,
+    "rowset": [
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ]
+    ],
+    "total": 1,
+    "queryResultFormat": "json",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

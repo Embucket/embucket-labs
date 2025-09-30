@@ -89,8 +89,11 @@ python benchmark.py
 # Run only Embucket with TPC-H
 python benchmark.py --system embucket
 
-# Run only Snowflake with TPC-H
+# Run only Snowflake with TPC-H (uses Snowflake's built-in sample data by default)
 python benchmark.py --system snowflake
+
+# Run Snowflake with custom tables in your schema
+python benchmark.py --system snowflake --use-custom-dataset
 
 # Run ClickBench on both systems
 python benchmark.py --benchmark-type clickbench
@@ -116,6 +119,7 @@ python benchmark.py --runs 5 --dataset-path tpch/100
 - `--dataset-path`: Override DATASET_PATH environment variable
 - `--cold-runs`: Force cache clearing (warehouse suspend for Snowflake, container restart for Embucket)
 - `--disable-result-cache`: Disable Snowflake's result cache only (USE_CACHED_RESULT=FALSE), no effect on Embucket
+- `--use-custom-dataset`: Use custom tables in user's schema instead of Snowflake's built-in TPC-H sample data (Snowflake only, TPC-H only)
 
 ## Caching Configurations
 

@@ -28,6 +28,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use strum::{Display, EnumString};
 
+pub static DEFAULT_QUERY_HISTORY_ROWS_LIMIT: usize = 50;
+
 #[derive(Clone, Debug)]
 pub struct Config {
     pub embucket_version: String,
@@ -40,6 +42,7 @@ pub struct Config {
     pub mem_pool_size_mb: Option<usize>,
     pub mem_enable_track_consumers_pool: Option<bool>,
     pub disk_pool_size_mb: Option<usize>,
+    pub query_history_rows_limit: usize,
 }
 
 impl Default for Config {
@@ -54,6 +57,7 @@ impl Default for Config {
             mem_pool_size_mb: None,
             mem_enable_track_consumers_pool: None,
             disk_pool_size_mb: None,
+            query_history_rows_limit: DEFAULT_QUERY_HISTORY_ROWS_LIMIT,
         }
     }
 }
@@ -77,6 +81,12 @@ impl Config {
         bootstrap_default_entities: bool,
     ) -> Self {
         self.bootstrap_default_entities = bootstrap_default_entities;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_query_history_rows_limit(mut self, limit: usize) -> Self {
+        self.query_history_rows_limit = limit;
         self
     }
 }
