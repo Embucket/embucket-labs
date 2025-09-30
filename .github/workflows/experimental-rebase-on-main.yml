@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           git checkout -B experimental origin/experimental
           git merge origin/main
-          git commit -n -a -m "Merge main into experimental"
+          git commit -n -a -m "Merge main into experimental" || echo "No changes to commit"
           git push origin experimental
 
       # - name: Rebase experimental onto main and push (force-with-lease)
