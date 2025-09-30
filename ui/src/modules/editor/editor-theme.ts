@@ -65,6 +65,9 @@ const theme = EditorView.theme(
       border: '1px solid var(--border) !important',
       padding: '4px !important',
       borderRadius: 'var(--radius) !important',
+      '&::-webkit-scrollbar': {
+        display: 'none',
+      },
     },
     '.cm-autocomplete-item': {
       display: 'flex !important',

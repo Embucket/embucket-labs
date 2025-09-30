@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { makeCellId } from '@/modules/editor/editor-utils';
 
 function DataTableLoadingRows({ columnsLength }: { columnsLength: number }) {
-  const rowsLength = 9;
+  const rowsLength = 7;
   const defaultColumnsLength = 5;
 
   return (

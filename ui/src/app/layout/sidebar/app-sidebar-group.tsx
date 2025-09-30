@@ -35,6 +35,7 @@ export function AppSidebarGroup({ items, open }: { items: SidebarNavOption[]; op
                   }
                 }}
                 to={item.linkProps.to}
+                href={item.linkProps.href}
                 params={item.linkProps.params}
                 disabled={item.disabled}
                 className="cursor-auto"
@@ -47,7 +48,7 @@ export function AppSidebarGroup({ items, open }: { items: SidebarNavOption[]; op
                       children: item.name,
                       hidden: open,
                     }}
-                    isActive={isActive || item.isActive}
+                    isActive={item.isActive ?? isActive}
                   >
                     <item.Icon />
                     {item.name}

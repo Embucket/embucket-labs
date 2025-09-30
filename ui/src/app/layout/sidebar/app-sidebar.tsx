@@ -97,10 +97,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {
               name: 'Documentation',
               linkProps: {
-                to: '/',
+                href: 'https://docs.embucket.com/essentials/introduction/'
               },
+              isActive: false,
               Icon: BookOpenText,
-              disabled: true,
             },
             {
               name: 'Help',

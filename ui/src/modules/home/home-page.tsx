@@ -12,12 +12,8 @@ import { HomeDashboardMetrics } from './home-dashboard-metrics';
 import { HomeWorksheetsTable } from './home-worksheets-table';
 
 export function HomePage() {
-  const { data: { items: worksheets } = {}, isLoading } = useGetWorksheets();
-  const { data: dashboardData } = useGetDashboard();
-
-  if (!dashboardData) {
-    return null;
-  }
+  const { data: { items: worksheets } = {}, isLoading: isWorksheetsLoading } = useGetWorksheets();
+  const { data: dashboardData, isLoading: isDashboardLoading } = useGetDashboard();
 
   return (
     <>
@@ -33,38 +29,36 @@ export function HomePage() {
         }
       />
 
-      <ScrollArea className="h-[calc(100vh-var(--content-mb)-var(--content-mt))-65px-2px">
+
         <div className="p-4">
           <p className="mb-2 text-3xl font-semibold">Welcome!</p>
           <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
         </div>
-        <HomeActionButtons />
+        <HomeActionButtons isLoading={isWorksheetsLoading} />
         <div className="flex size-full flex-col p-4">
           <p className="mb-4 font-semibold">Overview</p>
-          <HomeDashboardMetrics dashboardData={dashboardData} />
+          <HomeDashboardMetrics isLoading={isDashboardLoading} dashboardData={dashboardData} />
 
           <div className="mt-4 flex size-full flex-col">
             <p className="mb-4 font-semibold">Worksheets</p>
-            {worksheets?.length ? (
-              <ScrollArea tableViewport>
-                <HomeWorksheetsTable worksheets={worksheets} isLoading={isLoading} />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            ) : (
+            {!worksheets?.length && !isWorksheetsLoading ? (
               <EmptyContainer
                 // TODO: Hardcode
-                className="min-h-[calc(100vh-200px-344px)]"
+                className="max-h-[calc(100vh-200px-322px)]"
                 Icon={FileText}
                 title="No SQL Worksheets Created Yet"
                 description="Create your first worksheet to start querying data"
                 // onCtaClick={() => {}}
                 // ctaText="Create Worksheet"
               />
+            ) : (
+              <ScrollArea tableViewport  className="h-[calc(100vh-200px-322px)]">
+                <HomeWorksheetsTable worksheets={worksheets ?? []} isLoading={isWorksheetsLoading} />
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             )}
           </div>
         </div>
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
     </>
   );
 }

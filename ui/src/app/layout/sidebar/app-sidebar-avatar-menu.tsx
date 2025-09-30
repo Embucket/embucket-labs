@@ -17,7 +17,7 @@ import { useGetAccount } from '@/orval/account';
 import { useLogout } from '@/orval/auth';
 
 const USER = {
-  email: 'johndoe@gmail.com',
+  email: 'johndoe@embucket.com',
   avatar: 'https://ui.shadcn.com/avatars/04.png',
 };
 
