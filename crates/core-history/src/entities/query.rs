@@ -91,7 +91,7 @@ impl QueryRecord {
                         diagnostic_message: format!("{err:?}"),
                     }),
                 }
-            },
+            }
             // Following error is received from outside, so can be used just as reference
             Err(execution_err) => self.finished_with_error(execution_err),
         }

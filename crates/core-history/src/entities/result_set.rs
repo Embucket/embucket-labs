@@ -7,7 +7,7 @@ use snafu::{OptionExt, ResultExt};
 use std::fmt;
 
 // ResultSet exceeded limit of 4GB - 512MB
-pub const RESULT_SET_LIMIT_THRESHOULD_BYTES: usize = 4*1024*1024*1024 - 512*1024*1024;
+pub const RESULT_SET_LIMIT_THRESHOULD_BYTES: usize = 4 * 1024 * 1024 * 1024 - 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Column {
@@ -93,28 +93,35 @@ impl ResultSet {
         level = "debug",
         fields(batch_size_bytes=self.batch_size_bytes, rows_count=self.rows.len(), serialized_size, rows_count_limit),
     )]
-    pub fn serialize_with_auto_limit(&self) -> (std::result::Result<String, serde_json::Error>, usize) {
+    pub fn serialize_with_auto_limit(
+        &self,
+    ) -> (std::result::Result<String, serde_json::Error>, usize) {
         let (res, count) = if self.batch_size_bytes > RESULT_SET_LIMIT_THRESHOULD_BYTES {
             let limit_exceeded_bytes = self.batch_size_bytes - RESULT_SET_LIMIT_THRESHOULD_BYTES;
             // how many bytes exceeded in percents (no fractions needed):
-            let exceeded_in_percents = limit_exceeded_bytes 
-                / RESULT_SET_LIMIT_THRESHOULD_BYTES * 100;
+            let exceeded_in_percents =
+                limit_exceeded_bytes / RESULT_SET_LIMIT_THRESHOULD_BYTES * 100;
             let shrink_on_count = if exceeded_in_percents > 50 {
                 self.rows.len() * 90 / 100 // shrink 90 % of rows
             } else {
                 self.rows.len() * 50 / 100 // shrink 50 % of rows
             };
-            eprintln!("
+            eprintln!(
+                "
             shrink_on_count: {shrink_on_count}, 
             exceeded_in_percents: {exceeded_in_percents}, 
-            limit_exceeded_bytes: {limit_exceeded_bytes}");
+            limit_exceeded_bytes: {limit_exceeded_bytes}"
+            );
             let rows_count_limit: usize = if self.rows.len() > shrink_on_count {
                 self.rows.len() - shrink_on_count
             } else {
                 self.rows.len()
             };
 
-            (self.serialize_with_limit(rows_count_limit), rows_count_limit)
+            (
+                self.serialize_with_limit(rows_count_limit),
+                rows_count_limit,
+            )
         } else {
             (serde_json::to_string(self), self.rows.len())
         };
@@ -126,7 +133,10 @@ impl ResultSet {
 
         (res, count)
     }
-    pub fn serialize_with_limit(&self, n_rows: usize) -> std::result::Result<String, serde_json::Error> {
+    pub fn serialize_with_limit(
+        &self,
+        n_rows: usize,
+    ) -> std::result::Result<String, serde_json::Error> {
         let result_set_with_limit = LimitedResultSet {
             columns: &self.columns,
             rows: &self.rows[..self.rows.len().min(n_rows)],
