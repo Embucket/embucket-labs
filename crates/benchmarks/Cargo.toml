@@ -8,8 +8,9 @@ workspace = true
 
 [features]
 ci = []
-default = ["snmalloc-rs"]
-snmalloc = ["mimalloc"]
+default = ["snmalloc"]
+snmalloc = ["dep:snmalloc-rs"]
+mimalloc = ["dep:mimalloc"]
 
 [dependencies]
 core-executor = { path = "../core-executor" }
