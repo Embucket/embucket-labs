@@ -121,6 +121,8 @@ pub fn get_tpch_table_schema(table: &str) -> Schema {
     }
 }
 
+#[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn get_tpch_table_sql(table: &str) -> Option<&'static str> {
     match table {
         "customer" => Some(

@@ -45,6 +45,7 @@ const TPCH_QUERY_START_ID: usize = 1;
 const TPCH_QUERY_END_ID: usize = 22;
 
 impl RunOpt {
+    #[allow(clippy::print_stdout)]
     pub async fn run(self) -> Result<()> {
         println!("Running benchmarks with the following options: {self:?}");
         let query_range = match self.query {
@@ -64,7 +65,11 @@ impl RunOpt {
         Ok(())
     }
 
-    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::print_stdout
+    )]
     async fn benchmark_query(&self, query_id: usize) -> Result<Vec<QueryResult>> {
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;

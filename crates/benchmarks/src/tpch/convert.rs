@@ -11,6 +11,7 @@ use datafusion::error::Result;
 use datafusion::parquet::basic::Compression;
 use datafusion::parquet::file::properties::WriterProperties;
 use datafusion::prelude::*;
+use parquet::basic::{BrotliLevel, GzipLevel, ZstdLevel};
 use structopt::StructOpt;
 
 /// Convert tpch .slt files to .parquet or .csv files
@@ -46,7 +47,7 @@ pub struct ConvertOpt {
 }
 
 impl ConvertOpt {
-    #[allow(clippy::unwrap_used)]
+    #[allow(clippy::unwrap_used, clippy::print_stdout)]
     pub async fn run(self) -> Result<()> {
         let compression = self.compression()?;
 
@@ -91,7 +92,7 @@ impl ConvertOpt {
             // optionally, repartition the file
             let partitions = self.partitions;
             if partitions > 1 {
-                csv = csv.repartition(Partitioning::RoundRobinBatch(partitions))?
+                csv = csv.repartition(Partitioning::RoundRobinBatch(partitions))?;
             }
             let csv = if self.sort {
                 csv.sort_by(vec![col(key_column_name)])?
@@ -115,7 +116,7 @@ impl ConvertOpt {
                     let props = WriterProperties::builder()
                         .set_compression(compression)
                         .build();
-                    ctx.write_parquet(csv, output_path, Some(props)).await?
+                    ctx.write_parquet(csv, output_path, Some(props)).await?;
                 }
                 other => {
                     return not_impl_err!("Invalid output format: {other}");
@@ -132,11 +133,11 @@ impl ConvertOpt {
         Ok(match self.compression.as_str() {
             "none" => Compression::UNCOMPRESSED,
             "snappy" => Compression::SNAPPY,
-            "brotli" => Compression::BROTLI(Default::default()),
-            "gzip" => Compression::GZIP(Default::default()),
+            "brotli" => Compression::BROTLI(BrotliLevel::default()),
+            "gzip" => Compression::GZIP(GzipLevel::default()),
             "lz4" => Compression::LZ4,
             "lz0" => Compression::LZO,
-            "zstd" => Compression::ZSTD(Default::default()),
+            "zstd" => Compression::ZSTD(ZstdLevel::default()),
             other => {
                 return not_impl_err!("Invalid compression format: {other}");
             }
