@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{TPCH_TABLES, get_query_sql, get_tpch_table_sql};
-use crate::util::{BenchmarkRun, CommonOpt};
+use crate::util::{query_context, BenchmarkRun, CommonOpt};
 
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::pretty::pretty_format_batches;
@@ -152,12 +152,4 @@ impl RunOpt {
 struct QueryResult {
     elapsed: std::time::Duration,
     row_count: usize,
-}
-
-fn query_context() -> QueryContext {
-    QueryContext::new(
-        Some("bench".to_string()),
-        Some("benchmark".to_string()),
-        None,
-    )
 }
