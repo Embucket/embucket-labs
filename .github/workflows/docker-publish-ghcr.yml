@@ -22,9 +22,12 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: build-experimental
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
-  build:
+  build-experimental:
 
     runs-on: ubuntu-latest
     permissions:
