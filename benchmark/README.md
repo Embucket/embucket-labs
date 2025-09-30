@@ -1,6 +1,6 @@
 ## Overview
 
-This benchmark tool executes queries derived from TPC-H against both Snowflake and Embucket with cache-clearing operations to ensure clean, cache-free performance measurements. For Snowflake, it uses warehouse suspend/resume operations. For Embucket, it restarts the Docker container before each query to eliminate internal caching. It provides detailed timing metrics including compilation time, execution time, and total elapsed time.
+This benchmark tool executes queries from multiple benchmark suites (TPC-H, ClickBench, TPC-DS) against both Snowflake and Embucket with cache-clearing operations to ensure clean, cache-free performance measurements. For Snowflake, it uses warehouse suspend/resume operations. For Embucket, it restarts the Docker container before each query to eliminate internal caching. It provides detailed timing metrics including compilation time, execution time, and total elapsed time.
 
 ## TPC Legal Considerations
 
@@ -14,9 +14,12 @@ Throughout this document and when talking about these benchmarks, you will see t
 
 ## Features
 
+- **Multiple Benchmark Types**: Supports TPC-H, ClickBench, and TPC-DS benchmark suites
 - **Cache Isolation**:
   - **Snowflake**: Suspends and resumes warehouse before each query
   - **Embucket**: Restarts Docker container before each query to clear internal cache
+- **Flexible Caching Options**: Can run with or without cache clearing (`--no-cache` flag)
+- **Command Line Interface**: Full CLI support for system selection, benchmark type, and run configuration
 - **Result Cache Disabled**: Ensures no result caching affects benchmark results
 - **Comprehensive Metrics**: Tracks compilation time, execution time, and row counts
 - **CSV Export**: Saves results to CSV files for further analysis
@@ -51,37 +54,128 @@ SNOWFLAKE_WAREHOUSE=your_warehouse
 
 **For Embucket (when using infrastructure):**
 ```bash
-EMBUCKET_SQL_HOST=your_ec2_instance_ip
-EMBUCKET_SQL_PORT=3000
-EMBUCKET_SQL_PROTOCOL=http
+EMBUCKET_HOST=your_ec2_instance_ip
+EMBUCKET_PORT=3000
+EMBUCKET_PROTOCOL=http
 EMBUCKET_USER=embucket
 EMBUCKET_PASSWORD=embucket
 EMBUCKET_ACCOUNT=embucket
-EMBUCKET_DATABASE=embucket
-EMBUCKET_SCHEMA=public
+EMBUCKET_DATABASE=benchmark_database
+EMBUCKET_SCHEMA=benchmark_schema
 EMBUCKET_INSTANCE=your_instance_name
-EMBUCKET_DATASET=your_dataset_name
 SSH_KEY_PATH=~/.ssh/id_rsa
+```
+
+**Benchmark Configuration:**
+```bash
+BENCHMARK_TYPE=tpch  # Options: tpch, clickbench, tpcds
+DATASET_S3_BUCKET=embucket-testdata
+DATASET_PATH=tpch/01  # Path within S3 bucket
+SNOWFLAKE_WAREHOUSE_SIZE=XSMALL
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 ```
 
 ## Usage
 
-Run the benchmark:
+### Command Line Interface
+
+The benchmark supports comprehensive command-line options:
+
 ```bash
+# Run both Snowflake and Embucket with TPC-H (default)
 python benchmark.py
+
+# Run only Embucket with TPC-H
+python benchmark.py --system embucket
+
+# Run only Snowflake with TPC-H
+python benchmark.py --system snowflake
+
+# Run ClickBench on both systems
+python benchmark.py --benchmark-type clickbench
+
+# Run TPC-DS on Embucket only
+python benchmark.py --system embucket --benchmark-type tpcds
+
+# Run with caching enabled (no container restarts/warehouse suspends)
+python benchmark.py --system embucket
+
+# Run with caching disabled (force cache clearing)
+python benchmark.py --system embucket --no-cache
+
+# Custom number of runs and dataset path
+python benchmark.py --runs 5 --dataset-path tpch/100
 ```
 
-**Current Behavior**: By default, the benchmark runs **only Embucket** benchmarks for 3 iterations. To run both Snowflake and Embucket with comparisons, you need to modify the `__main__` section in `benchmark.py` to call `run_benchmark(i + 1)` instead of `run_embucket_benchmark(i + 1)`.
+### Command Line Arguments
+
+- `--system`: Choose platform (`snowflake`, `embucket`, `both`) - default: `both`
+- `--runs`: Number of benchmark runs - default: `3`
+- `--benchmark-type`: Benchmark suite (`tpch`, `clickbench`, `tpcds`) - default: `tpch`
+- `--dataset-path`: Override DATASET_PATH environment variable
+- `--cold-runs`: Force cache clearing (warehouse suspend for Snowflake, container restart for Embucket)
+- `--disable-result-cache`: Disable Snowflake's result cache only (USE_CACHED_RESULT=FALSE), no effect on Embucket
+
+## Caching Configurations
+
+### Snowflake Caching Options
+
+- **Cold run**: `--cold-runs`
+  - Suspends warehouse between queries
+  - Automatically disables result cache
+  - Results stored in `cold/` folder
+
+- **Warm run with result cache**: *(default, no flags)*
+  - Keeps warehouse active between queries
+  - Enables result cache (USE_CACHED_RESULT=TRUE)
+  - Results stored in `warm/` folder
+
+- **Warm run without result cache**: `--disable-result-cache`
+  - Keeps warehouse active between queries
+  - Disables result cache (USE_CACHED_RESULT=FALSE)
+  - Results stored in `warm_no_result_cache/` folder
+
+### Embucket Caching Options
+
+- **Cold run**: `--cold-runs`
+  - Restarts container between queries
+  - Results stored in `cold/` folder
+
+- **Warm run**: *(default, no flags)*
+  - Keeps container running between queries
+  - Results stored in `warm/` folder
+
+### Example Usage
+
+```bash
+# Default: warm run (caching enabled) for both systems
+python benchmark.py
+
+# Cold run (cache clearing) for both systems
+python benchmark.py --cold-runs
+
+# Warm run with result cache disabled for Snowflake
+python benchmark.py --system snowflake --disable-result-cache
+
+# Cold run for Embucket only
+python benchmark.py --system embucket --cold-runs
+
+# Multiple runs with warm caching for both systems
+python benchmark.py --runs 5
+```
+
+### Benchmark Process
 
 The benchmark will:
-1. Connect to the configured platform (Embucket by default, or both if modified)
-2. Execute each query derived from TPC-H with cache-clearing operations:
-   - **Snowflake**: Warehouse suspend/resume before each query
-   - **Embucket**: Docker container restart before each query
+1. Connect to the configured platform(s)
+2. Execute each query from the selected benchmark suite with cache-clearing operations:
+   - **Snowflake**: Warehouse suspend/resume before each query (if `--no-cache`)
+   - **Embucket**: Docker container restart before each query (if `--no-cache`)
 3. Collect performance metrics from query history
 4. Display results and comparisons (if both platforms are run)
 5. Save detailed results to CSV files
-6. Calculate averages after 3 runs are completed
+6. Calculate averages after all runs are completed
 
 ## Embucket Container Restart Functionality
 
@@ -95,8 +189,8 @@ For Embucket benchmarks, the system automatically restarts the Docker container 
 - Creates a fresh database connection and executes the query
 
 **Requirements:**
-- `EMBUCKET_SQL_HOST` set to your EC2 instance IP
-- `EMBUCKET_INSTANCE` and `EMBUCKET_DATASET` for result organization
+- `EMBUCKET_HOST` set to your EC2 instance IP
+- `EMBUCKET_INSTANCE` for result organization
 - `SSH_KEY_PATH` pointing to your private key (default: `~/.ssh/id_rsa`)
 - SSH access to the EC2 instance running Embucket
 
@@ -115,16 +209,19 @@ The benchmark provides:
 - **Total Times**: Aggregated compilation and execution times
 
 **File Organization:**
-- Snowflake results: `snowflake_tpch_results/{schema}/{warehouse}/`
-- Embucket results: `embucket_tpch_results/{dataset}/{instance}/`
+- Snowflake results: `snowflake_{benchmark_type}_results/{schema}/{warehouse}/`
+- Embucket results: `embucket_{benchmark_type}_results/{dataset}/{instance}/`
+
+Where `{benchmark_type}` is one of: `tpch`, `clickbench`, or `tpcds`
 
 ## Files
 
 - `benchmark.py` - Main benchmark script with restart functionality
 - `docker_manager.py` - Docker container management for Embucket restarts
 - `utils.py` - Connection utilities for Snowflake and Embucket
-- `tpch_queries.py` - Query definitions derived from TPC-H
-- `tpcds_queries.py` - Query definitions derived from TPC-DS (for future use)
+- `tpch/` - TPC-H benchmark utilities package (queries, DDL, table names)
+- `clickbench/` - ClickBench benchmark utilities package (queries, DDL, table names)
+- `tpcds/` - TPC-DS benchmark utilities package (queries, DDL, table names)
 - `calculate_average.py` - Result averaging and analysis
 - `config.py` - Configuration utilities
 - `data_preparation.py` - Data preparation utilities
@@ -132,20 +229,27 @@ The benchmark provides:
 - `env_example` - Example environment configuration file
 - `infrastructure/` - Terraform infrastructure for EC2/Embucket deployment
 - `tpch-datagen/` - TPC-H data generation infrastructure
-- `tpch/` - TPC-H benchmark utilities package (queries, DDL, table names)
-- `tpcds_ddl/` - TPC-DS table definitions for Embucket
 
-## Customizing Benchmark Behavior
+## Benchmark Types
 
-**Default**: The benchmark runs only Embucket tests for 3 iterations.
+### TPC-H (Default)
+Derived from the TPC-H decision support benchmark. Includes 22 complex analytical queries testing various aspects of data warehousing performance.
 
-**To run both Snowflake and Embucket with comparisons**: Modify the `__main__` section in `benchmark.py`:
-```python
-if __name__ == "__main__":
-    for i in range(3):
-        print(f"Run {i + 1} of 3")
-        run_benchmark(i + 1)  # Change from run_embucket_benchmark(i + 1)
-```
+### ClickBench
+Single-table analytical benchmark focusing on aggregation performance. Uses the `hits` table with web analytics data.
+
+### TPC-DS
+Derived from the TPC-DS decision support benchmark. More complex than TPC-H with 99 queries testing advanced analytical scenarios.
+
+## Environment Variables
+
+The benchmark behavior can be controlled through environment variables in your `.env` file:
+
+- `BENCHMARK_TYPE`: Default benchmark type (`tpch`, `clickbench`, `tpcds`)
+- `DATASET_PATH`: Path within S3 bucket for dataset location
+- `DATASET_S3_BUCKET`: S3 bucket containing benchmark datasets
+- `EMBUCKET_HOST`: EC2 instance IP for Embucket connection
+- `SSH_KEY_PATH`: Path to SSH private key for container restarts
 
 ## Requirements
 

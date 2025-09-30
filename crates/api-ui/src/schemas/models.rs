@@ -5,6 +5,7 @@ use std::convert::From;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct Schema {
     pub name: String,
     pub database: String,
