@@ -10,6 +10,7 @@ pub mod session;
 pub mod snowflake_error;
 pub mod utils;
 
+#[cfg(not(feature = "vanilla-tokio-runtime"))]
 pub mod dedicated_executor;
 #[cfg(test)]
 pub mod tests;

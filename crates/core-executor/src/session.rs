@@ -8,6 +8,7 @@ use crate::datafusion::logical_analyzer::analyzer_rules;
 use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
+#[cfg(not(feature = "vanilla-tokio-runtime"))]
 use crate::dedicated_executor::DedicatedExecutor;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
@@ -94,11 +95,7 @@ impl UserSession {
                     .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG)
                     .set_bool(
                         "datafusion.execution.skip_physical_aggregate_schema_check",
-                        if cfg!(feature = "sort-merge-join") {
-                            true
-                        } else {
-                            false
-                        },
+                        cfg!(feature = "sort-merge-join"),
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
                     .set_bool("datafusion.optimizer.prefer_hash_join", false)

@@ -13,6 +13,8 @@ use serde_json::de;
 use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
+#[cfg(feature = "none-durable-history-write")]
+use slatedb::config::{PutOptions, WriteOptions};
 use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
