@@ -91,7 +91,7 @@ impl UserSession {
                     .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG)
                     .set_bool(
                         "datafusion.execution.skip_physical_aggregate_schema_check",
-                        true,
+                        if cfg!(feature = "sort-merge-join") { true } else { false },
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
                     .set_bool("datafusion.optimizer.prefer_hash_join", false)
