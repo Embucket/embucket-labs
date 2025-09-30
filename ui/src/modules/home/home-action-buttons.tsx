@@ -22,7 +22,7 @@ function HomeActionButton({ icon: Icon, label, onClick, disabled = false }: Home
     <button
       onClick={onClick}
       disabled={disabled}
-      className="h-[70px] hover:bg-hover disabled:bg-transparent bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors"
+      className="hover:bg-hover bg-muted flex h-[70px] cursor-pointer items-center gap-3 rounded-md border p-6 text-white transition-colors disabled:bg-transparent"
     >
       <Icon className="text-muted-foreground size-5" />
       <span className="text-sm font-medium">{label}</span>
@@ -71,7 +71,7 @@ export default function HomeActionButtons({ isLoading }: HomeActionButtonsProps)
   return (
     <>
       <div className="mt-4 w-full px-4">
-        <div className="grid gap-4 grid-cols-3">
+        <div className="grid grid-cols-3 gap-4">
           <HomeActionButton
             icon={Plus}
             label="Create SQL Worksheet"

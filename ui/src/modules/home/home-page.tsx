@@ -29,36 +29,35 @@ export function HomePage() {
         }
       />
 
+      <div className="p-4">
+        <p className="mb-2 text-3xl font-semibold">Welcome!</p>
+        <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
+      </div>
+      <HomeActionButtons isLoading={isWorksheetsLoading} />
+      <div className="flex size-full flex-col p-4">
+        <p className="mb-4 font-semibold">Overview</p>
+        <HomeDashboardMetrics isLoading={isDashboardLoading} dashboardData={dashboardData} />
 
-        <div className="p-4">
-          <p className="mb-2 text-3xl font-semibold">Welcome!</p>
-          <p className="text-muted-foreground font-light">Nice seeing you here 😎</p>
+        <div className="mt-4 flex size-full flex-col">
+          <p className="mb-4 font-semibold">Worksheets</p>
+          {!worksheets?.length && !isWorksheetsLoading ? (
+            <EmptyContainer
+              // TODO: Hardcode
+              className="max-h-[calc(100vh-200px-322px)]"
+              Icon={FileText}
+              title="No SQL Worksheets Created Yet"
+              description="Create your first worksheet to start querying data"
+              // onCtaClick={() => {}}
+              // ctaText="Create Worksheet"
+            />
+          ) : (
+            <ScrollArea tableViewport className="h-[calc(100vh-200px-322px)]">
+              <HomeWorksheetsTable worksheets={worksheets ?? []} isLoading={isWorksheetsLoading} />
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          )}
         </div>
-        <HomeActionButtons isLoading={isWorksheetsLoading} />
-        <div className="flex size-full flex-col p-4">
-          <p className="mb-4 font-semibold">Overview</p>
-          <HomeDashboardMetrics isLoading={isDashboardLoading} dashboardData={dashboardData} />
-
-          <div className="mt-4 flex size-full flex-col">
-            <p className="mb-4 font-semibold">Worksheets</p>
-            {!worksheets?.length && !isWorksheetsLoading ? (
-              <EmptyContainer
-                // TODO: Hardcode
-                className="max-h-[calc(100vh-200px-322px)]"
-                Icon={FileText}
-                title="No SQL Worksheets Created Yet"
-                description="Create your first worksheet to start querying data"
-                // onCtaClick={() => {}}
-                // ctaText="Create Worksheet"
-              />
-            ) : (
-              <ScrollArea tableViewport  className="h-[calc(100vh-200px-322px)]">
-                <HomeWorksheetsTable worksheets={worksheets ?? []} isLoading={isWorksheetsLoading} />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            )}
-          </div>
-        </div>
+      </div>
     </>
   );
 }

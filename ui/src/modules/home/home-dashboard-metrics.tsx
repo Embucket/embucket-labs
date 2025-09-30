@@ -1,8 +1,8 @@
 import { Database, DatabaseZap, FolderTree, Table } from 'lucide-react';
 
 import { Separator } from '@/components/ui/separator';
-import type { Dashboard } from '@/orval/models';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Dashboard } from '@/orval/models';
 
 const SkeletonRow = () => {
   return <Skeleton className="size-8" />;
