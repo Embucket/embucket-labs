@@ -1,4 +1,4 @@
-use datafusion::logical_expr::sqlparser::ast::{Expr, VisitMut};
+use datafusion::logical_expr::sqlparser::ast::{Expr, Function, VisitMut};
 use datafusion::sql::sqlparser::ast::{
     Query, SelectItem, SetExpr, Statement, VisitorMut, visit_expressions_mut,
 };
@@ -47,7 +47,12 @@ impl VisitorMut for InlineAliasesInSelect {
                 match item {
                     SelectItem::ExprWithAlias { expr, alias } => {
                         substitute_aliases(expr, &alias_expr_map, Some(&alias.value));
-                        alias_expr_map.insert(alias.value.clone(), expr.clone());
+                        //NOTE: if other aggregate functions happen (without over) - we have no way of knowing,
+                        // like just calling last_value with an alias,
+                        // perhaps this will need to be extended in the logical planning phase later
+                        if !matches!(expr, Expr::Function(Function { over: Some(_), .. })) {
+                            alias_expr_map.insert(alias.value.clone(), expr.clone());
+                        }
                     }
                     SelectItem::UnnamedExpr(expr) => {
                         substitute_aliases(expr, &alias_expr_map, None);
