@@ -144,6 +144,11 @@ impl QueryResult {
         Ok(ResultSet {
             columns,
             rows: self.as_row_set(data_format)?,
+            batch_size_bytes: self
+                .records
+                .iter()
+                .map(RecordBatch::get_array_memory_size)
+                .sum(),
             // move here value of data_format we  hardcoded earlier
             data_format: data_format.to_string(),
             schema,
