@@ -7,7 +7,7 @@ use snafu::{OptionExt, ResultExt};
 use std::fmt;
 
 // ResultSet exceeded limit of 4GB - 512MB
-pub const RESULT_SET_LIMIT_THRESHOULD_BYTES: usize = 4 * 1024 * 1024 * 1024 - 512 * 1024 * 1024;
+pub const QUERY_HISTORY_HARD_LIMIT_BYTES: usize = 4 * 1024 * 1024 * 1024 - 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Column {
@@ -87,53 +87,62 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    // This takes result by reference, since it just serialize it, so can't be consumed
-    #[tracing::instrument(
-        name = "ResultSet::serialize_with_auto_limit",
-        level = "debug",
-        fields(batch_size_bytes=self.batch_size_bytes, rows_count=self.rows.len(), serialized_size, rows_count_limit),
-    )]
-    pub fn serialize_with_auto_limit(
-        &self,
-    ) -> (std::result::Result<String, serde_json::Error>, usize) {
-        let (res, count) = if self.batch_size_bytes > RESULT_SET_LIMIT_THRESHOULD_BYTES {
-            let limit_exceeded_bytes = self.batch_size_bytes - RESULT_SET_LIMIT_THRESHOULD_BYTES;
+    #[must_use]
+    #[allow(clippy::as_conversions)]
+    pub const fn calc_hard_rows_limit(&self) -> Option<usize> {
+        if self.batch_size_bytes > QUERY_HISTORY_HARD_LIMIT_BYTES {
+            // assign limit to bigger data type to avoid overflow at substruction
+            let batch_size_bytes: i128 = self.batch_size_bytes as i128;
+            let bytes_limit: i128 = QUERY_HISTORY_HARD_LIMIT_BYTES as i128;
+            let limit_exceeded_bytes = batch_size_bytes - bytes_limit;
             // how many bytes exceeded in percents (no fractions needed):
-            let exceeded_in_percents =
-                limit_exceeded_bytes / RESULT_SET_LIMIT_THRESHOULD_BYTES * 100;
+            let exceeded_in_percents = limit_exceeded_bytes / bytes_limit * 100;
+
             let shrink_on_count = if exceeded_in_percents > 50 {
                 self.rows.len() * 90 / 100 // shrink 90 % of rows
             } else {
                 self.rows.len() * 50 / 100 // shrink 50 % of rows
             };
-            eprintln!(
-                "
-            shrink_on_count: {shrink_on_count}, 
-            exceeded_in_percents: {exceeded_in_percents}, 
-            limit_exceeded_bytes: {limit_exceeded_bytes}"
-            );
-            let rows_count_limit: usize = if self.rows.len() > shrink_on_count {
+
+            let hard_rows_limit: usize = if self.rows.len() > shrink_on_count {
                 self.rows.len() - shrink_on_count
             } else {
                 self.rows.len()
             };
 
-            (
-                self.serialize_with_limit(rows_count_limit),
-                rows_count_limit,
-            )
+            Some(hard_rows_limit)
         } else {
-            (serde_json::to_string(self), self.rows.len())
-        };
+            None
+        }
+    }
+    /// This takes result by reference, since it just serialize it, so can't be consumed
+    /// Checks if upper bytes limit exceeded and apply rows limit, also if no hard limit break
+    /// limit rows count using specified argument.
+    #[tracing::instrument(
+        name = "ResultSet::serialize_with_limit",
+        level = "debug",
+        fields(batch_size_bytes=self.batch_size_bytes, rows_count=self.rows.len(), serialized_size, rows_count_limit),
+    )]
+    pub fn serialize_with_limit(
+        &self,
+        max_rows_limit: usize,
+    ) -> (std::result::Result<String, serde_json::Error>, usize) {
+        // Check if hard limit is exceeded by size or rows count
+        let hard_rows_limit = self.calc_hard_rows_limit();
+        let rows_limit = max_rows_limit.min(hard_rows_limit.unwrap_or(max_rows_limit));
+        let serialize_rows_count = rows_limit.min(self.rows.len());
 
         // Record the result as part of the current span.
         tracing::Span::current()
-            .record("rows_count_limit", count)
-            .record("serialized_size", res.as_ref().map_or(0, String::len));
+            .record("hard_rows_limit", hard_rows_limit)
+            .record("serialize_rows_count", serialize_rows_count);
 
-        (res, count)
+        (
+            self.serialize_with_soft_limit(serialize_rows_count),
+            serialize_rows_count,
+        )
     }
-    pub fn serialize_with_limit(
+    pub fn serialize_with_soft_limit(
         &self,
         n_rows: usize,
     ) -> std::result::Result<String, serde_json::Error> {

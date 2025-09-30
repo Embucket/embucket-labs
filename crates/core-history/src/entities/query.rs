@@ -74,10 +74,10 @@ impl QueryRecord {
     }
 
     // This takes result by reference, since it just serialize it, so can't be consumed
-    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>) {
+    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>, rows_limit: usize) {
         match result {
             Ok(result_set) => {
-                let (encoding_res, rows_count) = result_set.serialize_with_auto_limit();
+                let (encoding_res, rows_count) = result_set.serialize_with_limit(rows_limit);
                 match encoding_res {
                     Ok(encoded_res) => {
                         let result_count = i64::try_from(rows_count).unwrap_or(0);
