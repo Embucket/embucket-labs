@@ -40,4 +40,21 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - name: cargo test
-        run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --no-default-features --features "alloc-tracing" --all-targets
+        run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --all-targets
+          -p core-executor
+          -p core-utils
+          -p core-metastore --all-features
+          -p core-history --all-features
+          -p api-ui --all-features
+          -p api-sessions --all-features
+          -p api-snowflake-rest --all-features
+          -p api-iceberg-rest --all-features
+          -p api-internal-rest --all-features
+          -p df-catalog --all-features
+          -p embucketd --all-features
+          -p error-stack --all-features
+          -p error-stack-trace --all-features
+          -p embucket-seed --all-features
+          -p embucket-benchmarks --all-features
+          -p embucket-functions --all-features
+          -p api-ui-static-assets --all-features
