@@ -47,9 +47,6 @@ impl VisitorMut for InlineAliasesInSelect {
                 match item {
                     SelectItem::ExprWithAlias { expr, alias } => {
                         substitute_aliases(expr, &alias_expr_map, Some(&alias.value), None);
-                        //NOTE: if other aggregate functions happen (without over) - we have no way of knowing,
-                        // like just calling last_value with an alias,
-                        // perhaps this will need to be extended in the logical planning phase later
                         alias_expr_map.insert(alias.value.clone(), expr.clone());
                     }
                     SelectItem::UnnamedExpr(expr) => {
@@ -61,6 +58,9 @@ impl VisitorMut for InlineAliasesInSelect {
 
             // Rewrite WHERE
             if let Some(selection) = select.selection.as_mut() {
+                //NOTE: if other aggregate functions happen (without over) - we have no way of knowing,
+                // like just calling last_value with an alias,
+                // perhaps this will need to be extended in the logical planning phase later
                 substitute_aliases(
                     selection,
                     &alias_expr_map,
