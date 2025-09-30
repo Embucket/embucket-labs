@@ -40,4 +40,4 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - name: cargo test
-        run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --all-features --all-targets
+        run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --features "alloc-tracing" --all-targets
