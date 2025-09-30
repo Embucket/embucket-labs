@@ -296,7 +296,6 @@ name = "api-snowflake-rest"
 version = "0.1.0"
 dependencies = [
  "api-sessions",
- "arrow 56.2.0",
  "axum 0.8.4",
  "base64 0.22.1",
  "cfg-if",
@@ -8055,7 +8054,7 @@ dependencies = [
  "duration-str",
  "fail-parallel",
  "figment",
- "flatbuffers 25.2.10",
+ "flatbuffers 25.9.23",
  "foyer",
  "futures",
  "log",

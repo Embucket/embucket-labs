@@ -115,6 +115,7 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
+use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
 
@@ -2248,7 +2249,6 @@ impl UserQuery {
 
         let span = tracing::debug_span!("UserQuery::execute_logical_plan");
 
-        #[cfg(feature = "vanilla-tokio-runtime")]
         let stream = tokio::task::spawn(async move {
             let mut schema = plan.schema().as_arrow().clone();
             let records = session
