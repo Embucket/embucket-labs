@@ -49,3 +49,6 @@ workspace = true
 
 [features]
 alloc-tracing = ["dep:tracing-allocations"]
+vanilla-tokio-runtime = []
+none-durable-history-write = []
+sort-merge-join = []

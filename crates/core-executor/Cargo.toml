@@ -71,3 +71,7 @@ aws-sdk-sts = { version = "1.80.0", features = ["behavior-version-latest"] }
 
 [lints]
 workspace = true
+
+[features]
+vanilla-tokio-runtime = []
+sort-merge-join = []

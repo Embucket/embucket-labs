@@ -27,3 +27,6 @@ workspace = true
 [dev-dependencies]
 insta = { workspace = true }
 tokio = { workspace = true }
+
+[features]
+none-durable-history-write = []
