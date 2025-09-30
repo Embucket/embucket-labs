@@ -2249,6 +2249,7 @@ impl UserQuery {
 
         let span = tracing::debug_span!("UserQuery::execute_logical_plan");
 
+        #[cfg(feature = "vanilla-tokio-runtime")]
         let stream = tokio::task::spawn(async move {
             let mut schema = plan.schema().as_arrow().clone();
             let records = session
@@ -2257,6 +2258,7 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?
                 .collect()
+                .instrument(span)
                 .await
                 .context(ex_error::DataFusionSnafu)?;
             if !records.is_empty() {
@@ -2264,8 +2266,8 @@ impl UserQuery {
             }
             Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
         })
-            .await
-            .context(ex_error::JobSnafu)??;
+        .await
+        .context(ex_error::JobSnafu)??;
         #[cfg(not(feature = "vanilla-tokio-runtime"))]
         let stream = self
             .session
@@ -2278,6 +2280,7 @@ impl UserQuery {
                     .await
                     .context(ex_error::DataFusionSnafu)?
                     .collect()
+                    .instrument(span)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
                 if !records.is_empty() {
@@ -2323,8 +2326,8 @@ impl UserQuery {
             }
             Ok::<QueryResult, Error>(QueryResult::new(records, Arc::new(schema), query_id))
         })
-            .await
-            .context(ex_error::JobSnafu)??;
+        .await
+        .context(ex_error::JobSnafu)??;
         #[cfg(not(feature = "vanilla-tokio-runtime"))]
         let stream = self
             .session

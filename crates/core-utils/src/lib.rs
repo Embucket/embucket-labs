@@ -13,7 +13,6 @@ use serde_json::de;
 use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
-use slatedb::config::{PutOptions, WriteOptions};
 use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -151,7 +150,8 @@ impl Db {
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(errors::SerializeValueSnafu)?;
         #[cfg(feature = "none-durable-history-write")]
-        let result = self.0
+        let result = self
+            .0
             .put_with_options(
                 entity.key().as_ref(),
                 serialized,
@@ -163,7 +163,8 @@ impl Db {
             .await
             .context(errors::DatabaseSnafu);
         #[cfg(not(feature = "none-durable-history-write"))]
-        let result = self.0
+        let result = self
+            .0
             .put(entity.key().as_ref(), serialized)
             .await
             .context(errors::DatabaseSnafu);

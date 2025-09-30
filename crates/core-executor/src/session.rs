@@ -8,6 +8,7 @@ use crate::datafusion::logical_analyzer::analyzer_rules;
 use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
+use crate::dedicated_executor::DedicatedExecutor;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::running_queries::RunningQueries;
@@ -32,7 +33,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
-use crate::dedicated_executor::DedicatedExecutor;
 
 pub const SESSION_INACTIVITY_EXPIRATION_SECONDS: i64 = 5 * 60;
 static MINIMUM_PARALLEL_OUTPUT_FILES: usize = 1;
@@ -94,7 +94,11 @@ impl UserSession {
                     .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG)
                     .set_bool(
                         "datafusion.execution.skip_physical_aggregate_schema_check",
-                        if cfg!(feature = "sort-merge-join") { true } else { false },
+                        if cfg!(feature = "sort-merge-join") {
+                            true
+                        } else {
+                            false
+                        },
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
                     .set_bool("datafusion.optimizer.prefer_hash_join", false)

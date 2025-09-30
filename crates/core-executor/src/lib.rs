@@ -10,9 +10,9 @@ pub mod session;
 pub mod snowflake_error;
 pub mod utils;
 
+pub mod dedicated_executor;
 #[cfg(test)]
 pub mod tests;
-pub mod dedicated_executor;
 
 pub use error::{Error, Result};
 pub use running_queries::AbortQuery;

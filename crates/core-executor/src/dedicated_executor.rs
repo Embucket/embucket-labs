@@ -184,7 +184,7 @@ impl DedicatedExecutor {
                     Err(_) => JobError::WorkerGone,
                 })
         }
-            .boxed()
+        .boxed()
     }
 
     /// signals shutdown of this executor and any Clones
@@ -768,7 +768,7 @@ impl ObjectStore for IoObjectStore {
             inner: ReceiverStream::new(rx),
             set,
         }
-            .boxed()
+        .boxed()
     }
 
     async fn list_with_delimiter(&self, prefix: Option<&Path>) -> object_store::Result<ListResult> {
@@ -1201,8 +1201,8 @@ mod tests {
                 tokio::time::sleep(Duration::from_millis(10)).await
             }
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
 
         // unblock other task
         barrier2_post.wait().await;
@@ -1215,8 +1215,8 @@ mod tests {
                 tokio::time::sleep(Duration::from_millis(10)).await
             }
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
 
         exec.join().await;
     }
@@ -1286,8 +1286,8 @@ mod tests {
         tokio::task::spawn_blocking(move || {
             rt_io.shutdown_timeout(Duration::from_secs(1));
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
 
         DedicatedExecutor::spawn_io_static(futures::future::ready(())).await;
     }
@@ -1314,8 +1314,8 @@ mod tests {
                 .await
                 .unwrap();
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1346,8 +1346,8 @@ mod tests {
 
             res.abort().await.unwrap();
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1370,8 +1370,8 @@ mod tests {
                 .await;
             assert_eq!(data, vec![Bytes::from_static(b"the value")])
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1387,8 +1387,8 @@ mod tests {
         exec.spawn(async move {
             store.delete(&Path::from("the/object")).await.unwrap();
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1410,8 +1410,8 @@ mod tests {
                 .await;
             assert_eq!(res.join(","), "the/object");
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1436,8 +1436,8 @@ mod tests {
 
             assert_eq!(prefixes.join(","), "the");
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1457,8 +1457,8 @@ mod tests {
                 .await
                 .unwrap()
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1478,8 +1478,8 @@ mod tests {
                 .await
                 .unwrap()
         })
-            .await
-            .unwrap();
+        .await
+        .unwrap();
     }
 
     /// Mock ObjectStore that purposely does some IO that will fail on the
