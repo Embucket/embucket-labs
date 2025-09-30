@@ -398,14 +398,29 @@ impl ExecutionService for CoreExecutionService {
         sessions.retain(|session_id, session| {
             let expiry = session.expiry.load(Ordering::Relaxed);
             if expiry <= now {
-                let _ = tracing::debug_span!(
-                    "ExecutionService::delete_expired_session",
-                    session_id,
-                    expiry,
-                    now
-                )
-                .entered();
-                false
+                let running_queries_count = session.running_queries.count();
+                // prevent deleting sessions when session is expired but query is running
+                if running_queries_count == 0 {
+                    let _ = tracing::debug_span!(
+                        "ExecutionService::delete_expired_session",
+                        session_id,
+                        expiry,
+                        running_queries_count,
+                        now
+                    )
+                    .entered();
+                    false
+                } else {
+                    let _ = tracing::debug_span!(
+                        "ExecutionService::skip_delete_expired_session",
+                        session_id,
+                        expiry,
+                        running_queries_count,
+                        now
+                    )
+                    .entered();
+                    true
+                }
             } else {
                 true
             }
