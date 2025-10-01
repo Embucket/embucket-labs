@@ -371,6 +371,38 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             SELECT * FROM data_points",
             "WITH data_points AS (SELECT SPLIT_PART(metric_name, '.', 14)::VARCHAR AS aggregation_name, SPLIT_PART(metric_name, '.', 6)::VARCHAR AS metric_name FROM some_table) SELECT * FROM data_points"
         ),
+        //Shouldn't inline aggregate functions with over in the where clause
+        (
+            "SELECT distinct
+            domain_userid,
+            last_value(user_id) over(
+                partition by domain_userid
+                order by collector_tstamp
+                rows between unbounded preceding and unbounded following
+            ) as user_id,
+            max(collector_tstamp) over (partition by domain_userid) as end_tstamp
+
+            FROM embucket.public_scratch.snowplow_web_base_events_this_run
+
+            WHERE TRUE
+            AND user_id IS NOT NULL
+            AND domain_userid IS NOT NULL",
+         "SELECT DISTINCT domain_userid, last_value(user_id) OVER (PARTITION BY domain_userid ORDER BY collector_tstamp ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS user_id, max(collector_tstamp) OVER (PARTITION BY domain_userid) AS end_tstamp FROM embucket.public_scratch.snowplow_web_base_events_this_run WHERE true AND user_id IS NOT NULL AND domain_userid IS NOT NULL"
+        ),
+        (
+            "SELECT max(collector_tstamp) as end_tstamp FROM embucket.public_scratch.snowplow_web_base_events_this_run WHERE end_tstamp > '2025-10-01'",
+            "SELECT max(collector_tstamp) AS end_tstamp FROM embucket.public_scratch.snowplow_web_base_events_this_run WHERE max(collector_tstamp) > '2025-10-01'"
+        ),
+        (
+            "SELECT
+            last_value(user_id) as user_id,
+            max(collector_tstamp) over (partition by domain_userid) as end_tstamp
+
+            FROM embucket.public_scratch.snowplow_web_base_events_this_run
+
+            WHERE end_tstamp > '2025-10-01' and user_id is not null",
+            "SELECT last_value(user_id) AS user_id, max(collector_tstamp) OVER (PARTITION BY domain_userid) AS end_tstamp FROM embucket.public_scratch.snowplow_web_base_events_this_run WHERE end_tstamp > '2025-10-01' AND last_value(user_id) IS NOT NULL"
+        ),
     ];
 
     for (input, expected) in cases {

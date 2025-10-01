@@ -1,4 +1,4 @@
-use datafusion::logical_expr::sqlparser::ast::{Expr, VisitMut};
+use datafusion::logical_expr::sqlparser::ast::{Expr, Function, VisitMut};
 use datafusion::sql::sqlparser::ast::{
     Query, SelectItem, SetExpr, Statement, VisitorMut, visit_expressions_mut,
 };
@@ -46,11 +46,11 @@ impl VisitorMut for InlineAliasesInSelect {
             for item in &mut select.projection {
                 match item {
                     SelectItem::ExprWithAlias { expr, alias } => {
-                        substitute_aliases(expr, &alias_expr_map, Some(&alias.value));
+                        substitute_aliases(expr, &alias_expr_map, Some(&alias.value), None);
                         alias_expr_map.insert(alias.value.clone(), expr.clone());
                     }
                     SelectItem::UnnamedExpr(expr) => {
-                        substitute_aliases(expr, &alias_expr_map, None);
+                        substitute_aliases(expr, &alias_expr_map, None, None);
                     }
                     _ => {}
                 }
@@ -58,12 +58,20 @@ impl VisitorMut for InlineAliasesInSelect {
 
             // Rewrite WHERE
             if let Some(selection) = select.selection.as_mut() {
-                substitute_aliases(selection, &alias_expr_map, None);
+                //NOTE: if other aggregate functions happen (without over) - we have no way of knowing,
+                // like just calling last_value with an alias,
+                // perhaps this will need to be extended in the logical planning phase later
+                substitute_aliases(
+                    selection,
+                    &alias_expr_map,
+                    None,
+                    Some(&|e| matches!(e, Expr::Function(Function { over: Some(_), .. }))),
+                );
             }
 
             // Rewrite QUALIFY
             if let Some(qualify) = select.qualify.as_mut() {
-                substitute_aliases(qualify, &alias_expr_map, None);
+                substitute_aliases(qualify, &alias_expr_map, None, None);
             }
         }
 
@@ -82,6 +90,7 @@ fn substitute_aliases(
     expr: &mut Expr,
     alias_map: &HashMap<String, Expr>,
     forbidden_alias: Option<&str>,
+    forbidden_predicate: Option<&dyn Fn(&Expr) -> bool>,
 ) {
     let _ = visit_expressions_mut(expr, &mut |e: &mut Expr| {
         match e {
@@ -90,6 +99,11 @@ fn substitute_aliases(
                     return ControlFlow::<()>::Continue(());
                 }
                 if let Some(subst) = alias_map.get(&ident.value) {
+                    if let Some(pred) = forbidden_predicate
+                        && pred(subst)
+                    {
+                        return ControlFlow::<()>::Continue(());
+                    }
                     *e = subst.clone();
                 }
             }
