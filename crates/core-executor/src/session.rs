@@ -77,9 +77,7 @@ impl UserSession {
 
         let session_params = SessionParams::default();
         let session_params_arc = Arc::new(session_params.clone());
-
         let config_options = ConfigOptions::from_env().context(ex_error::DataFusionSnafu)?;
-
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::from(config_options)

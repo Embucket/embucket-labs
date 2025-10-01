@@ -247,8 +247,8 @@ pub fn get_tpch_table_sql(table: &str) -> Option<&'static str> {
 pub fn get_query_sql(query: usize) -> Result<Vec<String>> {
     if query > 0 && query < 23 {
         let possibilities = vec![
-            format!("queries/q{query}.sql"),
-            format!("benchmarks/queries/q{query}.sql"),
+            format!("queries/tpch/q{query}.sql"),
+            format!("benchmarks/queries/tpch/q{query}.sql"),
         ];
         let mut errors = vec![];
         for filename in possibilities {
