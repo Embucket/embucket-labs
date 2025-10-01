@@ -161,7 +161,7 @@ def run_on_sf(cursor, warehouse, tpch_queries, cache=True):
     return results
 
 
-def run_on_emb(tpch_queries, cache=False):
+def run_on_emb(queries, cache=False):
     """Run TPCH queries on Embucket with container restart before each query."""
     docker_manager = create_docker_manager()
     executed_query_ids = []
@@ -176,7 +176,7 @@ def run_on_emb(tpch_queries, cache=False):
         # Create a single connection when using cache
         embucket_connection = create_embucket_connection()
 
-    for query_number, query in tpch_queries:
+    for query_number, query in queries:
         try:
             print(f"Executing query {query_number}...")
 
@@ -232,7 +232,7 @@ def run_on_emb(tpch_queries, cache=False):
 
     # Get the latest N rows where N is number of queries in the benchmark
     # Filter by successful status and order by start_time
-    num_queries = len(tpch_queries)
+    num_queries = len(queries)
     history_query = f"""
         SELECT id, duration_ms, result_count, query
         FROM slatedb.history.queries
@@ -253,7 +253,7 @@ def run_on_emb(tpch_queries, cache=False):
     reversed_results = list(reversed(history_results))
 
     # Create a list of expected query texts for validation
-    expected_queries = [query_text for _, query_text in tpch_queries]
+    expected_queries = [query_text for _, query_text in queries]
 
     # Validate we got exactly the expected number of results
     if len(reversed_results) != len(expected_queries):
