@@ -22,7 +22,7 @@ pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
 mod snowflake_generic {
     use super::*;
     use crate::tests::sql_macro::{ARROW, JSON};
-    
+
     #[cfg(not(feature = "vanilla-tokio-runtime"))]
     sql_test!(
         JSON,
