@@ -18,7 +18,7 @@ export function SchemasTable({ isLoading, schemas }: SchemasTableProps) {
     columnHelper.accessor('name', {
       header: 'Name',
     }),
-    columnHelper.accessor('created_at', {
+    columnHelper.accessor('createdAt', {
       header: 'Created',
       cell: (info) => {
         return <span>{formatTime(info.getValue())}</span>;

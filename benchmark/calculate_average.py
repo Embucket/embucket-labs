@@ -33,7 +33,7 @@ def sort_by_query_index(df):
     return df
 
 
-def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cached=False):
+def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cached=False, disable_result_cache=False):
     """
     Calculate average results for benchmark runs.
     Args:
@@ -43,19 +43,22 @@ def calculate_benchmark_averages(dataset, warehouse, system, benchmark_type, cac
         benchmark_type: The benchmark type ('tpch', 'tpcds')
         cached: Whether these are cached results (True) or no-cache results (False)
     """
-    cache_folder = "cached" if cached else "no_cache"
+    run_mode_folder = "warm" if cached else "cold"
+
+    if system == SystemType.SNOWFLAKE and disable_result_cache:
+        results_folder = f"{run_mode_folder}_no_result_cache"
+    else:
+        results_folder = run_mode_folder
 
     if system == SystemType.EMBUCKET:
-        search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
+        search_dir = f'result/embucket_{benchmark_type}_results/{dataset}/{warehouse}/{results_folder}'
     elif system == SystemType.SNOWFLAKE:
-        search_dir = f'result/snowflake_{benchmark_type}_results/{dataset}/{warehouse}/{cache_folder}'
+        search_dir = f'result/snowflake_{benchmark_type}_results/{dataset}/{warehouse}/{results_folder}'
     else:
         raise ValueError("Unsupported system")
 
-    # Get all CSV files from the specified directory
     all_csv_files = glob.glob(os.path.join(search_dir, '*.csv'))
 
-    # Skip if no files found
     if not all_csv_files:
         print(f"No CSV files found in {search_dir}")
         return

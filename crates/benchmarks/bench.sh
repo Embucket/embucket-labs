@@ -240,7 +240,7 @@ data_tpch() {
     else
         echo " creating parquet files using benchmark binary ..."
         pushd "${SCRIPT_DIR}" > /dev/null
-        $CARGO_COMMAND --bin tpch -- convert --input "${TPCH_DIR}" --output "${TPCH_DIR}" --format parquet
+        $CARGO_COMMAND --bin embench -- tpch-convert --input "${TPCH_DIR}" --output "${TPCH_DIR}" --format parquet
         popd > /dev/null
     fi
 }
@@ -261,7 +261,7 @@ run_tpch() {
     QUERY=$([ -n "$ARG3" ] && echo "--query $ARG3" || echo "")
     # debug the target command
     set -x
-    $CARGO_COMMAND --bin tpch -- benchmark embucket --iterations 3 --path "${TPCH_DIR}" -o "${RESULTS_FILE}" $QUERY
+    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --path "${TPCH_DIR}" -o "${RESULTS_FILE}" $QUERY
     set +x
 }
 
@@ -270,11 +270,12 @@ run_tpch() {
 #
 # Creates data in $DATA_DIR/hits.parquet
 data_clickbench_1() {
-    pushd "${DATA_DIR}" > /dev/null
+    mkdir -p "${DATA_DIR}/hits"
+    pushd "${DATA_DIR}/hits" > /dev/null
 
     # Avoid downloading if it already exists and is the right size
     OUTPUT_SIZE=$(wc -c hits.parquet  2>/dev/null  | awk '{print $1}' || true)
-    echo -n "Checking hits.parquet..."
+    echo -n "Checking hits/hits.parquet..."
     if test "${OUTPUT_SIZE}" = "14779976446"; then
         echo -n "... found ${OUTPUT_SIZE} bytes ..."
     else
@@ -315,7 +316,7 @@ run_clickbench_1() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin dfbench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits.parquet"  --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits"  --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
@@ -323,7 +324,7 @@ run_clickbench_partitioned() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin dfbench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
 compare_benchmarks() {

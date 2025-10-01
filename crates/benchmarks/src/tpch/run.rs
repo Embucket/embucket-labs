@@ -2,16 +2,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{TPCH_TABLES, get_query_sql, get_tpch_table_sql};
-use crate::util::{query_context, BenchmarkRun, CommonOpt};
+use crate::util::{BenchmarkRun, CommonOpt, create_catalog, query_context};
 
+use core_executor::service::{ExecutionService, make_test_execution_svc};
+use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::pretty::pretty_format_batches;
 use datafusion::common::instant::Instant;
 use datafusion::error::Result;
-
-use core_executor::models::QueryContext;
-use core_executor::service::{ExecutionService, make_test_execution_svc};
-use core_executor::session::UserSession;
 use log::info;
 use structopt::StructOpt;
 
@@ -68,13 +66,15 @@ impl RunOpt {
     #[allow(
         clippy::cast_precision_loss,
         clippy::as_conversions,
-        clippy::print_stdout
+        clippy::print_stdout,
+        clippy::unwrap_used
     )]
     async fn benchmark_query(&self, query_id: usize) -> Result<Vec<QueryResult>> {
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;
 
-        self.create_catalog(&session).await?;
+        let path = self.path.to_str().unwrap();
+        create_catalog(path, &session).await?;
         self.create_tables(&session).await?;
 
         let mut millis = vec![];
@@ -105,27 +105,6 @@ impl RunOpt {
         println!("Query {query_id} avg time: {avg:.2} ms");
 
         Ok(query_results)
-    }
-
-    #[allow(clippy::unwrap_used)]
-    async fn create_catalog(&self, session: &Arc<UserSession>) -> Result<()> {
-        let path = self.path.to_str().unwrap();
-
-        let volume_sql = format!(
-            "CREATE EXTERNAL VOLUME IF NOT EXISTS test STORAGE_LOCATIONS = (\
-        (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{path}/data'))"
-        );
-        let mut volume_query = session.query(volume_sql, query_context());
-        volume_query.execute().await?;
-
-        let database_sql = "CREATE DATABASE IF NOT EXISTS bench EXTERNAL_VOLUME = test";
-        let mut database_query = session.query(database_sql, query_context());
-        database_query.execute().await?;
-
-        let schema_sql = "CREATE SCHEMA IF NOT EXISTS bench.benchmark";
-        let mut schema_query = session.query(schema_sql, query_context());
-        schema_query.execute().await?;
-        Ok(())
     }
 
     #[allow(clippy::unwrap_used)]

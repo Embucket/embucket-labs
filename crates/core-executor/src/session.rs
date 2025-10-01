@@ -19,6 +19,7 @@ use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
+use datafusion_common::config::ConfigOptions;
 use datafusion_functions_json::register_all as register_json_udfs;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use embucket_functions::expr_planner::CustomExprPlanner;
@@ -78,9 +79,10 @@ impl UserSession {
 
         let session_params = SessionParams::default();
         let session_params_arc = Arc::new(session_params.clone());
+        let config_options = ConfigOptions::from_env().context(ex_error::DataFusionSnafu)?;
         let state = SessionStateBuilder::new()
             .with_config(
-                SessionConfig::new()
+                SessionConfig::from(config_options)
                     .with_option_extension(session_params)
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume

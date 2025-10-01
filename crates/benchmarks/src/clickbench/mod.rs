@@ -1,3 +1,3 @@
-pub mod clickbench;
+pub mod run;
 
-pub use self::clickbench::RunOpt;
+pub use self::run::RunOpt;

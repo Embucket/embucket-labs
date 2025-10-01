@@ -1,7 +1,7 @@
 use datafusion::error::Result;
 
-use structopt::StructOpt;
 use embucket_benchmarks::{clickbench, tpch};
+use structopt::StructOpt;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "snmalloc")] {
