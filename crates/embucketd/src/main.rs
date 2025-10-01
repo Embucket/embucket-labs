@@ -160,6 +160,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         mem_pool_size_mb: opts.mem_pool_size_mb,
         mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
         disk_pool_size_mb: opts.disk_pool_size_mb,
+        query_history_rows_limit: opts.query_history_rows_limit,
     };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),

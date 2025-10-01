@@ -13,7 +13,8 @@ pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
         .with_demo_credentials("embucket".to_string(), "embucket".to_string());
     let execution_cfg = UtilsConfig::default()
         .with_max_concurrency_level(2)
-        .with_query_timeout(1);
+        .with_query_timeout(1)
+        .with_query_history_rows_limit(5);
 
     run_test_rest_api_server_with_config(app_cfg, execution_cfg).await
 }
@@ -40,5 +41,15 @@ mod snowflake_generic {
         ARROW,
         select_date_timestamp_in_arrow_format,
         ["SELECT TO_DATE('2022-08-19', 'YYYY-MM-DD'), CAST('2022-08-19-00:00' AS TIMESTAMP)"]
+    );
+
+    sql_test!(
+        JSON,
+        set_variable_query_history_rows_limit,
+        [
+            "select * from values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)",
+            // should be just 5 rows in history
+            "!result $LAST_QUERY_ID",
+        ]
     );
 }

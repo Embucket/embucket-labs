@@ -398,14 +398,29 @@ impl ExecutionService for CoreExecutionService {
         sessions.retain(|session_id, session| {
             let expiry = session.expiry.load(Ordering::Relaxed);
             if expiry <= now {
-                let _ = tracing::debug_span!(
-                    "ExecutionService::delete_expired_session",
-                    session_id,
-                    expiry,
-                    now
-                )
-                .entered();
-                false
+                let running_queries_count = session.running_queries.count();
+                // prevent deleting sessions when session is expired but query is running
+                if running_queries_count == 0 {
+                    let _ = tracing::debug_span!(
+                        "ExecutionService::delete_expired_session",
+                        session_id,
+                        expiry,
+                        running_queries_count,
+                        now
+                    )
+                    .entered();
+                    false
+                } else {
+                    let _ = tracing::debug_span!(
+                        "ExecutionService::skip_delete_expired_session",
+                        session_id,
+                        expiry,
+                        running_queries_count,
+                        now
+                    )
+                    .entered();
+                    true
+                }
             } else {
                 true
             }
@@ -624,6 +639,7 @@ impl ExecutionService for CoreExecutionService {
             .await;
 
         let query_timeout_secs = self.config.query_timeout_secs;
+        let query_history_rows_limit = self.config.query_history_rows_limit;
 
         let history_store_ref = self.history_store.clone();
         let queries_ref = self.queries.clone();
@@ -682,7 +698,7 @@ impl ExecutionService for CoreExecutionService {
 
             let query_status = query_result_status.status.clone();
 
-            history_record.set_result(&query_result_status.as_historical_result_set());
+            history_record.set_result(&query_result_status.as_historical_result_set(), query_history_rows_limit);
             history_record.set_status(query_status.clone());
 
             let _ = tracing::debug_span!("spawned_query_task_result",

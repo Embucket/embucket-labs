@@ -19,7 +19,7 @@ variable "instance_type" {
 variable "root_volume_size" {
   description = "Size of the root EBS volume in GB"
   type        = number
-  default     = 300  # Sufficient storage for SF=100 generation
+  default     = 2000
 }
 
 variable "root_volume_iops" {
@@ -55,7 +55,7 @@ variable "private_key_path" {
 variable "scale_factors" {
   description = "List of TPC-H scale factors to generate"
   type        = list(number)
-  default     = [100]
+  default     = [1000]
 }
 
 variable "existing_s3_bucket" {
@@ -67,5 +67,5 @@ variable "existing_s3_bucket" {
 variable "s3_prefix" {
   description = "S3 prefix/folder for TPC-H data"
   type        = string
-  default     = "tpch_data"
+  default     = "tpch"
 }
