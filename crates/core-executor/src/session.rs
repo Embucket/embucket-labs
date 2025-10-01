@@ -93,6 +93,10 @@ impl UserSession {
                     .with_information_schema(true)
                     // Cannot create catalog (database) automatic since it requires default volume
                     .with_create_default_catalog_and_schema(false)
+                    .with_batch_size(16384)
+                    .with_coalesce_batches(true)
+                    .with_round_robin_repartition(true)
+                    .with_target_partitions(16)
                     .set_str("datafusion.sql_parser.dialect", &sql_parser_dialect)
                     .set_str("datafusion.catalog.default_catalog", DEFAULT_CATALOG)
                     .set_bool(
