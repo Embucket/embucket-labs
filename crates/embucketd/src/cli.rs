@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use core_executor::utils::DEFAULT_QUERY_HISTORY_ROWS_LIMIT;
 use core_executor::utils::MemPoolType;
 use object_store::{
     ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
@@ -208,6 +209,14 @@ pub struct CliOpts {
         help = "Enable memory tracing functionality"
     )]
     pub alloc_tracing: Option<bool>,
+
+    #[arg(
+        long,
+        env = "QUERY_HISTORY_ROWS_LIMIT",
+        default_value_t = DEFAULT_QUERY_HISTORY_ROWS_LIMIT,
+        help = "Maximum number of rows in separate query record"
+    )]
+    pub query_history_rows_limit: usize,
 
     // should unset JWT_SECRET env var after loading
     #[arg(

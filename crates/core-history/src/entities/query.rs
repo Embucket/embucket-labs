@@ -42,8 +42,6 @@ pub struct QueryRecord {
     pub status: QueryStatus,
     pub error: Option<String>,
     pub diagnostic_error: Option<String>,
-    #[serde(skip)]
-    pub loaded_from_history: bool,
 }
 
 impl QueryRecord {
@@ -63,7 +61,6 @@ impl QueryRecord {
             status: QueryStatus::Running,
             error: None,
             diagnostic_error: None,
-            loaded_from_history: false,
         }
     }
 
@@ -77,21 +74,24 @@ impl QueryRecord {
     }
 
     // This takes result by reference, since it just serialize it, so can't be consumed
-    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>) {
+    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>, rows_limit: usize) {
         match result {
-            Ok(result_set) => match serde_json::to_string(&result_set) {
-                Ok(encoded_res) => {
-                    let result_count = i64::try_from(result_set.rows.len()).unwrap_or(0);
-                    self.finished(result_count, Some(encoded_res));
+            Ok(result_set) => {
+                let (encoding_res, rows_count) = result_set.serialize_with_limit(rows_limit);
+                match encoding_res {
+                    Ok(encoded_res) => {
+                        let result_count = i64::try_from(rows_count).unwrap_or(0);
+                        self.finished(result_count, Some(encoded_res));
+                    }
+                    // serde error
+                    // Following error is created right here, so ownership could be transferred into
+                    Err(err) => self.finished_with_error(&QueryResultError {
+                        status: QueryStatus::Failed,
+                        message: err.to_string(),
+                        diagnostic_message: format!("{err:?}"),
+                    }),
                 }
-                // serde error
-                // Following error is created right here, so ownership could be transferred into
-                Err(err) => self.finished_with_error(&QueryResultError {
-                    status: QueryStatus::Failed,
-                    message: err.to_string(),
-                    diagnostic_message: format!("{err:?}"),
-                }),
-            },
+            }
             // Following error is received from outside, so can be used just as reference
             Err(execution_err) => self.finished_with_error(execution_err),
         }
@@ -114,10 +114,6 @@ impl QueryRecord {
         self.status = error.status.clone();
         self.error = Some(error.message.clone());
         self.diagnostic_error = Some(error.diagnostic_message.clone());
-    }
-
-    pub const fn set_loaded_from_history(&mut self) {
-        self.loaded_from_history = true;
     }
 
     // Returns a key with inverted id for descending order

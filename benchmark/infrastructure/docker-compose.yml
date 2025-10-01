@@ -1,6 +1,6 @@
 services:
   embucket:
-    image: embucket/embucket:latest
+    image: ghcr.io/embucket/embucket:experimental
     container_name: embucket-benchmark
     environment:
       # Iceberg Catalog settings

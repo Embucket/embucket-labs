@@ -1,0 +1,63 @@
+name: Experimental rebase on main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebase-experimental
+  cancel-in-progress: true
+
+jobs:
+  rebase-experimental:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure experimental exists
+        run: |
+          if ! git ls-remote --heads origin experimental | grep -q refs/heads/experimental; then
+            git checkout -b experimental
+            git push origin experimental
+          fi
+
+      - name: Fetch refs
+        run: |
+          git fetch origin main
+          git fetch origin experimental
+
+      - name: Merge main into experimental
+        run: |
+          set -euo pipefail
+          git checkout -B experimental origin/experimental
+          git merge origin/main
+          git commit -n -a -m "Merge main into experimental" || echo "No changes to commit"
+          git push origin experimental
+
+      # - name: Rebase experimental onto main and push (force-with-lease)
+      #   run: |
+      #     set -euo pipefail
+      #     git checkout -B experimental origin/experimental
+      #     if git rebase --rebase-merges --no-rebase-merges origin/main; then
+      #       if ! git diff --quiet origin/experimental...HEAD; then
+      #         git push --force-with-lease origin experimental
+      #       else
+      #         echo "No changes to push."
+      #       fi
+      #     else
+      #       git rebase --abort || true
+      #       echo "Rebase would conflict. Not pushing."
+      #       exit 1
+      #     fi

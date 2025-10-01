@@ -60,3 +60,16 @@ variable "aws_profile" {
   type        = string
   default     = null
 }
+
+variable "github_token" {
+  description = "GitHub Personal Access Token for pulling from ghcr.io"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_username" {
+  description = "GitHub username for ghcr.io authentication"
+  type        = string
+  default     = ""
+}

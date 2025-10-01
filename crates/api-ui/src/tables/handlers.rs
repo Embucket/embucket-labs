@@ -67,9 +67,9 @@ pub struct ApiDoc;
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/statistics",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name"),
+        ("tableName" = String, Path, description = "Table Name")
     ),
     operation_id = "getTableStatistics",
     tags = ["tables"],
@@ -141,9 +141,9 @@ pub async fn get_table_statistics(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name"),
+        ("tableName" = String, Path, description = "Table Name")
     ),
     operation_id = "getTableColumns",
     tags = ["tables"],
@@ -199,9 +199,9 @@ pub async fn get_table_columns(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name"),
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name"),
+        ("tableName" = String, Path, description = "Table Name"),
         ("offset" = Option<u32>, Query, description = "Table preview offset"),
         ("limit" = Option<u16>, Query, description = "Table preview limit")
     ),
@@ -279,9 +279,9 @@ pub async fn get_table_preview_data(
     operation_id = "uploadFile",
     tags = ["tables"],
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
-        ("tableName" = String, description = "Table Name"),
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name"),
+        ("tableName" = String, Path, description = "Table Name"),
         ("header" = Option<bool>, Query, example = json!(true), description = "Has header"),
         ("delimiter" = Option<u8>, Query, description = "an optional column delimiter, defaults to comma `','`"),
         ("escape" = Option<u8>, Query, description = "an escape character"),
@@ -371,13 +371,13 @@ pub async fn upload_file(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}/tables",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name"),
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name"),
         ("offset" = Option<usize>, Query, description = "Tables offset"),
         ("limit" = Option<usize>, Query, description = "Tables limit"),
         ("search" = Option<String>, Query, description = "Tables search"),
-        ("order_by" = Option<String>, Query, description = "Order by: table_name, schema_name, database_name, volume_name, table_type, table_format, owner, created_at (default), updated_at"),
-        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("orderBy" = Option<String>, Query, description = "Order by: table_name, schema_name, database_name, volume_name, table_type, table_format, owner, created_at (default), updated_at"),
+        ("orderDirection" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     operation_id = "getTables",
     tags = ["tables"],

@@ -1,4 +1,5 @@
 pub mod client;
+pub mod read_arrow_data;
 pub mod snow_sql;
 pub mod sql_macro;
 pub mod test_rest_quick_sqls;

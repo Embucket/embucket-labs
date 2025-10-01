@@ -115,6 +115,7 @@ use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::sync::Arc;
+use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
 
@@ -2222,6 +2223,9 @@ impl UserQuery {
     async fn execute_logical_plan(&self, plan: LogicalPlan) -> Result<QueryResult> {
         let session = self.session.clone();
         let query_id = self.query_context.query_id;
+
+        let span = tracing::debug_span!("UserQuery::execute_logical_plan");
+
         let stream = tokio::task::spawn(async move {
             let mut schema = plan.schema().as_arrow().clone();
             let records = session
@@ -2230,6 +2234,7 @@ impl UserQuery {
                 .await
                 .context(ex_error::DataFusionSnafu)?
                 .collect()
+                .instrument(span)
                 .await
                 .context(ex_error::DataFusionSnafu)?;
             if !records.is_empty() {

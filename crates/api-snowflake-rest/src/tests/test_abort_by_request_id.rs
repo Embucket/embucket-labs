@@ -4,7 +4,7 @@ mod tests {
     use crate::models::{JsonResponse, LoginResponse};
     use crate::server::test_server::run_test_rest_api_server;
     use crate::tests::client::{abort, get_query_result, login, query};
-    use crate::tests::sql_macro::query_id_from_snapshot;
+    use crate::tests::sql_macro::{JSON, query_id_from_snapshot};
     use http::header;
     use uuid::Uuid;
 
@@ -12,7 +12,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_abort_by_request_id() {
-        let addr = run_test_rest_api_server().await;
+        let addr = run_test_rest_api_server(JSON).await;
         let client = reqwest::Client::new();
 
         let (headers, login_res) = login::<LoginResponse>(&client, &addr, "embucket", "embucket")
@@ -46,7 +46,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_abort_using_wrong_request_id() {
-        let addr = run_test_rest_api_server().await;
+        let addr = run_test_rest_api_server(JSON).await;
         let client = reqwest::Client::new();
 
         let (headers, login_res) = login::<LoginResponse>(&client, &addr, "embucket", "embucket")

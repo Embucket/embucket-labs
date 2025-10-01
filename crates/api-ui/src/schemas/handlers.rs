@@ -56,7 +56,7 @@ pub struct ApiDoc;
     operation_id = "createSchema",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name")
+        ("databaseName" = String, Path, description = "Database Name")
     ),
     request_body = SchemaCreatePayload,
     responses(
@@ -127,8 +127,8 @@ pub async fn create_schema(
     operation_id = "deleteSchema",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     responses(
         (status = 204, description = "Successful Response"),
@@ -167,8 +167,8 @@ pub async fn delete_schema(
     get,
     path = "/ui/databases/{databaseName}/schemas/{schemaName}",
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     operation_id = "getSchema",
     tags = ["schemas"],
@@ -222,8 +222,8 @@ pub async fn get_schema(
     path="/ui/databases/{databaseName}/schemas/{schemaName}",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
-        ("schemaName" = String, description = "Schema Name")
+        ("databaseName" = String, Path, description = "Database Name"),
+        ("schemaName" = String, Path, description = "Schema Name")
     ),
     request_body = SchemaUpdatePayload,
     responses(
@@ -265,12 +265,12 @@ pub async fn update_schema(
     path="/ui/databases/{databaseName}/schemas",
     tags = ["schemas"],
     params(
-        ("databaseName" = String, description = "Database Name"),
+        ("databaseName" = String, Path, description = "Database Name"),
         ("offset" = Option<usize>, Query, description = "Schemas offset"),
         ("limit" = Option<u16>, Query, description = "Schemas limit"),
         ("search" = Option<String>, Query, description = "Schemas search"),
-        ("order_by" = Option<String>, Query, description = "Order by: schema_name, database_name, created_at (default), updated_at"),
-        ("order_direction" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
+        ("orderBy" = Option<String>, Query, description = "Order by: schema_name, database_name, created_at (default), updated_at"),
+        ("orderDirection" = Option<OrderDirection>, Query, description = "Order direction: ASC, DESC (default)"),
     ),
     responses(
         (status = 200, body = SchemasResponse),

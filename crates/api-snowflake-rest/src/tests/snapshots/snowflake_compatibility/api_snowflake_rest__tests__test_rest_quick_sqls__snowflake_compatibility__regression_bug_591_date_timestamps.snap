@@ -1,0 +1,52 @@
+---
+source: crates/api-snowflake-rest/src/tests/test_rest_quick_sqls.rs
+description: "SQL #1 [spent: 27/27ms]: SELECT TO_DATE('2022-08-19', 'YYYY-MM-DD'), CAST('2022-08-19-00:00' AS TIMESTAMP)\nQuery UUID: 00000000-0000-0000-0000-077ec5ef6151"
+expression: pretty_json
+info: ""
+---
+{
+  "data": {
+    "rowtype": [
+      {
+        "name": "to_date(Utf8(\"2022-08-19\"),Utf8(\"YYYY-MM-DD\"))",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "date",
+        "byteLength": null,
+        "length": null,
+        "scale": null,
+        "precision": null,
+        "collation": null
+      },
+      {
+        "name": "to_timestamp(Utf8(\"2022-08-19-00:00\"))",
+        "database": "",
+        "schema": "",
+        "table": "",
+        "nullable": false,
+        "type": "timestamp_ntz",
+        "byteLength": null,
+        "length": null,
+        "scale": 9,
+        "precision": 0,
+        "collation": null
+      }
+    ],
+    "rowsetBase64": null,
+    "rowset": [
+      [
+        19223,
+        "1660867200.0"
+      ]
+    ],
+    "total": 1,
+    "queryResultFormat": "json",
+    "sqlState": "02000",
+    "queryId": "UUID"
+  },
+  "success": true,
+  "message": "successfully executed",
+  "code": null
+}

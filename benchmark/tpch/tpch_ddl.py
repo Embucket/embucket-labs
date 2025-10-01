@@ -132,15 +132,18 @@ _TPCH_DDL_RAW = [
 ]
 
 
-def parametrize_tpch_ddl(fully_qualified_names_for_embucket):
+def parametrize_tpch_ddl(fully_qualified_names_for_embucket, use_custom_dataset=False):
     """
     Replace table name placeholders in TPC-H DDL statements with actual table names.
 
     Args:
         fully_qualified_names_for_embucket (bool): Required. If True, use EMBUCKET_DATABASE.EMBUCKET_SCHEMA.tablename format.
-                                                   If False, use just the default table names.
+                                                   If False, use Snowflake built-in or custom tables based on use_custom_dataset.
+        use_custom_dataset (bool): Only applies when fully_qualified_names_for_embucket=False (Snowflake).
+                                   If False (default), use Snowflake's built-in TPC-H tables.
+                                   If True, use custom tables in user's schema.
 
     Returns:
         list: A list of (table_name, parametrized_ddl) tuples.
     """
-    return parametrize_tpch_statements(_TPCH_DDL_RAW, fully_qualified_names_for_embucket)
+    return parametrize_tpch_statements(_TPCH_DDL_RAW, fully_qualified_names_for_embucket, use_custom_dataset)

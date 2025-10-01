@@ -1,12 +1,15 @@
 import glob
 import os
 import logging
+import re
 from typing import Dict, List, Tuple, Any, Optional
 
 from calculate_average import calculate_benchmark_averages
 from utils import create_snowflake_connection
 from utils import create_embucket_connection
 from tpch import parametrize_tpch_queries
+from tpcds import parametrize_tpcds_queries
+from clickbench import parametrize_clickbench_queries
 from docker_manager import create_docker_manager
 from constants import SystemType
 
@@ -25,13 +28,19 @@ logger = logging.getLogger(__name__)
 
 
 def get_results_path(system: SystemType, benchmark_type: str, dataset_path: str,
-                     instance: str, warehouse_size: str = None, run_number: Optional[int] = None) -> str:
+                     instance: str, warehouse_size: str = None, run_number: Optional[int] = None,
+                     cached: bool = False, disable_result_cache: bool = False) -> str:
     """Generate path for storing benchmark results."""
+    # Clearer naming: warm = warehouse kept active, cold = warehouse suspended
+    run_mode = "warm" if cached else "cold"
+
+    # Then handle result cache setting separately
+    results_folder = f"{run_mode}_no_result_cache" if disable_result_cache else run_mode
+
     if system == SystemType.SNOWFLAKE:
-        # Use warehouse size in the path instead of warehouse name
-        base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}"
+        base_path = f"result/snowflake_{benchmark_type}_results/{dataset_path}/{warehouse_size}/{results_folder}"
     elif system == SystemType.EMBUCKET:
-        base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}"
+        base_path = f"result/embucket_{benchmark_type}_results/{dataset_path}/{instance}/{results_folder}"
     else:
         raise ValueError(f"Unsupported system: {system}")
 
@@ -87,25 +96,25 @@ def save_results_to_csv(results, filename="query_results.csv", system=None):
                 writer.writerow(["TOTAL", "", total_time, ""])
 
 
-def run_on_sf(cursor, warehouse, tpch_queries):
+def run_on_sf(cursor, warehouse, tpch_queries, cache=True):
     """Run benchmark queries on Snowflake and measure performance."""
     executed_query_ids = []
     query_id_to_number = {}
     results = []
 
     # Execute queries
-    for query_number, query in tpch_queries:
+    for query_name, query in tpch_queries:
         try:
-            logger.info(f"Executing query {query_number}...")
+            logger.info(f"Executing query {query_name}...")
 
-            # Suspend warehouse before each query to ensure clean state
-            if warehouse:
+            # Suspend warehouse before each query to ensure clean state (skip if no_cache is True)
+            if not cache:
                 try:
                     cursor.execute(f"ALTER WAREHOUSE {warehouse} SUSPEND;")
                     cursor.execute("SELECT SYSTEM$WAIT(2);")
                     cursor.execute(f"ALTER WAREHOUSE {warehouse} RESUME;")
                 except Exception as e:
-                    print(f"Warning: Could not suspend/resume warehouse for query {query_number}: {e}")
+                    print(f"Warning: Could not suspend/resume warehouse for query {query_name}: {e}")
 
             cursor.execute(query)
             _ = cursor.fetchall()
@@ -114,9 +123,11 @@ def run_on_sf(cursor, warehouse, tpch_queries):
             query_id = cursor.fetchone()[0]
             if query_id:
                 executed_query_ids.append(query_id)
+                # Extract numeric part from query name (e.g., "tpch-q1" -> 1)
+                query_number = int(re.search(r'\d+', query_name).group())
                 query_id_to_number[query_id] = query_number
         except Exception as e:
-            logger.error(f"Error executing query {query_number}: {e}")
+            logger.error(f"Error executing query {query_name}: {e}")
 
     # Collect performance metrics
     if executed_query_ids:
@@ -150,48 +161,70 @@ def run_on_sf(cursor, warehouse, tpch_queries):
     return results
 
 
-def run_on_emb(tpch_queries):
+def run_on_emb(tpch_queries, cache=False):
     """Run TPCH queries on Embucket with container restart before each query."""
     docker_manager = create_docker_manager()
     executed_query_ids = []
     query_id_to_number = {}
 
+    if not cache:
+        logger.info("Embucket benchmark running with container restarts (no cache)")
+        # Connection will be created per query after container restart
+        embucket_connection = None
+    else:
+        logger.info("Embucket benchmark running with caching (no container restarts)")
+        # Create a single connection when using cache
+        embucket_connection = create_embucket_connection()
+
     for query_number, query in tpch_queries:
         try:
             print(f"Executing query {query_number}...")
 
-            # Restart Embucket container before each query
-            print(f"Restarting Embucket container before query {query_number}...")
+            # Restart Embucket container before each query (skip if cache is True)
+            if not cache:
+                print(f"Restarting Embucket container before query {query_number}...")
 
-            if not docker_manager.restart_embucket_container():
-                print(f"Failed to restart Embucket container for query {query_number}")
-                continue
+                if not docker_manager.restart_embucket_container():
+                    print(f"Failed to restart Embucket container for query {query_number}")
+                    continue
 
-            print(f"Container restart completed")
+                print(f"Container restart completed")
 
-            # Create fresh connection after restart
-            embucket_connection = create_embucket_connection()
+                # Create fresh connection after restart
+                embucket_connection = create_embucket_connection()
+
+            # Now embucket_connection should be properly initialized in both cases
             fresh_cursor = embucket_connection.cursor()
 
             # Execute the query
             fresh_cursor.execute(query)
             _ = fresh_cursor.fetchall()  # Fetch results but don't store them
 
-            # Close fresh connection after each query
-            fresh_cursor.close()
-            embucket_connection.close()
+            # Close fresh connection after each query only if we're restarting
+            if not cache:
+                fresh_cursor.close()
+                embucket_connection.close()
+                embucket_connection = None
 
         except Exception as e:
             print(f"Error executing query {query_number}: {e}")
 
-            # Try to close connection if it exists
-            try:
-                if 'fresh_cursor' in locals():
-                    fresh_cursor.close()
-                if 'embucket_connection' in locals():
+            # Try to close connection if it exists and we're in no_cache mode
+            if not cache and embucket_connection:
+                try:
+                    if 'fresh_cursor' in locals():
+                        fresh_cursor.close()
                     embucket_connection.close()
-            except:
-                pass
+                    embucket_connection = None
+                except:
+                    pass
+
+    # Close the connection if we're using cache
+    if cache and embucket_connection:
+        try:
+            embucket_connection.close()
+        except:
+            pass
 
     # Retrieve query history data from Embucket
     query_results = []
@@ -257,18 +290,27 @@ def run_on_emb(tpch_queries):
     return query_results, total_time
 
 
-def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool) -> List[Tuple[int, str]]:
+def get_queries_for_benchmark(benchmark_type: str, for_embucket: bool, use_custom_dataset: bool = False) -> List[Tuple[int, str]]:
     """Get appropriate queries based on the benchmark type."""
     if benchmark_type == "tpch":
-        return parametrize_tpch_queries(fully_qualified_names_for_embucket=for_embucket)
+        return parametrize_tpch_queries(fully_qualified_names_for_embucket=for_embucket, use_custom_dataset=use_custom_dataset)
+    elif benchmark_type == "clickbench":
+        return parametrize_clickbench_queries(fully_qualified_names_for_embucket=for_embucket)
     elif benchmark_type == "tpcds":
-        raise NotImplementedError("TPC-DS benchmarks not yet implemented")
+        return parametrize_tpcds_queries(fully_qualified_names_for_embucket=for_embucket)
     else:
         raise ValueError(f"Unsupported benchmark type: {benchmark_type}")
 
 
-def run_snowflake_benchmark(run_number: int):
-    """Run benchmark on Snowflake."""
+def run_snowflake_benchmark(run_number: int, warm_run: bool = False, disable_result_cache: bool = False, use_custom_dataset: bool = False):
+    """Run benchmark on Snowflake.
+
+    Args:
+        run_number: The run number (for result file naming)
+        warm_run: If True, keep warehouse active between queries. If False, suspend warehouse between queries (cold run).
+        disable_result_cache: If True, disable Snowflake's result cache by setting USE_CACHED_RESULT=FALSE.
+        use_custom_dataset: If True, use custom tables in user's schema. If False (default), use Snowflake's built-in TPC-H tables.
+    """
     # Get benchmark configuration from environment variables
     benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
     warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
@@ -277,19 +319,49 @@ def run_snowflake_benchmark(run_number: int):
 
     logger.info(f"Starting Snowflake {benchmark_type} benchmark run {run_number}")
     logger.info(f"Dataset: {dataset_path}, Warehouse: {warehouse}, Size: {warehouse_size}")
+    if benchmark_type == "tpch":
+        if use_custom_dataset:
+            logger.info("Using custom TPC-H tables in user's schema")
+        else:
+            logger.info("Using Snowflake's built-in TPC-H sample data")
 
     # Get queries and run benchmark
-    queries = get_queries_for_benchmark(benchmark_type, for_embucket=False)
+    queries = get_queries_for_benchmark(benchmark_type, for_embucket=False, use_custom_dataset=use_custom_dataset)
 
-    sf_connection = create_snowflake_connection()
+    # Determine scale factor from dataset path for built-in tables
+    tpch_scale_factor = None
+    if not use_custom_dataset and benchmark_type == "tpch":
+        # TODO Refactor because this is a hack
+        # Extract scale factor from DATASET_PATH (e.g., "tpch/01" -> 1, "tpch/10" -> 10)
+        parts = dataset_path.split('/')
+        if len(parts) >= 2:
+            scale_str = parts[1].lstrip('0') or '1'
+            tpch_scale_factor = int(scale_str)
+
+    # Only setup database/schema if using custom dataset
+    sf_connection = create_snowflake_connection(setup_database_schema=use_custom_dataset, tpch_scale_factor=tpch_scale_factor)
     sf_cursor = sf_connection.cursor()
 
-    # Disable query result caching for benchmark
-    sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
+    # Control query result caching for benchmark - handle settings independently
+    if not warm_run:
+        # Cold run: disable result cache AND suspend warehouse between queries
+        logger.info("Cold run: Disabling result caching for Snowflake queries")
+        sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
+    elif disable_result_cache:
+        # Warm run with disabled result cache: disable ONLY result cache
+        logger.info("Warm run with disabled result cache: Setting USE_CACHED_RESULT = FALSE")
+        sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = FALSE;")
+    else:
+        # Fully cached run: enable result cache
+        logger.info("Fully cached run: Setting USE_CACHED_RESULT = TRUE")
+        sf_cursor.execute("ALTER SESSION SET USE_CACHED_RESULT = TRUE;")
 
-    sf_results = run_on_sf(sf_cursor, warehouse, queries)
+    # Run queries with proper suspension behavior based on cold run setting
+    sf_results = run_on_sf(sf_cursor, warehouse, queries, cache=warm_run)
 
-    results_path = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path, warehouse, warehouse_size, run_number)
+    results_path = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path,
+                                    warehouse, warehouse_size, run_number,
+                                    cached=warm_run, disable_result_cache=disable_result_cache)
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     save_results_to_csv(sf_results, filename=results_path, system=SystemType.SNOWFLAKE)
 
@@ -299,23 +371,31 @@ def run_snowflake_benchmark(run_number: int):
     sf_connection.close()
 
     # Check if we have 3 CSV files ready and calculate averages if so
-    results_dir = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path, warehouse, warehouse_size)
+    results_dir = get_results_path(SystemType.SNOWFLAKE, benchmark_type, dataset_path,
+                                   warehouse, warehouse_size,
+                                   cached=warm_run, disable_result_cache=disable_result_cache)
     csv_files = glob.glob(os.path.join(results_dir, "snowflake_results_run_*.csv"))
     if len(csv_files) == 3:
         logger.info("Found 3 CSV files. Calculating averages...")
         calculate_benchmark_averages(
             dataset_path,
-            warehouse_size,  # Pass warehouse size instead of name
+            warehouse_size,
             SystemType.SNOWFLAKE,
-            benchmark_type
+            benchmark_type,
+            cached=warm_run,
+            disable_result_cache=disable_result_cache
         )
 
     return sf_results
 
 
+def run_embucket_benchmark(run_number: int, warm_run: bool = True):
+    """Run benchmark on Embucket with container restarts.
 
-def run_embucket_benchmark(run_number: int):
-    """Run benchmark on Embucket with container restarts."""
+    Args:
+        run_number: The run number (for result file naming)
+        warm_run: If True, keep container running between queries. If False, restart container between queries (cold run).
+    """
     # Get benchmark configuration from environment variables
     benchmark_type = os.environ.get("BENCHMARK_TYPE", "tpch")
     instance = os.environ["EMBUCKET_INSTANCE"]
@@ -328,15 +408,17 @@ def run_embucket_benchmark(run_number: int):
     queries = get_queries_for_benchmark(benchmark_type, for_embucket=True)
 
     # Run benchmark
-    emb_results = run_on_emb(queries)
+    emb_results = run_on_emb(queries, cache=warm_run)
 
-    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance, run_number=run_number)
+    results_path = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path,
+                                    instance, run_number=run_number, cached=warm_run)
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     save_results_to_csv(emb_results, filename=results_path, system=SystemType.EMBUCKET)
     logger.info(f"Embucket benchmark results saved to: {results_path}")
 
     # Check if we have 3 CSV files ready and calculate averages
-    results_dir = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path, instance)
+    results_dir = get_results_path(SystemType.EMBUCKET, benchmark_type, dataset_path,
+                                   instance, cached=warm_run)
     csv_files = glob.glob(os.path.join(results_dir, "embucket_results_run_*.csv"))
     if len(csv_files) == 3:
         logger.info("Found 3 CSV files. Calculating averages...")
@@ -344,14 +426,15 @@ def run_embucket_benchmark(run_number: int):
             dataset_path,
             instance,
             SystemType.EMBUCKET,
-            benchmark_type
+            benchmark_type,
+            cached=warm_run
         )
 
     return emb_results
 
 
 def display_comparison(sf_results, emb_results):
-    """Display comparison of query times between platforms."""
+    """Display comparison of query times between systems."""
     # Process Snowflake results
     sf_query_times = {}
     for row in sf_results:
@@ -370,7 +453,7 @@ def display_comparison(sf_results, emb_results):
     # Check for common queries
     common_queries = set(sf_query_times.keys()).intersection(set(emb_query_times.keys()))
     if not common_queries:
-        logger.warning("No common queries to compare between platforms")
+        logger.warning("No common queries to compare between systems")
         return
 
     # Log comparison
@@ -382,23 +465,59 @@ def display_comparison(sf_results, emb_results):
         logger.info(f"Query {query}: Snowflake {sf_time:.2f}ms, Embucket {emb_time:.2f}ms, Ratio: {ratio:.2f}x")
 
 
-def run_benchmark(run_number: int, platform_enum: Optional[SystemType]):
-    """Run benchmarks on the specified platform."""
-    if platform_enum == SystemType.EMBUCKET:
-        run_embucket_benchmark(run_number)
-    elif platform_enum == SystemType.SNOWFLAKE:
-        run_snowflake_benchmark(run_number)
+def run_benchmark(run_number: int, system_enum: Optional[SystemType], cold_run: bool = True,
+                  disable_result_cache: bool = False, use_custom_dataset: bool = False):
+    """Run benchmarks on the specified system.
+
+    Args:
+        run_number: The run number (for result file naming)
+        system_enum: Which system to run benchmarks on
+        cold_run: If True, suspend warehouse/restart container between queries. If False, keep active (warm run).
+        disable_result_cache: If True, disable Snowflake's result cache by setting USE_CACHED_RESULT=FALSE.
+        use_custom_dataset: If True, use custom tables in user's schema (Snowflake only). If False (default), use Snowflake's built-in TPC-H tables.
+    """
+    # Log configuration for better clarity
+    if system_enum == SystemType.SNOWFLAKE:
+        if cold_run:
+            logger.info(
+                "SNOWFLAKE RUN CONFIGURATION: Cold run - warehouse will be suspended between queries")
+        elif disable_result_cache:
+            logger.info(
+                "SNOWFLAKE RUN CONFIGURATION: Warm run with disabled result cache - warehouse remains active, but result cache is disabled (USE_CACHED_RESULT=FALSE)")
+        else:
+            logger.info(
+                "SNOWFLAKE RUN CONFIGURATION: Fully cached run - warehouse remains active, both query compilation cache and result cache are enabled (USE_CACHED_RESULT=TRUE)")
+
+    elif system_enum == SystemType.EMBUCKET:
+        if cold_run:
+            logger.info(
+                "EMBUCKET RUN CONFIGURATION: Cold run - container will be restarted before each query, clearing all caches")
+        else:
+            logger.info(
+                "EMBUCKET RUN CONFIGURATION: Warm run - container remains running between queries, allowing query cache to be used")
+
+    # Execute the benchmark with the configured settings (invert cold_run to get warm_run)
+    if system_enum == SystemType.EMBUCKET:
+        run_embucket_benchmark(run_number, warm_run=not cold_run)
+    elif system_enum == SystemType.SNOWFLAKE:
+        run_snowflake_benchmark(run_number, warm_run=not cold_run, disable_result_cache=disable_result_cache, use_custom_dataset=use_custom_dataset)
     else:
-        raise ValueError("Unsupported or missing platform_enum")
+        raise ValueError("Unsupported or missing system_enum")
 
 
 def parse_args():
     """Parse command line arguments for benchmark configuration."""
     parser = argparse.ArgumentParser(description="Run benchmarks on Snowflake and/or Embucket")
-    parser.add_argument("--platform", choices=["snowflake", "embucket", "both"], default="both")
+    parser.add_argument("--system", choices=["snowflake", "embucket", "both"], default="both")
     parser.add_argument("--runs", type=int, default=3)
-    parser.add_argument("--benchmark-type", choices=["tpch", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
+    parser.add_argument("--benchmark-type", choices=["tpch", "clickbench", "tpcds"], default=os.environ.get("BENCHMARK_TYPE", "tpch"))
     parser.add_argument("--dataset-path", help="Override the DATASET_PATH environment variable")
+    parser.add_argument("--cold-runs", action="store_true", help="Disable caching (force warehouse suspend for Snowflake, force container restart for Embucket)")
+    parser.add_argument("--disable-result-cache", action="store_true",
+                        help="Disable only result caching for Snowflake (USE_CACHED_RESULT=FALSE), no effect on Embucket")
+    parser.add_argument("--use-custom-dataset", action="store_true",
+                        help="Use custom tables in user's schema instead of Snowflake's built-in TPC-H sample data (Snowflake only, TPC-H only)")
+
     return parser.parse_args()
 
 
@@ -412,15 +531,17 @@ if __name__ == "__main__":
     if args.dataset_path:
         os.environ["DATASET_PATH"] = args.dataset_path
 
-    # Execute benchmarks based on platform selection
-    if args.platform == "snowflake":
+    # Execute benchmarks based on system selection
+    if args.system == "snowflake":
         for run in range(1, args.runs + 1):
-            run_benchmark(run, SystemType.SNOWFLAKE)
-    elif args.platform == "embucket":
+            run_benchmark(run, SystemType.SNOWFLAKE, cold_run=args.cold_runs,
+                         disable_result_cache=args.disable_result_cache, use_custom_dataset=args.use_custom_dataset)
+    elif args.system == "embucket":
         for run in range(1, args.runs + 1):
-            run_benchmark(run, SystemType.EMBUCKET)
-    elif args.platform == "both":
+            run_benchmark(run, SystemType.EMBUCKET, cold_run=args.cold_runs)
+    elif args.system == "both":
         for run in range(1, args.runs + 1):
-            logger.info(f"Starting benchmark run {run} for both platforms")
-            run_benchmark(run, SystemType.SNOWFLAKE)
-            run_benchmark(run, SystemType.EMBUCKET)
+            logger.info(f"Starting benchmark run {run} for both systems")
+            run_benchmark(run, SystemType.SNOWFLAKE, cold_run=args.cold_runs,
+                         disable_result_cache=args.disable_result_cache, use_custom_dataset=args.use_custom_dataset)
+            run_benchmark(run, SystemType.EMBUCKET, cold_run=args.cold_runs)
