@@ -24,6 +24,7 @@ default-server = [
     "dep:tower",
     "dep:strum"
 ]
+vanilla-tokio-runtime = ["core-executor/vanilla-tokio-runtime"]
 
 [dependencies]
 api-sessions = { path = "../api-sessions", optional = true }

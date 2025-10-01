@@ -137,7 +137,7 @@ mod snowflake_compatibility {
             "!abort 1",
         ]
     );
-
+    #[cfg(not(feature = "vanilla-tokio-runtime"))]
     sql_test!(
         JSON,
         abort_ok_query,
@@ -149,6 +149,7 @@ mod snowflake_compatibility {
         ]
     );
 
+    #[cfg(not(feature = "vanilla-tokio-runtime"))]
     sql_test!(
         JSON,
         cancel_ok_query,

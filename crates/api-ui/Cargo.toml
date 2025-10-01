@@ -6,6 +6,7 @@ license-file.workspace = true
 
 [features]
 client = []
+none-durable-history-writes = ["core-utils/none-durable-history-write"]
 
 [dependencies]
 api-ui-static-assets = { path = "../api-ui-static-assets" }

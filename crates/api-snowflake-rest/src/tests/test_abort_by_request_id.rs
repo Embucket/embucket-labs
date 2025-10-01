@@ -10,6 +10,7 @@ mod tests {
 
     use axum::http;
 
+    #[cfg(not(feature = "vanilla-tokio-runtime"))]
     #[tokio::test]
     async fn test_abort_by_request_id() {
         let addr = run_test_rest_api_server(JSON).await;
@@ -32,7 +33,6 @@ mod tests {
                 .await
                 .expect("Failed to run query");
         let query_id = query_id_from_snapshot(&res).expect("Failed to get query ID");
-
         let (_headers, _res) = abort::<()>(&client, &addr, &access_token, request_id, sql)
             .await
             .expect("Failed to abort query");

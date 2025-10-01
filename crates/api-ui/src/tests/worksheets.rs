@@ -98,6 +98,7 @@ async fn test_ui_worksheets_sort() {
         },
     )
     .await;
+    #[cfg(not(feature = "none-durable-history-writes"))]
     assert_eq!(
         vec!["name1", "name2", "name3", "name4"],
         sort_by_name_asc
@@ -552,6 +553,7 @@ async fn test_ui_worksheets_search() {
         },
     )
     .await;
+    #[cfg(not(feature = "none-durable-history-writes"))]
     assert_eq!(
         vec!["work1", "work2", "work3", "sheet1", "work4"],
         search.into_iter().map(|w| w.name).collect::<Vec<String>>(),
