@@ -47,6 +47,9 @@ use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::DbBuilder;
+use slatedb::Settings;
+use slatedb::config::GarbageCollectorDirectoryOptions;
+use slatedb::config::{CompactorOptions, GarbageCollectorOptions};
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -184,6 +187,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         .expect("Failed to create object store");
     let db = Db::new(Arc::new(
         DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+            .with_settings(slatedb_default_settings())
             .build()
             .await
             .expect("Failed to start Slate DB"),
@@ -327,6 +331,25 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     tracing_provider
         .shutdown()
         .expect("TracerProvider should shutdown successfully");
+}
+
+fn slatedb_default_settings() -> Settings {
+    let mut slatedb_settings = Settings::from_env("SLATEDB_").unwrap_or_default();
+
+    // Ensure compactor options are set if not already configured
+    if slatedb_settings.compactor_options.is_none() {
+        slatedb_settings.compactor_options = Some(CompactorOptions::default());
+    }
+
+    // Ensure garbage collector options are set if not already configured
+    if slatedb_settings.garbage_collector_options.is_none() {
+        slatedb_settings.garbage_collector_options = Some(GarbageCollectorOptions {
+            manifest_options: Some(GarbageCollectorDirectoryOptions::default()),
+            wal_options: Some(GarbageCollectorDirectoryOptions::default()),
+            compacted_options: Some(GarbageCollectorDirectoryOptions::default()),
+        });
+    }
+    slatedb_settings
 }
 
 #[allow(clippy::expect_used, clippy::redundant_closure_for_method_calls)]
