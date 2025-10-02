@@ -104,6 +104,14 @@ impl UserSession {
                         true,
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
+                    // Enable table statistics collection and parquet page-level stats
+                    .set_bool("datafusion.execution.collect_statistics", true)
+                    .set_str("datafusion.execution.parquet.statistics_enabled", "page")
+                    // Make EXPLAIN output as detailed as possible by default
+                    .set_bool("datafusion.explain.show_statistics", true)
+                    .set_bool("datafusion.explain.show_sizes", true)
+                    .set_bool("datafusion.explain.show_schema", true)
+                    .set_usize("datafusion.explain.tree_maximum_render_width", 0)
                     .set_usize("datafusion.optimizer.hash_join_single_partition_threshold_rows", 10_000_000)
                     .set_usize("datafusion.optimizer.hash_join_single_partition_threshold", 134217728)
                     .set_usize(
