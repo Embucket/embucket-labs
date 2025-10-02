@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use super::{TPCH_TABLES, get_query_sql, get_tpch_table_sql};
 use crate::util::{
-    BenchmarkRun, CommonOpt, create_catalog, query_context, set_session_variable_bool,
-    set_session_variable_number,
+    BenchmarkRun, CommonOpt, create_catalog, make_test_execution_svc, query_context,
+    set_session_variable_bool, set_session_variable_number,
 };
 
-use core_executor::service::{CoreExecutionService, ExecutionService, make_test_execution_svc};
+use core_executor::service::{CoreExecutionService, ExecutionService};
 use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::pretty::pretty_format_batches;

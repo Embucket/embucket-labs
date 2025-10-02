@@ -1,8 +1,8 @@
 use crate::util::{
-    BenchmarkRun, CommonOpt, create_catalog, query_context, set_session_variable_bool,
-    set_session_variable_number, table_ref,
+    BenchmarkRun, CommonOpt, create_catalog, make_test_execution_svc, query_context,
+    set_session_variable_bool, set_session_variable_number, table_ref,
 };
-use core_executor::service::{ExecutionService, make_test_execution_svc};
+use core_executor::service::ExecutionService;
 use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::exec_datafusion_err;

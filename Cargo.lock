@@ -3518,6 +3518,9 @@ version = "0.0.0"
 dependencies = [
  "cfg-if",
  "core-executor",
+ "core-history",
+ "core-metastore",
+ "core-utils",
  "datafusion",
  "env_logger",
  "log",
@@ -3525,6 +3528,7 @@ dependencies = [
  "parquet 56.2.0",
  "serde",
  "serde_json",
+ "slatedb",
  "snmalloc-rs",
  "structopt",
  "tokio",
