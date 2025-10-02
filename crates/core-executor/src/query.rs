@@ -36,6 +36,7 @@ use datafusion::datasource::DefaultTableSource;
 use datafusion::datasource::default_table_source::provider_as_source;
 use datafusion::datasource::file_format::FileFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
+use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::datasource::file_format::json::JsonFormat;
 use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::listing::{
@@ -114,6 +115,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::ops::ControlFlow;
 use std::result::Result as StdResult;
+use std::str::FromStr;
 use std::sync::Arc;
 use tracing::Instrument;
 use tracing_attributes::instrument;
@@ -3468,7 +3470,14 @@ fn create_file_format(
             let has_header =
                 get_kv_option(file_format, "skip_header").is_some_and(|x| x.to_lowercase() == "1");
 
-            let csv_format = CsvFormat::default().with_has_header(has_header);
+            let mut csv_format = CsvFormat::default().with_has_header(has_header);
+
+            if let Some(compression) = get_kv_option(file_format, "compression") {
+                csv_format = csv_format.with_file_compression_type(
+                    FileCompressionType::from_str(compression)
+                        .context(ex_error::DataFusionSnafu)?,
+                );
+            }
 
             // Handle field_delimiter parameter
             let csv_format = if let Some(delimiter) = get_kv_option(file_format, "field_delimiter")
