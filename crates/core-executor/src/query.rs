@@ -73,7 +73,7 @@ use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
-use datafusion_physical_plan::collect;
+use datafusion_physical_plan::{collect, displayable};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -2234,15 +2234,27 @@ impl UserQuery {
             .executor
             .spawn(async move {
                 let mut schema = plan.schema().as_arrow().clone();
-                let records = session
+                let data_frame = session
                     .ctx
                     .execute_logical_plan(plan)
                     .await
-                    .context(ex_error::DataFusionSnafu)?
-                    .collect()
+                    .context(ex_error::DataFusionSnafu)?;
+                let context = Arc::new(data_frame.task_ctx());
+                let plan = data_frame
+                    .create_physical_plan()
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+
+                let _before_metrics = plan.metrics();
+                let _display_plan = format!("{}", displayable(&*plan).tree_render());
+
+                let records = collect(plan.clone(), context)
                     .instrument(span)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
+
+                let _after_metrics = plan.metrics();
+
                 if !records.is_empty() {
                     schema = records[0].schema().as_ref().clone();
                 }
