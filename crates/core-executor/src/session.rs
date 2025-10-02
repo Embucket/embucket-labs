@@ -104,6 +104,8 @@ impl UserSession {
                         true,
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
+                    .set_usize("datafusion.optimizer.hash_join_single_partition_threshold_rows", 10_000_000)
+                    .set_usize("datafusion.optimizer.hash_join_single_partition_threshold", 134217728)
                     .set_usize(
                         "datafusion.execution.parquet.maximum_parallel_row_group_writers",
                         parallelism_opt.map_or(1, |x| (x / PARALLEL_ROW_GROUP_RATIO).max(1)),
