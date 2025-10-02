@@ -4,6 +4,7 @@ use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::arrow::csv::reader::Format;
 use datafusion::catalog::CatalogProvider;
 use datafusion::catalog::{MemoryCatalogProvider, MemorySchemaProvider};
+use datafusion::common::runtime::set_join_set_tracer;
 use datafusion::datasource::memory::MemTable;
 use datafusion::execution::DiskManager;
 use datafusion::execution::disk_manager::DiskManagerMode;
@@ -25,6 +26,7 @@ use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuer
 use super::session::UserSession;
 use crate::running_queries::AbortQuery;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
+use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
@@ -173,6 +175,8 @@ impl CoreExecutionService {
             let _ = Self::bootstrap(metastore.clone()).await;
         }
 
+        Self::initialize_datafusion_tracer();
+
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
@@ -318,6 +322,10 @@ impl CoreExecutionService {
         }
 
         rt_builder.build_arc().context(ex_error::DataFusionSnafu)
+    }
+
+    fn initialize_datafusion_tracer() {
+        let _ = set_join_set_tracer(&SpanTracer);
     }
 }
 
