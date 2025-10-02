@@ -1,4 +1,7 @@
-use crate::util::{BenchmarkRun, CommonOpt, create_catalog, query_context, table_ref};
+use crate::util::{
+    BenchmarkRun, CommonOpt, create_catalog, query_context, set_session_variable_bool,
+    set_session_variable_number, table_ref,
+};
 use core_executor::service::{ExecutionService, make_test_execution_svc};
 use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -110,14 +113,17 @@ impl RunOpt {
 
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;
-        {
-            let state = session.ctx.state_ref();
-            let mut write = state.write();
-            let options = write.config_mut().options_mut();
-            // The hits_partitioned dataset specifies string columns
-            // as binary due to how it was written. Force it to strings
-            options.execution.parquet.binary_as_string = true;
-        }
+
+        // Set the number of output parquet files during copy into
+        set_session_variable_number(
+            "execution.minimum_parallel_output_files",
+            self.common.output_files_number,
+            &session,
+        )
+        .await?;
+        // The hits_partitioned dataset specifies string columns
+        // as binary due to how it was written. Force it to strings
+        set_session_variable_bool("execution.parquet.binary_as_string", true, &session).await?;
 
         println!("Creating catalog, schema, table");
         let path = self.path.to_str().unwrap();
@@ -129,6 +135,7 @@ impl RunOpt {
         for query_id in query_range {
             let mut millis = Vec::with_capacity(iterations);
             benchmark_run.start_new_case(&format!("Query {query_id}"));
+            let session = service.create_session("session_id").await?;
             let sql = queries.get_query(query_id)?;
             println!("Q{query_id}: {sql}");
 

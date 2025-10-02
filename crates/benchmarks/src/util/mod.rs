@@ -47,3 +47,25 @@ pub async fn create_catalog(path: &str, session: &Arc<UserSession>) -> Result<()
     schema_query.execute().await?;
     Ok(())
 }
+
+pub async fn set_session_variable_number(
+    var: &str,
+    value: usize,
+    session: &Arc<UserSession>,
+) -> Result<()> {
+    let var_query = format!("SET datafusion.{var} = {value}");
+    let mut query = session.query(var_query, query_context());
+    query.execute().await?;
+    Ok(())
+}
+
+pub async fn set_session_variable_bool(
+    var: &str,
+    value: bool,
+    session: &Arc<UserSession>,
+) -> Result<()> {
+    let var_query = format!("SET datafusion.{var} = {value}");
+    let mut query = session.query(var_query, query_context());
+    query.execute().await?;
+    Ok(())
+}
