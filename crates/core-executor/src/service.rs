@@ -23,7 +23,7 @@ use super::error::{self as ex_error, Result};
 use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
 use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
 use super::session::UserSession;
-use crate::running_queries::AbortQuery;
+use crate::running_queries::RunningQueryId;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::utils::{Config, MemPoolType};
 use core_history::history_store::HistoryStore;
@@ -64,7 +64,7 @@ pub trait ExecutionService: Send + Sync {
     ///
     /// A `Result` of type `()`. The `Ok` variant contains an empty tuple,
     /// and the `Err` variant contains an `Error`.
-    fn abort_query(&self, abort_query: AbortQuery) -> Result<()>;
+    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()>;
 
     /// Submits a query to be executed asynchronously. Query result can be consumed with
     /// `wait_submitted_query_result`.
@@ -510,7 +510,7 @@ impl ExecutionService for CoreExecutionService {
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult> {
         let query_id = query_handle.query_id;
-        if !self.queries.is_running(query_id) {
+        if !self.queries.is_running(RunningQueryId::ByQueryId(query_id)) {
             return ex_error::QueryIsntRunningSnafu { query_id }.fail();
         }
 
@@ -542,7 +542,7 @@ impl ExecutionService for CoreExecutionService {
         &self,
         query_id: QueryRecordId,
     ) -> Result<Result<QueryResult>> {
-        if let Ok(mut running_query) = self.queries.get(query_id) {
+        if let Ok(mut running_query) = self.queries.get(RunningQueryId::ByQueryId(query_id)) {
             let query_status = running_query
                 .recv_query_finished()
                 .await
@@ -585,7 +585,7 @@ impl ExecutionService for CoreExecutionService {
         fields(old_queries_count = self.queries.count()),
         err
     )]
-    fn abort_query(&self, abort_query: AbortQuery) -> Result<()> {
+    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()> {
         self.queries.abort(abort_query)
     }
 
@@ -714,7 +714,7 @@ impl ExecutionService for CoreExecutionService {
             history_store_ref.save_query_record(&mut history_record).await;
 
             // remove query from running queries registry
-            let running_query = queries_ref.remove(query_id);
+            let running_query = queries_ref.remove(RunningQueryId::ByQueryId(query_id));
 
             // Send result to the result owner
             if tx.send(query_result_status).is_err() {

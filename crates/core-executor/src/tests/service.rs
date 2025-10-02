@@ -1,6 +1,6 @@
 use crate::Error;
 use crate::models::{QueryContext, QueryResult};
-use crate::running_queries::AbortQuery;
+use crate::running_queries::RunningQueryId;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
 use core_history::QueryStatus;
@@ -710,7 +710,7 @@ async fn test_submitted_query_abort_by_query_id() {
     let query_id = query_handle.query_id;
 
     execution_svc
-        .abort_query(AbortQuery::ByQueryId(query_id))
+        .abort_query(RunningQueryId::ByQueryId(query_id))
         .expect("Failed to cancel query");
 
     let query_result = execution_svc
@@ -769,7 +769,10 @@ async fn test_submitted_query_abort_by_request_id() {
     let query_id = query_handle.query_id;
 
     execution_svc
-        .abort_query(AbortQuery::ByRequestId(request_id, sql_text.to_string()))
+        .abort_query(RunningQueryId::ByRequestId(
+            request_id,
+            sql_text.to_string(),
+        ))
         .expect("Failed to cancel query");
 
     let query_result = execution_svc

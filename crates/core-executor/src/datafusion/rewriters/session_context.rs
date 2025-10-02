@@ -1,5 +1,5 @@
 use crate::models::QueryContext;
-use crate::running_queries::{AbortQuery, RunningQueries};
+use crate::running_queries::{RunningQueries, RunningQueryId};
 use core_history::{GetQueriesParams, HistoryStore, QueryRecordId};
 use datafusion::arrow::array::{ListArray, ListBuilder, StringBuilder};
 use datafusion::logical_expr::{Expr, LogicalPlan};
@@ -79,7 +79,7 @@ impl SessionContextExprRewriter {
         let query_id = QueryRecordId::from(query_uuid);
         if self
             .running_queries
-            .abort(AbortQuery::ByQueryId(query_id))
+            .abort(RunningQueryId::ByQueryId(query_id))
             .is_err()
         {
             Ok(utf8_val(

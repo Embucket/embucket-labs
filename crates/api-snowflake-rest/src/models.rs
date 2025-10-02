@@ -71,7 +71,8 @@ pub struct ClientEnvironment {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
-    pub request_id: String,
+    pub request_id: Uuid,
+    pub retry_count: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

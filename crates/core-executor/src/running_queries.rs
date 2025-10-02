@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct RunningQuery {
-    query_id: QueryRecordId,
-    request_id: Option<Uuid>,
+    pub query_id: QueryRecordId,
+    pub request_id: Option<Uuid>,
     cancellation_token: CancellationToken,
     // user can be notified when query is finished
     tx: watch::Sender<QueryStatus>,
@@ -19,7 +19,7 @@ pub struct RunningQuery {
 }
 
 #[derive(Debug)]
-pub enum AbortQuery {
+pub enum RunningQueryId {
     ByQueryId(QueryRecordId),  // (query_id)
     ByRequestId(Uuid, String), // (request_id, sql_text)
 }
@@ -105,11 +105,11 @@ impl RunningQueriesRegistry {
 // RunningQueries interface allows cancel queries by query_id or request_id
 pub trait RunningQueries: Send + Sync {
     fn add(&self, running_query: RunningQuery) -> CancellationToken;
-    fn remove(&self, query_id: QueryRecordId) -> Result<RunningQuery>;
-    fn abort(&self, abort_query: AbortQuery) -> Result<()>;
-    fn is_running(&self, query_id: QueryRecordId) -> bool;
+    fn remove(&self, running_query_id: RunningQueryId) -> Result<RunningQuery>;
+    fn abort(&self, abort_query: RunningQueryId) -> Result<()>;
+    fn is_running(&self, running_query_id: RunningQueryId) -> bool;
     fn count(&self) -> usize;
-    fn get(&self, query_id: QueryRecordId) -> Result<RunningQuery>;
+    fn get(&self, running_query_id: RunningQueryId) -> Result<RunningQuery>;
 }
 
 impl RunningQueries for RunningQueriesRegistry {
@@ -135,7 +135,8 @@ impl RunningQueries for RunningQueriesRegistry {
         skip(self),
         err
     )]
-    fn remove(&self, query_id: QueryRecordId) -> Result<RunningQuery> {
+    fn remove(&self, running_query_id: RunningQueryId) -> Result<RunningQuery> {
+        let query_id = self.get(running_query_id)?.query_id;
         if let Some((_query_id, running_query)) = self.queries.remove(&query_id.as_i64()) {
             Ok(running_query)
         } else {
@@ -143,11 +144,24 @@ impl RunningQueries for RunningQueriesRegistry {
         }
     }
 
-    fn get(&self, query_id: QueryRecordId) -> Result<RunningQuery> {
-        let running_query = self
-            .queries
-            .get(&query_id.as_i64())
-            .context(ex_error::QueryIsntRunningSnafu { query_id })?;
+    fn get(&self, running_query_id: RunningQueryId) -> Result<RunningQuery> {
+        let running_query = match running_query_id {
+            RunningQueryId::ByQueryId(query_id) => self
+                .queries
+                .get(&query_id.as_i64())
+                .context(ex_error::QueryIsntRunningSnafu { query_id })?,
+            RunningQueryId::ByRequestId(request_id, _sql_text) => {
+                let query_id = self
+                    .requests_ids
+                    .get(&request_id)
+                    .context(ex_error::QueryByRequestIdIsntRunningSnafu { request_id })?;
+                self.queries
+                    .get(&query_id.as_i64())
+                    .context(ex_error::QueryIsntRunningSnafu {
+                        query_id: query_id.as_i64(),
+                    })?
+            }
+        };
         // Can't return reference to RunningQuery, but it quite small so clone it
         Ok(running_query.clone())
     }
@@ -159,12 +173,12 @@ impl RunningQueries for RunningQueriesRegistry {
         fields(running_queries_count = self.count()),
         err
     )]
-    fn abort(&self, abort_query: AbortQuery) -> Result<()> {
+    fn abort(&self, abort_query: RunningQueryId) -> Result<()> {
         // Two phase mechanism:
         // 1 - cancel query using cancellation_token
         // 2 - ExecutionService removes RunningQuery from RunningQueriesRegistry
         match abort_query {
-            AbortQuery::ByQueryId(query_id) => {
+            RunningQueryId::ByQueryId(query_id) => {
                 let running_query = self
                     .queries
                     .get(&query_id.as_i64())
@@ -172,12 +186,12 @@ impl RunningQueries for RunningQueriesRegistry {
                 running_query.cancel();
             }
             // sql_text is not realy used for aborting query. Should it be checked too?
-            AbortQuery::ByRequestId(request_id, _sql_text) => {
+            RunningQueryId::ByRequestId(request_id, _sql_text) => {
                 let query_record_id = self
                     .requests_ids
                     .get(&request_id)
                     .context(ex_error::QueryByRequestIdIsntRunningSnafu { request_id })?;
-                self.abort(AbortQuery::ByQueryId(*query_record_id))?;
+                self.abort(RunningQueryId::ByQueryId(*query_record_id))?;
             }
         }
         Ok(())
@@ -189,8 +203,8 @@ impl RunningQueries for RunningQueriesRegistry {
         skip(self),
         ret
     )]
-    fn is_running(&self, query_id: QueryRecordId) -> bool {
-        self.queries.get(&query_id.as_i64()).is_some()
+    fn is_running(&self, running_query_id: RunningQueryId) -> bool {
+        self.get(running_query_id).is_ok()
     }
 
     fn count(&self) -> usize {

@@ -3,20 +3,15 @@ use crate::models::{
     AbortRequestBody, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
     LoginResponseData, QueryRequest, QueryRequestBody, ResponseData,
 };
-use crate::server::error::{
-    self as api_snowflake_rest_error, Error, InvalidUuidFormatSnafu, Result,
-};
-use crate::server::helpers::prepare_query_ok_response;
+use crate::server::error::{self as api_snowflake_rest_error, Result};
+use crate::server::helpers::{handle_historical_query_result, handle_query_ok_result};
 use api_sessions::DFSessionId;
 use axum::Json;
 use axum::extract::{ConnectInfo, Path, Query, State};
-use core_executor::AbortQuery;
-use core_executor::error as ex_error;
+use core_executor::RunningQueryId;
 use core_executor::models::QueryContext;
 use core_history::{QueryIdParam, QueryRecordId};
-use snafu::{ResultExt, location};
 use std::net::SocketAddr;
-use std::str::FromStr;
 use uuid::Uuid;
 
 #[tracing::instrument(name = "api_snowflake_rest::login", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
@@ -62,7 +57,7 @@ pub async fn query(
     let query_context = QueryContext::default()
         .with_ip_address(addr.ip().to_string())
         .with_async_query(async_exec)
-        .with_request_id(Uuid::from_str(&query.request_id).context(InvalidUuidFormatSnafu)?);
+        .with_request_id(query.request_id);
 
     if async_exec {
         let query_handle = state
@@ -84,13 +79,24 @@ pub async fn query(
             message: Option::from("successfully executed".to_string()),
             code: None,
         }))
+    } else if query.retry_count > 1 {
+        // find existing query
+        let session = state.execution_svc.get_session(&session_id).await?;
+        let query_id = session
+            .running_queries
+            .get(RunningQueryId::ByRequestId(query.request_id, sql_text))?
+            .query_id;
+        let historical_result = state
+            .execution_svc
+            .wait_historical_query_result(query_id)
+            .await?;
+        handle_historical_query_result(query_id, historical_result, serialization_format)
     } else {
-        let query_result = state
+        let result = state
             .execution_svc
             .query(&session_id, &sql_text, query_context)
             .await?;
-
-        prepare_query_ok_response(&sql_text, query_result, serialization_format)
+        handle_query_ok_result(&sql_text, result, serialization_format)
     }
 }
 
@@ -111,33 +117,16 @@ pub async fn get_query(
         .execution_svc
         .wait_historical_query_result(query_id)
         .await?;
-    match query_result {
-        Ok(query_result) => {
-            prepare_query_ok_response("", query_result, state.config.dbt_serialization_format)
-        }
-        // Return the same response as it would be returned when error is propagated
-        Err(error) => {
-            // Create without using build(), and not using context which works with result
-            let error = Error::Execution {
-                source: ex_error::Error::QueryExecution {
-                    query_id,
-                    source: Box::new(error),
-                    location: location!(),
-                },
-            };
-
-            let (_http_code, body) = error.prepare_response();
-            Ok(body)
-        }
-    }
+    handle_historical_query_result(
+        query_id,
+        query_result,
+        state.config.dbt_serialization_format,
+    )
 }
 
 #[tracing::instrument(name = "api_snowflake_rest::abort", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn abort(
     State(state): State<AppState>,
-    Query(QueryRequest {
-        request_id: query_request_id,
-    }): Query<QueryRequest>,
     Json(AbortRequestBody {
         sql_text,
         request_id,
@@ -145,6 +134,6 @@ pub async fn abort(
 ) -> Result<Json<serde_json::value::Value>> {
     state
         .execution_svc
-        .abort_query(AbortQuery::ByRequestId(request_id, sql_text))?;
+        .abort_query(RunningQueryId::ByRequestId(request_id, sql_text))?;
     Ok(Json(serde_json::value::Value::Null))
 }
