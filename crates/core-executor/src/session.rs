@@ -77,7 +77,13 @@ impl UserSession {
 
         let session_params = SessionParams::default();
         let session_params_arc = Arc::new(session_params.clone());
-        let config_options = ConfigOptions::from_env().context(ex_error::DataFusionSnafu)?;
+        let mut config_options = ConfigOptions::from_env().context(ex_error::DataFusionSnafu)?;
+
+        // Only set minimum_parallel_output_files if environment variable wasn't set
+        if std::env::var_os("DATAFUSION_EXECUTION_MINIMUM_PARALLEL_OUTPUT_FILES").is_none() {
+            config_options.execution.minimum_parallel_output_files = MINIMUM_PARALLEL_OUTPUT_FILES;
+        }
+
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::from(config_options)
@@ -92,10 +98,6 @@ impl UserSession {
                         true,
                     )
                     .set_bool("datafusion.sql_parser.parse_float_as_decimal", true)
-                    .set_usize(
-                        "datafusion.execution.minimum_parallel_output_files",
-                        MINIMUM_PARALLEL_OUTPUT_FILES,
-                    )
                     .set_usize(
                         "datafusion.execution.parquet.maximum_parallel_row_group_writers",
                         parallelism_opt.map_or(1, |x| (x / PARALLEL_ROW_GROUP_RATIO).max(1)),
