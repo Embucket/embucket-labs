@@ -79,24 +79,29 @@ pub async fn query(
             message: Option::from("successfully executed".to_string()),
             code: None,
         }))
-    } else if query.retry_count > 1 {
-        // find existing query
-        let session = state.execution_svc.get_session(&session_id).await?;
-        let query_id = session
-            .running_queries
-            .get(RunningQueryId::ByRequestId(query.request_id, sql_text))?
-            .query_id;
-        let historical_result = state
-            .execution_svc
-            .wait_historical_query_result(query_id)
-            .await?;
-        handle_historical_query_result(query_id, historical_result, serialization_format)
     } else {
-        let result = state
-            .execution_svc
-            .query(&session_id, &sql_text, query_context)
-            .await?;
-        handle_query_ok_result(&sql_text, result, serialization_format)
+        // find running query by request_id
+        let session = state.execution_svc.get_session(&session_id).await?;
+        let running_query = session.running_queries.get(RunningQueryId::ByRequestId(
+            query.request_id,
+            sql_text.clone(),
+        ));
+
+        if query.retry_count.unwrap_or_default() > 0 && running_query.is_ok() {
+            let query_id = running_query?.query_id;
+            let historical_result = state
+                .execution_svc
+                .wait_historical_query_result(query_id)
+                .await?;
+            handle_historical_query_result(query_id, historical_result, serialization_format)
+        } else {
+            // execute new query
+            let result = state
+                .execution_svc
+                .query(&session_id, &sql_text, query_context)
+                .await?;
+            handle_query_ok_result(&sql_text, result, serialization_format)
+        }
     }
 }
 

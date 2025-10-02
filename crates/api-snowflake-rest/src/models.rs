@@ -72,7 +72,8 @@ pub struct ClientEnvironment {
 #[serde(rename_all = "camelCase")]
 pub struct QueryRequest {
     pub request_id: Uuid,
-    pub retry_count: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_count: Option<u16>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
