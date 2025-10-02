@@ -47,6 +47,7 @@ use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
 use slatedb::DbBuilder;
+use slatedb::config::Settings;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -184,6 +185,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         .expect("Failed to create object store");
     let db = Db::new(Arc::new(
         DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+            .with_settings(slatedb_default_settings())
             .build()
             .await
             .expect("Failed to start Slate DB"),
@@ -327,6 +329,11 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     tracing_provider
         .shutdown()
         .expect("TracerProvider should shutdown successfully");
+}
+
+#[allow(clippy::expect_used)]
+fn slatedb_default_settings() -> Settings {
+    Settings::load().expect("Failed to load SlateDB settings")
 }
 
 #[allow(clippy::expect_used, clippy::redundant_closure_for_method_calls)]
