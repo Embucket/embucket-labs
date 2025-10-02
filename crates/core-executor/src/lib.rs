@@ -8,6 +8,7 @@ pub mod running_queries;
 pub mod service;
 pub mod session;
 pub mod snowflake_error;
+pub mod tracing;
 pub mod utils;
 
 #[cfg(test)]
