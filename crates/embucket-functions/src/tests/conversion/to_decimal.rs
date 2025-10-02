@@ -50,3 +50,31 @@ test_query!(
     FROM VALUES (FALSE), (TRUE)",
     snapshot_path = "to_decimal"
 );
+
+test_query!(
+    to_decimal_from_null,
+    "SELECT TO_DECIMAL(NULL)",
+    snapshot_path = "to_decimal"
+);
+
+test_query!(
+    to_decimal_from_null_not_null,
+    "SELECT
+       TO_DECIMAL(column1) as convert_null
+    FROM VALUES (NULL), (10)",
+    snapshot_path = "to_decimal"
+);
+
+test_query!(
+    to_decimal_from_null_not_null_reversed,
+    "SELECT
+       TO_DECIMAL(column1) as convert_null
+    FROM VALUES (10), (null)",
+    snapshot_path = "to_decimal"
+);
+
+test_query!(
+    to_decimal_from_null_with_precision_and_scale,
+    "SELECT TO_DECIMAL(NULL, 7, 2)",
+    snapshot_path = "to_decimal"
+);
