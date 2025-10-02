@@ -327,7 +327,7 @@ run_clickbench_1() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output-files-number 1 --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
@@ -335,7 +335,7 @@ run_clickbench_partitioned() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output-files-number 100 --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
 compare_benchmarks() {

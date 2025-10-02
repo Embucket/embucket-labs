@@ -136,6 +136,14 @@ impl RunOpt {
             let mut millis = Vec::with_capacity(iterations);
             benchmark_run.start_new_case(&format!("Query {query_id}"));
             let session = service.create_session("session_id").await?;
+
+            // Set prefer_hash_join session variable
+            set_session_variable_bool(
+                "optimizer.prefer_hash_join",
+                self.common.prefer_hash_join,
+                &session,
+            )
+            .await?;
             let sql = queries.get_query(query_id)?;
             println!("Q{query_id}: {sql}");
 

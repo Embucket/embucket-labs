@@ -16,9 +16,6 @@ use datafusion::error::Result;
 use log::info;
 use structopt::StructOpt;
 
-// hack to avoid `default_value is meaningless for bool` errors
-type BoolDefaultTrue = bool;
-
 /// Run the tpch benchmark.
 ///
 /// This benchmarks is derived from the [TPC-H][1] version
@@ -43,10 +40,6 @@ pub struct RunOpt {
     /// Path to machine-readable output file
     #[structopt(parse(from_os_str), short = "o", long = "output")]
     output_path: Option<PathBuf>,
-    /// If true then hash join used, if false then sort merge join
-    /// True by default.
-    #[structopt(short = "j", long = "prefer_hash_join", default_value = "true")]
-    prefer_hash_join: BoolDefaultTrue,
 }
 
 const TPCH_QUERY_START_ID: usize = 1;
@@ -107,7 +100,7 @@ impl RunOpt {
         // Set prefer_hash_join session variable
         set_session_variable_bool(
             "optimizer.prefer_hash_join",
-            self.prefer_hash_join,
+            self.common.prefer_hash_join,
             &session,
         )
         .await?;
