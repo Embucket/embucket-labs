@@ -10,9 +10,10 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # Set Defaults
 COMMAND=
 BENCHMARK=all
-DATAFUSION_DIR=${DATAFUSION_DIR:-$SCRIPT_DIR/..}
+EMBUCKET_DIR=${EMBUCKET_DIR:-$SCRIPT_DIR/..}
 DATA_DIR=${DATA_DIR:-$SCRIPT_DIR/data}
 CARGO_COMMAND=${CARGO_COMMAND:-"cargo run --release"}
+PREFER_HASH_JOIN=${PREFER_HASH_JOIN:-true}
 VIRTUAL_ENV=${VIRTUAL_ENV:-$SCRIPT_DIR/venv}
 
 usage() {
@@ -52,8 +53,9 @@ clickbench_partitioned: ClickBench queries against a partitioned (100 files) par
 **********
 DATA_DIR            directory to store datasets
 CARGO_COMMAND       command that runs the benchmark binary
-DATAFUSION_DIR      directory to use (default $DATAFUSION_DIR)
+EMBUCKET_DIR        directory to use (default $EMBUCKET_DIR)
 RESULTS_NAME        folder where the benchmark files are stored
+PREFER_HASH_JOIN    Prefer hash join algorithm (default true)
 VENV_PATH           Python venv to use for compare and venv commands (default ./venv, override by <your-venv>/bin/activate)
 "
     exit 1
@@ -101,11 +103,13 @@ main() {
             echo "BENCHMARK: ${BENCHMARK}"
             echo "DATA_DIR: ${DATA_DIR}"
             echo "CARGO_COMMAND: ${CARGO_COMMAND}"
+            echo "PREFER_HASH_JOIN: ${PREFER_HASH_JOIN}"
             echo "***************************"
             case "$BENCHMARK" in
                 all)
                     data_tpch "1"
                     data_tpch "10"
+                    data_tpch "100"
                     data_clickbench_1
                     data_clickbench_partitioned
                     ;;
@@ -114,6 +118,9 @@ main() {
                     ;;
                 tpch10)
                     data_tpch "10"
+                    ;;
+                tpch100)
+                    data_tpch "100"
                     ;;
                 clickbench_1)
                     data_clickbench_1
@@ -130,7 +137,7 @@ main() {
         run)
             # Parse positional parameters
             BENCHMARK=${ARG2:-"${BENCHMARK}"}
-            BRANCH_NAME=$(cd "${DATAFUSION_DIR}" && git rev-parse --abbrev-ref HEAD)
+            BRANCH_NAME=$(cd "${EMBUCKET_DIR}" && git rev-parse --abbrev-ref HEAD)
             BRANCH_NAME=${BRANCH_NAME//\//_} # mind blowing syntax to replace / with _
             RESULTS_NAME=${RESULTS_NAME:-"${BRANCH_NAME}"}
             RESULTS_DIR=${RESULTS_DIR:-"$SCRIPT_DIR/results/$RESULTS_NAME"}
@@ -139,7 +146,7 @@ main() {
             echo "DataFusion Benchmark Script"
             echo "COMMAND: ${COMMAND}"
             echo "BENCHMARK: ${BENCHMARK}"
-            echo "DATAFUSION_DIR: ${DATAFUSION_DIR}"
+            echo "EMBUCKET_DIR: ${EMBUCKET_DIR}"
             echo "BRANCH_NAME: ${BRANCH_NAME}"
             echo "DATA_DIR: ${DATA_DIR}"
             echo "RESULTS_DIR: ${RESULTS_DIR}"
@@ -147,13 +154,14 @@ main() {
             echo "***************************"
 
             # navigate to the appropriate directory
-            pushd "${DATAFUSION_DIR}/benchmarks" > /dev/null
+            pushd "${EMBUCKET_DIR}/benchmarks" > /dev/null
             mkdir -p "${RESULTS_DIR}"
             mkdir -p "${DATA_DIR}"
             case "$BENCHMARK" in
                 all)
                     run_tpch "1"
                     run_tpch "10"
+                    run_tpch "100"
                     run_clickbench_1
                     run_clickbench_partitioned
                     ;;
@@ -162,6 +170,9 @@ main() {
                     ;;
                 tpch10)
                     run_tpch "10"
+                    ;;
+                tpch100)
+                    run_tpch "100"
                     ;;
                 clickbench_1)
                     run_clickbench_1
@@ -261,7 +272,7 @@ run_tpch() {
     QUERY=$([ -n "$ARG3" ] && echo "--query $ARG3" || echo "")
     # debug the target command
     set -x
-    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --path "${TPCH_DIR}" -o "${RESULTS_FILE}" $QUERY
+    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY
     set +x
 }
 
@@ -316,7 +327,7 @@ run_clickbench_1() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits"  --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
@@ -324,7 +335,7 @@ run_clickbench_partitioned() {
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
 }
 
 compare_benchmarks() {

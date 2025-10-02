@@ -2,9 +2,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{TPCH_TABLES, get_query_sql, get_tpch_table_sql};
-use crate::util::{BenchmarkRun, CommonOpt, create_catalog, query_context};
+use crate::util::{
+    BenchmarkRun, CommonOpt, create_catalog, make_test_execution_svc, query_context,
+    set_session_variable_bool, set_session_variable_number,
+};
 
-use core_executor::service::{ExecutionService, make_test_execution_svc};
+use core_executor::service::{CoreExecutionService, ExecutionService};
 use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::pretty::pretty_format_batches;
@@ -43,7 +46,7 @@ const TPCH_QUERY_START_ID: usize = 1;
 const TPCH_QUERY_END_ID: usize = 22;
 
 impl RunOpt {
-    #[allow(clippy::print_stdout)]
+    #[allow(clippy::print_stdout, clippy::unwrap_used)]
     pub async fn run(self) -> Result<()> {
         println!("Running benchmarks with the following options: {self:?}");
         let query_range = match self.query {
@@ -52,9 +55,26 @@ impl RunOpt {
         };
 
         let mut benchmark_run = BenchmarkRun::new();
+
+        println!("Create service, volume, database, schema: {self:?}");
+        let service = make_test_execution_svc().await;
+        let session = service.create_session("session_id").await?;
+        let path = self.path.to_str().unwrap();
+        create_catalog(path, &session).await?;
+
+        // Set the number of output parquet files during copy into
+        set_session_variable_number(
+            "execution.minimum_parallel_output_files",
+            self.common.output_files_number,
+            &session,
+        )
+        .await?;
+        self.create_tables(&session).await?;
+
+        // Run queries
         for query_id in query_range {
             benchmark_run.start_new_case(&format!("Query {query_id}"));
-            let query_run = self.benchmark_query(query_id).await?;
+            let query_run = self.benchmark_query(query_id, &service).await?;
             for iter in query_run {
                 benchmark_run.write_iter(iter.elapsed, iter.row_count);
             }
@@ -69,13 +89,21 @@ impl RunOpt {
         clippy::print_stdout,
         clippy::unwrap_used
     )]
-    async fn benchmark_query(&self, query_id: usize) -> Result<Vec<QueryResult>> {
-        let service = make_test_execution_svc().await;
-        let session = service.create_session("session_id").await?;
+    async fn benchmark_query(
+        &self,
+        query_id: usize,
+        service: &Arc<CoreExecutionService>,
+    ) -> Result<Vec<QueryResult>> {
+        let session_id = format!("session_id_{query_id}");
+        let session = service.create_session(&session_id).await?;
 
-        let path = self.path.to_str().unwrap();
-        create_catalog(path, &session).await?;
-        self.create_tables(&session).await?;
+        // Set prefer_hash_join session variable
+        set_session_variable_bool(
+            "optimizer.prefer_hash_join",
+            self.common.prefer_hash_join,
+            &session,
+        )
+        .await?;
 
         let mut millis = vec![];
         // run benchmark

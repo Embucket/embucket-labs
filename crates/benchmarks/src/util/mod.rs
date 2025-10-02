@@ -2,7 +2,12 @@ mod options;
 mod run;
 
 use core_executor::models::QueryContext;
+use core_executor::service::CoreExecutionService;
 use core_executor::session::UserSession;
+use core_executor::utils::Config;
+use core_history::SlateDBHistoryStore;
+use core_metastore::SlateDBMetastore;
+use core_utils::Db;
 use datafusion::error::Result;
 pub use options::CommonOpt;
 pub use run::{BenchQuery, BenchmarkRun};
@@ -46,4 +51,48 @@ pub async fn create_catalog(path: &str, session: &Arc<UserSession>) -> Result<()
     let mut schema_query = session.query(schema_sql, query_context());
     schema_query.execute().await?;
     Ok(())
+}
+
+pub async fn set_session_variable_number(
+    var: &str,
+    value: usize,
+    session: &Arc<UserSession>,
+) -> Result<()> {
+    let var_query = format!("SET datafusion.{var} = {value}");
+    let mut query = session.query(var_query, query_context());
+    query.execute().await?;
+    Ok(())
+}
+
+pub async fn set_session_variable_bool(
+    var: &str,
+    value: bool,
+    session: &Arc<UserSession>,
+) -> Result<()> {
+    let var_query = format!("SET datafusion.{var} = {value}");
+    let mut query = session.query(var_query, query_context());
+    query.execute().await?;
+    Ok(())
+}
+
+#[allow(clippy::expect_used, clippy::as_conversions)]
+pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
+    // let object_store = LocalFileSystem::new_with_prefix(PathBuf::from("."))
+    //     .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
+    //     .expect("Failed to create file object_store");
+    //
+    // let db = Db::new(Arc::new(
+    //     DbBuilder::new(Path::from("slatedb_prefix"), object_store.clone())
+    //         .build()
+    //         .await
+    //         .expect("Failed to start Slate DB"),
+    // ));
+    let db = Db::memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    Arc::new(
+        CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
+            .await
+            .expect("Failed to create a execution service"),
+    )
 }
