@@ -15,7 +15,7 @@ pub mod utils;
 pub mod tests;
 
 pub use error::{Error, Result};
-pub use running_queries::AbortQuery;
+pub use running_queries::RunningQueryId;
 pub use snowflake_error::SnowflakeError;
 
 use crate::service::ExecutionService;

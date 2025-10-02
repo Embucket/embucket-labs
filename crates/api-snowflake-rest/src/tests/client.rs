@@ -38,46 +38,56 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
         .send()
         .await;
 
-    let response = res.unwrap();
-    if response.status() == StatusCode::OK {
-        let headers = response.headers().clone();
-        let status = response.status();
-        let text = response.text().await.expect("Failed to get response text");
-        if text.is_empty() {
-            // If no actual type retuned we emulate unit, by "null" value in json
-            Ok((
-                headers,
-                serde_json::from_str::<T>("null").expect("Failed to parse response"),
-            ))
-        } else {
-            let json = serde_json::from_str::<T>(&text);
-            match json {
-                Ok(json) => Ok((headers, json)),
-                Err(err) => {
-                    // Normally we don't expect error here, and only have http related error to return
-                    Err(TestHttpError {
-                        method,
-                        url: url.clone(),
-                        headers,
-                        status,
-                        body: text,
-                        error: err.to_string(),
-                    })
+    if let Ok(response) = res {
+        if response.status() == StatusCode::OK {
+            let headers = response.headers().clone();
+            let status = response.status();
+            let text = response.text().await.expect("Failed to get response text");
+            if text.is_empty() {
+                // If no actual type retuned we emulate unit, by "null" value in json
+                Ok((
+                    headers,
+                    serde_json::from_str::<T>("null").expect("Failed to parse response"),
+                ))
+            } else {
+                let json = serde_json::from_str::<T>(&text);
+                match json {
+                    Ok(json) => Ok((headers, json)),
+                    Err(err) => {
+                        // Normally we don't expect error here, and only have http related error to return
+                        Err(TestHttpError {
+                            method,
+                            url: url.clone(),
+                            headers,
+                            status,
+                            body: text,
+                            error: err.to_string(),
+                        })
+                    }
                 }
             }
+        } else {
+            let error = response
+                .error_for_status_ref()
+                .expect_err("Expected error, http code not OK");
+            // Return custom error as reqwest error has no body contents
+            Err(TestHttpError {
+                method,
+                url: url.clone(),
+                headers: response.headers().clone(),
+                status: response.status(),
+                body: response.text().await.expect("Failed to get response text"),
+                error: format!("{error:?}"),
+            })
         }
     } else {
-        let error = response
-            .error_for_status_ref()
-            .expect_err("Expected error, http code not OK");
-        // Return custom error as reqwest error has no body contents
         Err(TestHttpError {
             method,
             url: url.clone(),
-            headers: response.headers().clone(),
-            status: response.status(),
-            body: response.text().await.expect("Failed to get response text"),
-            error: format!("{error:?}"),
+            headers: HeaderMap::new(),
+            status: StatusCode::IM_A_TEAPOT,
+            body: String::new(),
+            error: format!("{res:?}"),
         })
     }
 }
@@ -90,8 +100,10 @@ pub fn login_url(addr: &SocketAddr) -> String {
 }
 
 #[must_use]
-pub fn query_url(addr: &SocketAddr, request_id: Uuid) -> String {
-    format!("http://{addr}/queries/v1/query-request?requestId={request_id}")
+pub fn query_url(addr: &SocketAddr, request_id: Uuid, retry_count: u16) -> String {
+    format!(
+        "http://{addr}/queries/v1/query-request?requestId={request_id}&retryCount={retry_count}"
+    )
 }
 
 #[must_use]
@@ -158,6 +170,7 @@ pub async fn query<T>(
     addr: &SocketAddr,
     access_token: &str,
     request_id: Uuid,
+    retry_count: u16,
     query: &str,
     async_exec: bool,
 ) -> std::result::Result<(HeaderMap, T), TestHttpError>
@@ -178,7 +191,7 @@ where
                     .expect("Can't convert to HeaderValue"),
             ),
         ]),
-        &query_url(addr, request_id),
+        &query_url(addr, request_id, retry_count),
         json!(QueryRequestBody {
             sql_text: query.to_string(),
             async_exec,
