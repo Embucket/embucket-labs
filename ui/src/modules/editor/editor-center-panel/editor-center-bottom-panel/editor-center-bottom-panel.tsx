@@ -28,7 +28,7 @@ export function EditorCenterBottomPanel({
 
   useEditorScrollToSelectedCell({ selectedCellId, scrollRootRef });
 
-  if (queryRecord?.error) {
+  if (queryRecord?.error && queryRecord.error !== 'NULL') {
     // TODO: EmptyContainer designed to be used for empty states strictly
     return (
       <EmptyContainer
@@ -84,7 +84,7 @@ export function EditorCenterBottomPanel({
             </div>
           </div>
           {/* TODO: Hardcode */}
-          <TabsContent value="results" className="m-0 h-[calc(100%-100px)]">
+          <TabsContent value="results" className="m-0 h-[calc(100%-120px)]">
             <ResizablePanelGroup direction="horizontal" className="size-full">
               <ResizablePanel order={1} defaultSize={selectedCellId ? 70 : 100} minSize={50}>
                 <ScrollArea tableViewport className="size-full" ref={scrollRootRef}>

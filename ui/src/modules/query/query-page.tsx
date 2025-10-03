@@ -3,6 +3,7 @@ import { ArrowLeftIcon, DatabaseZap } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useGetQuery } from '@/orval/queries';
 
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
@@ -10,7 +11,6 @@ import { PageHeader } from '../shared/page/page-header';
 import { QueryDetails } from './query-details';
 import { QueryResultsTable } from './query-result-table';
 import { QuerySQL } from './query-sql';
-import { useMeasureQueryResultsHeight } from './use-measure-query-results-height';
 
 export function QueryPage() {
   const { queryId } = useParams({ from: '/queries/$queryId/' });
@@ -20,7 +20,7 @@ export function QueryPage() {
   const columns = queryRecord?.result.columns ?? [];
   const rows = queryRecord?.result.rows ?? [];
 
-  const { detailsRef, tableStyle } = useMeasureQueryResultsHeight({ isReady: !isLoading });
+  // const { detailsRef, tableStyle } = useMeasureQueryResultsHeight({ isReady: !isLoading });
 
   return (
     <>
@@ -32,11 +32,15 @@ export function QueryPage() {
                 <ArrowLeftIcon className="size-4" />
               </Button>
             </Link>
-            <h1 className="text-lg">Query - {queryRecord?.id}</h1>
+            {queryRecord ? (
+              <h1 className="text-lg">Query - {queryRecord.id}</h1>
+            ) : (
+              <Skeleton className="h-7 w-[204px]" />
+            )}
           </div>
         }
       />
-      {!queryRecord ? (
+      {!queryRecord && !isLoading ? (
         <PageEmptyContainer
           Icon={DatabaseZap}
           title="Query not found"
@@ -44,15 +48,13 @@ export function QueryPage() {
         />
       ) : (
         <>
-          <div ref={detailsRef} className="p-4">
+          <div className="p-4">
             <QueryDetails queryRecord={queryRecord} />
           </div>
 
-          <ScrollArea tableViewport className="mx-4" style={tableStyle}>
+          <ScrollArea tableViewport className="mx-4 h-[calc(100%-244px)]">
             <QuerySQL queryRecord={queryRecord} />
-            {!!rows.length && (
-              <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
-            )}
+            <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
             <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
