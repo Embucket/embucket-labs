@@ -129,7 +129,7 @@ def compare(
             slower_count += 1
 
         table.add_row(
-            f"Q{baseline_result.query}",
+            f"{baseline_result.query}",
             f"{baseline_result.execution_time:.2f}ms",
             f"{comparison_result.execution_time:.2f}ms",
             change_text,

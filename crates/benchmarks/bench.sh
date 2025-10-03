@@ -98,7 +98,7 @@ main() {
         data)
             BENCHMARK=${ARG2:-"${BENCHMARK}"}
             echo "***************************"
-            echo "DataFusion Benchmark Runner and Data Generator"
+            echo "Embucket Benchmark Runner and Data Generator"
             echo "COMMAND: ${COMMAND}"
             echo "BENCHMARK: ${BENCHMARK}"
             echo "DATA_DIR: ${DATA_DIR}"
@@ -345,11 +345,12 @@ run_clickbench_1() {
     USE_DATAFUSION=$1
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+    QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
 
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}" $DATAFUSION
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
@@ -357,11 +358,12 @@ run_clickbench_partitioned() {
     USE_DATAFUSION=$1
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+    QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
 
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}" $DATAFUSION
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION
 }
 
 compare_benchmarks() {
