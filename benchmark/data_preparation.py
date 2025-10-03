@@ -83,7 +83,7 @@ def upload_parquet_to_snowflake_tables(cursor, dataset_path, benchmark_type, use
 
 
 
-def upload_parquet_to_embucket_tables(cursor, dataset_path, benchmark_type):
+def upload_data_into_embucket_tables(cursor, dataset_path, benchmark_type):
     """Upload parquet files to Embucket tables using COPY INTO."""
     # Get fully qualified table names based on benchmark type
     if benchmark_type == "tpch":
@@ -95,12 +95,20 @@ def upload_parquet_to_embucket_tables(cursor, dataset_path, benchmark_type):
     else:
         raise ValueError(f"Unsupported benchmark type: {benchmark_type}")
 
-    for placeholder, qualified_table_name in table_names.items():
-        # Extract bare table name for the S3 path (parquet files use bare names)
-        bare_table_name = qualified_table_name.split('.')[-1]
-        print(f"Loading data into Embucket table {qualified_table_name}...")
+    # Use CSV for ClickBench due to date parsing issues with Parquet
+    file_format = "CSV" if benchmark_type == "clickbench" else "PARQUET"
+    file_extension = "csv" if benchmark_type == "clickbench" else "parquet"
 
-        copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset_path}/{bare_table_name}.parquet' FILE_FORMAT = (TYPE = PARQUET)"
+    for placeholder, qualified_table_name in table_names.items():
+        # Extract bare table name for the S3 path
+        bare_table_name = qualified_table_name.split('.')[-1]
+        print(f"Loading {file_format} data into Embucket table {qualified_table_name}...")
+
+        if file_format == "CSV":
+            copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset_path}/{bare_table_name}.{file_extension}' FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = ',')"
+        else:
+            copy_sql = f"COPY INTO {qualified_table_name} FROM 's3://embucket-testdata/{dataset_path}/{bare_table_name}.{file_extension}' FILE_FORMAT = (TYPE = PARQUET)"
+
         cursor.execute(copy_sql)
 
 
@@ -111,7 +119,7 @@ def prepare_data_for_embucket(dataset_path, benchmark_type):
     # Create tables (Embucket always uses custom tables)
     create_tables(cursor, SystemType.EMBUCKET, benchmark_type, use_custom_dataset=True)
     # Load data into Embucket tables
-    upload_parquet_to_embucket_tables(cursor, dataset_path, benchmark_type)
+    upload_data_into_embucket_tables(cursor, dataset_path, benchmark_type)
 
     cursor.close()
     print(f"Embucket data preparation completed successfully for {benchmark_type}.")
