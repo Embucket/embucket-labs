@@ -1,11 +1,7 @@
-import {
-  createRootRouteWithContext,
-  Navigate,
-  Outlet,
-  redirect,
-  useMatch,
-} from '@tanstack/react-router';
+import { createRootRouteWithContext, Outlet, redirect, useMatch } from '@tanstack/react-router';
+import { Info } from 'lucide-react';
 
+import { EmptyContainer } from '@/components/empty-container';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import type { AuthContextType } from '@/modules/auth/AuthProvider';
 
@@ -20,7 +16,7 @@ export const Route = createRootRouteWithContext<{
   auth: AuthContextType;
 }>()({
   component: Root,
-  notFoundComponent: () => <Navigate to="/" />,
+  notFoundComponent: NotFound,
   beforeLoad: ({ location, context }) => {
     if (!context.auth.isAuthenticated) {
       // Redirect to "/" page if not authenticated and trying to access a private route (not in PUBLIC_PATHS)
@@ -32,6 +28,10 @@ export const Route = createRootRouteWithContext<{
     }
   },
 });
+
+function NotFound() {
+  return <EmptyContainer Icon={Info} title="404" description="Ooops. That page doesn't exist." />;
+}
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
