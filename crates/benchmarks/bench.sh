@@ -161,7 +161,6 @@ main() {
                 all)
                     run_tpch "1"
                     run_tpch "10"
-                    run_tpch "100"
                     run_clickbench_1
                     run_clickbench_partitioned
                     ;;
@@ -174,11 +173,26 @@ main() {
                 tpch100)
                     run_tpch "100"
                     ;;
+                dftpch)
+                    run_tpch "1" true
+                    ;;
+                dftpch10)
+                    run_tpch "10" true
+                    ;;
+                dftpch100)
+                    run_tpch "100" true
+                    ;;
                 clickbench_1)
                     run_clickbench_1
                     ;;
                 clickbench_partitioned)
                     run_clickbench_partitioned
+                    ;;
+                dfclickbench_1)
+                    run_clickbench_1 true
+                    ;;
+                dfclickbench_partitioned)
+                    run_clickbench_partitioned true
                     ;;
                 *)
                     echo "Error: unknown benchmark '$BENCHMARK' for run"
@@ -259,6 +273,8 @@ data_tpch() {
 # Runs the tpch benchmark
 run_tpch() {
     SCALE_FACTOR=$1
+    USE_DATAFUSION=$2
+
     if [ -z "$SCALE_FACTOR" ] ; then
         echo "Internal error: Scale factor not specified"
         exit 1
@@ -270,9 +286,11 @@ run_tpch() {
     echo "Running tpch benchmark..."
     # Optional query filter to run specific query
     QUERY=$([ -n "$ARG3" ] && echo "--query $ARG3" || echo "")
+    # Optional flag for DataFusion
+    DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
     # debug the target command
     set -x
-    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY
+    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY $DATAFUSION
     set +x
 }
 
@@ -324,18 +342,26 @@ data_clickbench_partitioned() {
 
 # Runs the clickbench benchmark with a single large parquet file
 run_clickbench_1() {
+    USE_DATAFUSION=$1
+    # Optional flag for DataFusion
+    DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}" $DATAFUSION
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
 run_clickbench_partitioned() {
+    USE_DATAFUSION=$1
+    # Optional flag for DataFusion
+    DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}"
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/queries.sql" -o "${RESULTS_FILE}" $DATAFUSION
 }
 
 compare_benchmarks() {
