@@ -1,6 +1,5 @@
 # TODO
 
-- [ ] Add loading states for QueryDetails Page
 - [ ] TableViewport
 - [ ] Typography component
 - [ ] Resolve code todos

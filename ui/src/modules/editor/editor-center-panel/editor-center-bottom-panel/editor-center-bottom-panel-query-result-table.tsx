@@ -34,6 +34,7 @@ export function EditorCenterBottomPanelQueryResultTable({
       cell: (info) => String(info.getValue()),
       meta: {
         headerClassName: 'capitalize',
+        cellClassName: 'max-w-md truncate',
       },
     }),
   );

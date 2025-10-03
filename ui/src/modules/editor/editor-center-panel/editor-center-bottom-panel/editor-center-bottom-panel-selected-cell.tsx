@@ -5,7 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Column, Row } from '@/orval/models';
 
 function getDisplayValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
   if (typeof value === 'string') {
     const trimmed = value.trim();
     const looksLikeJson =
