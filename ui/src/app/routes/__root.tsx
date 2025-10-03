@@ -1,5 +1,5 @@
 import { createRootRouteWithContext, Outlet, redirect, useMatch } from '@tanstack/react-router';
-import { Info } from 'lucide-react';
+import { Frown } from 'lucide-react';
 
 import { EmptyContainer } from '@/components/empty-container';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -30,7 +30,7 @@ export const Route = createRootRouteWithContext<{
 });
 
 function NotFound() {
-  return <EmptyContainer Icon={Info} title="404" description="Ooops. That page doesn't exist." />;
+  return <EmptyContainer Icon={Frown} title="404" description="Ooops. That page doesn't exist." />;
 }
 
 interface AuthenticatedLayoutProps {
