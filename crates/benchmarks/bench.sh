@@ -44,10 +44,15 @@ compare:      Compares results from benchmark runs
 **********
 all(default): Data/Run/Compare for all benchmarks
 tpch:                   TPCH inspired benchmark on Scale Factor (SF) 1 (~1GB), single parquet file per table, hash join
+dftpch:                 TPCH inspired benchmark on Scale Factor (SF) 1 (~1GB), single parquet file per table, hash join, Datafusion sql engine
 tpch10:                 TPCH inspired benchmark on Scale Factor (SF) 10 (~10GB), single parquet file per table, hash join
-clickbench_1:           ClickBench queries against a single parquet file
-clickbench_partitioned: ClickBench queries against a partitioned (100 files) parquet
-
+dftpch:                 TPCH inspired benchmark on Scale Factor (SF) 1 (~1GB), single parquet file per table, hash join, Datafusion sql engine
+clickbench_1:           ClickBench queries against single parquet file
+clickbench_partitioned: ClickBench queries against partitioned (100 files) parquet
+clickbench_pushdown:    ClickBench queries against partitioned (100 files) parquet w/ filter_pushdown enabled
+dfclickbench_1:           ClickBench queries against single parquet file based on Datafusion sql engine
+dfclickbench_partitioned: ClickBench queries against partitioned (100 files) parquet based on Datafusion sql engine
+dfclickbench_pushdown:    ClickBench queries against partitioned (100 files) parquet w/ filter_pushdown enabled based on Datafusion sql engine
 **********
 * Supported Configuration (Environment Variables)
 **********
@@ -188,11 +193,17 @@ main() {
                 clickbench_partitioned)
                     run_clickbench_partitioned
                     ;;
+                clickbench_pushdown)
+                    run_clickbench_pushdown
+                    ;;
                 dfclickbench_1)
                     run_clickbench_1 true
                     ;;
                 dfclickbench_partitioned)
                     run_clickbench_partitioned true
+                    ;;
+                clickbench_pushdown)
+                    run_clickbench_pushdown true
                     ;;
                 *)
                     echo "Error: unknown benchmark '$BENCHMARK' for run"
@@ -364,6 +375,19 @@ run_clickbench_partitioned() {
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
     $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION
+}
+
+ # Runs the clickbench benchmark with the partitioned parquet files w/ filter_pushdown enabled
+run_clickbench_pushdown() {
+    USE_DATAFUSION=$1
+    # Optional flag for DataFusion
+    DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+    QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
+
+    RESULTS_FILE="${RESULTS_DIR}/clickbench_pushdown.json"
+    echo "RESULTS_FILE: ${RESULTS_FILE}"
+    echo "Running clickbench (partitioned, 100 files) benchmark w/ filter_pushdown enabled..."
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION --pushdown
 }
 
 compare_benchmarks() {

@@ -134,6 +134,12 @@ impl RunOpt {
         // The hits_partitioned dataset specifies string columns
         // as binary due to how it was written. Force it to strings
         set_session_variable_bool("execution.parquet.binary_as_string", true, &session).await?;
+        // Turn on Parquet filter pushdown if requested
+        if self.common.pushdown {
+            set_session_variable_bool("execution.parquet.pushdown_filters ", true, &session)
+                .await?;
+            set_session_variable_bool("execution.parquet.reorder_filters", true, &session).await?;
+        }
 
         println!("Creating catalog, schema, table");
         let path = self.path.to_str().unwrap();
@@ -190,12 +196,18 @@ impl RunOpt {
         };
 
         // configure parquet options
-        let mut config = self.common.config();
+        let mut config = self.common.config()?;
         {
             let parquet_options = &mut config.options_mut().execution.parquet;
             // The hits_partitioned dataset specifies string columns
             // as binary due to how it was written. Force it to strings
             parquet_options.binary_as_string = true;
+
+            // Turn on Parquet filter pushdown if requested
+            if self.common.pushdown {
+                parquet_options.pushdown_filters = true;
+                parquet_options.reorder_filters = true;
+            }
         }
 
         let rt_builder = self.common.runtime_env_builder()?;

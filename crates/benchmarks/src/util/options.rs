@@ -15,6 +15,7 @@ pub type BoolDefaultTrue = bool;
 
 const NUM_TRACKED_CONSUMERS: usize = 5;
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, StructOpt, Clone)]
 pub struct CommonOpt {
     /// Number of iterations of each test run
@@ -62,13 +63,20 @@ pub struct CommonOpt {
     /// Load the data into a memory before executing the query
     #[structopt(short = "m", long = "mem-table")]
     pub mem_table: bool,
+
+    /// If specified, enables Parquet Filter Pushdown.
+    ///
+    /// Specifically, it enables:
+    /// * `pushdown_filters = true`
+    /// * `reorder_filters = true`
+    #[structopt(long = "pushdown")]
+    pub pushdown: bool,
 }
 
 impl CommonOpt {
     /// Return an appropriately configured `SessionConfig`
-    #[must_use]
-    pub fn config(&self) -> SessionConfig {
-        self.update_config(SessionConfig::new())
+    pub fn config(&self) -> Result<SessionConfig> {
+        SessionConfig::from_env().map(|config| self.update_config(config))
     }
 
     /// Modify the existing config appropriately
