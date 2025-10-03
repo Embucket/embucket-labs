@@ -98,10 +98,7 @@ export function EditorCenterPanel() {
             order={1}
             ref={topRef}
           >
-            <ScrollArea
-              tableViewport
-              className="bg-background size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full"
-            >
+            <ScrollArea className="bg-background size-full [&>*>*:first-child]:h-full [&>*>*>*:first-child]:h-full">
               <Editor />
               <ScrollBar orientation="horizontal" />
               <ScrollBar orientation="vertical" />

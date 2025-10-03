@@ -9,10 +9,12 @@ import nodePlugin from 'eslint-plugin-n';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { defineConfig } from 'eslint/config';
 // import tailwindcss from 'eslint-plugin-tailwindcss';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+// https://eslint.org/docs/latest/use/configure/configuration-files
+export default defineConfig([
   {
     ignores: [
       '**/orval/**',
@@ -78,7 +80,6 @@ export default tseslint.config(
       react.configs.flat['jsx-runtime'],
     ],
     plugins: {
-      // @ts-ignore
       react,
     },
   },
@@ -107,12 +108,7 @@ export default tseslint.config(
   },
 
   // https://www.npmjs.com/package/@tanstack/eslint-plugin-query
-  {
-    extends: [...pluginQuery.configs['flat/recommended']],
-    plugins: {
-      '@tanstack/query': pluginQuery,
-    },
-  },
+  ...pluginQuery.configs['flat/recommended'],
 
   // https://github.com/eslint-community/eslint-plugin-n
   {
@@ -143,7 +139,7 @@ export default tseslint.config(
       'check-file/folder-naming-convention': [
         'error',
         {
-          // all folders within src (except __tests__)should be named in kebab-case
+          // all folders within src (except types)should be named in kebab-case
           '(!types)/**': 'KEBAB_CASE',
         },
       ],
@@ -178,4 +174,4 @@ export default tseslint.config(
       },
     },
   },
-);
+]);
