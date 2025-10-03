@@ -134,12 +134,6 @@ impl RunOpt {
         // The hits_partitioned dataset specifies string columns
         // as binary due to how it was written. Force it to strings
         set_session_variable_bool("execution.parquet.binary_as_string", true, &session).await?;
-        // Turn on Parquet filter pushdown if requested
-        if self.common.pushdown {
-            set_session_variable_bool("execution.parquet.pushdown_filters ", true, &session)
-                .await?;
-            set_session_variable_bool("execution.parquet.reorder_filters", true, &session).await?;
-        }
 
         println!("Creating catalog, schema, table");
         let path = self.path.to_str().unwrap();
@@ -160,6 +154,13 @@ impl RunOpt {
                 &session,
             )
             .await?;
+            // Turn on Parquet filter pushdown if requested
+            if self.common.pushdown {
+                set_session_variable_bool("execution.parquet.pushdown_filters ", true, &session)
+                    .await?;
+                set_session_variable_bool("execution.parquet.reorder_filters", true, &session)
+                    .await?;
+            }
             let sql = queries.get_query(query_id)?;
             println!("Q{query_id}: {sql}");
 

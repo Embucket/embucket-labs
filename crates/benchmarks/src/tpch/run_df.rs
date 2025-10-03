@@ -49,6 +49,18 @@ impl RunOpt {
             .config()?
             .with_collect_statistics(!self.disable_statistics);
         config.options_mut().optimizer.prefer_hash_join = self.common.prefer_hash_join;
+
+        // configure parquet options
+        let mut config = self.common.config()?;
+        {
+            let parquet_options = &mut config.options_mut().execution.parquet;
+            // Turn on Parquet filter pushdown if requested
+            if self.common.pushdown {
+                parquet_options.pushdown_filters = true;
+                parquet_options.reorder_filters = true;
+            }
+        }
+
         let rt_builder = self.common.runtime_env_builder()?;
         let ctx = SessionContext::new_with_config_rt(config, rt_builder.build_arc()?);
 

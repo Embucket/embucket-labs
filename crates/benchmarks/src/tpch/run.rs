@@ -93,6 +93,12 @@ impl RunOpt {
             &session,
         )
         .await?;
+        // Turn on Parquet filter pushdown if requested
+        if self.common.pushdown {
+            set_session_variable_bool("execution.parquet.pushdown_filters ", true, &session)
+                .await?;
+            set_session_variable_bool("execution.parquet.reorder_filters", true, &session).await?;
+        }
         self.create_tables(&session).await?;
 
         // Run queries
