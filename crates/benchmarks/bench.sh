@@ -202,7 +202,7 @@ main() {
                 dfclickbench_partitioned)
                     run_clickbench_partitioned true
                     ;;
-                clickbench_pushdown)
+                dfclickbench_pushdown)
                     run_clickbench_pushdown true
                     ;;
                 *)
