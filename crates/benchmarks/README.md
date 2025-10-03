@@ -49,22 +49,120 @@ To run for specific query, for example Q21
 ```shell
 ./bench.sh run tpch10 21
 ```
+
+## Comparing performance of main and a branch
+
+```shell
+git checkout main
+
+# Create the data
+./benchmarks/bench.sh data tpch
+
+# Gather baseline data for tpch benchmark
+./benchmarks/bench.sh run tpch
+
+# Switch to the branch named mybranch and gather data
+git checkout mybranch
+./benchmarks/bench.sh run tpch
+
+# Compare results in the two branches:
+./bench.sh compare main mybranch
+```
+
+This produces results like:
+
+```shell
+Comparing main and mybranch
+--------------------
+Benchmark tpch.json
+--------------------
+┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Query        ┃         main ┃     mybranch ┃        Change ┃
+┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ QQuery 1     │    2520.52ms │    2795.09ms │  1.11x slower │
+│ QQuery 2     │     222.37ms │     216.01ms │     no change │
+│ QQuery 3     │     248.41ms │     239.07ms │     no change │
+│ QQuery 4     │     144.01ms │     129.28ms │ +1.11x faster │
+│ QQuery 5     │     339.54ms │     327.53ms │     no change │
+│ QQuery 6     │     147.59ms │     138.73ms │ +1.06x faster │
+│ QQuery 7     │     605.72ms │     631.23ms │     no change │
+│ QQuery 8     │     326.35ms │     372.12ms │  1.14x slower │
+│ QQuery 9     │     579.02ms │     634.73ms │  1.10x slower │
+│ QQuery 10    │     403.38ms │     420.39ms │     no change │
+│ QQuery 11    │     201.94ms │     212.12ms │  1.05x slower │
+│ QQuery 12    │     235.94ms │     254.58ms │  1.08x slower │
+│ QQuery 13    │     738.40ms │     789.67ms │  1.07x slower │
+│ QQuery 14    │     198.73ms │     206.96ms │     no change │
+│ QQuery 15    │     183.32ms │     179.53ms │     no change │
+│ QQuery 16    │     168.57ms │     186.43ms │  1.11x slower │
+│ QQuery 17    │    2032.57ms │    2108.12ms │     no change │
+│ QQuery 18    │    1912.80ms │    2134.82ms │  1.12x slower │
+│ QQuery 19    │     391.64ms │     368.53ms │ +1.06x faster │
+│ QQuery 20    │     648.22ms │     691.41ms │  1.07x slower │
+│ QQuery 21    │     866.25ms │    1020.37ms │  1.18x slower │
+│ QQuery 22    │     115.94ms │     117.27ms │     no change │
+└──────────────┴──────────────┴──────────────┴───────────────┘
+--------------------
+Benchmark tpch_mem.json
+--------------------
+┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Query        ┃         main ┃     mybranch ┃        Change ┃
+┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ QQuery 1     │    2182.44ms │    2390.39ms │  1.10x slower │
+│ QQuery 2     │     181.16ms │     153.94ms │ +1.18x faster │
+│ QQuery 3     │      98.89ms │      95.51ms │     no change │
+│ QQuery 4     │      61.43ms │      66.15ms │  1.08x slower │
+│ QQuery 5     │     260.20ms │     283.65ms │  1.09x slower │
+│ QQuery 6     │      24.24ms │      23.39ms │     no change │
+│ QQuery 7     │     545.87ms │     653.34ms │  1.20x slower │
+│ QQuery 8     │     147.48ms │     136.00ms │ +1.08x faster │
+│ QQuery 9     │     371.53ms │     363.61ms │     no change │
+│ QQuery 10    │     197.91ms │     190.37ms │     no change │
+│ QQuery 11    │     197.91ms │     183.70ms │ +1.08x faster │
+│ QQuery 12    │     100.32ms │     103.08ms │     no change │
+│ QQuery 13    │     428.02ms │     440.26ms │     no change │
+│ QQuery 14    │      38.50ms │      27.11ms │ +1.42x faster │
+│ QQuery 15    │     101.15ms │      63.25ms │ +1.60x faster │
+│ QQuery 16    │     171.15ms │     142.44ms │ +1.20x faster │
+│ QQuery 17    │    1885.05ms │    1953.58ms │     no change │
+│ QQuery 18    │    1549.92ms │    1914.06ms │  1.23x slower │
+│ QQuery 19    │     106.53ms │     104.28ms │     no change │
+│ QQuery 20    │     532.11ms │     610.62ms │  1.15x slower │
+│ QQuery 21    │     723.39ms │     823.34ms │  1.14x slower │
+│ QQuery 22    │      91.84ms │      89.89ms │     no change │
+└──────────────┴──────────────┴──────────────┴───────────────┘
+```
+## Comparing datafusion and embucket performance
+
+```shell
+git checkout main
+
+# Create the data
+./benchmarks/bench.sh data
+RESULTS_NAME=datafusion ./benchmarks/bench.sh run dftpch
+RESULTS_NAME=embucket ./benchmarks/bench.sh run tpch
+
+# Compare results in the two branches:
+./bench.sh compare datafusion embucket
+```
+
 ### Running Benchmarks Manually
 
 Assuming data is in the `data` directory, the `tpch` benchmark can be run with a command like this:
 
 ```bash
-cargo run --release --bin dfbench -- tpch --iterations 3 --path ./data  --query 1
+# Run embucket tpch benchmark
+cargo run --release --bin embench -- tpch --iterations 3 --path ./data  --query 1
+# Run datafusion tpch benchmark
+cargo run --release --bin embench -- tpch --datafusion --path benchmarks/data/tpch_sf10 --partitions 2 --format parquet --query 18 --iterations=1 --memory-limit 150M --debug --batch-size 8192 --prefer_hash_join true --mem-pool-type fair
 ```
-
-See the help for more details.
 
 ### Different features
 
 You can enable `mimalloc` or `snmalloc` (to use either the mimalloc or snmalloc allocator) as features by passing them in as `--features`. For example:
 
 ```shell
-cargo run --release --features "mimalloc" --bin tpch -- benchmark datafusion --iterations 3 --path ./data --query 1
+cargo run --release --features "mimalloc" --bin embench -- tpch --iterations 3 --path ./data --query 1
 ```
 
 # Writing a new benchmark
@@ -101,6 +199,8 @@ Your benchmark should create and use an instance of `BenchmarkRun` defined in `b
 - Use `write_iter` to record elapsed times for the behavior you're benchmarking.
 - When all cases are done, call the `BenchmarkRun`'s `maybe_write_json` method, giving it the value
   of the `--output` structopt field on `RunOpt`.
+
+# Benchmarks
 
 ## ClickBench
 

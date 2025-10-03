@@ -304,6 +304,7 @@ fn test_select_expr_aliases() -> DFResult<()> {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_inline_aliases_in_query() -> DFResult<()> {
     let state = SessionContext::new().state();
     let cases = vec![

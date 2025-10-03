@@ -1,0 +1,14 @@
+---
+source: crates/embucket-functions/src/tests/conversion/to_decimal.rs
+description: "\"SELECT\n       TO_DECIMAL(column1) as convert_null\n    FROM VALUES (NULL), (10)\""
+---
+Ok(
+    [
+        "+--------------+",
+        "| convert_null |",
+        "+--------------+",
+        "|              |",
+        "| 10           |",
+        "+--------------+",
+    ],
+)

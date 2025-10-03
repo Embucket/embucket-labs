@@ -49,6 +49,7 @@ pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &st
             server_addr,
             &access_token,
             request_id,
+            1,
             sql,
             async_exec,
         )

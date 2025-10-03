@@ -9,13 +9,14 @@ pub mod running_queries;
 pub mod service;
 pub mod session;
 pub mod snowflake_error;
+pub mod tracing;
 pub mod utils;
 
 #[cfg(test)]
 pub mod tests;
 
 pub use error::{Error, Result};
-pub use running_queries::AbortQuery;
+pub use running_queries::RunningQueryId;
 pub use snowflake_error::SnowflakeError;
 
 use crate::service::ExecutionService;

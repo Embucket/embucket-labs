@@ -198,9 +198,17 @@ impl ToDecimalFunc {
 
         values
     }
-    fn error_or_null_array(&self, num_rows: usize, error: DataFusionError) -> DFResult<ArrayRef> {
+    fn error_or_null_array(
+        &self,
+        num_rows: usize,
+        precision: u8,
+        scale: i8,
+        error: DataFusionError,
+    ) -> DFResult<ArrayRef> {
         if self.try_mode {
-            Ok(Arc::new(Decimal128Array::new_null(num_rows)))
+            Ok(Arc::new(
+                Decimal128Array::new_null(num_rows).with_precision_and_scale(precision, scale)?,
+            ))
         } else {
             Err(error)
         }
@@ -309,16 +317,11 @@ impl ScalarUDFImpl for ToDecimalFunc {
     #[allow(clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let DataType::Decimal128(precision, scale) = args.return_type() else {
-            return Ok(ColumnarValue::Array(
-                self.error_or_null_array(
-                    args.number_rows,
-                    conv_errors::UnexpectedReturnTypeSnafu {
-                        got: args.return_type().clone(),
-                        expected: DataType::Decimal128(38, 0),
-                    }
-                    .fail()?,
-                )?,
-            ));
+            return conv_errors::UnexpectedReturnTypeSnafu {
+                got: args.return_type().clone(),
+                expected: DataType::Decimal128(38, 0),
+            }
+            .fail()?;
         };
 
         let expr = &args.args[0];
@@ -381,13 +384,21 @@ impl ScalarUDFImpl for ToDecimalFunc {
                     &cast_options,
                 )?
             }
+            //Should always produce a null output if the input is null, regardless of the `try_mode`
+            DataType::Null => Arc::new(
+                Decimal128Array::new_null(args.number_rows)
+                    .with_precision_and_scale(*precision, *scale)?,
+            ),
             other => self.error_or_null_array(
                 args.number_rows,
+                *precision,
+                *scale,
                 conv_errors::UnsupportedInputTypeWithPositionSnafu {
                     data_type: other.clone(),
                     position: 1usize,
                 }
-                .fail()?,
+                .build()
+                .into(),
             )?,
         };
         Ok(ColumnarValue::Array(result_array))

@@ -14,6 +14,10 @@ mimalloc = ["dep:mimalloc"]
 
 [dependencies]
 core-executor = { path = "../core-executor" }
+core-metastore = { path = "../core-metastore" }
+core-history = { path = "../core-history" }
+core-utils = { path = "../core-utils" }
+slatedb = { workspace = true }
 datafusion = { workspace = true, default-features = true }
 env_logger = { version = "0.11.8" }
 log = { version = "0.4.28" }
