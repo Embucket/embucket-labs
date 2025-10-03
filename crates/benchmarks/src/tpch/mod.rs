@@ -10,8 +10,6 @@ pub mod run;
 pub use self::run::RunOpt;
 
 pub mod convert;
-mod run_df;
-
 pub use self::convert::ConvertOpt;
 
 pub const TPCH_TABLES: &[&str] = &[

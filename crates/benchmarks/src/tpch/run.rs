@@ -1,4 +1,3 @@
-use std::ops::RangeInclusive;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -13,7 +12,6 @@ use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::arrow::util::pretty::pretty_format_batches;
 use datafusion::common::instant::Instant;
-use datafusion::common::utils::get_available_parallelism;
 use datafusion::error::Result;
 use log::info;
 use structopt::StructOpt;
@@ -35,56 +33,34 @@ pub struct RunOpt {
     query: Option<usize>,
     /// Common options
     #[structopt(flatten)]
-    pub common: CommonOpt,
+    common: CommonOpt,
     /// Path to data files
     #[structopt(parse(from_os_str), required = true, short = "p", long = "path")]
-    pub path: PathBuf,
-
-    /// File format: `csv` or `parquet`
-    #[structopt(short = "f", long = "format", default_value = "parquet")]
-    pub file_format: String,
-
-    /// Path to machine readable output file
+    path: PathBuf,
+    /// Path to machine-readable output file
     #[structopt(parse(from_os_str), short = "o", long = "output")]
-    pub output_path: Option<PathBuf>,
-
-    /// Whether to disable collection of statistics (and cost based optimizations) or not.
-    #[structopt(short = "S", long = "disable-statistics")]
-    pub disable_statistics: bool,
-
-    /// Mark the first column of each table as sorted in ascending order.
-    /// The tables should have been created with the `--sort` option for this to have any effect.
-    #[structopt(short = "t", long = "sorted")]
-    pub sorted: bool,
+    output_path: Option<PathBuf>,
 }
 
 const TPCH_QUERY_START_ID: usize = 1;
 const TPCH_QUERY_END_ID: usize = 22;
 
 impl RunOpt {
-    #[allow(clippy::print_stdout)]
+    #[allow(clippy::print_stdout, clippy::unwrap_used)]
     pub async fn run(self) -> Result<()> {
         println!("Running benchmarks with the following options: {self:?}");
         let query_range = match self.query {
             Some(query_id) => query_id..=query_id,
             None => TPCH_QUERY_START_ID..=TPCH_QUERY_END_ID,
         };
-        if self.common.datafusion {
-            self.run_df(query_range).await
-        } else {
-            self.run_embucket(query_range).await
-        }
-    }
 
-    #[allow(clippy::print_stdout, clippy::unwrap_used)]
-    pub async fn run_embucket(self, query_range: RangeInclusive<usize>) -> Result<()> {
         let mut benchmark_run = BenchmarkRun::new();
 
-        println!("Create service, volume, database, schema");
+        println!("Create service, volume, database, schema: {self:?}");
         let service = make_test_execution_svc().await;
         let session = service.create_session("session_id").await?;
         let path = self.path.to_str().unwrap();
-        create_catalog(path, &session, self.common.mem_table).await?;
+        create_catalog(path, &session).await?;
 
         // Set the number of output parquet files during copy into
         set_session_variable_number(
@@ -98,7 +74,7 @@ impl RunOpt {
         // Run queries
         for query_id in query_range {
             benchmark_run.start_new_case(&format!("Query {query_id}"));
-            let query_run = self.benchmark_embucket_query(query_id, &service).await?;
+            let query_run = self.benchmark_query(query_id, &service).await?;
             for iter in query_run {
                 benchmark_run.write_iter(iter.elapsed, iter.row_count);
             }
@@ -113,7 +89,7 @@ impl RunOpt {
         clippy::print_stdout,
         clippy::unwrap_used
     )]
-    async fn benchmark_embucket_query(
+    async fn benchmark_query(
         &self,
         query_id: usize,
         service: &Arc<CoreExecutionService>,
@@ -175,17 +151,8 @@ impl RunOpt {
         }
         Ok(())
     }
-
-    #[must_use]
-    pub const fn iterations(&self) -> usize {
+    const fn iterations(&self) -> usize {
         self.common.iterations
-    }
-
-    #[must_use]
-    pub fn partitions(&self) -> usize {
-        self.common
-            .partitions
-            .unwrap_or_else(get_available_parallelism)
     }
 }
 

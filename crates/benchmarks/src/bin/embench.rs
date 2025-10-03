@@ -16,10 +16,8 @@ cfg_if::cfg_if! {
 #[derive(Debug, StructOpt)]
 #[structopt(about = "benchmark command")]
 enum Options {
-    Tpch(tpch::RunOpt),
-    DfTpch(tpch::RunOpt),
     Clickbench(clickbench::RunOpt),
-    DfClickbench(clickbench::RunOpt),
+    Tpch(tpch::RunOpt),
     TpchConvert(tpch::ConvertOpt),
 }
 
@@ -29,8 +27,8 @@ pub async fn main() -> Result<()> {
     env_logger::init();
 
     match Options::from_args() {
-        Options::Tpch(opt) | Options::DfTpch(opt) => opt.run().await,
-        Options::Clickbench(opt) | Options::DfClickbench(opt) => opt.run().await,
+        Options::Clickbench(opt) => opt.run().await,
+        Options::Tpch(opt) => opt.run().await,
         Options::TpchConvert(opt) => opt.run().await,
     }
 }
