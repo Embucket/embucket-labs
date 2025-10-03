@@ -1,16 +1,16 @@
 # DBT Run Summary
-PASS: 1551
+PASS: 1552
 WARN: 0
-ERROR: 52
+ERROR: 51
 SKIP: 59
 TOTAL: 1662
 
 
 # Errors grouped by high-level categories
-     52 Other error
+     51 Other error
 
 # Errors grouped by type (comprehensive analysis)
-     52 Other error
+     51 Other error
 
 # Total top 10 errors (full messages)
       3 010001 (02000): Cannot resolve view reference 'embucket.public.flatten'
@@ -33,6 +33,6 @@ TOTAL: 1662
       2 010001 (02000): Join Error
 
 # Error categorization summary
-DBT total errors: 52
-Total error lines analyzed: 52
-Coverage: 52 out of 52 error lines captured
+DBT total errors: 51
+Total error lines analyzed: 51
+Coverage: 51 out of 51 error lines captured
