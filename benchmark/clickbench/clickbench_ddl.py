@@ -2,7 +2,7 @@ import os
 
 from .clickbench_table_names import parametrize_clickbench_statements
 
-# ClickBench DDL statement with parametrized table name
+# ClickBench DDL statements with replacements compared to Snowflake syntax (https://github.com/ClickHouse/ClickBench/blob/main/snowflake/create.sql)
 _CLICKBENCH_DDL_RAW = [
     (
         "hits",
