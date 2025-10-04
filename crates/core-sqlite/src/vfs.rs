@@ -88,7 +88,7 @@ impl GrpcVfs {
     {
         let span = span!(Level::INFO, "block_on");
         let _guard = span.enter();
-        self.runtime.block_on(future)
+        tokio::task::block_in_place(|| self.runtime.block_on(future))
     }
 
     pub async fn put<K, V>(&self, key: K, value: V) -> Result<(), i32>

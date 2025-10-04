@@ -197,6 +197,17 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
         .expect("Sqlite store error");
 
+    if let Ok(mut stmt) = sqlite_store
+    .connection
+    .prepare("SELECT name FROM sqlite_schema WHERE type ='table'") {
+        let mut rows = stmt.query([]).expect("Query error");
+        if let Ok(Some(row)) = rows.next() {
+            if let Ok(result) = row.get::<usize, String>(0) {
+                println!("result: {result}");
+            }
+        }
+    }
+
     let db = Db::new(slate_db);
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
