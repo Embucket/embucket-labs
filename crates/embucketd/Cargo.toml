@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
+core-sqlite = { path = "../core-sqlite" }
 core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }

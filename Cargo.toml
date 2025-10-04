@@ -17,7 +17,9 @@ members = [
   "crates/core-metastore",
   "crates/core-utils",
   "crates/api-sessions",
-  "crates/benchmarks"
+  "crates/benchmarks",
+  "crates/core-sqlite",
+  "crates/sqlite-plugin"
 ]
 resolver = "2"
 package.license-file = "LICENSE"

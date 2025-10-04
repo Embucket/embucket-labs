@@ -64,6 +64,7 @@ use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
+use core_sqlite::SqliteStore;
 
 #[cfg(feature = "alloc-tracing")]
 mod alloc_tracing {
@@ -183,13 +184,20 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     let object_store = opts
         .object_store_backend()
         .expect("Failed to create object store");
-    let db = Db::new(Arc::new(
-        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-            .with_settings(slatedb_default_settings())
-            .build()
-            .await
-            .expect("Failed to start Slate DB"),
-    ));
+    let slate_db = Arc::new(DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+        .with_settings(slatedb_default_settings())
+        .build()
+        .await
+        .expect("Failed to start Slate DB"));
+
+    let sqlite_store = SqliteStore::init(slate_db.clone())
+        .expect("Failed to initialize sqlite store");
+    sqlite_store
+        .connection
+        .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
+        .expect("Sqlite store error");
+
+    let db = Db::new(slate_db);
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
 
