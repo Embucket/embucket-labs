@@ -5,7 +5,7 @@ use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
 use core_history::QueryStatus;
 use core_history::entities::worksheet::Worksheet;
-use core_history::history_store::{GetQueriesParams, HistoryStore};
+use core_history::{GetQueriesParams, HistoryStore};
 use core_history::store::SlateDBHistoryStore;
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
@@ -290,7 +290,7 @@ async fn test_service_create_table_file_volume() {
 async fn test_query_recording() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db));
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -740,7 +740,7 @@ async fn test_submitted_query_abort_by_query_id() {
 async fn test_submitted_query_abort_by_request_id() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db.clone()));
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -802,7 +802,7 @@ async fn test_submitted_query_abort_by_request_id() {
 async fn test_submitted_query_ok() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db.clone()));
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),

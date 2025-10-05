@@ -59,12 +59,6 @@ const PAGE_SIZE: usize = 4096;
 
 impl GrpcVfs {
     pub fn new(runtime: Handle, db: Arc<Db>) -> Self {
-        // let runtime = tokio::runtime::Builder::new_multi_thread()
-        //     .enable_time()
-        //     .enable_io()
-        //     .build()
-        //     .unwrap();
-
         let guard = setup_tracing();
 
         Self {
@@ -188,12 +182,12 @@ impl vfs::Vfs for GrpcVfs {
                     return;
                 }
                 let msg = format!("{}", record.args());
-                println!("{msg}");
+                tracing::debug!("sqlite: {msg}");
                 self.logger.lock().log(level, msg.as_bytes());
             }
 
             fn flush(&self) {
-                println!("flush");
+                tracing::debug!("sqlite: flush");
             }
         }
 
@@ -202,7 +196,7 @@ impl vfs::Vfs for GrpcVfs {
         };
         if let Err(e) = log::set_boxed_logger(Box::new(log)) {
             // Logger already set, ignore the error
-            eprintln!("Logger already initialized: {e}");
+            tracing::error!("Logger already initialized: {e}");
         }
     }
 
@@ -385,7 +379,7 @@ impl vfs::Vfs for GrpcVfs {
                 page_data.resize(offset_in_page + data.len(), 0);
             }
 
-            println!(
+            log::debug!(
                 "write data at page {} offset {} length {}",
                 page_offset,
                 offset_in_page,
@@ -399,6 +393,7 @@ impl vfs::Vfs for GrpcVfs {
     }
 
     #[instrument(level = "info", skip(self, data))]
+    #[allow(clippy::unwrap_used)]
     fn read(
         &self,
         handle: &mut Self::Handle,
@@ -414,7 +409,7 @@ impl vfs::Vfs for GrpcVfs {
             let page_data = self.get(&page_key).await?;
 
             if page_data.is_none() {
-                println!("read page not found, returning empty data");
+                log::debug!("read page not found, returning empty data");
                 return Ok::<usize, i32>(0);
             }
 
@@ -423,7 +418,7 @@ impl vfs::Vfs for GrpcVfs {
 
             // Check if offset is beyond page size
             if offset_in_page >= page.len() {
-                println!("read offset is beyond page size");
+                log::debug!("read offset is beyond page size");
                 return Ok(0);
             }
 
@@ -431,7 +426,7 @@ impl vfs::Vfs for GrpcVfs {
             let end_offset_in_page = std::cmp::min(offset_in_page + data.len(), page.len());
             let d = page[offset_in_page..end_offset_in_page].to_vec();
 
-            println!("read data length: {} from page {}", data.len(), page_offset);
+            log::debug!("read data length: {} from page {}", data.len(), page_offset);
 
             let len = data.len().min(d.len());
             data[..len].copy_from_slice(&d[..len]);
@@ -646,17 +641,21 @@ pub fn set_vfs_context(rt: Handle, db: Arc<Db>) {
     let _ = GRPC_VFS_INSTANCE.set(Arc::new(GrpcVfs::new(rt, db)));
 }
 
+#[allow(clippy::expect_used)]
 fn get_grpc_vfs() -> Arc<GrpcVfs> {
-    GRPC_VFS_INSTANCE.get().unwrap().clone()
+    GRPC_VFS_INSTANCE.get()
+        .expect("GRPC_VFS_INSTANCE is not initialized")
+        .clone()
 }
 
+#[allow(clippy::expect_used)]
 fn setup_tracing() -> tracing_chrome::FlushGuard {
     use std::fs::File;
     use std::io::BufWriter;
 
     let (chrome_layer, guard) = ChromeLayerBuilder::new()
         .writer(BufWriter::new(
-            File::create("s3qlite_trace.cpuprofile").unwrap(),
+            File::create("s3qlite_trace.cpuprofile").expect("Failed to create profile file"),
         ))
         .build();
 
@@ -685,7 +684,7 @@ pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
         (*vfs).clone(),
         vfs::RegisterOpts { make_default: true },
     ) {
-        eprintln!("Failed to initialize grpsqlite: {err}");
+        log::error!("Failed to initialize grpsqlite: {err}");
         return err;
     }
 
@@ -709,7 +708,7 @@ pub unsafe extern "C" fn flush_traces() {
 ///
 /// # Safety
 /// This function should only be called by sqlite's extension loading mechanism.
-/// The provided pointers must be valid SQLite API structures.
+/// The provided pointers must be valid `SQLite` API structures.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn sqlite3_grpsqlite_init(
     _db: *mut c_void,

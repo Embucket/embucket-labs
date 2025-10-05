@@ -1,8 +1,6 @@
 use crate::errors::{self as core_history_errors, Result};
-use crate::{
-    QueryRecord, QueryRecordId, QueryRecordReference, QueryStatus, SlateDBHistoryStore, Worksheet,
-    WorksheetId,
-};
+use crate::interface::{HistoryStore, GetQueriesParams};
+use crate::{QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use core_utils::Db;
 use core_utils::iterable::IterableCursor;
@@ -12,94 +10,6 @@ use slatedb::DbIterator;
 use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
-
-#[derive(Default, Clone, Debug)]
-pub enum SortOrder {
-    Ascending,
-    #[default]
-    Descending,
-}
-
-#[derive(Debug, Clone)]
-pub struct QueryResultError {
-    // additional error status like: cancelled, timeout, etc
-    pub status: QueryStatus,
-    pub message: String,
-    pub diagnostic_message: String,
-}
-impl std::fmt::Display for QueryResultError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // do not output status, it is just an internal context
-        write!(
-            f,
-            "QueryResultError: {} | Diagnostic: {}",
-            self.message, self.diagnostic_message
-        )
-    }
-}
-
-impl std::error::Error for QueryResultError {}
-
-#[derive(Default, Debug)]
-pub struct GetQueriesParams {
-    pub worksheet_id: Option<WorksheetId>,
-    pub sql_text: Option<String>,     // filter by SQL Text
-    pub min_duration_ms: Option<i64>, // filter Duration greater than
-    pub cursor: Option<QueryRecordId>,
-    pub limit: Option<u16>,
-}
-
-impl GetQueriesParams {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    #[must_use]
-    pub const fn with_worksheet_id(mut self, worksheet_id: WorksheetId) -> Self {
-        self.worksheet_id = Some(worksheet_id);
-        self
-    }
-
-    #[must_use]
-    pub fn with_sql_text(mut self, sql_text: String) -> Self {
-        self.sql_text = Some(sql_text);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_min_duration_ms(mut self, min_duration_ms: i64) -> Self {
-        self.min_duration_ms = Some(min_duration_ms);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_cursor(mut self, cursor: QueryRecordId) -> Self {
-        self.cursor = Some(cursor);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_limit(mut self, limit: u16) -> Self {
-        self.limit = Some(limit);
-        self
-    }
-}
-
-#[mockall::automock]
-#[async_trait]
-pub trait HistoryStore: std::fmt::Debug + Send + Sync {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> Result<Worksheet>;
-    async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet>;
-    async fn update_worksheet(&self, worksheet: Worksheet) -> Result<()>;
-    async fn delete_worksheet(&self, id: WorksheetId) -> Result<()>;
-    async fn get_worksheets(&self) -> Result<Vec<Worksheet>>;
-    async fn add_query(&self, item: &QueryRecord) -> Result<()>;
-    async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord>;
-    async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>>;
-    fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-    async fn save_query_record(&self, query_record: &mut QueryRecord);
-}
 
 async fn queries_iterator(db: &Db, cursor: Option<QueryRecordId>) -> Result<DbIterator<'_>> {
     let start_key = QueryRecord::get_key(cursor.map_or_else(i64::min_cursor, Into::into));
@@ -343,6 +253,7 @@ impl HistoryStore for SlateDBHistoryStore {
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::QueryResultError;
     use crate::entities::query::{QueryRecord, QueryStatus};
     use crate::entities::worksheet::Worksheet;
     use chrono::{Duration, TimeZone, Utc};

@@ -4,12 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license-file = { workspace = true }
 
-# [build-dependencies]
-# cc = "1.2.39"
-
 [dependencies]
 sqlite-plugin = { path = "../sqlite-plugin", features = ["static", "dynamic"] }
-core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 

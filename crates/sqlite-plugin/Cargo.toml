@@ -19,6 +19,7 @@ map-unwrap-or = "warn"
 
 [build-dependencies]
 bindgen = { version = "0.72", default-features = false }
+clang-sys = { version = "1.8.1", features = ["clang_18_0"] }
 
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }

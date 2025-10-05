@@ -21,6 +21,9 @@ unsafe extern "C" {
     fn initialize_grpsqlite() -> i32;
 }
 
+static SQLITE_STORE: OnceLock<Arc<SqliteStore>> = OnceLock::new();
+
+// Sqlite Store is singleton.
 pub struct SqliteStore {
     connections: Mutex<HashMap<String, r2d2::Pool<SqliteConnectionManager>>>,
 }
@@ -48,16 +51,23 @@ impl SqliteStore {
         self.conn(DEFAULT_DB_NAME)
     }
 
+    pub fn current() -> Result<Arc<Self>> {
+        Ok(SQLITE_STORE.get().context(sqlite_error::SqliteNotInitializedYetSnafu)?.clone())
+    }
+
     #[tracing::instrument(name = "SqliteStore::init", skip(db), err)]
     pub fn init(db: Arc<Db>) -> Result<Arc<Self>> {
+        if let Ok(current) = Self::current() {
+            return Ok(current);
+        }
         let runtime = Handle::current();
         vfs::set_vfs_context(runtime, db);
 
         // Initialize grpsqlite VFS
-        tracing::debug!("Initializing grpsqlite VFS...");
+        tracing::info!("Initializing grpsqlite VFS...");
         unsafe { initialize_grpsqlite() };
 
-        let sqlite_store = SqliteStore {
+        let sqlite_store = Self {
             connections: Mutex::new(HashMap::new()),
         };
 
@@ -71,7 +81,7 @@ impl SqliteStore {
                 .context(sqlite_error::RusqliteSnafu)?;
             if let Ok(Some(row)) = rows.next() {
                 if let Ok(result) = row.get::<usize, String>(0) {
-                    println!("result: {result}");
+                    log::debug!("result: {result}");
                     vfs_detected = result == "maybe?";
                 }
             }
@@ -81,6 +91,34 @@ impl SqliteStore {
             return Err(sqlite_error::NoVfsDetectedSnafu.fail()?)
         }
 
-        Ok(Arc::new(sqlite_store))
+        let sqlite_store = Arc::new(sqlite_store);
+        if SQLITE_STORE.set(sqlite_store.clone()).is_err() {
+            return sqlite_error::FailedToInitializeSqliteStoreSnafu.fail();
+        }
+        sqlite_store.self_check()?;
+        Ok(sqlite_store)
+    }
+
+    fn self_check(&self) -> Result<()> {
+        self
+            .default_conn()?
+            .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
+            .context(sqlite_error::RusqliteSnafu)?;
+
+        let mut check_passed = false;
+        if let Ok(mut stmt) = self.default_conn()?
+            .prepare("SELECT name FROM sqlite_schema WHERE type ='table'")
+        {
+            let mut rows = stmt.query([])
+                .context(sqlite_error::RusqliteSnafu)?;
+            if let Ok(Some(row)) = rows.next() {
+                if let Ok(result) = row.get::<usize, String>(0) {
+                    tracing::info!("result: {result}");
+                    check_passed = true;
+                }
+            }
+        }
+        assert!(check_passed, "Sqlite VFS didn't pass runtime self check");
+        Ok(())
     }
 }

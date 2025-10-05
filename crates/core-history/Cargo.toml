@@ -4,8 +4,13 @@ version = "0.1.0"
 edition = "2024"
 license-file.workspace = true
 
+[features]
+sqlite = []
+utilsdb = []
+
 [dependencies]
 core-utils = { path = "../core-utils" }
+core-sqlite = { path = "../core-sqlite" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 

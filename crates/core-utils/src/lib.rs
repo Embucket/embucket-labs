@@ -27,7 +27,7 @@ use uuid::Uuid;
 pub struct Db(Arc<SlateDb>);
 
 impl Db {
-    pub const fn new(db: Arc<SlateDb>) -> Self {
+    pub const fn new(db: Arc<SlateDb>) -> Self {       
         Self(db)
     }
 
@@ -41,6 +41,11 @@ impl Db {
         .await
         .expect("Failed to open database");
         Self(Arc::new(db))
+    }
+
+    #[must_use]
+    pub fn slate_db(&self) -> Arc<SlateDb> {
+        self.0.clone()
     }
 
     /// Closes the database connection.

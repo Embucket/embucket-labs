@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use sqlite_plugin::flags;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
@@ -36,6 +37,7 @@ impl LockManager {
 
     /// Acquire a lock on a file for a specific handle, blocking until available
     #[instrument(level = "debug", skip(self))]
+    #[allow(clippy::cognitive_complexity)]
     pub fn lock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
         debug!("lock request: path={} handle_id={} level={:?}", file_path, handle_id, level);
         
@@ -129,7 +131,7 @@ impl LockManager {
         }
     }
 
-    /// Get the current maximum lock level for a file (for diagnostics)
+    // Get the current maximum lock level for a file (for diagnostics)
     // pub fn get_max_lock_level(&self, file_path: &str) -> flags::LockLevel {
     //     let files = self.files.lock().unwrap();
     //     if let Some(file_state) = files.get(file_path) {
@@ -168,6 +170,7 @@ impl LockManager {
     // }
 
     // Check if a lock level is compatible with existing locks
+    #[allow(clippy::needless_continue)]
     fn is_lock_compatible(
         requested: flags::LockLevel,
         existing_locks: &HashMap<u64, flags::LockLevel>,

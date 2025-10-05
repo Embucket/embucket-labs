@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(dead_code)]
 
 // tests use std
 extern crate std;

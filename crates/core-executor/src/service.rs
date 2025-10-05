@@ -28,7 +28,7 @@ use crate::running_queries::RunningQueryId;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
-use core_history::history_store::HistoryStore;
+use core_history::HistoryStore;
 use core_history::store::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryStatus};
 use core_metastore::{

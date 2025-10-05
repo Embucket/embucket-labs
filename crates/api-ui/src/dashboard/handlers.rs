@@ -4,7 +4,7 @@ use crate::dashboard::models::{Dashboard, DashboardResponse};
 use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use axum::{Json, extract::State};
-use core_history::history_store::GetQueriesParams;
+use core_history::GetQueriesParams;
 use core_metastore::error::UtilSlateDBSnafu;
 use core_utils::scan_iterator::ScanIterator;
 use snafu::ResultExt;

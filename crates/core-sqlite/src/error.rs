@@ -1,4 +1,3 @@
-use error_stack_trace;
 use snafu::Location;
 use snafu::Snafu;
 
@@ -15,7 +14,10 @@ pub enum Error {
     },
 
     #[snafu(display("Failed to initialize sqlite store"))]
-    FailedToInitializeSqliteStore,
+    FailedToInitializeSqliteStore{
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Rusqlite error {error}"))]
     Rusqlite {
