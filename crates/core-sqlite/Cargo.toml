@@ -26,6 +26,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
+r2d2_sqlite = "0.31.0"
+r2d2 = "0.8.10"
 
 [lints]
 workspace = true

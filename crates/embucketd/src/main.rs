@@ -123,7 +123,7 @@ fn main() {
     rt.block_on(async move {
         let tracing_provider = setup_tracing(&opts);
 
-        async_main(opts, tracing_provider).await;
+        let _ = async_main(opts, tracing_provider).await;
     });
 }
 
@@ -134,7 +134,7 @@ fn main() {
     clippy::too_many_lines,
     clippy::cognitive_complexity
 )]
-async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
+async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> Result<(), Box<dyn std::error::Error>> {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
@@ -192,13 +192,12 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
 
     let sqlite_store = SqliteStore::init(slate_db.clone())
         .expect("Failed to initialize sqlite store");
-    sqlite_store
-        .connection
+
+    sqlite_store.default_conn()?
         .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
         .expect("Sqlite store error");
 
-    if let Ok(mut stmt) = sqlite_store
-    .connection
+    if let Ok(mut stmt) = sqlite_store.default_conn()?
     .prepare("SELECT name FROM sqlite_schema WHERE type ='table'") {
         let mut rows = stmt.query([]).expect("Query error");
         if let Ok(Some(row)) = rows.next() {
@@ -348,6 +347,8 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     tracing_provider
         .shutdown()
         .expect("TracerProvider should shutdown successfully");
+
+    Ok(())
 }
 
 #[allow(clippy::expect_used)]

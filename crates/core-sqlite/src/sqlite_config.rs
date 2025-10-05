@@ -1,6 +1,5 @@
 #[derive(Debug, Clone)]
-pub struct EnvConfig {
-    pub grpc_vfs_url: String,
+pub struct SqliteConfig {
     pub grpc_vfs_connect_timeout_secs: u64,
     pub local_cache_dir: Option<String>,
     pub max_cache_bytes: Option<u64>,
@@ -11,11 +10,9 @@ pub struct EnvConfig {
     pub preload_cache_concurrency: u32,
 }
 
-impl EnvConfig {
+impl SqliteConfig {
     pub fn new() -> Self {
         Self {
-            grpc_vfs_url: std::env::var("GRPC_VFS_URL")
-                .unwrap_or_else(|_| "http://localhost:50051".to_string()),
             grpc_vfs_connect_timeout_secs: std::env::var("GRPC_VFS_CONNECT_TIMEOUT_SECS")
                 .unwrap_or_else(|_| "10".to_string())
                 .parse::<u64>()
