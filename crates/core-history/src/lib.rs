@@ -1,8 +1,13 @@
 pub mod entities;
 pub mod errors;
-pub mod utilsdb_history_store;
 pub mod store;
 pub mod interface;
+
+#[cfg(feature = "sqlite")]
+pub mod sqlite_history_store;
+
+#[cfg(feature = "utilsdb")]
+pub mod utilsdb_history_store;
 
 #[cfg(test)]
 pub mod tests;

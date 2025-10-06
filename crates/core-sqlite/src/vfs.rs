@@ -633,7 +633,7 @@ impl vfs::Vfs for GrpcVfs {
     }
 }
 
-const VFS_NAME: &CStr = c"grpsqlite";
+pub const VFS_NAME: &CStr = c"grpsqlite";
 
 static GRPC_VFS_INSTANCE: OnceLock<Arc<GrpcVfs>> = OnceLock::new();
 

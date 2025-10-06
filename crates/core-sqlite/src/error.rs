@@ -4,7 +4,7 @@ use snafu::Snafu;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Snafu)]
-#[snafu(visibility(pub(crate)))]
+#[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
     #[snafu(display("Sqlite not initialized yet"))]
@@ -28,7 +28,10 @@ pub enum Error {
     },
 
     #[snafu(display("No VFS detected"))]
-    NoVfsDetected,
+    NoVfsDetected {
+        #[snafu(implicit)]
+        location: Location,
+    },
 
     #[snafu(display("Failed to lock connections"))]
     ConnectionsLock {

@@ -22,6 +22,9 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
+dashmap = { workspace = true }
+uuid = { workspace = true }
+deadpool-sqlite = "0.12.1"
 r2d2_sqlite = "0.31.0"
 r2d2 = "0.8.10"
 

@@ -64,7 +64,7 @@ use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
-use core_sqlite::SqliteStore;
+// use core_sqlite::SqliteStore;
 
 #[cfg(feature = "alloc-tracing")]
 mod alloc_tracing {
@@ -191,8 +191,8 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> 
         .expect("Failed to start Slate DB"));
 
     // TODO: remove it after all
-    let _ = SqliteStore::init(slate_db.clone())
-        .expect("Failed to initialize sqlite store");
+    // let _ = SqliteStore::init(slate_db.clone())
+    //    .expect("Failed to initialize sqlite store");
 
     let db = Db::new(slate_db);
 

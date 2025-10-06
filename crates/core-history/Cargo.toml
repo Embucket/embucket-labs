@@ -5,6 +5,7 @@ edition = "2024"
 license-file.workspace = true
 
 [features]
+default = ["sqlite"]
 sqlite = []
 utilsdb = []
 

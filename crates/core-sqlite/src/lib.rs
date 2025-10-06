@@ -2,18 +2,18 @@ mod lock_manager;
 mod handle;
 mod vfs;
 mod sqlite_config;
-mod error;
+pub mod error;
 
 use tokio::runtime::Handle;
 use slatedb::Db;
 use std::sync::{Arc};
 use error::{self as sqlite_error, Result};
 use snafu::{ResultExt, OptionExt};
-use std::sync::Mutex;
-use std::collections::HashMap;
 use std::sync::OnceLock;
+use dashmap::DashMap;
 use r2d2_sqlite::SqliteConnectionManager;
 use r2d2::{PooledConnection, Pool};
+// use deadpool_sqlite::{Config, Runtime, SqliteConnectionManager};
 
 const DEFAULT_DB_NAME: &str = "embucket.db";
 
@@ -25,25 +25,22 @@ static SQLITE_STORE: OnceLock<Arc<SqliteStore>> = OnceLock::new();
 
 // Sqlite Store is singleton.
 pub struct SqliteStore {
-    connections: Mutex<HashMap<String, r2d2::Pool<SqliteConnectionManager>>>,
+    connections: DashMap<String, r2d2::Pool<SqliteConnectionManager>>,
 }
 
 impl SqliteStore {
+    #[tracing::instrument(level = "debug", name = "SqliteStore::conn", fields(conn_str), skip(self), err)]
     pub fn conn(&self, db_name: &str) -> Result<PooledConnection<SqliteConnectionManager>> {
-        if let Ok(mut connections) = self.connections.lock() {
-            if let Some(conn) = connections.get(db_name) {
-                Ok(conn.get().context(sqlite_error::R2d2Snafu)?)
-            } else {
-                let manager = SqliteConnectionManager::file(db_name);
-                let pool = Pool::new(manager)
-                    .context(sqlite_error::R2d2Snafu)?;
-                let conn = pool.get()
-                    .context(sqlite_error::R2d2Snafu)?;
-                connections.insert(db_name.to_string(), pool);
-                Ok(conn)
-            }
+        if let Some(conn) = self.connections.get(db_name) {
+            Ok(conn.get().context(sqlite_error::R2d2Snafu)?)
         } else {
-            sqlite_error::ConnectionsLockSnafu.fail()?
+            let manager = SqliteConnectionManager::file(db_name);
+            let pool = Pool::new(manager)
+                .context(sqlite_error::R2d2Snafu)?;
+            let conn = pool.get()
+                .context(sqlite_error::R2d2Snafu)?;
+            self.connections.insert(db_name.to_string(), pool);
+            Ok(conn)
         }
     }
 
@@ -68,7 +65,7 @@ impl SqliteStore {
         unsafe { initialize_grpsqlite() };
 
         let sqlite_store = Self {
-            connections: Mutex::new(HashMap::new()),
+            connections: DashMap::new(),
         };
 
         // Open database connection
