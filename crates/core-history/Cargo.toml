@@ -26,6 +26,8 @@ futures = { workspace = true }
 tracing = { workspace = true }
 mockall = { workspace = true }
 uuid = { workspace = true }
+rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
+
 
 [dev-dependencies]
 tokio = { workspace = true }

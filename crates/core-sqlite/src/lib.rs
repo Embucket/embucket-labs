@@ -11,9 +11,8 @@ use error::{self as sqlite_error, Result};
 use snafu::{ResultExt, OptionExt};
 use std::sync::OnceLock;
 use dashmap::DashMap;
-use r2d2_sqlite::SqliteConnectionManager;
-use r2d2::{PooledConnection, Pool};
-// use deadpool_sqlite::{Config, Runtime, SqliteConnectionManager};
+use rusqlite::Result as SqlResult;
+use deadpool_sqlite::{Config, Manager, Object, Runtime, Pool};
 
 const DEFAULT_DB_NAME: &str = "embucket.db";
 
@@ -25,27 +24,23 @@ static SQLITE_STORE: OnceLock<Arc<SqliteStore>> = OnceLock::new();
 
 // Sqlite Store is singleton.
 pub struct SqliteStore {
-    connections: DashMap<String, r2d2::Pool<SqliteConnectionManager>>,
+    connections: DashMap<String, Pool>,
 }
 
 impl SqliteStore {
     #[tracing::instrument(level = "debug", name = "SqliteStore::conn", fields(conn_str), skip(self), err)]
-    pub fn conn(&self, db_name: &str) -> Result<PooledConnection<SqliteConnectionManager>> {
-        if let Some(conn) = self.connections.get(db_name) {
-            Ok(conn.get().context(sqlite_error::R2d2Snafu)?)
-        } else {
-            let manager = SqliteConnectionManager::file(db_name);
-            let pool = Pool::new(manager)
-                .context(sqlite_error::R2d2Snafu)?;
-            let conn = pool.get()
-                .context(sqlite_error::R2d2Snafu)?;
-            self.connections.insert(db_name.to_string(), pool);
-            Ok(conn)
-        }
+    pub async fn conn(&self, db_name: &str) -> Result<Object> {
+
+        let cfg = Config::new(db_name);
+        let pool = cfg.create_pool(Runtime::Tokio1)
+            .context(sqlite_error::CreatePoolSnafu)?;
+    
+        let conn = pool.get().await.context(sqlite_error::PoolSnafu)?;
+        Ok(conn)
     }
 
-    pub fn default_conn(&self) -> Result<PooledConnection<SqliteConnectionManager>> {
-        self.conn(DEFAULT_DB_NAME)
+    pub async fn default_conn(&self) -> Result<Object> {
+        self.conn(DEFAULT_DB_NAME).await
     }
 
     pub fn current() -> Result<Arc<Self>> {
@@ -53,7 +48,7 @@ impl SqliteStore {
     }
 
     #[tracing::instrument(name = "SqliteStore::init", skip(db), err)]
-    pub fn init(db: Arc<Db>) -> Result<Arc<Self>> {
+    pub async fn init(db: Arc<Db>) -> Result<Arc<Self>> {
         if let Ok(current) = Self::current() {
             return Ok(current);
         }
@@ -69,21 +64,21 @@ impl SqliteStore {
         };
 
         // Open database connection
-        let connection = sqlite_store.default_conn()?;
+        let connection = sqlite_store.default_conn().await?;
 
         // Test VFS with pragma
-        let mut vfs_detected = false;
-        if let Ok(mut stmt) = connection.prepare("PRAGMA is_memory_server") {
-            let mut rows = stmt.query([])
-                .context(sqlite_error::RusqliteSnafu)?;
-            if let Ok(Some(row)) = rows.next() {
-                if let Ok(result) = row.get::<usize, String>(0) {
-                    log::debug!("result: {result}");
-                    vfs_detected = result == "maybe?";
-                }
-            }
-        }
+        let is_vfs = connection.interact(|conn| -> SqlResult<String> {
+            // TODO: Check how to verify VFS, instead of "is memory server"
+            let mut stmt = conn.prepare("PRAGMA is_memory_server")?;
+            let mut rows = stmt.query([])?;
+            let row = rows.next()?.unwrap();
+            row.get(0)
+        })
+        .await
+        .context(sqlite_error::InteractSnafu)?
+        .context(sqlite_error::RusqliteSnafu)?;
 
+        let vfs_detected = is_vfs == "maybe?";
         if !vfs_detected {
             return Err(sqlite_error::NoVfsDetectedSnafu.fail()?)
         }
@@ -92,29 +87,39 @@ impl SqliteStore {
         if SQLITE_STORE.set(sqlite_store.clone()).is_err() {
             return sqlite_error::FailedToInitializeSqliteStoreSnafu.fail();
         }
-        sqlite_store.self_check()?;
+        sqlite_store.self_check().await?;
         Ok(sqlite_store)
     }
 
-    fn self_check(&self) -> Result<()> {
-        self
-            .default_conn()?
-            .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
+    async fn self_check(&self) -> Result<()> {
+        let _ = self
+            .default_conn().await?
+            .interact(|conn| {
+                conn
+                .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
+            })
+            .await
+            .context(sqlite_error::InteractSnafu)?
             .context(sqlite_error::RusqliteSnafu)?;
 
         let mut check_passed = false;
-        if let Ok(mut stmt) = self.default_conn()?
-            .prepare("SELECT name FROM sqlite_schema WHERE type ='table'")
-        {
-            let mut rows = stmt.query([])
-                .context(sqlite_error::RusqliteSnafu)?;
-            if let Ok(Some(row)) = rows.next() {
-                if let Ok(result) = row.get::<usize, String>(0) {
-                    tracing::info!("result: {result}");
-                    check_passed = true;
-                }
+        let connection = self.default_conn().await?;
+        let result = connection.interact(|conn| -> SqlResult<Vec<String>> {
+            let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type ='table'")?;
+            let mut rows = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows.next()? {
+                out.push(row.get(0)?);
             }
-        }
+            Ok(out)
+        })
+        .await
+        .context(sqlite_error::InteractSnafu)?
+        .context(sqlite_error::RusqliteSnafu)?;
+       
+        tracing::info!("result: {result:?}");
+        check_passed = result == ["test"];
+
         assert!(check_passed, "Sqlite VFS didn't pass runtime self check");
         Ok(())
     }

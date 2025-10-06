@@ -1,5 +1,7 @@
+use deadpool_sqlite::InteractError;
 use snafu::Location;
 use snafu::Snafu;
+use deadpool_sqlite::{PoolError, CreatePoolError};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -39,11 +41,27 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("R2d2 error {error}"))]
-    R2d2 {
+    #[snafu(display("Deadpool error {error}"))]
+    Pool {
         #[snafu(source)]
-        error: r2d2::Error,
+        error: PoolError,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
+
+    #[snafu(display("Failed to create pool"))]
+    CreatePool {
+        #[snafu(source)]
+        error: CreatePoolError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Failed to interact with connection"))]
+    Interact {
+        #[snafu(source)]
+        error: InteractError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

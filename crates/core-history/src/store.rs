@@ -20,9 +20,10 @@ impl std::fmt::Debug for SlateDBHistoryStore {
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
     #[must_use]
-    pub fn new(db: Db) -> Self {
+    pub async fn new(db: Db) -> Self {
         if cfg!(feature = "sqlite") {
             let _ = SqliteStore::init(db.slate_db())
+                .await
                 .expect("Failed to initialize sqlite store");
         }        
         Self { db }
@@ -36,11 +37,12 @@ impl SlateDBHistoryStore {
         // to avoid changing the code 
         let utils_db = Db::memory().await;
         
-        if cfg!(feature = "sqlite") {
-            let _ = SqliteStore::init(utils_db.slate_db())
-                .expect("Failed to initialize sqlite store");
-        }
-        Arc::new(Self::new(utils_db))
+        // if cfg!(feature = "sqlite") {
+        //     let _ = SqliteStore::init(utils_db.slate_db())
+        //         .await
+        //         .expect("Failed to initialize sqlite store");
+        // }
+        Arc::new(Self::new(utils_db).await)
     }
 
     #[must_use]

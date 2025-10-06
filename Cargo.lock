@@ -2326,6 +2326,7 @@ dependencies = [
  "error-stack-trace",
  "futures",
  "mockall",
+ "rusqlite",
  "serde",
  "serde_json",
  "slatedb",

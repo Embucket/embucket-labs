@@ -22,7 +22,7 @@ use std::sync::Arc;
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -102,7 +102,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -231,7 +231,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -290,7 +290,7 @@ async fn test_service_create_table_file_volume() {
 async fn test_query_recording() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db));
+    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db).await);
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -498,7 +498,7 @@ async fn test_max_concurrency_level() {
     use tokio::sync::Barrier;
 
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -554,7 +554,7 @@ async fn test_max_concurrency_level() {
 #[allow(clippy::expect_used)]
 async fn test_max_concurrency_level2() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -595,7 +595,7 @@ async fn test_max_concurrency_level2() {
 #[allow(clippy::expect_used)]
 async fn test_query_timeout() {
     let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await).await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
