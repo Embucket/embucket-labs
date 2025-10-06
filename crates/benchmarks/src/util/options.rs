@@ -83,7 +83,7 @@ impl CommonOpt {
     #[must_use]
     pub fn update_config(&self, config: SessionConfig) -> SessionConfig {
         let mut config = config
-            .with_target_partitions(self.partitions.unwrap_or(get_available_parallelism()))
+            .with_target_partitions(self.partitions.unwrap_or_else(get_available_parallelism))
             .with_batch_size(self.batch_size);
         if let Some(sort_spill_reservation_bytes) = self.sort_spill_reservation_bytes {
             config = config.with_sort_spill_reservation_bytes(sort_spill_reservation_bytes);

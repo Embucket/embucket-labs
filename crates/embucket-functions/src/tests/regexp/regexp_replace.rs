@@ -28,3 +28,53 @@ test_query!(
                       2)",
     snapshot_path = "regexp_replace"
 );
+
+test_query!(
+    regexp_replace_first_occurrence_not_forward,
+    "SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',
+                      'times',
+                      'days',
+                      1,
+                      1)",
+    snapshot_path = "regexp_replace"
+);
+
+test_query!(
+    regexp_replace_second_occurrence_not_forward,
+    "SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',
+                      'times',
+                      'days',
+                      1,
+                      2)",
+    snapshot_path = "regexp_replace"
+);
+
+test_query!(
+    regexp_replace_third_occurrence_not_forward,
+    "SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',
+                      'times',
+                      'days',
+                      1,
+                      3)",
+    snapshot_path = "regexp_replace"
+);
+
+test_query!(
+    regexp_replace_first_occurrence_not_forward_with_position,
+    "SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',
+                      'times',
+                      'days',
+                      30,
+                      1) AS result;",
+    snapshot_path = "regexp_replace"
+);
+
+test_query!(
+    regexp_replace_second_occurrence_not_forward_with_position,
+    "SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',
+                      'times',
+                      'days',
+                      30,
+                      2) AS result;",
+    snapshot_path = "regexp_replace"
+);
