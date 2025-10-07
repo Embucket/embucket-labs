@@ -36,12 +36,12 @@ pub fn table_ref(table: &str) -> String {
 #[allow(clippy::unwrap_used)]
 pub async fn create_catalog(path: &str, session: &Arc<UserSession>, mem_table: bool) -> Result<()> {
     let volume_sql = if mem_table {
+        "CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))".to_string()
+    } else {
         format!(
             "CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = (\
         (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '{path}/data'))"
         )
-    } else {
-        "CREATE EXTERNAL VOLUME test STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))".to_string()
     };
     let mut volume_query = session.query(volume_sql, query_context());
     volume_query.execute().await?;

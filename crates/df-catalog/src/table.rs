@@ -4,9 +4,10 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion::datasource::{ViewTable, provider_as_source};
 use datafusion::execution::SessionState;
+use datafusion_common::Statistics;
 use datafusion_common::tree_node::{Transformed, TreeNode};
 use datafusion_expr::dml::InsertOp;
-use datafusion_expr::{Expr, LogicalPlan, TableScan, TableType};
+use datafusion_expr::{Expr, LogicalPlan, TableProviderFilterPushDown, TableScan, TableType};
 use datafusion_physical_plan::ExecutionPlan;
 use once_cell::sync::OnceCell;
 use snafu::OptionExt;
@@ -60,7 +61,6 @@ impl TableProvider for CachingTable {
     fn table_type(&self) -> TableType {
         self.table.table_type()
     }
-
     async fn scan(
         &self,
         state: &dyn Session,
@@ -81,6 +81,17 @@ impl TableProvider for CachingTable {
             return updated_view.scan(state, projection, filters, limit).await;
         }
         self.table.scan(state, projection, filters, limit).await
+    }
+
+    fn supports_filters_pushdown(
+        &self,
+        filters: &[&Expr],
+    ) -> datafusion_common::Result<Vec<TableProviderFilterPushDown>> {
+        self.table.supports_filters_pushdown(filters)
+    }
+
+    fn statistics(&self) -> Option<Statistics> {
+        self.table.statistics()
     }
 
     async fn insert_into(
