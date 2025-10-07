@@ -3,7 +3,7 @@ use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +23,32 @@ impl Display for QueryStatus {
             Self::Failed => write!(f, "Failed"),
             Self::Canceled => write!(f, "Canceled"),
             Self::TimedOut => write!(f, "TimedOut"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseQueryStatusError;
+
+impl std::fmt::Display for ParseQueryStatusError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid query status")
+    }
+}
+
+impl std::error::Error for ParseQueryStatusError {}
+
+impl FromStr for QueryStatus {
+    type Err = ParseQueryStatusError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Running" => Ok(Self::Running),
+            "Successful" => Ok(Self::Successful),
+            "Failed" => Ok(Self::Failed),
+            "Canceled" => Ok(Self::Canceled),
+            "TimedOut" => Ok(Self::TimedOut),
+            _ => Err(ParseQueryStatusError),
         }
     }
 }

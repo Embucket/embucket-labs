@@ -2,6 +2,7 @@ use crate::QueryRecordId;
 use error_stack_trace;
 use snafu::Location;
 use snafu::Snafu;
+use snafu::location;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -147,10 +148,34 @@ pub enum Error {
     },
 
     #[snafu(display("Sqlite error: {error}"))]
-    Sqlite {
+    RuSqlite {
         #[snafu(source)]
         error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
+    },
+
+    #[snafu(display("Create tables error: {error}"))]
+    CreateTables {
+        #[snafu(source)]
+        error: rusqlite::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Deadpool connection error: {error}"))]
+    Deadpool {
+        // Can't use deadpool error as it is not Send + Sync
+        // as it then useing by core_utils and then here: `impl From<Error> for iceberg::Error`
+        #[snafu(source(from(deadpool_sqlite::InteractError, |err| core_sqlite::StringError(format!("{:?}", err)))))]
+        error: core_sqlite::StringError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+}
+
+impl From<deadpool_sqlite::InteractError> for Error {
+    fn from(err: deadpool_sqlite::InteractError) -> Self {
+        Error::Deadpool { error: core_sqlite::StringError(format!("{:?}", err)), location: location!() }
     }
 }

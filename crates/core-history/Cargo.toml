@@ -27,10 +27,10 @@ mockall = { workspace = true }
 uuid = { workspace = true }
 rusqlite = { workspace = true }
 cfg-if = { workspace = true }
+deadpool-sqlite = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-core-sqlite = { path = "../core-sqlite" }
 
 [lints]
 workspace = true

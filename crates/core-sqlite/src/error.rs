@@ -1,6 +1,7 @@
 use deadpool_sqlite::InteractError;
 use snafu::Location;
 use snafu::Snafu;
+use snafu::location;
 use deadpool_sqlite::{PoolError, CreatePoolError};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -63,11 +64,22 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Failed to interact with connection"))]
-    Interact {
-        #[snafu(source)]
-        error: InteractError,
+    #[snafu(display("Deadpool connection error: {error}"))]
+    Deadpool {
+        // Can't use deadpool error as it is not Send + Sync
+        // as it then useing by core_utils and then here: `impl From<Error> for iceberg::Error`
+        #[snafu(source(from(InteractError, |err| StringError(format!("{:?}", err)))))]
+        error: StringError,
         #[snafu(implicit)]
         location: Location,
     },
 }
+
+#[derive(Debug)]
+pub struct StringError(pub String);
+impl std::fmt::Display for StringError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::error::Error for StringError {}

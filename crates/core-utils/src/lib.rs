@@ -239,11 +239,11 @@ impl Db {
     }
 }
 
-// impl From<Error> for iceberg::Error {
-//     fn from(e: Error) -> Self {
-//         Self::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
-//     }
-// }
+impl From<Error> for iceberg::Error {
+    fn from(e: Error) -> Self {
+        Self::new(iceberg::ErrorKind::Unexpected, e.to_string()).with_source(e)
+    }
+}
 
 #[async_trait]
 pub trait Entity {

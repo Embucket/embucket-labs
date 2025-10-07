@@ -1,6 +1,6 @@
 use crate::SlateDBHistoryStore;
 use rusqlite::Result as SqlResult;
-use core_sqlite::{Result as SqliteResult, self as sqlite_error};
+use core_sqlite::{Result as SqliteResult, self as core_sqlite_error};
 use snafu::ResultExt;
 use tokio;
 
@@ -12,8 +12,8 @@ async fn test_sqlite_history_schema() -> SqliteResult<()> {
         conn.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
     })
     .await
-    .context(sqlite_error::InteractSnafu)?
-    .context(sqlite_error::RusqliteSnafu)?;
+    .context(core_sqlite_error::DeadpoolSnafu)?
+    .context(core_sqlite_error::RusqliteSnafu)?;
     assert_eq!(res, 0);
     Ok(())
 }

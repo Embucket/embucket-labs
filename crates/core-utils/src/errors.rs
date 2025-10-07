@@ -92,11 +92,11 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Sqlite connector error: {error}"))]
-    Connector {
-        #[snafu(source)]
-        error: deadpool_sqlite::InteractError,
-        #[snafu(implicit)]
-        location: Location,
-    }
+    // #[snafu(display("Sqlite connector error: {error}"))]
+    // Connector {
+    //     #[snafu(source(from(deadpool_sqlite::InteractError, Box::new)))]
+    //     error: Box<deadpool_sqlite::InteractError>,
+    //     #[snafu(implicit)]
+    //     location: Location,
+    // }
 }

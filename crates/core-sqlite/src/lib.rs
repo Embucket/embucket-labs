@@ -63,11 +63,14 @@ impl SqliteStore {
         let is_vfs = connection.interact(|conn| -> SqlResult<String> {
             let mut stmt = conn.prepare("PRAGMA slatedb_vfs")?;
             let mut rows = stmt.query([])?;
-            let row = rows.next()?.expect("No rows");
-            row.get(0)
+            if let Some(row) = rows.next()? {
+                row.get(0)
+            } else {
+                Err(rusqlite::Error::QueryReturnedNoRows)
+            }
         })
         .await
-        .context(sqlite_error::InteractSnafu)?
+        .context(sqlite_error::DeadpoolSnafu)?
         .context(sqlite_error::RusqliteSnafu)?;
 
         let vfs_detected = is_vfs == "maybe?";
@@ -80,17 +83,16 @@ impl SqliteStore {
     }
 
     async fn self_check(&self) -> Result<()> {
-        let _ = self
+        let _res = self
             .default_conn().await?
-            .interact(|conn| {
+            .interact(|conn| -> SqlResult<usize> {
                 conn
                 .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
             })
             .await
-            .context(sqlite_error::InteractSnafu)?
+            .context(sqlite_error::DeadpoolSnafu)?
             .context(sqlite_error::RusqliteSnafu)?;
 
-        let mut check_passed = false;
         let connection = self.default_conn().await?;
         let result = connection.interact(|conn| -> SqlResult<Vec<String>> {
             let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type ='table'")?;
@@ -102,12 +104,12 @@ impl SqliteStore {
             Ok(out)
         })
         .await
-        .context(sqlite_error::InteractSnafu)?
+        .context(sqlite_error::DeadpoolSnafu)?
         .context(sqlite_error::RusqliteSnafu)?;
        
         tracing::info!("result: {result:?}");
-        check_passed = result == ["test"];
-
+        
+        let check_passed = result == ["test"];
         if !check_passed {
             return Err(sqlite_error::SelfCheckSnafu.fail()?)
         }

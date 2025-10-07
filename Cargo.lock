@@ -2323,6 +2323,7 @@ dependencies = [
  "chrono",
  "core-sqlite",
  "core-utils",
+ "deadpool-sqlite",
  "error-stack",
  "error-stack-trace",
  "futures",
