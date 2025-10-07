@@ -175,10 +175,8 @@ fn traverse_set_expr(subquery_idents: &mut HashSet<String>, set_expr: &SetExpr) 
                 SelectItem::ExprWithAlias { alias, .. } => {
                     subquery_idents.insert(alias.value.clone());
                 }
-                SelectItem::UnnamedExpr(expr) => {
-                    if let Expr::Identifier(ident) = expr {
-                        subquery_idents.insert(ident.value.clone());
-                    }
+                SelectItem::UnnamedExpr(Expr::Identifier(ident)) => {
+                    subquery_idents.insert(ident.value.clone());
                 }
                 _ => {}
             });
