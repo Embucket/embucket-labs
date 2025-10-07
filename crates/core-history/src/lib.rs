@@ -3,11 +3,14 @@ pub mod errors;
 pub mod store;
 pub mod interface;
 
-#[cfg(feature = "sqlite")]
-pub mod sqlite_history_store;
-
-#[cfg(feature = "utilsdb")]
-pub mod utilsdb_history_store;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "sqlite")]
+    {
+        pub mod sqlite_history_store;
+    } else {
+        pub mod slatedb_history_store;
+    }
+}
 
 #[cfg(test)]
 pub mod tests;

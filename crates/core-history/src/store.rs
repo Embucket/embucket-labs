@@ -1,6 +1,5 @@
 use core_utils::Db;
 use std::sync::Arc;
-use core_sqlite::SqliteStore;
 
 pub enum HistoryEngine {
     Sqlite, // indirect use of SlateDb via Sqlite
@@ -20,15 +19,9 @@ impl std::fmt::Debug for SlateDBHistoryStore {
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
     #[must_use]
-    pub async fn new(db: Db) -> Self {
-        if cfg!(feature = "sqlite") {
-            let _ = SqliteStore::init(db.slate_db())
-                .await
-                .expect("Failed to initialize sqlite store");
-        }        
+    pub const fn new(db: Db) -> Self {
         Self { db }
     }
-
 
     // Create a new store with a new in-memory database
     #[allow(clippy::expect_used)]
@@ -36,13 +29,7 @@ impl SlateDBHistoryStore {
         // create utils db regardless of feature, but use it only with utilsdb feature
         // to avoid changing the code 
         let utils_db = Db::memory().await;
-        
-        // if cfg!(feature = "sqlite") {
-        //     let _ = SqliteStore::init(utils_db.slate_db())
-        //         .await
-        //         .expect("Failed to initialize sqlite store");
-        // }
-        Arc::new(Self::new(utils_db).await)
+        Arc::new(Self::new(utils_db))
     }
 
     #[must_use]

@@ -194,7 +194,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> 
     // let _ = SqliteStore::init(slate_db.clone())
     //    .expect("Failed to initialize sqlite store");
 
-    let db = Db::new(slate_db);
+    let db = Db::new(slate_db).await;
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
 

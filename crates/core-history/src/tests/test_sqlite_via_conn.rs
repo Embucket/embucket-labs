@@ -1,22 +1,19 @@
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
-
 use crate::SlateDBHistoryStore;
-use core_sqlite::SqliteStore;
-use core_sqlite::error::{self as sqlite_error, Result as SqliteResult};
 use rusqlite::Result as SqlResult;
-use snafu::{ResultExt, OptionExt};
+use core_sqlite::{Result as SqliteResult, self as sqlite_error};
+use snafu::ResultExt;
 use tokio;
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn test_sqlite_history_schema() -> SqliteResult<()> {
-    let db = SlateDBHistoryStore::new_in_memory().await;
-    let sqlite_store = SqliteStore::current()?;
+    let history_store = SlateDBHistoryStore::new_in_memory().await;
 
-    let _ = sqlite_store.default_conn().await?.interact(|conn| -> SqlResult<()> {
-        conn.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])?;
-        Ok(())
-    }).await;
-        
+    let res = history_store.db.sqlite.default_conn().await?.interact(|conn| -> SqlResult<usize> {
+        conn.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
+    })
+    .await
+    .context(sqlite_error::InteractSnafu)?
+    .context(sqlite_error::RusqliteSnafu)?;
+    assert_eq!(res, 0);
     Ok(())
 }

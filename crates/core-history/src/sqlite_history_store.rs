@@ -3,8 +3,6 @@ use crate::interface::{HistoryStore, GetQueriesParams};
 use crate::{QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use core_utils::iterable::IterableCursor;
-use futures::future::join_all;
-use serde_json::de;
 use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
@@ -62,7 +60,7 @@ impl HistoryStore for SlateDBHistoryStore {
         skip(self),
         err
     )]
-    async fn delete_worksheet(&self, id: WorksheetId) -> Result<()> {
+    async fn delete_worksheet(&self, _id: WorksheetId) -> Result<()> {
         Ok(())
     }
 
@@ -123,7 +121,7 @@ impl HistoryStore for SlateDBHistoryStore {
     }
 
     #[instrument(name = "SqliteHistoryStore::get_queries", level = "debug", skip(self), err)]
-    async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
+    async fn get_queries(&self, _params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
         let items: Vec<QueryRecord> = vec![];
         Ok(items)
     }

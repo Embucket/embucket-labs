@@ -239,7 +239,7 @@ impl SqliteApi {
         }
     }
 
-    /// Initializes SqliteApi from a filled `sqlite3_api_routines` object.
+    /// Initializes `SqliteApi` from a filled `sqlite3_api_routines` object.
     /// # Safety
     /// `api` must be a valid, aligned pointer to a `sqlite3_api_routines` struct
     #[cfg(feature = "dynamic")]

@@ -35,6 +35,12 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Sqlite self check failed"))]
+    SelfCheck {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Failed to lock connections"))]
     ConnectionsLock {
         #[snafu(implicit)]

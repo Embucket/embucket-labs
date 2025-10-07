@@ -50,7 +50,7 @@ struct GrpcVfs {
     capabilities: Capabilities,
     db: Arc<Db>,
     files: Arc<Mutex<HashMap<String, FileState>>>,
-    _guard: Arc<Mutex<Option<tracing_chrome::FlushGuard>>>,
+    guard: Arc<Mutex<Option<tracing_chrome::FlushGuard>>>,
     handle_counter: Arc<AtomicU64>,
     lock_manager: lock_manager::LockManager,
 }
@@ -70,7 +70,7 @@ impl GrpcVfs {
                 point_in_time_reads: false,
                 sector_size: 4096,
             },
-            _guard: Arc::new(Mutex::new(Some(guard))),
+            guard: Arc::new(Mutex::new(Some(guard))),
             handle_counter: Arc::new(AtomicU64::new(1)),
             lock_manager: lock_manager::LockManager::new(),
         }
@@ -445,7 +445,7 @@ impl vfs::Vfs for GrpcVfs {
         // Note: We keep file states around for batch operations, lock manager handles its own cleanup
 
         // Flush traces on every close to ensure data is written
-        let guard = self._guard.lock();
+        let guard = self.guard.lock();
         if let Some(guard) = &*guard {
             guard.flush();
         }
@@ -469,7 +469,7 @@ impl vfs::Vfs for GrpcVfs {
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
         log::debug!("pragma: file2={:?}, pragma={:?}", handle.path, pragma);
-        if pragma.name == "is_memory_server" {
+        if pragma.name == "vfs_server" {
             return Ok(Some("maybe?".to_string()));
         }
         Ok(None)
@@ -530,7 +530,7 @@ impl vfs::Vfs for GrpcVfs {
                         return Ok(());
                     }
                     let mut page_writes: HashMap<usize, Vec<_>> = HashMap::new();
-                    for write in batch.iter() {
+                    for write in &batch {
                         let offset = write.offset;
                         let page_offset = (offset / PAGE_SIZE) * PAGE_SIZE;
 
@@ -633,7 +633,7 @@ impl vfs::Vfs for GrpcVfs {
     }
 }
 
-pub const VFS_NAME: &CStr = c"grpsqlite";
+pub const VFS_NAME: &CStr = c"slatedb";
 
 static GRPC_VFS_INSTANCE: OnceLock<Arc<GrpcVfs>> = OnceLock::new();
 
@@ -674,7 +674,7 @@ fn setup_tracing() -> tracing_chrome::FlushGuard {
 ///
 /// # Safety
 /// This function is safe to call from C as it only registers a VFS implementation
-/// with SQLite and doesn't access any raw pointers or perform unsafe operations.
+/// with `SQLite` and doesn't access any raw pointers or perform unsafe operations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
     let vfs = get_grpc_vfs();
@@ -696,7 +696,7 @@ pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn flush_traces() {
     let vfs = get_grpc_vfs();
-    let guard = vfs._guard.lock().take();
+    let guard = vfs.guard.lock().take();
     if let Some(guard) = guard {
         guard.flush();
         drop(guard);

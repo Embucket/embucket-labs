@@ -5,6 +5,7 @@ edition = "2021"
 license-file = { workspace = true }
 
 [dependencies]
+core-sqlite = { path = "../core-sqlite" }
 error-stack = { path = "../error-stack" }
 error-stack-trace = { path = "../error-stack-trace" }
 

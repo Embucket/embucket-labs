@@ -6,7 +6,7 @@ pub struct GrpcVfsHandle {
 }
 
 impl GrpcVfsHandle {
-    pub fn new(path: String, readonly: bool, handle_id: u64) -> Self {
+    pub const fn new(path: String, readonly: bool, handle_id: u64) -> Self {
         Self { path, readonly, handle_id }
     }
 }

@@ -663,7 +663,7 @@ impl ObjectStoreType {
                 .context(TestSlatedbSnafu {
                     object_store: self.object_store()?,
                 })?,
-            )),
+            )).await,
         };
 
         Ok(db)

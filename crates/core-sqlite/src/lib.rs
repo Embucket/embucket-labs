@@ -2,17 +2,18 @@ mod lock_manager;
 mod handle;
 mod vfs;
 mod sqlite_config;
-pub mod error;
+mod error;
+
+pub use error::*;
 
 use tokio::runtime::Handle;
 use slatedb::Db;
 use std::sync::{Arc};
-use error::{self as sqlite_error, Result};
-use snafu::{ResultExt, OptionExt};
-use std::sync::OnceLock;
+use error::{self as sqlite_error};
+use snafu::{ResultExt};
 use dashmap::DashMap;
 use rusqlite::Result as SqlResult;
-use deadpool_sqlite::{Config, Manager, Object, Runtime, Pool};
+use deadpool_sqlite::{Config, Object, Runtime, Pool};
 
 const DEFAULT_DB_NAME: &str = "embucket.db";
 
@@ -20,20 +21,19 @@ unsafe extern "C" {
     fn initialize_grpsqlite() -> i32;
 }
 
-static SQLITE_STORE: OnceLock<Arc<SqliteStore>> = OnceLock::new();
-
 // Sqlite Store is singleton.
+#[derive(Clone)]
 pub struct SqliteStore {
-    connections: DashMap<String, Pool>,
+    pool: DashMap<String, Pool>,
 }
 
 impl SqliteStore {
     #[tracing::instrument(level = "debug", name = "SqliteStore::conn", fields(conn_str), skip(self), err)]
     pub async fn conn(&self, db_name: &str) -> Result<Object> {
-
-        let cfg = Config::new(db_name);
-        let pool = cfg.create_pool(Runtime::Tokio1)
-            .context(sqlite_error::CreatePoolSnafu)?;
+        let pool = self.pool.entry(db_name.to_string()).or_try_insert_with(|| {
+            let cfg = Config::new(db_name);
+            cfg.create_pool(Runtime::Tokio1)
+        }).context(sqlite_error::CreatePoolSnafu)?;
     
         let conn = pool.get().await.context(sqlite_error::PoolSnafu)?;
         Ok(conn)
@@ -43,15 +43,9 @@ impl SqliteStore {
         self.conn(DEFAULT_DB_NAME).await
     }
 
-    pub fn current() -> Result<Arc<Self>> {
-        Ok(SQLITE_STORE.get().context(sqlite_error::SqliteNotInitializedYetSnafu)?.clone())
-    }
-
     #[tracing::instrument(name = "SqliteStore::init", skip(db), err)]
-    pub async fn init(db: Arc<Db>) -> Result<Arc<Self>> {
-        if let Ok(current) = Self::current() {
-            return Ok(current);
-        }
+    #[allow(clippy::expect_used)]
+    pub async fn init(db: Arc<Db>) -> Result<Self> {
         let runtime = Handle::current();
         vfs::set_vfs_context(runtime, db);
 
@@ -60,7 +54,7 @@ impl SqliteStore {
         unsafe { initialize_grpsqlite() };
 
         let sqlite_store = Self {
-            connections: DashMap::new(),
+            pool: DashMap::new(),
         };
 
         // Open database connection
@@ -68,10 +62,9 @@ impl SqliteStore {
 
         // Test VFS with pragma
         let is_vfs = connection.interact(|conn| -> SqlResult<String> {
-            // TODO: Check how to verify VFS, instead of "is memory server"
-            let mut stmt = conn.prepare("PRAGMA is_memory_server")?;
+            let mut stmt = conn.prepare("PRAGMA vfs_server")?;
             let mut rows = stmt.query([])?;
-            let row = rows.next()?.unwrap();
+            let row = rows.next()?.expect("No rows");
             row.get(0)
         })
         .await
@@ -83,10 +76,6 @@ impl SqliteStore {
             return Err(sqlite_error::NoVfsDetectedSnafu.fail()?)
         }
 
-        let sqlite_store = Arc::new(sqlite_store);
-        if SQLITE_STORE.set(sqlite_store.clone()).is_err() {
-            return sqlite_error::FailedToInitializeSqliteStoreSnafu.fail();
-        }
         sqlite_store.self_check().await?;
         Ok(sqlite_store)
     }
@@ -120,7 +109,9 @@ impl SqliteStore {
         tracing::info!("result: {result:?}");
         check_passed = result == ["test"];
 
-        assert!(check_passed, "Sqlite VFS didn't pass runtime self check");
+        if !check_passed {
+            return Err(sqlite_error::SelfCheckSnafu.fail()?)
+        }
         Ok(())
     }
 }

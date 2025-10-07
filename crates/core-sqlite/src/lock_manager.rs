@@ -67,6 +67,7 @@ impl LockManager {
 
     /// Release or downgrade a lock on a file for a specific handle
     #[instrument(level = "debug", skip(self))]
+    #[allow(clippy::single_match_else, clippy::cognitive_complexity)]
     pub fn unlock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
         debug!("unlock request: path={} handle_id={} level={:?}", file_path, handle_id, level);
         
@@ -102,6 +103,7 @@ impl LockManager {
 
     /// Remove a handle entirely (called on file close)
     #[instrument(level = "debug", skip(self))]
+    #[allow(clippy::cognitive_complexity)]
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
         debug!("removing handle: path={} handle_id={}", file_path, handle_id);
         
@@ -171,6 +173,7 @@ impl LockManager {
 
     // Check if a lock level is compatible with existing locks
     #[allow(clippy::needless_continue)]
+    #[allow(clippy::match_same_arms)]
     fn is_lock_compatible(
         requested: flags::LockLevel,
         existing_locks: &HashMap<u64, flags::LockLevel>,
@@ -182,7 +185,7 @@ impl LockManager {
         // - EXCLUSIVE lock excludes all other locks
         // - A handle can always upgrade its own lock
 
-        for (&existing_handle_id, &existing_level) in existing_locks.iter() {
+        for (&existing_handle_id, &existing_level) in existing_locks {
             // Skip our own handle - we can always upgrade our own lock
             if existing_handle_id == handle_id {
                 continue;

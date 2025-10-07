@@ -960,7 +960,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), Arc::new(object_store))
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb));
+        let db = Db::new(Arc::new(sdb)).await;
         SlateDBMetastore::new(db)
     }
 
@@ -1223,7 +1223,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), object_store.clone())
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb));
+        let db = Db::new(Arc::new(sdb)).await;
         let ms = SlateDBMetastore::new(db);
 
         let schema = IcebergSchema::builder()
@@ -1347,7 +1347,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), object_store.clone())
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb));
+        let db = Db::new(Arc::new(sdb)).await;
         let ms = SlateDBMetastore::new(db);
 
         let schema = IcebergSchema::builder()

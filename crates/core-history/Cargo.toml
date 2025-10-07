@@ -7,11 +7,9 @@ license-file.workspace = true
 [features]
 default = ["sqlite"]
 sqlite = []
-utilsdb = []
 
 [dependencies]
 core-utils = { path = "../core-utils" }
-core-sqlite = { path = "../core-sqlite" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
@@ -27,10 +25,11 @@ tracing = { workspace = true }
 mockall = { workspace = true }
 uuid = { workspace = true }
 rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
-
+cfg-if = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+core-sqlite = { path = "../core-sqlite" }
 
 [lints]
 workspace = true
