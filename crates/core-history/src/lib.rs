@@ -16,7 +16,7 @@ cfg_if::cfg_if! {
 pub mod tests;
 
 pub use entities::*;
-pub use errors::Error;
+pub use errors::*;
 pub use interface::*;
 pub use store::*;
 

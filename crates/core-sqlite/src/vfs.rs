@@ -45,7 +45,7 @@ impl FileState {
 }
 
 #[derive(Clone)]
-struct GrpcVfs {
+struct SlatedbVfs {
     runtime: Arc<tokio::runtime::Handle>,
     capabilities: Capabilities,
     db: Arc<Db>,
@@ -57,7 +57,7 @@ struct GrpcVfs {
 
 const PAGE_SIZE: usize = 4096;
 
-impl GrpcVfs {
+impl SlatedbVfs {
     pub fn new(runtime: Handle, db: Arc<Db>) -> Self {
         let guard = setup_tracing();
 
@@ -158,8 +158,8 @@ impl GrpcVfs {
     }
 }
 
-impl vfs::Vfs for GrpcVfs {
-    type Handle = handle::GrpcVfsHandle;
+impl vfs::Vfs for SlatedbVfs {
+    type Handle = handle::SlatedbVfsHandle;
 
     fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
         struct LogCompat {
@@ -216,7 +216,7 @@ impl vfs::Vfs for GrpcVfs {
         }
 
         let handle_id = self.handle_counter.fetch_add(1, Ordering::SeqCst);
-        let handle = handle::GrpcVfsHandle::new(path.to_string(), mode.is_readonly(), handle_id);
+        let handle = handle::SlatedbVfsHandle::new(path.to_string(), mode.is_readonly(), handle_id);
         Ok(handle)
     }
 
@@ -469,7 +469,7 @@ impl vfs::Vfs for GrpcVfs {
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
         log::debug!("pragma: file2={:?}, pragma={:?}", handle.path, pragma);
-        if pragma.name == "vfs_server" {
+        if pragma.name == "slatedb_vfs" {
             return Ok(Some("maybe?".to_string()));
         }
         Ok(None)
@@ -635,16 +635,16 @@ impl vfs::Vfs for GrpcVfs {
 
 pub const VFS_NAME: &CStr = c"slatedb";
 
-static GRPC_VFS_INSTANCE: OnceLock<Arc<GrpcVfs>> = OnceLock::new();
+static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
 
 pub fn set_vfs_context(rt: Handle, db: Arc<Db>) {
-    let _ = GRPC_VFS_INSTANCE.set(Arc::new(GrpcVfs::new(rt, db)));
+    let _ = VFS_INSTANCE.set(Arc::new(SlatedbVfs::new(rt, db)));
 }
 
 #[allow(clippy::expect_used)]
-fn get_grpc_vfs() -> Arc<GrpcVfs> {
-    GRPC_VFS_INSTANCE.get()
-        .expect("GRPC_VFS_INSTANCE is not initialized")
+fn get_vfs() -> Arc<SlatedbVfs> {
+    VFS_INSTANCE.get()
+        .expect("VFS_INSTANCE is not initialized")
         .clone()
 }
 
@@ -677,7 +677,7 @@ fn setup_tracing() -> tracing_chrome::FlushGuard {
 /// with `SQLite` and doesn't access any raw pointers or perform unsafe operations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
-    let vfs = get_grpc_vfs();
+    let vfs = get_vfs();
 
     if let Err(err) = vfs::register_static(
         VFS_NAME.to_owned(),
@@ -695,7 +695,7 @@ pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn flush_traces() {
-    let vfs = get_grpc_vfs();
+    let vfs = get_vfs();
     let guard = vfs.guard.lock().take();
     if let Some(guard) = guard {
         guard.flush();
@@ -715,7 +715,7 @@ pub unsafe extern "C" fn sqlite3_grpsqlite_init(
     _pz_err_msg: *mut *mut c_char,
     p_api: *mut sqlite_plugin::sqlite3_api_routines,
 ) -> std::os::raw::c_int {
-    let vfs = get_grpc_vfs();
+    let vfs = get_vfs();
     if let Err(err) = unsafe {
         vfs::register_dynamic(
             p_api,

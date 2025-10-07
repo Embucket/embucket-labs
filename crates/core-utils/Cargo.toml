@@ -21,6 +21,8 @@ slatedb = { workspace = true }
 snafu = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+rusqlite = { workspace = true }
+deadpool-sqlite = { workspace = true }
 
 [lints]
 workspace = true

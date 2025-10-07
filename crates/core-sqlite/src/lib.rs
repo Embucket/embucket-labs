@@ -1,8 +1,7 @@
 mod lock_manager;
 mod handle;
 mod vfs;
-mod sqlite_config;
-mod error;
+pub mod error;
 
 pub use error::*;
 
@@ -62,7 +61,7 @@ impl SqliteStore {
 
         // Test VFS with pragma
         let is_vfs = connection.interact(|conn| -> SqlResult<String> {
-            let mut stmt = conn.prepare("PRAGMA vfs_server")?;
+            let mut stmt = conn.prepare("PRAGMA slatedb_vfs")?;
             let mut rows = stmt.query([])?;
             let row = rows.next()?.expect("No rows");
             row.get(0)

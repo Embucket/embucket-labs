@@ -137,4 +137,20 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("CoreUtils Sqlite error: {error}"))]
+    CoreUtils {
+        #[snafu(source)]
+        error: core_utils::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Sqlite error: {error}"))]
+    Sqlite {
+        #[snafu(source)]
+        error: rusqlite::Error,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }

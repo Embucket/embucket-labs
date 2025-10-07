@@ -9,24 +9,19 @@ sqlite-plugin = { path = "../sqlite-plugin", features = ["static", "dynamic"] }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
-# libsqlite3-sys = { version = "0.34.0", features = ["bundled"] }
-rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
-# sqlite = { version = "0.36.1", default-features = false }
-
 log = { version = "=0.4.28", features = ["std"] }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "registry", "fmt", "json"] }
 tracing-chrome = "0.7.2"
 parking_lot = "0.12.4"
 
+rusqlite = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 slatedb = { workspace = true }
 snafu = { workspace = true }
 dashmap = { workspace = true }
 uuid = { workspace = true }
-deadpool-sqlite = "0.12.1"
-r2d2_sqlite = "0.31.0"
-r2d2 = "0.8.10"
+deadpool-sqlite = { workspace = true }
 
 [lints]
 workspace = true

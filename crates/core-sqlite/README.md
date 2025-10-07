@@ -1,5 +1,7 @@
 # SQLITE
 
+This crate derived from https://github.com/maxmcd/s3qlite
+
 ### Prerequisites
 Linux:
 ``` sh

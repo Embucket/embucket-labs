@@ -103,6 +103,8 @@ mockall = "0.13.1"
 reqwest = "0.12.14"
 insta = { version = "1.42.0", features = ["json", "filters", "redactions"] }
 cfg-if = { version = "1.0.3" }
+rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
+deadpool-sqlite = "0.12.1"
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }

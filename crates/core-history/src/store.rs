@@ -1,10 +1,6 @@
 use core_utils::Db;
 use std::sync::Arc;
-
-pub enum HistoryEngine {
-    Sqlite, // indirect use of SlateDb via Sqlite
-    UtilsDb, // direct use of SlateDb
-}
+use crate::Result;
 
 pub struct SlateDBHistoryStore {
     pub db: Db,
@@ -35,5 +31,15 @@ impl SlateDBHistoryStore {
     #[must_use]
     pub const fn db(&self) -> &Db {
         &self.db
+    }
+
+    pub async fn init(&self) -> Result<()> {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "sqlite")]
+            {
+                self.create_tables().await?;
+            }
+        }
+        Ok(())
     }
 }

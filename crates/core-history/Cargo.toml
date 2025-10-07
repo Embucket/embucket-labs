@@ -9,6 +9,7 @@ default = ["sqlite"]
 sqlite = []
 
 [dependencies]
+core-sqlite = { path = "../core-sqlite" }
 core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
@@ -24,7 +25,7 @@ futures = { workspace = true }
 tracing = { workspace = true }
 mockall = { workspace = true }
 uuid = { workspace = true }
-rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
+rusqlite = { workspace = true }
 cfg-if = { workspace = true }
 
 [dev-dependencies]

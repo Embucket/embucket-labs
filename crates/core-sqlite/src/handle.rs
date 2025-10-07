@@ -1,17 +1,17 @@
 #[derive(Clone, Debug)]
-pub struct GrpcVfsHandle {
+pub struct SlatedbVfsHandle {
     pub path: String,
     readonly: bool,
     pub handle_id: u64,
 }
 
-impl GrpcVfsHandle {
+impl SlatedbVfsHandle {
     pub const fn new(path: String, readonly: bool, handle_id: u64) -> Self {
         Self { path, readonly, handle_id }
     }
 }
 
-impl sqlite_plugin::vfs::VfsHandle for GrpcVfsHandle {
+impl sqlite_plugin::vfs::VfsHandle for SlatedbVfsHandle {
     fn readonly(&self) -> bool {
         self.readonly
     }

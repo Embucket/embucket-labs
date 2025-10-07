@@ -199,6 +199,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
 
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let _ = history_store.init().await?;
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(
