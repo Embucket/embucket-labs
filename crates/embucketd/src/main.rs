@@ -80,7 +80,7 @@ mod alloc_tracing {
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
-const TARGETS: [&str; 13] = [
+const TARGETS: [&str; 14] = [
     "embucketd",
     "api_ui",
     "api_sessions",
@@ -89,6 +89,7 @@ const TARGETS: [&str; 13] = [
     "core_executor",
     "core_utils",
     "core_history",
+    "core_sqlite",
     "core_metastore",
     "df_catalog",
     "datafusion",

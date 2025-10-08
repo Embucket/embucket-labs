@@ -134,42 +134,48 @@ impl LockManager {
     }
 
     // Get the current maximum lock level for a file (for diagnostics)
-    // pub fn get_max_lock_level(&self, file_path: &str) -> flags::LockLevel {
-    //     let files = self.files.lock().unwrap();
-    //     if let Some(file_state) = files.get(file_path) {
-    //         let handle_locks = file_state.handle_locks.lock().unwrap();
-    //         handle_locks.values()
-    //             .map(|&level| Self::lock_level_to_u8(level))
-    //             .max()
-    //             .map(Self::u8_to_lock_level)
-    //             .unwrap_or(flags::LockLevel::Unlocked)
-    //     } else {
-    //         flags::LockLevel::Unlocked
-    //     }
-    // }
+    pub fn get_max_lock_level(&self, file_path: &str) -> flags::LockLevel {
+        let files = self.files.lock().unwrap();
+        if let Some(file_state) = files.get(file_path) {
+            let handle_locks = file_state.handle_locks.lock().unwrap();
+            handle_locks.values()
+                .map(|&level| Self::lock_level_to_u8(level))
+                .max()
+                .map(Self::u8_to_lock_level)
+                .unwrap_or(flags::LockLevel::Unlocked)
+        } else {
+            flags::LockLevel::Unlocked
+        }
+    }
+
+    pub fn get_max_lock_level_as_int(&self, file_path: &str) -> u8 {
+        Self::lock_level_to_u8(
+            self.get_max_lock_level(file_path)
+        )
+    }
 
     // Helper function to convert LockLevel to u8 for comparison
-    // fn lock_level_to_u8(level: flags::LockLevel) -> u8 {
-    //     match level {
-    //         flags::LockLevel::Unlocked => 0,
-    //         flags::LockLevel::Shared => 1,
-    //         flags::LockLevel::Reserved => 2,
-    //         flags::LockLevel::Pending => 3,
-    //         flags::LockLevel::Exclusive => 4,
-    //     }
-    // }
+    fn lock_level_to_u8(level: flags::LockLevel) -> u8 {
+        match level {
+            flags::LockLevel::Unlocked => 0,
+            flags::LockLevel::Shared => 1,
+            flags::LockLevel::Reserved => 2,
+            flags::LockLevel::Pending => 3,
+            flags::LockLevel::Exclusive => 4,
+        }
+    }
 
     // Helper function to convert u8 back to LockLevel
-    // fn u8_to_lock_level(level: u8) -> flags::LockLevel {
-    //     match level {
-    //         0 => flags::LockLevel::Unlocked,
-    //         1 => flags::LockLevel::Shared,
-    //         2 => flags::LockLevel::Reserved,
-    //         3 => flags::LockLevel::Pending,
-    //         4 => flags::LockLevel::Exclusive,
-    //         _ => flags::LockLevel::Unlocked,
-    //     }
-    // }
+    fn u8_to_lock_level(level: u8) -> flags::LockLevel {
+        match level {
+            0 => flags::LockLevel::Unlocked,
+            1 => flags::LockLevel::Shared,
+            2 => flags::LockLevel::Reserved,
+            3 => flags::LockLevel::Pending,
+            4 => flags::LockLevel::Exclusive,
+            _ => flags::LockLevel::Unlocked,
+        }
+    }
 
     // Check if a lock level is compatible with existing locks
     #[allow(clippy::needless_continue)]

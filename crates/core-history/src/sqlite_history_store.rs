@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS results (
 
 const WORKSHEETS_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS worksheets (
-    id TEXT PRIMARY KEY,                -- UUID as TEXT
+    id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TEXT NOT NULL,           -- stored as ISO8601 timestamp
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS worksheets (
 const QUERIES_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS queries (
     id TEXT PRIMARY KEY,                -- UUID
-    worksheet_id TEXT,                  -- FK -> worksheets.id
+    worksheet_id INTEGER,               -- FK -> worksheets.id
     result_id TEXT,                     -- FK -> results.id
     query TEXT NOT NULL,
     start_time TEXT NOT NULL,           -- ISO8601 UTC
@@ -238,7 +238,7 @@ impl HistoryStore for SlateDBHistoryStore {
                     )",
                 named_params! {
                     ":id": q.id.to_string(),
-                    ":worksheet_id": q.worksheet_id.as_ref().map(|id| id.to_string()),
+                    ":worksheet_id": q.worksheet_id,
                     ":query": q.query,
                     ":start_time": q.start_time.to_rfc3339(),
                     ":end_time": q.end_time.to_rfc3339(),
@@ -345,7 +345,7 @@ impl HistoryStore for SlateDBHistoryStore {
             stmt.query_row([id.to_string()], |row| {
                 Ok(QueryRecord {
                     id: row.get::<_, String>(0)?.as_str().parse::<QueryRecordId>().unwrap(),
-                    worksheet_id: row.get::<_, Option<String>>(1)?.map(|s| s.parse::<i64>().unwrap()),
+                    worksheet_id: row.get::<_, Option<i64>>(1)?,
                     query: row.get(2)?,
                     start_time: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
                         .unwrap()
@@ -389,7 +389,7 @@ impl HistoryStore for SlateDBHistoryStore {
             let rows = stmt.query_map([], |row| {
                 Ok(QueryRecord {
                     id: row.get::<_, String>(0)?.as_str().parse::<QueryRecordId>().unwrap(),
-                    worksheet_id: row.get::<_, Option<String>>(1)?.map(|s| s.parse::<i64>().unwrap()),
+                    worksheet_id: row.get::<_, Option<i64>>(1)?,
                     query: row.get(2)?,
                     start_time: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
                         .unwrap()

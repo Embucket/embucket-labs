@@ -90,7 +90,7 @@ impl SlatedbVfs {
         K: AsRef<[u8]>,
         V: AsRef<[u8]>,
     {
-        let span = span!(Level::INFO, "put");
+        let span = span!(Level::TRACE, "put");
         let _guard = span.enter();
         self.db
             .put_with_options(
@@ -149,7 +149,7 @@ impl SlatedbVfs {
     where
         K: AsRef<[u8]> + Send,
     {
-        let span = span!(Level::INFO, "get");
+        let span = span!(Level::TRACE, "get");
         let _guard = span.enter();
         self.db.get(key).await.map_err(|e| {
             log::error!("error getting page: {e}");
@@ -201,7 +201,7 @@ impl vfs::Vfs for SlatedbVfs {
     }
 
     #[instrument(level = "info", skip(self, path, opts))]
-    fn open(&self, path: Option<&str>, opts: flags::OpenOpts) -> vfs::VfsResult<Self::Handle> {
+    fn open(&self, path: Option<&str>, opts: flags::OpenOpts) -> vfs::VfsResult<Self::Handle> {               
         let path = path.unwrap_or("");
         log::debug!("open: path={path}, opts={opts:?}");
         let mode = opts.mode();
@@ -324,6 +324,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(())
     }
 
+    #[instrument(level = "info", skip(self, data))]
     fn write(
         &self,
         handle: &mut Self::Handle,
@@ -463,6 +464,7 @@ impl vfs::Vfs for SlatedbVfs {
         characteristics
     }
 
+    #[instrument(level = "info", skip(self))]
     fn pragma(
         &self,
         handle: &mut Self::Handle,
@@ -622,14 +624,18 @@ impl vfs::Vfs for SlatedbVfs {
     #[instrument(level = "info", skip(self))]
     fn sync(&self, handle: &mut Self::Handle) -> vfs::VfsResult<()> {
         log::debug!("sync: path={}", handle.path);
-        // self.runtime.block_on(async {
-        //     let db = self.db.clone();
-        //     db.flush().await.map_err(|e| {
-        //         log::error!("error flushing database: {e}");
-        //         sqlite_plugin::vars::SQLITE_IOERR_FSYNC
-        //     })
-        // })?;
+        self.runtime.block_on(async {
+            let db = self.db.clone();
+            db.flush().await.map_err(|e| {
+                log::error!("error flushing database: {e}");
+                sqlite_plugin::vars::SQLITE_IOERR_FSYNC
+            })
+        })?;
         Ok(())
+    }
+    #[instrument(level = "info", skip(self))]
+    fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
+        Ok(self.lock_manager.get_max_lock_level_as_int(&handle.path).into())
     }
 }
 

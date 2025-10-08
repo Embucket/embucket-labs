@@ -271,6 +271,11 @@ impl Vfs for MockVfs {
         Ok(())
     }
 
+    fn check_reserved_lock(&self, _handle: &mut Self::Handle) -> VfsResult<i32> {
+        // Added to make it green
+        Ok(0)
+    }
+
     fn pragma(
         &self,
         meta: &mut Self::Handle,
