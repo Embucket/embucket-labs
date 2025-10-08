@@ -17,7 +17,7 @@ use deadpool_sqlite::{Config, Object, Runtime, Pool};
 const DEFAULT_DB_NAME: &str = "embucket.db";
 
 unsafe extern "C" {
-    fn initialize_grpsqlite() -> i32;
+    fn initialize_slatedbsqlite() -> i32;
 }
 
 // Sqlite Store is singleton.
@@ -48,9 +48,9 @@ impl SqliteStore {
         let runtime = Handle::current();
         vfs::set_vfs_context(runtime, db);
 
-        // Initialize grpsqlite VFS
-        tracing::info!("Initializing grpsqlite VFS...");
-        unsafe { initialize_grpsqlite() };
+        // Initialize slatedbsqlite VFS
+        tracing::info!("Initializing slatedbsqlite VFS...");
+        unsafe { initialize_slatedbsqlite() };
 
         let sqlite_store = Self {
             pool: DashMap::new(),

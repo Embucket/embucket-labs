@@ -676,7 +676,7 @@ fn setup_tracing() -> tracing_chrome::FlushGuard {
 /// This function is safe to call from C as it only registers a VFS implementation
 /// with `SQLite` and doesn't access any raw pointers or perform unsafe operations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
+pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
     let vfs = get_vfs();
 
     if let Err(err) = vfs::register_static(
@@ -684,7 +684,7 @@ pub unsafe extern "C" fn initialize_grpsqlite() -> i32 {
         (*vfs).clone(),
         vfs::RegisterOpts { make_default: true },
     ) {
-        log::error!("Failed to initialize grpsqlite: {err}");
+        log::error!("Failed to initialize slatedbsqlite: {err}");
         return err;
     }
 
@@ -710,7 +710,7 @@ pub unsafe extern "C" fn flush_traces() {
 /// This function should only be called by sqlite's extension loading mechanism.
 /// The provided pointers must be valid `SQLite` API structures.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn sqlite3_grpsqlite_init(
+pub unsafe extern "C" fn sqlite3_slatedbsqlite_init(
     _db: *mut c_void,
     _pz_err_msg: *mut *mut c_char,
     p_api: *mut sqlite_plugin::sqlite3_api_routines,

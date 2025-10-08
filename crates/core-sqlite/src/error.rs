@@ -1,7 +1,6 @@
 use deadpool_sqlite::InteractError;
 use snafu::Location;
 use snafu::Snafu;
-use snafu::location;
 use deadpool_sqlite::{PoolError, CreatePoolError};
 
 pub type Result<T> = std::result::Result<T, Error>;
