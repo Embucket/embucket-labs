@@ -79,6 +79,7 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn delete_worksheet(&self, id: WorksheetId) -> Result<()>;
     async fn get_worksheets(&self) -> Result<Vec<Worksheet>>;
     async fn add_query(&self, item: &QueryRecord) -> Result<()>;
+    async fn update_query(&self, item: &QueryRecord) -> Result<()>;
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord>;
     async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>>;
     fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;

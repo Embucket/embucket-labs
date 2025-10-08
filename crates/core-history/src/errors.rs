@@ -60,6 +60,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Error updating query record: {source}"))]
+    QueryUpdate {
+        source: core_utils::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Can't locate query record by query_id: {} ({})", query_id.as_uuid(), query_id.as_i64()))]
     QueryNotFound {
         query_id: QueryRecordId,

@@ -182,12 +182,12 @@ impl vfs::Vfs for SlatedbVfs {
                     return;
                 }
                 let msg = format!("{}", record.args());
-                tracing::debug!("sqlite: {msg}");
+                println!("{msg}");
                 self.logger.lock().log(level, msg.as_bytes());
             }
 
             fn flush(&self) {
-                tracing::debug!("sqlite: flush");
+                println!("flush");
             }
         }
 
@@ -196,7 +196,7 @@ impl vfs::Vfs for SlatedbVfs {
         };
         if let Err(e) = log::set_boxed_logger(Box::new(log)) {
             // Logger already set, ignore the error
-            tracing::error!("Logger already initialized: {e}");
+            eprintln!("Logger already initialized: {e}");
         }
     }
 

@@ -42,7 +42,14 @@ pub async fn login(
     }))
 }
 
-#[tracing::instrument(name = "api_snowflake_rest::query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
+#[tracing::instrument(
+    name = "api_snowflake_rest::query",
+    level = "debug",
+    skip(state),
+    fields(query_id, query_uuid),
+    err,
+    ret(level = tracing::Level::TRACE),
+)]
 pub async fn query(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     DFSessionId(session_id): DFSessionId,

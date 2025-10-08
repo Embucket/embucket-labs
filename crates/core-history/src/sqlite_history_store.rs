@@ -1,32 +1,14 @@
 use crate::errors::{self as history_err, Result};
 use crate::interface::{HistoryStore, GetQueriesParams};
-use crate::{QueryStatus, QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId};
-use core_sqlite::error as core_sqlite_err;
+use crate::{QueryStatus, QueryRecord, QueryRecordId, SlateDBHistoryStore, Worksheet, WorksheetId};
 use core_utils::errors::{self as core_utils_err};
 use async_trait::async_trait;
-use core_utils::iterable::IterableCursor;
 use rusqlite::Result as SqlResult;
 use rusqlite::named_params;
-use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
-use uuid::Uuid;
 
 pub const DB_NAME: &str = "query_history.db";
-
-
-// let result = connection.interact(|conn| -> SqlResult<Vec<String>> {
-//     let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type ='table'")?;
-//     let mut rows = stmt.query([])?;
-//     let mut out = Vec::new();
-//     while let Some(row) = rows.next()? {
-//         out.push(row.get(0)?);
-//     }
-//     Ok(out)
-// })
-// .await
-// .context(sqlite_error::InteractSnafu)?
-// .context(sqlite_error::RusqliteSnafu)?;
 
 const RESULTS_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS results (
@@ -47,17 +29,17 @@ const QUERIES_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS queries (
     id TEXT PRIMARY KEY,                -- UUID
     worksheet_id TEXT,                  -- FK -> worksheets.id
+    result_id TEXT,                     -- FK -> results.id
     query TEXT NOT NULL,
     start_time TEXT NOT NULL,           -- ISO8601 UTC
     end_time TEXT NOT NULL,             -- ISO8601 UTC
     duration_ms INTEGER NOT NULL,
     result_count INTEGER NOT NULL,
-    result TEXT,                        -- FK -> results.id
     status TEXT NOT NULL,               -- enum as TEXT
     error TEXT,                         -- nullable
     diagnostic_error TEXT,              -- nullable
     FOREIGN KEY (worksheet_id) REFERENCES worksheets (id) ON DELETE SET NULL,
-    FOREIGN KEY (result) REFERENCES results (id) ON DELETE CASCADE
+    FOREIGN KEY (result_id) REFERENCES results (id) ON DELETE CASCADE
 );"#;
 
 const WORKSHEET_ADD: &str = r#"
@@ -234,7 +216,8 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "SqliteHistoryStore::add_query",
         level = "debug",
-        skip(self),
+        skip(self, item),
+        fields(item = format!("{item:#?}")),
         err
     )]
     async fn add_query(&self, item: &QueryRecord) -> Result<()> {
@@ -247,11 +230,11 @@ impl HistoryStore for SlateDBHistoryStore {
             conn.execute(
                 "INSERT INTO queries (
                     id, worksheet_id, query, start_time, end_time,
-                    duration_ms, result_count, result, status, error, diagnostic_error
+                    duration_ms, result_count, result_id, status, error, diagnostic_error
                     )
                     VALUES (
                     :id, :worksheet_id, :query, :start_time, :end_time,
-                    :duration_ms, :result_count, :result, :status, :error, :diagnostic_error
+                    :duration_ms, :result_count, :result_id, :status, :error, :diagnostic_error
                     )",
                 named_params! {
                     ":id": q.id.to_string(),
@@ -261,7 +244,7 @@ impl HistoryStore for SlateDBHistoryStore {
                     ":end_time": q.end_time.to_rfc3339(),
                     ":duration_ms": q.duration_ms,
                     ":result_count": q.result_count,
-                    ":result": q.result,
+                    ":result_id": None::<String>,
                     ":status": q.status.to_string(),
                     ":error": q.error,
                     ":diagnostic_error": q.diagnostic_error,
@@ -274,6 +257,64 @@ impl HistoryStore for SlateDBHistoryStore {
         Ok(())
     }
 
+    #[instrument(
+        name = "SqliteHistoryStore::update_query",
+        level = "debug",
+        skip(self, item),
+        fields(item = format!("{item:#?}")),
+        err
+    )]
+    async fn update_query(&self, item: &QueryRecord) -> Result<()> {
+        let conn = self.db.sqlite.conn(DB_NAME).await
+        .context(core_utils_err::CoreSqliteSnafu)
+        .context(history_err::WorksheetAddSnafu)?;
+
+        let q = item.clone();
+
+        let q_id = q.id.to_string();
+        let q_status = q.status.to_string();
+        let q_end_time = q.end_time.to_rfc3339();
+        let q_duration_ms = q.duration_ms;
+        let q_result_count = q.result_count;
+        let q_result = q.result;
+        let q_error = q.error;
+        let q_diagnostic_error = q.diagnostic_error;
+
+        conn.interact(move |conn| -> SqlResult<usize> {
+            let _res = conn.execute(
+                "UPDATE queries SET 
+                    status = :status, 
+                    end_time = :end_time, 
+                    duration_ms = :duration_ms, 
+                    result_count = :result_count, 
+                    error = :error, 
+                    diagnostic_error = :diagnostic_error 
+                WHERE id = :id",
+                named_params! {
+                    ":status": q_status,
+                    ":end_time": q_end_time,
+                    ":duration_ms": q_duration_ms,
+                    ":result_count": q_result_count,
+                    ":error": q_error,
+                    ":diagnostic_error": q_diagnostic_error,
+                    ":id": q_id,
+                },
+            )?;
+            conn.execute(
+                "INSERT INTO results (id, result)
+                    VALUES (:id, :result)",
+                named_params! {
+                    ":id": q_id,
+                    ":result": q_result,
+                },
+            )
+        })
+        .await?
+        .context(core_utils_err::RuSqliteSnafu)
+        .context(history_err::QueryUpdateSnafu)?;
+        Ok(())
+    }
+
     #[instrument(name = "SqliteHistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord> {
         let conn = self.db.sqlite.conn(DB_NAME).await
@@ -282,7 +323,23 @@ impl HistoryStore for SlateDBHistoryStore {
 
         let res = conn.interact(move |conn| -> SqlResult<QueryRecord> {
             let mut stmt = conn.prepare(
-                "SELECT id, name, content, created_at, updated_at FROM worksheets WHERE id = ?1",
+                "SELECT
+                    q.id,
+                    q.worksheet_id,
+                    q.query,
+                    q.start_time,
+                    q.end_time,
+                    q.duration_ms,
+                    q.result_count,
+                    q.status,
+                    q.error,
+                    q.diagnostic_error,
+                    r.result AS result
+                FROM queries AS q
+                LEFT JOIN results AS r
+                    ON q.result_id = r.id
+                WHERE q.id = ?1
+                ",
             )?;
 
             stmt.query_row([id.to_string()], |row| {
@@ -298,25 +355,26 @@ impl HistoryStore for SlateDBHistoryStore {
                         .with_timezone(&chrono::Utc),
                     duration_ms: row.get(5)?,
                     result_count: row.get(6)?,
-                    result: row.get(7)?,
-                    status: row.get::<_, String>(8)?.as_str().parse::<QueryStatus>().unwrap(),
-                    error: row.get(9)?,
-                    diagnostic_error: row.get(10)?,
+                    status: row.get::<_, String>(7)?.as_str().parse::<QueryStatus>().unwrap(),
+                    error: row.get(8)?,
+                    diagnostic_error: row.get(9)?,
+                    result: row.get(10)?,
                 })
             })
         })
-        .await?
-        .context(core_utils_err::RuSqliteSnafu)
-        .context(history_err::QueryGetSnafu)?;
-        Ok(res)
-        //     .context(history_err::QueryGetSnafu)?;
-        // Ok(res.context(history_err::QueryNotFoundSnafu { query_id: id })?)
+        .await?;
+        
+        if let Err(rusqlite::Error::QueryReturnedNoRows) = res {
+            history_err::QueryNotFoundSnafu { query_id: id }.fail()
+        } else {
+            res
+                .context(core_utils_err::RuSqliteSnafu)
+                .context(history_err::QueryGetSnafu)
+        }
     }
 
     #[instrument(name = "SqliteHistoryStore::get_queries", level = "debug", skip(self), err)]
     async fn get_queries(&self, _params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
-        let items: Vec<QueryRecord> = vec![];
-
         let conn = self.db.sqlite.conn(DB_NAME).await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::QueryGetSnafu)?;
@@ -324,7 +382,7 @@ impl HistoryStore for SlateDBHistoryStore {
         let items = conn.interact(|conn| -> SqlResult<Vec<QueryRecord>> {
             let mut stmt = conn.prepare(
                 "SELECT id, worksheet_id, query, start_time, end_time,
-                        duration_ms, result_count, result, status, error, diagnostic_error
+                        duration_ms, result_count, status, error, diagnostic_error
                  FROM queries",
             )?;
     
@@ -341,10 +399,10 @@ impl HistoryStore for SlateDBHistoryStore {
                         .with_timezone(&chrono::Utc),
                     duration_ms: row.get(5)?,
                     result_count: row.get(6)?,
-                    result: row.get(7)?,
-                    status: row.get::<_, String>(8)?.as_str().parse::<QueryStatus>().unwrap(),
-                    error: row.get(9)?,
-                    diagnostic_error: row.get(10)?,
+                    result: None,
+                    status: row.get::<_, String>(7)?.as_str().parse::<QueryStatus>().unwrap(),
+                    error: row.get(8)?,
+                    diagnostic_error: row.get(9)?,
                 })
             })?;
 
@@ -381,7 +439,14 @@ impl HistoryStore for SlateDBHistoryStore {
     )]
     async fn save_query_record(&self, query_record: &mut QueryRecord) {
         // This function won't fail, just sends happened write errors to the logs
-        if let Err(err) = self.add_query(query_record).await {
+
+        let res = if query_record.status != QueryStatus::Running {
+            self.update_query(query_record).await
+        } else {
+            self.add_query(query_record).await
+        };
+
+        if let Err(err) = res {
             // Record the result as part of the current span.
             tracing::Span::current().record("save_query_history_errror", format!("{err:?}"));
 
