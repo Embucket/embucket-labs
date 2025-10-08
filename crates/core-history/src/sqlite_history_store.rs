@@ -46,13 +46,13 @@ CREATE TABLE IF NOT EXISTS worksheets (
 const QUERIES_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS queries (
     id TEXT PRIMARY KEY,                -- UUID
-    worksheet_id TEXT PRIMARY KEY,      -- FK -> worksheets.id
+    worksheet_id TEXT,                  -- FK -> worksheets.id
     query TEXT NOT NULL,
     start_time TEXT NOT NULL,           -- ISO8601 UTC
     end_time TEXT NOT NULL,             -- ISO8601 UTC
     duration_ms INTEGER NOT NULL,
     result_count INTEGER NOT NULL,
-    result TEXT NOT NULL,               -- FK -> results.id
+    result TEXT,                        -- FK -> results.id
     status TEXT NOT NULL,               -- enum as TEXT
     error TEXT,                         -- nullable
     diagnostic_error TEXT,              -- nullable
@@ -234,7 +234,7 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "SqliteHistoryStore::add_query",
         level = "debug",
-        skip(self, item),
+        skip(self),
         err
     )]
     async fn add_query(&self, item: &QueryRecord) -> Result<()> {
