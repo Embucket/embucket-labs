@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use sqlite_plugin::flags;
 use std::collections::HashMap;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 use tracing::{debug, instrument};
 
 /// Manages SQLite-style hierarchical locking for files with multiple handles
@@ -11,21 +11,10 @@ pub struct LockManager {
     files: Arc<Mutex<HashMap<String, FileLockState>>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct FileLockState {
     // Map of handle_id -> lock_level for this file
-    handle_locks: Arc<Mutex<HashMap<u64, flags::LockLevel>>>,
-    // Condition variable to notify waiting lock requests
-    lock_condvar: Arc<Condvar>,
-}
-
-impl FileLockState {
-    fn new() -> Self {
-        Self {
-            handle_locks: Arc::new(Mutex::new(HashMap::new())),
-            lock_condvar: Arc::new(Condvar::new()),
-        }
-    }
+    handle_locks: HashMap<u64, flags::LockLevel>,
 }
 
 impl LockManager {
@@ -36,116 +25,98 @@ impl LockManager {
     }
 
     /// Acquire a lock on a file for a specific handle, blocking until available
-    #[instrument(level = "debug", skip(self))]
     #[allow(clippy::cognitive_complexity)]
     pub fn lock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
-        debug!("lock request: path={} handle_id={} level={:?}", file_path, handle_id, level);
+        debug!("{file_path} lock request: level={level:?} handle_id={handle_id}");
         
+        let mut files = self.files.lock().unwrap();
+
         // Get or create file lock state
-        let file_state = {
-            let mut files = self.files.lock().unwrap();
-            files.entry(file_path.to_string())
-                .or_insert_with(FileLockState::new)
-                .clone()
-        };
+        let file_state = files.entry(file_path.to_string())
+            .or_insert_with(FileLockState::default)
+            .clone();
+
+        let max_lock_level = file_state.handle_locks.values()
+            .map(|&level| Self::lock_level_to_u8(level))
+            .max()
+            .map(Self::u8_to_lock_level)
+            .unwrap_or(flags::LockLevel::Unlocked);
+        debug!("{file_path} lock - @lock max lock level={max_lock_level:?}");
+
+        if !Self::is_lock_compatible(level, &file_state.handle_locks, handle_id) {
+            return Err(sqlite_plugin::vars::SQLITE_BUSY);
+        }
 
         // Wait for lock to become available, then acquire it
-        let mut handle_locks = file_state.handle_locks.lock().unwrap();
-        
-        // Wait until the lock is compatible
-        while !Self::is_lock_compatible(level, &handle_locks, handle_id) {
-            debug!("lock waiting: path={} handle_id={} level={:?}", file_path, handle_id, level);
-            handle_locks = file_state.lock_condvar.wait(handle_locks).unwrap();
-        }
+        let mut handle_locks = file_state.handle_locks;
 
         // Acquire the lock
         handle_locks.insert(handle_id, level);
-        debug!("lock acquired: path={} handle_id={} level={:?}", file_path, handle_id, level);
+        debug!("{file_path} lock acquired: level={level:?} handle_id={handle_id}");
         
         Ok(())
     }
 
     /// Release or downgrade a lock on a file for a specific handle
-    #[instrument(level = "debug", skip(self))]
     #[allow(clippy::single_match_else, clippy::cognitive_complexity)]
     pub fn unlock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
-        debug!("unlock request: path={} handle_id={} level={:?}", file_path, handle_id, level);
+        debug!("{file_path} lock - unlock request: level={level:?} handle_id={handle_id}");
         
-        // Get file lock state
-        let file_state = {
-            let files = self.files.lock().unwrap();
-            files.get(file_path).cloned()
-        };
+        let mut files = self.files.lock().unwrap();
 
-        if let Some(file_state) = file_state {
-            let mut handle_locks = file_state.handle_locks.lock().unwrap();
-            
+        // Get file lock state
+        if let Some(file_state) = files.get_mut(file_path) {            
             match level {
                 flags::LockLevel::Unlocked => {
                     // Completely unlock - remove this handle's lock
-                    handle_locks.remove(&handle_id);
-                    debug!("lock removed: path={} handle_id={}", file_path, handle_id);
+                    file_state.handle_locks.remove(&handle_id);
+                    debug!("{file_path} lock removed: level={level:?} handle_id={handle_id}");
                 }
                 _ => {
                     // Downgrade to specified level
-                    handle_locks.insert(handle_id, level);
-                    debug!("lock downgraded: path={} handle_id={} to level={:?}", file_path, handle_id, level);
+                    file_state.handle_locks.insert(handle_id, level);
+                    debug!("{file_path} lock downgraded: level={level:?} handle_id={handle_id}");
                 }
             }
-
-            // Notify any waiting threads that lock state has changed
-            file_state.lock_condvar.notify_all();
-            debug!("lock waiters notified: path={}", file_path);
         }
 
         Ok(())
     }
 
     /// Remove a handle entirely (called on file close)
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", skip(self), fields(file_state_removed))]
     #[allow(clippy::cognitive_complexity)]
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
         debug!("removing handle: path={} handle_id={}", file_path, handle_id);
         
-        let should_remove_file = {
-            let files = self.files.lock().unwrap();
-            if let Some(file_state) = files.get(file_path) {
-                let mut handle_locks = file_state.handle_locks.lock().unwrap();
-                handle_locks.remove(&handle_id);
-                
-                // Notify waiters in case this was blocking someone
-                file_state.lock_condvar.notify_all();
-                
-                // Check if file has any remaining handles
-                let should_remove = handle_locks.is_empty();
-                drop(handle_locks);
-                should_remove
-            } else {
-                false
-            }
-        };
+        let mut files = self.files.lock().unwrap();
+        if let Some(file_state) = files.get_mut(file_path) {
+            file_state.handle_locks.remove(&handle_id);
 
-        // Remove the entire file state if no handles remain
-        if should_remove_file {
-            let mut files = self.files.lock().unwrap();
-            files.remove(file_path);
-            debug!("removed file state: path={}", file_path);
+            // Check if file has any remaining handles
+            if file_state.handle_locks.is_empty() {
+                // Remove the entire file state if no handles remain
+                files.remove(file_path);
+                tracing::Span::current().record("file_state_removed", true);
+                debug!("removed file state: path={file_path}");
+            }
         }
     }
 
     // Get the current maximum lock level for a file (for diagnostics)
     pub fn get_max_lock_level(&self, file_path: &str) -> flags::LockLevel {
         let files = self.files.lock().unwrap();
-        if let Some(file_state) = files.get(file_path) {
-            let handle_locks = file_state.handle_locks.lock().unwrap();
-            handle_locks.values()
+        let max_lock_level = if let Some(file_state) = files.get(file_path) {
+            file_state.handle_locks.values()
                 .map(|&level| Self::lock_level_to_u8(level))
                 .max()
                 .map(Self::u8_to_lock_level)
                 .unwrap_or(flags::LockLevel::Unlocked)
         } else {
             flags::LockLevel::Unlocked
-        }
+        };
+        debug!("{file_path} lock - get lock level={max_lock_level:?}");
+        return max_lock_level;
     }
 
     pub fn get_max_lock_level_as_int(&self, file_path: &str) -> u8 {

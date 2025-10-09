@@ -200,8 +200,8 @@ impl vfs::Vfs for SlatedbVfs {
         }
     }
 
-    #[instrument(level = "info", skip(self, path, opts))]
-    fn open(&self, path: Option<&str>, opts: flags::OpenOpts) -> vfs::VfsResult<Self::Handle> {               
+    #[instrument(level = "info", skip(self))]
+    fn open(&self, path: Option<&str>, opts: flags::OpenOpts) -> vfs::VfsResult<Self::Handle> {
         let path = path.unwrap_or("");
         log::debug!("open: path={path}, opts={opts:?}");
         let mode = opts.mode();
@@ -245,14 +245,14 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(())
     }
 
-    #[instrument(level = "info", skip(self, path, flags))]
+    #[instrument(level = "info", skip(self))]
     fn access(&self, path: &str, flags: flags::AccessFlags) -> vfs::VfsResult<bool> {
         let exists = self.block_on(async { self.get(path).await })?.is_some();
         log::debug!("access: path={path}, flags={flags:?}, exists={exists}");
         Ok(exists)
     }
 
-    #[instrument(level = "info", skip(self, handle))]
+    #[instrument(level = "info", skip(self, handle), fields(file = handle.path.as_str()), ret)]
     fn file_size(&self, handle: &mut Self::Handle) -> vfs::VfsResult<usize> {
         let max_size = self.block_on(async {
             // Find the highest page offset for this file to calculate total size
@@ -280,7 +280,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(max_size)
     }
 
-    #[instrument(level = "info", skip(self, handle, size))]
+    #[instrument(level = "info", skip(self, handle))]
     fn truncate(&self, handle: &mut Self::Handle, size: usize) -> vfs::VfsResult<()> {
         if size == 0 {
             self.block_on(async { self.delete(handle.path.as_str()).await })?;
@@ -331,9 +331,6 @@ impl vfs::Vfs for SlatedbVfs {
         offset: usize,
         data: &[u8],
     ) -> vfs::VfsResult<usize> {
-        let span = span!(Level::INFO, "write");
-        let _guard = span.enter();
-
         // Get or create file state
         let file_state = {
             let mut files = self.files.lock();
@@ -355,7 +352,7 @@ impl vfs::Vfs for SlatedbVfs {
                 offset,
                 data: data.to_vec(),
             });
-            span.record("pending_writes", pending_writes.len());
+            tracing::Span::current().record("pending_writes", pending_writes.len());
             return Ok(data.len());
         }
 
@@ -464,7 +461,7 @@ impl vfs::Vfs for SlatedbVfs {
         characteristics
     }
 
-    #[instrument(level = "info", skip(self))]
+    #[instrument(level = "info", skip(self), ret)]
     fn pragma(
         &self,
         handle: &mut Self::Handle,
@@ -477,7 +474,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(None)
     }
 
-    #[instrument(level = "info", skip(self, handle, op, _p_arg))]
+    #[instrument(level = "info", skip(self, handle, op, _p_arg), fields(op_name, file = handle.path.as_str()))]
     fn file_control(
         &self,
         handle: &mut Self::Handle,
@@ -495,6 +492,7 @@ impl vfs::Vfs for SlatedbVfs {
         } else {
             op_name.to_string()
         };
+        tracing::Span::current().record("op_name", op_name.as_str());
         log::debug!("file_control: file={:?}, op={op_name}", handle.path);
         match op {
             sqlite_plugin::vars::SQLITE_FCNTL_BEGIN_ATOMIC_WRITE => {
@@ -633,7 +631,7 @@ impl vfs::Vfs for SlatedbVfs {
         })?;
         Ok(())
     }
-    #[instrument(level = "info", skip(self))]
+    #[instrument(level = "info", skip(self), ret)]
     fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
         Ok(self.lock_manager.get_max_lock_level_as_int(&handle.path).into())
     }
