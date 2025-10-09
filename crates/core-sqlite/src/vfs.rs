@@ -8,14 +8,15 @@ use sqlite_plugin::flags;
 use sqlite_plugin::vfs;
 use std::collections::HashMap;
 use std::ffi::{CStr, c_char, c_int, c_void};
+use std::io::Write;
 use std::sync::{
     Arc, OnceLock,
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
+use rusqlite::trace::config_log;
 use tokio::runtime::Handle;
 use tracing::{Level, instrument, span};
-use tracing_chrome::ChromeLayerBuilder;
-use tracing_subscriber::{Registry, layer::SubscriberExt};
+
 
 #[derive(Clone)]
 struct Capabilities {
@@ -49,8 +50,8 @@ struct SlatedbVfs {
     runtime: Arc<tokio::runtime::Handle>,
     capabilities: Capabilities,
     db: Arc<Db>,
+    log: Arc<Mutex<Option<std::fs::File>>>,
     files: Arc<Mutex<HashMap<String, FileState>>>,
-    guard: Arc<Mutex<Option<tracing_chrome::FlushGuard>>>,
     handle_counter: Arc<AtomicU64>,
     lock_manager: lock_manager::LockManager,
 }
@@ -58,11 +59,10 @@ struct SlatedbVfs {
 const PAGE_SIZE: usize = 4096;
 
 impl SlatedbVfs {
-    pub fn new(runtime: Handle, db: Arc<Db>) -> Self {
-        let guard = setup_tracing();
-
+    pub fn new(runtime: Handle, db: Arc<Db>, log: Option<std::fs::File>) -> Self {
         Self {
             db,
+            log: Arc::new(Mutex::new(log)),
             runtime: Arc::new(runtime),
             files: Arc::new(Mutex::new(HashMap::new())),
             capabilities: Capabilities {
@@ -70,28 +70,26 @@ impl SlatedbVfs {
                 point_in_time_reads: false,
                 sector_size: 4096,
             },
-            guard: Arc::new(Mutex::new(Some(guard))),
             handle_counter: Arc::new(AtomicU64::new(1)),
             lock_manager: lock_manager::LockManager::new(),
         }
     }
 
+    #[instrument(level = "error", skip(self, future))]
     fn block_on<F, T>(&self, future: F) -> Result<T, i32>
     where
         F: std::future::Future<Output = Result<T, i32>>,
     {
-        let span = span!(Level::INFO, "block_on");
-        let _guard = span.enter();
-        tokio::task::block_in_place(|| self.runtime.block_on(future))
+        self.runtime.block_on(future)
+        // tokio::task::block_in_place(|| self.runtime.block_on(future))
     }
 
+    #[instrument(level = "error", skip(self, key, value))]
     pub async fn put<K, V>(&self, key: K, value: V) -> Result<(), i32>
     where
         K: AsRef<[u8]>,
         V: AsRef<[u8]>,
     {
-        let span = span!(Level::TRACE, "put");
-        let _guard = span.enter();
         self.db
             .put_with_options(
                 key,
@@ -108,12 +106,11 @@ impl SlatedbVfs {
             })
     }
 
+    #[instrument(level = "error", skip(self, key))]
     pub async fn delete<K>(&self, key: K) -> Result<(), i32>
     where
         K: AsRef<[u8]>,
     {
-        let span = span!(Level::INFO, "delete");
-        let _guard = span.enter();
         self.db
             .delete_with_options(
                 key,
@@ -144,13 +141,11 @@ impl SlatedbVfs {
             })
     }
 
-
+    #[instrument(level = "error", skip(self, key))]
     pub async fn get<K>(&self, key: K) -> Result<Option<Bytes>, i32>
     where
         K: AsRef<[u8]> + Send,
     {
-        let span = span!(Level::TRACE, "get");
-        let _guard = span.enter();
         self.db.get(key).await.map_err(|e| {
             log::error!("error getting page: {e}");
             sqlite_plugin::vars::SQLITE_IOERR_READ
@@ -177,13 +172,14 @@ impl vfs::Vfs for SlatedbVfs {
                     log::Level::Warn => sqlite_plugin::logger::SqliteLogLevel::Warn,
                     _ => sqlite_plugin::logger::SqliteLogLevel::Notice,
                 };
-                if !record.target().contains("s3qlite") {
-                    // Filter out logs from other modules.
-                    return;
-                }
+                // if !record.target().contains("sqlite") {
+                //     // Filter out logs from other modules.
+                //     return;
+                // }
+                let logger = self.logger.lock();
                 let msg = format!("{}", record.args());
                 println!("{msg}");
-                self.logger.lock().log(level, msg.as_bytes());
+                logger.log(level, msg.as_bytes());
             }
 
             fn flush(&self) {
@@ -195,9 +191,12 @@ impl vfs::Vfs for SlatedbVfs {
             logger: Mutex::new(logger),
         };
         if let Err(e) = log::set_boxed_logger(Box::new(log)) {
-            // Logger already set, ignore the error
+            // Logger already set, ignore the error 
             eprintln!("Logger already initialized: {e}");
         }
+
+        // set the log level to trace
+        log::set_max_level(log::LevelFilter::Trace);
     }
 
     #[instrument(level = "info", skip(self))]
@@ -324,7 +323,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(())
     }
 
-    #[instrument(level = "info", skip(self, data))]
+    #[instrument(level = "error", skip(self, data))]
     fn write(
         &self,
         handle: &mut Self::Handle,
@@ -390,7 +389,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(data.len())
     }
 
-    #[instrument(level = "info", skip(self, data))]
+    #[instrument(level = "error", skip(self, data))]
     #[allow(clippy::unwrap_used)]
     fn read(
         &self,
@@ -443,10 +442,10 @@ impl vfs::Vfs for SlatedbVfs {
         // Note: We keep file states around for batch operations, lock manager handles its own cleanup
 
         // Flush traces on every close to ensure data is written
-        let guard = self.guard.lock();
-        if let Some(guard) = &*guard {
-            guard.flush();
-        }
+        // let guard = self.guard.lock();
+        // if let Some(guard) = &*guard {
+        //     guard.flush();
+        // }
 
         Ok(())
     }
@@ -641,8 +640,9 @@ pub const VFS_NAME: &CStr = c"slatedb";
 
 static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
 
-pub fn set_vfs_context(rt: Handle, db: Arc<Db>) {
-    let _ = VFS_INSTANCE.set(Arc::new(SlatedbVfs::new(rt, db)));
+pub fn set_vfs_context(rt: Handle, db: Arc<Db>, log_file: Option<&str>) {
+    let file = log_file.map(create_sqlite_log_file);
+    let _ = VFS_INSTANCE.set(Arc::new(SlatedbVfs::new(rt, db, file)));
 }
 
 #[allow(clippy::expect_used)]
@@ -652,28 +652,25 @@ fn get_vfs() -> Arc<SlatedbVfs> {
         .clone()
 }
 
-#[allow(clippy::expect_used)]
-fn setup_tracing() -> tracing_chrome::FlushGuard {
-    use std::fs::File;
-    use std::io::BufWriter;
-
-    let (chrome_layer, guard) = ChromeLayerBuilder::new()
-        .writer(BufWriter::new(
-            File::create("s3qlite_trace.cpuprofile").expect("Failed to create profile file"),
-        ))
-        .build();
-
-    // Don't call init() which would take over global logging
-    // Instead, just set up tracing without interfering with existing log setup
-    let subscriber = Registry::default().with(chrome_layer);
-
-    // Only set the global default if there isn't one already
-    let _ = tracing::subscriber::set_global_default(subscriber);
-
-    guard
+fn create_sqlite_log_file(path: &str) -> std::fs::File {
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .expect("Failed to open SQLite log file")
 }
 
-/// This function initializes the VFS statically.
+fn sqlite_log_callback(err_code: std::ffi::c_int, msg: &str) {
+    let vfs = get_vfs();
+    let mut log = vfs.log.lock();
+    if let Some(file) = log.as_mut() {
+        let _ = file.write_fmt(format_args!("[SQLite code={}] {}\n", err_code, msg));
+    } else {
+        eprintln!("[SQLite code={}] {}\n", err_code, msg);
+    }
+}
+
+///  This function initializes the VFS statically.
 /// Called automatically when the library is loaded.
 ///
 /// # Safety
@@ -692,19 +689,11 @@ pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
         return err;
     }
 
-    // set the log level to trace
-    log::set_max_level(log::LevelFilter::Trace);
-    sqlite_plugin::vars::SQLITE_OK
-}
+    // setup internal sqlite log 
+    config_log(Some(sqlite_log_callback))
+        .expect("Failed to set sqlite log callback");
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn flush_traces() {
-    let vfs = get_vfs();
-    let guard = vfs.guard.lock().take();
-    if let Some(guard) = guard {
-        guard.flush();
-        drop(guard);
-    }
+    sqlite_plugin::vars::SQLITE_OK
 }
 
 /// This function is called by `SQLite` when the extension is loaded. It registers
@@ -730,9 +719,6 @@ pub unsafe extern "C" fn sqlite3_slatedbsqlite_init(
     } {
         return err;
     }
-
-    // set the log level to trace
-    log::set_max_level(log::LevelFilter::Trace);
 
     sqlite_plugin::vars::SQLITE_OK_LOAD_PERMANENTLY
 }

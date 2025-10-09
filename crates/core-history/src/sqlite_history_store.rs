@@ -126,10 +126,15 @@ impl HistoryStore for SlateDBHistoryStore {
                 })
             })
         })
-        .await?
-        .context(core_utils_err::RuSqliteSnafu)
-        .context(history_err::WorksheetGetSnafu)?;
-        Ok(res)
+        .await?;
+
+        if let Err(rusqlite::Error::QueryReturnedNoRows) = res {
+            history_err::WorksheetNotFoundSnafu { message: id.to_string() }.fail()
+        } else {
+            res
+                .context(core_utils_err::RuSqliteSnafu)
+                .context(history_err::WorksheetGetSnafu)
+        }
     }
 
     #[instrument(name = "SqliteHistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(id = worksheet.id), err)]

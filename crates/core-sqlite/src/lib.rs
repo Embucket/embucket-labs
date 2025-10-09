@@ -14,16 +14,17 @@ use dashmap::DashMap;
 use rusqlite::Result as SqlResult;
 use deadpool_sqlite::{Config, Object, Runtime, Pool};
 
-const DEFAULT_DB_NAME: &str = "embucket.db";
+const SLATEDB_VFS_SQLITE_DB_NAME: &str = "embucket.db";
+const SQLITE_LOG_FILE: &str = "sqlite.log";
 
 unsafe extern "C" {
     fn initialize_slatedbsqlite() -> i32;
 }
 
-// Sqlite Store is singleton.
 #[derive(Clone)]
 pub struct SqliteStore {
     pool: DashMap<String, Pool>,
+    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 impl SqliteStore {
@@ -39,22 +40,31 @@ impl SqliteStore {
     }
 
     pub async fn default_conn(&self) -> Result<Object> {
-        self.conn(DEFAULT_DB_NAME).await
+        self.conn(SLATEDB_VFS_SQLITE_DB_NAME).await
     }
 
     #[tracing::instrument(name = "SqliteStore::init", skip(db), err)]
     #[allow(clippy::expect_used)]
     pub async fn init(db: Arc<Db>) -> Result<Self> {
-        let runtime = Handle::current();
-        vfs::set_vfs_context(runtime, db);
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .unwrap()
+        );
+        let sqlite_store = Self {
+            pool: DashMap::new(),
+            runtime,
+        };
+        // let runtime = Handle::current();
+        // passing runtime for easier extending in future
+        vfs::set_vfs_context(sqlite_store.runtime.handle().clone(), db, Some(SQLITE_LOG_FILE));
 
         // Initialize slatedbsqlite VFS
         tracing::info!("Initializing slatedbsqlite VFS...");
-        unsafe { initialize_slatedbsqlite() };
-
-        let sqlite_store = Self {
-            pool: DashMap::new(),
-        };
+        let res = sqlite_store.runtime.spawn_blocking(|| unsafe { initialize_slatedbsqlite() }).await.unwrap();
+        tracing::info!("slatedbsqlite VFS init: {}", res);
 
         // Open database connection
         let connection = sqlite_store.default_conn().await?;

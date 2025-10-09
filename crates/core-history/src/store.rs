@@ -25,7 +25,9 @@ impl SlateDBHistoryStore {
         // create utils db regardless of feature, but use it only with utilsdb feature
         // to avoid changing the code 
         let utils_db = Db::memory().await;
-        Arc::new(Self::new(utils_db))
+        let store = Arc::new(Self::new(utils_db));
+        let _ = store.init().await;
+        store
     }
 
     #[must_use]
