@@ -117,6 +117,11 @@ use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::str::FromStr;
 use std::sync::Arc;
+use datafusion_table_providers::sql::db_connection_pool::dbconnection::query_arrow;
+use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
+use datafusion_table_providers::sql::sql_provider_datafusion::get_stream;
+use duckdb::ffi::duckdb_append_value;
+use futures::TryStreamExt;
 use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
@@ -317,6 +322,24 @@ impl UserQuery {
         // 4. Single place to rewrite-optimize-adjust logical plan
         // etc
         if let DFStatement::Statement(s) = statement {
+            if self.session.get_session_variable("use_duck_db").is_some() {
+                let duckdb_pool = Arc::new(
+                    DuckDbConnectionPool::new_memory().expect("unable to create DuckDB connection pool"),
+                );
+                let plan = self.sql_statement_to_plan(*s).await?;
+
+                let schema = plan.schema().inner().clone();
+                let stream = get_stream(duckdb_pool, self.query.to_string(), schema.clone()).await
+                .context(
+                    ex_error::DataFusionSnafu
+                )?;
+                let records = stream.try_collect::<Vec<_>>().await.context(
+                    ex_error::DataFusionSnafu
+                )?;
+                println!("records {:?}", records);
+                return Ok::<QueryResult, Error>(QueryResult::new(records, schema, self.query_context.query_id))
+            }
+
             match *s {
                 Statement::AlterSession {
                     set,
