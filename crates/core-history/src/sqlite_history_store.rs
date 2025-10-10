@@ -8,8 +8,6 @@ use rusqlite::named_params;
 use snafu::ResultExt;
 use tracing::instrument;
 
-pub const DB_NAME: &str = "query_history.db";
-
 const RESULTS_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS results (
     id TEXT PRIMARY KEY,                -- using TEXT for timestamp (ISO8601)
@@ -55,7 +53,7 @@ impl SlateDBHistoryStore {
         err
     )]
     pub async fn create_tables(&self) -> Result<()> {
-        let connection = self.db.sqlite.conn(DB_NAME).await
+        let connection = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::CoreUtilsSnafu)?;
 
@@ -79,7 +77,7 @@ impl HistoryStore for SlateDBHistoryStore {
         err
     )]
     async fn add_worksheet(&self, worksheet: Worksheet) -> Result<Worksheet> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetAddSnafu)?;
 
@@ -103,7 +101,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(name = "SqliteHistoryStore::get_worksheet", level = "debug", skip(self), err)]
     async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetGetSnafu)?;
 
@@ -141,7 +139,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> Result<()> {
         worksheet.set_updated_at(None); // set current time
 
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetUpdateSnafu)?;
 
@@ -182,7 +180,7 @@ impl HistoryStore for SlateDBHistoryStore {
         err
     )]
     async fn get_worksheets(&self) -> Result<Vec<Worksheet>> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetGetSnafu)?;
 
@@ -226,7 +224,7 @@ impl HistoryStore for SlateDBHistoryStore {
         err
     )]
     async fn add_query(&self, item: &QueryRecord) -> Result<()> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetAddSnafu)?;
 
@@ -270,7 +268,7 @@ impl HistoryStore for SlateDBHistoryStore {
         err
     )]
     async fn update_query(&self, item: &QueryRecord) -> Result<()> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
         .context(core_utils_err::CoreSqliteSnafu)
         .context(history_err::WorksheetAddSnafu)?;
 
@@ -322,7 +320,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(name = "SqliteHistoryStore::get_query", level = "debug", skip(self), err)]
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::QueryGetSnafu)?;
 
@@ -380,7 +378,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(name = "SqliteHistoryStore::get_queries", level = "debug", skip(self), err)]
     async fn get_queries(&self, _params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
-        let conn = self.db.sqlite.conn(DB_NAME).await
+        let conn = self.db.sqlite_history_store.conn().await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::QueryGetSnafu)?;
 

@@ -3,6 +3,7 @@ use sqlite_plugin::flags;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, instrument};
+use crate::vfs::LOGGER;
 
 /// Manages SQLite-style hierarchical locking for files with multiple handles
 #[derive(Clone)]
@@ -27,7 +28,7 @@ impl LockManager {
     /// Acquire a lock on a file for a specific handle, blocking until available
     #[allow(clippy::cognitive_complexity)]
     pub fn lock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
-        debug!("{file_path} lock request: level={level:?} handle_id={handle_id}");
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock request: level={level:?} handle_id={handle_id}");
         
         let mut files = self.files.lock().unwrap();
 
@@ -41,7 +42,7 @@ impl LockManager {
             .max()
             .map(Self::u8_to_lock_level)
             .unwrap_or(flags::LockLevel::Unlocked);
-        debug!("{file_path} lock - @lock max lock level={max_lock_level:?}");
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock - @lock max lock level={max_lock_level:?}");
 
         if !Self::is_lock_compatible(level, &file_state.handle_locks, handle_id) {
             return Err(sqlite_plugin::vars::SQLITE_BUSY);
@@ -52,7 +53,7 @@ impl LockManager {
 
         // Acquire the lock
         handle_locks.insert(handle_id, level);
-        debug!("{file_path} lock acquired: level={level:?} handle_id={handle_id}");
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock acquired: level={level:?} handle_id={handle_id}");
         
         Ok(())
     }
@@ -60,7 +61,7 @@ impl LockManager {
     /// Release or downgrade a lock on a file for a specific handle
     #[allow(clippy::single_match_else, clippy::cognitive_complexity)]
     pub fn unlock(&self, file_path: &str, handle_id: u64, level: flags::LockLevel) -> Result<(), i32> {
-        debug!("{file_path} lock - unlock request: level={level:?} handle_id={handle_id}");
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock - unlock request: level={level:?} handle_id={handle_id}");
         
         let mut files = self.files.lock().unwrap();
 
@@ -70,12 +71,12 @@ impl LockManager {
                 flags::LockLevel::Unlocked => {
                     // Completely unlock - remove this handle's lock
                     file_state.handle_locks.remove(&handle_id);
-                    debug!("{file_path} lock removed: level={level:?} handle_id={handle_id}");
+                    log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock removed: level={level:?} handle_id={handle_id}");
                 }
                 _ => {
                     // Downgrade to specified level
                     file_state.handle_locks.insert(handle_id, level);
-                    debug!("{file_path} lock downgraded: level={level:?} handle_id={handle_id}");
+                    log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock downgraded: level={level:?} handle_id={handle_id}");
                 }
             }
         }
@@ -84,10 +85,10 @@ impl LockManager {
     }
 
     /// Remove a handle entirely (called on file close)
-    #[instrument(level = "debug", skip(self), fields(file_state_removed))]
+    #[instrument(level = "error", skip(self), fields(file_state_removed))]
     #[allow(clippy::cognitive_complexity)]
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
-        debug!("removing handle: path={} handle_id={}", file_path, handle_id);
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "removing handle: path={} handle_id={}", file_path, handle_id);
         
         let mut files = self.files.lock().unwrap();
         if let Some(file_state) = files.get_mut(file_path) {
@@ -98,7 +99,7 @@ impl LockManager {
                 // Remove the entire file state if no handles remain
                 files.remove(file_path);
                 tracing::Span::current().record("file_state_removed", true);
-                debug!("removed file state: path={file_path}");
+                log::debug!(logger: *LOGGER.get().unwrap().lock(), "removed file state: path={file_path}");
             }
         }
     }
@@ -115,7 +116,7 @@ impl LockManager {
         } else {
             flags::LockLevel::Unlocked
         };
-        debug!("{file_path} lock - get lock level={max_lock_level:?}");
+        log::debug!(logger: *LOGGER.get().unwrap().lock(), "{file_path} lock - get lock level={max_lock_level:?}");
         return max_lock_level;
     }
 

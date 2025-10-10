@@ -22,6 +22,7 @@ snafu = { workspace = true }
 dashmap = { workspace = true }
 uuid = { workspace = true }
 deadpool-sqlite = { workspace = true }
+chrono = { workspace = true }
 
 [lints]
 workspace = true

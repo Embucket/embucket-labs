@@ -8,7 +8,7 @@ use tokio;
 async fn test_sqlite_history_schema() -> SqliteResult<()> {
     let history_store = SlateDBHistoryStore::new_in_memory().await;
 
-    let res = history_store.db.sqlite.default_conn().await?.interact(|conn| -> SqlResult<usize> {
+    let res = history_store.db.sqlite_history_store.conn().await?.interact(|conn| -> SqlResult<usize> {
         conn.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
     })
     .await

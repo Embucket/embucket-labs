@@ -5,17 +5,14 @@ pub mod error;
 
 pub use error::*;
 
-use tokio::runtime::Handle;
 use slatedb::Db;
-use std::sync::{Arc};
+use std::sync::{Arc, OnceLock};
 use error::{self as sqlite_error};
-use snafu::{ResultExt};
-use dashmap::DashMap;
+use snafu::ResultExt;
 use rusqlite::Result as SqlResult;
 use deadpool_sqlite::{Config, Object, Runtime, Pool};
 
-const SLATEDB_VFS_SQLITE_DB_NAME: &str = "embucket.db";
-const SQLITE_LOG_FILE: &str = "sqlite.log";
+static INITIALIZED: OnceLock<bool> = OnceLock::new();
 
 unsafe extern "C" {
     fn initialize_slatedbsqlite() -> i32;
@@ -23,53 +20,60 @@ unsafe extern "C" {
 
 #[derive(Clone)]
 pub struct SqliteStore {
-    pool: DashMap<String, Pool>,
-    runtime: Arc<tokio::runtime::Runtime>,
+    db_name: String,
+    pool: Pool,
 }
 
 impl SqliteStore {
-    #[tracing::instrument(level = "debug", name = "SqliteStore::conn", fields(conn_str), skip(self), err)]
-    pub async fn conn(&self, db_name: &str) -> Result<Object> {
-        let pool = self.pool.entry(db_name.to_string()).or_try_insert_with(|| {
-            let cfg = Config::new(db_name);
-            cfg.create_pool(Runtime::Tokio1)
-        }).context(sqlite_error::CreatePoolSnafu)?;
-    
-        let conn = pool.get().await.context(sqlite_error::PoolSnafu)?;
-        Ok(conn)
-    }
-
-    pub async fn default_conn(&self) -> Result<Object> {
-        self.conn(SLATEDB_VFS_SQLITE_DB_NAME).await
-    }
-
-    #[tracing::instrument(name = "SqliteStore::init", skip(db), err)]
+    #[tracing::instrument(name = "SqliteStore::new", skip(db), err)]
     #[allow(clippy::expect_used)]
-    pub async fn init(db: Arc<Db>) -> Result<Self> {
-        let runtime = Arc::new(
-            tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(2)
-                .enable_all()
-                .build()
-                .unwrap()
-        );
+    pub async fn new(db: Arc<Db>, db_name: &str) -> Result<Self> {
+        // Note: To use dedicated runtime for sqlite it should be passed externally from sync context
+
+        let db_name_cloned = db_name.to_string();
+        // using spawn_block is noop here
+        let runtime = tokio::runtime::Handle::current();
+        let pool = runtime.spawn_blocking(move || -> Result<Pool> {
+            // deadpool captures handle of the runtime where pool is created
+            Config::new(db_name_cloned).create_pool(Runtime::Tokio1)
+                .context(sqlite_error::CreatePoolSnafu)
+        })
+        .await
+        .context(sqlite_error::SpawnBlockingSnafu)??;
+
         let sqlite_store = Self {
-            pool: DashMap::new(),
-            runtime,
+            db_name: db_name.to_string(),
+            pool,
         };
-        // let runtime = Handle::current();
-        // passing runtime for easier extending in future
-        vfs::set_vfs_context(sqlite_store.runtime.handle().clone(), db, Some(SQLITE_LOG_FILE));
+        let log = Some(format!("{}.log", sqlite_store.db_name));
+        vfs::set_vfs_context(db, log);
 
-        // Initialize slatedbsqlite VFS
+        // Initialize slatedbsqlite VFS per process
         tracing::info!("Initializing slatedbsqlite VFS...");
-        let res = sqlite_store.runtime.spawn_blocking(|| unsafe { initialize_slatedbsqlite() }).await.unwrap();
-        tracing::info!("slatedbsqlite VFS init: {}", res);
+        if let Some(true) = &INITIALIZED.get() {
+            tracing::info!("slatedbsqlite VFS already initialized");
+        } else {
+            let res = unsafe { initialize_slatedbsqlite() };
+            tracing::info!("slatedbsqlite VFS init: {}", res);
+            INITIALIZED.set(true)
+                .map_err(|_| sqlite_error::SqliteNotInitializedYetSnafu.build())?;
+        }
 
-        // Open database connection
-        let connection = sqlite_store.default_conn().await?;
+        sqlite_store.self_check().await?;
+        Ok(sqlite_store)
+    }
 
-        // Test VFS with pragma
+    #[tracing::instrument(level = "debug", name = "SqliteStore::conn", fields(conn_str), skip(self), err)]
+    pub async fn conn(&self) -> Result<Object> {
+        Ok(self.pool.get().await
+            .context(sqlite_error::PoolSnafu)?
+        )
+    }
+
+    async fn self_check(&self) -> Result<()> {
+        let connection = self.conn().await?;
+
+        // Test VFS with pragma, if our vfs is loaded
         let is_vfs = connection.interact(|conn| -> SqlResult<String> {
             let mut stmt = conn.prepare("PRAGMA slatedb_vfs")?;
             let mut rows = stmt.query([])?;
@@ -88,14 +92,7 @@ impl SqliteStore {
             return Err(sqlite_error::NoVfsDetectedSnafu.fail()?)
         }
 
-        sqlite_store.self_check().await?;
-        Ok(sqlite_store)
-    }
-
-    async fn self_check(&self) -> Result<()> {
-        let _res = self
-            .default_conn().await?
-            .interact(|conn| -> SqlResult<usize> {
+        let _ = connection.interact(|conn| -> SqlResult<usize> {
                 conn
                 .execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)", [])
             })
@@ -103,7 +100,7 @@ impl SqliteStore {
             .context(sqlite_error::DeadpoolSnafu)?
             .context(sqlite_error::RusqliteSnafu)?;
 
-        let connection = self.default_conn().await?;
+        // check if test table exists
         let result = connection.interact(|conn| -> SqlResult<Vec<String>> {
             let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type ='table'")?;
             let mut rows = stmt.query([])?;
@@ -116,11 +113,10 @@ impl SqliteStore {
         .await
         .context(sqlite_error::DeadpoolSnafu)?
         .context(sqlite_error::RusqliteSnafu)?;
-       
-        tracing::info!("result: {result:?}");
-        
+              
         let check_passed = result == ["test"];
         if !check_passed {
+            tracing::info!("result: {result:?}");
             return Err(sqlite_error::SelfCheckSnafu.fail()?)
         }
         Ok(())

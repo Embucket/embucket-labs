@@ -9,6 +9,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
+    #[snafu(display("Failed to spawn blocking task: {error}"))]
+    SpawnBlocking {
+        #[snafu(source)]
+        error: tokio::task::JoinError,
+    },
+
     #[snafu(display("Sqlite not initialized yet"))]
     SqliteNotInitializedYet {
         #[snafu(implicit)]
@@ -43,6 +49,12 @@ pub enum Error {
 
     #[snafu(display("Failed to lock connections"))]
     ConnectionsLock {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Deadpool tls pool error"))]
+    TlsPool {
         #[snafu(implicit)]
         location: Location,
     },

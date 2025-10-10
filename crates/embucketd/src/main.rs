@@ -80,7 +80,7 @@ mod alloc_tracing {
 #[global_allocator]
 static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
-const TARGETS: [&str; 14] = [
+const TARGETS: [&str; 16] = [
     "embucketd",
     "api_ui",
     "api_sessions",
@@ -95,6 +95,8 @@ const TARGETS: [&str; 14] = [
     "datafusion",
     "iceberg_rust",
     "datafusion_iceberg",
+    "tower",
+    "tower_http",
 ];
 
 #[allow(
@@ -190,10 +192,6 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> 
         .build()
         .await
         .expect("Failed to start Slate DB"));
-
-    // TODO: remove it after all
-    // let _ = SqliteStore::init(slate_db.clone())
-    //    .expect("Failed to initialize sqlite store");
 
     let db = Db::new(slate_db).await;
 
