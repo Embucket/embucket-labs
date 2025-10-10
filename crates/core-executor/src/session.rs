@@ -114,6 +114,11 @@ impl UserSession {
                     .set_usize("datafusion.explain.tree_maximum_render_width", 0)
                     .set_usize("datafusion.optimizer.hash_join_single_partition_threshold_rows", 10_000_000)
                     .set_usize("datafusion.optimizer.hash_join_single_partition_threshold", 134217728)
+                    .set_bool("datafusion.optimizer.enable_spillable_hash_join", true)
+                    .set_usize(
+                        "datafusion.execution.minimum_parallel_output_files",
+                        MINIMUM_PARALLEL_OUTPUT_FILES,
+                    )
                     .set_usize(
                         "datafusion.execution.parquet.maximum_parallel_row_group_writers",
                         parallelism_opt.map_or(1, |x| (x / PARALLEL_ROW_GROUP_RATIO).max(1)),

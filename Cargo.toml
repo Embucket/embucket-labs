@@ -102,12 +102,12 @@ reqwest = "0.12.14"
 insta = { version = "1.42.0", features = ["json", "filters", "redactions"] }
 
 [patch.crates-io]
-datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
-datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
-datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
-datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
-datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
-datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }
+datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
+datafusion-common = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
+datafusion-expr = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
+datafusion-physical-plan = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
+datafusion-doc = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
+datafusion-macros = { git = "https://github.com/Embucket/datafusion.git", rev = "de04ffd9dbc210e27427d6fa944939fb11e5045a" }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
