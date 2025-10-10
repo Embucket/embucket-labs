@@ -123,11 +123,7 @@ impl SlatedbVfs {
         F: std::future::Future<Output = Result<T, i32>>,
     {
         // tokio::runtime::Handle::current().block_on(future)
-        tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                future.await
-            })
-        })
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(future))
     }
 
     #[instrument(level = "error", skip(self, key, value))]
