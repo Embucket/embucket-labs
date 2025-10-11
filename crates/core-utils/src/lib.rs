@@ -53,8 +53,8 @@ impl Db {
         .expect("Failed to open database"));
         let test_name = std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "Unknown".to_string());
         let thread_id = std::thread::current().id();
-       //  let sqlite_db_name = format!("test_{test_name}_{thread_id:?}_{SQLITE_HISTORY_DB_NAME}");
-        let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
+        let sqlite_db_name = format!("test_{test_name}_{thread_id:?}_{SQLITE_HISTORY_DB_NAME}");
+        // let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
         Self{
             slatedb: db.clone(),
             sqlite_history_store: Arc::new(SqliteStore::new(db, &sqlite_db_name).await

@@ -17,48 +17,6 @@ use rusqlite::trace::config_log;
 use tracing::{Level, instrument, span};
 use chrono::Utc;
 
-pub struct LogCompat {
-    logger: Mutex<sqlite_plugin::logger::SqliteLogger>,
-}
-
-impl log::Log for LogCompat {
-    fn enabled(&self, _metadata: &log::Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &log::Record) {
-        let level = match record.level() {
-            log::Level::Error => {
-                tracing::error!("{}", record.args());
-                sqlite_plugin::logger::SqliteLogLevel::Error
-            },
-            log::Level::Warn => {
-                tracing::warn!("{}", record.args());
-                sqlite_plugin::logger::SqliteLogLevel::Warn
-            },
-            _ => {
-                tracing::info!("{}", record.args());
-                sqlite_plugin::logger::SqliteLogLevel::Notice
-            },
-        };
-
-        let msg = format!("{}", record.args());
-        println!("{msg}");
-
-        // send to native sqlite log
-        let logger = self.logger.lock();
-        logger.log(level, msg.as_bytes());
-    }
-
-    fn flush(&self) {
-        // println!("flush");
-    }
-}
-
-// pub fn *LOGGER.get().unwrap().lock() -> &'static LogCompat {
-//     LOGGER.get().unwrap()
-// }
-
 #[derive(Clone)]
 struct Capabilities {
     atomic_batch: bool,
@@ -90,22 +48,26 @@ impl FileState {
 struct SlatedbVfs {
     capabilities: Capabilities,
     db: Arc<Db>,
-    log: Arc<Mutex<Option<std::fs::File>>>,
+    sqlite_log: Arc<Mutex<Option<std::fs::File>>>,
     files: Arc<Mutex<HashMap<String, FileState>>>,
     handle_counter: Arc<AtomicU64>,
     lock_manager: lock_manager::LockManager,
 }
 
 pub const PAGE_SIZE: usize = 4096;
+pub static CRATE: &str = "core-sqlite";
 
-// logger by sqlite-plugin
-pub static LOGGER: OnceLock<Mutex<LogCompat>> = OnceLock::new();
+pub const VFS_NAME: &CStr = c"slatedb";
+
+static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
+
+static LOGGER: OnceLock<Arc<dyn log::Log>> = OnceLock::new();
 
 impl SlatedbVfs {
-    pub fn new(db: Arc<Db>, log: Option<std::fs::File>) -> Self {
+    pub fn new(db: Arc<Db>, sqlite_log: Option<std::fs::File>) -> Self {
         Self {
             db,
-            log: Arc::new(Mutex::new(log)),
+            sqlite_log: Arc::new(Mutex::new(sqlite_log)),
             files: Arc::new(Mutex::new(HashMap::new())),
             capabilities: Capabilities {
                 atomic_batch: true,
@@ -143,7 +105,7 @@ impl SlatedbVfs {
             )
             .await
             .map_err(|e| {
-                log::error!(logger: *LOGGER.get().unwrap().lock(), "error putting page: {e}");
+                log::error!(logger: logger(), "error putting page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_WRITE
             })
     }
@@ -162,7 +124,7 @@ impl SlatedbVfs {
             )
             .await
             .map_err(|e| {
-                log::error!(logger: *LOGGER.get().unwrap().lock(), "error deleting page: {e}");
+                log::error!(logger: logger(), "error deleting page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_DELETE
             })
     }
@@ -178,7 +140,7 @@ impl SlatedbVfs {
             )
             .await
             .map_err(|e| {
-                log::error!(logger: *LOGGER.get().unwrap().lock(), "error writing page: {e}");
+                log::error!(logger: logger(), "error writing page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_WRITE
             })
     }
@@ -189,7 +151,7 @@ impl SlatedbVfs {
         K: AsRef<[u8]> + Send,
     {
         self.db.get(key).await.map_err(|e| {
-            log::error!(logger: *LOGGER.get().unwrap().lock(), "error getting page: {e}");
+            log::error!(logger: logger(), "error getting page: {e}");
             sqlite_plugin::vars::SQLITE_IOERR_READ
         })
     }
@@ -198,34 +160,14 @@ impl SlatedbVfs {
 impl vfs::Vfs for SlatedbVfs {
     type Handle = handle::SlatedbVfsHandle;
 
-    fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
-        LOGGER.get_or_init(|| -> Mutex<LogCompat> {
-            Mutex::new(LogCompat {
-                logger: Mutex::new(logger)
-            })
-        });
-
-        // let log = LogCompat {
-        //     logger: Mutex::new(logger),
-        // };
-
-        // if let Err(e) = log::set_boxed_logger(Box::new(log)) {
-        //     // Logger already set, ignore the error 
-        //     eprintln!("Logger already initialized: {e}");
-        // }
-
-        // // set the log level to trace
-        // log::set_max_level(log::LevelFilter::Trace);
-    }
-
     #[instrument(level = "error", skip(self))]
     fn open(&self, path: Option<&str>, opts: flags::OpenOpts) -> vfs::VfsResult<Self::Handle> {
         let path = path.unwrap_or("");
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "open: path={path}, opts={opts:?}");
+        log::debug!(logger: logger(), "open: path={path}, opts={opts:?}");
         let mode = opts.mode();
 
         if mode.is_readonly() && !self.capabilities.point_in_time_reads {
-            log::error!(logger: *LOGGER.get().unwrap().lock(), "read-only mode is not supported for this server");
+            log::error!(logger: logger(), "read-only mode is not supported for this server");
             return Err(sqlite_plugin::vars::SQLITE_CANTOPEN);
         }
 
@@ -240,7 +182,7 @@ impl vfs::Vfs for SlatedbVfs {
 
     #[instrument(level = "error", skip(self))]
     fn delete(&self, path: &str) -> vfs::VfsResult<()> {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "delete: path={path}");
+        log::debug!(logger: logger(), "delete: path={path}");
 
         self.block_on(async {
             // Delete all pages for this file
@@ -266,7 +208,7 @@ impl vfs::Vfs for SlatedbVfs {
     // #[instrument(level = "error", skip(self), err)]
     fn access(&self, path: &str, flags: flags::AccessFlags) -> vfs::VfsResult<bool> {
         let exists = self.block_on(async { self.get(path).await })?.is_some();
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "access: path={path}, flags={flags:?}, exists={exists}");
+        log::debug!(logger: logger(), "access: path={path}, flags={flags:?}, exists={exists}");
         Ok(exists)
     }
 
@@ -358,7 +300,7 @@ impl vfs::Vfs for SlatedbVfs {
                 .clone()
         };
         let is_batch_write = file_state.batch_open.load(Ordering::Acquire);
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), 
+        log::debug!(logger: logger(), 
             "write: path={}, offset={offset}, is_batch_write={is_batch_write}",
             handle.path
         );
@@ -395,7 +337,7 @@ impl vfs::Vfs for SlatedbVfs {
                 page_data.resize(offset_in_page + data.len(), 0);
             }
 
-            log::debug!(logger: *LOGGER.get().unwrap().lock(), 
+            log::debug!(logger: logger(), 
                 "write data at page {} offset {} length {}",
                 page_offset,
                 offset_in_page,
@@ -425,7 +367,7 @@ impl vfs::Vfs for SlatedbVfs {
             let page_data = self.get(&page_key).await?;
 
             if page_data.is_none() {
-                log::debug!(logger: *LOGGER.get().unwrap().lock(), "read page not found, returning empty data");
+                log::debug!(logger: logger(), "read page not found, returning empty data");
                 return Ok::<usize, i32>(0);
             }
 
@@ -434,7 +376,7 @@ impl vfs::Vfs for SlatedbVfs {
 
             // Check if offset is beyond page size
             if offset_in_page >= page.len() {
-                log::debug!(logger: *LOGGER.get().unwrap().lock(), "read offset is beyond page size");
+                log::debug!(logger: logger(), "read offset is beyond page size");
                 return Ok(0);
             }
 
@@ -442,7 +384,7 @@ impl vfs::Vfs for SlatedbVfs {
             let end_offset_in_page = std::cmp::min(offset_in_page + data.len(), page.len());
             let d = page[offset_in_page..end_offset_in_page].to_vec();
 
-            log::debug!(logger: *LOGGER.get().unwrap().lock(), "read data length: {} from page {}", data.len(), page_offset);
+            log::debug!(logger: logger(), "read data length: {} from page {}", data.len(), page_offset);
 
             let len = data.len().min(d.len());
             data[..len].copy_from_slice(&d[..len]);
@@ -452,7 +394,7 @@ impl vfs::Vfs for SlatedbVfs {
 
     #[instrument(level = "error", skip(self))]
     fn close(&self, handle: Self::Handle) -> vfs::VfsResult<()> {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "close: path={} handle_id={}", handle.path, handle.handle_id);
+        log::debug!(logger: logger(), "close: path={} handle_id={}", handle.path, handle.handle_id);
 
         // Remove handle from lock manager
         self.lock_manager.remove_handle(&handle.path, handle.handle_id);
@@ -460,17 +402,11 @@ impl vfs::Vfs for SlatedbVfs {
         // Clean up file state if needed (keep for batch writes)
         // Note: We keep file states around for batch operations, lock manager handles its own cleanup
 
-        // Flush traces on every close to ensure data is written
-        // let guard = self.guard.lock();
-        // if let Some(guard) = &*guard {
-        //     guard.flush();
-        // }
-
         Ok(())
     }
 
     fn device_characteristics(&self) -> i32 {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "device_characteristics");
+        log::debug!(logger: logger(), "device_characteristics");
         let mut characteristics: i32 = vfs::DEFAULT_DEVICE_CHARACTERISTICS;
         if self.capabilities.atomic_batch {
             characteristics |= sqlite_plugin::vars::SQLITE_IOCAP_BATCH_ATOMIC;
@@ -485,7 +421,7 @@ impl vfs::Vfs for SlatedbVfs {
         handle: &mut Self::Handle,
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "pragma: file2={:?}, pragma={:?}", handle.path, pragma);
+        log::debug!(logger: logger(), "pragma: file2={:?}, pragma={:?}", handle.path, pragma);
         if pragma.name == "slatedb_vfs" {
             return Ok(Some("maybe?".to_string()));
         }
@@ -511,7 +447,7 @@ impl vfs::Vfs for SlatedbVfs {
             op_name.to_string()
         };
         tracing::Span::current().record("op_name", op_name.as_str());
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "file_control: file={:?}, op={op_name}", handle.path);
+        log::debug!(logger: logger(), "file_control: file={:?}, op={op_name}", handle.path);
         match op {
             sqlite_plugin::vars::SQLITE_FCNTL_BEGIN_ATOMIC_WRITE => {
                 let file_state = {
@@ -544,7 +480,7 @@ impl vfs::Vfs for SlatedbVfs {
                         std::mem::take(&mut *pending)
                     };
                     if batch.is_empty() {
-                        log::debug!(logger: *LOGGER.get().unwrap().lock(), "write batch is empty, nothing to commit");
+                        log::debug!(logger: logger(), "write batch is empty, nothing to commit");
                         return Ok(());
                     }
                     let mut page_writes: HashMap<usize, Vec<_>> = HashMap::new();
@@ -568,7 +504,7 @@ impl vfs::Vfs for SlatedbVfs {
 
                         // Get existing page data
                         let existing_page = db.get(&page_key).await.map_err(|e| {
-                            log::error!(logger: *LOGGER.get().unwrap().lock(), "error getting page during atomic write: {e}");
+                            log::error!(logger: logger(), "error getting page during atomic write: {e}");
                             sqlite_plugin::vars::SQLITE_IOERR_WRITE
                         })?;
 
@@ -582,7 +518,7 @@ impl vfs::Vfs for SlatedbVfs {
                         for (offset, write) in writes {
                             let offset_in_page = offset % PAGE_SIZE;
 
-                            log::debug!(logger: *LOGGER.get().unwrap().lock(), 
+                            log::debug!(logger: logger(), 
                                 "atomic_write_batch write page={} offset_in_page={} length={}",
                                 page_offset,
                                 offset_in_page,
@@ -625,7 +561,7 @@ impl vfs::Vfs for SlatedbVfs {
     }
 
     fn sector_size(&self) -> i32 {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "sector_size");
+        log::debug!(logger: logger(), "sector_size");
         self.capabilities.sector_size
     }
 
@@ -639,11 +575,11 @@ impl vfs::Vfs for SlatedbVfs {
     }
     #[instrument(level = "error", skip(self))]
     fn sync(&self, handle: &mut Self::Handle) -> vfs::VfsResult<()> {
-        log::debug!(logger: *LOGGER.get().unwrap().lock(), "sync: path={}", handle.path);
+        log::debug!(logger: logger(), "sync: path={}", handle.path);
         tokio::runtime::Handle::current().block_on(async {
             let db = self.db.clone();
             db.flush().await.map_err(|e| {
-                log::error!(logger: *LOGGER.get().unwrap().lock(), "error flushing database: {e}");
+                log::error!(logger: logger(), "error flushing database: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_FSYNC
             })
         })?;
@@ -653,14 +589,71 @@ impl vfs::Vfs for SlatedbVfs {
     fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
         Ok(self.lock_manager.get_max_lock_level_as_int(&handle.path).into())
     }
+
+
+    fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
+
+        pub struct LogCompat {
+            logger: Mutex<sqlite_plugin::logger::SqliteLogger>,
+        }
+        
+        impl log::Log for LogCompat {
+            fn enabled(&self, _metadata: &log::Metadata) -> bool {
+                true
+            }
+        
+            fn log(&self, record: &log::Record) {
+                let level = match record.level() {
+                    log::Level::Error => {
+                        tracing::error!("{}", record.args());
+                        sqlite_plugin::logger::SqliteLogLevel::Error
+                    },
+                    log::Level::Warn => {
+                        tracing::warn!("{}", record.args());
+                        sqlite_plugin::logger::SqliteLogLevel::Warn
+                    },
+                    _ => {
+                        tracing::info!("{}", record.args());
+                        sqlite_plugin::logger::SqliteLogLevel::Notice
+                    },
+                };
+                
+                let msg = format!("{}", record.args());
+        
+                // send to native sqlite log
+                let logger = self.logger.lock();
+                logger.log(level, msg.as_bytes());
+            }
+        
+            fn flush(&self) {
+                // println!("flush");
+            }
+        }
+
+        let log = LogCompat {
+            logger: Mutex::new(logger),
+        };
+
+        if let Err(_) = LOGGER.set(Arc::new(log)) {
+            // Logger already set, ignore the error 
+            eprintln!("Can't set {} logger", CRATE);
+        }
+        
+        // set the log level to trace
+        log::set_max_level(log::LevelFilter::Trace);
+    }
 }
 
-pub const VFS_NAME: &CStr = c"slatedb";
-
-static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
+pub fn logger() -> Arc<dyn log::Log> {
+    LOGGER.get().unwrap().clone()
+}
 
 pub fn set_vfs_context(db: Arc<Db>, log_file: Option<String>) {
-    let file = log_file.map(create_sqlite_log_file);
+    let file = if let Some(log_file) = log_file {
+        create_sqlite_log_file(log_file)
+    } else {
+        None
+    };
     let _ = VFS_INSTANCE.set(Arc::new(SlatedbVfs::new(db, file)));
 }
 
@@ -671,20 +664,20 @@ fn get_vfs() -> Arc<SlatedbVfs> {
         .clone()
 }
 
-fn create_sqlite_log_file(path: String) -> std::fs::File {
+fn create_sqlite_log_file(path: String) -> Option<std::fs::File> {
     std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .expect("Failed to open SQLite log file")
+        .ok()
 }
 
 fn sqlite_log_callback(err_code: std::ffi::c_int, msg: &str) {
     let vfs = get_vfs();
-    let mut log = vfs.log.lock();
+    let mut log = vfs.sqlite_log.lock();
     let time = Utc::now().format("%Y-%m-%d %H:%M:%S:%3f");
     let thread_id = std::thread::current().id();
-    let fmt = format_args!("{thread_id:?} [SQLite code={err_code}] [{time}] {msg}\n");
+    let fmt = format_args!("code={err_code} [{time}] {thread_id:?} {msg}\n");
     if let Some(file) = log.as_mut() {
         let _ = file.write_fmt(fmt);
     } else {
@@ -707,13 +700,14 @@ pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
         (*vfs).clone(),
         vfs::RegisterOpts { make_default: true },
     ) {
-        log::error!(logger: *LOGGER.get().unwrap().lock(), "Failed to initialize slatedbsqlite: {err}");
+        tracing::error!("Failed to initialize slatedbsqlite: {err}");
         return err;
     }
 
     // setup internal sqlite log 
-    config_log(Some(sqlite_log_callback))
-        .expect("Failed to set sqlite log callback");
+    if let Err(err) = config_log(Some(sqlite_log_callback)) {
+        tracing::error!("Failed to set sqlite log callback: {err}");
+    }
 
     sqlite_plugin::vars::SQLITE_OK
 }

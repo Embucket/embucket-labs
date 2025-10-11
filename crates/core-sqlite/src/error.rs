@@ -1,6 +1,6 @@
 use deadpool_sqlite::InteractError;
 use snafu::Location;
-use snafu::Snafu;
+use snafu::{location, Snafu};
 use deadpool_sqlite::{PoolError, CreatePoolError};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -84,6 +84,20 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+}
+
+// to make `?` work instead of `.context(DeadpoolSnafu)`
+impl From<InteractError> for Error {
+    fn from(err: InteractError) -> Self {
+        Error::Deadpool { error: StringError(format!("{:?}", err)), location: location!() }
+    }
+}
+
+// to make `?` work instead of `.context(RusqliteSnafu)`
+impl From<rusqlite::Error> for Error {
+    fn from(err: rusqlite::Error) -> Self {
+        Error::Rusqlite { error: err, location: location!() }
+    }
 }
 
 #[derive(Debug)]
