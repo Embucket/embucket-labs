@@ -4,9 +4,10 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
-
+  push:
+    branches:
+      - omazur/dbt-snowplow-upgr
+`
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
