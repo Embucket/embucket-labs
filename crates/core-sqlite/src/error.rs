@@ -16,7 +16,7 @@ pub enum Error {
     },
 
     #[snafu(display("Sqlite not initialized yet"))]
-    SqliteNotInitializedYet {
+    SqliteInit {
         #[snafu(implicit)]
         location: Location,
     },

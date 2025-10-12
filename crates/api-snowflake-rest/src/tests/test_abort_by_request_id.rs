@@ -10,7 +10,7 @@ mod tests {
     use std::time::Duration;
     use uuid::Uuid;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_by_request_id() {
         let addr = run_test_rest_api_server(JSON).await;
         let client = reqwest::Client::new();
@@ -44,7 +44,7 @@ mod tests {
         assert_eq!(res.message, Some(format!("Query {query_id} cancelled")));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_using_wrong_request_id() {
         let addr = run_test_rest_api_server(JSON).await;
         let client = reqwest::Client::new();
@@ -71,7 +71,7 @@ mod tests {
             .expect_err("abort query should fail");
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_and_retry() {
         let addr = run_test_rest_api_server(JSON).await;
         // let addr = "127.0.0.1:3000".parse::<std::net::SocketAddr>()

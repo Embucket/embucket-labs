@@ -55,9 +55,8 @@ struct SlatedbVfs {
 }
 
 pub const PAGE_SIZE: usize = 4096;
-pub static CRATE: &str = "core-sqlite";
 
-pub const VFS_NAME: &CStr = c"slatedb";
+pub const VFS_NAME: &CStr = c"slatedb_fvs";
 
 static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
 
@@ -415,14 +414,14 @@ impl vfs::Vfs for SlatedbVfs {
         characteristics
     }
 
-    #[instrument(level = "error", skip(self), ret)]
+    #[instrument(level = "debug", skip(self), ret)]
     fn pragma(
         &self,
         handle: &mut Self::Handle,
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
-        log::debug!(logger: logger(), "pragma: file2={:?}, pragma={:?}", handle.path, pragma);
-        if pragma.name == "slatedb_vfs" {
+        log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}", handle.path, pragma);
+        if pragma.name == VFS_NAME.to_string_lossy() {
             return Ok(Some("maybe?".to_string()));
         }
         Ok(None)
@@ -603,17 +602,27 @@ impl vfs::Vfs for SlatedbVfs {
             }
         
             fn log(&self, record: &log::Record) {
+                let level = record.level();
+                let args = record.args();
+                let target = record.target();
+                let file = record.file();
+                let line = record.line();
+                let location = file
+                    .map(|f| format!("{}:{}", f, line.unwrap_or_default()))
+                    .unwrap_or_default();
+
+                let trace_msg = format!("{level} {target}: {location}: {args}");
                 let level = match record.level() {
                     log::Level::Error => {
-                        tracing::error!("{}", record.args());
+                        tracing::error!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Error
                     },
                     log::Level::Warn => {
-                        tracing::warn!("{}", record.args());
+                        tracing::warn!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Warn
                     },
                     _ => {
-                        tracing::info!("{}", record.args());
+                        tracing::info!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Notice
                     },
                 };
@@ -621,8 +630,7 @@ impl vfs::Vfs for SlatedbVfs {
                 let msg = format!("{}", record.args());
         
                 // send to native sqlite log
-                let logger = self.logger.lock();
-                logger.log(level, msg.as_bytes());
+                self.logger.lock().log(level, msg.as_bytes());
             }
         
             fn flush(&self) {
@@ -630,13 +638,11 @@ impl vfs::Vfs for SlatedbVfs {
             }
         }
 
-        let log = LogCompat {
+        eprintln!("Setting VFS logger");
+        if let Err(_) = LOGGER.set(Arc::new(LogCompat {
             logger: Mutex::new(logger),
-        };
-
-        if let Err(_) = LOGGER.set(Arc::new(log)) {
-            // Logger already set, ignore the error 
-            eprintln!("Can't set {} logger", CRATE);
+        })) {
+            eprintln!("Vfs logger already set");
         }
         
         // set the log level to trace
@@ -648,7 +654,7 @@ pub fn logger() -> Arc<dyn log::Log> {
     LOGGER.get().unwrap().clone()
 }
 
-pub fn set_vfs_context(db: Arc<Db>, log_file: Option<String>) {
+pub fn set_vfs_context(db: Arc<Db>, log_file: Option<&str>) {
     let file = if let Some(log_file) = log_file {
         create_sqlite_log_file(log_file)
     } else {
@@ -664,7 +670,7 @@ fn get_vfs() -> Arc<SlatedbVfs> {
         .clone()
 }
 
-fn create_sqlite_log_file(path: String) -> Option<std::fs::File> {
+fn create_sqlite_log_file(path: &str) -> Option<std::fs::File> {
     std::fs::OpenOptions::new()
         .create(true)
         .append(true)

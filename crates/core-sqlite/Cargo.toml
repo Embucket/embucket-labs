@@ -10,8 +10,6 @@ error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
 log = { version = "=0.4.28", features = ["std"] }
-tracing-subscriber = { version = "0.3.20", features = ["env-filter", "registry", "fmt", "json"] }
-tracing-chrome = "0.7.2"
 parking_lot = "0.12.4"
 
 rusqlite = { workspace = true }

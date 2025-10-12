@@ -62,7 +62,7 @@ impl std::fmt::Display for HistoricalCodes {
 #[macro_export]
 macro_rules! sql_test {
     ($data_format:expr, $name:ident, $sqls:expr) => {
-        #[tokio::test]
+        #[tokio::test(flavor = "multi_thread")]
         async fn $name() {
             use $crate::tests::snow_sql::snow_sql;
             use $crate::models::JsonResponse;

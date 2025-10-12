@@ -11,8 +11,10 @@ use error::{self as sqlite_error};
 use snafu::ResultExt;
 use rusqlite::Result as SqlResult;
 use deadpool_sqlite::{Config, Object, Runtime, Pool};
+use parking_lot::Mutex;
 
-static INITIALIZED: OnceLock<bool> = OnceLock::new();
+// using Mutex to support tests that trying to initialize all at the same time
+static INITIALIZED: Mutex<OnceLock<bool>> = Mutex::new(OnceLock::new());
 
 unsafe extern "C" {
     fn initialize_slatedbsqlite() -> i32;
@@ -30,18 +32,19 @@ impl SqliteStore {
     pub async fn new(db: Arc<Db>, db_name: &str) -> Result<Self> {
         // Note: To use dedicated runtime for sqlite it should be passed externally from sync context
 
-        let log_filename = Some(format!("{}.log", db_name.replace(".", "_")));
+        let log_filename = Some("sqlite.log");
         vfs::set_vfs_context(db, log_filename);
 
         // Initialize slatedbsqlite VFS per process
         tracing::info!("Initializing slatedbsqlite VFS...");
-        if let Some(true) = &INITIALIZED.get() {
+        let init = INITIALIZED.lock();
+        if let Some(true) = &init.get() {
             tracing::info!("slatedbsqlite VFS already initialized");
         } else {
             let res = unsafe { initialize_slatedbsqlite() };
             tracing::info!("slatedbsqlite VFS init: {}", res);
-            INITIALIZED.set(true)
-                .map_err(|_| sqlite_error::SqliteNotInitializedYetSnafu.build())?;
+            init.set(true)
+                .map_err(|_| sqlite_error::SqliteInitSnafu.build())?;
         }
 
         let pool = Self::_create_pool(db_name).await?;
@@ -50,8 +53,7 @@ impl SqliteStore {
             db_name: db_name.to_string(),
             pool,
         };
-
-        sqlite_store.more_inits_and_self_check().await?;
+        sqlite_store.pragmas_check().await?;
         Ok(sqlite_store)
     }
 
@@ -77,59 +79,31 @@ impl SqliteStore {
         Ok(pool)
     }
 
-    #[tracing::instrument(level = "debug", name = "SqliteStore::init_logger", skip(self), err)]
-    async fn query(&self, sql: &str) -> Result<String> {
-        let connection = self.conn().await?;
-        let sql_cloned = sql.to_string();
-        let res = connection.interact(move |conn| -> SqlResult<usize> {
-            let res = conn.query_row(&sql_cloned, [], |row| row.get(0))?;
-            Ok(res)
-        })
-        .await??;
-        Ok(res.to_string())
-    }
-
-    #[tracing::instrument(level = "debug", name = "SqliteStore::more_inits_and_self_check", skip(self), err)]
-    async fn more_inits_and_self_check(&self) -> Result<()> {
+    #[tracing::instrument(level = "debug", name = "SqliteStore::pragmas_check", skip(self), err)]
+    async fn pragmas_check(&self) -> Result<()> {
         let connection = self.conn().await?;
 
         // Test VFS with pragma, if our vfs is loaded
-        let is_vfs = connection.interact(|conn| -> SqlResult<Option<String>> {
-            let row = conn
-                .prepare("PRAGMA slatedb_vfs")?
-                .query([])?
-                .next()?
-                .map(|row| -> SqlResult<Option<String>> { row.get(0) });
-            Ok(row)
-        })
-        .await??;
-
-        let vfs_detected = is_vfs == "maybe?";
-        if !vfs_detected {
+        let vfs_detected = connection.interact(|conn| -> SqlResult<String> {
+            conn.query_one("PRAGMA slatedb_vfs", [], |row| row.get::<_, String>(0))
+        }).await??;
+        if vfs_detected != "maybe?" {
             return Err(sqlite_error::NoVfsDetectedSnafu.fail()?)
         }
 
-        let _ = self.execute("PRAGMA journal_mode = WAL").await?;
-
-        let _ = self.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)").await?;
+        // try enabling WAL
+        let journal_mode = connection.interact(|conn| -> SqlResult<String> {
+            conn.query_one("PRAGMA journal_mode = WAL", [], |row| row.get::<_, String>(0))
+        }).await??;
+        tracing::info!("JOURNAL_MODE={journal_mode}");
 
         // check if test table exists
-        let result = connection.interact(|conn| -> SqlResult<Vec<String>> {
-            let mut stmt = conn.prepare("SELECT name FROM sqlite_schema WHERE type ='table'")?;
-            let mut rows = stmt.query([])?;
-            let mut out = Vec::new();
-            while let Some(row) = rows.next()? {
-                out.push(row.get(0)?);
-            }
-            Ok(out)
-        })
-        .await
-        .context(sqlite_error::DeadpoolSnafu)?
-        .context(sqlite_error::RusqliteSnafu)?;
-              
-        let check_passed = result == ["test"];
-        if !check_passed {
-            tracing::info!("result: {result:?}");
+        let test_sql = "CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY)";
+        let check_res = connection.interact(|conn| -> SqlResult<String> {
+            conn.query_one(test_sql, [], |row| row.get::<_, String>(0))
+        }).await??;
+        if check_res != "test" {
+            tracing::info!("Didn't pass check, res={check_res}");
             return Err(sqlite_error::SelfCheckSnafu.fail()?)
         }
         Ok(())

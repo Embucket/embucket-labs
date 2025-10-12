@@ -143,7 +143,7 @@ mod tests {
     use time::OffsetDateTime;
     use tokio::time::sleep;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::expect_used, clippy::too_many_lines)]
     async fn test_expiration() {
         let execution_svc = make_test_execution_svc().await;

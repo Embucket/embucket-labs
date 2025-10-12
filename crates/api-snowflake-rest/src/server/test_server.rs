@@ -6,6 +6,7 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tracing_subscriber::FmtSubscriber;
 
 #[allow(clippy::expect_used)]
 pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
@@ -23,6 +24,13 @@ pub async fn run_test_rest_api_server_with_config(
 ) -> SocketAddr {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
+
+    let subscriber = FmtSubscriber::builder()
+        .with_thread_ids(true)
+        .finish();
+    if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+        eprintln!("Failed to set global default subscriber: {err}");
+    }
 
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
