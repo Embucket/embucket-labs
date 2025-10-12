@@ -151,4 +151,3 @@ LIMIT 32;
 - By default, it runs with Embucket as the target database
 - The incremental script automatically starts and stops Embucket in Docker
 - You can run the tests multiple times - it cleans up containers before each run
-test ci
