@@ -47,7 +47,7 @@ jobs:
           export EMBUCKET_ROLE=SYSADMIN
           export EMBUCKET_DATABASE=embucket
           export EMBUCKET_WAREHOUSE=COMPUTE_WH
-          export EMBUCKET_SCHEMA=public
+          export EMBUCKET_SCHEMA=public_snowplow_manifest
           export RUN_TYPE=github_actions
           EOF
 
