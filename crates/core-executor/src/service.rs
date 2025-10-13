@@ -43,10 +43,6 @@ use tokio::time::{Duration, timeout};
 use tracing::Instrument;
 use uuid::Uuid;
 
-use datafusion_table_providers::{
-    duckdb::DuckDBTableFactory, sql::db_connection_pool::duckdbpool::DuckDbConnectionPool,
-};
-
 const DEFAULT_SCHEMA: &str = "public";
 
 #[async_trait::async_trait]
@@ -160,11 +156,9 @@ pub struct CoreExecutionService {
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
     queries: Arc<RunningQueriesRegistry>,
-    duckdb_table_factory: Arc<DuckDBTableFactory>,
 }
 
 impl CoreExecutionService {
-    #[allow(clippy::expect_used)]
     #[tracing::instrument(
         name = "CoreExecutionService::new",
         level = "debug",
@@ -185,10 +179,6 @@ impl CoreExecutionService {
 
         let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
-        let duckdb_pool = Arc::new(
-            DuckDbConnectionPool::new_memory().expect("unable to create DuckDB connection pool"),
-        );
-        let duckdb_table_factory = Arc::new(DuckDBTableFactory::new(duckdb_pool));
         Ok(Self {
             metastore,
             history_store,
@@ -197,7 +187,6 @@ impl CoreExecutionService {
             catalog_list,
             runtime_env,
             queries: Arc::new(RunningQueriesRegistry::new()),
-            duckdb_table_factory,
         })
     }
 
@@ -363,7 +352,6 @@ impl ExecutionService for CoreExecutionService {
             self.config.clone(),
             self.catalog_list.clone(),
             self.runtime_env.clone(),
-            self.duckdb_table_factory.clone(),
         )?);
         {
             tracing::trace!("Acquiring write lock for df_sessions");

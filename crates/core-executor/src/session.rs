@@ -21,7 +21,6 @@ use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
-use datafusion_table_providers::duckdb::DuckDBTableFactory;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
@@ -56,7 +55,6 @@ pub struct UserSession {
     pub config: Arc<Config>,
     pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
-    pub duckdb_table_factory: Arc<DuckDBTableFactory>,
 }
 
 impl UserSession {
@@ -67,7 +65,6 @@ impl UserSession {
         config: Arc<Config>,
         catalog_list: Arc<EmbucketCatalogList>,
         runtime_env: Arc<RuntimeEnv>,
-        duckdb_table_factory: Arc<DuckDBTableFactory>,
     ) -> Result<Self> {
         let sql_parser_dialect = config
             .sql_parser_dialect
@@ -144,7 +141,6 @@ impl UserSession {
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
             session_params: session_params_arc,
-            duckdb_table_factory,
         };
         Ok(session)
     }
