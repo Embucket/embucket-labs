@@ -16,9 +16,7 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
-use datafusion_table_providers::duckdb::{DuckDBTableFactory, DuckDBTableProviderFactory};
 use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
-use duckdb::AccessMode;
 use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;
 
@@ -146,11 +144,6 @@ pub async fn create_df_session() -> Arc<UserSession> {
         .expect("Failed to create catalog list");
     let runtime_env = CoreExecutionService::runtime_env(&config, catalog_list.clone())
         .expect("Failed to create runtime env");
-    let duckdb_pool = Arc::new(
-        DuckDbConnectionPool::new_memory().expect("unable to create DuckDB connection pool"),
-    );
-    let duckdb_table_factory = Arc::new(DuckDBTableFactory::new(duckdb_pool));
-
     let user_session = Arc::new(
         UserSession::new(
             metastore,
@@ -159,7 +152,6 @@ pub async fn create_df_session() -> Arc<UserSession> {
             Arc::new(Config::default()),
             catalog_list,
             runtime_env,
-            duckdb_table_factory,
         )
         .expect("Failed to create user session"),
     );
