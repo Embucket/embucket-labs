@@ -6,6 +6,7 @@ use slatedb::config::{PutOptions, WriteOptions};
 use slatedb::{Db, WriteBatch};
 use sqlite_plugin::flags;
 use sqlite_plugin::vfs;
+use sqlite_plugin::vfs::PragmaErr;
 use std::collections::HashMap;
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::io::Write;
@@ -439,7 +440,7 @@ impl vfs::Vfs for SlatedbVfs {
         let res = if pragma.name == VFS_NAME.to_string_lossy() {
             Ok(Some(pragma.name.to_string()))
         } else {
-            Ok(Some("".to_string())) // return empty string for unknown pragma
+            Err(PragmaErr::NotFound)
         };
         log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}, res={:?}", handle.path, pragma, res);
         res

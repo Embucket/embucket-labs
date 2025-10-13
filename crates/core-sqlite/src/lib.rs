@@ -82,7 +82,11 @@ impl SqliteStore {
         // Test VFS with pragma, if our vfs is loaded
         let vfs_detected = connection.interact(|conn| -> SqlResult<String> {
             let pragma_vfs = format!("PRAGMA {VFS_NAME:?}");
-            conn.query_row(&pragma_vfs, [], |row| row.get::<_, String>(0))
+            let res = conn.query_row(&pragma_vfs, [], |row| row.get::<_, String>(0));            
+            if let Err(rusqlite::Error::QueryReturnedNoRows) = res {
+                return Ok(String::new());
+            }
+            res
         }).await??;
         log::info!(logger: logger(), "vfs_detected={vfs_detected}");
         if vfs_detected != VFS_NAME.to_string_lossy() {

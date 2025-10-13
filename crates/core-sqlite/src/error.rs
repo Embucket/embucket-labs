@@ -94,6 +94,7 @@ impl From<InteractError> for Error {
 }
 
 // to make `?` work instead of `.context(RusqliteSnafu)`
+// Note: when using ? instead of .context(), it uses artifical error location
 impl From<rusqlite::Error> for Error {
     fn from(err: rusqlite::Error) -> Self {
         Error::Rusqlite { error: err, location: location!() }
