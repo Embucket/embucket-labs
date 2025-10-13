@@ -301,7 +301,7 @@ run_tpch() {
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
     # debug the target command
     set -x
-    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY $DATAFUSION --pushdown
+    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY $DATAFUSION
     set +x
 }
 

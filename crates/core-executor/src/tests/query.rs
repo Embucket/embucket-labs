@@ -77,7 +77,7 @@ async fn test_update_all_table_names_visitor() {
     for (init, exp) in args {
         let statement = DFParser::parse_sql(init).unwrap().pop_front();
         if let Some(mut s) = statement {
-            query.update_statement_references(&mut s).unwrap();
+            query.update_statement_references(&mut s).await.unwrap();
             assert_eq!(s.to_string(), exp);
         }
     }
