@@ -6,7 +6,7 @@ use super::error::{self as ex_error, Result};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::logical_analyzer::analyzer_rules;
-use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
+use crate::datafusion::logical_optimizer::logical_optimizer_rules;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -21,6 +21,7 @@ use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
+use datafusion_table_providers::duckdb::DuckDBTableFactory;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use embucket_functions::expr_planner::CustomExprPlanner;
 use embucket_functions::register_udafs;
@@ -55,6 +56,7 @@ pub struct UserSession {
     pub config: Arc<Config>,
     pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
+    pub duckdb_table_factory: Arc<DuckDBTableFactory>,
 }
 
 impl UserSession {
@@ -65,6 +67,7 @@ impl UserSession {
         config: Arc<Config>,
         catalog_list: Arc<EmbucketCatalogList>,
         runtime_env: Arc<RuntimeEnv>,
+        duckdb_table_factory: Arc<DuckDBTableFactory>,
     ) -> Result<Self> {
         let sql_parser_dialect = config
             .sql_parser_dialect
@@ -115,7 +118,7 @@ impl UserSession {
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rules(analyzer_rules(session_params_arc.clone()))
-            .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
+            .with_optimizer_rules(logical_optimizer_rules())
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();
@@ -141,6 +144,7 @@ impl UserSession {
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
             session_params: session_params_arc,
+            duckdb_table_factory,
         };
         Ok(session)
     }

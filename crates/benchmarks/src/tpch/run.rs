@@ -93,6 +93,10 @@ impl RunOpt {
             &session,
         )
         .await?;
+        // let var_query = format!("SET use_duck_db = 1");
+        // let mut query = session.query(var_query, query_context());
+        // query.execute().await?;
+
         // Turn on Parquet filter pushdown if requested
         if self.common.pushdown {
             set_session_variable_bool("execution.parquet.pushdown_filters", true, &session).await?;

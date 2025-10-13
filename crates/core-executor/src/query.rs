@@ -24,8 +24,8 @@ use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
-    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume, VolumeType,
-    models::volumes::create_object_store_from_url,
+    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, TableIdent, Volume,
+    VolumeType, models::volumes::create_object_store_from_url,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
@@ -2367,9 +2367,46 @@ impl UserQuery {
                     .await
                     .context(ex_error::DataFusionSnafu)?
             {
-                v.insert(provider_as_source(table));
+                // Read data by duckdb table providers
+                if self.session.get_session_variable("use_duck_db").is_some() {
+                    let ident: TableIdent = NormalizedIdent::from_resolved(&resolved).into();
+                    let tabular = self
+                        .metastore
+                        .get_table(&ident)
+                        .await
+                        .context(ex_error::MetastoreSnafu)?
+                        .context(ex_error::TableNotFoundSnafu {
+                            schema: resolved.schema.to_string(),
+                            table: resolved.table.to_string(),
+                        })?;
+                    let location = tabular.metadata_location.clone();
+                    let duckdb_iceberg = format!("iceberg_scan('{location}')");
+                    let table_duckdb = self
+                        .session
+                        .duckdb_table_factory
+                        .table_provider(TableReference::bare(duckdb_iceberg))
+                        .await
+                        .map_err(|e| {
+                            ex_error::DuckdbFactorySnafu {
+                                error: e.to_string(),
+                            }
+                            .build()
+                        })?;
+                    v.insert(provider_as_source(table_duckdb));
+                } else {
+                    v.insert(provider_as_source(table));
+                }
             }
         }
+
+        // let resolved = self.resolve_table_ref(TableReference::bare("duckdb"));
+        // let duckdb_read_iceberg = "iceberg_scan('/home/artem/work/reps/github.com/embucket/embucket/test/dbt_integration_tests/dbt-gitlab/data/embucket/public/sample_table/metadata/d5f48ce4-3f76-4f6c-9e48-631c847a15a2.metadata.json')";
+        // let table_duckdb = self.session.duckdb_table_factory
+        //     .table_provider(TableReference::bare(duckdb_read_iceberg))
+        //     .await
+        //     .expect("to create table provider");
+        // tables.insert(resolved, provider_as_source(table_duckdb));
+
         Ok(tables)
     }
 

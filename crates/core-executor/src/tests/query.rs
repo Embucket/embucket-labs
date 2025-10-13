@@ -16,6 +16,9 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
+use datafusion_table_providers::duckdb::{DuckDBTableFactory, DuckDBTableProviderFactory};
+use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
+use duckdb::AccessMode;
 use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;
 
@@ -140,6 +143,11 @@ pub async fn create_df_session() -> Arc<UserSession> {
         .expect("Failed to create catalog list");
     let runtime_env = CoreExecutionService::runtime_env(&config, catalog_list.clone())
         .expect("Failed to create runtime env");
+    let duckdb_pool = Arc::new(
+        DuckDbConnectionPool::new_memory().expect("unable to create DuckDB connection pool"),
+    );
+    let duckdb_table_factory = Arc::new(DuckDBTableFactory::new(duckdb_pool));
+
     let user_session = Arc::new(
         UserSession::new(
             metastore,
@@ -148,6 +156,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
             Arc::new(Config::default()),
             catalog_list,
             runtime_env,
+            duckdb_table_factory,
         )
         .expect("Failed to create user session"),
     );
@@ -599,22 +608,22 @@ test_query!(
     copy_into_without_volume,
     "SELECT SUM(L_QUANTITY) FROM embucket.public.lineitem;",
     setup_queries = [
-        "CREATE TABLE embucket.public.lineitem ( 
-    L_ORDERKEY BIGINT NOT NULL, 
-    L_PARTKEY BIGINT NOT NULL, 
-    L_SUPPKEY BIGINT NOT NULL, 
-    L_LINENUMBER INT NOT NULL, 
-    L_QUANTITY DOUBLE NOT NULL, 
-    L_EXTENDED_PRICE DOUBLE NOT NULL, 
-    L_DISCOUNT DOUBLE NOT NULL, 
-    L_TAX DOUBLE NOT NULL, 
-    L_RETURNFLAG CHAR NOT NULL, 
-    L_LINESTATUS CHAR NOT NULL, 
-    L_SHIPDATE DATE NOT NULL, 
-    L_COMMITDATE DATE NOT NULL, 
-    L_RECEIPTDATE DATE NOT NULL, 
-    L_SHIPINSTRUCT VARCHAR NOT NULL, 
-    L_SHIPMODE VARCHAR NOT NULL, 
+        "CREATE TABLE embucket.public.lineitem (
+    L_ORDERKEY BIGINT NOT NULL,
+    L_PARTKEY BIGINT NOT NULL,
+    L_SUPPKEY BIGINT NOT NULL,
+    L_LINENUMBER INT NOT NULL,
+    L_QUANTITY DOUBLE NOT NULL,
+    L_EXTENDED_PRICE DOUBLE NOT NULL,
+    L_DISCOUNT DOUBLE NOT NULL,
+    L_TAX DOUBLE NOT NULL,
+    L_RETURNFLAG CHAR NOT NULL,
+    L_LINESTATUS CHAR NOT NULL,
+    L_SHIPDATE DATE NOT NULL,
+    L_COMMITDATE DATE NOT NULL,
+    L_RECEIPTDATE DATE NOT NULL,
+    L_SHIPINSTRUCT VARCHAR NOT NULL,
+    L_SHIPMODE VARCHAR NOT NULL,
     L_COMMENT VARCHAR NOT NULL );",
         "COPY INTO embucket.public.lineitem FROM 's3://embucket-testdata/tpch/lineitem.csv' FILE_FORMAT = ( TYPE = CSV );"
     ]

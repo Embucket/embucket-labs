@@ -650,6 +650,13 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("DuckDB error: {error}"))]
+    DuckdbFactory {
+        error: String,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 impl Error {
