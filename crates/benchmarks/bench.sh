@@ -15,6 +15,7 @@ DATA_DIR=${DATA_DIR:-$SCRIPT_DIR/data}
 CARGO_COMMAND=${CARGO_COMMAND:-"cargo run --release"}
 PREFER_HASH_JOIN=${PREFER_HASH_JOIN:-true}
 VIRTUAL_ENV=${VIRTUAL_ENV:-$SCRIPT_DIR/venv}
+USE_DUCKDB=${USE_DUCKDB:-false}
 
 usage() {
     echo "
@@ -61,6 +62,7 @@ CARGO_COMMAND       command that runs the benchmark binary
 EMBUCKET_DIR        directory to use (default $EMBUCKET_DIR)
 RESULTS_NAME        folder where the benchmark files are stored
 PREFER_HASH_JOIN    Prefer hash join algorithm (default true)
+USE_DUCKDB          Bypass DataFusion entirely and execute the full SQL query directly using DuckDB in-memory engine.
 VENV_PATH           Python venv to use for compare and venv commands (default ./venv, override by <your-venv>/bin/activate)
 "
     exit 1
@@ -109,6 +111,7 @@ main() {
             echo "DATA_DIR: ${DATA_DIR}"
             echo "CARGO_COMMAND: ${CARGO_COMMAND}"
             echo "PREFER_HASH_JOIN: ${PREFER_HASH_JOIN}"
+            echo "USE_DUCKDB: ${USE_DUCKDB}"
             echo "***************************"
             case "$BENCHMARK" in
                 all)
@@ -299,9 +302,10 @@ run_tpch() {
     QUERY=$([ -n "$ARG3" ] && echo "--query $ARG3" || echo "")
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+    USE_DUCKDB_FLAG=$([ "$USE_DUCKDB" = "true" ] && echo "--use_duckdb" || echo "")
     # debug the target command
     set -x
-    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY $DATAFUSION
+    $CARGO_COMMAND --bin embench -- tpch --iterations 3 --output_files_number "$SCALE_FACTOR" --path "${TPCH_DIR}" --prefer_hash_join "${PREFER_HASH_JOIN}" -o "${RESULTS_FILE}" $QUERY $DATAFUSION $USE_DUCKDB_FLAG
     set +x
 }
 
@@ -356,12 +360,13 @@ run_clickbench_1() {
     USE_DATAFUSION=$1
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
+    USE_DUCKDB_FLAG=$([ "$USE_DUCKDB" = "true" ] && echo "--use_duckdb" || echo "")
     QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
 
     RESULTS_FILE="${RESULTS_DIR}/clickbench_1.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (1 file) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 1 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION $USE_DUCKDB_FLAG
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files
@@ -370,11 +375,12 @@ run_clickbench_partitioned() {
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
     QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
+    USE_DUCKDB_FLAG=$([ "$USE_DUCKDB" = "true" ] && echo "--use_duckdb" || echo "")
 
     RESULTS_FILE="${RESULTS_DIR}/clickbench_partitioned.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION $USE_DUCKDB_FLAG
 }
 
  # Runs the clickbench benchmark with the partitioned parquet files w/ filter_pushdown enabled
@@ -383,11 +389,12 @@ run_clickbench_pushdown() {
     # Optional flag for DataFusion
     DATAFUSION=$([ "$USE_DATAFUSION" = "true" ] && echo "--datafusion" || echo "")
     QUERIES_PATH=$([ "$USE_DATAFUSION" = "true" ] && echo "df_queries.sql" || echo "queries.sql")
+    USE_DUCKDB_FLAG=$([ "$USE_DUCKDB" = "true" ] && echo "--use_duckdb" || echo "")
 
     RESULTS_FILE="${RESULTS_DIR}/clickbench_pushdown.json"
     echo "RESULTS_FILE: ${RESULTS_FILE}"
     echo "Running clickbench (partitioned, 100 files) benchmark w/ filter_pushdown enabled..."
-    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION --pushdown
+    $CARGO_COMMAND --bin embench -- clickbench  --iterations 3 --output_files_number 100 --prefer_hash_join "${PREFER_HASH_JOIN}" --path "${DATA_DIR}/hits_partitioned" --queries-path "${SCRIPT_DIR}/queries/clickbench/${QUERIES_PATH}" -o "${RESULTS_FILE}" $DATAFUSION --pushdown $USE_DUCKDB_FLAG
 }
 
 compare_benchmarks() {

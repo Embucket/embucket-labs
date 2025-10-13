@@ -71,6 +71,11 @@ pub struct CommonOpt {
     /// * `reorder_filters = true`
     #[structopt(long = "pushdown")]
     pub pushdown: bool,
+
+    /// If the session variable `use_duckdb` is set, we bypass `DataFusion` entirely
+    /// and execute the full SQL query directly using `DuckDB` in-memory engine.
+    #[structopt(long = "use_duckdb")]
+    pub use_duckdb: bool,
 }
 
 impl CommonOpt {

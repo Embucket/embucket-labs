@@ -483,6 +483,9 @@ impl UserQuery {
         err
     )]
     pub async fn execute_duck_db(&mut self, mut statement: DFStatement) -> Result<QueryResult> {
+        // Resolve all table references
+        self.update_statement_references(&mut statement, false)
+            .await?;
         let plan = if let DFStatement::Statement(s) = statement.clone() {
             self.sql_statement_to_plan(*s).await
         } else {
@@ -490,14 +493,15 @@ impl UserQuery {
         }?;
         let schema = plan.schema().inner().clone();
 
-        // Convert table names to iceberg_scan function call
-        self.update_statement_references(&mut statement).await?;
+        // Convert already resolved table references to iceberg_scan function call
+        self.update_statement_references(&mut statement, true)
+            .await?;
         self.query = statement.to_string();
 
         let duckdb_pool = Arc::new(
             DuckDbConnectionPool::new_memory().context(ex_error::DuckdbConnectionPoolSnafu)?,
         );
-        let stream = get_stream(duckdb_pool, self.query.to_string(), schema.clone())
+        let stream = get_stream(duckdb_pool, self.query.clone(), schema.clone())
             .await
             .context(ex_error::DataFusionSnafu)?;
         let records = stream
@@ -2168,7 +2172,8 @@ impl UserQuery {
         let mut statement = state
             .sql_to_statement(query, dialect)
             .context(ex_error::DataFusionSnafu)?;
-        self.update_statement_references(&mut statement).await?;
+        self.update_statement_references(&mut statement, false)
+            .await?;
 
         if let DFStatement::Statement(s) = statement.clone() {
             self.sql_statement_to_plan(*s).await
@@ -2197,7 +2202,11 @@ impl UserQuery {
     /// # Errors
     /// Returns an error if table resolution fails for any non-CTE, non-table-function reference,
     /// or if any DuckDB-specific pre-resolution step encounters an error.
-    pub async fn update_statement_references(&self, statement: &mut DFStatement) -> Result<()> {
+    pub async fn update_statement_references(
+        &self,
+        statement: &mut DFStatement,
+        use_duckdb: bool,
+    ) -> Result<()> {
         let (tables, ctes) = resolve_table_references(
             statement,
             self.session
@@ -2209,9 +2218,9 @@ impl UserQuery {
                 .enable_ident_normalization,
         )
         .context(ex_error::DataFusionSnafu)?;
-        let use_duck_db = self.session.get_session_variable("use_duck_db");
+        // Collect all table references to replace them by iceberg_scan function
         let mut duckdb_resolved: HashMap<String, ObjectName> = HashMap::new();
-        if use_duck_db.is_some() {
+        if use_duckdb {
             for table in &tables {
                 if let Ok((resolved, _)) = self.resolve_iceberg_scan(table.clone()).await {
                     duckdb_resolved.insert(table.to_string(), resolved);

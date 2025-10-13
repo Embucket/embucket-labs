@@ -93,9 +93,6 @@ impl RunOpt {
             &session,
         )
         .await?;
-        // let var_query = format!("SET use_duck_db = 1");
-        // let mut query = session.query(var_query, query_context());
-        // query.execute().await?;
 
         // Turn on Parquet filter pushdown if requested
         if self.common.pushdown {
@@ -137,6 +134,11 @@ impl RunOpt {
             &session,
         )
         .await?;
+
+        if self.common.use_duckdb {
+            let mut query = session.query("SET use_duck_db = true", query_context());
+            query.execute().await?;
+        }
 
         let mut millis = vec![];
         // run benchmark
