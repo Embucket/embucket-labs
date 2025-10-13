@@ -51,11 +51,10 @@ impl Db {
         )
         .await
         .expect("Failed to open database"));
-        let thread = std::thread::current();
-        let thread_id = thread.id();
-        let thread_name = thread.name().map(|s| s.split("::").last().unwrap()).unwrap_or("<unnamed>");
-        let sqlite_db_name = format!("{thread_name}_{thread_id:?}_{SQLITE_HISTORY_DB_NAME}");
-        // let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
+        // let thread = std::thread::current();
+        // let thread_name = thread.name().map(|s| s.split("::").last().unwrap()).unwrap_or("<unnamed>");
+        // let sqlite_db_name = format!("{thread_name}_{SQLITE_HISTORY_DB_NAME}");
+        let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
         Self{
             slatedb: db.clone(),
             sqlite_history_store: Arc::new(SqliteStore::new(db, &sqlite_db_name).await

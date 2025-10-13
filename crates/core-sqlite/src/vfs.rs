@@ -14,7 +14,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use rusqlite::trace::config_log;
-use tracing::{Level, instrument, span};
+use tracing::instrument;
 use chrono::Utc;
 
 #[derive(Clone)]
@@ -56,7 +56,7 @@ struct SlatedbVfs {
 
 pub const PAGE_SIZE: usize = 4096;
 
-pub const VFS_NAME: &CStr = c"slatedb_fvs";
+pub const VFS_NAME: &CStr = c"slatedb_vfs";
 
 static VFS_INSTANCE: OnceLock<Arc<SlatedbVfs>> = OnceLock::new();
 
@@ -93,7 +93,11 @@ impl SlatedbVfs {
         K: AsRef<[u8]>,
         V: AsRef<[u8]>,
     {
-        self.db
+        log::debug!(logger: logger(), "put: db::put key={:?}, value_len={:?}",
+            String::from_utf8_lossy(key.as_ref()),
+            value.as_ref().len(),
+        );
+        let res = self.db
             .put_with_options(
                 key,
                 value,
@@ -106,7 +110,9 @@ impl SlatedbVfs {
             .map_err(|e| {
                 log::error!(logger: logger(), "error putting page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_WRITE
-            })
+            });
+        log::debug!(logger: logger(), "put: db::put done");
+        res
     }
 
     #[instrument(level = "error", skip(self, key))]
@@ -114,7 +120,8 @@ impl SlatedbVfs {
     where
         K: AsRef<[u8]>,
     {
-        self.db
+        log::debug!(logger: logger(), "delete: db::delete key={:?}", String::from_utf8_lossy(key.as_ref()));
+        let res = self.db
             .delete_with_options(
                 key,
                 &WriteOptions {
@@ -125,12 +132,13 @@ impl SlatedbVfs {
             .map_err(|e| {
                 log::error!(logger: logger(), "error deleting page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_DELETE
-            })
+            });
+        log::debug!(logger: logger(), "delete: db::delete done");
+        res
     }
     pub async fn db_write(&self, batch: WriteBatch) -> Result<(), i32> {
-        let span = span!(Level::INFO, "db_write");
-        let _guard = span.enter();
-        self.db
+        log::debug!(logger: logger(), "db_write: db::write batch={:?}", batch);
+        let res = self.db
             .write_with_options(
                 batch,
                 &WriteOptions {
@@ -141,7 +149,9 @@ impl SlatedbVfs {
             .map_err(|e| {
                 log::error!(logger: logger(), "error writing page: {e}");
                 sqlite_plugin::vars::SQLITE_IOERR_WRITE
-            })
+            });
+        log::debug!(logger: logger(), "db_write: db::write done");
+        res
     }
 
     #[instrument(level = "error", skip(self, key))]
@@ -149,10 +159,13 @@ impl SlatedbVfs {
     where
         K: AsRef<[u8]> + Send,
     {
-        self.db.get(key).await.map_err(|e| {
+        log::debug!(logger: logger(), "get: db::get key={:?}", String::from_utf8_lossy(key.as_ref()));
+        let res = self.db.get(key).await.map_err(|e| {
             log::error!(logger: logger(), "error getting page: {e}");
             sqlite_plugin::vars::SQLITE_IOERR_READ
-        })
+        });
+        log::debug!(logger: logger(), "get: db::get done");
+        res
     }
 }
 
@@ -176,6 +189,7 @@ impl vfs::Vfs for SlatedbVfs {
 
         let handle_id = self.handle_counter.fetch_add(1, Ordering::SeqCst);
         let handle = handle::SlatedbVfsHandle::new(path.to_string(), mode.is_readonly(), handle_id);
+        log::debug!(logger: logger(), "open: done handle_id={handle_id}");
         Ok(handle)
     }
 
@@ -241,6 +255,7 @@ impl vfs::Vfs for SlatedbVfs {
 
     #[instrument(level = "error", skip(self, handle))]
     fn truncate(&self, handle: &mut Self::Handle, size: usize) -> vfs::VfsResult<()> {
+        log::debug!(logger: logger(), "truncate: path={}, handle_id={}, size={size}", handle.path, handle.handle_id);
         if size == 0 {
             self.block_on(async { self.delete(handle.path.as_str()).await })?;
             return Ok(());
@@ -421,10 +436,13 @@ impl vfs::Vfs for SlatedbVfs {
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
         log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}", handle.path, pragma);
-        if pragma.name == VFS_NAME.to_string_lossy() {
-            return Ok(Some("maybe?".to_string()));
-        }
-        Ok(None)
+        let res = if pragma.name == VFS_NAME.to_string_lossy() {
+            Ok(Some(pragma.name.to_string()))
+        } else {
+            Ok(Some("".to_string())) // return empty string for unknown pragma
+        };
+        log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}, res={:?}", handle.path, pragma, res);
+        res
     }
 
     // #[instrument(level = "error", skip(self, handle, op, _p_arg), fields(op_name, file = handle.path.as_str()), err)]
@@ -574,7 +592,7 @@ impl vfs::Vfs for SlatedbVfs {
     }
     #[instrument(level = "error", skip(self))]
     fn sync(&self, handle: &mut Self::Handle) -> vfs::VfsResult<()> {
-        log::debug!(logger: logger(), "sync: path={}", handle.path);
+        log::debug!(logger: logger(), "sync: db::flush path={}", handle.path);
         tokio::runtime::Handle::current().block_on(async {
             let db = self.db.clone();
             db.flush().await.map_err(|e| {
@@ -608,7 +626,7 @@ impl vfs::Vfs for SlatedbVfs {
                 let file = record.file();
                 let line = record.line();
                 let location = file
-                    .map(|f| format!("{}:{}", f, line.unwrap_or_default()))
+                    .map(|f| format!("log::{}:{}", f, line.unwrap_or_default()))
                     .unwrap_or_default();
 
                 let trace_msg = format!("{level} {target}: {location}: {args}");
@@ -683,7 +701,16 @@ fn sqlite_log_callback(err_code: std::ffi::c_int, msg: &str) {
     let mut log = vfs.sqlite_log.lock();
     let time = Utc::now().format("%Y-%m-%d %H:%M:%S:%3f");
     let thread_id = std::thread::current().id();
-    let fmt = format_args!("code={err_code} [{time}] {thread_id:?} {msg}\n");
+    let code = match err_code {
+        sqlite_plugin::vars::SQLITE_OK => "OK",
+        sqlite_plugin::vars::SQLITE_ERROR => "ERROR",
+        sqlite_plugin::vars::SQLITE_WARNING => "WARNING",
+        sqlite_plugin::vars::SQLITE_NOTICE => "NOTICE",
+        sqlite_plugin::vars::SQLITE_INTERNAL => "INTERNAL",
+        _ => &format!("SQlite code={err_code}"),
+    };
+
+    let fmt = format_args!("{code} [{time}] {thread_id:?} {msg}\n");
     if let Some(file) = log.as_mut() {
         let _ = file.write_fmt(fmt);
     } else {

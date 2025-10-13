@@ -6,7 +6,7 @@ use core_metastore::SlateDBMetastore;
 use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[allow(clippy::expect_used)]
 pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
@@ -25,12 +25,17 @@ pub async fn run_test_rest_api_server_with_config(
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
-    let subscriber = FmtSubscriber::builder()
+    let subscriber = tracing_subscriber::fmt()
         .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_span_events(FmtSpan::NONE)
+        .with_level(true)
         .finish();
-    if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-        eprintln!("Failed to set global default subscriber: {err}");
-    }
+
+    // ignoring error: as with parralel tests execution, just first thread is able to set it successfully
+    // since all tests run in a single process
+    let _ = tracing::subscriber::set_global_default(subscriber);
 
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));

@@ -88,7 +88,7 @@ impl LockManager {
     #[instrument(level = "error", skip(self), fields(file_state_removed))]
     #[allow(clippy::cognitive_complexity)]
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
-        log::debug!(logger: logger(), "removing handle: path={} handle_id={}", file_path, handle_id);
+        log::debug!(logger: logger(), "remove_handle: path={} handle_id={}", file_path, handle_id);
         
         let mut files = self.files.lock().unwrap();
         if let Some(file_state) = files.get_mut(file_path) {
@@ -102,6 +102,7 @@ impl LockManager {
                 log::debug!(logger: logger(), "removed file state: path={file_path}");
             }
         }
+        log::debug!(logger: logger(), "remove_handle: done");
     }
 
     // Get the current maximum lock level for a file (for diagnostics)
