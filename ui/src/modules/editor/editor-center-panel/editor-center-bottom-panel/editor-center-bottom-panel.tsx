@@ -41,8 +41,8 @@ export function EditorCenterBottomPanel({
     );
   }
 
-  const columns = queryRecord?.result.columns ?? [];
-  const rows = queryRecord?.result.rows ?? [];
+  const columns = !isLoading && queryRecord?.result.columns ? queryRecord.result.columns : [];
+  const rows = !isLoading && queryRecord?.result.rows ? queryRecord.result.rows : [];
   const noFields = !columns.length && !isLoading;
 
   const rowCount = rows.length.toString();

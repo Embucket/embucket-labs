@@ -44,6 +44,7 @@ const useSetWorksheetContent = (worksheet?: Worksheet) => {
 
 export function Editor({ readonly, content }: EditorProps) {
   const queryClient = useQueryClient();
+  const cacheCtx = useEditorCacheContext();
 
   const worksheetId = useParams({
     from: '/sql-editor/$worksheetId/',
@@ -105,18 +106,27 @@ export function Editor({ readonly, content }: EditorProps) {
       sqlAutoCompletion(),
       setCustomKeymaps(),
       curSqlGutter(),
+      // include compartment so it can be reconfigured when handleSave changes
+      saveHelperCompartment.of([]),
       EditorView.lineWrapping,
       EditorView.editorAttributes.of({ class: readonly ? 'readonly' : '' }),
       readonly ? EditorView.editable.of(false) : EditorView.editable.of(true),
-      saveHelperCompartment.of(
+    ],
+    [readonly],
+  );
+
+  // Use effect to update the saveHelper compartment when handleSave changes
+  useEffect(() => {
+    const activeEditor = cacheCtx.getEditor('MyEditor');
+    activeEditor?.editorView.dispatch({
+      effects: saveHelperCompartment.reconfigure(
         saveHelper({
           save: handleSave,
           delay: 1000,
         }),
       ),
-    ],
-    [readonly, handleSave],
-  );
+    });
+  }, [handleSave, cacheCtx]);
 
   const editorDoc = content ?? worksheet?.content ?? '';
 
