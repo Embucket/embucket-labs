@@ -494,7 +494,6 @@ impl UserQuery {
         self.update_statement_references(&mut statement).await?;
         self.query = statement.to_string();
 
-        println!("query {:?}", self.query);
         let duckdb_pool = Arc::new(
             DuckDbConnectionPool::new_memory().context(ex_error::DuckdbConnectionPoolSnafu)?,
         );

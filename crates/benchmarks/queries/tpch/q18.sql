@@ -6,12 +6,9 @@ select
     o_totalprice,
     sum(l_quantity)
 from
-    iceberg_scan('/home/artem/work/reps/github.com/embucket/embucket/test/dbt_integration_tests/dbt-gitlab/data/embucket/public/sample_table/metadata/d5f48ce4-3f76-4f6c-9e48-631c847a15a2.metadata.json')
-        as customer,
-    iceberg_scan('/home/artem/work/reps/github.com/embucket/embucket/test/dbt_integration_tests/dbt-gitlab/data/embucket/public/sample_table/metadata/d5f48ce4-3f76-4f6c-9e48-631c847a15a2.metadata.json')
-        as orders,
-    iceberg_scan('/home/artem/work/reps/github.com/embucket/embucket/test/dbt_integration_tests/dbt-gitlab/data/embucket/public/sample_table/metadata/d5f48ce4-3f76-4f6c-9e48-631c847a15a2.metadata.json')
-        as lineitem
+    customer,
+    orders,
+    lineitem
 where
         o_orderkey in (
         select
