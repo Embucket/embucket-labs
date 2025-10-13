@@ -93,7 +93,7 @@
     "eslint-plugin-check-file": "^3.3.0",
     "eslint-plugin-n": "^17.23.1",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "7.0.0",
+    "eslint-plugin-react-hooks": "6.0.0",
     "eslint-plugin-react-refresh": "^0.4.23",
     "knip": "^5.65.0",
     "lint-staged": "^16.2.4",
