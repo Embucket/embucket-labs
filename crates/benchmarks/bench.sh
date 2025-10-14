@@ -127,6 +127,9 @@ main() {
                 tpch10)
                     data_tpch "10"
                     ;;
+                tpch50)
+                    data_tpch "50"
+                    ;;
                 tpch100)
                     data_tpch "100"
                     ;;
@@ -178,6 +181,9 @@ main() {
                 tpch10)
                     run_tpch "10"
                     ;;
+                tpch50)
+                    run_tpch "50"
+                    ;;
                 tpch100)
                     run_tpch "100"
                     ;;
@@ -186,6 +192,9 @@ main() {
                     ;;
                 dftpch10)
                     run_tpch "10" true
+                    ;;
+                dftpch50)
+                    run_tpch "50" true
                     ;;
                 dftpch100)
                     run_tpch "100" true
