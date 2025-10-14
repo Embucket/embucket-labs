@@ -16,7 +16,6 @@ use core_metastore::{
 };
 use core_utils::Db;
 use datafusion::sql::parser::DFParser;
-use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
 use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;
 
