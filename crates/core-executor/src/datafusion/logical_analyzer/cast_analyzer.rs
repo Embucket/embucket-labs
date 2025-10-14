@@ -105,7 +105,7 @@ impl CastAnalyzer {
                     args: vec![expr.clone()],
                 })))
             }
-            data_type @ (DataType::Decimal128(_, _) | DataType::Decimal256(_, _)) => {
+            data_type @ DataType::Decimal128(_, _) => {
                 Self::rewrite_numeric_cast(expr, data_type, try_mode)
             }
             data_type @ (DataType::Int32 | DataType::Int64)
@@ -124,20 +124,28 @@ impl CastAnalyzer {
         data_type: DataType,
         try_mode: bool,
     ) -> DFResult<Transformed<Expr>> {
-        let internal = Expr::ScalarFunction(ScalarFunction {
-            func: Arc::new(ScalarUDF::from(ToDecimalFunc::new(try_mode))),
-            args: vec![expr.clone()],
-        });
-        let new_expr = if try_mode {
-            Expr::TryCast(TryCast {
-                expr: Box::new(internal),
-                data_type,
+        let func = Arc::new(ScalarUDF::from(ToDecimalFunc::new(try_mode)));
+        let new_expr = if let DataType::Decimal128(precision, scale) = data_type {
+            Expr::ScalarFunction(ScalarFunction {
+                func,
+                args: vec![expr.clone(), Expr::Literal(ScalarValue::UInt8(Some(precision)), None), Expr::Literal(ScalarValue::Int8(Some(scale)), None)],
             })
         } else {
-            Expr::Cast(Cast {
-                expr: Box::new(internal),
-                data_type,
-            })
+            let internal = Expr::ScalarFunction(ScalarFunction {
+                func,
+                args: vec![expr.clone()],
+            });
+            if try_mode {
+                Expr::TryCast(TryCast {
+                    expr: Box::new(internal),
+                    data_type,
+                })
+            } else {
+                Expr::Cast(Cast {
+                    expr: Box::new(internal),
+                    data_type,
+                })
+            }
         };
         Ok(Transformed::yes(new_expr))
     }
