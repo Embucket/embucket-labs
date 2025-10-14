@@ -128,7 +128,11 @@ impl CastAnalyzer {
         let new_expr = if let DataType::Decimal128(precision, scale) = data_type {
             Expr::ScalarFunction(ScalarFunction {
                 func,
-                args: vec![expr.clone(), Expr::Literal(ScalarValue::UInt8(Some(precision)), None), Expr::Literal(ScalarValue::Int8(Some(scale)), None)],
+                args: vec![
+                    expr.clone(),
+                    Expr::Literal(ScalarValue::UInt8(Some(precision)), None),
+                    Expr::Literal(ScalarValue::Int8(Some(scale)), None),
+                ],
             })
         } else {
             let internal = Expr::ScalarFunction(ScalarFunction {
