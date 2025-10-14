@@ -136,7 +136,10 @@ impl RunOpt {
         .await?;
 
         if self.common.use_duckdb {
-            let mut query = session.query("SET use_duck_db = true", query_context());
+            let mut query = session.query(
+                "SET embucket.execution.acceleration = true",
+                query_context(),
+            );
             query.execute().await?;
         }
 

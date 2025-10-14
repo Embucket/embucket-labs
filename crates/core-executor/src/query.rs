@@ -314,7 +314,10 @@ impl UserQuery {
         // This is typically used for heavy or complex queries that DataFusion handles poorly,
         // such as large joins or subqueries, while preserving the same schema and query context.
         if self.session.config.use_duck_db
-            || self.session.get_session_variable("use_duck_db").is_some()
+            || self
+                .session
+                .get_session_variable("embucket.execution.acceleration")
+                .is_some()
         {
             return self.execute_duck_db(statement).await;
         }
