@@ -122,6 +122,7 @@ async fn test_ui_dashboard() {
 
     let query_payload = QueryCreatePayload {
         worksheet_id: Some(worksheet_id),
+        async_exec: false,
         query: format!(
             "create or replace Iceberg TABLE {}.{}.{}
         external_volume = ''

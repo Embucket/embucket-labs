@@ -137,6 +137,7 @@ where
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: None,
+            async_exec: false,
             query: query.to_string(),
             context: None,
         })
