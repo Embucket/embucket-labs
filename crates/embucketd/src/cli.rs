@@ -174,6 +174,14 @@ pub struct CliOpts {
 
     #[arg(
         long,
+        env = "USE_DUCK_DB",
+        default_value = "false",
+        help = "Bypass DataFusion entirely and execute the full SQL query directly using DuckDB in-memory engine"
+    )]
+    pub use_duck_db: Option<bool>,
+
+    #[arg(
+        long,
         value_enum,
         env = "MEM_POOL_TYPE",
         default_value = "greedy",

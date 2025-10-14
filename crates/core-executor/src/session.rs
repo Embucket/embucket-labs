@@ -6,7 +6,7 @@ use super::error::{self as ex_error, Result};
 // TODO: We need to fix this after geodatafusion is updated to datafusion 47
 //use geodatafusion::udf::native::register_native as register_geo_native;
 use crate::datafusion::logical_analyzer::analyzer_rules;
-use crate::datafusion::logical_optimizer::logical_optimizer_rules;
+use crate::datafusion::logical_optimizer::split_ordered_aggregates::SplitOrderedAggregates;
 use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
@@ -115,7 +115,7 @@ impl UserSession {
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rules(analyzer_rules(session_params_arc.clone()))
-            .with_optimizer_rules(logical_optimizer_rules())
+            .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
             .build();

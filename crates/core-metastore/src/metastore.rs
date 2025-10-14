@@ -555,6 +555,9 @@ impl Metastore for SlateDBMetastore {
                     }
                     .build()
                 })?;
+                if table.volume_ident.is_none() {
+                    table.volume_ident = Some(database.volume.clone());
+                }
 
                 let schema = url_encode(&ident.schema);
                 let table = url_encode(&ident.table);
@@ -819,12 +822,14 @@ impl Metastore for SlateDBMetastore {
                 })?;
 
                 let prefix = volume.prefix();
-                // The location of the table within the custom volume
-                let location = tbl
-                    .volume_location
-                    .clone()
-                    .unwrap_or_else(|| "/".to_string());
-                return Ok(format!("{prefix}/{location}"));
+                // The table has a custom location within the volume
+                if let Some(location) = tbl.volume_location.as_ref() {
+                    return Ok(format!("{prefix}/{location}"));
+                }
+                return Ok(format!(
+                    "{}/{}/{}/{}",
+                    prefix, ident.database, ident.schema, ident.table
+                ));
             }
 
             let volume = self.get_volume(&database.volume).await?.ok_or_else(|| {
@@ -847,12 +852,12 @@ impl Metastore for SlateDBMetastore {
             ));
         }
 
-        return Err(metastore_error::TableObjectStoreNotFoundSnafu {
+        Err(metastore_error::TableObjectStoreNotFoundSnafu {
             table: ident.table.clone(),
             schema: ident.schema.clone(),
             db: ident.database.clone(),
         }
-        .build());
+        .build())
     }
 
     #[instrument(name = "Metastore::volume_for_table", level = "debug", skip(self))]

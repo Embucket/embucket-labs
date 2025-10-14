@@ -4,7 +4,6 @@ use datafusion::{
     execution::context::QueryPlanner,
     physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner},
 };
-use datafusion_federation::FederatedPlanner;
 use std::{fmt, sync::Arc};
 
 pub struct CustomQueryPlanner(DefaultPhysicalPlanner);
@@ -13,7 +12,6 @@ impl Default for CustomQueryPlanner {
     fn default() -> Self {
         Self(DefaultPhysicalPlanner::with_extension_planners(vec![
             Arc::new(CustomExtensionPlanner::default()),
-            Arc::new(FederatedPlanner::new()),
         ]))
     }
 }

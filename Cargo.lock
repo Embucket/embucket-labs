@@ -2268,7 +2268,6 @@ dependencies = [
  "datafusion-common",
  "datafusion-doc",
  "datafusion-expr",
- "datafusion-federation",
  "datafusion-functions-json",
  "datafusion-physical-plan",
  "datafusion-table-providers",
@@ -2294,7 +2293,6 @@ dependencies = [
  "serde_json",
  "slatedb",
  "snafu",
- "spiceai_duckdb_fork",
  "sqlparser",
  "strum 0.27.2",
  "strum_macros 0.27.2",
@@ -2971,19 +2969,6 @@ dependencies = [
  "indexmap 2.11.4",
  "itertools 0.14.0",
  "paste",
-]
-
-[[package]]
-name = "datafusion-federation"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e871fb96686c8891f1264440b832518dcffb35ec31a2bb2c06815dbfc84e0997"
-dependencies = [
- "arrow-json 56.2.0",
- "async-stream",
- "async-trait",
- "datafusion",
- "futures",
 ]
 
 [[package]]
