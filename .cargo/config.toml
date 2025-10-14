@@ -1,6 +1,18 @@
 [env]
 WEB_ASSETS_SOURCE_PATH = { value = "ui/dist", relative = true }
 WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
+SQLITE3_STATIC = "1"
+SQLITE3_LIB_DIR = "target/debug"
+SQLITE3_INCLUDE_DIR = "crates/core-sqlite/src/sqlite-plugin/sqlite3"
+LIBSQLITE3_FLAGS = """-DSQLITE_ENABLE_COLUMN_METADATA=1 \
+    -DSQLITE_ENABLE_LOAD_EXTENSION=1 \
+    -DSQLITE_ENABLE_FTS5=1 \
+    -DSQLITE_ENABLE_BATCH_ATOMIC_WRITE=1 \
+    -DSQLITE_ENABLE_DBSTAT_VTAB=1 \
+    -DSQLITE_ENABLE_NULL_TRIM=1 \
+    -DSQLITE_ENABLE_RTREE=1 \
+    -DHAVE_READLINE=0 \
+    -DGNU_SOURCE"""
 
 [alias]
 dev = "run -- --backend=memory --cors-allow-origin=http://localhost:8080 --cors-enabled=true"

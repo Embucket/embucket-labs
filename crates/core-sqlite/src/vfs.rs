@@ -605,9 +605,8 @@ impl vfs::Vfs for SlatedbVfs {
     }
     #[instrument(level = "error", skip(self), ret)]
     fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
-        Ok(self.lock_manager.get_max_lock_level_as_int(&handle.path).into())
+        Ok(self.lock_manager.get_global_lock_level(&handle.path).into())
     }
-
 
     fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
 

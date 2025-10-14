@@ -1,8 +1,8 @@
 #[derive(Clone, Debug)]
 pub struct SlatedbVfsHandle {
     pub path: String,
-    readonly: bool,
     pub handle_id: u64,
+    readonly: bool,
 }
 
 impl SlatedbVfsHandle {

@@ -1,13 +1,20 @@
 [package]
 name = "core-sqlite"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license-file = { workspace = true }
 
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[features]
+static = ["sqlite-plugin/static"]
+dynamic = ["sqlite-plugin/dynamic"]
+
 [dependencies]
-sqlite-plugin = { path = "../sqlite-plugin", features = ["static", "dynamic"] }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
+sqlite-plugin = { path = "src/sqlite-plugin", features = ["static", "dynamic"] }
 
 log = { version = "=0.4.28", features = ["std"] }
 parking_lot = "0.12.4"

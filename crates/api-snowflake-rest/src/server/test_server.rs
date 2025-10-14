@@ -25,7 +25,16 @@ pub async fn run_test_rest_api_server_with_config(
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
+    let traces_writer = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("traces.log")
+        .expect("Failed to open traces.log");
+
     let subscriber = tracing_subscriber::fmt()
+        // using stderr as it won't be showed until test failed
+        .with_writer(traces_writer)
+        .with_ansi(false)
         .with_thread_ids(true)
         .with_file(true)
         .with_line_number(true)
