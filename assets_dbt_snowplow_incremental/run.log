@@ -1,84 +1,84 @@
-[0m03:23:41  Running with dbt=1.9.8
-[0m03:23:41  Registered adapter: snowflake=1.9.1
-[0m03:23:42  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
-[0m03:23:42  
-[0m03:23:42  Concurrency: 4 threads (target='embucket')
-[0m03:23:42  
-[0m03:23:43  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m03:23:43  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m03:23:43  
-[0m03:23:43  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m03:23:43  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m03:23:48  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32m02000 1[0m in 4.94s]
-[0m03:23:48  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32m02000 1[0m in 5.02s]
-[0m03:23:48  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
-[0m03:23:50  03:23:50 + Snowplow: Standard incremental run
-[0m03:23:52  03:23:52 + Snowplow: Processing data between '2025-09-14 17:59:47' and '2025-10-13 03:23:50' (snowplow_web)
-[0m03:23:52  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32m02000 1[0m in 4.15s]
-[0m03:23:52  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
-[0m03:24:17  4 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[32m02000 1[0m in 24.46s]
-[0m03:24:17  5 of 29 START sql table model public_scratch.snowplow_web_base_sessions_this_run  [RUN]
-[0m03:24:28  5 of 29 OK created sql table model public_scratch.snowplow_web_base_sessions_this_run  [[32m02000 1[0m in 11.12s]
-[0m03:24:28  6 of 29 START sql table model public_scratch.snowplow_web_base_events_this_run . [RUN]
-[0m03:24:34  6 of 29 OK created sql table model public_scratch.snowplow_web_base_events_this_run  [[32m02000 1[0m in 5.96s]
-[0m03:24:34  7 of 29 START sql table model public_scratch.snowplow_web_consent_events_this_run  [RUN]
-[0m03:24:34  8 of 29 START sql table model public_scratch.snowplow_web_pv_engaged_time ...... [RUN]
-[0m03:24:34  9 of 29 START sql table model public_scratch.snowplow_web_pv_scroll_depth ...... [RUN]
-[0m03:24:34  10 of 29 START sql table model public_scratch.snowplow_web_sessions_this_run ... [RUN]
-[0m03:24:37  9 of 29 OK created sql table model public_scratch.snowplow_web_pv_scroll_depth . [[32m02000 1[0m in 3.63s]
-[0m03:24:37  11 of 29 START sql incremental model public_derived.snowplow_web_user_mapping .. [RUN]
-[0m03:24:38  8 of 29 OK created sql table model public_scratch.snowplow_web_pv_engaged_time . [[32m02000 1[0m in 4.04s]
-[0m03:24:38  12 of 29 START sql table model public_scratch.snowplow_web_vital_events_this_run  [RUN]
-[0m03:24:38  7 of 29 OK created sql table model public_scratch.snowplow_web_consent_events_this_run  [[32m02000 1[0m in 4.54s]
-[0m03:24:38  13 of 29 START sql table model public_scratch.snowplow_web_page_views_this_run . [RUN]
-[0m03:24:41  12 of 29 OK created sql table model public_scratch.snowplow_web_vital_events_this_run  [[32m02000 1[0m in 2.93s]
-[0m03:24:41  14 of 29 START sql incremental model public_derived.snowplow_web_consent_log ... [RUN]
-[0m03:24:50  11 of 29 OK created sql incremental model public_derived.snowplow_web_user_mapping  [[32m02000 1[0m in 12.44s]
-[0m03:24:50  15 of 29 START sql table model public_scratch.snowplow_web_vitals_this_run ..... [RUN]
-[0m03:24:52  13 of 29 OK created sql table model public_scratch.snowplow_web_page_views_this_run  [[32m02000 1[0m in 13.35s]
-[0m03:24:52  16 of 29 START sql incremental model public_derived.snowplow_web_page_views .... [RUN]
-[0m03:24:53  15 of 29 OK created sql table model public_scratch.snowplow_web_vitals_this_run  [[32m02000 1[0m in 2.93s]
-[0m03:24:53  17 of 29 START sql incremental model public_derived.snowplow_web_vitals ........ [RUN]
-[0m03:24:54  10 of 29 OK created sql table model public_scratch.snowplow_web_sessions_this_run  [[32m02000 1[0m in 20.73s]
-[0m03:24:54  18 of 29 START sql incremental model public_derived.snowplow_web_sessions ...... [RUN]
-[0m03:24:59  14 of 29 OK created sql incremental model public_derived.snowplow_web_consent_log  [[32m02000 1[0m in 18.10s]
-[0m03:24:59  19 of 29 START sql table model public_derived.snowplow_web_consent_cmp_stats ... [RUN]
-[0m03:25:06  19 of 29 OK created sql table model public_derived.snowplow_web_consent_cmp_stats  [[32m02000 1[0m in 7.58s]
-[0m03:25:06  20 of 29 START sql incremental model public_derived.snowplow_web_consent_versions  [RUN]
-[0m03:25:10  03:25:10 + Snowplow Warning: *************
-[0m03:25:10  Snowplow Warning: No data in embucket.public_derived.snowplow_web_consent_versions for date range from variables, please modify your run variables to include data if this is not expected.
-[0m03:25:10  03:25:10 + Snowplow Warning: *************
-[0m03:25:11  16 of 29 OK created sql incremental model public_derived.snowplow_web_page_views  [[32m02000 1[0m in 19.52s]
-[0m03:25:12  17 of 29 OK created sql incremental model public_derived.snowplow_web_vitals ... [[32m02000 1[0m in 19.51s]
-[0m03:25:12  21 of 29 START sql table model public_derived.snowplow_web_vital_measurements .. [RUN]
-[0m03:25:15  18 of 29 OK created sql incremental model public_derived.snowplow_web_sessions . [[32m02000 1[0m in 20.86s]
-[0m03:25:15  22 of 29 START sql table model public_scratch.snowplow_web_users_sessions_this_run  [RUN]
-[0m03:25:22  20 of 29 OK created sql incremental model public_derived.snowplow_web_consent_versions  [[32m02000 1[0m in 15.96s]
-[0m03:25:22  23 of 29 START sql incremental model public_derived.snowplow_web_consent_users . [RUN]
-[0m03:25:23  22 of 29 OK created sql table model public_scratch.snowplow_web_users_sessions_this_run  [[32m02000 1[0m in 8.14s]
-[0m03:25:23  24 of 29 START sql table model public_scratch.snowplow_web_users_aggs .......... [RUN]
-[0m03:25:24  03:25:24 + Snowplow Warning: *************
-[0m03:25:24  Snowplow Warning: No data in embucket.public_derived.snowplow_web_consent_users for date range from variables, please modify your run variables to include data if this is not expected.
-[0m03:25:24  03:25:24 + Snowplow Warning: *************
-[0m03:25:27  21 of 29 OK created sql table model public_derived.snowplow_web_vital_measurements  [[32m02000 1[0m in 15.05s]
-[0m03:25:28  24 of 29 OK created sql table model public_scratch.snowplow_web_users_aggs ..... [[32m02000 1[0m in 4.14s]
-[0m03:25:28  25 of 29 START sql table model public_scratch.snowplow_web_users_lasts ......... [RUN]
-[0m03:25:33  25 of 29 OK created sql table model public_scratch.snowplow_web_users_lasts .... [[32m02000 1[0m in 5.15s]
-[0m03:25:33  26 of 29 START sql table model public_scratch.snowplow_web_users_this_run ...... [RUN]
-[0m03:25:41  26 of 29 OK created sql table model public_scratch.snowplow_web_users_this_run . [[32m02000 1[0m in 7.68s]
-[0m03:25:41  27 of 29 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
-[0m03:25:48  23 of 29 OK created sql incremental model public_derived.snowplow_web_consent_users  [[32m02000 1[0m in 25.78s]
-[0m03:25:48  28 of 29 START sql table model public_derived.snowplow_web_consent_scope_status  [RUN]
-[0m03:25:48  29 of 29 START sql table model public_derived.snowplow_web_consent_totals ...... [RUN]
-[0m03:25:50  28 of 29 OK created sql table model public_derived.snowplow_web_consent_scope_status  [[32m02000 1[0m in 1.61s]
-[0m03:25:54  29 of 29 OK created sql table model public_derived.snowplow_web_consent_totals . [[32m02000 1[0m in 5.76s]
-[0m03:26:00  27 of 29 OK created sql incremental model public_derived.snowplow_web_users .... [[32m02000 1[0m in 19.01s]
-[0m03:26:00  
-[0m03:26:00  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m03:26:10  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 9.90s]
-[0m03:26:10  
-[0m03:26:10  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 2 minutes and 27.38 seconds (147.38s).
-[0m03:26:10  
-[0m03:26:10  [32mCompleted successfully[0m
-[0m03:26:10  
-[0m03:26:10  Done. PASS=31 WARN=0 ERROR=0 SKIP=0 TOTAL=31
+[0m03:19:03  Running with dbt=1.9.8
+[0m03:19:04  Registered adapter: snowflake=1.9.1
+[0m03:19:05  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
+[0m03:19:05  
+[0m03:19:05  Concurrency: 4 threads (target='embucket')
+[0m03:19:05  
+[0m03:19:06  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+[0m03:19:06  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
+[0m03:19:06  
+[0m03:19:06  1 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
+[0m03:19:06  2 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
+[0m03:19:10  1 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32m02000 1[0m in 4.63s]
+[0m03:19:10  2 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_incremental_manifest  [[32m02000 1[0m in 4.72s]
+[0m03:19:10  3 of 29 START sql table model public_scratch.snowplow_web_base_new_event_limits  [RUN]
+[0m03:19:12  03:19:12 + Snowplow: Standard incremental run
+[0m03:19:14  03:19:14 + Snowplow: Processing data between '2025-09-14 17:59:47' and '2025-10-14 03:19:12' (snowplow_web)
+[0m03:19:14  3 of 29 OK created sql table model public_scratch.snowplow_web_base_new_event_limits  [[32m02000 1[0m in 3.95s]
+[0m03:19:14  4 of 29 START sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
+[0m03:19:37  4 of 29 OK created sql incremental model public_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[32m02000 1[0m in 22.95s]
+[0m03:19:37  5 of 29 START sql table model public_scratch.snowplow_web_base_sessions_this_run  [RUN]
+[0m03:19:48  5 of 29 OK created sql table model public_scratch.snowplow_web_base_sessions_this_run  [[32m02000 1[0m in 10.41s]
+[0m03:19:48  6 of 29 START sql table model public_scratch.snowplow_web_base_events_this_run . [RUN]
+[0m03:19:53  6 of 29 OK created sql table model public_scratch.snowplow_web_base_events_this_run  [[32m02000 1[0m in 5.66s]
+[0m03:19:53  7 of 29 START sql table model public_scratch.snowplow_web_consent_events_this_run  [RUN]
+[0m03:19:53  8 of 29 START sql table model public_scratch.snowplow_web_pv_engaged_time ...... [RUN]
+[0m03:19:53  9 of 29 START sql table model public_scratch.snowplow_web_pv_scroll_depth ...... [RUN]
+[0m03:19:53  10 of 29 START sql table model public_scratch.snowplow_web_sessions_this_run ... [RUN]
+[0m03:19:57  7 of 29 OK created sql table model public_scratch.snowplow_web_consent_events_this_run  [[32m02000 1[0m in 4.04s]
+[0m03:19:57  9 of 29 OK created sql table model public_scratch.snowplow_web_pv_scroll_depth . [[32m02000 1[0m in 4.04s]
+[0m03:19:57  8 of 29 OK created sql table model public_scratch.snowplow_web_pv_engaged_time . [[32m02000 1[0m in 4.04s]
+[0m03:19:57  11 of 29 START sql incremental model public_derived.snowplow_web_user_mapping .. [RUN]
+[0m03:19:57  12 of 29 START sql table model public_scratch.snowplow_web_vital_events_this_run  [RUN]
+[0m03:19:57  13 of 29 START sql incremental model public_derived.snowplow_web_consent_log ... [RUN]
+[0m03:20:02  12 of 29 OK created sql table model public_scratch.snowplow_web_vital_events_this_run  [[32m02000 1[0m in 4.44s]
+[0m03:20:02  14 of 29 START sql table model public_scratch.snowplow_web_page_views_this_run . [RUN]
+[0m03:20:10  11 of 29 OK created sql incremental model public_derived.snowplow_web_user_mapping  [[32m02000 1[0m in 12.84s]
+[0m03:20:10  15 of 29 START sql table model public_scratch.snowplow_web_vitals_this_run ..... [RUN]
+[0m03:20:13  10 of 29 OK created sql table model public_scratch.snowplow_web_sessions_this_run  [[32m02000 1[0m in 19.40s]
+[0m03:20:13  16 of 29 START sql incremental model public_derived.snowplow_web_sessions ...... [RUN]
+[0m03:20:14  14 of 29 OK created sql table model public_scratch.snowplow_web_page_views_this_run  [[32m02000 1[0m in 12.23s]
+[0m03:20:14  17 of 29 START sql incremental model public_derived.snowplow_web_page_views .... [RUN]
+[0m03:20:15  15 of 29 OK created sql table model public_scratch.snowplow_web_vitals_this_run  [[32m02000 1[0m in 4.63s]
+[0m03:20:15  18 of 29 START sql incremental model public_derived.snowplow_web_vitals ........ [RUN]
+[0m03:20:15  13 of 29 OK created sql incremental model public_derived.snowplow_web_consent_log  [[32m02000 1[0m in 17.76s]
+[0m03:20:15  19 of 29 START sql table model public_derived.snowplow_web_consent_cmp_stats ... [RUN]
+[0m03:20:22  19 of 29 OK created sql table model public_derived.snowplow_web_consent_cmp_stats  [[32m02000 1[0m in 7.28s]
+[0m03:20:22  20 of 29 START sql incremental model public_derived.snowplow_web_consent_versions  [RUN]
+[0m03:20:26  03:20:26 + Snowplow Warning: *************
+[0m03:20:26  Snowplow Warning: No data in embucket.public_derived.snowplow_web_consent_versions for date range from variables, please modify your run variables to include data if this is not expected.
+[0m03:20:26  03:20:26 + Snowplow Warning: *************
+[0m03:20:34  16 of 29 OK created sql incremental model public_derived.snowplow_web_sessions . [[32m02000 1[0m in 21.43s]
+[0m03:20:34  21 of 29 START sql table model public_scratch.snowplow_web_users_sessions_this_run  [RUN]
+[0m03:20:35  18 of 29 OK created sql incremental model public_derived.snowplow_web_vitals ... [[32m02000 1[0m in 20.02s]
+[0m03:20:35  17 of 29 OK created sql incremental model public_derived.snowplow_web_page_views  [[32m02000 1[0m in 20.83s]
+[0m03:20:35  22 of 29 START sql table model public_derived.snowplow_web_vital_measurements .. [RUN]
+[0m03:20:38  21 of 29 OK created sql table model public_scratch.snowplow_web_users_sessions_this_run  [[32m02000 1[0m in 4.08s]
+[0m03:20:38  23 of 29 START sql table model public_scratch.snowplow_web_users_aggs .......... [RUN]
+[0m03:20:41  23 of 29 OK created sql table model public_scratch.snowplow_web_users_aggs ..... [[32m02000 1[0m in 3.13s]
+[0m03:20:41  24 of 29 START sql table model public_scratch.snowplow_web_users_lasts ......... [RUN]
+[0m03:20:47  20 of 29 OK created sql incremental model public_derived.snowplow_web_consent_versions  [[32m02000 1[0m in 24.41s]
+[0m03:20:47  25 of 29 START sql incremental model public_derived.snowplow_web_consent_users . [RUN]
+[0m03:20:50  24 of 29 OK created sql table model public_scratch.snowplow_web_users_lasts .... [[32m02000 1[0m in 8.29s]
+[0m03:20:50  26 of 29 START sql table model public_scratch.snowplow_web_users_this_run ...... [RUN]
+[0m03:20:50  03:20:50 + Snowplow Warning: *************
+[0m03:20:50  Snowplow Warning: No data in embucket.public_derived.snowplow_web_consent_users for date range from variables, please modify your run variables to include data if this is not expected.
+[0m03:20:50  03:20:50 + Snowplow Warning: *************
+[0m03:20:57  22 of 29 OK created sql table model public_derived.snowplow_web_vital_measurements  [[32m02000 1[0m in 22.57s]
+[0m03:20:59  26 of 29 OK created sql table model public_scratch.snowplow_web_users_this_run . [[32m02000 1[0m in 8.59s]
+[0m03:20:59  27 of 29 START sql incremental model public_derived.snowplow_web_users ......... [RUN]
+[0m03:21:15  25 of 29 OK created sql incremental model public_derived.snowplow_web_consent_users  [[32m02000 1[0m in 28.11s]
+[0m03:21:15  28 of 29 START sql table model public_derived.snowplow_web_consent_scope_status  [RUN]
+[0m03:21:15  29 of 29 START sql table model public_derived.snowplow_web_consent_totals ...... [RUN]
+[0m03:21:17  28 of 29 OK created sql table model public_derived.snowplow_web_consent_scope_status  [[32m02000 1[0m in 1.71s]
+[0m03:21:17  27 of 29 OK created sql incremental model public_derived.snowplow_web_users .... [[32m02000 1[0m in 18.30s]
+[0m03:21:19  29 of 29 OK created sql table model public_derived.snowplow_web_consent_totals . [[32m02000 1[0m in 4.44s]
+[0m03:21:19  
+[0m03:21:19  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+[0m03:21:29  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 9.20s]
+[0m03:21:29  
+[0m03:21:29  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 2 minutes and 23.79 seconds (143.79s).
+[0m03:21:29  
+[0m03:21:29  [32mCompleted successfully[0m
+[0m03:21:29  
+[0m03:21:29  Done. PASS=31 WARN=0 ERROR=0 SKIP=0 TOTAL=31
