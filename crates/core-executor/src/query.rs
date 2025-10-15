@@ -509,7 +509,6 @@ impl UserQuery {
         {
             // Check if possible to call duckdb with this query
             let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;
-            // print_batches(&_explain_result).expect("Printing failed");
         }
 
         let stream = get_stream(duckdb_pool, sql, Arc::new(ArrowSchema::empty()))
