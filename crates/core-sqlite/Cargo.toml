@@ -4,13 +4,6 @@ version = "0.1.0"
 edition = "2024"
 license-file = { workspace = true }
 
-[lib]
-crate-type = ["lib", "staticlib", "cdylib"]
-
-[features]
-static = ["sqlite-plugin/static"]
-dynamic = ["sqlite-plugin/dynamic"]
-
 [dependencies]
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }

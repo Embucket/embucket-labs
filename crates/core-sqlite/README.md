@@ -7,3 +7,10 @@ Linux:
 ``` sh
 sudo apt install libclang-18-dev
 ```
+
+### Sqlite compile time flags
+Provide all the flags in .cargo/config.toml:
+```toml
+[env]
+LIBSQLITE3_FLAGS = "-DSQLITE_THREADSAFE=1"
+```

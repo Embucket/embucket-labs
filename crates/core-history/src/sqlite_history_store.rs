@@ -11,7 +11,7 @@ use tracing::instrument;
 const RESULTS_CREATE_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS results (
     id TEXT PRIMARY KEY,                -- using TEXT for timestamp (ISO8601)
-    result TEXT                         -- JSON or text result payload
+    result TEXT NOT NULL                -- JSON or text result payload
 );"#;
 
 const WORKSHEETS_CREATE_TABLE: &str = r#"
@@ -274,6 +274,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
         let q = item.clone();
 
+        let q_uuid = q.id.as_uuid();
         let q_id = q.id.to_string();
         let q_status = q.status.to_string();
         let q_end_time = q.end_time.to_rfc3339();
@@ -284,12 +285,28 @@ impl HistoryStore for SlateDBHistoryStore {
         let q_diagnostic_error = q.diagnostic_error;
 
         conn.interact(move |conn| -> SqlResult<usize> {
-            let _res = conn.execute(
+            // at firt insert result, to satisfy contrint in update stmt
+            if let Some(result) = q_result {
+                tracing::info!("INSERT INTO results ({q_id} / {q_uuid}) {result}");
+                conn.execute(
+                    "INSERT INTO results (id, result)
+                        VALUES (:id, :result)",
+                    named_params! {
+                        ":id": q_id,
+                        ":result": result,
+                    },
+                )?;
+            } else {
+                tracing::info!("No result for query {q_id} / {q_uuid}");
+            }
+
+            conn.execute(
                 "UPDATE queries SET 
                     status = :status, 
                     end_time = :end_time, 
                     duration_ms = :duration_ms, 
                     result_count = :result_count, 
+                    result_id = :result_id,
                     error = :error, 
                     diagnostic_error = :diagnostic_error 
                 WHERE id = :id",
@@ -298,17 +315,10 @@ impl HistoryStore for SlateDBHistoryStore {
                     ":end_time": q_end_time,
                     ":duration_ms": q_duration_ms,
                     ":result_count": q_result_count,
+                    ":result_id": q_id,
                     ":error": q_error,
                     ":diagnostic_error": q_diagnostic_error,
                     ":id": q_id,
-                },
-            )?;
-            conn.execute(
-                "INSERT INTO results (id, result)
-                    VALUES (:id, :result)",
-                named_params! {
-                    ":id": q_id,
-                    ":result": q_result,
                 },
             )
         })
@@ -345,6 +355,7 @@ impl HistoryStore for SlateDBHistoryStore {
                 ",
             )?;
 
+            // result will be NULL if no corresponding record in results
             stmt.query_row([id.to_string()], |row| {
                 Ok(QueryRecord {
                     id: row.get::<_, String>(0)?.as_str().parse::<QueryRecordId>().unwrap(),
@@ -361,7 +372,7 @@ impl HistoryStore for SlateDBHistoryStore {
                     status: row.get::<_, String>(7)?.as_str().parse::<QueryStatus>().unwrap(),
                     error: row.get(8)?,
                     diagnostic_error: row.get(9)?,
-                    result: row.get(10)?,
+                    result: row.get::<_, Option<String>>(10)?,
                 })
             })
         })

@@ -540,7 +540,7 @@ impl ExecutionService for CoreExecutionService {
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::query_result",
+        name = "ExecutionService::wait_historical_query_result",
         level = "debug",
         skip(self),
         fields(query_status, query_uuid = query_id.as_uuid().to_string(), running_queries_count = self.queries.count()),

@@ -71,7 +71,7 @@ impl SlatedbVfs {
             files: Arc::new(Mutex::new(HashMap::new())),
             capabilities: Capabilities {
                 atomic_batch: true,
-                point_in_time_reads: false,
+                point_in_time_reads: true,
                 sector_size: 4096,
             },
             handle_counter: Arc::new(AtomicU64::new(1)),
