@@ -2,7 +2,8 @@
 use sqlite_plugin::flags::LockLevel;
 use sqlite_plugin::vars::SQLITE_BUSY;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use tracing::instrument;
 use super::vfs::logger;
 
@@ -14,7 +15,7 @@ pub struct LockManager {
     files: Arc<Mutex<HashMap<String, VfsFileState>>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct VfsFileState {
     global_lock: LockLevel,
     handles: HashMap<u64, LockLevel>,
@@ -30,80 +31,86 @@ impl Default for VfsFileState {
 }
 
 impl VfsFileState {
-    pub fn set_lock_level(&mut self, handle_id: u64, level: LockLevel) -> Result<(), i32> {
-        let current_level = *self.handles.get(&handle_id).unwrap_or(&LockLevel::default());
+    pub fn lock(&mut self, handle_id: u64, new_lock: LockLevel) -> Result<(), i32> {
+        let fd_level = *self.handles.get(&handle_id).unwrap_or(&LockLevel::default());
 
-        match (current_level, level) {
-            // -------------------------------
-            // Release locks
-            // -------------------------------
-            (_, LockLevel::Unlocked) => {
-                self.handles.remove(&handle_id);
+        // let ilock: i32 = new_lock.into();
+        // let iglobal_lock: i32 = self.global_lock.into();
+        // let ishared: i32 = LockLevel::Shared.into();
 
-                if current_level == LockLevel::Shared {
-                    if !self.handles.values().any(|&lock| lock == LockLevel::Shared) {
-                        self.global_lock = LockLevel::Unlocked;
-                    }
-                } else {
-                    if self.handles.is_empty() {
-                        self.global_lock = LockLevel::Unlocked;
-                    }
-                }
+        // // if the database file lock is already at Shared or above the requested lock,
+        // // then the call to xLock() is a no-op.
+        // if ilock >= ishared && iglobal_lock >= ishared {
+        //     return Ok(());
+        // }
+
+        let res = match (self.global_lock, new_lock) {
+            (LockLevel::Unlocked, _) => {
+                // upgrade Unlocked to any lock
+                self.handles.insert(handle_id, new_lock);
+                self.global_lock = new_lock;
+                Ok(())
             }
-
-            // -------------------------------
-            // xLock() or xUnlock()
-            // Acquire Shared
-            // -------------------------------
-            (_, LockLevel::Shared) => {
-                // Shared locks cannot coexist with Reserved or Exclusive
-                if self.global_lock > LockLevel::Shared {
-                    return Err(SQLITE_BUSY);
-                }
+            (LockLevel::Shared, LockLevel::Shared) => {
+                // allow acquire multiple Shared locks
+                self.handles.insert(handle_id, new_lock);
+                Ok(())
             }
-
-            // -------------------------------
-            // Acquire Reserved
-            // -------------------------------
             (_, LockLevel::Reserved) => {
-                // Only one handle can have Reserved, and only if file not Exclusive
-                if self.global_lock == LockLevel::Exclusive
-                    || self
-                        .handles
-                        .iter()
-                        .any(|(&id, &lvl)| id != handle_id && lvl >= LockLevel::Reserved)
-                {
-                    return Err(SQLITE_BUSY);
+                if self.global_lock == LockLevel::Shared {
+                    self.handles.insert(handle_id, new_lock);
+                    self.global_lock = new_lock;
+                    Ok(())
+                } else {
+                    Err(SQLITE_BUSY)
                 }
             }
-
-            // -------------------------------
-            // Acquire Exclusive
-            // -------------------------------
+            (LockLevel::Reserved, LockLevel::Shared) => {
+                // allow acquire new Shared lock, do not change global lock
+                self.handles.insert(handle_id, new_lock);
+                Ok(())
+            }
+            (LockLevel::Pending, LockLevel::Shared) => {
+                Err(SQLITE_BUSY)
+            }
             (_, LockLevel::Exclusive) => {
-                // Must be the only active handle
-                if self
-                    .handles
+                // need to know only locks other than this handle and non unlock
+                let other_locks_count = self.handles
                     .iter()
-                    .any(|(&id, &lvl)| id != handle_id && lvl != LockLevel::Unlocked)
-                {
-                    return Err(SQLITE_BUSY);
+                    .filter(|h| h.0 != &handle_id && h.1 != &LockLevel::Unlocked)
+                    .count();
+                if other_locks_count > 0 {
+                    Err(SQLITE_BUSY)
+                } else {
+                    self.handles.insert(handle_id, new_lock);
+                    self.global_lock = new_lock;
+                    Ok(())
                 }
             }
-
-            // -------------------------------
-            // Pending (rarely used; transitional)
-            // -------------------------------
-            (_, LockLevel::Pending) => {
-                // Can transition from Reserved to Pending
-                if current_level < LockLevel::Reserved {
-                    return Err(SQLITE_BUSY);
-                }
+            (LockLevel::Exclusive, _) => {
+                // no locks can acquire while Exclusive is held
+                Err(SQLITE_BUSY)
+            }
+            _ => {
+                Ok(())
             }
         };
-        if level != LockLevel::Unlocked {
-            self.handles.insert(handle_id, level);
-            self.global_lock = level;
+        res
+    }
+
+    pub fn unlock(&mut self, handle_id: u64, level: LockLevel) -> Result<(), i32> {
+        if self.global_lock > level && (level == LockLevel::Unlocked || level == LockLevel::Shared) {
+            if level == LockLevel::Unlocked {
+                self.handles.remove(&handle_id);
+            } else {
+                self.handles.insert(handle_id, level);
+            }
+            self.global_lock = self
+                .handles
+                .iter()
+                .map(|lock| *lock.1)
+                .max()
+                .unwrap_or(LockLevel::Unlocked);
         }
         Ok(())
     }
@@ -121,21 +128,29 @@ impl LockManager {
     pub fn lock(&self, file_path: &str, handle_id: u64, level: LockLevel) -> Result<(), i32> {
         log::debug!(logger: logger(), "{file_path} lock request: level={level:?} handle_id={handle_id}");
         
-        let mut files = self.files.lock().unwrap();
+        {
+            let mut files = self.files.lock();
 
-        // Get or create file lock state
-        let mut file_state = files
-            .entry(file_path.to_string())
-            .or_insert_with(VfsFileState::default)
-            .clone();
+            // Get or create file lock state
+            let file_state = files
+                .entry(file_path.to_string())
+                .or_insert_with(VfsFileState::default);
 
-        file_state.set_lock_level(handle_id, level)?;
+            let lock_before = file_state.global_lock;
 
-        let global_lock = file_state.global_lock;
+            // return error immediately if lock is not acquired
+            file_state.lock(handle_id, level)?;
 
-        log::debug!(logger: logger(), 
-            "{file_path} lock acquired={level:?} global_lock={global_lock:?} handle_id={handle_id}", 
-        );
+            log::debug!(logger: logger(), 
+                "{file_path} lock acquired {lock_before:?}->{level:?}(global={:?}) handle_id={handle_id}, {:?}", 
+                file_state.global_lock, file_state.handles
+            );
+        }
+
+        {
+            let files = self.files.lock();
+            log::debug!(logger: logger(), "{file_path} lock after handle_id={handle_id}, {files:?}");
+        }
         
         Ok(())
     }
@@ -145,15 +160,19 @@ impl LockManager {
     pub fn unlock(&self, file_path: &str, handle_id: u64, level: LockLevel) -> Result<(), i32> {
         log::debug!(logger: logger(), "{file_path} lock - unlock request: level={level:?} handle_id={handle_id}");
         
-        let mut files = self.files.lock().unwrap();
+        let mut files = self.files.lock();
 
         // Get file lock state
         if let Some(file_state) = files.get_mut(file_path) {
-            file_state.set_lock_level(handle_id, level)?;
+            let lock_before = file_state.global_lock;
+
+            // return error immediately if lock is not released
+            file_state.unlock(handle_id, level)?;
             let global_lock = file_state.global_lock;
 
             log::debug!(logger: logger(),
-                "{file_path} lock - unlocked: level={level:?} global_lock={global_lock:?} handle_id={handle_id}"
+                "{file_path} lock - released: {lock_before:?}->{level:?} (global={global_lock:?}) handle_id={handle_id}, {:?}",
+                file_state.handles
             );
         }
 
@@ -165,16 +184,20 @@ impl LockManager {
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
         log::debug!(logger: logger(), "remove_handle: path={} handle_id={}", file_path, handle_id);
         
-        let mut files = self.files.lock().unwrap();
+        let mut files = self.files.lock();
         if let Some(file_state) = files.get_mut(file_path) {
-            // following unlock just a check before deleting file handle
-            if let Ok(_) = file_state.set_lock_level(handle_id, LockLevel::Unlocked) {
-                if file_state.global_lock == LockLevel::Unlocked {
-                    file_state.handles.remove(&handle_id);
-                    if file_state.handles.is_empty() {
-                        files.remove(file_path);
-                        log::debug!(logger: logger(), "removed file state: path={file_path}");
-                    }
+            if file_state.handles.get(&handle_id) == Some(&LockLevel::Unlocked) {
+                file_state.handles.remove(&handle_id);
+                if file_state.handles.is_empty() {
+                    files.remove(file_path);
+                    log::debug!(logger: logger(), "removed file state: path={file_path}");
+                } else {
+                    file_state.global_lock = file_state
+                        .handles
+                        .iter()
+                        .map(|lock| *lock.1)
+                        .max()
+                        .unwrap_or(LockLevel::Unlocked);
                 }
             } else {
                 log::debug!(logger: logger(),
@@ -185,9 +208,8 @@ impl LockManager {
         log::debug!(logger: logger(), "remove_handle: done");
     }
 
-    // Get the current maximum lock level for a file (for diagnostics)
     pub fn get_global_lock_level(&self, file_path: &str) -> LockLevel {
-        let files = self.files.lock().unwrap();
+        let files = self.files.lock();
         let global_lock_level = if let Some(file_state) = files.get(file_path) {
             file_state.global_lock
         } else {

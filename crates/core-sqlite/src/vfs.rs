@@ -605,7 +605,12 @@ impl vfs::Vfs for SlatedbVfs {
     }
     #[instrument(level = "error", skip(self), ret)]
     fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
-        Ok(self.lock_manager.get_global_lock_level(&handle.path).into())
+        let level = self.lock_manager.get_global_lock_level(&handle.path);
+        if level >= flags::LockLevel::Reserved {
+            Ok(1)
+        } else {
+            Ok(0)
+        }
     }
 
     fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
@@ -678,7 +683,8 @@ pub fn set_vfs_context(db: Arc<Db>, log_file: Option<&str>) {
     } else {
         None
     };
-    let _ = VFS_INSTANCE.set(Arc::new(SlatedbVfs::new(db, file)));
+    // allowed to init only once
+    let _ = VFS_INSTANCE.get_or_init(|| Arc::new(SlatedbVfs::new(db, file)));
 }
 
 #[allow(clippy::expect_used)]
