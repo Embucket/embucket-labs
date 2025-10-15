@@ -502,10 +502,11 @@ impl UserQuery {
                 .with_connection_setup_queries(setup_queries),
         );
 
-        if self
-            .session
-            .get_session_variable("embucket.execution.explain_before_acceleration")
-            .is_some()
+        if self.session.config.use_duck_db
+            || self
+                .session
+                .get_session_variable("embucket.execution.explain_before_acceleration")
+                .is_some()
         {
             // Check if possible to call duckdb with this query
             let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;

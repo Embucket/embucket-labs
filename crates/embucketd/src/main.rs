@@ -163,6 +163,7 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
         disk_pool_size_mb: opts.disk_pool_size_mb,
         query_history_rows_limit: opts.query_history_rows_limit,
         use_duck_db: opts.use_duck_db.unwrap_or(false),
+        use_duck_db_explain: opts.use_duck_db_explain.unwrap_or(false),
     };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
