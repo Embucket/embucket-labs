@@ -18,6 +18,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
+use crate::duckdb::{execute_duck_db_explain, is_select_statement};
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
@@ -319,7 +320,10 @@ impl UserQuery {
                 .get_session_variable("embucket.execution.acceleration")
                 .is_some()
         {
-            return self.execute_duck_db(statement).await;
+            // allow only SELECT statements
+            if is_select_statement(&statement) {
+                return self.execute_duck_db(statement).await;
+            }
         }
 
         self.query = statement.to_string();
@@ -486,21 +490,32 @@ impl UserQuery {
     pub async fn execute_duck_db(&mut self, mut statement: DFStatement) -> Result<QueryResult> {
         // Fully qualify all table references
         self.update_statement_references(&mut statement)?;
-        let plan = self.statement_to_plan(&statement).await?;
-        let schema = plan.schema().inner().clone();
 
         // Convert already resolved table references to iceberg_scan function call
         let setup_queries = self.update_iceberg_scan_references(&mut statement).await?;
         self.query = statement.to_string();
+        let sql = self.query.clone();
 
         let duckdb_pool = Arc::new(
             DuckDbConnectionPool::new_memory()
                 .context(ex_error::DuckdbConnectionPoolSnafu)?
                 .with_connection_setup_queries(setup_queries),
         );
-        let stream = get_stream(duckdb_pool, self.query.clone(), schema.clone())
+
+        if self
+            .session
+            .get_session_variable("embucket.execution.explain_before_acceleration")
+            .is_some()
+        {
+            // Check if possible to call duckdb with this query
+            let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;
+            // print_batches(&_explain_result).expect("Printing failed");
+        }
+
+        let stream = get_stream(duckdb_pool, sql, Arc::new(ArrowSchema::empty()))
             .await
             .context(ex_error::DataFusionSnafu)?;
+        let schema = stream.schema().clone();
         let records = stream
             .try_collect::<Vec<_>>()
             .await

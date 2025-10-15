@@ -2252,6 +2252,7 @@ name = "core-executor"
 version = "0.1.0"
 dependencies = [
  "arrow-schema 56.2.0",
+ "async-stream",
  "async-trait",
  "aws-config",
  "aws-credential-types",
@@ -2293,6 +2294,7 @@ dependencies = [
  "serde_json",
  "slatedb",
  "snafu",
+ "spiceai_duckdb_fork",
  "sqlparser",
  "strum 0.27.2",
  "strum_macros 0.27.2",

@@ -657,7 +657,36 @@ pub enum Error {
         error: datafusion_table_providers::sql::db_connection_pool::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
+
+    #[snafu(display("DuckDB connection error: {error}"))]
+    DuckdbConnection {
+        #[snafu(source)]
+        error: datafusion_table_providers::sql::db_connection_pool::dbconnection::duckdbconn::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DuckDB error: {error}"))]
+    Duckdb {
+        #[snafu(source)]
+        error: duckdb::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("DuckDbConnection downcast failed"))]
+    DuckDbConnectionDowncast {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("unsupported DuckDb statement: {statement}"))]
+    UnsupportedDuckDbStatement {
+        statement: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 impl Error {
