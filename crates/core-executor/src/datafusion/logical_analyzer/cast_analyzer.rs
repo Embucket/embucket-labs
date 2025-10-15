@@ -98,9 +98,9 @@ impl CastAnalyzer {
                     args: vec![expr.clone()],
                 })))
             }
-            data_type @ (DataType::Decimal128(_, _)
-            | DataType::Int32
-            | DataType::Int64) => Self::rewrite_numeric_cast(expr, data_type, try_mode),
+            data_type @ (DataType::Decimal128(_, _) | DataType::Int32 | DataType::Int64) => {
+                Self::rewrite_numeric_cast(expr, data_type, try_mode)
+            }
             _ => Ok(Transformed::no(original_expr.clone())),
         }
     }
