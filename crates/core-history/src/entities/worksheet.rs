@@ -25,7 +25,7 @@ impl Worksheet {
     #[must_use]
     pub fn new(name: String, content: String) -> Self {
         let created_at = Utc::now();
-        let id = created_at.timestamp_millis();
+        let id = created_at.timestamp_micros();
         // id, start_time have the same value
         Self {
             id,

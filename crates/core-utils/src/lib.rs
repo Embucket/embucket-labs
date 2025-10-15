@@ -368,7 +368,7 @@ mod test {
         type Cursor = i64;
 
         fn cursor(&self) -> Self::Cursor {
-            self.start_time.timestamp_millis()
+            self.start_time.timestamp_micros()
         }
 
         fn key(&self) -> Bytes {
@@ -393,7 +393,7 @@ mod test {
         type Cursor = i64;
 
         fn cursor(&self) -> Self::Cursor {
-            self.start_time.timestamp_millis()
+            self.start_time.timestamp_micros()
         }
 
         fn key(&self) -> Bytes {

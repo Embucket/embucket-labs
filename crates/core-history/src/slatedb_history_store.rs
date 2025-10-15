@@ -269,7 +269,7 @@ mod tests {
                         i.try_into().expect("Failed convert idx to milliseconds"),
                     );
                 let mut record = QueryRecord::new(query, worksheet_id);
-                record.id = QueryRecordId(start_time.timestamp_millis());
+                record.id = QueryRecordId(start_time.timestamp_micros());
                 record.start_time = start_time;
                 record.status = QueryStatus::Running;
                 record

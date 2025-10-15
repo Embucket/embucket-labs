@@ -58,9 +58,11 @@ impl SlateDBHistoryStore {
             .context(history_err::CoreUtilsSnafu)?;
 
         let _res = connection.interact(move |conn| -> SqlResult<usize> {
-            conn.execute(QUERIES_CREATE_TABLE, [])?;
+            conn.execute("BEGIN", [])?;
             conn.execute(WORKSHEETS_CREATE_TABLE, [])?;
-            conn.execute(RESULTS_CREATE_TABLE, [])
+            conn.execute(RESULTS_CREATE_TABLE, [])?;
+            conn.execute(QUERIES_CREATE_TABLE, [])?;
+            conn.execute("COMMIT", [])
         })
         .await?
         .context(history_err::CreateTablesSnafu)?;
@@ -283,6 +285,8 @@ impl HistoryStore for SlateDBHistoryStore {
         let q_result = q.result;
         let q_error = q.error;
         let q_diagnostic_error = q.diagnostic_error;
+
+        tracing::info!("update_query: {q_id} / {q_uuid} status={q_status}");
 
         conn.interact(move |conn| -> SqlResult<usize> {
             // at firt insert result, to satisfy contrint in update stmt

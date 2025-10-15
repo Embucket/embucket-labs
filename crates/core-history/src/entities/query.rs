@@ -76,7 +76,7 @@ impl QueryRecord {
     pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
         Self {
-            id: Self::inverted_id(QueryRecordId(start_time.timestamp_millis())),
+            id: Self::inverted_id(QueryRecordId(start_time.timestamp_micros())),
             worksheet_id,
             query: String::from(query),
             start_time,
