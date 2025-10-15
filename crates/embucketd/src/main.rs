@@ -64,7 +64,7 @@ use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
-// use core_sqlite::SqliteStore;
+// use core_sqlite::SqliteDb;
 
 #[cfg(feature = "alloc-tracing")]
 mod alloc_tracing {

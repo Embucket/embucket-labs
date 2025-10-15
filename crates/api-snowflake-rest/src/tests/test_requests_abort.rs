@@ -13,6 +13,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_by_request_id() {
         let addr = run_test_rest_api_server(JSON).await;
+
         let client = reqwest::Client::new();
 
         let (headers, login_res) = login::<LoginResponse>(&client, &addr, "embucket", "embucket")
@@ -97,12 +98,13 @@ mod tests {
             .expect("Failed to create reqwest client, with enabled timeout");
 
         let request_id = Uuid::new_v4();
+        // we don't know how many retries it will take to accomplish this query
         let sql = "SELECT SLEEP(1)";
 
         // retry max N times, last query should succeed
         // we use such approach as we do not know how long query will be running
         let mut results = Vec::new();
-        // start retry_count from 1, to ensure it works with wrong retry_count as well
+        // start retry_count from 1, to ensure it works with any retry_count as well
         for retry_count in 1_u16..10_u16 {
             let result = query::<JsonResponse>(
                 &query_client,

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use tracing::instrument;
-use super::vfs::logger;
+use super::logger;
 
 
 /// Manages SQLite-style hierarchical locking for files with multiple handles
@@ -32,18 +32,6 @@ impl Default for VfsFileState {
 
 impl VfsFileState {
     pub fn lock(&mut self, handle_id: u64, new_lock: LockLevel) -> Result<(), i32> {
-        let fd_level = *self.handles.get(&handle_id).unwrap_or(&LockLevel::default());
-
-        // let ilock: i32 = new_lock.into();
-        // let iglobal_lock: i32 = self.global_lock.into();
-        // let ishared: i32 = LockLevel::Shared.into();
-
-        // // if the database file lock is already at Shared or above the requested lock,
-        // // then the call to xLock() is a no-op.
-        // if ilock >= ishared && iglobal_lock >= ishared {
-        //     return Ok(());
-        // }
-
         let res = match (self.global_lock, new_lock) {
             (LockLevel::Unlocked, _) => {
                 // upgrade Unlocked to any lock
@@ -105,14 +93,17 @@ impl VfsFileState {
             } else {
                 self.handles.insert(handle_id, level);
             }
-            self.global_lock = self
-                .handles
-                .iter()
-                .map(|lock| *lock.1)
-                .max()
-                .unwrap_or(LockLevel::Unlocked);
+            self.global_lock = self.max_lock();
         }
         Ok(())
+    }
+
+    pub fn max_lock(&self) -> LockLevel {
+        self.handles
+            .iter()
+            .map(|lock| *lock.1)
+            .max()
+            .unwrap_or(LockLevel::Unlocked)
     }
 }
 

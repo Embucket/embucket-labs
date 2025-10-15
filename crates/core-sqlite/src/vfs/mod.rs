@@ -1,5 +1,9 @@
-use super::lock_manager;
-use super::handle;
+mod handle;
+mod lock_manager;
+mod init;
+
+pub use init::{init, pragma_setup};
+
 use parking_lot::Mutex;
 use slatedb::bytes::Bytes;
 use slatedb::config::{PutOptions, WriteOptions};
@@ -744,7 +748,7 @@ pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
     }
 
     // setup internal sqlite log 
-    if let Err(err) = config_log(Some(sqlite_log_callback)) {
+    if let Err(err) = unsafe { config_log(Some(sqlite_log_callback)) } {
         tracing::error!("Failed to set sqlite log callback: {err}");
     }
 

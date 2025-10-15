@@ -36,8 +36,7 @@ CREATE TABLE IF NOT EXISTS queries (
     status TEXT NOT NULL,               -- enum as TEXT
     error TEXT,                         -- nullable
     diagnostic_error TEXT,              -- nullable
-    FOREIGN KEY (worksheet_id) REFERENCES worksheets (id) ON DELETE SET NULL,
-    FOREIGN KEY (result_id) REFERENCES results (id) ON DELETE CASCADE
+    FOREIGN KEY (worksheet_id) REFERENCES worksheets (id) ON DELETE SET NULL
 );"#;
 
 const WORKSHEET_ADD: &str = r#"

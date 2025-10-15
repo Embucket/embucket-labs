@@ -21,8 +21,8 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Failed to initialize sqlite store"))]
-    FailedToInitializeSqliteStore{
+    #[snafu(display("VFS already initialized"))]
+    VfsAlreadyInitialized{
         #[snafu(implicit)]
         location: Location,
     },
@@ -43,18 +43,6 @@ pub enum Error {
 
     #[snafu(display("Sqlite self check failed"))]
     SelfCheck {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Failed to lock connections"))]
-    ConnectionsLock {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Deadpool tls pool error"))]
-    TlsPool {
         #[snafu(implicit)]
         location: Location,
     },

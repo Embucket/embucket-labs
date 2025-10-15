@@ -5,10 +5,10 @@ edition = "2024"
 license-file = { workspace = true }
 
 [dependencies]
-core-sqlite = { path = "../core-sqlite" }
 error-stack = { path = "../error-stack" }
 error-stack-trace = { path = "../error-stack-trace" }
 
+core-sqlite = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }

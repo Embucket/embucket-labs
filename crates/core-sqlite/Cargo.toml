@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2024"
 license-file = { workspace = true }
 
+[features]
+vfs = ["dep:sqlite-plugin"]
+
 [dependencies]
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
-sqlite-plugin = { path = "src/sqlite-plugin", features = ["static", "dynamic"] }
+sqlite-plugin = { path = "src/vfs/sqlite-plugin", features = ["static", "dynamic"], optional = true }
 
 log = { version = "=0.4.28", features = ["std"] }
 parking_lot = "0.12.4"
@@ -21,6 +24,7 @@ dashmap = { workspace = true }
 uuid = { workspace = true }
 deadpool-sqlite = { workspace = true }
 chrono = { workspace = true }
+cfg-if = { workspace = true }
 
 [lints]
 workspace = true

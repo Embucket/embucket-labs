@@ -5,7 +5,6 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-core-sqlite = { path = "../core-sqlite" }
 core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
@@ -16,6 +15,7 @@ api-snowflake-rest = { path = "../api-snowflake-rest" }
 api-iceberg-rest = { path = "../api-iceberg-rest" }
 api-internal-rest = { path = "../api-internal-rest" }
 
+core-sqlite = { workspace = true }
 axum = { workspace = true }
 clap = {  workspace = true }
 console-subscriber = { version = "0.4.1" } 

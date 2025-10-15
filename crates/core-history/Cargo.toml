@@ -9,11 +9,11 @@ default = ["sqlite"]
 sqlite = []
 
 [dependencies]
-core-sqlite = { path = "../core-sqlite" }
 core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
+core-sqlite = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true }

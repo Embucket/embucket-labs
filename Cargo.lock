@@ -2374,6 +2374,7 @@ dependencies = [
 name = "core-sqlite"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
  "chrono",
  "dashmap",
  "deadpool-sqlite",
@@ -3365,6 +3366,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "524bc3df0d57e98ecd022e21ba31166c2625e7d3e5bcc4510efaeeab4abcab04"
 dependencies = [
  "deadpool-runtime",
+ "tracing",
 ]
 
 [[package]]

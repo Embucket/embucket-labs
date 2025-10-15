@@ -22,14 +22,14 @@ use std::string::ToString;
 use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
-use core_sqlite::SqliteStore;
+use core_sqlite::SqliteDb;
 
 pub const SQLITE_HISTORY_DB_NAME: &str = "query_history.db";
 
 #[derive(Clone)]
 pub struct Db{
     pub slatedb: Arc<SlateDb>,
-    pub sqlite_history_store: Arc<SqliteStore>,
+    pub sqlite_history_store: Arc<SqliteDb>,
 }
 
 impl Db {
@@ -37,7 +37,7 @@ impl Db {
     pub async fn new(db: Arc<SlateDb>) -> Self {       
         Self {
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(SqliteStore::new(db, SQLITE_HISTORY_DB_NAME).await
+            sqlite_history_store: Arc::new(SqliteDb::new(db, SQLITE_HISTORY_DB_NAME).await
                 .expect("Failed to initialize sqlite store")),
         }
     }
@@ -57,7 +57,7 @@ impl Db {
         let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
         Self{
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(SqliteStore::new(db, &sqlite_db_name).await
+            sqlite_history_store: Arc::new(SqliteDb::new(db, &sqlite_db_name).await
                 .expect("Failed to initialize sqlite store")),
         }
     }
@@ -68,7 +68,7 @@ impl Db {
     }
 
     #[must_use]
-    pub fn sqlite_history_store(&self) -> Arc<SqliteStore> {
+    pub fn sqlite_history_store(&self) -> Arc<SqliteDb> {
         self.sqlite_history_store.clone()
     }
 
