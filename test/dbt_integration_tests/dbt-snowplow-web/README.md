@@ -144,6 +144,20 @@ LIMIT 32;
 - Warehouse: `COMPUTE_WH`
 - Role: `ACCOUNTADMIN`
 
+
+### Step 3: Run Tests
+
+Once setup is complete, run the incremental tests:
+
+```bash
+# Incremental run with 10,000 rows
+./incremental.sh true 10000 embucket
+
+# Or full run
+./incremental.sh false 10000 embucket
+```
+
+
 ## Notes
 
 - The project runs with default user and password 'embucket' for Embucket
