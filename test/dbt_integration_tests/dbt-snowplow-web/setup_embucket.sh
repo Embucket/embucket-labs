@@ -65,17 +65,8 @@ if [ "$EMBUCKET_HOST" = "localhost" ] || [ "$EMBUCKET_HOST" = "127.0.0.1" ]; the
     
     if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
         echo "  ⚠ Warning: Embucket health check timed out"
-        echo "  You may need to load data manually: python load_events.py embucket"
         exit 1
     fi
-    
-    # Load data into embucket
-    echo ""
-    echo "Loading data into Embucket..."
-    python load_events.py embucket
-    
-    echo ""
-    echo "✓ Data loaded successfully!"
     
 else
     echo "=== Remote (EC2) Setup ==="
@@ -197,14 +188,6 @@ else
     
     echo ""
     echo "✓ Remote setup complete!"
-    
-    # Load data into embucket
-    echo ""
-    echo "Step 5/5: Loading data into Embucket..."
-    python load_events.py embucket
-    
-    echo ""
-    echo "✓ Data loaded successfully!"
 fi
 
 echo ""
