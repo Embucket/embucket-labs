@@ -169,6 +169,13 @@ impl UserQuery {
         Ok(statement)
     }
 
+    pub fn statement(&self) -> std::result::Result<DFStatement, DataFusionError> {
+        let state = self.session.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        let statement = state.sql_to_statement(&self.raw_query, dialect)?;
+        Ok(statement)
+    }
+
     pub async fn plan(&self) -> std::result::Result<LogicalPlan, DataFusionError> {
         let statement = self.parse_query()?;
         self.session.ctx.state().statement_to_plan(statement).await
@@ -308,8 +315,6 @@ impl UserQuery {
         err
     )]
     pub async fn execute(&mut self) -> Result<QueryResult> {
-        let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
-
         // If the config or session variable "use_duck_db" is set, we bypass DataFusion entirely
         // and execute the full SQL query directly using DuckDB in-memory engine.
         // This is typically used for heavy or complex queries that DataFusion handles poorly,
@@ -317,15 +322,20 @@ impl UserQuery {
         if self.session.config.use_duck_db
             || self
                 .session
-                .get_session_variable("embucket.execution.acceleration")
-                .is_some()
+                .get_session_variable_bool("embucket.execution.acceleration")
         {
-            // allow only SELECT statements
-            if is_select_statement(&statement) {
-                return self.execute_duck_db(statement).await;
+            let raw_statement = self.statement().context(ex_error::DataFusionSnafu)?;
+            // Allow only SELECT statements for DuckDB acceleration mode
+            if is_select_statement(&raw_statement) {
+                // If DuckDB execution fails for any reason (unsupported syntax, internal error, etc.),
+                // we fall back to the default Embucket execution path below.
+                if let Ok(result) = self.execute_duck_db(raw_statement).await {
+                    return Ok(result);
+                }
             }
         }
 
+        let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
         // Record the result as part of the current span.
@@ -502,11 +512,10 @@ impl UserQuery {
                 .with_connection_setup_queries(setup_queries),
         );
 
-        if self.session.config.use_duck_db
+        if self.session.config.use_duck_db_explain
             || self
                 .session
-                .get_session_variable("embucket.execution.explain_before_acceleration")
-                .is_some()
+                .get_session_variable_bool("embucket.execution.explain_before_acceleration")
         {
             // Check if possible to call duckdb with this query
             let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;
