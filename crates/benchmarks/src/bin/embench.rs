@@ -4,9 +4,9 @@ use embucket_benchmarks::{clickbench, tpch};
 use structopt::StructOpt;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "snmalloc")] {
+    if #[cfg(feature = "jemalloc")] {
         #[global_allocator]
-        static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+        static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
     } else if #[cfg(feature = "mimalloc")] {
         #[global_allocator]
         static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;

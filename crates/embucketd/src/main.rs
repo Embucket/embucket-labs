@@ -71,13 +71,13 @@ mod alloc_tracing {
     pub use tracing_allocations::{TRACE_ALLOCATOR, TracingAllocator};
 
     #[global_allocator]
-    static ALLOCATOR: TracingAllocator<snmalloc_rs::SnMalloc> =
-        TracingAllocator::new(snmalloc_rs::SnMalloc);
+    static ALLOCATOR: TracingAllocator<tikv_jemallocator::Jemalloc> =
+        TracingAllocator::new(tikv_jemallocator::Jemalloc);
 }
 
 #[cfg(not(feature = "alloc-tracing"))]
 #[global_allocator]
-static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 const TARGETS: [&str; 13] = [
     "embucketd",

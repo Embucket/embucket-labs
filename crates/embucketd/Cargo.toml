@@ -31,7 +31,7 @@ opentelemetry_sdk = { version = "0.30.0", features = [
     "rt-tokio-current-thread"
     ] } # sending spans in a separate thread
 opentelemetry = { version = "0.30.0" }
-snmalloc-rs = { workspace = true }
+tikv-jemallocator = { workspace = true }
 time = { workspace = true }
 tower = { workspace = true }
 tokio = { workspace = true }
