@@ -5,12 +5,13 @@ pub mod vfs;
 
 pub use error::*;
 
+use cfg_if::cfg_if;
 use slatedb::Db;
 use std::sync::Arc;
 use error::{self as sqlite_error};
-use snafu::ResultExt;
+use rusqlite::Result as SqlResult;
 use deadpool_sqlite::{Config, Object, Runtime, Pool};
-use cfg_if::cfg_if;
+use snafu::ResultExt;
 
 #[derive(Clone)]
 pub struct SqliteDb {
@@ -47,10 +48,18 @@ impl SqliteDb {
 
                 return Ok(sqlite_store);
             } else {
-                return Ok(Self {
+                let sqlite_store = Self {
                     db_name: db_name.to_string(),
                     pool: create_pool(db_name)?,
-                });
+                };
+                let connection = sqlite_store.conn().await?;
+                // try enabling WAL (WAL not working yet)
+                let _res = connection.interact(|conn| -> SqlResult<()> {
+                    let journal_mode = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get::<_, String>(0))?;
+                    tracing::debug!("journal_mode={journal_mode}");
+                    Ok(())
+                }).await??;
+                return Ok(sqlite_store);
             }
         }               
     }

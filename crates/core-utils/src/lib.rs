@@ -24,7 +24,8 @@ use tracing::instrument;
 use uuid::Uuid;
 use core_sqlite::SqliteDb;
 
-pub const SQLITE_HISTORY_DB_NAME: &str = "query_history.db";
+pub const SQLITE_HISTORY_DB_NAME: &str = "zerofs-9p/query_history.db";
+// pub const SQLITE_HISTORY_DB_NAME: &str = "query_history.db";
 
 #[derive(Clone)]
 pub struct Db{
