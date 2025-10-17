@@ -23,6 +23,7 @@ snafu = { workspace = true }
 dashmap = { workspace = true }
 uuid = { workspace = true }
 deadpool-sqlite = { workspace = true }
+deadpool-sync = "0.1.4"
 chrono = { workspace = true }
 cfg-if = { workspace = true }
 

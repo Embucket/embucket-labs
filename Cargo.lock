@@ -2378,6 +2378,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "deadpool-sqlite",
+ "deadpool-sync",
  "error-stack",
  "error-stack-trace",
  "log",

@@ -4,7 +4,6 @@ use sqlite_plugin::vars::SQLITE_BUSY;
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::Mutex;
-use tracing::instrument;
 use super::logger;
 
 
@@ -171,7 +170,6 @@ impl LockManager {
     }
 
     /// Remove a handle entirely (called on file close)
-    #[instrument(level = "error", skip(self), fields(file_state_removed))]
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
         log::debug!(logger: logger(), "remove_handle: path={} handle_id={}", file_path, handle_id);
         

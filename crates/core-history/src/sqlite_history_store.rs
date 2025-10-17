@@ -290,7 +290,7 @@ impl HistoryStore for SlateDBHistoryStore {
         conn.interact(move |conn| -> SqlResult<usize> {
             // at firt insert result, to satisfy contrint in update stmt
             if let Some(result) = q_result {
-                tracing::info!("INSERT INTO results ({q_id} / {q_uuid}) {result}");
+                tracing::info!("INSERT INTO results ({q_id} / {q_uuid}) result_len={}", result.len());
                 conn.execute(
                     "INSERT INTO results (id, result)
                         VALUES (:id, :result)",

@@ -19,6 +19,8 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use rusqlite::trace::config_log;
+// mostly not using tracing instrument as it is not correctly initialized when used within connection
+// and it just floods log
 use tracing::instrument;
 use chrono::Utc;
 
@@ -83,7 +85,7 @@ impl SlatedbVfs {
         }
     }
 
-    #[instrument(level = "error", skip(self, future))]
+    // #[instrument(level = "error", skip(self, future))]
     fn block_on<F, T>(&self, future: F) -> Result<T, i32>
     where
         F: std::future::Future<Output = Result<T, i32>>,
@@ -92,7 +94,7 @@ impl SlatedbVfs {
         tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(future))
     }
 
-    #[instrument(level = "error", skip(self, key, value))]
+    // #[instrument(level = "error", skip(self, key, value))]
     pub async fn put<K, V>(&self, key: K, value: V) -> Result<(), i32>
     where
         K: AsRef<[u8]>,
@@ -120,7 +122,7 @@ impl SlatedbVfs {
         res
     }
 
-    #[instrument(level = "error", skip(self, key))]
+    // #[instrument(level = "error", skip(self, key))]
     pub async fn delete<K>(&self, key: K) -> Result<(), i32>
     where
         K: AsRef<[u8]>,
@@ -159,7 +161,7 @@ impl SlatedbVfs {
         res
     }
 
-    #[instrument(level = "error", skip(self, key))]
+    // #[instrument(level = "error", skip(self, key))]
     pub async fn get<K>(&self, key: K) -> Result<Option<Bytes>, i32>
     where
         K: AsRef<[u8]> + Send,
@@ -198,7 +200,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(handle)
     }
 
-    #[instrument(level = "error", skip(self))]
+    // #[instrument(level = "error", skip(self))]
     fn delete(&self, path: &str) -> vfs::VfsResult<()> {
         log::debug!(logger: logger(), "delete: path={path}");
 
@@ -230,7 +232,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(exists)
     }
 
-    #[instrument(level = "error", skip(self, handle), fields(file = handle.path.as_str()), ret, err)]
+    // #[instrument(level = "error", skip(self, handle), fields(file = handle.path.as_str()), ret, err)]
     fn file_size(&self, handle: &mut Self::Handle) -> vfs::VfsResult<usize> {
         let max_size = self.block_on(async {
             // Find the highest page offset for this file to calculate total size
@@ -258,7 +260,7 @@ impl vfs::Vfs for SlatedbVfs {
         Ok(max_size)
     }
 
-    #[instrument(level = "error", skip(self, handle))]
+    // #[instrument(level = "error", skip(self, handle))]
     fn truncate(&self, handle: &mut Self::Handle, size: usize) -> vfs::VfsResult<()> {
         log::debug!(logger: logger(), "truncate: path={}, handle_id={}, size={size}", handle.path, handle.handle_id);
         if size == 0 {
@@ -331,7 +333,7 @@ impl vfs::Vfs for SlatedbVfs {
                 offset,
                 data: data.to_vec(),
             });
-            tracing::Span::current().record("pending_writes", pending_writes.len());
+            // tracing::Span::current().record("pending_writes", pending_writes.len());
             return Ok(data.len());
         }
 
@@ -411,7 +413,7 @@ impl vfs::Vfs for SlatedbVfs {
         })
     }
 
-    #[instrument(level = "error", skip(self))]
+    #[instrument(level = "info", skip(self))]
     fn close(&self, handle: Self::Handle) -> vfs::VfsResult<()> {
         log::debug!(logger: logger(), "close: path={} handle_id={}", handle.path, handle.handle_id);
 
@@ -434,19 +436,18 @@ impl vfs::Vfs for SlatedbVfs {
         characteristics
     }
 
-    #[instrument(level = "debug", skip(self), ret)]
+    #[instrument(level = "info", skip(self), ret)]
     fn pragma(
         &self,
         handle: &mut Self::Handle,
         pragma: vfs::Pragma<'_>,
     ) -> Result<Option<String>, vfs::PragmaErr> {
-        log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}", handle.path, pragma);
         let res = if pragma.name == VFS_NAME.to_string_lossy() {
             Ok(Some(pragma.name.to_string()))
         } else {
             Err(PragmaErr::NotFound)
         };
-        log::debug!(logger: logger(), "pragma: db_path={:?}, pragma={:?}, res={:?}", handle.path, pragma, res);
+        log::info!(logger: logger(), "pragma: db_path={:?}, pragma={:?}, res={:?}", handle.path, pragma, res);
         res
     }
 
@@ -468,7 +469,7 @@ impl vfs::Vfs for SlatedbVfs {
         } else {
             op_name.to_string()
         };
-        tracing::Span::current().record("op_name", op_name.as_str());
+        // tracing::Span::current().record("op_name", op_name.as_str());
         log::debug!(logger: logger(), "file_control: file={:?}, op={op_name}", handle.path);
         match op {
             sqlite_plugin::vars::SQLITE_FCNTL_BEGIN_ATOMIC_WRITE => {
@@ -587,15 +588,19 @@ impl vfs::Vfs for SlatedbVfs {
         self.capabilities.sector_size
     }
 
-    #[instrument(level = "error", skip(self))]
+    #[instrument(level = "debug", skip(self))]
     fn unlock(&self, handle: &mut Self::Handle, level: flags::LockLevel) -> vfs::VfsResult<()> {
         self.lock_manager.unlock(&handle.path, handle.handle_id, level)
     }
-    #[instrument(level = "error", skip(self))]
+    #[instrument(level = "debug", skip(self))]
     fn lock(&self, handle: &mut Self::Handle, level: flags::LockLevel) -> vfs::VfsResult<()> {
-        self.lock_manager.lock(&handle.path, handle.handle_id, level)
+        let res = self.lock_manager.lock(&handle.path, handle.handle_id, level);
+        if res.is_err() {
+            tracing::Span::current().record("rejected", true);
+        }
+        res
     }
-    #[instrument(level = "error", skip(self))]
+    // #[instrument(level = "error", skip(self))]
     fn sync(&self, handle: &mut Self::Handle) -> vfs::VfsResult<()> {
         log::debug!(logger: logger(), "sync: db::flush path={}", handle.path);
         tokio::runtime::Handle::current().block_on(async {
@@ -607,7 +612,7 @@ impl vfs::Vfs for SlatedbVfs {
         })?;
         Ok(())
     }
-    #[instrument(level = "error", skip(self), ret)]
+    #[instrument(level = "debug", skip(self), ret)]
     fn check_reserved_lock(&self, handle: &mut Self::Handle) -> vfs::VfsResult<i32> {
         let level = self.lock_manager.get_global_lock_level(&handle.path);
         if level >= flags::LockLevel::Reserved {
@@ -645,11 +650,11 @@ impl vfs::Vfs for SlatedbVfs {
                         sqlite_plugin::logger::SqliteLogLevel::Error
                     },
                     log::Level::Warn => {
-                        tracing::warn!("{trace_msg}");
+                        // tracing::warn!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Warn
                     },
                     _ => {
-                        tracing::info!("{trace_msg}");
+                        // tracing::info!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Notice
                     },
                 };
@@ -665,11 +670,11 @@ impl vfs::Vfs for SlatedbVfs {
             }
         }
 
-        eprintln!("Setting VFS logger");
+        tracing::debug!("Setting VFS logger");
         if let Err(_) = LOGGER.set(Arc::new(LogCompat {
             logger: Mutex::new(logger),
         })) {
-            eprintln!("Vfs logger already set");
+            tracing::debug!("Use existing VFS logger");
         }
         
         // set the log level to trace
@@ -743,12 +748,14 @@ pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
         (*vfs).clone(),
         vfs::RegisterOpts { make_default: true },
     ) {
+        // not using log::error as it is not initialized yet
         tracing::error!("Failed to initialize slatedbsqlite: {err}");
         return err;
     }
 
     // setup internal sqlite log 
     if let Err(err) = unsafe { config_log(Some(sqlite_log_callback)) } {
+        // not using log::error as it is not initialized yet
         tracing::error!("Failed to set sqlite log callback: {err}");
     }
 
