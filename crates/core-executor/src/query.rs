@@ -45,8 +45,18 @@ use datafusion::datasource::listing::{
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
+use datafusion::optimizer::Optimizer;
+use datafusion::optimizer::common_subexpr_eliminate::CommonSubexprEliminate;
+use datafusion::optimizer::decorrelate_predicate_subquery::DecorrelatePredicateSubquery;
+use datafusion::optimizer::eliminate_duplicated_expr::EliminateDuplicatedExpr;
+use datafusion::optimizer::eliminate_filter::EliminateFilter;
+use datafusion::optimizer::extract_equijoin_predicate::ExtractEquijoinPredicate;
+use datafusion::optimizer::filter_null_join_keys::FilterNullJoinKeys;
+use datafusion::optimizer::push_down_filter::PushDownFilter;
 use datafusion::optimizer::reorder_join::cost::DefaultCostEstimator;
 use datafusion::optimizer::reorder_join::left_deep_join_plan::optimal_left_deep_join_plan;
+use datafusion::optimizer::scalar_subquery_to_join::ScalarSubqueryToJoin;
+use datafusion::optimizer::simplify_expressions::SimplifyExpressions;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
@@ -2211,6 +2221,17 @@ impl UserQuery {
             .session
             .executor
             .spawn(async move {
+                let pre_optimizer = Optimizer::with_rules(vec![
+                    Arc::new(SimplifyExpressions::new()),
+                    Arc::new(DecorrelatePredicateSubquery::new()),
+                    Arc::new(ScalarSubqueryToJoin::new()),
+                    Arc::new(ExtractEquijoinPredicate::new()),
+                    Arc::new(EliminateDuplicatedExpr::new()),
+                    Arc::new(CommonSubexprEliminate::new()),
+                    Arc::new(EliminateFilter::new()),
+                    Arc::new(FilterNullJoinKeys::default()),
+                    Arc::new(PushDownFilter::new()),
+                ]);
                 let state = session.ctx.state();
                 let context = session.ctx.task_ctx();
                 let plan = state
@@ -2218,12 +2239,17 @@ impl UserQuery {
                     .await
                     .context(ex_error::DataFusionSnafu)?;
                 let mut schema = plan.schema().as_arrow().clone();
-                let logical_plan = state.optimize(&plan).context(ex_error::DataFusionSnafu)?;
+                let pre_plan = pre_optimizer
+                    .optimize(plan, &state, |_, _| {})
+                    .context(ex_error::DataFusionSnafu)?;
                 let join_plan =
-                    optimal_left_deep_join_plan(logical_plan, Rc::new(DefaultCostEstimator))
+                    optimal_left_deep_join_plan(pre_plan, Rc::new(DefaultCostEstimator))
                         .context(ex_error::DataFusionSnafu)?;
+                let optimized_plan = state
+                    .optimize(&join_plan)
+                    .context(ex_error::DataFusionSnafu)?;
                 let physical_plan = state
-                    .create_physical_plan(&join_plan)
+                    .create_physical_plan(&optimized_plan)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
                 let records = collect(physical_plan, context)

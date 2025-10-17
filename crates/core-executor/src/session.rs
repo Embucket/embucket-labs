@@ -18,6 +18,7 @@ use core_metastore::Metastore;
 use datafusion::config::ConfigOptions;
 use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SessionStateBuilder, SessionStateDefaults};
+use datafusion::optimizer::Optimizer;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::sql::planner::IdentNormalizer;
 use datafusion_functions_json::register_all as register_json_udfs;
@@ -86,6 +87,13 @@ impl UserSession {
             config_options.execution.minimum_parallel_output_files = MINIMUM_PARALLEL_OUTPUT_FILES;
         }
 
+        // Get default optimizer rules and filter out optimize_projections
+        let default_rules = Optimizer::new().rules;
+        let filtered_rules = default_rules
+            .into_iter()
+            .filter(|rule| rule.name() != "optimize_projections")
+            .collect();
+
         let state = SessionStateBuilder::new()
             .with_config(
                 SessionConfig::from(config_options)
@@ -115,6 +123,7 @@ impl UserSession {
             .with_query_planner(Arc::new(CustomQueryPlanner::default()))
             .with_type_planner(Arc::new(CustomTypePlanner::default()))
             .with_analyzer_rules(analyzer_rules(session_params_arc.clone()))
+            .with_optimizer_rules(filtered_rules)
             .with_optimizer_rule(Arc::new(SplitOrderedAggregates::new()))
             .with_physical_optimizer_rules(physical_optimizer_rules())
             .with_expr_planners(expr_planners)
