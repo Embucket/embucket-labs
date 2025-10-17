@@ -4,6 +4,7 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion::datasource::{ViewTable, provider_as_source};
 use datafusion::execution::SessionState;
+use datafusion_common::Statistics;
 use datafusion_common::tree_node::{Transformed, TreeNode};
 use datafusion_expr::dml::InsertOp;
 use datafusion_expr::{Expr, LogicalPlan, TableScan, TableType};
@@ -90,6 +91,10 @@ impl TableProvider for CachingTable {
         insert_op: InsertOp,
     ) -> datafusion_common::Result<Arc<dyn ExecutionPlan>> {
         self.table.insert_into(state, input, insert_op).await
+    }
+
+    fn statistics(&self) -> Option<Statistics> {
+        self.table.statistics()
     }
 }
 

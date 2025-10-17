@@ -157,8 +157,7 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
             let branch = self.target.branch.clone();
             let schema = schema.clone();
             async move {
-                let mut lock = tabular.write().await;
-                let table = if let Tabular::Table(table) = &mut *lock {
+                let mut table = if let Tabular::Table(table) = tabular.write().unwrap().clone() {
                     Ok(table)
                 } else {
                     Err(IcebergError::InvalidFormat("database entity".to_string()))
@@ -167,7 +166,7 @@ impl ExecutionPlan for MergeIntoCOWSinkExec {
 
                 // Write recordbatches into parquet files on object-storage
                 let datafiles =
-                    write_parquet_data_files(table, batches, &context, branch.as_deref()).await?;
+                    write_parquet_data_files(&table, batches, &context, branch.as_deref()).await?;
 
                 let matching_files = {
                     #[allow(clippy::unwrap_used)]

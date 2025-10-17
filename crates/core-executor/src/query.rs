@@ -45,6 +45,8 @@ use datafusion::datasource::listing::{
 use datafusion::execution::session_state::{SessionContextProvider, SessionState};
 use datafusion::logical_expr::{self, col};
 use datafusion::logical_expr::{LogicalPlan, TableSource};
+use datafusion::optimizer::reorder_join::cost::DefaultCostEstimator;
+use datafusion::optimizer::reorder_join::left_deep_join_plan::optimal_left_deep_join_plan;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::prelude::{CsvReadOptions, DataFrame};
 use datafusion::scalar::ScalarValue;
@@ -114,6 +116,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::ops::ControlFlow;
+use std::rc::Rc;
 use std::result::Result as StdResult;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -2208,13 +2211,24 @@ impl UserQuery {
             .session
             .executor
             .spawn(async move {
-                let df = session
-                    .ctx
-                    .sql(&query)
+                let state = session.ctx.state();
+                let context = session.ctx.task_ctx();
+                let plan = state
+                    .create_logical_plan(&query)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
-                let mut schema = df.schema().as_arrow().clone();
-                let records = df.collect().await.context(ex_error::DataFusionSnafu)?;
+                let mut schema = plan.schema().as_arrow().clone();
+                let logical_plan = state.optimize(&plan).context(ex_error::DataFusionSnafu)?;
+                let join_plan =
+                    optimal_left_deep_join_plan(logical_plan, Rc::new(DefaultCostEstimator))
+                        .context(ex_error::DataFusionSnafu)?;
+                let physical_plan = state
+                    .create_physical_plan(&join_plan)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+                let records = collect(physical_plan, context)
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
                 if !records.is_empty() {
                     schema = records[0].schema().as_ref().clone();
                 }
@@ -3190,8 +3204,7 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
 async fn target_filter_expression(
     table: &DataFusionTable,
 ) -> Result<Option<datafusion_expr::Expr>> {
-    let lock = table.tabular.read().await;
-    let table = match &*lock {
+    let table = match table.tabular.read().unwrap().clone() {
         Tabular::Table(table) => Ok(table),
         _ => MergeSourceNotSupportedSnafu.fail(),
     }?;

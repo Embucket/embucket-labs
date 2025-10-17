@@ -43,6 +43,7 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 strum.workspace = true
+duckdb = { version = "1.4.1", features = ["bundled"] }
 
 [lints]
 workspace = true
