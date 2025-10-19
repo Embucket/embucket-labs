@@ -20,8 +20,7 @@ type InterceptorError = AxiosError<AuthErrorResponse>;
 
 const isTokenExpiredError = (error: InterceptorError, originalRequest: OriginalRequest) => {
   return (
-    error.response &&
-    error.response.status === UNAUTHORIZED_STATUS_CODE &&
+    error.response?.status === UNAUTHORIZED_STATUS_CODE &&
     error.response.data.errorKind === 'expiredSignature' &&
     !originalRequest._retry
   );
