@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
@@ -10,7 +12,7 @@ import { Editor } from '@/modules/editor/editor';
 import { useEditorPanelsState } from '@/modules/editor/editor-panels-state-provider';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
 import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
-import { getGetQueriesQueryKey, useCreateQuery } from '@/orval/queries';
+import { getGetQueriesQueryKey, useCreateQuery, useGetQuery } from '@/orval/queries';
 
 import { EditorResizableHandle, EditorResizablePanel } from '../editor-resizable';
 import { useEditorSettingsStore } from '../editor-settings-store';
@@ -21,6 +23,7 @@ import { EditorCenterPanelToolbar } from './editor-center-panel-toolbar/editor-c
 
 export function EditorCenterPanel() {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
+  const [pollingQueryId, setPollingQueryId] = useState<number | null>(null);
   const selectedQueryRecord = useEditorSettingsStore((state) =>
     state.getSelectedQueryRecord(+worksheetId),
   );
@@ -39,25 +42,11 @@ export function EditorCenterPanel() {
 
   const queryClient = useQueryClient();
 
-  const { mutate, isPending } = useCreateQuery({
+  const { mutate: createQuery } = useCreateQuery({
     mutation: {
-      onSettled: async (newQueryRecord) => {
-        if (!isRightPanelExpanded) {
-          toggleRightPanel();
-        }
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: getGetQueriesQueryKey(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: getGetDashboardQueryKey(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: getGetNavigationTreesQueryKey(),
-          }),
-        ]);
-        if (newQueryRecord) {
-          setSelectedQueryRecord(+worksheetId, newQueryRecord);
+      onSuccess: (queryRecord) => {
+        if (queryRecord.id) {
+          setPollingQueryId(queryRecord.id);
         }
       },
       onError: (error) => {
@@ -70,10 +59,54 @@ export function EditorCenterPanel() {
     },
   });
 
+  const { data: queryRecord } = useGetQuery(pollingQueryId!, {
+    query: {
+      enabled: !!pollingQueryId,
+      refetchInterval: 500,
+      refetchOnWindowFocus: false,
+    },
+  });
+
+  useEffect(() => {
+    if (queryRecord?.status !== 'running') {
+      setPollingQueryId(null);
+
+      if (queryRecord?.status === 'successful') {
+        if (!isRightPanelExpanded) {
+          toggleRightPanel();
+        }
+        setSelectedQueryRecord(+worksheetId, queryRecord);
+      }
+      if (queryRecord?.status === 'failed') {
+        toast.error(queryRecord.error);
+      }
+      Promise.all([
+        // Use Promise.all since useEffect isn't async
+        queryClient.invalidateQueries({
+          queryKey: getGetQueriesQueryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetDashboardQueryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetNavigationTreesQueryKey(),
+        }),
+      ]);
+    }
+  }, [
+    isRightPanelExpanded,
+    queryClient,
+    queryRecord,
+    setSelectedQueryRecord,
+    toggleRightPanel,
+    worksheetId,
+  ]);
+
   const handleRunQuery = (query: string) => {
-    mutate({
+    createQuery({
       data: {
         query,
+        asyncExec: true,
         worksheetId: +worksheetId,
         context: {
           database: selectedContext.database,
@@ -119,7 +152,7 @@ export function EditorCenterPanel() {
             order={2}
             ref={bottomRef}
           >
-            <EditorCenterBottomPanel queryRecord={selectedQueryRecord} isLoading={isPending} />
+            <EditorCenterBottomPanel queryRecord={selectedQueryRecord} isLoading={false} />
           </EditorResizablePanel>
         </ResizablePanelGroup>
       </EditorCacheProvider>
