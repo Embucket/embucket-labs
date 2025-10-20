@@ -2216,6 +2216,7 @@ dependencies = [
  "aws-sdk-s3tables",
  "aws-sdk-sts",
  "bytes",
+ "cfg-if",
  "chrono",
  "clap 4.5.49",
  "core-history",

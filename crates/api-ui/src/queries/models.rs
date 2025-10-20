@@ -27,6 +27,15 @@ pub struct ResultSet {
     pub rows: Vec<Row>,
 }
 
+impl Default for ResultSet {
+    fn default() -> Self {
+        Self {
+            columns: Vec::new(),
+            rows: Vec::new(),
+        }
+    }
+}
+
 impl TryFrom<&str> for ResultSet {
     type Error = QueryError;
 

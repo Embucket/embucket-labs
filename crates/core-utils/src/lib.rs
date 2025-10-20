@@ -58,14 +58,14 @@ impl Db {
             .await
             .expect("Failed to open database"),
         );
-        // let thread = std::thread::current();
-        // let thread_name = thread.name().map(|s| s.split("::").last().unwrap()).unwrap_or("<unnamed>");
-        // let sqlite_db_name = format!("{thread_name}_{SQLITE_HISTORY_DB_NAME}");
-        let sqlite_db_name = SQLITE_HISTORY_DB_NAME;
+        // use unique filename for every test, create in memory database
+        let thread = std::thread::current();
+        let thread_name = thread.name().map(|s| s.split("::").last().unwrap()).unwrap_or("<unnamed>");
+        let sqlite_db_name = format!("file:{thread_name}_{SQLITE_HISTORY_DB_NAME}?mode=memory");
         Self {
             slatedb: db.clone(),
             sqlite_history_store: Arc::new(
-                SqliteDb::new(db, sqlite_db_name)
+                SqliteDb::new(db, &sqlite_db_name)
                     .await
                     .expect("Failed to initialize sqlite store"),
             ),

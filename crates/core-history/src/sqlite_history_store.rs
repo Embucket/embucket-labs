@@ -50,6 +50,7 @@ impl SlateDBHistoryStore {
         name = "SqliteHistoryStore::create_tables",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
     pub async fn create_tables(&self) -> Result<()> {
@@ -71,6 +72,7 @@ impl SlateDBHistoryStore {
             })
             .await?
             .context(history_err::CreateTablesSnafu)?;
+        tracing::Span::current().record("ok", true);
         Ok(())
     }
 }
@@ -81,6 +83,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::add_worksheet",
         level = "debug",
         skip(self, worksheet),
+        fields(ok),
         err
     )]
     async fn add_worksheet(&self, worksheet: Worksheet) -> Result<Worksheet> {
@@ -108,6 +111,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .await?
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::WorksheetAddSnafu)?;
+        tracing::Span::current().record("ok", true);
         Ok(worksheet)
     }
 
@@ -115,6 +119,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::get_worksheet",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
     async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet> {
@@ -150,12 +155,13 @@ impl HistoryStore for SlateDBHistoryStore {
             }
             .fail()
         } else {
-            res.context(core_utils_err::RuSqliteSnafu)
-                .context(history_err::WorksheetGetSnafu)
+            tracing::Span::current().record("ok", true);
+            Ok(res.context(core_utils_err::RuSqliteSnafu)
+                .context(history_err::WorksheetGetSnafu)?)
         }
     }
 
-    #[instrument(name = "SqliteHistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(id = worksheet.id), err)]
+    #[instrument(name = "SqliteHistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(ok, id = worksheet.id), err)]
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> Result<()> {
         worksheet.set_updated_at(None); // set current time
 
@@ -185,6 +191,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::WorksheetUpdateSnafu)?;
 
+        tracing::Span::current().record("ok", true);
         Ok(())
     }
 
@@ -192,16 +199,42 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::delete_worksheet",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
-    async fn delete_worksheet(&self, _id: WorksheetId) -> Result<()> {
-        Ok(())
+    async fn delete_worksheet(&self, id: WorksheetId) -> Result<()> {
+        let conn = self
+            .db
+            .sqlite_history_store
+            .conn()
+            .await
+            .context(core_utils_err::CoreSqliteSnafu)
+            .context(history_err::WorksheetUpdateSnafu)?;
+
+        let deleted = conn
+            .interact(move |conn| -> SqlResult<usize> {
+                conn.execute(
+                    "DELETE FROM worksheets WHERE id = :id",
+                    named_params! { ":id": id },
+                )
+            })
+            .await?
+            .context(core_utils_err::RuSqliteSnafu)
+            .context(history_err::WorksheetDeleteSnafu)?;
+
+        if deleted == 0 {
+            history_err::WorksheetNotFoundSnafu { message: id.to_string() }.fail()
+        } else {
+            tracing::Span::current().record("ok", true);
+            Ok(())
+        }
     }
 
     #[instrument(
         name = "SqliteHistoryStore::get_worksheets",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
     async fn get_worksheets(&self) -> Result<Vec<Worksheet>> {
@@ -238,6 +271,7 @@ impl HistoryStore for SlateDBHistoryStore {
         .context(core_utils_err::RuSqliteSnafu)
         .context(history_err::WorksheetsListSnafu)?;
 
+        tracing::Span::current().record("ok", true);
         Ok(res)
     }
 
@@ -245,7 +279,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::add_query",
         level = "debug",
         skip(self, item),
-        fields(item = format!("{item:#?}")),
+        fields(ok, item = format!("{item:#?}")),
         err
     )]
     async fn add_query(&self, item: &QueryRecord) -> Result<()> {
@@ -286,6 +320,8 @@ impl HistoryStore for SlateDBHistoryStore {
         .await?
         .context(core_utils_err::RuSqliteSnafu)
         .context(history_err::QueryAddSnafu)?;
+
+        tracing::Span::current().record("ok", true);
         Ok(())
     }
 
@@ -293,6 +329,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::update_query",
         level = "debug",
         skip(self, item),
+        fields(ok),
         err
     )]
     async fn update_query(&self, item: &QueryRecord) -> Result<()> {
@@ -362,6 +399,8 @@ impl HistoryStore for SlateDBHistoryStore {
         .await?
         .context(core_utils_err::RuSqliteSnafu)
         .context(history_err::QueryUpdateSnafu)?;
+
+        tracing::Span::current().record("ok", true);
         Ok(())
     }
 
@@ -369,6 +408,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::get_query",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord> {
@@ -428,8 +468,9 @@ impl HistoryStore for SlateDBHistoryStore {
         if res == Err(rusqlite::Error::QueryReturnedNoRows) {
             history_err::QueryNotFoundSnafu { query_id: id }.fail()
         } else {
-            res.context(core_utils_err::RuSqliteSnafu)
-                .context(history_err::QueryGetSnafu)
+            tracing::Span::current().record("ok", true);
+            Ok(res.context(core_utils_err::RuSqliteSnafu)
+                .context(history_err::QueryGetSnafu)?)
         }
     }
 
@@ -437,6 +478,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::get_queries",
         level = "debug",
         skip(self),
+        fields(ok),
         err
     )]
     async fn get_queries(&self, _params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
@@ -487,6 +529,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::QueryGetSnafu)?;
 
+        tracing::Span::current().record("ok", true);
         Ok(items)
     }
 

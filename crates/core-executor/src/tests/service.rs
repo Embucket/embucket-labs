@@ -629,7 +629,15 @@ async fn test_query_timeout() {
 async fn test_submitted_query_timeout() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "sqlite")]
+        {
+            let history_store = db.sqlite_history_store.clone();
+        } else {
+            let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+        }
+    }
+
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -683,7 +691,14 @@ async fn test_submitted_query_timeout() {
 async fn test_submitted_query_abort_by_query_id() {
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+        cfg_if::cfg_if! {
+        if #[cfg(feature = "sqlite")]
+        {
+            let history_store = db.sqlite_history_store.clone();
+        } else {
+            let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+        }
+    }
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),

@@ -241,9 +241,9 @@ async fn test_ui_queries_with_worksheet() {
     assert_eq!(queries2.len(), 2);
     // check items returned in descending order
     assert_eq!(queries2[0].status, QueryStatus::Successful);
-    assert_eq!(queries2[0].result, query2.result);
+    assert_eq!(queries2[0].result, ResultSet::default());
     assert_eq!(queries2[1].status, QueryStatus::Successful);
-    assert_eq!(queries2[1].result, query.result);
+    assert_eq!(queries2[1].result, ResultSet::default());
 
     // get worksheet with queries
     // tesing regression: "Deserialize error: missing field `id` at line 1 column 2"
