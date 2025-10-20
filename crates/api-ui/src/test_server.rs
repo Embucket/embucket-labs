@@ -63,7 +63,7 @@ pub async fn make_app(
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let _ = history_store.init().await?;
+    history_store.init().await?;
 
     let execution_svc = Arc::new(
         CoreExecutionService::new(

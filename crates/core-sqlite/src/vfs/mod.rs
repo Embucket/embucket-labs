@@ -1,10 +1,11 @@
 mod handle;
-mod lock_manager;
 mod init;
+mod lock_manager;
 
 pub use init::{init, pragma_setup};
 
 use parking_lot::Mutex;
+use rusqlite::trace::config_log;
 use slatedb::bytes::Bytes;
 use slatedb::config::{PutOptions, WriteOptions};
 use slatedb::{Db, WriteBatch};
@@ -18,11 +19,10 @@ use std::sync::{
     Arc, OnceLock,
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
-use rusqlite::trace::config_log;
 // mostly not using tracing instrument as it is not correctly initialized when used within connection
 // and it just floods log
-use tracing::instrument;
 use chrono::Utc;
+use tracing::instrument;
 
 #[derive(Clone)]
 struct Capabilities {
@@ -104,7 +104,8 @@ impl SlatedbVfs {
             String::from_utf8_lossy(key.as_ref()),
             value.as_ref().len(),
         );
-        let res = self.db
+        let res = self
+            .db
             .put_with_options(
                 key,
                 value,
@@ -128,7 +129,8 @@ impl SlatedbVfs {
         K: AsRef<[u8]>,
     {
         log::debug!(logger: logger(), "delete: db::delete key={:?}", String::from_utf8_lossy(key.as_ref()));
-        let res = self.db
+        let res = self
+            .db
             .delete_with_options(
                 key,
                 &WriteOptions {
@@ -145,7 +147,8 @@ impl SlatedbVfs {
     }
     pub async fn db_write(&self, batch: WriteBatch) -> Result<(), i32> {
         log::debug!(logger: logger(), "db_write: db::write batch={:?}", batch);
-        let res = self.db
+        let res = self
+            .db
             .write_with_options(
                 batch,
                 &WriteOptions {
@@ -321,7 +324,7 @@ impl vfs::Vfs for SlatedbVfs {
                 .clone()
         };
         let is_batch_write = file_state.batch_open.load(Ordering::Acquire);
-        log::debug!(logger: logger(), 
+        log::debug!(logger: logger(),
             "write: path={}, offset={offset}, is_batch_write={is_batch_write}",
             handle.path
         );
@@ -358,7 +361,7 @@ impl vfs::Vfs for SlatedbVfs {
                 page_data.resize(offset_in_page + data.len(), 0);
             }
 
-            log::debug!(logger: logger(), 
+            log::debug!(logger: logger(),
                 "write data at page {} offset {} length {}",
                 page_offset,
                 offset_in_page,
@@ -418,7 +421,8 @@ impl vfs::Vfs for SlatedbVfs {
         log::debug!(logger: logger(), "close: path={} handle_id={}", handle.path, handle.handle_id);
 
         // Remove handle from lock manager
-        self.lock_manager.remove_handle(&handle.path, handle.handle_id);
+        self.lock_manager
+            .remove_handle(&handle.path, handle.handle_id);
 
         // Clean up file state if needed (keep for batch writes)
         // Note: We keep file states around for batch operations, lock manager handles its own cleanup
@@ -541,7 +545,7 @@ impl vfs::Vfs for SlatedbVfs {
                         for (offset, write) in writes {
                             let offset_in_page = offset % PAGE_SIZE;
 
-                            log::debug!(logger: logger(), 
+                            log::debug!(logger: logger(),
                                 "atomic_write_batch write page={} offset_in_page={} length={}",
                                 page_offset,
                                 offset_in_page,
@@ -590,11 +594,14 @@ impl vfs::Vfs for SlatedbVfs {
 
     #[instrument(level = "debug", skip(self))]
     fn unlock(&self, handle: &mut Self::Handle, level: flags::LockLevel) -> vfs::VfsResult<()> {
-        self.lock_manager.unlock(&handle.path, handle.handle_id, level)
+        self.lock_manager
+            .unlock(&handle.path, handle.handle_id, level)
     }
     #[instrument(level = "debug", skip(self))]
     fn lock(&self, handle: &mut Self::Handle, level: flags::LockLevel) -> vfs::VfsResult<()> {
-        let res = self.lock_manager.lock(&handle.path, handle.handle_id, level);
+        let res = self
+            .lock_manager
+            .lock(&handle.path, handle.handle_id, level);
         if res.is_err() {
             tracing::Span::current().record("rejected", true);
         }
@@ -623,16 +630,15 @@ impl vfs::Vfs for SlatedbVfs {
     }
 
     fn register_logger(&self, logger: sqlite_plugin::logger::SqliteLogger) {
-
         pub struct LogCompat {
             logger: Mutex<sqlite_plugin::logger::SqliteLogger>,
         }
-        
+
         impl log::Log for LogCompat {
             fn enabled(&self, _metadata: &log::Metadata) -> bool {
                 true
             }
-        
+
             fn log(&self, record: &log::Record) {
                 let level = record.level();
                 let args = record.args();
@@ -648,23 +654,23 @@ impl vfs::Vfs for SlatedbVfs {
                     log::Level::Error => {
                         tracing::error!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Error
-                    },
+                    }
                     log::Level::Warn => {
                         // tracing::warn!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Warn
-                    },
+                    }
                     _ => {
                         // tracing::info!("{trace_msg}");
                         sqlite_plugin::logger::SqliteLogLevel::Notice
-                    },
+                    }
                 };
-                
+
                 let msg = format!("{}", record.args());
-        
+
                 // send to native sqlite log
                 self.logger.lock().log(level, msg.as_bytes());
             }
-        
+
             fn flush(&self) {
                 // println!("flush");
             }
@@ -676,7 +682,7 @@ impl vfs::Vfs for SlatedbVfs {
         })) {
             tracing::debug!("Use existing VFS logger");
         }
-        
+
         // set the log level to trace
         log::set_max_level(log::LevelFilter::Trace);
     }
@@ -698,7 +704,8 @@ pub fn set_vfs_context(db: Arc<Db>, log_file: Option<&str>) {
 
 #[allow(clippy::expect_used)]
 fn get_vfs() -> Arc<SlatedbVfs> {
-    VFS_INSTANCE.get()
+    VFS_INSTANCE
+        .get()
         .expect("VFS_INSTANCE is not initialized")
         .clone()
 }
@@ -753,7 +760,7 @@ pub unsafe extern "C" fn initialize_slatedbsqlite() -> i32 {
         return err;
     }
 
-    // setup internal sqlite log 
+    // setup internal sqlite log
     if let Err(err) = unsafe { config_log(Some(sqlite_log_callback)) } {
         // not using log::error as it is not initialized yet
         tracing::error!("Failed to set sqlite log callback: {err}");

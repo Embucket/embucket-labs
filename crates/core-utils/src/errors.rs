@@ -1,8 +1,8 @@
 use bytes::Bytes;
+use rusqlite;
 use snafu::Location;
 use snafu::prelude::*;
 use std::fmt::Debug;
-use rusqlite;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -91,7 +91,6 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-
     // #[snafu(display("Sqlite connector error: {error}"))]
     // Connector {
     //     #[snafu(source(from(deadpool_sqlite::InteractError, Box::new)))]

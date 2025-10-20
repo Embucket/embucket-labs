@@ -653,17 +653,20 @@ impl ObjectStoreType {
     pub async fn db(&self) -> Result<Db, Error> {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
-            Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
-                DbBuilder::new(
-                    object_store::path::Path::from(suffix.clone()),
-                    self.object_store()?,
-                )
-                .build()
+            Self::File(suffix, ..) | Self::S3(suffix, ..) => {
+                Db::new(Arc::new(
+                    DbBuilder::new(
+                        object_store::path::Path::from(suffix.clone()),
+                        self.object_store()?,
+                    )
+                    .build()
+                    .await
+                    .context(TestSlatedbSnafu {
+                        object_store: self.object_store()?,
+                    })?,
+                ))
                 .await
-                .context(TestSlatedbSnafu {
-                    object_store: self.object_store()?,
-                })?,
-            )).await,
+            }
         };
 
         Ok(db)

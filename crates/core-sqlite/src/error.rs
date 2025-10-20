@@ -1,7 +1,7 @@
 use deadpool_sqlite::InteractError;
+use deadpool_sqlite::{CreatePoolError, PoolError};
 use snafu::Location;
-use snafu::{location, Snafu};
-use deadpool_sqlite::{PoolError, CreatePoolError};
+use snafu::{Snafu, location};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -22,7 +22,7 @@ pub enum Error {
     },
 
     #[snafu(display("VFS already initialized"))]
-    VfsAlreadyInitialized{
+    VfsAlreadyInitialized {
         #[snafu(implicit)]
         location: Location,
     },
@@ -66,8 +66,8 @@ pub enum Error {
     #[snafu(display("Deadpool connection error: {error}"))]
     Deadpool {
         // Can't use deadpool error as it is not Send + Sync
-        // as it then useing by core_utils and then here: `impl From<Error> for iceberg::Error`
-        #[snafu(source(from(InteractError, |err| StringError(format!("{:?}", err)))))]
+        // as it then used by core_utils and then here: `impl From<Error> for iceberg::Error`
+        #[snafu(source(from(InteractError, |err| StringError(format!("{err:?}")))))]
         error: StringError,
         #[snafu(implicit)]
         location: Location,
@@ -77,7 +77,10 @@ pub enum Error {
 // to make `?` work instead of `.context(DeadpoolSnafu)`
 impl From<InteractError> for Error {
     fn from(err: InteractError) -> Self {
-        Error::Deadpool { error: StringError(format!("{:?}", err)), location: location!() }
+        Self::Deadpool {
+            error: StringError(format!("{err:?}")),
+            location: location!(),
+        }
     }
 }
 
@@ -85,7 +88,10 @@ impl From<InteractError> for Error {
 // Note: when using ? instead of .context(), it uses artifical error location
 impl From<rusqlite::Error> for Error {
     fn from(err: rusqlite::Error) -> Self {
-        Error::Rusqlite { error: err, location: location!() }
+        Self::Rusqlite {
+            error: err,
+            location: location!(),
+        }
     }
 }
 

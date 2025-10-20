@@ -1,6 +1,8 @@
 use crate::errors::{self as core_history_errors, Result};
-use crate::interface::{HistoryStore, GetQueriesParams};
-use crate::{QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId};
+use crate::interface::{GetQueriesParams, HistoryStore};
+use crate::{
+    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
+};
 use async_trait::async_trait;
 use core_utils::Db;
 use core_utils::iterable::IterableCursor;

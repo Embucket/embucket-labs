@@ -185,6 +185,7 @@ impl From<i32> for LockLevel {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<i32> for LockLevel {
     fn into(self) -> i32 {
         match self {

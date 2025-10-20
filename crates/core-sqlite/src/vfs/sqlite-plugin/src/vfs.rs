@@ -254,7 +254,7 @@ impl SqliteApi {
         })
     }
 
-    /// Copies the provided string into a memory buffer allocated by sqlite3_mprintf.
+    /// Copies the provided string into a memory buffer allocated by `sqlite3_mprintf`.
     /// Writes the pointer to the memory buffer to `out` if `out` is not null.
     /// # Safety
     /// 1. the out pointer must not be null
@@ -575,7 +575,10 @@ unsafe extern "C" fn x_unlock<T: Vfs>(p_file: *mut ffi::sqlite3_file, raw_lock: 
     })
 }
 
-unsafe extern "C" fn x_check_reserved_lock<T: Vfs>(p_file: *mut ffi::sqlite3_file, p_res_out: *mut c_int) -> c_int {
+unsafe extern "C" fn x_check_reserved_lock<T: Vfs>(
+    p_file: *mut ffi::sqlite3_file,
+    p_res_out: *mut c_int,
+) -> c_int {
     fallible(|| {
         let file = unwrap_file!(p_file, T)?;
         let vfs = unwrap_vfs!(file.vfs, T)?;

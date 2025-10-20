@@ -7,7 +7,11 @@ pub struct SlatedbVfsHandle {
 
 impl SlatedbVfsHandle {
     pub const fn new(path: String, readonly: bool, handle_id: u64) -> Self {
-        Self { path, readonly, handle_id }
+        Self {
+            path,
+            readonly,
+            handle_id,
+        }
     }
 }
 

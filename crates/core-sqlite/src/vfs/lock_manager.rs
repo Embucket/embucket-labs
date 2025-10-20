@@ -1,11 +1,10 @@
 #![allow(clippy::unwrap_used)]
+use super::logger;
+use parking_lot::Mutex;
 use sqlite_plugin::flags::LockLevel;
 use sqlite_plugin::vars::SQLITE_BUSY;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
-use super::logger;
-
 
 /// Manages SQLite-style hierarchical locking for files with multiple handles
 #[derive(Clone)]
@@ -57,12 +56,11 @@ impl VfsFileState {
                 self.handles.insert(handle_id, new_lock);
                 Ok(())
             }
-            (LockLevel::Pending, LockLevel::Shared) => {
-                Err(SQLITE_BUSY)
-            }
+            (LockLevel::Pending, LockLevel::Shared) => Err(SQLITE_BUSY),
             (_, LockLevel::Exclusive) => {
                 // need to know only locks other than this handle and non unlock
-                let other_locks_count = self.handles
+                let other_locks_count = self
+                    .handles
                     .iter()
                     .filter(|h| h.0 != &handle_id && h.1 != &LockLevel::Unlocked)
                     .count();
@@ -78,15 +76,14 @@ impl VfsFileState {
                 // no locks can acquire while Exclusive is held
                 Err(SQLITE_BUSY)
             }
-            _ => {
-                Ok(())
-            }
+            _ => Ok(()),
         };
         res
     }
 
     pub fn unlock(&mut self, handle_id: u64, level: LockLevel) -> Result<(), i32> {
-        if self.global_lock > level && (level == LockLevel::Unlocked || level == LockLevel::Shared) {
+        if self.global_lock > level && (level == LockLevel::Unlocked || level == LockLevel::Shared)
+        {
             if level == LockLevel::Unlocked {
                 self.handles.remove(&handle_id);
             } else {
@@ -117,7 +114,7 @@ impl LockManager {
     #[allow(clippy::cognitive_complexity)]
     pub fn lock(&self, file_path: &str, handle_id: u64, level: LockLevel) -> Result<(), i32> {
         log::debug!(logger: logger(), "{file_path} lock request: level={level:?} handle_id={handle_id}");
-        
+
         {
             let mut files = self.files.lock();
 
@@ -131,8 +128,8 @@ impl LockManager {
             // return error immediately if lock is not acquired
             file_state.lock(handle_id, level)?;
 
-            log::debug!(logger: logger(), 
-                "{file_path} lock acquired {lock_before:?}->{level:?}(global={:?}) handle_id={handle_id}, {:?}", 
+            log::debug!(logger: logger(),
+                "{file_path} lock acquired {lock_before:?}->{level:?}(global={:?}) handle_id={handle_id}, {:?}",
                 file_state.global_lock, file_state.handles
             );
         }
@@ -141,7 +138,7 @@ impl LockManager {
             let files = self.files.lock();
             log::debug!(logger: logger(), "{file_path} lock after handle_id={handle_id}, {files:?}");
         }
-        
+
         Ok(())
     }
 
@@ -149,7 +146,7 @@ impl LockManager {
     #[allow(clippy::single_match_else, clippy::cognitive_complexity)]
     pub fn unlock(&self, file_path: &str, handle_id: u64, level: LockLevel) -> Result<(), i32> {
         log::debug!(logger: logger(), "{file_path} lock - unlock request: level={level:?} handle_id={handle_id}");
-        
+
         let mut files = self.files.lock();
 
         // Get file lock state
@@ -172,7 +169,7 @@ impl LockManager {
     /// Remove a handle entirely (called on file close)
     pub fn remove_handle(&self, file_path: &str, handle_id: u64) {
         log::debug!(logger: logger(), "remove_handle: path={} handle_id={}", file_path, handle_id);
-        
+
         let mut files = self.files.lock();
         if let Some(file_state) = files.get_mut(file_path) {
             if file_state.handles.get(&handle_id) == Some(&LockLevel::Unlocked) {

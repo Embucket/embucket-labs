@@ -137,7 +137,10 @@ fn main() {
     clippy::too_many_lines,
     clippy::cognitive_complexity
 )]
-async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> Result<(), Box<dyn std::error::Error>> {
+async fn async_main(
+    opts: cli::CliOpts,
+    tracing_provider: SdkTracerProvider,
+) -> Result<(), Box<dyn std::error::Error>> {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
@@ -187,18 +190,20 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) -> 
     let object_store = opts
         .object_store_backend()
         .expect("Failed to create object store");
-    let slate_db = Arc::new(DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-        .with_settings(slatedb_default_settings())
-        .build()
-        .await
-        .expect("Failed to start Slate DB"));
+    let slate_db = Arc::new(
+        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+            .with_settings(slatedb_default_settings())
+            .build()
+            .await
+            .expect("Failed to start Slate DB"),
+    );
 
     let db = Db::new(slate_db).await;
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
 
     let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
-    let _ = history_store.init().await?;
+    history_store.init().await?;
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(

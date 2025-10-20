@@ -2,7 +2,6 @@ use crate::errors::Result;
 use crate::{QueryRecord, QueryRecordId, QueryStatus, Worksheet, WorksheetId};
 use async_trait::async_trait;
 
-
 #[derive(Debug, Clone)]
 pub struct QueryResultError {
     // additional error status like: cancelled, timeout, etc
@@ -68,7 +67,6 @@ impl GetQueriesParams {
         self
     }
 }
-
 
 #[mockall::automock]
 #[async_trait]

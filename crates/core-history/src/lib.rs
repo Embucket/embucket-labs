@@ -1,7 +1,7 @@
 pub mod entities;
 pub mod errors;
-pub mod store;
 pub mod interface;
+pub mod store;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "sqlite")]

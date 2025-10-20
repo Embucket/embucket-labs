@@ -1,6 +1,6 @@
+use crate::Result;
 use core_utils::Db;
 use std::sync::Arc;
-use crate::Result;
 
 pub struct SlateDBHistoryStore {
     pub db: Db,
@@ -23,7 +23,7 @@ impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
     pub async fn new_in_memory() -> Arc<Self> {
         // create utils db regardless of feature, but use it only with utilsdb feature
-        // to avoid changing the code 
+        // to avoid changing the code
         let utils_db = Db::memory().await;
         let store = Arc::new(Self::new(utils_db));
         let _ = store.init().await;

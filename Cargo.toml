@@ -35,7 +35,7 @@ lto = "off"
 debug = false
 
 [workspace.dependencies]
-core-sqlite = { path = "crates/core-sqlite", features = ["vfs"] }
+core-sqlite = { path = "crates/core-sqlite" } # features = ["vfs"]
 async-trait = { version = "0.1.84" }
 aws-config = { version = "1.5.17" }
 aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}

@@ -173,16 +173,20 @@ pub enum Error {
     #[snafu(display("Deadpool connection error: {error}"))]
     Deadpool {
         // Can't use deadpool error as it is not Send + Sync
-        // as it then useing by core_utils and then here: `impl From<Error> for iceberg::Error`
-        #[snafu(source(from(deadpool_sqlite::InteractError, |err| core_sqlite::StringError(format!("{:?}", err)))))]
+        // as it then used by core_utils and then here: `impl From<Error> for iceberg::Error`
+        #[snafu(source(from(deadpool_sqlite::InteractError, |err| core_sqlite::StringError(format!("{err:?}")))))]
         error: core_sqlite::StringError,
         #[snafu(implicit)]
         location: Location,
     },
 }
 
+// One drawback using this conversion instead of .context() is about useless error location pointing to below line
 impl From<deadpool_sqlite::InteractError> for Error {
     fn from(err: deadpool_sqlite::InteractError) -> Self {
-        Error::Deadpool { error: core_sqlite::StringError(format!("{:?}", err)), location: location!() }
+        Self::Deadpool {
+            error: core_sqlite::StringError(format!("{err:?}")),
+            location: location!(),
+        }
     }
 }

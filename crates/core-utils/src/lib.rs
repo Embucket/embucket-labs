@@ -14,6 +14,7 @@ use serde_json::ser;
 use slatedb::Db as SlateDb;
 use slatedb::DbIterator;
 // use slatedb::config::{PutOptions, WriteOptions};
+use core_sqlite::SqliteDb;
 use snafu::location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -22,45 +23,52 @@ use std::string::ToString;
 use std::sync::Arc;
 use tracing::instrument;
 use uuid::Uuid;
-use core_sqlite::SqliteDb;
 
 // pub const SQLITE_HISTORY_DB_NAME: &str = "archil-fs/query_history.db";
 // pub const SQLITE_HISTORY_DB_NAME: &str = "zerofs-nfs/query_history.db";
 pub const SQLITE_HISTORY_DB_NAME: &str = "query_history.db";
 
 #[derive(Clone)]
-pub struct Db{
+pub struct Db {
     pub slatedb: Arc<SlateDb>,
     pub sqlite_history_store: Arc<SqliteDb>,
 }
 
 impl Db {
     #[allow(clippy::expect_used)]
-    pub async fn new(db: Arc<SlateDb>) -> Self {       
+    pub async fn new(db: Arc<SlateDb>) -> Self {
         Self {
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(SqliteDb::new(db, SQLITE_HISTORY_DB_NAME).await
-                .expect("Failed to initialize sqlite store")),
+            sqlite_history_store: Arc::new(
+                SqliteDb::new(db, SQLITE_HISTORY_DB_NAME)
+                    .await
+                    .expect("Failed to initialize sqlite store"),
+            ),
         }
     }
 
     #[allow(clippy::expect_used)]
     pub async fn memory() -> Self {
         let object_store = object_store::memory::InMemory::new();
-        let db = Arc::new(SlateDb::open(
-            object_store::path::Path::from("/"),
-            std::sync::Arc::new(object_store),
-        )
-        .await
-        .expect("Failed to open database"));
+        let db = Arc::new(
+            SlateDb::open(
+                object_store::path::Path::from("/"),
+                std::sync::Arc::new(object_store),
+            )
+            .await
+            .expect("Failed to open database"),
+        );
         // let thread = std::thread::current();
         // let thread_name = thread.name().map(|s| s.split("::").last().unwrap()).unwrap_or("<unnamed>");
         // let sqlite_db_name = format!("{thread_name}_{SQLITE_HISTORY_DB_NAME}");
-        let sqlite_db_name = format!("{SQLITE_HISTORY_DB_NAME}");
-        Self{
+        let sqlite_db_name = SQLITE_HISTORY_DB_NAME;
+        Self {
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(SqliteDb::new(db, &sqlite_db_name).await
-                .expect("Failed to initialize sqlite store")),
+            sqlite_history_store: Arc::new(
+                SqliteDb::new(db, sqlite_db_name)
+                    .await
+                    .expect("Failed to initialize sqlite store"),
+            ),
         }
     }
 
@@ -205,7 +213,10 @@ impl Db {
         &self,
         range: R,
     ) -> Result<DbIterator<'_>> {
-        self.slatedb.scan(range).await.context(errors::DatabaseSnafu)
+        self.slatedb
+            .scan(range)
+            .await
+            .context(errors::DatabaseSnafu)
     }
 
     /// Fetch iterable items from database
