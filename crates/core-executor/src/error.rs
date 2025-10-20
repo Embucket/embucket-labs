@@ -652,22 +652,6 @@ pub enum Error {
     },
 
     #[snafu(display("DuckDB error: {error}"))]
-    DuckdbConnectionPool {
-        #[snafu(source)]
-        error: datafusion_table_providers::sql::db_connection_pool::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("DuckDB connection error: {error}"))]
-    DuckdbConnection {
-        #[snafu(source)]
-        error: datafusion_table_providers::sql::db_connection_pool::dbconnection::duckdbconn::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("DuckDB error: {error}"))]
     Duckdb {
         #[snafu(source)]
         error: duckdb::Error,

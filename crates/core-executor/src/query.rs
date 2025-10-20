@@ -18,7 +18,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::duckdb::{execute_duck_db_explain, is_select_statement};
+use crate::duckdb::query::{apply_connection_setup_queries, execute_duck_db_explain, is_select_statement, query_duck_db_arrow};
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
@@ -76,8 +76,6 @@ use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use datafusion_physical_plan::collect;
-use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
-use datafusion_table_providers::sql::sql_provider_datafusion::get_stream;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -121,9 +119,11 @@ use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::str::FromStr;
 use std::sync::Arc;
+use duckdb::Connection;
 use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
+use crate::duckdb::functions::register_all_udfs;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -506,24 +506,20 @@ impl UserQuery {
         self.query = statement.to_string();
         let sql = self.query.clone();
 
-        let duckdb_pool = Arc::new(
-            DuckDbConnectionPool::new_memory()
-                .context(ex_error::DuckdbConnectionPoolSnafu)?
-                .with_connection_setup_queries(setup_queries),
-        );
+        let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
+        register_all_udfs(&conn)?;
+        apply_connection_setup_queries(&conn, setup_queries)?;
+        //
+        // if self.session.config.use_duck_db_explain
+        //     || self
+        //         .session
+        //         .get_session_variable_bool("embucket.execution.explain_before_acceleration")
+        // {
+        //     // Check if possible to call duckdb with this query
+        //     let _explain_result = execute_duck_db_explain(&conn, &sql).await?;
+        // }
 
-        if self.session.config.use_duck_db_explain
-            || self
-                .session
-                .get_session_variable_bool("embucket.execution.explain_before_acceleration")
-        {
-            // Check if possible to call duckdb with this query
-            let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;
-        }
-
-        let stream = get_stream(duckdb_pool, sql, Arc::new(ArrowSchema::empty()))
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let stream = query_duck_db_arrow(&conn, &sql)?;
         let schema = stream.schema().clone();
         let records = stream
             .try_collect::<Vec<_>>()
