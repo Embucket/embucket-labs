@@ -5,21 +5,16 @@ use datafusion::execution::SendableRecordBatchStream;
 use datafusion::sql::parser::Statement as DFStatement;
 use datafusion_common::DataFusionError;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
-use duckdb::{ffi, Connection, Error};
-use futures::{StreamExt, TryStreamExt};
+use duckdb::Connection;
+use futures::StreamExt;
 use snafu::ResultExt;
 use sqlparser::ast::Statement;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
-
-pub async fn execute_duck_db_explain(
-    conn: &Connection,
-    sql: &str,
-) -> Result<Vec<RecordBatch>> {
+pub async fn execute_duck_db_explain(conn: Connection, sql: &str) -> Result<Vec<RecordBatch>> {
     let sql = sql.to_string();
-    let conn = conn.try_clone().context(ex_error::DuckdbSnafu)?;
 
     tokio::task::spawn_blocking(move || {
         let explain_sql = format!("EXPLAIN (format html) {sql}");
@@ -28,7 +23,9 @@ pub async fn execute_duck_db_explain(
         let mut stmt = conn.prepare(&explain_sql).context(ex_error::DuckdbSnafu)?;
         let arrow = stmt.query_arrow([]).context(ex_error::DuckdbSnafu)?;
         Ok(arrow.collect())
-    }).await.unwrap()
+    })
+    .await
+    .context(ex_error::JoinHandleSnafu)?
 }
 
 pub fn query_duck_db_arrow(
@@ -40,7 +37,9 @@ pub fn query_duck_db_arrow(
     let sql = sql.to_string();
 
     // Prepare statement and get schema
-    let mut stmt = duckdb_conn.prepare(&sql).context(crate::error::DuckdbSnafu)?;
+    let mut stmt = duckdb_conn
+        .prepare(&sql)
+        .context(crate::error::DuckdbSnafu)?;
     let result: duckdb::Arrow<'_> = stmt.query_arrow([]).context(crate::error::DuckdbSnafu)?;
     let schema = result.get_schema();
 
@@ -77,30 +76,17 @@ pub fn query_duck_db_arrow(
 fn blocking_channel_send<T>(channel: &Sender<T>, item: T) -> Result<()> {
     channel
         .blocking_send(item)
-        .map_err(|e| {
-            DataFusionError::Execution(e.to_string())
-        })
+        .map_err(|e| DataFusionError::Execution(e.to_string()))
         .context(ex_error::DataFusionSnafu)
 }
+#[must_use]
 pub fn is_select_statement(stmt: &DFStatement) -> bool {
     matches!(stmt, DFStatement::Statement(inner) if matches!(**inner, Statement::Query(_)))
 }
 
-pub fn apply_connection_setup_queries(
-    conn: &Connection,
-    setup_queries: Vec<Arc<str>>,
-) -> Result<()> {
-    for query in &setup_queries {
+pub fn apply_connection_setup_queries(conn: &Connection, setup_queries: &[Arc<str>]) -> Result<()> {
+    for query in setup_queries {
         conn.execute(query, []).context(ex_error::DuckdbSnafu)?;
     }
     Ok(())
-}
-
-fn get_arrow_data(conn: &Connection, sql: &str) -> Result<Vec<RecordBatch>> {
-    Ok(conn
-        .prepare(sql)
-        .context(ex_error::DuckdbSnafu)?
-        .query_arrow([])
-        .context(ex_error::DuckdbSnafu)?
-        .collect())
 }

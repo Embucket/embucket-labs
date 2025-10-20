@@ -4,18 +4,18 @@ use datafusion::arrow::array::Array;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
 use datafusion_common::config::ConfigOptions;
-use duckdb::vscalar::{ArrowFunctionSignature, VArrowScalar};
 use duckdb::Connection;
+use duckdb::vscalar::{ArrowFunctionSignature, VArrowScalar};
 use embucket_functions::string_binary::length::LengthFunc;
 use snafu::ResultExt;
 use std::{error::Error, sync::Arc};
 pub struct DfUdfWrapper<T: ScalarUDFImpl> {
-    inner: T,
+    _inner: T,
 }
 
 impl<T: ScalarUDFImpl> DfUdfWrapper<T> {
-    pub fn new(inner: T) -> Self {
-        Self { inner }
+    pub const fn new(inner: T) -> Self {
+        Self { _inner: inner }
     }
 }
 
@@ -38,10 +38,7 @@ impl<T: ScalarUDFImpl + Default> VArrowScalar for DfUdfWrapper<T> {
             .map(|f| Arc::new(Field::new(f.name(), f.data_type().clone(), f.is_nullable())))
             .collect();
 
-        let input_types: Vec<DataType> = arg_fields
-            .iter()
-            .map(|f| f.data_type().clone())
-            .collect();
+        let input_types: Vec<DataType> = arg_fields.iter().map(|f| f.data_type().clone()).collect();
 
         let return_field = Arc::new(Field::new(
             func.name(),
@@ -73,20 +70,30 @@ impl<T: ScalarUDFImpl + Default> VArrowScalar for DfUdfWrapper<T> {
         let sig = func.signature();
 
         match &sig.type_signature {
-            datafusion::logical_expr::TypeSignature::Exact(types) => vec![ArrowFunctionSignature::exact(
-                types.clone(),
-                func.return_type(types).unwrap_or(DataType::Utf8),
-            )],
-            datafusion::logical_expr::TypeSignature::Variadic(valid_types) => vec![ArrowFunctionSignature::exact(
-                vec![valid_types.first().cloned().unwrap_or(DataType::Utf8)],
-                func
-                    .return_type(&[valid_types.first().cloned().unwrap_or(DataType::Utf8)])
-                    .unwrap_or(DataType::Utf8),
-            )],
-            _ => vec![ArrowFunctionSignature::exact(
-                vec![DataType::Utf8],
-               DataType::Utf8,
-            )],
+            datafusion::logical_expr::TypeSignature::Exact(types) => {
+                vec![ArrowFunctionSignature::exact(
+                    types.clone(),
+                    func.return_type(types).unwrap_or(DataType::Utf8),
+                )]
+            }
+            datafusion::logical_expr::TypeSignature::Variadic(valid_types) => {
+                vec![ArrowFunctionSignature::exact(
+                    vec![valid_types.first().cloned().unwrap_or(DataType::Utf8)],
+                    func.return_type(&[valid_types.first().cloned().unwrap_or(DataType::Utf8)])
+                        .unwrap_or(DataType::Utf8),
+                )]
+            }
+            datafusion::logical_expr::TypeSignature::Any(n) => {
+                let args = vec![DataType::Utf8; *n];
+                let ret = func.return_type(&args).unwrap_or(DataType::Utf8);
+                vec![ArrowFunctionSignature::exact(args, ret)]
+            }
+            _ => {
+                let ret = func
+                    .return_type(&[DataType::Utf8])
+                    .unwrap_or(DataType::Utf8);
+                vec![ArrowFunctionSignature::exact(vec![DataType::Utf8], ret)]
+            }
         }
     }
 }

@@ -629,6 +629,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Failed to join tokio tasks"))]
+    JoinHandle {
+        #[snafu(source)]
+        error: tokio::task::JoinError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     // This is logical error, means error getting error from QueryRecord as it contains result data
     #[snafu(display(""))]
     HistoricalQueryContainsData {

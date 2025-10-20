@@ -18,7 +18,11 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::duckdb::query::{apply_connection_setup_queries, execute_duck_db_explain, is_select_statement, query_duck_db_arrow};
+use crate::duckdb::functions::register_all_udfs;
+use crate::duckdb::query::{
+    apply_connection_setup_queries, execute_duck_db_explain, is_select_statement,
+    query_duck_db_arrow,
+};
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
@@ -79,6 +83,7 @@ use datafusion_physical_plan::collect;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
+use duckdb::Connection;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
@@ -119,11 +124,9 @@ use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::str::FromStr;
 use std::sync::Arc;
-use duckdb::Connection;
 use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
-use crate::duckdb::functions::register_all_udfs;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -508,16 +511,17 @@ impl UserQuery {
 
         let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
         register_all_udfs(&conn)?;
-        apply_connection_setup_queries(&conn, setup_queries)?;
-        //
-        // if self.session.config.use_duck_db_explain
-        //     || self
-        //         .session
-        //         .get_session_variable_bool("embucket.execution.explain_before_acceleration")
-        // {
-        //     // Check if possible to call duckdb with this query
-        //     let _explain_result = execute_duck_db_explain(&conn, &sql).await?;
-        // }
+        apply_connection_setup_queries(&conn, &setup_queries)?;
+
+        if self.session.config.use_duck_db_explain
+            || self
+                .session
+                .get_session_variable_bool("embucket.execution.explain_before_acceleration")
+        {
+            // Check if possible to call duckdb with this query
+            let explain_conn = conn.try_clone().context(ex_error::DuckdbSnafu)?;
+            let _explain_result = execute_duck_db_explain(explain_conn, &sql).await?;
+        }
 
         let stream = query_duck_db_arrow(&conn, &sql)?;
         let schema = stream.schema().clone();
