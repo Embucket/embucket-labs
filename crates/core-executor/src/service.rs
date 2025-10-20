@@ -29,13 +29,12 @@ use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
 use core_history::HistoryStore;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryStatus};
 use core_metastore::{
     Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
     Volume, VolumeType,
 };
-use core_utils::Db;
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
@@ -865,9 +864,8 @@ impl ExecutionService for CoreExecutionService {
 //Test environment
 #[allow(clippy::expect_used)]
 pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     Arc::new(
         CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
             .await

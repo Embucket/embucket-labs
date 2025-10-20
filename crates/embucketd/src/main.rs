@@ -198,12 +198,11 @@ async fn async_main(
             .expect("Failed to start Slate DB"),
     );
 
-    let db = Db::new(slate_db).await;
+    let db = Db::new(slate_db);
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
-    history_store.init().await?;
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await);
+    history_store.create_tables().await?;
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(

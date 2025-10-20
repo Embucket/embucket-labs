@@ -6,7 +6,7 @@ use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
 use aws_sdk_s3tables;
 use chrono::Utc;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_metastore::Metastore;
 use core_metastore::RwObject;
 use core_metastore::SlateDBMetastore;
@@ -653,20 +653,17 @@ impl ObjectStoreType {
     pub async fn db(&self) -> Result<Db, Error> {
         let db = match &self {
             Self::Memory(_) => Db::memory().await,
-            Self::File(suffix, ..) | Self::S3(suffix, ..) => {
-                Db::new(Arc::new(
-                    DbBuilder::new(
-                        object_store::path::Path::from(suffix.clone()),
-                        self.object_store()?,
-                    )
-                    .build()
-                    .await
-                    .context(TestSlatedbSnafu {
-                        object_store: self.object_store()?,
-                    })?,
-                ))
+            Self::File(suffix, ..) | Self::S3(suffix, ..) => Db::new(Arc::new(
+                DbBuilder::new(
+                    object_store::path::Path::from(suffix.clone()),
+                    self.object_store()?,
+                )
+                .build()
                 .await
-            }
+                .context(TestSlatedbSnafu {
+                    object_store: self.object_store()?,
+                })?,
+            )),
         };
 
         Ok(db)
@@ -691,7 +688,7 @@ pub async fn create_executor(
 
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -732,7 +729,7 @@ pub async fn create_executor_with_early_volumes_creation(
     let used_volumes =
         create_volumes(metastore.clone(), &object_store_type, override_volumes).await?;
 
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),

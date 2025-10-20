@@ -10,7 +10,6 @@ async fn test_sqlite_history_schema() -> SqliteResult<()> {
 
     let res = history_store
         .db
-        .sqlite_db
         .conn()
         .await?
         .interact(|conn| -> SqlResult<usize> {

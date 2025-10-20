@@ -10,13 +10,12 @@ use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
-use core_utils::Db;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn run_test_server_with_demo_auth(
     jwt_secret: String,
     demo_user: String,
@@ -25,9 +24,12 @@ pub async fn run_test_server_with_demo_auth(
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBHistoryStore::new(db));
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let history = SlateDBHistoryStore::new_in_memory().await;
+    history
+        .create_tables()
+        .await
+        .expect("Failed to create tables");
     let auth_config = AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
     let app = make_app(
@@ -58,13 +60,13 @@ pub async fn run_test_server() -> SocketAddr {
 
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
-    metastore: Arc<SlateDBMetastore>,
-    history_store: Arc<SlateDBHistoryStore>,
+    metastore: SlateDBMetastore,
+    history_store: SlateDBHistoryStore,
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    history_store.init().await?;
-
+    let metastore = Arc::new(metastore);
+    let history_store = Arc::new(history_store);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),

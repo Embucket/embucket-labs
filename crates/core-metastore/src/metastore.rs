@@ -127,8 +127,8 @@ impl SlateDBMetastore {
     }
 
     // Create a new SlateDBMetastore with a new in-memory database
-    pub async fn new_in_memory() -> Arc<Self> {
-        Arc::new(Self::new(Db::memory().await))
+    pub async fn new_in_memory() -> Self {
+        Self::new(Db::memory().await)
     }
 
     #[cfg(test)]
@@ -960,7 +960,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), Arc::new(object_store))
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb)).await;
+        let db = Db::new(Arc::new(sdb));
         SlateDBMetastore::new(db)
     }
 
@@ -1223,7 +1223,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), object_store.clone())
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb)).await;
+        let db = Db::new(Arc::new(sdb));
         let ms = SlateDBMetastore::new(db);
 
         let schema = IcebergSchema::builder()
@@ -1347,7 +1347,7 @@ mod tests {
         let sdb = SlateDb::open(Path::from("/"), object_store.clone())
             .await
             .expect("Failed to open db");
-        let db = Db::new(Arc::new(sdb)).await;
+        let db = Db::new(Arc::new(sdb));
         let ms = SlateDBMetastore::new(db);
 
         let schema = IcebergSchema::builder()

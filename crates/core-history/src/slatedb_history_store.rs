@@ -13,6 +13,38 @@ use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
 
+pub struct SlateDBHistoryStore {
+    pub db: Db,
+}
+
+impl std::fmt::Debug for SlateDBHistoryStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SlateDBHistoryStore").finish()
+    }
+}
+
+impl SlateDBHistoryStore {
+    #[allow(clippy::expect_used)]
+    #[must_use]
+    pub const fn new(db: Db) -> Self {
+        Self { db }
+    }
+
+    // Create a new store with a new in-memory database
+    #[allow(clippy::expect_used)]
+    pub async fn new_in_memory() -> Self {
+        // create utils db regardless of feature, but use it only with utilsdb feature
+        // to avoid changing the code
+        let utils_db = Db::memory().await;
+        Self::new(utils_db)
+    }
+
+    #[must_use]
+    pub const fn db(&self) -> &Db {
+        &self.db
+    }
+}
+
 async fn queries_iterator(db: &Db, cursor: Option<QueryRecordId>) -> Result<DbIterator<'_>> {
     let start_key = QueryRecord::get_key(cursor.map_or_else(i64::min_cursor, Into::into));
     let end_key = QueryRecord::get_key(i64::max_cursor());

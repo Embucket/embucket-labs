@@ -1,11 +1,9 @@
 use super::server_models::Config;
 use crate::server::router::make_app;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
-use core_utils::Db;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 #[allow(clippy::expect_used)]
@@ -46,9 +44,12 @@ pub async fn run_test_rest_api_server_with_config(
     // since all tests run in a single process
     let _ = tracing::subscriber::set_global_default(subscriber);
 
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBHistoryStore::new(db));
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let history = SlateDBHistoryStore::new_in_memory().await;
+    history
+        .create_tables()
+        .await
+        .expect("Failed to create tables");
 
     let app = make_app(metastore, history, app_cfg, execution_cfg)
         .await

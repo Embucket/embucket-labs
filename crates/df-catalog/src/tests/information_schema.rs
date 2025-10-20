@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
 async fn create_session_context() -> Arc<SessionContext> {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = SlateDBHistoryStore::new_in_memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let catalog_list_impl = Arc::new(EmbucketCatalogList::new(
         metastore.clone(),
         history_store.clone(),

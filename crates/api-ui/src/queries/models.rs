@@ -20,20 +20,11 @@ pub struct Column {
 #[schema(as = Row, value_type = Vec<Value>)]
 pub struct Row(Vec<Value>);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultSet {
     pub columns: Vec<Column>,
     pub rows: Vec<Row>,
-}
-
-impl Default for ResultSet {
-    fn default() -> Self {
-        Self {
-            columns: Vec::new(),
-            rows: Vec::new(),
-        }
-    }
 }
 
 impl TryFrom<&str> for ResultSet {

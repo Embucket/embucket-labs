@@ -4,8 +4,8 @@ use crate::running_queries::RunningQueryId;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
 use core_history::QueryStatus;
+use core_history::SlateDBHistoryStore;
 use core_history::entities::worksheet::Worksheet;
-use core_history::store::SlateDBHistoryStore;
 use core_history::{GetQueriesParams, HistoryStore};
 use core_metastore::Metastore;
 use core_metastore::SlateDBMetastore;
@@ -14,22 +14,18 @@ use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
-use core_utils::Db;
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 use std::sync::Arc;
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
-    let execution_svc = CoreExecutionService::new(
-        metastore.clone(),
-        history_store.clone(),
-        Arc::new(Config::default()),
-    )
-    .await
-    .expect("Failed to create execution service");
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let execution_svc =
+        CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
+            .await
+            .expect("Failed to create execution service");
 
     execution_svc
         .create_session("test_session_id")
@@ -54,7 +50,7 @@ async fn test_execute_always_returns_schema() {
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -102,7 +98,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -182,7 +178,7 @@ async fn test_service_upload_file() {
 
 #[tokio::test]
 async fn test_service_create_table_file_volume() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
 
     // Create a temporary directory for the file volume
     let temp_dir = std::env::temp_dir().join("test_file_volume");
@@ -231,7 +227,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -288,9 +284,8 @@ async fn test_service_create_table_file_volume() {
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_query_recording() {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     metastore
         .create_volume(
             &"test_volume".to_string(),
@@ -497,8 +492,8 @@ async fn test_query_recording() {
 async fn test_max_concurrency_level() {
     use tokio::sync::Barrier;
 
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -553,8 +548,8 @@ async fn test_max_concurrency_level() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_max_concurrency_level2() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -594,8 +589,8 @@ async fn test_max_concurrency_level2() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_query_timeout() {
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history_store = Arc::new(SlateDBHistoryStore::new(Db::memory().await));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -627,17 +622,8 @@ async fn test_query_timeout() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_timeout() {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "sqlite")]
-        {
-            let history_store = db.sqlite_db.clone();
-        } else {
-            let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
-        }
-    }
-
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -689,16 +675,8 @@ async fn test_submitted_query_timeout() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_abort_by_query_id() {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-        cfg_if::cfg_if! {
-        if #[cfg(feature = "sqlite")]
-        {
-            let history_store = db.sqlite_db.clone();
-        } else {
-            let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
-        }
-    }
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -753,9 +731,8 @@ async fn test_submitted_query_abort_by_query_id() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_abort_by_request_id() {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -815,9 +792,8 @@ async fn test_submitted_query_abort_by_request_id() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_ok() {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store: Arc<dyn HistoryStore> = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
