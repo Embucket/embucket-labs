@@ -56,7 +56,7 @@ impl SlateDBHistoryStore {
     pub async fn create_tables(&self) -> Result<()> {
         let connection = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -89,7 +89,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn add_worksheet(&self, worksheet: Worksheet) -> Result<Worksheet> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -125,7 +125,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -167,7 +167,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -205,7 +205,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn delete_worksheet(&self, id: WorksheetId) -> Result<()> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -240,7 +240,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_worksheets(&self) -> Result<Vec<Worksheet>> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -285,7 +285,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn add_query(&self, item: &QueryRecord) -> Result<()> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -335,7 +335,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn update_query(&self, item: &QueryRecord) -> Result<()> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -414,7 +414,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)
@@ -484,7 +484,7 @@ impl HistoryStore for SlateDBHistoryStore {
     async fn get_queries(&self, _params: GetQueriesParams) -> Result<Vec<QueryRecord>> {
         let conn = self
             .db
-            .sqlite_history_store
+            .sqlite_db
             .conn()
             .await
             .context(core_utils_err::CoreSqliteSnafu)

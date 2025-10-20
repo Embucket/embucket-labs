@@ -632,7 +632,7 @@ async fn test_submitted_query_timeout() {
     cfg_if::cfg_if! {
         if #[cfg(feature = "sqlite")]
         {
-            let history_store = db.sqlite_history_store.clone();
+            let history_store = db.sqlite_db.clone();
         } else {
             let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
         }
@@ -694,7 +694,7 @@ async fn test_submitted_query_abort_by_query_id() {
         cfg_if::cfg_if! {
         if #[cfg(feature = "sqlite")]
         {
-            let history_store = db.sqlite_history_store.clone();
+            let history_store = db.sqlite_db.clone();
         } else {
             let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
         }

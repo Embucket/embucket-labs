@@ -31,7 +31,7 @@ pub const SQLITE_HISTORY_DB_NAME: &str = "query_history.db";
 #[derive(Clone)]
 pub struct Db {
     pub slatedb: Arc<SlateDb>,
-    pub sqlite_history_store: Arc<SqliteDb>,
+    pub sqlite_db: Arc<SqliteDb>,
 }
 
 impl Db {
@@ -39,7 +39,7 @@ impl Db {
     pub async fn new(db: Arc<SlateDb>) -> Self {
         Self {
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(
+            sqlite_db: Arc::new(
                 SqliteDb::new(db, SQLITE_HISTORY_DB_NAME)
                     .await
                     .expect("Failed to initialize sqlite store"),
@@ -64,7 +64,7 @@ impl Db {
         let sqlite_db_name = format!("file:{thread_name}_{SQLITE_HISTORY_DB_NAME}?mode=memory");
         Self {
             slatedb: db.clone(),
-            sqlite_history_store: Arc::new(
+            sqlite_db: Arc::new(
                 SqliteDb::new(db, &sqlite_db_name)
                     .await
                     .expect("Failed to initialize sqlite store"),
@@ -78,8 +78,8 @@ impl Db {
     }
 
     #[must_use]
-    pub fn sqlite_history_store(&self) -> Arc<SqliteDb> {
-        self.sqlite_history_store.clone()
+    pub fn sqlite_db(&self) -> Arc<SqliteDb> {
+        self.sqlite_db.clone()
     }
 
     /// Closes the database connection.
