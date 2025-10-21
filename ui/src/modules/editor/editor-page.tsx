@@ -1,3 +1,5 @@
+import { EditorCacheProvider } from '@tidbcloud/tisqleditor-react';
+
 import { ResizablePanelGroup } from '@/components/ui/resizable';
 
 import { EditorCenterPanel } from './editor-center-panel/editor-center-panel';
@@ -33,7 +35,9 @@ export function EditorPage() {
         <EditorResizableHandle />
 
         <EditorResizablePanel collapsible defaultSize={60} order={2}>
-          <EditorCenterPanel />
+          <EditorCacheProvider>
+            <EditorCenterPanel />
+          </EditorCacheProvider>
         </EditorResizablePanel>
 
         <EditorResizableHandle />

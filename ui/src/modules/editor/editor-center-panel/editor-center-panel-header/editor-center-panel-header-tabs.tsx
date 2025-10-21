@@ -16,6 +16,9 @@ export function EditorCenterPanelHeaderTabs() {
           key={tab.id}
           to="/sql-editor/$worksheetId"
           params={{ worksheetId: tab.id.toString() }}
+          activeOptions={{
+            includeSearch: false,
+          }}
         >
           {({ isActive }) => (
             <div

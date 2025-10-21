@@ -12,10 +12,11 @@ function EditorRightPanelQueryItemStatus({ status, error }: EditorRightPanelQuer
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className={cn(
-            'size-1.5 flex-shrink-0 rounded-full p-1',
-            status === 'successful' ? 'bg-green-500' : 'bg-red-500',
-          )}
+          className={cn('size-1.5 flex-shrink-0 rounded-full p-1', {
+            'bg-yellow-500': status === 'running',
+            'bg-green-500': status === 'successful',
+            'bg-red-500': status !== 'running' && status !== 'successful',
+          })}
         />
       </TooltipTrigger>
       {status === 'failed' && error && (
