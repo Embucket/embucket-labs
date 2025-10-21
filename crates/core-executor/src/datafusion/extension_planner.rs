@@ -37,6 +37,7 @@ impl ExtensionPlanner for CustomExtensionPlanner {
             Ok(Some(Arc::new(DuckDBPhysicalNode::new(
                 duckdb_node.query.clone(),
                 duckdb_node.schema.clone(),
+                duckdb_node.setup_queries.clone(),
             ))))
         } else {
             Ok(None)

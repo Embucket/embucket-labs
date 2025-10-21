@@ -8,6 +8,7 @@ use datafusion_expr::{Expr, InvariantLevel, LogicalPlan, UserDefinedLogicalNode}
 pub struct DuckDBLogicalNode {
     pub query: String,
     pub schema: DFSchemaRef,
+    pub setup_queries: Vec<Arc<str>>,
 }
 
 impl UserDefinedLogicalNode for DuckDBLogicalNode {
@@ -53,6 +54,7 @@ impl UserDefinedLogicalNode for DuckDBLogicalNode {
         Ok(Arc::new(Self {
             query: self.query.clone(),
             schema: self.schema.clone(),
+            setup_queries: self.setup_queries.clone(),
         }))
     }
 
@@ -63,7 +65,9 @@ impl UserDefinedLogicalNode for DuckDBLogicalNode {
 
     fn dyn_eq(&self, other: &dyn UserDefinedLogicalNode) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self.query == other.query && self.schema == other.schema
+            self.query == other.query
+                && self.schema == other.schema
+                && self.setup_queries == other.setup_queries
         } else {
             false
         }

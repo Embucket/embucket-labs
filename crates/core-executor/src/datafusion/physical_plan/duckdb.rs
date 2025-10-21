@@ -4,24 +4,23 @@ use datafusion::physical_expr::EquivalenceProperties;
 use datafusion_common::{DFSchemaRef, DataFusionError};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
+    SendableRecordBatchStream,
     execution_plan::{Boundedness, EmissionType},
 };
-use datafusion_table_providers::sql::{
-    db_connection_pool::duckdbpool::DuckDbConnectionPool, sql_provider_datafusion::get_stream,
-};
-use snafu::ResultExt;
+use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
 
-use crate::{duckdb::execute_duck_db_explain, error};
+use crate::error;
 
 #[derive(Debug, Clone)]
 pub struct DuckDBPhysicalNode {
     query: String,
     schema: DFSchemaRef,
+    setup_queries: Vec<Arc<str>>,
     properties: PlanProperties,
 }
 
 impl DuckDBPhysicalNode {
-    pub fn new(query: String, schema: DFSchemaRef) -> Self {
+    pub fn new(query: String, schema: DFSchemaRef, setup_queries: Vec<Arc<str>>) -> Self {
         let eq_properties = EquivalenceProperties::new(Arc::new(schema.as_ref().clone().into()));
         let properties = PlanProperties::new(
             eq_properties,
@@ -32,6 +31,7 @@ impl DuckDBPhysicalNode {
         Self {
             query,
             schema,
+            setup_queries,
             properties,
         }
     }
@@ -81,22 +81,40 @@ impl ExecutionPlan for DuckDBPhysicalNode {
                 .to_string(),
             ));
         }
-        Ok(Arc::new(Self::new(self.query.clone(), self.schema.clone())))
+        Ok(Arc::new(Self::new(
+            self.query.clone(),
+            self.schema.clone(),
+            self.setup_queries.clone(),
+        )))
     }
 
     fn execute(
         &self,
         _partition: usize,
         _context: Arc<datafusion::execution::TaskContext>,
-    ) -> datafusion_common::Result<datafusion_physical_plan::SendableRecordBatchStream> {
+    ) -> datafusion_common::Result<SendableRecordBatchStream> {
         let duckdb_pool = Arc::new(
             DuckDbConnectionPool::new_memory()
-                .context(ex_error::DuckdbConnectionPoolSnafu)?
-                .with_connection_setup_queries(setup_queries),
+                .map_err(|e| {
+                    DataFusionError::Internal(format!("DuckDB connection pool error: {e}"))
+                })?
+                .with_connection_setup_queries(self.setup_queries.clone()),
         );
 
-        let stream = get_stream(duckdb_pool, sql, Arc::new(ArrowSchema::empty()))
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let query = self.query.clone();
+        let schema = Some(Arc::new(self.schema.as_ref().clone().into()));
+
+        let conn = duckdb_pool
+            .connect_sync()
+            .map_err(|e| DataFusionError::Internal(format!("DuckDB connect error: {e}")))?;
+
+        if let Some(conn) = conn.as_sync() {
+            conn.query_arrow(&query, &[], schema)
+                .map_err(|e| DataFusionError::Internal(format!("DuckDB query error: {e}")))
+        } else {
+            Err(DataFusionError::Internal(
+                "Expected synchronous DuckDB connection".to_string(),
+            ))
+        }
     }
 }
