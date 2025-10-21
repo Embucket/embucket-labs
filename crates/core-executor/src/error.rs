@@ -629,6 +629,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Failed to join tokio tasks"))]
+    JoinHandle {
+        #[snafu(source)]
+        error: tokio::task::JoinError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     // This is logical error, means error getting error from QueryRecord as it contains result data
     #[snafu(display(""))]
     HistoricalQueryContainsData {
@@ -647,22 +655,6 @@ pub enum Error {
         entity_type: String,
         #[snafu(source(from(core_metastore::error::Error, Box::new)))]
         source: Box<core_metastore::error::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("DuckDB error: {error}"))]
-    DuckdbConnectionPool {
-        #[snafu(source)]
-        error: datafusion_table_providers::sql::db_connection_pool::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("DuckDB connection error: {error}"))]
-    DuckdbConnection {
-        #[snafu(source)]
-        error: datafusion_table_providers::sql::db_connection_pool::dbconnection::duckdbconn::Error,
         #[snafu(implicit)]
         location: Location,
     },
