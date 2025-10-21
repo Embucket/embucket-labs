@@ -706,6 +706,8 @@ impl ExecutionService for CoreExecutionService {
 
             let query_status = query_result_status.status.clone();
 
+            // Persist AI duration measured during parsing/rewrite, if any
+            history_record.ai_duration_ms = query_obj.ai_duration_ms;
             history_record.set_result(&query_result_status.as_historical_result_set(), query_history_rows_limit);
             history_record.set_status(query_status.clone());
 

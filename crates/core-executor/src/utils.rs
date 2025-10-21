@@ -45,6 +45,7 @@ pub struct Config {
     pub query_history_rows_limit: usize,
     pub use_duck_db: bool,
     pub use_duck_db_explain: bool,
+    pub use_ai_rewritet: bool,
 }
 
 impl Default for Config {
@@ -62,6 +63,7 @@ impl Default for Config {
             query_history_rows_limit: DEFAULT_QUERY_HISTORY_ROWS_LIMIT,
             use_duck_db: false,
             use_duck_db_explain: false,
+            use_ai_rewritet: false,
         }
     }
 }

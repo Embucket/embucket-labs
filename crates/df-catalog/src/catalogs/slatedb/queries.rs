@@ -29,6 +29,7 @@ impl QueriesView {
             Field::new("start_time", DataType::Utf8, false),
             Field::new("end_time", DataType::Utf8, false),
             Field::new("duration_ms", DataType::Int64, false),
+            Field::new("ai_duration_ms", DataType::Int64, false),
             Field::new("result_count", DataType::Int64, false),
             Field::new("result", DataType::Utf8, true),
             Field::new("status", DataType::Utf8, false),
@@ -46,6 +47,7 @@ impl QueriesView {
             start_time_timestamps: StringBuilder::new(),
             end_time_timestamps: StringBuilder::new(),
             duration_ms_values: Int64Builder::new(),
+            ai_duration_ms_values: Int64Builder::new(),
             result_count_values: Int64Builder::new(),
             results: StringBuilder::new(),
             statuses: StringBuilder::new(),
@@ -81,6 +83,7 @@ pub struct QueriesViewBuilder {
     start_time_timestamps: StringBuilder,
     end_time_timestamps: StringBuilder,
     duration_ms_values: Int64Builder,
+    ai_duration_ms_values: Int64Builder,
     result_count_values: Int64Builder,
     results: StringBuilder,
     statuses: StringBuilder,
@@ -100,6 +103,8 @@ impl QueriesViewBuilder {
             .append_value(query_record.end_time.to_string());
         self.duration_ms_values
             .append_value(query_record.duration_ms);
+        self.ai_duration_ms_values
+            .append_value(query_record.ai_duration_ms);
         self.result_count_values
             .append_value(query_record.result_count);
         self.results.append_option(query_record.result);
@@ -117,6 +122,7 @@ impl QueriesViewBuilder {
                 Arc::new(self.start_time_timestamps.finish()),
                 Arc::new(self.end_time_timestamps.finish()),
                 Arc::new(self.duration_ms_values.finish()),
+                Arc::new(self.ai_duration_ms_values.finish()),
                 Arc::new(self.result_count_values.finish()),
                 Arc::new(self.results.finish()),
                 Arc::new(self.statuses.finish()),

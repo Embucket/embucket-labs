@@ -124,6 +124,9 @@ use std::sync::Arc;
 use tracing::Instrument;
 use tracing_attributes::instrument;
 use url::Url;
+use serde::Deserialize;
+use serde_json::json;
+use reqwest::Client;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
@@ -133,6 +136,7 @@ pub struct UserQuery {
     pub query: String,
     pub session: Arc<UserSession>,
     pub query_context: QueryContext,
+    pub ai_duration_ms: i64,
 }
 
 pub enum IcebergCatalogResult {
@@ -153,6 +157,7 @@ impl UserQuery {
             query: query.into(),
             session,
             query_context,
+            ai_duration_ms: 0,
         }
     }
 
@@ -167,6 +172,162 @@ impl UserQuery {
             _ => DataFusionError::NotImplemented(e.to_string()),
         })?;
         Ok(statement)
+    }
+
+    async fn ai_rewrite_and_parse(&mut self) -> Option<(DFStatement, String)> {
+        if !self.session.config.use_ai_rewritet {
+            return None;
+        }
+        // Quick guard to avoid LLM calls for non-SELECT statements
+        let trimmed = self.raw_query.trim_start();
+        if !trimmed.to_ascii_lowercase().starts_with("select") {
+            return None;
+        }
+        let token = match std::env::var("OPENAI_API_KEY") {
+            Ok(v) if !v.is_empty() => v,
+            _ => return None,
+        };
+        let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5-mini".to_string());
+
+        let client = Client::new();
+        let system_prompt = "You are a SQL optimizer for the Embucket (Snowflake-like) SQL dialect. The execution engine is based on Apache DataFusion, so the optimized SQL must be DataFusion-compatible. Rewrite the user's SQL to an equivalent but faster query for execution. The rewritten query MUST be semantically identical and produce exactly the same result set as the original. Do not change the results, only performance. Don't change anything if the query is already optimal. Output only the optimized SQL, no explanations, no markdown fences.";
+        let use_responses_api = model.to_ascii_lowercase().starts_with("gpt-5");
+        let request_body = if use_responses_api {
+            json!({
+                "model": model,
+                // Combine system + user as a single input string for Responses API
+                "input": [                    {"role": "system", "content": system_prompt},
+                {"role": "user", "content": self.raw_query} ]
+                //format!("SYSTEM: {}\n\nUSER_SQL:\n{}\n\nReturn only the optimized SQL.", system_prompt, self.raw_query),
+            })
+        } else {
+            json!({
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": self.raw_query}
+                ]
+            })
+        };
+
+        #[derive(Deserialize)]
+        struct ChatResponse { choices: Vec<Choice> }
+        #[derive(Deserialize)]
+        struct Choice { message: Message }
+        #[derive(Deserialize)]
+        struct Message { content: String }
+
+        let url = if use_responses_api {
+            "https://api.openai.com/v1/responses"
+        } else {
+            "https://api.openai.com/v1/chat/completions"
+        };
+        let start_ai = std::time::Instant::now();
+        let response_text = match client
+            .post(url)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status();
+                match resp.text().await {
+                    Ok(t) => {
+                        if !status.is_success() {
+                            tracing::warn!("OpenAI request failed: status={} body={}", status.as_u16(), t);
+                            return None;
+                        }
+                        t
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to read OpenAI response body: {}", e);
+                        return None;
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("OpenAI request error: {}", e);
+                return None;
+            }
+        };
+
+        let optimized_sql_raw = if use_responses_api {
+            let v: serde_json::Value = match serde_json::from_str(&response_text) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!("Failed to parse Responses API JSON: {}", e);
+                    return None;
+                }
+            };
+            if let Some(text) = v.get("output_text").and_then(|x| x.as_str()) {
+                text.to_string()
+            } else if let Some(arr) = v.get("output").and_then(|x| x.as_array()) {
+                // Try to extract first text content
+                let mut extracted = None;
+                for item in arr {
+                    if let Some(content_arr) = item.get("content").and_then(|c| c.as_array()) {
+                        for c in content_arr {
+                            if let Some(text) = c.get("text").and_then(|t| t.as_str()) {
+                                extracted = Some(text.to_string());
+                                break;
+                            }
+                        }
+                    }
+                    if extracted.is_some() { break; }
+                }
+                match extracted {
+                    Some(s) => s,
+                    None => {
+                        tracing::warn!("Responses API JSON did not contain expected text fields: {}", response_text);
+                        return None;
+                    }
+                }
+            } else {
+                tracing::warn!("Responses API JSON missing output_text/output: {}", response_text);
+                return None;
+            }
+        } else {
+            let parsed: ChatResponse = match serde_json::from_str(&response_text) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!("Failed to parse Chat Completions JSON: {}", e);
+                    return None;
+                }
+            };
+            match parsed.choices.get(0) {
+                Some(c) => c.message.content.clone(),
+                None => {
+                    tracing::warn!("Chat Completions JSON had no choices: {}", response_text);
+                    return None;
+                }
+            }
+        };
+
+        let optimized_sql = optimized_sql_raw
+            .trim()
+            .trim_start_matches("```sql")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+            .to_string();
+        
+        //println!("AI optimized query: {}", optimized_sql);
+        let state = self.session.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        let mut statement = match state.sql_to_statement(&optimized_sql, dialect) {
+            Ok(s) => s,
+            Err(_) => return None,
+        };
+        if let Err(_) = Self::postprocess_query_statement_with_validation(&mut statement) {
+            return None;
+        }
+
+        tracing::info!("AI optimized query: {}", optimized_sql);
+        tracing::trace!("AI optimized query: {}", optimized_sql);
+        self.ai_duration_ms = start_ai.elapsed().as_millis() as i64;
+        Some((statement, optimized_sql))
     }
 
     pub fn statement(&self) -> std::result::Result<DFStatement, DataFusionError> {
@@ -335,7 +496,12 @@ impl UserQuery {
             }
         }
 
-        let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
+        let statement = if let Some((st, optimized_sql)) = self.ai_rewrite_and_parse().await {
+            self.query = optimized_sql;
+            st
+        } else {
+            self.parse_query().context(ex_error::DataFusionSnafu)?
+        };
         self.query = statement.to_string();
 
         // Record the result as part of the current span.

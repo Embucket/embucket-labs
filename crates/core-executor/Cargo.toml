@@ -48,6 +48,7 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 tracing = { workspace = true }
 tracing-attributes = { workspace = true }
+reqwest = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = "0.1.17"
 tokio-util = { workspace = true }

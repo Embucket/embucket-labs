@@ -58,18 +58,19 @@ def save_results_to_csv(results, filename="query_results.csv", system=None):
         filename: Path to save the CSV file
         system: The system type (SystemType.SNOWFLAKE or SystemType.EMBUCKET)
     """
-    headers = ["Query", "Query ID", "Total (ms)", "Rows"]
+    headers = ["Query", "Query ID", "Total (ms)", "AI (ms)", "Exec (ms)", "Rows"]
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(headers)
 
         if system == SystemType.EMBUCKET:
-            # Embucket results format
+            # Embucket results format: [query_no, query_id, total_ms, ai_ms, exec_ms, rows]
             query_results, total_time = results
             for row in query_results:
-                writer.writerow([row[0], row[1], row[2], row[3]])
-            writer.writerow(["TOTAL", "", total_time, ""])
+                writer.writerow([row[0], row[1], row[2], row[3], row[4], row[5]])
+            # For now we keep total_time as overall total (includes AI time)
+            writer.writerow(["TOTAL", "", total_time, "", "", ""]) 
         elif system == SystemType.SNOWFLAKE:
             # Snowflake results format with simplified query
             total_time = 0
@@ -234,7 +235,7 @@ def run_on_emb(queries, cache=False):
     # Filter by successful status and order by start_time
     num_queries = len(queries)
     history_query = f"""
-        SELECT id, duration_ms, result_count, query
+        SELECT id, duration_ms, ai_duration_ms, result_count, query
         FROM slatedb.history.queries
         WHERE status = 'Successful'
         ORDER BY start_time DESC
@@ -262,8 +263,9 @@ def run_on_emb(queries, cache=False):
     for i, record in enumerate(reversed_results):
         query_id = record[0]
         duration_ms = record[1]
-        result_count = record[2]
-        actual_query = record[3]
+        ai_ms = record[2]
+        result_count = record[3]
+        actual_query = record[4]
 
         query_number = i + 1
 
@@ -277,10 +279,13 @@ def run_on_emb(queries, cache=False):
         # Add to total time
         total_time += duration_ms
 
+        exec_ms = max(duration_ms - ai_ms, 0)
         query_results.append([
             query_number,
             query_id,
             duration_ms,
+            ai_ms,
+            exec_ms,
             result_count
         ])
 
