@@ -706,8 +706,12 @@ impl ExecutionService for CoreExecutionService {
 
             let query_status = query_result_status.status.clone();
 
-            // Persist AI duration measured during parsing/rewrite, if any
+            // Persist AI info: duration and optimized SQL
             history_record.ai_duration_ms = query_obj.ai_duration_ms;
+            if history_record.query != query_obj.raw_query && !query_obj.query.is_empty() {
+                history_record.ai_query = Some(query_obj.query.clone());
+                // Ensure original query text remains intact in history_record.query
+            }
             history_record.set_result(&query_result_status.as_historical_result_set(), query_history_rows_limit);
             history_record.set_status(query_status.clone());
 

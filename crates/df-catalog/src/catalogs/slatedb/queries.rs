@@ -26,6 +26,7 @@ impl QueriesView {
             Field::new("id", DataType::Int64, false),
             Field::new("worksheet_id", DataType::Int64, true),
             Field::new("query", DataType::Utf8, false),
+            Field::new("ai_query", DataType::Utf8, true),
             Field::new("start_time", DataType::Utf8, false),
             Field::new("end_time", DataType::Utf8, false),
             Field::new("duration_ms", DataType::Int64, false),
@@ -44,6 +45,7 @@ impl QueriesView {
             query_ids: Int64Builder::new(),
             worksheet_ids: Int64Builder::new(),
             queries: StringBuilder::new(),
+            ai_queries: StringBuilder::new(),
             start_time_timestamps: StringBuilder::new(),
             end_time_timestamps: StringBuilder::new(),
             duration_ms_values: Int64Builder::new(),
@@ -80,6 +82,7 @@ pub struct QueriesViewBuilder {
     query_ids: Int64Builder,
     worksheet_ids: Int64Builder,
     queries: StringBuilder,
+    ai_queries: StringBuilder,
     start_time_timestamps: StringBuilder,
     end_time_timestamps: StringBuilder,
     duration_ms_values: Int64Builder,
@@ -97,6 +100,7 @@ impl QueriesViewBuilder {
         self.query_ids.append_value(query_record.id.into());
         self.worksheet_ids.append_option(query_record.worksheet_id);
         self.queries.append_value(query_record.query);
+        self.ai_queries.append_option(query_record.ai_query);
         self.start_time_timestamps
             .append_value(query_record.start_time.to_string());
         self.end_time_timestamps
@@ -119,6 +123,7 @@ impl QueriesViewBuilder {
                 Arc::new(self.query_ids.finish()),
                 Arc::new(self.worksheet_ids.finish()),
                 Arc::new(self.queries.finish()),
+                Arc::new(self.ai_queries.finish()),
                 Arc::new(self.start_time_timestamps.finish()),
                 Arc::new(self.end_time_timestamps.finish()),
                 Arc::new(self.duration_ms_values.finish()),

@@ -34,6 +34,8 @@ pub struct QueryRecord {
     pub id: QueryRecordId,
     pub worksheet_id: Option<WorksheetId>,
     pub query: String,
+    #[serde(default)]
+    pub ai_query: Option<String>,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
@@ -55,6 +57,7 @@ impl QueryRecord {
             id: Self::inverted_id(QueryRecordId(start_time.timestamp_millis())),
             worksheet_id,
             query: String::from(query),
+            ai_query: None,
             start_time,
             end_time: start_time,
             duration_ms: 0,
