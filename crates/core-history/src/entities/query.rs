@@ -37,6 +37,7 @@ pub struct QueryRecord {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
+    #[serde(default)]
     pub ai_duration_ms: i64,
     pub result_count: i64,
     pub result: Option<String>,
