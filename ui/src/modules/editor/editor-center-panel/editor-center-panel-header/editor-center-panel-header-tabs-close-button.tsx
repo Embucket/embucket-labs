@@ -51,7 +51,7 @@ export function EditorCenterPanelHeaderTabsCloseButton({
       disabled={disabled}
       variant="ghost"
       onClick={(e) => handleTabClose(e, tab)}
-      className="ml-auto size-6"
+      className="ml-auto size-6 transition-none"
     >
       <X />
     </Button>
