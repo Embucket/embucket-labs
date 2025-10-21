@@ -671,7 +671,7 @@ impl ExecutionService for CoreExecutionService {
             let result_fut = timeout(Duration::from_secs(query_timeout_secs), query_obj.execute());
 
             // wait for any future to be resolved
-            let query_result_status = tokio::select! {
+            let mut query_result_status = tokio::select! {
                 finished = result_fut => {
                     match finished {
                         Ok(inner_result) => {
@@ -703,6 +703,44 @@ impl ExecutionService for CoreExecutionService {
                     }
                 }
             };
+
+            // Single retry path: if AI was used and the execution failed, retry with original query (no AI)
+            if query_obj.ai_duration_ms > 0 && !matches!(query_result_status.status, QueryStatus::Successful) {
+                // Attempt to execute the original raw query directly via DataFusion
+                let session_retry = query_obj.session.clone();
+                let query_text_retry = query_obj.raw_query.clone();
+                let query_id_retry = query_obj.query_context.query_id;
+                let retry_res: Option<QueryResult> = {
+                    let res_df = session_retry.ctx.sql(&query_text_retry).await;
+                    if let Ok(df) = res_df {
+                        let mut schema = df.schema().as_arrow().clone();
+                        match df.collect().await {
+                            Ok(records) => {
+                                if !records.is_empty() {
+                                    schema = records[0].schema().as_ref().clone();
+                                }
+                                Some(QueryResult::new(records, Arc::new(schema), query_id_retry))
+                            }
+                            Err(e) => {
+                                tracing::warn!("Retry collect failed: {:?}", e);
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    }
+                };
+
+                match retry_res {
+                    Some(qr) => {
+                        query_result_status = QueryResultStatus { query_result: Ok(qr), status: QueryStatus::Successful };
+                    }
+                    None => {
+                        // keep original failure but augment diagnostic in logs
+                        tracing::warn!("AI path failed and retry with original also failed");
+                    }
+                }
+            }
 
             let query_status = query_result_status.status.clone();
 
