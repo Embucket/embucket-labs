@@ -3,6 +3,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 
+use crate::datafusion::{
+    logical_plan::duckdb::DuckDBLogicalNode, physical_plan::duckdb::DuckDBPhysicalNode,
+};
+
 use super::{logical_plan::merge::MergeIntoCOWSink, physical_plan::merge::MergeIntoCOWSinkExec};
 
 #[derive(Debug, Default)]
@@ -28,6 +32,11 @@ impl ExtensionPlanner for CustomExtensionPlanner {
                 merge.schema.clone(),
                 input,
                 merge.target.clone(),
+            ))))
+        } else if let Some(duckdb_node) = node.as_any().downcast_ref::<DuckDBLogicalNode>() {
+            Ok(Some(Arc::new(DuckDBPhysicalNode::new(
+                duckdb_node.query.clone(),
+                duckdb_node.schema.clone(),
             ))))
         } else {
             Ok(None)

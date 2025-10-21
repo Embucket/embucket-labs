@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use datafusion::physical_expr::EquivalenceProperties;
 use datafusion_common::{DFSchemaRef, DataFusionError};
-use datafusion_physical_expr::EquivalenceProperties;
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
     execution_plan::{Boundedness, EmissionType},
@@ -14,14 +14,14 @@ use snafu::ResultExt;
 use crate::{duckdb::execute_duck_db_explain, error};
 
 #[derive(Debug, Clone)]
-struct DuckDBPhysicalNode {
+pub struct DuckDBPhysicalNode {
     query: String,
     schema: DFSchemaRef,
     properties: PlanProperties,
 }
 
 impl DuckDBPhysicalNode {
-    fn new(query: String, schema: DFSchemaRef) -> Self {
+    pub fn new(query: String, schema: DFSchemaRef) -> Self {
         let eq_properties = EquivalenceProperties::new(Arc::new(schema.as_ref().clone().into()));
         let properties = PlanProperties::new(
             eq_properties,

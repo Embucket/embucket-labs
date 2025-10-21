@@ -5,9 +5,9 @@ use datafusion_common::DFSchemaRef;
 use datafusion_expr::{Expr, InvariantLevel, LogicalPlan, UserDefinedLogicalNode};
 
 #[derive(Debug, Clone)]
-struct DuckDBLogicalNode {
-    query: String,
-    schema: DFSchemaRef,
+pub struct DuckDBLogicalNode {
+    pub query: String,
+    pub schema: DFSchemaRef,
 }
 
 impl UserDefinedLogicalNode for DuckDBLogicalNode {
