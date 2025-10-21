@@ -461,11 +461,32 @@ impl UserQuery {
                             "nullable": f.is_nullable()
                         }))
                         .collect();
+                    // Include lightweight table-level statistics from provider.statistics()
+                    let table_stats = if let Some(stats) = table.statistics() {
+                        let num_rows = match stats.num_rows {
+                            datafusion_common::stats::Precision::Exact(v) => Some(v as u64),
+                            datafusion_common::stats::Precision::Inexact(v) => Some(v as u64),
+                            _ => None,
+                        };
+                        let total_bytes = match stats.total_byte_size {
+                            datafusion_common::stats::Precision::Exact(v) => Some(v as u64),
+                            datafusion_common::stats::Precision::Inexact(v) => Some(v as u64),
+                            _ => None,
+                        };
+                        serde_json::json!({
+                            "num_rows": num_rows,
+                            "total_bytes": total_bytes,
+                        })
+                    } else {
+                        serde_json::json!({})
+                    };
+
                     out.push(serde_json::json!({
                         "table": resolved.table.to_string(),
                         "schema": resolved.schema.to_string(),
                         "catalog": resolved.catalog.to_string(),
-                        "columns": fields
+                        "columns": fields,
+                        "table_stats": table_stats
                     }));
                 }
             }
