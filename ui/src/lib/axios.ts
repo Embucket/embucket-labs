@@ -22,6 +22,12 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
+// axiosInstance.interceptors.response.use(async (response) => {
+//   // ⏳ add 3s delay
+//   await new Promise((resolve) => setTimeout(resolve, 3000));
+//   return response;
+// });
+
 // See request interceptor in AxiosInterceptors.tsx
 // See response interceptor in AxiosInterceptors.tsx
 

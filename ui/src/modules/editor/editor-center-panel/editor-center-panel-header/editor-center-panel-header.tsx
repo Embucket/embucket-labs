@@ -12,6 +12,7 @@ export const EditorCenterPanelHeader = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const addTab = useEditorSettingsStore((state) => state.addTab);
+  const createQueryPending = useEditorSettingsStore((state) => state.createQueryPending);
 
   const { mutate, isPending } = useCreateWorksheet({
     mutation: {
@@ -49,11 +50,11 @@ export const EditorCenterPanelHeader = () => {
         </ScrollArea>
       </div>
       <Button
-        disabled={isPending}
+        disabled={isPending || createQueryPending}
         onClick={handleAddTab}
         variant="outline"
         size="icon"
-        className="hover:bg-hover! mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 border-none transition-all"
+        className="hover:bg-hover! mt-auto mr-4 size-9 rounded-tl-md rounded-tr-md rounded-b-none border-b-0 border-none transition-none"
       >
         +
       </Button>

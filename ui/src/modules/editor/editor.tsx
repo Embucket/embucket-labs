@@ -8,7 +8,6 @@ import { curSqlGutter } from '@tidbcloud/codemirror-extension-cur-sql-gutter';
 import { saveHelper } from '@tidbcloud/codemirror-extension-save-helper';
 import { SQLEditor, useEditorCacheContext } from '@tidbcloud/tisqleditor-react';
 
-import type { Worksheet } from '@/orval/models';
 import { useGetNavigationTrees } from '@/orval/navigation-trees';
 import { getGetWorksheetQueryKey, useGetWorksheet, useUpdateWorksheet } from '@/orval/worksheets';
 
@@ -25,21 +24,33 @@ interface EditorProps {
   content?: string;
 }
 
-const useSetWorksheetContent = (worksheet?: Worksheet) => {
+// This hook now only depends on the content string and checks
+// if an update is necessary before dispatching.
+const useSetWorksheetContent = (worksheetContent?: string) => {
   const cacheCtx = useEditorCacheContext();
 
   useEffect(() => {
-    if (!worksheet) return;
+    // Wait for content to be defined/loaded
+    if (!worksheetContent) return;
+
     const activeEditor = cacheCtx.getEditor('MyEditor');
     if (!activeEditor) return;
-    activeEditor.editorView.dispatch({
-      changes: {
-        from: 0,
-        to: activeEditor.editorView.state.doc.length,
-        insert: worksheet.content,
-      },
-    });
-  }, [worksheet, cacheCtx]);
+
+    // Get the editor's current content
+    const currentDoc = activeEditor.editorView.state.doc.toString();
+
+    // Only dispatch a change if the new content is actually different
+    // from the content already in the editor.
+    if (worksheetContent !== currentDoc) {
+      activeEditor.editorView.dispatch({
+        changes: {
+          from: 0,
+          to: activeEditor.editorView.state.doc.length,
+          insert: worksheetContent,
+        },
+      });
+    }
+  }, [worksheetContent, cacheCtx]); // Depend on the primitive string
 };
 
 export function Editor({ readonly, content }: EditorProps) {
@@ -53,12 +64,11 @@ export function Editor({ readonly, content }: EditorProps) {
   });
 
   const { data: worksheet } = useGetWorksheet(Number(worksheetId));
-  // Not intended to be used for Editor - there should be a dedicated endpoint for that
   const { data: { items: navigationTrees } = {} } = useGetNavigationTrees();
   const { mutate } = useUpdateWorksheet();
 
-  // Set initial content from fetched worksheet
-  useSetWorksheetContent(worksheet);
+  // Pass only the worksheet content string to the updated hook
+  useSetWorksheetContent(worksheet?.content);
 
   // Invalidate queries when worksheet ID changes
   useEffect(() => {
@@ -95,12 +105,6 @@ export function Editor({ readonly, content }: EditorProps) {
     [mutate],
   );
 
-  // TODO: Use to enable / disable Run button
-  // @tidbcloud/codemirror-extension-events
-  // const handleDocChange = (view: EditorView, state: EditorState, doc: string) => {
-  //   console.log(doc, worksheetId);
-  // };
-
   const exts: Extension[] = useMemo(
     () => [
       sqlAutoCompletion(),
@@ -128,17 +132,32 @@ export function Editor({ readonly, content }: EditorProps) {
     });
   }, [handleSave, cacheCtx]);
 
-  const editorDoc = content ?? worksheet?.content ?? '';
+  // `doc` is now for *initial* content only.
+  // `useSetWorksheetContent` will handle loading the fetched content.
+  const editorDoc = content ?? '';
+
+  // Memoize the schema to prevent it from being recalculated on every render
+  const schema = useMemo(
+    () => transformNavigationTreeToSqlConfigSchema(navigationTrees),
+    [navigationTrees],
+  );
+
+  // Memoize the sqlConfig object to prevent it from being a new object
+  // on every render, which would re-trigger extensions.
+  const sqlConfig = useMemo(
+    () => ({
+      upperCaseKeywords: true,
+      schema: schema,
+    }),
+    [schema],
+  );
 
   return (
     <SQLEditor
       editorId="MyEditor"
       doc={editorDoc}
       theme={SQL_EDITOR_THEME}
-      sqlConfig={{
-        upperCaseKeywords: true,
-        schema: transformNavigationTreeToSqlConfigSchema(navigationTrees),
-      }}
+      sqlConfig={sqlConfig}
       extraExts={exts}
     />
   );
