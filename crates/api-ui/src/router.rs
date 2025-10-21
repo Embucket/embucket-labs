@@ -8,7 +8,7 @@ use crate::navigation_trees::handlers::{
     ApiDoc as DatabasesNavigationApiDoc, get_navigation_trees,
 };
 use crate::queries::handlers::{ApiDoc as QueryApiDoc, get_query};
-use crate::queries::handlers::{queries, query};
+use crate::queries::handlers::{get_query_result, queries, query};
 use crate::schemas::handlers::ApiDoc as SchemasApiDoc;
 use crate::schemas::handlers::{create_schema, delete_schema, list_schemas};
 use crate::tables::handlers::{
@@ -87,14 +87,6 @@ pub fn create_router() -> Router<AppState> {
                 .get(get_database)
                 .put(update_database),
         )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/register",
-        //     post(register_table),
-        // )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables",
-        //     post(create_table),
-        // )
         .route(
             "/databases/{databaseName}/schemas/{schemaName}/tables",
             get(get_tables),
@@ -120,18 +112,11 @@ pub fn create_router() -> Router<AppState> {
         )
         .route("/queries", post(query).get(queries))
         .route("/queries/{queryRecordId}", get(get_query))
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/settings",
-        //     get(get_settings).post(update_table_properties),
-        // )
+        .route("/queries/{queryRecordId}/result", get(get_query_result))
         .route(
             "/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows",
             post(upload_file),
         )
-        // .route(
-        //     "/warehouses/{warehouseId}/databases/{databaseName}/tables/{tableName}/snapshots",
-        //     get(get_snapshots),
-        // )
         .route("/volumes", post(create_volume).get(list_volumes))
         .route(
             "/volumes/{volumeName}",

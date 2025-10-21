@@ -18,6 +18,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Bad raw result set: {error}"))]
+    BadRawResultSet {
+        #[snafu(source)]
+        error: std::string::FromUtf8Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Error adding worksheet: {source}"))]
     WorksheetAdd {
         source: core_utils::Error,
@@ -48,6 +56,13 @@ pub enum Error {
 
     #[snafu(display("Error updating worksheet: {source}"))]
     WorksheetUpdate {
+        source: core_utils::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Error adding query result: {source}"))]
+    ResultAdd {
         source: core_utils::Error,
         #[snafu(implicit)]
         location: Location,

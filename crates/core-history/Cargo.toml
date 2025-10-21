@@ -28,6 +28,7 @@ uuid = { workspace = true }
 rusqlite = { workspace = true }
 cfg-if = { workspace = true }
 deadpool-sqlite = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

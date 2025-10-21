@@ -1,3 +1,4 @@
+use crate::ResultSet;
 use crate::errors::Result;
 use crate::{QueryRecord, QueryRecordId, QueryStatus, Worksheet, WorksheetId};
 use async_trait::async_trait;
@@ -77,9 +78,10 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     async fn delete_worksheet(&self, id: WorksheetId) -> Result<()>;
     async fn get_worksheets(&self) -> Result<Vec<Worksheet>>;
     async fn add_query(&self, item: &QueryRecord) -> Result<()>;
-    async fn update_query(&self, item: &QueryRecord) -> Result<()>;
+    async fn update_query(&self, item: &QueryRecord, result_set: Option<ResultSet>) -> Result<()>;
     async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord>;
     async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>>;
-    fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-    async fn save_query_record(&self, query_record: &mut QueryRecord);
+    fn new_query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
+    async fn save_query_record(&self, query_record: &QueryRecord, result_set: Option<ResultSet>);
+    async fn get_query_result(&self, query_record_id: QueryRecordId) -> Result<ResultSet>;
 }

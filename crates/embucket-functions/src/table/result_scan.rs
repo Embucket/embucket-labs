@@ -1,7 +1,7 @@
 use crate::table::errors;
 use crate::utils::block_in_new_runtime;
 use core_history::result_set::ResultSet;
-use core_history::{GetQueriesParams, HistoryStore, QueryRecord};
+use core_history::{GetQueriesParams, HistoryStore};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
@@ -62,31 +62,13 @@ impl ResultScanFunc {
             .parse::<i64>()
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
-        let query_record = block_in_new_runtime(async move {
-            let record = history_store
-                .get_query(query_id_parsed.into())
+        let result_set = block_in_new_runtime(async move {
+            let result_set = history_store
+                .get_query_result(query_id_parsed.into())
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;
-            Ok::<QueryRecord, DataFusionError>(record)
+            Ok::<ResultSet, DataFusionError>(result_set)
         })??;
-
-        if query_record.error.is_some() {
-            return exec_err!(
-                "Query {query_id_parsed} has not been executed successfully: {:?}",
-                query_record.error
-            );
-        }
-
-        let result_json = query_record.result.ok_or_else(|| {
-            errors::NoResultDataForQueryIdSnafu {
-                query_id: query_id_parsed,
-            }
-            .build()
-        })?;
-
-        // Deserialize ResultSet string
-        let result_set: ResultSet = serde_json::from_str(&result_json)
-            .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)?;
 

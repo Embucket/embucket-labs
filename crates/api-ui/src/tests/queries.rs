@@ -107,8 +107,18 @@ async fn test_ui_queries_with_worksheet() {
     )
     .await
     .expect("Create query error");
+
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query result error");
+
     assert_eq!(
-        query.result,
+        result_set,
         ResultSet {
             columns: vec![
                 Column {
@@ -138,8 +148,17 @@ async fn test_ui_queries_with_worksheet() {
     .await
     .expect("Create query error");
 
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query2.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query result error");
+
     assert_eq!(
-        query2.result,
+        result_set,
         ResultSet {
             columns: vec![Column {
                 name: "Int64(2)".to_string(),
@@ -220,7 +239,6 @@ async fn test_ui_queries_with_worksheet() {
     let queries = queries_response.items;
     assert_eq!(queries.len(), 2);
 
-    // check items returned in descending order
     assert_eq!(queries[0].status, QueryStatus::Failed);
     assert_eq!(queries[1].status, QueryStatus::Failed);
 
@@ -239,11 +257,8 @@ async fn test_ui_queries_with_worksheet() {
     .items;
 
     assert_eq!(queries2.len(), 2);
-    // check items returned in descending order
     assert_eq!(queries2[0].status, QueryStatus::Successful);
-    assert_eq!(queries2[0].result, ResultSet::default());
     assert_eq!(queries2[1].status, QueryStatus::Successful);
-    assert_eq!(queries2[1].result, ResultSet::default());
 
     // get worksheet with queries
     // tesing regression: "Deserialize error: missing field `id` at line 1 column 2"

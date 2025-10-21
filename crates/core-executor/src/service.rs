@@ -30,7 +30,7 @@ use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
 use core_history::HistoryStore;
 use core_history::SlateDBHistoryStore;
-use core_history::{QueryRecordId, QueryStatus};
+use core_history::{QueryRecordId, QueryResultError, QueryStatus};
 use core_metastore::{
     Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
     Volume, VolumeType,
@@ -576,8 +576,15 @@ impl ExecutionService for CoreExecutionService {
                     .try_into()
                     .context(ex_error::QueryExecutionSnafu { query_id })?)
             } else {
+                let result_set = self
+                    .history_store
+                    .get_query_result(query_id)
+                    .await
+                    .context(ex_error::QueryHistoryResultSnafu)
+                    .context(ex_error::QueryExecutionSnafu { query_id })?;
+
                 // convert saved ResultSet to result
-                Ok(query_record
+                Ok(result_set
                     .try_into()
                     .context(ex_error::QueryExecutionSnafu { query_id })?)
             };
@@ -617,8 +624,7 @@ impl ExecutionService for CoreExecutionService {
 
         let mut history_record = self
             .history_store
-            .query_record(query, query_context.worksheet_id);
-        history_record.set_status(QueryStatus::Running);
+            .new_query_record(query, query_context.worksheet_id);
 
         let query_id = history_record.query_id();
 
@@ -642,7 +648,7 @@ impl ExecutionService for CoreExecutionService {
 
         // Add query to history with status: Running
         self.history_store
-            .save_query_record(&mut history_record)
+            .save_query_record(&history_record, None)
             .await;
 
         let query_timeout_secs = self.config.query_timeout_secs;
@@ -703,25 +709,51 @@ impl ExecutionService for CoreExecutionService {
                 }
             };
 
-            let query_status = query_result_status.status.clone();
-
-            history_record.set_result(&query_result_status.as_historical_result_set(), query_history_rows_limit);
-            history_record.set_status(query_status.clone());
-
             let _ = tracing::debug_span!("spawned_query_task_result",
                 query_id = query_id.as_i64(),
                 query_uuid = query_id.as_uuid().to_string(),
-                query_status = format!("{:?}", query_status),
+                query_status = format!("{:?}", query_result_status.status),
             )
             .entered();
+
+            // remove query from running queries registry
+            let running_query = queries_ref.remove(RunningQueryId::ByQueryId(query_id));
+
+            let query_status = query_result_status.status;
+
+            let result_set = match &query_result_status.query_result {
+                Ok(query_result) => {
+                    let result_count: usize = query_result
+                        .records
+                        .iter()
+                        .map(RecordBatch::num_rows)
+                        .sum();
+                    // We are safe, no chance we will have more than i64::MAX rows
+                    #[allow(clippy::unwrap_used)]
+                    let result_count = i64::try_from(result_count).unwrap();
+                    history_record.finished_with_status(query_status, result_count);
+                    if let Ok(result_set) = query_result.as_result_set(Some(query_history_rows_limit)) {
+                        Some(result_set)
+                    } else {
+                        tracing::error!("failed to convert query result {query_id} to result_set");
+                        None
+                    }
+                }
+                Err(err) => {
+                    let execution_err = QueryResultError {
+                        status: query_status,
+                        message: err.to_snowflake_error().to_string(),
+                        diagnostic_message: format!("{err:?}"),
+                    };
+                    history_record.finished_with_error(&execution_err);
+                    None
+                }
+            };
 
             // Record the query in the session’s history, including result count or error message.
             // This ensures all queries are traceable and auditable within a session, which enables
             // features like `last_query_id()` and enhances debugging and observability.
-            history_store_ref.save_query_record(&mut history_record).await;
-
-            // remove query from running queries registry
-            let running_query = queries_ref.remove(RunningQueryId::ByQueryId(query_id));
+            history_store_ref.save_query_record(&history_record, result_set).await;
 
             // Send result to the result owner
             if tx.send(query_result_status).is_err() {
@@ -735,7 +767,7 @@ impl ExecutionService for CoreExecutionService {
 
             // notify listeners that historical result is ready
             if let Ok(running_query) = running_query {
-                let _ = running_query.notify_query_finished(query_status.clone());
+                let _ = running_query.notify_query_finished(query_status);
             }
         }.instrument(alloc_span).instrument(child));
 

@@ -9,7 +9,7 @@ async fn test_sqlite_history_schema() -> SqliteResult<()> {
     let history_store = SlateDBHistoryStore::new_in_memory().await;
 
     let res = history_store
-        .db
+        .queries_db
         .conn()
         .await?
         .interact(|conn| -> SqlResult<usize> {

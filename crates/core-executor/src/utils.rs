@@ -1373,7 +1373,7 @@ mod tests {
 
         // Create ResultSet from QueryResult
         let result_set = query_result
-            .as_result_set()
+            .as_result_set(Some(1000))
             .expect("Failed to convert query result to result set");
 
         eprintln!("Result set: {result_set:?}");

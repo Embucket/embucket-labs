@@ -42,7 +42,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
         if response.status() == StatusCode::OK {
             let headers = response.headers().clone();
             let status = response.status();
-            let text = response.text().await.expect("Failed to get response text");
+            let text = response.text().await.unwrap_or_default();
             if text.is_empty() {
                 // If no actual type retuned we emulate unit, by "null" value in json
                 Ok((

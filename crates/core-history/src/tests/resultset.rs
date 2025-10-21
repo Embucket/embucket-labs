@@ -1,3 +1,4 @@
+use crate::QueryRecordId;
 use crate::entities::result_set::{Column, QUERY_HISTORY_HARD_LIMIT_BYTES, ResultSet, Row};
 use serde_json::{Number, Value};
 use tokio;
@@ -15,8 +16,10 @@ async fn test_query_record_exceeds_limit() {
             data_format: "json".to_string(),
             schema: "schema".to_string(),
             batch_size_bytes: QUERY_HISTORY_HARD_LIMIT_BYTES + 1,
+            id: QueryRecordId::default(),
+            configured_rows_limit: Some(50),
         }
-        .serialize_with_limit(50)
+        .serialize_with_limit()
         .1,
         1
     );
@@ -34,8 +37,10 @@ async fn test_query_record_exceeds_limit() {
             data_format: "json".to_string(),
             schema: "schema".to_string(),
             batch_size_bytes: QUERY_HISTORY_HARD_LIMIT_BYTES + 1,
+            id: QueryRecordId::default(),
+            configured_rows_limit: Some(50),
         }
-        .serialize_with_limit(50)
+        .serialize_with_limit()
         .1,
         5
     );
@@ -53,8 +58,10 @@ async fn test_query_record_exceeds_limit() {
             data_format: "json".to_string(),
             schema: "schema".to_string(),
             batch_size_bytes: QUERY_HISTORY_HARD_LIMIT_BYTES * 2,
+            id: QueryRecordId::default(),
+            configured_rows_limit: Some(50),
         }
-        .serialize_with_limit(50)
+        .serialize_with_limit()
         .1,
         1 // shrinking to 1 row (90% shrink)
     );
@@ -72,8 +79,10 @@ async fn test_query_record_exceeds_limit() {
             data_format: "json".to_string(),
             schema: "schema".to_string(),
             batch_size_bytes: 0,
+            id: QueryRecordId::default(),
+            configured_rows_limit: Some(5),
         }
-        .serialize_with_limit(5)
+        .serialize_with_limit()
         .1,
         5
     );

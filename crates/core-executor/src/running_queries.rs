@@ -71,7 +71,7 @@ impl RunningQuery {
         // it should not go to the actual loop and should resolve as soon as results are ready
         loop {
             self.rx.changed().await?;
-            let status = self.rx.borrow().clone();
+            let status = *self.rx.borrow();
             if status != QueryStatus::Running {
                 break Ok(status);
             }

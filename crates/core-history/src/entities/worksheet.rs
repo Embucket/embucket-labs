@@ -68,6 +68,6 @@ mod test {
     #[test]
     fn test_new_worksheet() {
         let w1 = Worksheet::new(String::new(), String::new());
-        assert_eq!(w1.id, w1.created_at.timestamp_millis());
+        assert_eq!(w1.id, w1.created_at.timestamp_micros());
     }
 }

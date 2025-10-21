@@ -59,6 +59,8 @@ impl SqliteDb {
                 connection.interact(|conn| -> SqlResult<()> {
                     let journal_mode = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get::<_, String>(0))?;
                     tracing::debug!("journal_mode={journal_mode}");
+                    let busy_timeout = conn.query_row("PRAGMA busy_timeout = 2000", [], |row| row.get::<_, i32>(0))?;
+                    tracing::debug!("busy_timeout={busy_timeout}");
                     Ok(())
                 }).await??;
                 return Ok(sqlite_store);

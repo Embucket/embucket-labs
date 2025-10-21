@@ -2,9 +2,8 @@ use crate::Result;
 use crate::error as ex_error;
 use crate::utils::{DataSerializationFormat, convert_record_batches, convert_struct_to_timestamp};
 use arrow_schema::SchemaRef;
-use core_history::QueryResultError;
 use core_history::result_set::{Column, ResultSet, Row};
-use core_history::{QueryRecord, QueryRecordId, QueryStatus};
+use core_history::{QueryRecordId, QueryStatus};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};
@@ -127,7 +126,7 @@ impl QueryResult {
         Ok(rows)
     }
 
-    pub fn as_result_set(&self) -> Result<ResultSet> {
+    pub fn as_result_set(&self, query_history_rows_limit: Option<usize>) -> Result<ResultSet> {
         // Extract column metadata from the original QueryResult
         let columns = self
             .column_info()
@@ -142,6 +141,8 @@ impl QueryResult {
         let schema = serde_json::to_string(&self.schema).context(ex_error::SerdeParseSnafu)?;
         let data_format = DataSerializationFormat::Json;
         Ok(ResultSet {
+            // just for refrence
+            id: self.query_id,
             columns,
             rows: self.as_row_set(data_format)?,
             batch_size_bytes: self
@@ -152,6 +153,7 @@ impl QueryResult {
             // move here value of data_format we  hardcoded earlier
             data_format: data_format.to_string(),
             schema,
+            configured_rows_limit: query_history_rows_limit,
         })
     }
 }
@@ -169,12 +171,9 @@ fn convert_resultset_to_arrow_json_lines(
 }
 
 /// Convert historical query record to `QueryResult`
-impl TryFrom<QueryRecord> for QueryResult {
+impl TryFrom<ResultSet> for QueryResult {
     type Error = crate::Error;
-    fn try_from(value: QueryRecord) -> std::result::Result<Self, Self::Error> {
-        let query_id = value.id;
-        let result_set = ResultSet::try_from(value).context(ex_error::QueryHistorySnafu)?;
-
+    fn try_from(result_set: ResultSet) -> std::result::Result<Self, Self::Error> {
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)
             .context(ex_error::SerdeParseSnafu)?;
 
@@ -195,7 +194,7 @@ impl TryFrom<QueryRecord> for QueryResult {
         Ok(Self {
             records: batches,
             schema: schema_ref,
-            query_id,
+            query_id: result_set.id,
         })
     }
 }
@@ -229,29 +228,6 @@ impl QueryResult {
 pub struct QueryResultStatus {
     pub query_result: std::result::Result<QueryResult, crate::Error>,
     pub status: QueryStatus,
-}
-
-impl QueryResultStatus {
-    pub fn as_historical_result_set(&self) -> std::result::Result<ResultSet, QueryResultError> {
-        match &self.query_result {
-            Ok(query_result) => {
-                query_result
-                    .as_result_set()
-                    // ResultSet creation failed from Ok(QueryResult)
-                    .map_err(|err| QueryResultError {
-                        status: QueryStatus::Failed,
-                        message: err.to_string(),
-                        diagnostic_message: format!("{err:?}"),
-                    })
-            }
-            // Query failed
-            Err(err) => Err(QueryResultError {
-                status: self.status.clone(),
-                message: err.to_snowflake_error().to_string(),
-                diagnostic_message: format!("{err:?}"),
-            }),
-        }
-    }
 }
 
 // TODO: We should not have serde dependency here

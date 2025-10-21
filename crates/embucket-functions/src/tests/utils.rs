@@ -43,14 +43,16 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
     });
     mock.expect_get_query().returning(|id| {
         let mut record = QueryRecord::new("query", None);
-        let buf = r#"
-        {
-            "columns": [{"name":"a","type":"text"},{"name":"b","type":"text"},{"name":"c","type":"text"}],
-            "rows": [[1,"2",true],[2.0,"4",false]],
-            "data_format": "arrow",
-            "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
-        }"#;
-        record.result = Some(buf.to_string());
+        record.result_count = 3;
+        // kept for future as serialized snippet
+        // let buf = r#"
+        // {
+        //     "columns": [{"name":"a","type":"text"},{"name":"b","type":"text"},{"name":"c","type":"text"}],
+        //     "rows": [[1,"2",true],[2.0,"4",false]],
+        //     "data_format": "arrow",
+        //     "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
+        // }"#;
+        // record.result = Some(buf.to_string());
         if id == QueryRecordId(500) {
             return Err(core_history::Error::ExecutionResult {
                 message: "Query not found".to_string(),

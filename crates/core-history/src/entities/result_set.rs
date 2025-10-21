@@ -1,12 +1,13 @@
-use crate::QueryRecord;
+use crate::QueryRecordId;
 use crate::errors;
+use bytes::Bytes;
 use serde::de::{Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
 use std::fmt;
 
-// ResultSet exceeded limit of 4GB - 512MB
+// ResultSet should not exceeded limit of 4GB - 512MB
 pub const QUERY_HISTORY_HARD_LIMIT_BYTES: usize = 4 * 1024 * 1024 * 1024 - 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,18 +76,43 @@ impl<'de> Deserialize<'de> for Row {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResultSet {
     pub columns: Vec<Column>,
     pub rows: Vec<Row>,
     pub data_format: String,
     pub schema: String,
+    #[serde(skip)]
+    pub id: QueryRecordId,
     // we need this before result set saved to history, do not even serialize it otherwise
     #[serde(skip)]
     pub batch_size_bytes: usize,
+    #[serde(skip)]
+    pub configured_rows_limit: Option<usize>,
 }
 
 impl ResultSet {
+    #[tracing::instrument(
+        level = "info",
+        name = "ResultSet::serialized_result_set",
+        skip(self),
+        fields(serialized_count, serialization_error)
+    )]
+    pub fn as_serialized(&self) -> Option<(Bytes, usize)> {
+        let (encoding_res, serialized_rows_count) = self.serialize_with_limit();
+        match encoding_res {
+            Ok(serialized_result) => {
+                tracing::Span::current().record("serialized_count", serialized_rows_count);
+                return Some((Bytes::from(serialized_result), serialized_rows_count));
+            }
+            Err(err) => {
+                tracing::Span::current().record("serialization_error", format!("{err:?}"));
+                tracing::error!("Failed to serialize result set: {err:?}");
+            }
+        }
+        None
+    }
+
     #[must_use]
     #[allow(clippy::as_conversions)]
     pub const fn calc_hard_rows_limit(&self) -> Option<usize> {
@@ -123,10 +149,9 @@ impl ResultSet {
         level = "debug",
         fields(batch_size_bytes=self.batch_size_bytes, rows_count=self.rows.len(), serialized_size, rows_count_limit),
     )]
-    pub fn serialize_with_limit(
-        &self,
-        max_rows_limit: usize,
-    ) -> (std::result::Result<String, serde_json::Error>, usize) {
+    pub fn serialize_with_limit(&self) -> (std::result::Result<String, serde_json::Error>, usize) {
+        let max_rows_limit = self.configured_rows_limit.unwrap_or(usize::MAX);
+
         // Check if hard limit is exceeded by size or rows count
         let hard_rows_limit = self.calc_hard_rows_limit();
         let rows_limit = max_rows_limit.min(hard_rows_limit.unwrap_or(max_rows_limit));
@@ -165,14 +190,11 @@ struct LimitedResultSet<'a> {
     pub schema: &'a str,
 }
 
-impl TryFrom<QueryRecord> for ResultSet {
+impl TryFrom<Bytes> for ResultSet {
     type Error = errors::Error;
     #[tracing::instrument(name = "ResultSet::try_from", level = "error", err)]
-    fn try_from(value: QueryRecord) -> Result<Self, Self::Error> {
-        let result_str = value
-            .result
-            .context(errors::NoResultSetSnafu { query_id: value.id })?;
-
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        let result_str = String::from_utf8(value.to_vec()).context(errors::BadRawResultSetSnafu)?;
         let result_set: Self =
             serde_json::from_str(&result_str).context(errors::DeserializeValueSnafu)?;
         Ok(result_set)

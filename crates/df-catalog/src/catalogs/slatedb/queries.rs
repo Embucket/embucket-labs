@@ -25,12 +25,12 @@ impl QueriesView {
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Int64, false),
             Field::new("worksheet_id", DataType::Int64, true),
+            Field::new("result_id", DataType::Utf8, true),
             Field::new("query", DataType::Utf8, false),
             Field::new("start_time", DataType::Utf8, false),
             Field::new("end_time", DataType::Utf8, false),
             Field::new("duration_ms", DataType::Int64, false),
             Field::new("result_count", DataType::Int64, false),
-            Field::new("result", DataType::Utf8, true),
             Field::new("status", DataType::Utf8, false),
             Field::new("error", DataType::Utf8, true),
         ]));
@@ -42,12 +42,12 @@ impl QueriesView {
         QueriesViewBuilder {
             query_ids: Int64Builder::new(),
             worksheet_ids: Int64Builder::new(),
+            result_ids: StringBuilder::new(),
             queries: StringBuilder::new(),
             start_time_timestamps: StringBuilder::new(),
             end_time_timestamps: StringBuilder::new(),
             duration_ms_values: Int64Builder::new(),
             result_count_values: Int64Builder::new(),
-            results: StringBuilder::new(),
             statuses: StringBuilder::new(),
             errors: StringBuilder::new(),
             schema: Arc::clone(&self.schema),
@@ -77,12 +77,12 @@ pub struct QueriesViewBuilder {
     schema: SchemaRef,
     query_ids: Int64Builder,
     worksheet_ids: Int64Builder,
+    result_ids: StringBuilder,
     queries: StringBuilder,
     start_time_timestamps: StringBuilder,
     end_time_timestamps: StringBuilder,
     duration_ms_values: Int64Builder,
     result_count_values: Int64Builder,
-    results: StringBuilder,
     statuses: StringBuilder,
     errors: StringBuilder,
 }
@@ -93,6 +93,7 @@ impl QueriesViewBuilder {
         // Note: append_value is actually infallible.
         self.query_ids.append_value(query_record.id.into());
         self.worksheet_ids.append_option(query_record.worksheet_id);
+        self.result_ids.append_option(query_record.result_id);
         self.queries.append_value(query_record.query);
         self.start_time_timestamps
             .append_value(query_record.start_time.to_string());
@@ -102,7 +103,6 @@ impl QueriesViewBuilder {
             .append_value(query_record.duration_ms);
         self.result_count_values
             .append_value(query_record.result_count);
-        self.results.append_option(query_record.result);
         self.statuses.append_value(query_record.status.to_string());
         self.errors.append_option(query_record.error);
     }
@@ -113,12 +113,12 @@ impl QueriesViewBuilder {
             vec![
                 Arc::new(self.query_ids.finish()),
                 Arc::new(self.worksheet_ids.finish()),
+                Arc::new(self.result_ids.finish()),
                 Arc::new(self.queries.finish()),
                 Arc::new(self.start_time_timestamps.finish()),
                 Arc::new(self.end_time_timestamps.finish()),
                 Arc::new(self.duration_ms_values.finish()),
                 Arc::new(self.result_count_values.finish()),
-                Arc::new(self.results.finish()),
                 Arc::new(self.statuses.finish()),
                 Arc::new(self.errors.finish()),
             ],
