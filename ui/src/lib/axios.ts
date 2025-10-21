@@ -23,7 +23,7 @@ const axiosInstance = axios.create({
 });
 
 // axiosInstance.interceptors.response.use(async (response) => {
-//   // ⏳ add 5s delay
+//   // ⏳ add 3s delay
 //   await new Promise((resolve) => setTimeout(resolve, 3000));
 //   return response;
 // });

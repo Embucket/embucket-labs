@@ -33,6 +33,8 @@ export function EditorCenterPanel() {
   const selectedContext = useEditorSettingsStore((state) => state.selectedContext);
   const setSelectedQueryRecord = useEditorSettingsStore((state) => state.setSelectedQueryRecord);
 
+  const setCreateQueryPending = useEditorSettingsStore((state) => state.setCreateQueryPending);
+
   const {
     groupRef,
     topRef,
@@ -45,7 +47,7 @@ export function EditorCenterPanel() {
 
   const queryClient = useQueryClient();
 
-  const { mutate: createQuery, isPending: createQueryPending } = useCreateQuery({
+  const { mutate: createQuery, isPending: createQueryMutationPending } = useCreateQuery({
     mutation: {
       onSuccess: (queryRecord) => {
         if (queryRecord.id) {
@@ -71,6 +73,9 @@ export function EditorCenterPanel() {
           });
         }
       },
+      onSettled: () => {
+        setCreateQueryPending(false);
+      },
     },
   });
 
@@ -81,6 +86,7 @@ export function EditorCenterPanel() {
       enabled: !!id,
       refetchInterval: 500,
       refetchOnWindowFocus: false,
+      retry: 0,
     },
   });
 
@@ -92,12 +98,11 @@ export function EditorCenterPanel() {
         if (!isRightPanelExpanded) {
           toggleRightPanel();
         }
-        setSelectedQueryRecord(+worksheetId, queryRecord);
-        console.log('success', worksheetId, queryRecord.id, queryRecordLoading);
       }
       if (queryRecord?.status === 'failed') {
         toast.error(queryRecord.error);
       }
+      setSelectedQueryRecord(+worksheetId, queryRecord!);
       Promise.all([
         // Use Promise.all since useEffect isn't async
         queryClient.invalidateQueries({
@@ -110,8 +115,6 @@ export function EditorCenterPanel() {
           queryKey: getGetNavigationTreesQueryKey(),
         }),
       ]);
-    } else {
-      console.log('running', worksheetId, queryRecord?.id, queryRecordLoading);
     }
   }, [
     isRightPanelExpanded,
@@ -125,6 +128,7 @@ export function EditorCenterPanel() {
   ]);
 
   const handleRunQuery = (query: string) => {
+    setCreateQueryPending(true);
     save(+worksheetId);
     const optimisticRecord = {
       id: Date.now(),
@@ -155,7 +159,7 @@ export function EditorCenterPanel() {
     });
   };
 
-  const loading = selectedQueryRecord?.status === 'running' || createQueryPending;
+  const loading = selectedQueryRecord?.status === 'running' || createQueryMutationPending;
 
   return (
     <div className="flex h-full flex-col">

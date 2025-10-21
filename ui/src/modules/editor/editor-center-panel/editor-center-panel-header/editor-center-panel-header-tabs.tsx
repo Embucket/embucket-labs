@@ -8,12 +8,14 @@ import { EditorCenterPanelHeaderTabsCloseButton } from './editor-center-panel-he
 
 export function EditorCenterPanelHeaderTabs() {
   const tabs = useEditorSettingsStore((state) => state.tabs);
+  const createQueryPending = useEditorSettingsStore((state) => state.createQueryPending);
 
   return (
     <div className="relative flex items-center gap-1">
       {tabs.map((tab) => (
         <Link
           key={tab.id}
+          disabled={createQueryPending}
           to="/sql-editor/$worksheetId"
           params={{ worksheetId: tab.id.toString() }}
           activeOptions={{
@@ -24,7 +26,7 @@ export function EditorCenterPanelHeaderTabs() {
             <div
               className={cn(
                 'bg-muted relative flex h-9 w-[180px] items-center self-end rounded-tl-md rounded-tr-md rounded-b-none border border-b-0 px-3 text-xs',
-                'hover:bg-hover',
+                !createQueryPending && 'hover:bg-hover',
                 isActive
                   ? 'text-primary-foreground bg-transparent hover:bg-transparent'
                   : 'border-none',
@@ -37,7 +39,7 @@ export function EditorCenterPanelHeaderTabs() {
                 )}
               />
               <span className="mr-2 max-w-28 truncate">{tab.name}</span>
-              <EditorCenterPanelHeaderTabsCloseButton tab={tab} />
+              <EditorCenterPanelHeaderTabsCloseButton disabled={createQueryPending} tab={tab} />
             </div>
           )}
         </Link>

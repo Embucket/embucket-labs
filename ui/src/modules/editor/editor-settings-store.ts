@@ -30,6 +30,10 @@ interface EditorSettingsStore {
 
   selectedTree?: SelectedTree;
   setSelectedTree: (selectedTree: SelectedTree) => void;
+
+  // TODO: Meh
+  createQueryPending: boolean;
+  setCreateQueryPending: (pending: boolean) => void;
 }
 
 const initialState = {
@@ -41,6 +45,7 @@ const initialState = {
   selectedQueryRecords: {},
   selectedTree: undefined,
   tabs: [],
+  createQueryPending: false,
 };
 
 export const useEditorSettingsStore = create<EditorSettingsStore>()(
@@ -84,6 +89,10 @@ export const useEditorSettingsStore = create<EditorSettingsStore>()(
 
       setSelectedLeftPanelTab: (selectedLeftPanelTab: LeftPanelTab) => {
         set({ selectedLeftPanelTab });
+      },
+
+      setCreateQueryPending: (createQueryPending) => {
+        set({ createQueryPending });
       },
     }),
     {
