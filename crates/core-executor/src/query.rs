@@ -190,7 +190,27 @@ impl UserQuery {
         let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         let client = Client::new();
-        let system_prompt = "You are a SQL optimizer for the Embucket (Snowflake-like) SQL dialect. The execution engine is based on Apache DataFusion, so the optimized SQL must be DataFusion-compatible. Rewrite the user's SQL to an equivalent but faster query for execution. The rewritten query MUST be semantically identical and produce exactly the same result set as the original. Do not change the results, only performance. Don't change anything if the query is already optimal. Output only the optimized SQL, no explanations, no markdown fences.";
+        // Include lightweight table schema context to guide safer rewrites
+        let base_prompt = "You are a SQL optimizer for the Embucket (Snowflake-like) SQL dialect. The execution engine is based on Apache DataFusion, so the optimized SQL must be DataFusion-compatible. Rewrite the user's SQL to an equivalent but faster query for execution. The rewritten query MUST be semantically identical and produce exactly the same result set as the original. Do not change the results, only performance. Don't change anything if the query is already optimal. Output only the optimized SQL, no explanations, no markdown fences.";
+        let state = self.session.ctx.state();
+        let dialect = state.config().options().sql_parser.dialect.as_str();
+        let stmt_for_stats = match state.sql_to_statement(&self.raw_query, dialect) {
+            Ok(s) => Some(s),
+            Err(_) => None,
+        };
+        let table_schema_context = if let Some(st) = &stmt_for_stats {
+            match self.collect_table_schema_context(st).await {
+                Ok(ctx) => ctx,
+                Err(_) => String::new(),
+            }
+        } else {
+            String::new()
+        };
+        let system_prompt = if table_schema_context.is_empty() {
+            base_prompt.to_string()
+        } else {
+            format!("{}\n\nContext: Table schemas (JSON)\n{}", base_prompt, table_schema_context)
+        };
         let use_responses_api = model.to_ascii_lowercase().starts_with("gpt-5");
         let request_body = if use_responses_api {
             json!({
@@ -415,6 +435,42 @@ impl UserQuery {
                 .context(ex_error::CreateDatabaseSnafu)?;
         }
         Ok(())
+    }
+
+    async fn collect_table_schema_context(&self, statement: &DFStatement) -> Result<String> {
+        let state = self.session.ctx.state();
+        let refs = state
+            .resolve_table_references(statement)
+            .context(ex_error::DataFusionSnafu)?;
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        for r in refs {
+            let resolved = self.resolve_table_ref(r);
+            if let Ok(schema_provider) = self.schema_for_ref(resolved.clone()) {
+                if let Ok(Some(table)) = schema_provider
+                    .table(&resolved.table)
+                    .await
+                    .context(ex_error::DataFusionSnafu)
+                {
+                    let schema = table.schema();
+                    let fields: Vec<serde_json::Value> = schema
+                        .fields()
+                        .iter()
+                        .map(|f| serde_json::json!({
+                            "name": f.name(),
+                            "type": format!("{:?}", f.data_type()),
+                            "nullable": f.is_nullable()
+                        }))
+                        .collect();
+                    out.push(serde_json::json!({
+                        "table": resolved.table.to_string(),
+                        "schema": resolved.schema.to_string(),
+                        "catalog": resolved.catalog.to_string(),
+                        "columns": fields
+                    }));
+                }
+            }
+        }
+        Ok(serde_json::to_string(&out).unwrap_or_default())
     }
 
     fn session_context_expr_rewriter(&self) -> SessionContextExprRewriter {
