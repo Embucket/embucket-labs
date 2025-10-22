@@ -67,6 +67,10 @@ impl std::fmt::Debug for SlateDBHistoryStore {
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
     pub async fn new(db: core_utils::Db) -> Result<Self> {
+        if let Some(dir_path) = std::path::Path::new(SQLITE_HISTORY_DB_NAME).parent() {
+            std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
+        }
+
         let history_store = Self {
             queries_db: SqliteDb::new(db.slate_db(), SQLITE_HISTORY_DB_NAME)
                 .await
