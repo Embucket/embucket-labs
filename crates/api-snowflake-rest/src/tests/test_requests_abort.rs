@@ -105,7 +105,7 @@ mod tests {
         // we use such approach as we do not know how long query will be running
         let mut results = Vec::new();
         // start retry_count from 1, to ensure it works with any retry_count as well
-        for retry_count in 1_u16..10_u16 {
+        for retry_count in 1_u16..20_u16 {
             let result = query::<JsonResponse>(
                 &query_client,
                 &addr,

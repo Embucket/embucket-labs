@@ -390,7 +390,7 @@ async fn test_ui_queries_search() {
     assert!(queries[0].start_time > queries[1].start_time);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_async_query_infer_default_exec_mode() {
     let addr = run_test_server().await;
@@ -427,7 +427,7 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     .await
     .expect_err("Get query error");
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    std::thread::sleep(std::time::Duration::from_millis(1000));
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
         &client,
