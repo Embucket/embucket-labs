@@ -19,7 +19,7 @@ use datafusion::arrow::datatypes::{Field, Schema, TimeUnit};
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::ScalarValue;
-use datafusion_common::TableReference;
+use datafusion_common::{ResolvedTableReference, TableReference};
 use datafusion_expr::{Expr, LogicalPlan};
 use embucket_functions::conversion::to_timestamp::parse_timezone;
 use snafu::{OptionExt, ResultExt};
@@ -43,6 +43,8 @@ pub struct Config {
     pub mem_enable_track_consumers_pool: Option<bool>,
     pub disk_pool_size_mb: Option<usize>,
     pub query_history_rows_limit: usize,
+    pub use_duck_db: bool,
+    pub use_duck_db_explain: bool,
 }
 
 impl Default for Config {
@@ -58,6 +60,8 @@ impl Default for Config {
             mem_enable_track_consumers_pool: None,
             disk_pool_size_mb: None,
             query_history_rows_limit: DEFAULT_QUERY_HISTORY_ROWS_LIMIT,
+            use_duck_db: false,
+            use_duck_db_explain: false,
         }
     }
 }
@@ -796,6 +800,17 @@ fn format_time_string<T: std::fmt::Display>(timestamp: i64, subsecond: T, scale:
 
 #[derive(Debug, Clone)]
 pub struct NormalizedIdent(pub Vec<Ident>);
+
+impl NormalizedIdent {
+    #[must_use]
+    pub fn from_resolved(resolved: &ResolvedTableReference) -> Self {
+        Self(vec![
+            Ident::new(resolved.catalog.as_ref()),
+            Ident::new(resolved.schema.as_ref()),
+            Ident::new(resolved.table.as_ref()),
+        ])
+    }
+}
 
 impl From<&NormalizedIdent> for String {
     fn from(ident: &NormalizedIdent) -> Self {

@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/casting/decimal.rs
+description: "\"SELECT column1::NUMBER as v FROM VALUES (99.63), (99.49)\""
+---
+Ok(
+    [
+        "+-----+",
+        "| v   |",
+        "+-----+",
+        "| 100 |",
+        "| 99  |",
+        "+-----+",
+    ],
+)

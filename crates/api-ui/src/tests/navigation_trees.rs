@@ -114,6 +114,7 @@ async fn test_ui_databases_navigation() {
 
     let query_payload = QueryCreatePayload {
         worksheet_id: Some(worksheet_id),
+        async_exec: false,
         query: format!(
             "CREATE TABLE {}.{}.{} (APP_ID TEXT)",
             expected1.name.clone(),

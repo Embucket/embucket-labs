@@ -404,6 +404,12 @@ fn test_inline_aliases_in_query() -> DFResult<()> {
             WHERE end_tstamp > '2025-10-01' and user_id is not null",
             "SELECT last_value(user_id) AS user_id, max(collector_tstamp) OVER (PARTITION BY domain_userid) AS end_tstamp FROM embucket.public_scratch.snowplow_web_base_events_this_run WHERE end_tstamp > '2025-10-01' AND last_value(user_id) IS NOT NULL"
         ),
+        ("SELECT 'test' AS name, length(name) FROM (SELECT name FROM (VALUES ('test')))",
+         "SELECT 'test' AS name, length(name) FROM (SELECT name FROM (VALUES ('test')))"),
+        ("SELECT regexp_replace(name, 'yes', '', 1, 1) AS name, regexp_replace(name, 'yes', '', 1, 1) AS test FROM (SELECT column1 AS name FROM (VALUES ('yesnotyes')))",
+        "SELECT regexp_replace(name, 'yes', '', 1, 1) AS name, regexp_replace(name, 'yes', '', 1, 1) AS test FROM (SELECT column1 AS name FROM (VALUES ('yesnotyes')))"),
+        ("SELECT sum(jan_sales) AS jan_sales, sum(jan_sales / 1) AS jan_sales_per_sq_foot FROM (SELECT sum(CASE WHEN d_moy = 1 THEN ws_ext_sales_price * ws_quantity ELSE 0 END) AS jan_sales FROM web_sales, date_dim UNION ALL SELECT sum(CASE WHEN d_moy = 1 THEN cs_sales_price * cs_quantity ELSE 0 END) AS jan_sales FROM catalog_sales, date_dim)",
+         "SELECT sum(jan_sales) AS jan_sales, sum(jan_sales / 1) AS jan_sales_per_sq_foot FROM (SELECT sum(CASE WHEN d_moy = 1 THEN ws_ext_sales_price * ws_quantity ELSE 0 END) AS jan_sales FROM web_sales, date_dim UNION ALL SELECT sum(CASE WHEN d_moy = 1 THEN cs_sales_price * cs_quantity ELSE 0 END) AS jan_sales FROM catalog_sales, date_dim)"),
     ];
 
     for (input, expected) in cases {

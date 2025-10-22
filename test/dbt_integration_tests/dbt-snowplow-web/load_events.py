@@ -85,6 +85,21 @@ def verify_data_load(conn):
     cursor.close()
 
 
+def manage_warehouse(conn, warehouse_name, action):
+    """Simple warehouse management - resume or suspend."""
+    try:
+        if action == 'resume':
+            print(f"Starting warehouse {warehouse_name}...")
+            conn.cursor().execute(f"ALTER WAREHOUSE {warehouse_name} RESUME IF SUSPENDED")
+            print("✓ Warehouse resume command sent")
+        elif action == 'suspend':
+            print(f"Suspending warehouse {warehouse_name}...")
+            conn.cursor().execute(f"ALTER WAREHOUSE {warehouse_name} SUSPEND")
+            print("✓ Warehouse suspend command sent")
+    except Exception as e:
+        print(f"⚠ Warning: Could not {action} warehouse: {e}")
+
+
 def main():
     """Main function to load events data."""
     # Parse command line arguments
@@ -164,8 +179,12 @@ def main():
     try:
         if target.lower() == 'snowflake':
             conn = create_snowflake_connection()
+            # Get warehouse name from environment variable
+            warehouse_name = os.getenv('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH')
+            manage_warehouse(conn, warehouse_name, 'resume')
         else:
             conn = create_embucket_connection()
+            warehouse_name = None
         
         print(f"✓ Connected to {target.upper()} successfully")
         
@@ -176,6 +195,10 @@ def main():
         # Verify data load
         print("Verifying data load...")
         verify_data_load(conn)
+        
+        # Suspend warehouse if Snowflake
+        if target.lower() == 'snowflake' and warehouse_name:
+            manage_warehouse(conn, warehouse_name, 'suspend')
         
         conn.close()
         print("✓ Data load completed successfully!")

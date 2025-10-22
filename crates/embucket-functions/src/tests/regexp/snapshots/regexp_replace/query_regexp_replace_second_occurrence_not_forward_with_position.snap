@@ -1,0 +1,13 @@
+---
+source: crates/embucket-functions/src/tests/regexp/regexp_replace.rs
+description: "\"SELECT REGEXP_REPLACE('It was the best of times, it was the worst of times. times',\n                      'times',\n                      'days',\n                      30,\n                      2) AS result;\""
+---
+Ok(
+    [
+        "+-----------------------------------------------------------+",
+        "| result                                                    |",
+        "+-----------------------------------------------------------+",
+        "| It was the best of times, it was the worst of times. days |",
+        "+-----------------------------------------------------------+",
+    ],
+)

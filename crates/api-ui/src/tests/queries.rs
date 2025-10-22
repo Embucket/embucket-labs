@@ -23,6 +23,7 @@ async fn test_ui_queries_no_worksheet() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(0),
+            async_exec: false,
             query: "SELECT 1".to_string(),
             context: None,
         })
@@ -100,6 +101,7 @@ async fn test_ui_queries_with_worksheet() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT 1, 2".to_string(),
             context: None,
         })
@@ -140,6 +142,7 @@ async fn test_ui_queries_with_worksheet() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT 2".to_string(),
             context: None,
         })
@@ -175,6 +178,7 @@ async fn test_ui_queries_with_worksheet() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT foo".to_string(),
             context: None,
         })
@@ -197,6 +201,7 @@ async fn test_ui_queries_with_worksheet() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT foo".to_string(),
             context: None,
         })
@@ -299,6 +304,7 @@ async fn test_ui_queries_search() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT 1, 2".to_string(),
             context: None,
         })
@@ -313,6 +319,7 @@ async fn test_ui_queries_search() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "SELECT 2".to_string(),
             context: None,
         })
@@ -327,6 +334,7 @@ async fn test_ui_queries_search() {
         &format!("http://{addr}/ui/queries"),
         json!(QueryCreatePayload {
             worksheet_id: Some(worksheet.id),
+            async_exec: false,
             query: "CREATE".to_string(),
             context: None,
         })
@@ -380,4 +388,54 @@ async fn test_ui_queries_search() {
     // check items returned in descending order
     assert_eq!(queries.len(), 2);
     assert!(queries[0].start_time > queries[1].start_time);
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn test_ui_async_query_infer_default_exec_mode() {
+    let addr = run_test_server().await;
+    let client = reqwest::Client::new();
+
+    // asyncExec = true by default
+    let payload = r#"{"query":"select 1","worksheetId": null,"context":{"database":"embucket","schema":"embucket"}}"#;
+
+    // let payload = json!(QueryCreatePayload {
+    //     worksheet_id: Some(0),
+    //     async_exec: true,
+    //     query: "SELECT 1".to_string(),
+    //     context: None,
+    // })
+    // .to_string();
+
+    let query_record = http_req::<QueryRecord>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/queries"),
+        payload.to_string(),
+    )
+    .await
+    .expect("Create query error");
+
+    let expected_submit_result = ResultSet::try_from(r#"{"columns":[],"rows":[]}"#)
+        .expect("Failed to deserialize json snippet #1");
+
+    assert_eq!(query_record.status, QueryStatus::Running);
+    assert_eq!(query_record.result, expected_submit_result);
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}", query_record.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query error");
+    let expected_result =
+        ResultSet::try_from(r#"{"columns":[{"name":"Int64(1)","type":"fixed"}],"rows":[[1]]}"#)
+            .expect("Failed to deserialize json snippet #2");
+
+    assert_eq!(query_record.status, QueryStatus::Successful);
+    assert_eq!(query_record.result, expected_result);
 }

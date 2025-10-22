@@ -28,7 +28,7 @@ export function EditorCenterBottomPanel({
 
   useEditorScrollToSelectedCell({ selectedCellId, scrollRootRef });
 
-  if (queryRecord?.error) {
+  if (queryRecord?.error && queryRecord.error !== 'NULL') {
     // TODO: EmptyContainer designed to be used for empty states strictly
     return (
       <EmptyContainer
@@ -41,8 +41,8 @@ export function EditorCenterBottomPanel({
     );
   }
 
-  const columns = queryRecord?.result.columns ?? [];
-  const rows = queryRecord?.result.rows ?? [];
+  const columns = !isLoading && queryRecord?.result.columns ? queryRecord.result.columns : [];
+  const rows = !isLoading && queryRecord?.result.rows ? queryRecord.result.rows : [];
   const noFields = !columns.length && !isLoading;
 
   const rowCount = rows.length.toString();
@@ -84,7 +84,7 @@ export function EditorCenterBottomPanel({
             </div>
           </div>
           {/* TODO: Hardcode */}
-          <TabsContent value="results" className="m-0 h-[calc(100%-100px)]">
+          <TabsContent value="results" className="m-0 h-[calc(100%-120px)]">
             <ResizablePanelGroup direction="horizontal" className="size-full">
               <ResizablePanel order={1} defaultSize={selectedCellId ? 70 : 100} minSize={50}>
                 <ScrollArea tableViewport className="size-full" ref={scrollRootRef}>

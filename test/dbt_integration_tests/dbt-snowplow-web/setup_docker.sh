@@ -27,17 +27,31 @@ mkdir -p ./datasets
 
 # Copy events files to datasets directory
 echo "Copying events files to datasets directory..."
-if [ -f "events_yesterday.csv" ]; then
-    cp events_yesterday.csv ./datasets/
-    echo "✓ Copied events_yesterday.csv"
-else
+
+# Check multiple locations for CSV files
+CSV_LOCATIONS=("." "./data" "/home/ec2-user/data")
+FOUND_YESTERDAY=false
+FOUND_TODAY=false
+
+for location in "${CSV_LOCATIONS[@]}"; do
+    if [ -f "$location/events_yesterday.csv" ] && [ "$FOUND_YESTERDAY" = false ]; then
+        cp "$location/events_yesterday.csv" ./datasets/
+        echo "✓ Copied events_yesterday.csv from $location"
+        FOUND_YESTERDAY=true
+    fi
+    
+    if [ -f "$location/events_today.csv" ] && [ "$FOUND_TODAY" = false ]; then
+        cp "$location/events_today.csv" ./datasets/
+        echo "✓ Copied events_today.csv from $location"
+        FOUND_TODAY=true
+    fi
+done
+
+if [ "$FOUND_YESTERDAY" = false ]; then
     echo "⚠ Warning: events_yesterday.csv not found"
 fi
 
-if [ -f "events_today.csv" ]; then
-    cp events_today.csv ./datasets/
-    echo "✓ Copied events_today.csv"
-else
+if [ "$FOUND_TODAY" = false ]; then
     echo "⚠ Warning: events_today.csv not found"
 fi
 

@@ -4,12 +4,12 @@ use datafusion::arrow::datatypes::TimeUnit;
 use datafusion::error::Result as DFResult;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::optimizer::AnalyzerRule;
+use datafusion_common::ScalarValue;
 use datafusion_common::config::ConfigOptions;
 use datafusion_common::tree_node::{Transformed, TransformedResult, TreeNode};
-use datafusion_common::{DFSchemaRef, ScalarValue};
 use datafusion_expr::expr::ScalarFunction;
 use datafusion_expr::expr_rewriter::NamePreserver;
-use datafusion_expr::{Cast, Expr, ExprSchemable, ReturnFieldArgs, ScalarUDF, TryCast};
+use datafusion_expr::{Cast, Expr, ReturnFieldArgs, ScalarUDF, TryCast};
 use embucket_functions::conversion::to_array::ToArrayFunc;
 use embucket_functions::conversion::to_date::ToDateFunc;
 use embucket_functions::conversion::to_decimal::ToDecimalFunc;
@@ -56,16 +56,10 @@ impl CastAnalyzer {
             let original_name = name_preserver.save(&expr);
 
             let transformed_expr = expr.transform_up(|e| match &e {
-                Expr::Cast(cast) => {
-                    self.rewrite_cast_to(plan.schema(), &cast.data_type, &cast.expr, &e, false)
+                Expr::Cast(cast) => self.rewrite_cast_to(&cast.data_type, &cast.expr, &e, false),
+                Expr::TryCast(try_cast) => {
+                    self.rewrite_cast_to(&try_cast.data_type, &try_cast.expr, &e, true)
                 }
-                Expr::TryCast(try_cast) => self.rewrite_cast_to(
-                    plan.schema(),
-                    &try_cast.data_type,
-                    &try_cast.expr,
-                    &e,
-                    true,
-                ),
                 _ => Ok(Transformed::no(e)),
             })?;
 
@@ -76,7 +70,6 @@ impl CastAnalyzer {
 
     fn rewrite_cast_to(
         &self,
-        schema: &DFSchemaRef,
         data_type: &DataType,
         expr: &Expr,
         original_expr: &Expr,
@@ -105,12 +98,7 @@ impl CastAnalyzer {
                     args: vec![expr.clone()],
                 })))
             }
-            data_type @ (DataType::Decimal128(_, _) | DataType::Decimal256(_, _)) => {
-                Self::rewrite_numeric_cast(expr, data_type, try_mode)
-            }
-            data_type @ (DataType::Int32 | DataType::Int64)
-                if matches!(expr.get_type(schema), Ok(DataType::Utf8)) =>
-            {
+            data_type @ (DataType::Decimal128(_, _) | DataType::Int32 | DataType::Int64) => {
                 Self::rewrite_numeric_cast(expr, data_type, try_mode)
             }
             _ => Ok(Transformed::no(original_expr.clone())),
@@ -124,20 +112,32 @@ impl CastAnalyzer {
         data_type: DataType,
         try_mode: bool,
     ) -> DFResult<Transformed<Expr>> {
-        let internal = Expr::ScalarFunction(ScalarFunction {
-            func: Arc::new(ScalarUDF::from(ToDecimalFunc::new(try_mode))),
-            args: vec![expr.clone()],
-        });
-        let new_expr = if try_mode {
-            Expr::TryCast(TryCast {
-                expr: Box::new(internal),
-                data_type,
+        let func = Arc::new(ScalarUDF::from(ToDecimalFunc::new(try_mode)));
+        let new_expr = if let DataType::Decimal128(precision, scale) = data_type {
+            Expr::ScalarFunction(ScalarFunction {
+                func,
+                args: vec![
+                    expr.clone(),
+                    Expr::Literal(ScalarValue::UInt8(Some(precision)), None),
+                    Expr::Literal(ScalarValue::Int8(Some(scale)), None),
+                ],
             })
         } else {
-            Expr::Cast(Cast {
-                expr: Box::new(internal),
-                data_type,
-            })
+            let internal = Expr::ScalarFunction(ScalarFunction {
+                func,
+                args: vec![expr.clone()],
+            });
+            if try_mode {
+                Expr::TryCast(TryCast {
+                    expr: Box::new(internal),
+                    data_type,
+                })
+            } else {
+                Expr::Cast(Cast {
+                    expr: Box::new(internal),
+                    data_type,
+                })
+            }
         };
         Ok(Transformed::yes(new_expr))
     }

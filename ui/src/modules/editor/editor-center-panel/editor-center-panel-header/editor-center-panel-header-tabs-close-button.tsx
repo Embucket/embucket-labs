@@ -8,9 +8,11 @@ import { useEditorSettingsStore } from '../../editor-settings-store';
 
 interface EditorCenterPanelHeaderTabsCloseButtonProps {
   tab: Worksheet;
+  disabled: boolean;
 }
 
 export function EditorCenterPanelHeaderTabsCloseButton({
+  disabled,
   tab,
 }: EditorCenterPanelHeaderTabsCloseButtonProps) {
   const { worksheetId } = useParams({ from: '/sql-editor/$worksheetId/' });
@@ -45,7 +47,12 @@ export function EditorCenterPanelHeaderTabsCloseButton({
   };
 
   return (
-    <Button variant="ghost" onClick={(e) => handleTabClose(e, tab)} className="ml-auto size-6">
+    <Button
+      disabled={disabled}
+      variant="ghost"
+      onClick={(e) => handleTabClose(e, tab)}
+      className="ml-auto size-6 transition-none"
+    >
       <X />
     </Button>
   );

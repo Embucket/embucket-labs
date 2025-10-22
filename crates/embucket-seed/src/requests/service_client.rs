@@ -270,6 +270,7 @@ impl ServiceClient for BasicAuthClient {
         let url = format!("http://{}/ui/queries", self.addr);
         let query_payload = QueryCreatePayload {
             worksheet_id: None,
+            async_exec: false,
             query: query.to_string(),
             context: None,
         };

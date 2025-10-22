@@ -1,5 +1,30 @@
 #!/bin/bash
 
+# Incremental Test Script for dbt-snowplow-web
+#
+# Prerequisites: Run ./setup_embucket.sh first to:
+#   - Set up embucket Docker container (local or EC2)
+#   - Generate and upload CSV data files
+#   - Load events_yesterday.csv into embucket
+#
+# Usage:
+#   ./incremental.sh [incremental] [num_rows] [target]
+#
+# Examples:
+#   ./incremental.sh false 10000 embucket  # Full run
+#   ./incremental.sh true 10000 embucket   # Incremental run
+#
+# Flow:
+#   Non-incremental (false):
+#     1. Run dbt on events_yesterday.csv (already loaded)
+#     2. Parse results and generate assets
+#
+#   Incremental (true):
+#     1. Run dbt on events_yesterday.csv (already loaded)
+#     2. Load events_today.csv
+#     3. Run dbt again (incremental models will process new data)
+#     4. Parse results and generate assets
+
 # Load environment variables if .env exists
 if [ -f .env ]; then
     source .env
@@ -7,7 +32,7 @@ else
     echo "Warning: .env file not found. Using default values."
 fi
 
-# Parse command line arguments
+# Parse command line arguments first
 DBT_TARGET="embucket"  # default
 is_incremental=false
 num_rows=10000  # default
@@ -61,6 +86,55 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
+# Setup target-specific environment  
+echo ""
+echo "###############################"
+echo "Target: $DBT_TARGET"
+echo "###############################"
+echo ""
+
+if [ "$DBT_TARGET" = "embucket" ]; then
+    EMBUCKET_HOST=${EMBUCKET_HOST:-localhost}
+    EMBUCKET_PORT=${EMBUCKET_PORT:-3000}
+    
+    # Auto-setup for local, health check for remote
+    if [ "$EMBUCKET_HOST" = "localhost" ] || [ "$EMBUCKET_HOST" = "127.0.0.1" ]; then
+        echo "Local Embucket setup detected (EMBUCKET_HOST=$EMBUCKET_HOST)"
+        echo "Running setup to ensure fresh embucket container..."
+        echo ""
+        
+        ./setup_embucket.sh -force
+        
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "❌ Embucket setup failed. Please check the error messages above."
+            exit 1
+        fi
+        
+        echo ""
+        echo "✓ Embucket setup completed successfully"
+        echo ""
+    else
+        echo "Remote Embucket setup detected (EMBUCKET_HOST=$EMBUCKET_HOST)"
+        echo "Checking if Embucket is accessible at $EMBUCKET_HOST:$EMBUCKET_PORT..."
+        
+        if ! curl -sf "http://$EMBUCKET_HOST:$EMBUCKET_PORT/health" > /dev/null 2>&1; then
+            echo ""
+            echo "❌ Error: Embucket is not accessible at $EMBUCKET_HOST:$EMBUCKET_PORT"
+            echo ""
+            echo "Please ensure embucket is running on EC2."
+            echo "To set it up, run: ./setup_embucket.sh"
+            echo ""
+            exit 1
+        fi
+        
+        echo "✓ Embucket is accessible"
+        echo ""
+    fi
+else
+    echo "Target is $DBT_TARGET - skipping Embucket setup"
+    echo ""
+fi
 
 # Determine which Python command to use
 echo "###############################"
@@ -94,34 +168,21 @@ pip install -r requirements.txt >/dev/null 2>&1
 echo ""
 echo "###############################"
 echo ""
-# Set incremental flag from command line argument, default to true
 
-# FIRST RUN
-#echo "Generating events"
-#$PYTHON_CMD gen_events.py "$num_rows"
+# Note: Setup (generating events, Docker setup, initial data load) 
+# should be done via ./setup_embucket.sh before running this script
+# The health check at the top ensures embucket is ready
 
-if [ "$DBT_TARGET" = "embucket" ]; then
-
-    echo "Setting up Docker container"
-        ./setup_docker.sh
-
-
-    sleep 20
-
-fi
-
-echo ""
-echo "###############################"
-echo ""
-
+# For non-incremental runs, data is already loaded by setup_embucket.sh
+# For incremental runs, we only need to load events_today.csv (done later)
 echo "Loading events"
-$PYTHON_CMD load_events.py "$is_incremental" "$DBT_TARGET"
+$PYTHON_CMD load_events.py events_yesterday.csv "$DBT_TARGET"
 
 echo ""
 echo "###############################"
 echo ""
-
-echo "Running dbt"
+echo "FIRST RUN"
+echo "Running dbt on initial data (events_yesterday.csv)..."
 ./run_snowplow_web.sh --target "$DBT_TARGET" 2>&1 | tee dbt_output.log
 
 echo ""
@@ -164,15 +225,25 @@ if [ "$is_incremental" == false ]; then
 fi
 
 
-# SECOND RUN INCEREMENTAL
+# SECOND RUN INCREMENTAL
 if [ "$is_incremental" == true ]; then
 
-    echo "Loading events"
+    echo ""
+    echo "###############################"
+    echo ""
+    echo "Loading events_today.csv for incremental run..."
     $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET"
 
-    echo "Running dbt"
-    ./run_snowplow_web.sh --target "$DBT_TARGET"
+    echo ""
+    echo "###############################"
+    echo ""
+    echo "Running dbt (incremental run #2)..."
+    ./run_snowplow_web.sh --target "$DBT_TARGET" 2>&1 | tee dbt_output.log
 
+    echo ""
+    echo "###############################"
+    echo ""
+    
     # Parse dbt results and load into Snowflake
     echo "Parsing dbt results..."
     $PYTHON_CMD parse_dbt_simple.py dbt_output.log "$num_rows" "$is_incremental" "$DBT_TARGET" "$run_type"

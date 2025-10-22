@@ -8,8 +8,8 @@ workspace = true
 
 [features]
 ci = []
-default = ["snmalloc"]
-snmalloc = ["dep:snmalloc-rs"]
+default = ["jemalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
 mimalloc = ["dep:mimalloc"]
 
 [dependencies]
@@ -25,7 +25,6 @@ mimalloc = { version = "0.1", optional = true, default-features = false }
 parquet = { version = "56.2.0" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-snmalloc-rs = { workspace = true, optional = true }
-cfg-if = { workspace = true }
+tikv-jemallocator = { workspace = true, optional = true }
 structopt = { version = "0.3", default-features = false }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }

@@ -18,7 +18,7 @@ pub struct Column {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[schema(as = Row, value_type = Vec<Value>)]
-pub struct Row(Vec<Value>);
+pub struct Row(pub Vec<Value>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -53,10 +53,17 @@ impl TryFrom<core_history::ResultSet> for ResultSet {
     }
 }
 
+const fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryCreatePayload {
     pub worksheet_id: Option<WorksheetId>,
+    #[serde(default = "default_true")]
+    #[schema(default = true)]
+    pub async_exec: bool,
     pub query: String,
     pub context: Option<HashMap<String, String>>,
 }

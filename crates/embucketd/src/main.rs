@@ -72,13 +72,13 @@ mod alloc_tracing {
     pub use tracing_allocations::{TRACE_ALLOCATOR, TracingAllocator};
 
     #[global_allocator]
-    static ALLOCATOR: TracingAllocator<snmalloc_rs::SnMalloc> =
-        TracingAllocator::new(snmalloc_rs::SnMalloc);
+    static ALLOCATOR: TracingAllocator<tikv_jemallocator::Jemalloc> =
+        TracingAllocator::new(tikv_jemallocator::Jemalloc);
 }
 
 #[cfg(not(feature = "alloc-tracing"))]
 #[global_allocator]
-static ALLOCATOR: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 const TARGETS: [&str; 16] = [
     "embucketd",
@@ -169,6 +169,8 @@ async fn async_main(
         mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
         disk_pool_size_mb: opts.disk_pool_size_mb,
         query_history_rows_limit: opts.query_history_rows_limit,
+        use_duck_db: opts.use_duck_db.unwrap_or(false),
+        use_duck_db_explain: opts.use_duck_db_explain.unwrap_or(false),
     };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),

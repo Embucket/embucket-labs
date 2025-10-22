@@ -132,12 +132,29 @@ Benchmark tpch_mem.json
 │ QQuery 22    │      91.84ms │      89.89ms │     no change │
 └──────────────┴──────────────┴──────────────┴───────────────┘
 ```
+## Comparing datafusion and embucket performance
+
+```shell
+git checkout main
+
+# Create the data
+./benchmarks/bench.sh data
+RESULTS_NAME=datafusion ./benchmarks/bench.sh run dftpch
+RESULTS_NAME=embucket ./benchmarks/bench.sh run tpch
+
+# Compare results in the two branches:
+./bench.sh compare datafusion embucket
+```
+
 ### Running Benchmarks Manually
 
 Assuming data is in the `data` directory, the `tpch` benchmark can be run with a command like this:
 
 ```bash
+# Run embucket tpch benchmark
 cargo run --release --bin embench -- tpch --iterations 3 --path ./data  --query 1
+# Run datafusion tpch benchmark
+cargo run --release --bin embench -- tpch --datafusion --path benchmarks/data/tpch_sf10 --partitions 2 --format parquet --query 18 --iterations=1 --memory-limit 150M --debug --batch-size 8192 --prefer_hash_join true --mem-pool-type fair
 ```
 
 ### Different features
@@ -182,6 +199,8 @@ Your benchmark should create and use an instance of `BenchmarkRun` defined in `b
 - Use `write_iter` to record elapsed times for the behavior you're benchmarking.
 - When all cases are done, call the `BenchmarkRun`'s `maybe_write_json` method, giving it the value
   of the `--output` structopt field on `RunOpt`.
+
+# Benchmarks
 
 ## ClickBench
 

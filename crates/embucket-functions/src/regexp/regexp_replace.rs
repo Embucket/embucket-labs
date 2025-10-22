@@ -31,10 +31,8 @@ use std::sync::Arc;
 /// `Optional`:
 /// - `<position>` number of characters from the beginning of the string where the function starts searching for matches.
 ///   Default: `1` (the search for a match starts at the first character on the left)
-/// - `<occurrence>` specifies the first occurrence of the pattern from which to start returning matches.
-///   The function skips the first occurrence - 1 matches. For example, if there are 5 matches and you specify 3 for the occurrence argument,
-///   the function ignores the first two matches and returns the third, fourth, and fifth matches.
-///   Default: `1`
+/// - `<occurrence>` Specifies which occurrence of the pattern to replace. If 0 is specified, all occurrences are replaced.
+///   Default: 0 (all occurrences)
 /// - `<regex_parameters>` String of one or more characters that specifies the parameters used for searching for matches.
 ///   Supported values:
 ///   ---------------------------------------------------------------------------
@@ -144,8 +142,7 @@ impl RegexpReplaceFunc {
             || Ok(0),
             |value| match value {
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 <= *value => {
-                    usize::try_from(*value - 1)
-                        .context(regexp_errors::InvalidIntegerConversionSnafu)
+                    usize::try_from(*value).context(regexp_errors::InvalidIntegerConversionSnafu)
                 }
                 ColumnarValue::Scalar(ScalarValue::Int64(Some(value))) if 0 > *value => {
                     regexp_errors::WrongArgValueSnafu {
@@ -268,15 +265,20 @@ impl ScalarUDFImpl for RegexpReplaceFunc {
                     .enumerate()
                     .for_each(|(index, opt_iter)| {
                         result_array.append_option(opt_iter.and_then(|mut cap_iter| {
-                            cap_iter.nth(occurrence).map(|cap| {
+                            cap_iter.nth(occurrence.saturating_sub(1)).map(|cap| {
                                 //Can't panic
                                 let value = string_array.value(index);
                                 //group_num == 0, means get the whole match (seems docs in regex are incorrect)
                                 if let Some(start) = cap.get(0).map(|mat| mat.start()) {
                                     let not_changeable = &value[..(position + start)];
                                     let changeable = &value[(position + start)..];
-                                    not_changeable.to_string()
-                                        + regex.replace_all(changeable, replacement).as_ref()
+                                    //As per
+                                    let changed = if occurrence > 0 {
+                                        regex.replace(changeable, replacement)
+                                    } else {
+                                        regex.replace_all(changeable, replacement)
+                                    };
+                                    not_changeable.to_string() + changed.as_ref()
                                 } else {
                                     value.to_string()
                                 }

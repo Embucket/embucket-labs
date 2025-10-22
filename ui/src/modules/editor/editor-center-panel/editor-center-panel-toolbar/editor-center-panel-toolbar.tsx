@@ -7,14 +7,15 @@ import { EditorCenterPanelToolbarShareButton } from './editor-center-panel-toolb
 
 interface EditorToolbarProps {
   onRunQuery: (query: string) => void;
+  isLoading: boolean;
 }
 
-export const EditorCenterPanelToolbar = ({ onRunQuery }: EditorToolbarProps) => {
+export const EditorCenterPanelToolbar = ({ onRunQuery, isLoading }: EditorToolbarProps) => {
   return (
     <div>
       <SidebarGroup className="flex justify-between border-b p-4">
         <div className="flex items-center gap-2">
-          <EditorCenterPanelToolbarRunSqlButton onRunQuery={onRunQuery} />
+          <EditorCenterPanelToolbarRunSqlButton onRunQuery={onRunQuery} disabled={isLoading} />
           <EditorContextDropdown />
           <div className="ml-auto flex items-center gap-1">
             <EditorCenterPanelToolbarBeautifyButton />

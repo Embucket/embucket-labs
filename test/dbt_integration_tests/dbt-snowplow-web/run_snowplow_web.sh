@@ -93,6 +93,6 @@ echo ""
         dbt run --target "$DBT_TARGET" 2>&1 | tee assets/run.log
 	#dbt run --full-refresh
     fi 
-    # dbt test
+    dbt test --target "$DBT_TARGET"
 
 cd ..

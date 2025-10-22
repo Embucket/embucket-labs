@@ -53,6 +53,7 @@ pub struct ApiDoc;
                     ("with context" = (
                         value = json!(QueryCreatePayload {
                             worksheet_id: None,
+                            async_exec: false,
                             query: "CREATE TABLE test(a INT);".to_string(),
                             context: Some(HashMap::from([
                                 ("database".to_string(), "my_database".to_string()),
@@ -63,6 +64,7 @@ pub struct ApiDoc;
                     ("with fully qualified name" = (
                         value = json!(QueryCreatePayload {
                             worksheet_id: None,
+                            async_exec: true,
                             query: "CREATE TABLE my_database.public.test(a INT);".to_string(),
                             context: None,
                         })
@@ -114,30 +116,35 @@ pub async fn query(
     )
     .with_ip_address(addr.ip().to_string());
 
-    let query_res = state
-        .execution_svc
-        .query(&session_id, &payload.query, query_context)
-        .await;
+    let query_id = if payload.async_exec {
+        state
+            .execution_svc
+            .submit_query(&session_id, &payload.query, query_context)
+            .await
+            .context(queries_errors::ExecutionSnafu)
+            .context(queries_errors::QuerySnafu)?
+            .query_id
+    } else {
+        state
+            .execution_svc
+            .query(&session_id, &payload.query, query_context)
+            .await
+            .context(queries_errors::ExecutionSnafu)
+            .context(queries_errors::QuerySnafu)?
+            .query_id
+    };
 
-    match query_res
-        .context(queries_errors::ExecutionSnafu)
-        .context(queries_errors::QuerySnafu)
-    {
-        Ok(QueryResult { query_id, .. }) => {
-            // Record the result as part of the current span.
-            tracing::Span::current().record("query_id", query_id.as_i64());
-            let query_record = state
-                .history_store
-                .get_query(query_id)
-                .await
-                .map(QueryRecord::try_from)
-                .context(queries_errors::StoreSnafu)
-                .context(queries_errors::QuerySnafu)?
-                .context(queries_errors::QuerySnafu)?;
-            return Ok(Json(QueryCreateResponse(query_record)));
-        }
-        Err(err) => Err(err.into()), // convert queries Error into crate Error
-    }
+    // Record the result as part of the current span.
+    tracing::Span::current().record("query_id", query_id.as_i64());
+    let query_record = state
+        .history_store
+        .get_query(query_id)
+        .await
+        .map(QueryRecord::try_from)
+        .context(queries_errors::StoreSnafu)
+        .context(queries_errors::QuerySnafu)?
+        .context(queries_errors::QuerySnafu)?;
+    Ok(Json(QueryCreateResponse(query_record)))
 }
 
 #[utoipa::path(

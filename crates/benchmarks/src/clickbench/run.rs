@@ -7,7 +7,8 @@ use core_executor::session::UserSession;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::exec_datafusion_err;
 use datafusion::common::instant::Instant;
-use datafusion::error::Result;
+use datafusion::error::{DataFusionError, Result};
+use datafusion::prelude::{ParquetReadOptions, SessionContext};
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -97,14 +98,23 @@ impl AllQueries {
     }
 }
 impl RunOpt {
+    #[allow(clippy::print_stdout)]
+    pub async fn run(self) -> Result<()> {
+        println!("Running benchmarks with the following options: {self:?}");
+        if self.common.datafusion {
+            self.run_df().await
+        } else {
+            self.run_embucket().await
+        }
+    }
+
     #[allow(
         clippy::cast_precision_loss,
         clippy::as_conversions,
         clippy::print_stdout,
         clippy::unwrap_used
     )]
-    pub async fn run(self) -> Result<()> {
-        println!("Running benchmarks with the following options: {self:?}");
+    pub async fn run_embucket(self) -> Result<()> {
         let queries = AllQueries::try_new(self.queries_path.as_path())?;
         let query_range = match self.query {
             Some(query_id) => query_id..=query_id,
@@ -124,10 +134,15 @@ impl RunOpt {
         // The hits_partitioned dataset specifies string columns
         // as binary due to how it was written. Force it to strings
         set_session_variable_bool("execution.parquet.binary_as_string", true, &session).await?;
+        // Turn on Parquet filter pushdown if requested
+        if self.common.pushdown {
+            set_session_variable_bool("execution.parquet.pushdown_filters", true, &session).await?;
+            set_session_variable_bool("execution.parquet.reorder_filters", true, &session).await?;
+        }
 
         println!("Creating catalog, schema, table");
         let path = self.path.to_str().unwrap();
-        create_catalog(path, &session).await?;
+        create_catalog(path, &session, self.common.mem_table).await?;
         self.create_tables(&session).await?;
 
         let iterations = self.common.iterations;
@@ -144,6 +159,13 @@ impl RunOpt {
                 &session,
             )
             .await?;
+            // Turn on Parquet filter pushdown if requested
+            if self.common.pushdown {
+                set_session_variable_bool("execution.parquet.pushdown_filters", true, &session)
+                    .await?;
+                set_session_variable_bool("execution.parquet.reorder_filters", true, &session)
+                    .await?;
+            }
             let sql = queries.get_query(query_id)?;
             println!("Q{query_id}: {sql}");
 
@@ -166,8 +188,65 @@ impl RunOpt {
         benchmark_run.maybe_write_json(self.output_path.as_ref())?;
         Ok(())
     }
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        clippy::print_stdout,
+        clippy::unwrap_used
+    )]
+    pub async fn run_df(self) -> Result<()> {
+        let queries = AllQueries::try_new(self.queries_path.as_path())?;
+        let query_range = match self.query {
+            Some(query_id) => query_id..=query_id,
+            None => queries.min_query_id()..=queries.max_query_id(),
+        };
 
-    /// Registers the `hits.parquet` as a table named `hits`
+        // configure parquet options
+        let mut config = self.common.config()?;
+        {
+            let parquet_options = &mut config.options_mut().execution.parquet;
+            // The hits_partitioned dataset specifies string columns
+            // as binary due to how it was written. Force it to strings
+            parquet_options.binary_as_string = true;
+
+            // Turn on Parquet filter pushdown if requested
+            if self.common.pushdown {
+                parquet_options.pushdown_filters = true;
+                parquet_options.reorder_filters = true;
+            }
+        }
+
+        let rt_builder = self.common.runtime_env_builder()?;
+        let ctx = SessionContext::new_with_config_rt(config, rt_builder.build_arc()?);
+        self.register_hits(&ctx).await?;
+
+        let iterations = self.common.iterations;
+        let mut benchmark_run = BenchmarkRun::new();
+        for query_id in query_range {
+            let mut millis = Vec::with_capacity(iterations);
+            benchmark_run.start_new_case(&format!("Query {query_id}"));
+            let sql = queries.get_query(query_id)?;
+            println!("Q{query_id}: {sql}");
+
+            for i in 0..iterations {
+                let start = Instant::now();
+                let results = ctx.sql(sql).await?.collect().await?;
+                let elapsed = start.elapsed();
+                let ms = elapsed.as_secs_f64() * 1000.0;
+                millis.push(ms);
+                let row_count: usize = results.iter().map(RecordBatch::num_rows).sum();
+                println!(
+                    "Query {query_id} iteration {i} took {ms:.1} ms and returned {row_count} rows"
+                );
+                benchmark_run.write_iter(elapsed, row_count);
+            }
+            let avg = millis.iter().sum::<f64>() / millis.len() as f64;
+            println!("Query {query_id} avg time: {avg:.2} ms");
+        }
+        benchmark_run.maybe_write_json(self.output_path.as_ref())?;
+        Ok(())
+    }
+
     #[allow(clippy::unwrap_used)]
     async fn create_tables(&self, session: &Arc<UserSession>) -> Result<()> {
         let path = self.path.as_os_str().to_str().unwrap();
@@ -183,6 +262,17 @@ impl RunOpt {
         let mut data_query = session.query(data_sql, query_context());
         data_query.execute().await?;
         Ok(())
+    }
+
+    #[allow(clippy::unwrap_used)]
+    async fn register_hits(&self, ctx: &SessionContext) -> Result<()> {
+        let options = ParquetReadOptions::default();
+        let path = self.path.as_os_str().to_str().unwrap();
+        ctx.register_parquet("hits", path, options)
+            .await
+            .map_err(|e| {
+                DataFusionError::Context(format!("Registering 'hits' as {path}"), Box::new(e))
+            })
     }
 }
 
