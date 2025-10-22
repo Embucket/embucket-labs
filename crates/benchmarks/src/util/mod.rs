@@ -93,7 +93,11 @@ pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
     // ));
     let db = Db::memory().await;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db));
+    let history_store = Arc::new(
+        SlateDBHistoryStore::new(db.clone())
+            .await
+            .expect("Failed to create history store"),
+    );
     Arc::new(
         CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
             .await

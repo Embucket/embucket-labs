@@ -127,8 +127,8 @@ impl SlateDBMetastore {
     }
 
     // Create a new SlateDBMetastore with a new in-memory database
-    pub async fn new_in_memory() -> Arc<Self> {
-        Arc::new(Self::new(Db::memory().await))
+    pub async fn new_in_memory() -> Self {
+        Self::new(Db::memory().await)
     }
 
     #[cfg(test)]

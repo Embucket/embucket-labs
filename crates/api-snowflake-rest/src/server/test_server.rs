@@ -1,11 +1,10 @@
 use super::server_models::Config;
 use crate::server::router::make_app;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
-use core_utils::Db;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[allow(clippy::expect_used)]
 pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
@@ -24,9 +23,31 @@ pub async fn run_test_rest_api_server_with_config(
     let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history = Arc::new(SlateDBHistoryStore::new(db));
+    let traces_writer = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("traces.log")
+        .expect("Failed to open traces.log");
+
+    let subscriber = tracing_subscriber::fmt()
+        // using stderr as it won't be showed until test failed
+        .with_writer(traces_writer)
+        .with_ansi(false)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_span_events(FmtSpan::NONE)
+        .with_level(true)
+        .with_max_level(tracing_subscriber::filter::LevelFilter::DEBUG)
+        .finish();
+
+    // ignoring error: as with parralel tests execution, just first thread is able to set it successfully
+    // since all tests run in a single process
+    let _ = tracing::subscriber::set_global_default(subscriber);
+
+    let metastore = SlateDBMetastore::new_in_memory().await;
+    let history = SlateDBHistoryStore::new_in_memory().await;
 
     let app = make_app(metastore, history, app_cfg, execution_cfg)
         .await

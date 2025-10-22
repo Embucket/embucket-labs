@@ -3,7 +3,8 @@ use crate::session::register_session_context_udfs;
 use crate::session_params::SessionParams;
 use crate::table::register_udtfs;
 use crate::{register_udafs, register_udfs};
-use core_history::{HistoryStore, MockHistoryStore, QueryRecord, QueryRecordId};
+use bytes::Bytes;
+use core_history::{HistoryStore, MockHistoryStore, QueryRecord, QueryRecordId, ResultSet};
 use datafusion::execution::SessionStateBuilder;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use snafu::Location;
@@ -43,14 +44,7 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
     });
     mock.expect_get_query().returning(|id| {
         let mut record = QueryRecord::new("query", None);
-        let buf = r#"
-        {
-            "columns": [{"name":"a","type":"text"},{"name":"b","type":"text"},{"name":"c","type":"text"}],
-            "rows": [[1,"2",true],[2.0,"4",false]],
-            "data_format": "arrow",
-            "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
-        }"#;
-        record.result = Some(buf.to_string());
+        record.id = id;
         if id == QueryRecordId(500) {
             return Err(core_history::Error::ExecutionResult {
                 message: "Query not found".to_string(),
@@ -61,6 +55,17 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
             record.error = Some("query error".to_string());
         }
         Ok(record)
+    });
+    mock.expect_get_query_result().returning(|id| {
+        let buf = r#"{
+            "columns": [{"name":"a","type":"text"},{"name":"b","type":"text"},{"name":"c","type":"text"}],
+            "rows": [[1,"2",true],[2.0,"4",false]],
+            "data_format": "arrow",
+            "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
+        }"#;
+        let mut result = ResultSet::try_from(Bytes::from(buf.as_bytes()))?;
+        result.id = id;
+        Ok(result)
     });
     let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
     history_store

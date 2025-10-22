@@ -64,6 +64,7 @@ use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
+// use core_sqlite::SqliteDb;
 
 #[cfg(feature = "alloc-tracing")]
 mod alloc_tracing {
@@ -79,7 +80,7 @@ mod alloc_tracing {
 #[global_allocator]
 static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-const TARGETS: [&str; 13] = [
+const TARGETS: [&str; 16] = [
     "embucketd",
     "api_ui",
     "api_sessions",
@@ -88,11 +89,14 @@ const TARGETS: [&str; 13] = [
     "core_executor",
     "core_utils",
     "core_history",
+    "core_sqlite",
     "core_metastore",
     "df_catalog",
     "datafusion",
     "iceberg_rust",
     "datafusion_iceberg",
+    "tower",
+    "tower_http",
 ];
 
 #[allow(
@@ -122,7 +126,7 @@ fn main() {
     rt.block_on(async move {
         let tracing_provider = setup_tracing(&opts);
 
-        async_main(opts, tracing_provider).await;
+        let _ = async_main(opts, tracing_provider).await;
     });
 }
 
@@ -133,7 +137,10 @@ fn main() {
     clippy::too_many_lines,
     clippy::cognitive_complexity
 )]
-async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
+async fn async_main(
+    opts: cli::CliOpts,
+    tracing_provider: SdkTracerProvider,
+) -> Result<(), Box<dyn std::error::Error>> {
     let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
@@ -185,17 +192,18 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     let object_store = opts
         .object_store_backend()
         .expect("Failed to create object store");
-    let db = Db::new(Arc::new(
+    let slate_db = Arc::new(
         DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
             .with_settings(slatedb_default_settings())
             .build()
             .await
             .expect("Failed to start Slate DB"),
-    ));
+    );
+
+    let db = Db::new(slate_db);
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()));
+    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await?);
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(
@@ -331,6 +339,8 @@ async fn async_main(opts: cli::CliOpts, tracing_provider: SdkTracerProvider) {
     tracing_provider
         .shutdown()
         .expect("TracerProvider should shutdown successfully");
+
+    Ok(())
 }
 
 #[allow(clippy::expect_used)]

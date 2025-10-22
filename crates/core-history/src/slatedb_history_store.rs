@@ -1,7 +1,7 @@
 use crate::errors::{self as core_history_errors, Result};
+use crate::interface::{GetQueriesParams, HistoryStore};
 use crate::{
-    QueryRecord, QueryRecordId, QueryRecordReference, QueryStatus, SlateDBHistoryStore, Worksheet,
-    WorksheetId,
+    QueryRecord, QueryRecordId, QueryRecordReference, SlateDBHistoryStore, Worksheet, WorksheetId,
 };
 use async_trait::async_trait;
 use core_utils::Db;
@@ -13,92 +13,36 @@ use snafu::OptionExt;
 use snafu::ResultExt;
 use tracing::instrument;
 
-#[derive(Default, Clone, Debug)]
-pub enum SortOrder {
-    Ascending,
-    #[default]
-    Descending,
+pub struct SlateDBHistoryStore {
+    pub db: Db,
 }
 
-#[derive(Debug, Clone)]
-pub struct QueryResultError {
-    // additional error status like: cancelled, timeout, etc
-    pub status: QueryStatus,
-    pub message: String,
-    pub diagnostic_message: String,
-}
-impl std::fmt::Display for QueryResultError {
+impl std::fmt::Debug for SlateDBHistoryStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // do not output status, it is just an internal context
-        write!(
-            f,
-            "QueryResultError: {} | Diagnostic: {}",
-            self.message, self.diagnostic_message
-        )
+        f.debug_struct("SlateDBHistoryStore").finish()
     }
 }
 
-impl std::error::Error for QueryResultError {}
-
-#[derive(Default, Debug)]
-pub struct GetQueriesParams {
-    pub worksheet_id: Option<WorksheetId>,
-    pub sql_text: Option<String>,     // filter by SQL Text
-    pub min_duration_ms: Option<i64>, // filter Duration greater than
-    pub cursor: Option<QueryRecordId>,
-    pub limit: Option<u16>,
-}
-
-impl GetQueriesParams {
+impl SlateDBHistoryStore {
+    #[allow(clippy::expect_used)]
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new(db: Db) -> Self {
+        Self { db }
+    }
+
+    // Create a new store with a new in-memory database
+    #[allow(clippy::expect_used)]
+    pub async fn new_in_memory() -> Self {
+        // create utils db regardless of feature, but use it only with utilsdb feature
+        // to avoid changing the code
+        let utils_db = Db::memory().await;
+        Self::new(utils_db)
     }
 
     #[must_use]
-    pub const fn with_worksheet_id(mut self, worksheet_id: WorksheetId) -> Self {
-        self.worksheet_id = Some(worksheet_id);
-        self
+    pub const fn db(&self) -> &Db {
+        &self.db
     }
-
-    #[must_use]
-    pub fn with_sql_text(mut self, sql_text: String) -> Self {
-        self.sql_text = Some(sql_text);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_min_duration_ms(mut self, min_duration_ms: i64) -> Self {
-        self.min_duration_ms = Some(min_duration_ms);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_cursor(mut self, cursor: QueryRecordId) -> Self {
-        self.cursor = Some(cursor);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_limit(mut self, limit: u16) -> Self {
-        self.limit = Some(limit);
-        self
-    }
-}
-
-#[mockall::automock]
-#[async_trait]
-pub trait HistoryStore: std::fmt::Debug + Send + Sync {
-    async fn add_worksheet(&self, worksheet: Worksheet) -> Result<Worksheet>;
-    async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet>;
-    async fn update_worksheet(&self, worksheet: Worksheet) -> Result<()>;
-    async fn delete_worksheet(&self, id: WorksheetId) -> Result<()>;
-    async fn get_worksheets(&self) -> Result<Vec<Worksheet>>;
-    async fn add_query(&self, item: &QueryRecord) -> Result<()>;
-    async fn get_query(&self, id: QueryRecordId) -> Result<QueryRecord>;
-    async fn get_queries(&self, params: GetQueriesParams) -> Result<Vec<QueryRecord>>;
-    fn query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
-    async fn save_query_record(&self, query_record: &mut QueryRecord);
 }
 
 async fn queries_iterator(db: &Db, cursor: Option<QueryRecordId>) -> Result<DbIterator<'_>> {
@@ -336,119 +280,5 @@ impl HistoryStore for SlateDBHistoryStore {
 
             tracing::error!(error = %err, "Failed to record query history");
         }
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
-mod tests {
-    use super::*;
-    use crate::entities::query::{QueryRecord, QueryStatus};
-    use crate::entities::worksheet::Worksheet;
-    use chrono::{Duration, TimeZone, Utc};
-    use core_utils::iterable::{IterableCursor, IterableEntity};
-    use tokio;
-
-    fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
-        let mut created: Vec<QueryRecord> = vec![];
-        for (i, (worksheet_id, query_status)) in templates.iter().enumerate() {
-            let query_record_fn = |query: &str, worksheet_id: Option<WorksheetId>| -> QueryRecord {
-                let start_time = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
-                    + Duration::milliseconds(
-                        i.try_into().expect("Failed convert idx to milliseconds"),
-                    );
-                let mut record = QueryRecord::new(query, worksheet_id);
-                record.id = QueryRecordId(start_time.timestamp_millis());
-                record.start_time = start_time;
-                record.status = QueryStatus::Running;
-                record
-            };
-            let query_record = match query_status {
-                QueryStatus::Running => {
-                    query_record_fn(format!("select {i}").as_str(), *worksheet_id)
-                }
-                QueryStatus::Successful => {
-                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
-                    item.finished(1, Some(String::from("pseudo result")));
-                    item
-                }
-                QueryStatus::Canceled | QueryStatus::TimedOut | QueryStatus::Failed => {
-                    let mut item = query_record_fn(format!("select {i}").as_str(), *worksheet_id);
-                    item.finished_with_error(&QueryResultError {
-                        status: query_status.clone(),
-                        message: String::from("Test query pseudo error"),
-                        diagnostic_message: String::from("diagnostic message"),
-                    });
-                    item
-                }
-            };
-            created.push(query_record);
-        }
-
-        created
-    }
-
-    #[tokio::test]
-    async fn test_history() {
-        let db = SlateDBHistoryStore::new_in_memory().await;
-
-        // create a worksheet first
-        let worksheet = Worksheet::new(String::new(), String::new());
-        let worksheet = db
-            .add_worksheet(worksheet)
-            .await
-            .expect("Failed creating worksheet");
-
-        let created = create_query_records(&[
-            (Some(worksheet.id), QueryStatus::Successful),
-            (Some(worksheet.id), QueryStatus::Failed),
-            (Some(worksheet.id), QueryStatus::Running),
-            (None, QueryStatus::Running),
-        ]);
-
-        for item in &created {
-            eprintln!("added {:?}", item.key());
-            db.add_query(item).await.expect("Failed adding query");
-        }
-
-        let cursor = QueryRecordId(<QueryRecord as IterableEntity>::Cursor::min_cursor());
-        eprintln!("cursor: {cursor}");
-        let get_queries_params = GetQueriesParams::new()
-            .with_worksheet_id(worksheet.id)
-            .with_cursor(cursor)
-            .with_limit(10);
-        let retrieved = db
-            .get_queries(get_queries_params)
-            .await
-            .expect("Failed getting queries");
-        // queries belong to the worksheet
-        assert_eq!(3, retrieved.len());
-
-        let get_queries_params = GetQueriesParams::new().with_cursor(cursor).with_limit(10);
-        let retrieved_all = db
-            .get_queries(get_queries_params)
-            .await
-            .expect("Failed getting queries");
-        // all queries
-        for item in &retrieved_all {
-            eprintln!("retrieved_all : {:?}", item.key());
-        }
-        assert_eq!(created.len(), retrieved_all.len());
-        assert_eq!(created, retrieved_all);
-
-        // Delete worksheet & check related keys
-        db.delete_worksheet(worksheet.id)
-            .await
-            .expect("Failed deleting worksheet");
-        let mut worksheet_refs_iter =
-            worksheet_queries_references_iterator(&db.db, worksheet.id, None)
-                .await
-                .expect("Error getting worksheets queries references iterator");
-        let mut rudiment_keys = vec![];
-        while let Ok(Some(item)) = worksheet_refs_iter.next().await {
-            eprintln!("rudiment key left after worksheet deleted: {:?}", item.key);
-            rudiment_keys.push(item.key);
-        }
-        assert_eq!(rudiment_keys.len(), 0);
     }
 }

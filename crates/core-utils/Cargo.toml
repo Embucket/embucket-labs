@@ -1,13 +1,14 @@
 [package]
 name = "core-utils"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license-file = { workspace = true }
 
 [dependencies]
 error-stack = { path = "../error-stack" }
 error-stack-trace = { path = "../error-stack-trace" }
 
+core-sqlite = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -20,6 +21,8 @@ slatedb = { workspace = true }
 snafu = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+rusqlite = { workspace = true }
+deadpool-sqlite = { workspace = true }
 
 [lints]
 workspace = true

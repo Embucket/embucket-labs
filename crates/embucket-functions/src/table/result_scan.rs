@@ -58,6 +58,7 @@ impl ResultScanFunc {
 
     pub fn read_query_batches(&self, query_id: &str) -> DFResult<(SchemaRef, Vec<RecordBatch>)> {
         let history_store = self.history_store.clone();
+        let history_store_cloned = self.history_store.clone();
         let query_id_parsed = query_id
             .parse::<i64>()
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
@@ -77,16 +78,13 @@ impl ResultScanFunc {
             );
         }
 
-        let result_json = query_record.result.ok_or_else(|| {
-            errors::NoResultDataForQueryIdSnafu {
-                query_id: query_id_parsed,
-            }
-            .build()
-        })?;
-
-        // Deserialize ResultSet string
-        let result_set: ResultSet = serde_json::from_str(&result_json)
-            .map_err(|e| DataFusionError::External(Box::new(e)))?;
+        let result_set = block_in_new_runtime(async move {
+            let result_set = history_store_cloned
+                .get_query_result(query_id_parsed.into())
+                .await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
+            Ok::<ResultSet, DataFusionError>(result_set)
+        })??;
 
         let arrow_json = convert_resultset_to_arrow_json_lines(&result_set)?;
 

@@ -2,7 +2,7 @@ use crate::config::AuthConfig;
 use crate::config::WebConfig;
 use core_executor::ExecutionAppState;
 use core_executor::service::ExecutionService;
-use core_history::history_store::HistoryStore;
+use core_history::HistoryStore;
 use core_metastore::Metastore;
 use std::collections::HashMap;
 use std::sync::Arc;

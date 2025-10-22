@@ -1,4 +1,4 @@
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use datafusion::prelude::SessionContext;
 use embucket_functions::session_params::SessionParams;
 use embucket_functions::table::register_udtfs;
@@ -47,7 +47,7 @@ pub async fn generate_implemented_functions_csv() -> Result<(), Box<dyn std::err
     register_udfs(&mut ctx, &Arc::new(SessionParams::default()))?;
     register_udafs(&mut ctx)?;
 
-    let history_store = SlateDBHistoryStore::new_in_memory().await;
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     register_udtfs(&ctx, history_store);
 
     datafusion_functions_json::register_all(&mut ctx)?;

@@ -24,23 +24,33 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub struct Db(Arc<SlateDb>);
+pub struct Db {
+    pub slatedb: Arc<SlateDb>,
+}
 
 impl Db {
-    pub const fn new(db: Arc<SlateDb>) -> Self {
-        Self(db)
+    #[allow(clippy::expect_used)]
+    pub const fn new(slatedb: Arc<SlateDb>) -> Self {
+        Self { slatedb }
     }
 
     #[allow(clippy::expect_used)]
     pub async fn memory() -> Self {
         let object_store = object_store::memory::InMemory::new();
-        let db = SlateDb::open(
-            object_store::path::Path::from("/"),
-            std::sync::Arc::new(object_store),
-        )
-        .await
-        .expect("Failed to open database");
-        Self(Arc::new(db))
+        let slatedb = Arc::new(
+            SlateDb::open(
+                object_store::path::Path::from("/"),
+                std::sync::Arc::new(object_store),
+            )
+            .await
+            .expect("Failed to open database"),
+        );
+        Self { slatedb }
+    }
+
+    #[must_use]
+    pub fn slate_db(&self) -> Arc<SlateDb> {
+        self.slatedb.clone()
     }
 
     /// Closes the database connection.
@@ -49,7 +59,7 @@ impl Db {
     ///
     /// Returns a `DbError` if the underlying database operation fails.
     pub async fn close(&self) -> Result<()> {
-        self.0.close().await.context(errors::DatabaseSnafu)?;
+        self.slatedb.close().await.context(errors::DatabaseSnafu)?;
         Ok(())
     }
 
@@ -60,7 +70,7 @@ impl Db {
     /// This function will return a `DbError` if the underlying database operation fails.
     #[instrument(name = "Db::delete", level = "trace", skip(self), err)]
     pub async fn delete(&self, key: &str) -> Result<()> {
-        self.0
+        self.slatedb
             .delete(key.as_bytes())
             .await
             .context(errors::KeyDeleteSnafu {
@@ -75,7 +85,7 @@ impl Db {
     /// This function will return a `DbError` if the underlying database operation fails.
     #[instrument(name = "Db::delete_key", level = "trace", skip(self), err)]
     pub async fn delete_key(&self, key: Bytes) -> Result<()> {
-        self.0
+        self.slatedb
             .delete(key.as_ref())
             .await
             .context(errors::KeyDeleteSnafu {
@@ -92,7 +102,7 @@ impl Db {
     #[instrument(name = "Db::put", level = "trace", skip(self, value), err)]
     pub async fn put<T: serde::Serialize + Sync>(&self, key: &str, value: &T) -> Result<()> {
         let serialized = ser::to_vec(value).context(errors::SerializeValueSnafu)?;
-        self.0
+        self.slatedb
             .put(key.as_bytes(), serialized)
             .await
             .context(errors::KeyPutSnafu {
@@ -112,7 +122,7 @@ impl Db {
         key: &str,
     ) -> Result<Option<T>> {
         let value: Option<bytes::Bytes> =
-            self.0
+            self.slatedb
                 .get(key.as_bytes())
                 .await
                 .context(errors::KeyGetSnafu {
@@ -134,7 +144,7 @@ impl Db {
         &self,
         key: String,
     ) -> VecScanIterator<T> {
-        VecScanIterator::new(self.0.clone(), key)
+        VecScanIterator::new(self.slatedb.clone(), key)
     }
 
     /// Stores template object in the database. This function primarily used by history store
@@ -150,7 +160,7 @@ impl Db {
         entity: &T,
     ) -> Result<()> {
         let serialized = ser::to_vec(entity).context(errors::SerializeValueSnafu)?;
-        self.0
+        self.slatedb
             .put(entity.key().as_ref(), serialized)
             // .put_with_options(
             //     entity.key().as_ref(),
@@ -174,7 +184,10 @@ impl Db {
         &self,
         range: R,
     ) -> Result<DbIterator<'_>> {
-        self.0.scan(range).await.context(errors::DatabaseSnafu)
+        self.slatedb
+            .scan(range)
+            .await
+            .context(errors::DatabaseSnafu)
     }
 
     /// Fetch iterable items from database
@@ -339,7 +352,7 @@ mod test {
         type Cursor = i64;
 
         fn cursor(&self) -> Self::Cursor {
-            self.start_time.timestamp_millis()
+            self.start_time.timestamp_micros()
         }
 
         fn key(&self) -> Bytes {
@@ -364,7 +377,7 @@ mod test {
         type Cursor = i64;
 
         fn cursor(&self) -> Self::Cursor {
-            self.start_time.timestamp_millis()
+            self.start_time.timestamp_micros()
         }
 
         fn key(&self) -> Bytes {
@@ -419,7 +432,7 @@ mod test {
         );
 
         let full_range: (Bound<Bytes>, Bound<Bytes>) = (Bound::Unbounded, Bound::Unbounded);
-        let mut iter = db.0.scan(full_range).await.unwrap();
+        let mut iter = db.slatedb.scan(full_range).await.unwrap();
         let mut i = 0;
         while let Ok(Some(item)) = iter.next().await {
             assert_eq!(item.key, items[i].key());

@@ -62,6 +62,7 @@ lru = "0.15.0"
 
 # added for making Snowflake error
 slatedb = { workspace = true }
+cfg-if = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }

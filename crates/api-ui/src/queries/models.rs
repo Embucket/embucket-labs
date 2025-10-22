@@ -20,7 +20,7 @@ pub struct Column {
 #[schema(as = Row, value_type = Vec<Value>)]
 pub struct Row(pub Vec<Value>);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultSet {
     pub columns: Vec<Column>,
@@ -32,6 +32,24 @@ impl TryFrom<&str> for ResultSet {
 
     fn try_from(result: &str) -> QueryRecordResult<Self> {
         serde_json::from_str(result).context(ResultParseSnafu)
+    }
+}
+
+impl TryFrom<core_history::ResultSet> for ResultSet {
+    type Error = QueryError;
+
+    fn try_from(result_set: core_history::ResultSet) -> QueryRecordResult<Self> {
+        Ok(Self {
+            columns: result_set
+                .columns
+                .into_iter()
+                .map(|col| Column {
+                    name: col.name,
+                    r#type: col.r#type,
+                })
+                .collect(),
+            rows: result_set.rows.into_iter().map(|row| Row(row.0)).collect(),
+        })
     }
 }
 
@@ -104,12 +122,12 @@ pub struct QueryRecord {
     pub id: QueryRecordId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worksheet_id: Option<WorksheetId>,
+    // result_id is not for ui
     pub query: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub result_count: i64,
-    pub result: ResultSet,
     pub status: QueryStatus,
     pub error: String, // empty error - ok
 }
@@ -118,16 +136,7 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
     type Error = QueryError;
 
     fn try_from(query: core_history::QueryRecord) -> QueryRecordResult<Self> {
-        let query_result = query.result.unwrap_or_default();
         let query_error = query.error.unwrap_or_default();
-        let result_set = if query_result.is_empty() {
-            ResultSet {
-                rows: vec![],
-                columns: vec![],
-            }
-        } else {
-            ResultSet::try_from(query_result.as_str())?
-        };
         Ok(Self {
             id: query.id.into(),
             worksheet_id: query.worksheet_id,
@@ -137,7 +146,6 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
             duration_ms: query.duration_ms,
             result_count: query.result_count,
             status: query.status.into(),
-            result: result_set,
             error: query_error,
         })
     }
@@ -159,3 +167,7 @@ pub struct GetQueriesParams {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryGetResponse(pub QueryRecord);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryResultGetResponse(pub ResultSet);

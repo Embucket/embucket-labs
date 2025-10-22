@@ -25,7 +25,7 @@ impl Worksheet {
     #[must_use]
     pub fn new(name: String, content: String) -> Self {
         let created_at = Utc::now();
-        let id = created_at.timestamp_millis();
+        let id = created_at.timestamp_micros();
         // id, start_time have the same value
         Self {
             id,
@@ -68,6 +68,6 @@ mod test {
     #[test]
     fn test_new_worksheet() {
         let w1 = Worksheet::new(String::new(), String::new());
-        assert_eq!(w1.id, w1.created_at.timestamp_millis());
+        assert_eq!(w1.id, w1.created_at.timestamp_micros());
     }
 }

@@ -35,6 +35,8 @@ core-utils = { path = "../core-utils", optional = true }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "registry", "fmt", "json"] }
+
 tower-sessions = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
@@ -52,7 +54,7 @@ serde_json = { workspace = true }
 time = { workspace = true }
 uuid = { workspace = true }
 tokio = { workspace = true }
-cfg-if = "1.0.3"
+cfg-if = { workspace = true }
 
 [dev-dependencies]
 insta = { workspace = true }

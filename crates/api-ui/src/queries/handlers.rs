@@ -4,7 +4,7 @@ use crate::queries::error::{
 };
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
-    QueryRecord, QueryRecordId, QueryStatus, ResultSet,
+    QueryRecord, QueryRecordId, QueryResultGetResponse, QueryStatus, ResultSet,
 };
 use crate::state::AppState;
 use crate::{
@@ -32,8 +32,8 @@ use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(query, queries, get_query),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection)),
+    paths(query, queries, get_query, get_query_result),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection, ResultSet)),
     tags(
       (name = "queries", description = "Queries endpoints"),
     )
@@ -218,6 +218,9 @@ pub async fn queries(
     Query(special_parameters): Query<GetQueriesParams>,
     State(state): State<AppState>,
 ) -> Result<Json<QueriesResponse>> {
+    //
+    // TODO: Consider switching to using history store directly
+    //
     let context = QueryContext::default();
     let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
     let sql_string = special_parameters.worksheet_id.map_or_else(
@@ -254,7 +257,6 @@ pub async fn queries(
         let end_times = w_downcast_string_column(&record, "end_time")?;
         let duration_ms_values = w_downcast_int64_column(&record, "duration_ms")?;
         let result_counts = w_downcast_int64_column(&record, "result_count")?;
-        let results = w_downcast_string_column(&record, "result")?;
         let status = w_downcast_string_column(&record, "status")?;
         let errors = w_downcast_string_column(&record, "error")?;
         for i in 0..record.num_rows() {
@@ -278,14 +280,6 @@ pub async fn queries(
                     .context(QueriesSnafu)?,
                 duration_ms: duration_ms_values.value(i),
                 result_count: result_counts.value(i),
-                result: if results.is_null(i) {
-                    ResultSet {
-                        columns: Vec::new(),
-                        rows: Vec::new(),
-                    }
-                } else {
-                    ResultSet::try_from(results.value(i)).context(QueriesSnafu)?
-                },
                 status: QueryStatus::try_from(status.value(i)).context(QueriesSnafu)?,
                 error: if errors.is_null(i) {
                     "NULL".to_string()
@@ -296,6 +290,44 @@ pub async fn queries(
         }
     }
     Ok(Json(QueriesResponse { items }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/ui/queries/{queryRecordId}/result",
+    operation_id = "getQueryResult",
+    tags = ["queries"],
+    params(
+        ("queryRecordId" = QueryRecordId, Path, description = "Query Record Id")
+    ),
+    responses(
+        (status = 200, description = "Returns rows of the query result", body = QueryResultGetResponse),
+        (status = 401,
+         description = "Unauthorized",
+         headers(
+            ("WWW-Authenticate" = String, description = "Bearer authentication scheme with error details")
+         ),
+         body = ErrorResponse),
+        (status = 400, description = "Bad query record id", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    )
+)]
+#[tracing::instrument(name = "api_ui::get_query_result", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
+pub async fn get_query_result(
+    State(state): State<AppState>,
+    Path(query_record_id): Path<QueryRecordId>,
+) -> Result<Json<QueryResultGetResponse>> {
+    state
+        .history_store
+        .get_query_result(query_record_id.into())
+        .await
+        .map(|result_set| {
+            Ok(Json(QueryResultGetResponse(
+                result_set.try_into().context(GetQueryRecordSnafu)?,
+            )))
+        })
+        .context(StoreSnafu)
+        .context(GetQueryRecordSnafu)?
 }
 
 #[allow(clippy::result_large_err)]

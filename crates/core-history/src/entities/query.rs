@@ -1,11 +1,11 @@
-use crate::{QueryRecordId, QueryResultError, ResultSet, WorksheetId};
+use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum QueryStatus {
     Running,
@@ -27,6 +27,32 @@ impl Display for QueryStatus {
     }
 }
 
+#[derive(Debug)]
+pub struct ParseQueryStatusError;
+
+impl std::fmt::Display for ParseQueryStatusError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid query status")
+    }
+}
+
+impl std::error::Error for ParseQueryStatusError {}
+
+impl FromStr for QueryStatus {
+    type Err = ParseQueryStatusError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Running" => Ok(Self::Running),
+            "Successful" => Ok(Self::Successful),
+            "Failed" => Ok(Self::Failed),
+            "Canceled" => Ok(Self::Canceled),
+            "TimedOut" => Ok(Self::TimedOut),
+            _ => Err(ParseQueryStatusError),
+        }
+    }
+}
+
 // QueryRecord struct is used for storing QueryRecord History result and also used in http response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -38,7 +64,7 @@ pub struct QueryRecord {
     pub end_time: DateTime<Utc>,
     pub duration_ms: i64,
     pub result_count: i64,
-    pub result: Option<String>,
+    pub result_id: Option<String>,
     pub status: QueryStatus,
     pub error: Option<String>,
     pub diagnostic_error: Option<String>,
@@ -50,14 +76,14 @@ impl QueryRecord {
     pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
         Self {
-            id: Self::inverted_id(QueryRecordId(start_time.timestamp_millis())),
+            id: Self::inverted_id(QueryRecordId(start_time.timestamp_micros())),
             worksheet_id,
             query: String::from(query),
             start_time,
             end_time: start_time,
             duration_ms: 0,
             result_count: 0,
-            result: None,
+            result_id: None,
             status: QueryStatus::Running,
             error: None,
             diagnostic_error: None,
@@ -69,37 +95,13 @@ impl QueryRecord {
         self.id
     }
 
-    pub const fn set_status(&mut self, status: QueryStatus) {
-        self.status = status;
-    }
-
-    // This takes result by reference, since it just serialize it, so can't be consumed
-    pub fn set_result(&mut self, result: &Result<ResultSet, QueryResultError>, rows_limit: usize) {
-        match result {
-            Ok(result_set) => {
-                let (encoding_res, rows_count) = result_set.serialize_with_limit(rows_limit);
-                match encoding_res {
-                    Ok(encoded_res) => {
-                        let result_count = i64::try_from(rows_count).unwrap_or(0);
-                        self.finished(result_count, Some(encoded_res));
-                    }
-                    // serde error
-                    // Following error is created right here, so ownership could be transferred into
-                    Err(err) => self.finished_with_error(&QueryResultError {
-                        status: QueryStatus::Failed,
-                        message: err.to_string(),
-                        diagnostic_message: format!("{err:?}"),
-                    }),
-                }
-            }
-            // Following error is received from outside, so can be used just as reference
-            Err(execution_err) => self.finished_with_error(execution_err),
-        }
-    }
-
-    pub fn finished(&mut self, result_count: i64, result: Option<String>) {
+    pub fn finished_with_status(&mut self, status: QueryStatus, result_count: i64) {
         self.result_count = result_count;
-        self.result = result;
+        // result_id is for future use
+        if status == QueryStatus::Successful {
+            self.result_id = Some(self.id.to_string());
+        }
+        self.status = status;
         self.end_time = Utc::now();
         self.duration_ms = self
             .end_time
@@ -108,10 +110,7 @@ impl QueryRecord {
     }
 
     pub fn finished_with_error(&mut self, error: &crate::QueryResultError) {
-        self.finished(0, None);
-        // Copy all data
-        // Consider transfering ownership if redesign is done
-        self.status = error.status.clone();
+        self.finished_with_status(error.status, 0);
         self.error = Some(error.message.clone());
         self.diagnostic_error = Some(error.diagnostic_message.clone());
     }

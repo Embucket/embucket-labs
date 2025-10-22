@@ -13,7 +13,7 @@ use crate::models::QueryContext;
 use crate::query::UserQuery;
 use crate::running_queries::RunningQueries;
 use crate::utils::Config;
-use core_history::history_store::HistoryStore;
+use core_history::HistoryStore;
 use core_metastore::Metastore;
 use datafusion::config::ConfigOptions;
 use datafusion::execution::runtime_env::RuntimeEnv;

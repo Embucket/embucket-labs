@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use rusqlite;
 use snafu::Location;
 use snafu::prelude::*;
 use std::fmt::Debug;
@@ -74,4 +75,27 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Sqlite error: {error}"))]
+    RuSqlite {
+        #[snafu(source)]
+        error: rusqlite::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Error creating sqlite schema: {error}"))]
+    CoreSqlite {
+        #[snafu(source)]
+        error: core_sqlite::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    // #[snafu(display("Sqlite connector error: {error}"))]
+    // Connector {
+    //     #[snafu(source(from(deadpool_sqlite::InteractError, Box::new)))]
+    //     error: Box<deadpool_sqlite::InteractError>,
+    //     #[snafu(implicit)]
+    //     location: Location,
+    // }
 }

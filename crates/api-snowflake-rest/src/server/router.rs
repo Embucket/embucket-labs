@@ -9,7 +9,7 @@ use super::state;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::store::SlateDBHistoryStore;
+use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use std::sync::Arc;
 use tower::ServiceBuilder;
@@ -30,15 +30,19 @@ pub fn create_router() -> Router<AppState> {
 // TODO: We should consider using this by both main and tests
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
-    metastore: Arc<SlateDBMetastore>,
-    history_store: Arc<SlateDBHistoryStore>,
+    metastore: SlateDBMetastore,
+    history_store: SlateDBHistoryStore,
     snowflake_rest_cfg: Config,
     execution_cfg: UtilsConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_svc = Arc::new(
-        CoreExecutionService::new(metastore, history_store, Arc::new(execution_cfg))
-            .await
-            .expect("Failed to create execution service"),
+        CoreExecutionService::new(
+            Arc::new(metastore),
+            Arc::new(history_store),
+            Arc::new(execution_cfg),
+        )
+        .await
+        .expect("Failed to create execution service"),
     );
 
     // Create the application state

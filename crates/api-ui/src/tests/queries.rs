@@ -109,8 +109,18 @@ async fn test_ui_queries_with_worksheet() {
     )
     .await
     .expect("Create query error");
+
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query result error");
+
     assert_eq!(
-        query.result,
+        result_set,
         ResultSet {
             columns: vec![
                 Column {
@@ -141,8 +151,17 @@ async fn test_ui_queries_with_worksheet() {
     .await
     .expect("Create query error");
 
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query2.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query result error");
+
     assert_eq!(
-        query2.result,
+        result_set,
         ResultSet {
             columns: vec![Column {
                 name: "Int64(2)".to_string(),
@@ -225,7 +244,6 @@ async fn test_ui_queries_with_worksheet() {
     let queries = queries_response.items;
     assert_eq!(queries.len(), 2);
 
-    // check items returned in descending order
     assert_eq!(queries[0].status, QueryStatus::Failed);
     assert_eq!(queries[1].status, QueryStatus::Failed);
 
@@ -244,11 +262,8 @@ async fn test_ui_queries_with_worksheet() {
     .items;
 
     assert_eq!(queries2.len(), 2);
-    // check items returned in descending order
     assert_eq!(queries2[0].status, QueryStatus::Successful);
-    assert_eq!(queries2[0].result, query2.result);
     assert_eq!(queries2[1].status, QueryStatus::Successful);
-    assert_eq!(queries2[1].result, query.result);
 
     // get worksheet with queries
     // tesing regression: "Deserialize error: missing field `id` at line 1 column 2"
@@ -375,7 +390,7 @@ async fn test_ui_queries_search() {
     assert!(queries[0].start_time > queries[1].start_time);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_async_query_infer_default_exec_mode() {
     let addr = run_test_server().await;
@@ -401,13 +416,18 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     .await
     .expect("Create query error");
 
-    let expected_submit_result = ResultSet::try_from(r#"{"columns":[],"rows":[]}"#)
-        .expect("Failed to deserialize json snippet #1");
-
     assert_eq!(query_record.status, QueryStatus::Running);
-    assert_eq!(query_record.result, expected_submit_result);
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    http_req::<()>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query_record.id),
+        String::new(),
+    )
+    .await
+    .expect_err("Get query error");
+
+    std::thread::sleep(std::time::Duration::from_millis(1000));
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
         &client,
@@ -417,10 +437,21 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     )
     .await
     .expect("Get query error");
+
+    assert_eq!(query_record.status, QueryStatus::Successful);
+
     let expected_result =
         ResultSet::try_from(r#"{"columns":[{"name":"Int64(1)","type":"fixed"}],"rows":[[1]]}"#)
             .expect("Failed to deserialize json snippet #2");
 
-    assert_eq!(query_record.status, QueryStatus::Successful);
-    assert_eq!(query_record.result, expected_result);
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query_record.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query error");
+
+    assert_eq!(expected_result, result_set);
 }

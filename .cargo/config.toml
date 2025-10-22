@@ -1,6 +1,15 @@
 [env]
 WEB_ASSETS_SOURCE_PATH = { value = "ui/dist", relative = true }
 WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
+LIBSQLITE3_FLAGS = """-DSQLITE_ENABLE_COLUMN_METADATA=1 \
+    -DSQLITE_THREADSAFE=2 \
+    -DSQLITE_ENABLE_LOAD_EXTENSION=1 \
+    -DSQLITE_ENABLE_FTS5=1 \
+    -DSQLITE_ENABLE_DBSTAT_VTAB=1 \
+    -DSQLITE_ENABLE_NULL_TRIM=1 \
+    -DSQLITE_ENABLE_RTREE=1 \
+    -DHAVE_READLINE=0 \
+    -DGNU_SOURCE"""
 
 [alias]
 dev = "run -- --backend=memory --cors-allow-origin=http://localhost:8080 --cors-enabled=true"
