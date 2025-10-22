@@ -1,6 +1,7 @@
 pub mod error;
 
-#[cfg(feature = "vfs")]
+// #[cfg(feature = "vfs")]
+#[cfg(any())]
 pub mod vfs;
 
 pub use error::*;
@@ -33,7 +34,9 @@ impl SqliteDb {
     #[allow(clippy::expect_used)]
     pub async fn new(_db: Arc<Db>, db_name: &str) -> Result<Self> {
         cfg_if! {
-            if #[cfg(feature = "vfs")] {
+            // if #[cfg(feature = "vfs")] {
+            // permanently disable this piece of code
+            if #[cfg(any())]  {
                 vfs::init(_db);
 
                 // Actually pool can be used per process, and cargo test runs tests in parallel in separate threads

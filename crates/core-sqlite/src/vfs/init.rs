@@ -43,6 +43,7 @@ pub async fn pragma_setup(connection: &Object) -> Result<()> {
         })
         .await??;
     log::info!(logger: logger(), "vfs_detected={vfs_detected}");
+    tracing::info!("vfs_detected={vfs_detected}");
     if vfs_detected != VFS_NAME.to_string_lossy() {
         return Err(NoVfsDetectedSnafu.fail()?);
     }

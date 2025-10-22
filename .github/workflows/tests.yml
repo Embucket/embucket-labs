@@ -40,6 +40,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - name: Install Dependencies
-        run: sudo apt install -y libclang-18-dev
+        run: | 
+          sudo apt install -y llvm-18 libclang-18-dev
+          sudo ldconfig
       - name: cargo test
         run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --all-features --all-targets
