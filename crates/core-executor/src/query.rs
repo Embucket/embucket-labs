@@ -12,6 +12,7 @@ use super::error::{
 use super::running_queries::RunningQueries;
 use super::session::UserSession;
 use super::utils::{NormalizedIdent, is_logical_plan_effectively_empty};
+use crate::datafusion::logical_plan::duckdb::DuckDBLogicalNode;
 use crate::datafusion::logical_plan::merge::MergeIntoCOWSink;
 use crate::datafusion::physical_optimizer::runtime_physical_optimizer_rules;
 use crate::datafusion::physical_plan::merge::{
@@ -946,8 +947,11 @@ impl UserQuery {
             .execute_and_check(plan, self.session.ctx.state().config_options(), |_, _| ())
             .context(ex_error::DataFusionSnafu)?;
 
-        let ident: MetastoreTableIdent = new_table_ident.into();
+        let ident: MetastoreTableIdent = new_table_ident.clone().into();
         let catalog_name = ident.database.clone();
+
+        // Save query before statement is moved
+        let query_opt = create_table_statement.query.clone();
 
         // Inject more information to to the error
         let catalog = self.get_catalog(&catalog_name).map_err(|_| {
@@ -971,24 +975,11 @@ impl UserQuery {
         self.refresh_catalog_partially(CachedEntity::Table(ident))
             .await?;
 
-        // Insert data to new table
-        // Since we don't execute logical plan, and we don't transform it to physical plan and
-        // also don't execute it as well, we need somehow to support CTAS
-        if let LogicalPlan::Ddl(DdlStatement::CreateMemoryTable(CreateMemoryTable {
-            name,
-            input,
-            ..
-        })) = plan
-        {
-            if is_logical_plan_effectively_empty(&input) {
-                return self.created_entity_response();
-            }
-            let schema_name = name.schema().ok_or_else(|| {
-                ex_error::InvalidSchemaIdentifierSnafu {
-                    ident: name.to_string(),
-                }
-                .build()
-            })?;
+        if let Some(query) = query_opt {
+            // Resolve table reference to get schema and table name
+            let resolved_ref = self.resolve_table_ref(&new_table_ident);
+            let schema_name = resolved_ref.schema.as_ref();
+            let table_name = resolved_ref.table.as_ref();
 
             let target_table = catalog
                 .schema(schema_name)
@@ -997,18 +988,40 @@ impl UserQuery {
                     schema: schema_name.to_string(),
                     db: &catalog_name,
                 })?
-                .table(name.table())
+                .table(table_name)
                 .await
                 .context(ex_error::DataFusionSnafu)?
                 .context(ex_error::TableProviderNotFoundSnafu {
-                    table_name: name.table().to_string(),
+                    table_name: table_name.to_string(),
                 })?;
             let schema = target_table.schema();
+
+            // Construct statement from query and process for DuckDB
+            let mut query_statement = DFStatement::Statement(Box::new(Statement::Query(query)));
+            self.update_statement_references(&mut query_statement)?;
+            let setup_queries = self
+                .update_iceberg_scan_references(&mut query_statement)
+                .await?;
+
+            // Convert Arrow schema to DFSchema
+            let df_schema =
+                Arc::new(DFSchema::try_from(schema.clone()).context(ex_error::DataFusionSnafu)?);
+
+            let duckdb_plan = DuckDBLogicalNode {
+                query: query_statement.to_string(),
+                schema: df_schema,
+                setup_queries,
+            };
             let insert_plan = LogicalPlan::Dml(DmlStatement::new(
-                name,
+                (&new_table_ident).into(),
                 provider_as_source(target_table),
                 WriteOp::Insert(InsertOp::Append),
-                Arc::new(cast_input_to_target_schema(input, &schema)?),
+                Arc::new(cast_input_to_target_schema(
+                    Arc::new(LogicalPlan::Extension(Extension {
+                        node: Arc::new(duckdb_plan),
+                    })),
+                    &schema,
+                )?),
             ));
             return self
                 .execute_logical_plan_with_custom_rules(
@@ -1017,6 +1030,7 @@ impl UserQuery {
                 )
                 .await;
         }
+
         self.created_entity_response()
     }
 
