@@ -59,6 +59,7 @@ impl Default for RegexpReplaceFunc {
 }
 
 impl RegexpReplaceFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(

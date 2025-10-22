@@ -13,6 +13,7 @@ use datafusion_expr::registry::FunctionRegistry;
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, Volatility};
 use snafu::OptionExt;
 use std::any::Any;
+use std::fmt;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -35,6 +36,30 @@ pub enum Interval {
     Hour,
     Minute,
     Second,
+}
+
+impl fmt::Display for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Year => "year",
+            Self::YearOfWeek => "yearofweek",
+            Self::YearOfWeekIso => "yearofweekiso",
+            Self::Day => "day",
+            Self::DayOfMonth => "dayofmonth",
+            Self::DayOfWeek => "dayofweek",
+            Self::DayOfWeekIso => "dayofweekiso",
+            Self::DayOfYear => "dayofyear",
+            Self::Week => "week",
+            Self::WeekOfYear => "weekofyear",
+            Self::WeekIso => "weekiso",
+            Self::Month => "month",
+            Self::Quarter => "quarter",
+            Self::Hour => "hour",
+            Self::Minute => "minute",
+            Self::Second => "second",
+        };
+        write!(f, "{s}")
+    }
 }
 
 /// `YEAR*` / `DAY*` / `WEEK*` / `MONTH` / `QUARTER` / `HOUR` / `MINUTE` / `SECOND` SQL function

@@ -1,9 +1,9 @@
 pub mod errors;
 pub mod regexp_instr;
-mod regexp_like;
-mod regexp_replace;
-mod regexp_substr;
-mod regexp_substr_all;
+pub mod regexp_like;
+pub mod regexp_replace;
+pub mod regexp_substr;
+pub mod regexp_substr_all;
 
 use crate::regexp::regexp_instr::RegexpInstrFunc;
 use crate::regexp::regexp_like::RegexpLikeFunc;
