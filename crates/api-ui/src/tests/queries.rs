@@ -416,11 +416,16 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     .await
     .expect("Create query error");
 
-    let expected_submit_result = ResultSet::try_from(r#"{"columns":[],"rows":[]}"#)
-        .expect("Failed to deserialize json snippet #1");
-
     assert_eq!(query_record.status, QueryStatus::Running);
-    assert_eq!(query_record.result, expected_submit_result);
+
+    http_req::<()>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query_record.id),
+        String::new(),
+    )
+    .await
+    .expect_err("Get query error");
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
@@ -432,10 +437,21 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     )
     .await
     .expect("Get query error");
+
+    assert_eq!(query_record.status, QueryStatus::Successful);
+
     let expected_result =
         ResultSet::try_from(r#"{"columns":[{"name":"Int64(1)","type":"fixed"}],"rows":[[1]]}"#)
             .expect("Failed to deserialize json snippet #2");
 
-    assert_eq!(query_record.status, QueryStatus::Successful);
-    assert_eq!(query_record.result, expected_result);
+    let result_set = http_req::<ResultSet>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/queries/{}/result", query_record.id),
+        String::new(),
+    )
+    .await
+    .expect("Get query error");
+
+    assert_eq!(expected_result, result_set);
 }
