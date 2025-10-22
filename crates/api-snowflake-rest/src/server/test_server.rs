@@ -34,10 +34,12 @@ pub async fn run_test_rest_api_server_with_config(
         .with_writer(traces_writer)
         .with_ansi(false)
         .with_thread_ids(true)
+        .with_thread_names(true)
         .with_file(true)
         .with_line_number(true)
         .with_span_events(FmtSpan::NONE)
         .with_level(true)
+        .with_max_level(tracing_subscriber::filter::LevelFilter::DEBUG)
         .finish();
 
     // ignoring error: as with parralel tests execution, just first thread is able to set it successfully
@@ -46,10 +48,6 @@ pub async fn run_test_rest_api_server_with_config(
 
     let metastore = SlateDBMetastore::new_in_memory().await;
     let history = SlateDBHistoryStore::new_in_memory().await;
-    history
-        .create_tables()
-        .await
-        .expect("Failed to create tables");
 
     let app = make_app(metastore, history, app_cfg, execution_cfg)
         .await

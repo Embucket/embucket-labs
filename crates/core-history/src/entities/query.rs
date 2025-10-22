@@ -97,6 +97,10 @@ impl QueryRecord {
 
     pub fn finished_with_status(&mut self, status: QueryStatus, result_count: i64) {
         self.result_count = result_count;
+        // result_id is for future use
+        if status == QueryStatus::Successful {
+            self.result_id = Some(self.id.to_string());
+        }
         self.status = status;
         self.end_time = Utc::now();
         self.duration_ms = self

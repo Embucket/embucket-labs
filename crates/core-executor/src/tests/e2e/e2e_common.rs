@@ -152,6 +152,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    TestHistoryStore {
+        source: core_history::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("Error corrupting S3 volume: No Aws access key credentials found"))]
     TestCreateS3VolumeWithBadCreds {
         #[snafu(implicit)]
@@ -688,7 +693,11 @@ pub async fn create_executor(
 
     let db = object_store_type.db().await?;
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await);
+    let history_store = Arc::new(
+        SlateDBHistoryStore::new(db.clone())
+            .await
+            .context(TestHistoryStoreSnafu)?,
+    );
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -729,7 +738,11 @@ pub async fn create_executor_with_early_volumes_creation(
     let used_volumes =
         create_volumes(metastore.clone(), &object_store_type, override_volumes).await?;
 
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await);
+    let history_store = Arc::new(
+        SlateDBHistoryStore::new(db.clone())
+            .await
+            .context(TestHistoryStoreSnafu)?,
+    );
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),

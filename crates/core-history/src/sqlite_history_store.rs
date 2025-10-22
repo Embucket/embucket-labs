@@ -60,22 +60,23 @@ pub struct SlateDBHistoryStore {
 
 impl std::fmt::Debug for SlateDBHistoryStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlateDBHistoryStore").finish()
+        f.debug_struct("SqliteHistoryStore").finish()
     }
 }
 
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
-    #[must_use]
-    pub async fn new(db: core_utils::Db) -> Self {
-        Self {
+    pub async fn new(db: core_utils::Db) -> Result<Self> {
+        let history_store = Self {
             queries_db: SqliteDb::new(db.slate_db(), SQLITE_HISTORY_DB_NAME)
                 .await
                 .expect("Failed to initialize sqlite store"),
             results_db: SqliteDb::new(db.slate_db(), SQLITE_RESULTS_DB_NAME)
                 .await
                 .expect("Failed to initialize sqlite store"),
-        }
+        };
+        history_store.create_tables().await?;
+        Ok(history_store)
     }
 
     // Create a new store with a new in-memory database
@@ -412,8 +413,14 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "SqliteHistoryStore::update_query",
         level = "debug",
-        skip(self, item),
-        fields(ok),
+        skip(self, item, result_set),
+        fields(
+            ok,
+            updated_queries,
+            inserted_results,
+            result_bytes_count,
+            result_rows_count
+        ),
         err
     )]
     async fn update_query(&self, item: &QueryRecord, result_set: Option<ResultSet>) -> Result<()> {
@@ -475,6 +482,10 @@ impl HistoryStore for SlateDBHistoryStore {
         };
 
         if let Some((serialized_result, serialized_rows_count)) = serialized {
+            tracing::Span::current()
+                .record("result_bytes_count", serialized_result.len())
+                .record("result_rows_count", serialized_rows_count);
+
             let res = tokio::try_join!(
                 // at first insert result, to satisfy constraint in update stmt
                 update_future,
@@ -509,15 +520,15 @@ impl HistoryStore for SlateDBHistoryStore {
                 .context(core_utils_err::RuSqliteSnafu)
                 .context(history_err::ResultAddSnafu)?;
 
-            tracing::debug!(
-                "updated_queries: {updated_queries}, inserted_results: {inserted_results}"
-            );
+            tracing::Span::current()
+                .record("updated_queries", updated_queries)
+                .record("inserted_results", inserted_results);
         } else {
             let updated_queries = update_future
                 .await?
                 .context(core_utils_err::RuSqliteSnafu)
                 .context(history_err::QueryUpdateSnafu)?;
-            tracing::debug!("updated_queries: {updated_queries}");
+            tracing::Span::current().record("updated_queries", updated_queries);
         }
 
         tracing::Span::current().record("ok", true);
@@ -684,7 +695,7 @@ impl HistoryStore for SlateDBHistoryStore {
     #[instrument(
         name = "SlateDBSqliteHistoryStore::save_query_record",
         level = "trace",
-        skip(self, query_record),
+        skip(self, query_record, result_set),
         fields(query_id = query_record.id.as_i64(),
             query = query_record.query,
             query_result_count = query_record.result_count,

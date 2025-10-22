@@ -26,10 +26,6 @@ pub async fn run_test_server_with_demo_auth(
 
     let metastore = SlateDBMetastore::new_in_memory().await;
     let history = SlateDBHistoryStore::new_in_memory().await;
-    history
-        .create_tables()
-        .await
-        .expect("Failed to create tables");
     let auth_config = AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
     let app = make_app(

@@ -1,7 +1,7 @@
 use crate::table::errors;
 use crate::utils::block_in_new_runtime;
 use core_history::result_set::ResultSet;
-use core_history::{GetQueriesParams, HistoryStore};
+use core_history::{GetQueriesParams, HistoryStore, QueryRecord};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
@@ -58,12 +58,28 @@ impl ResultScanFunc {
 
     pub fn read_query_batches(&self, query_id: &str) -> DFResult<(SchemaRef, Vec<RecordBatch>)> {
         let history_store = self.history_store.clone();
+        let history_store_cloned = self.history_store.clone();
         let query_id_parsed = query_id
             .parse::<i64>()
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
 
+        let query_record = block_in_new_runtime(async move {
+            let record = history_store
+                .get_query(query_id_parsed.into())
+                .await
+                .map_err(|e| DataFusionError::External(Box::new(e)))?;
+            Ok::<QueryRecord, DataFusionError>(record)
+        })??;
+
+        if query_record.error.is_some() {
+            return exec_err!(
+                "Query {query_id_parsed} has not been executed successfully: {:?}",
+                query_record.error
+            );
+        }
+
         let result_set = block_in_new_runtime(async move {
-            let result_set = history_store
+            let result_set = history_store_cloned
                 .get_query_result(query_id_parsed.into())
                 .await
                 .map_err(|e| DataFusionError::External(Box::new(e)))?;

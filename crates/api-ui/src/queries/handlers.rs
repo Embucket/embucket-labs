@@ -4,7 +4,7 @@ use crate::queries::error::{
 };
 use crate::queries::models::{
     GetQueriesParams, QueriesResponse, QueryCreatePayload, QueryCreateResponse, QueryGetResponse,
-    QueryRecord, QueryRecordId, QueryResultGetResponse, QueryStatus,
+    QueryRecord, QueryRecordId, QueryResultGetResponse, QueryStatus, ResultSet,
 };
 use crate::state::AppState;
 use crate::{
@@ -32,8 +32,8 @@ use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(query, queries, get_query),
-    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection)),
+    paths(query, queries, get_query, get_query_result),
+    components(schemas(QueriesResponse, QueryCreateResponse, QueryCreatePayload, QueryGetResponse, QueryRecord, QueryRecordId, ErrorResponse, WorksheetId, OrderDirection, ResultSet)),
     tags(
       (name = "queries", description = "Queries endpoints"),
     )
@@ -245,7 +245,6 @@ pub async fn queries(
     for record in records {
         let ids = w_downcast_int64_column(&record, "id")?;
         let worksheet_ids = w_downcast_int64_column(&record, "worksheet_id")?;
-        let result_ids = w_downcast_string_column(&record, "result_id")?;
         let queries = w_downcast_string_column(&record, "query")?;
         let start_times = w_downcast_string_column(&record, "start_time")?;
         let end_times = w_downcast_string_column(&record, "end_time")?;
@@ -260,11 +259,6 @@ pub async fn queries(
                     None
                 } else {
                     Some(worksheet_ids.value(i))
-                },
-                result_id: if result_ids.is_null(i) {
-                    None
-                } else {
-                    Some(result_ids.value(i).to_string())
                 },
                 query: queries.value(i).to_string(),
                 start_time: start_times
@@ -300,7 +294,7 @@ pub async fn queries(
         ("queryRecordId" = QueryRecordId, Path, description = "Query Record Id")
     ),
     responses(
-        (status = 200, description = "Returns result of the query", body = QueryGetResponse),
+        (status = 200, description = "Returns rows of the query result", body = QueryResultGetResponse),
         (status = 401,
          description = "Unauthorized",
          headers(

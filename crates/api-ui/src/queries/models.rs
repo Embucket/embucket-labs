@@ -115,7 +115,7 @@ pub struct QueryRecord {
     pub id: QueryRecordId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worksheet_id: Option<WorksheetId>,
-    pub result_id: Option<String>,
+    // result_id is not for ui
     pub query: String,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
@@ -133,7 +133,6 @@ impl TryFrom<core_history::QueryRecord> for QueryRecord {
         Ok(Self {
             id: query.id.into(),
             worksheet_id: query.worksheet_id,
-            result_id: query.result_id,
             query: query.query,
             start_time: query.start_time,
             end_time: query.end_time,
