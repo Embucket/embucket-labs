@@ -522,21 +522,22 @@ test_query!(
 );
 
 test_query!(
-    merge_into_dbt_pattern_with_timestamp_filter_first,
+    merge_into_dbt_pattern_timestamp_corruption_bug,
     "SELECT
         COUNT(*) as total_rows,
-        COUNT(CASE WHEN start_tstamp >= '2024-06-01' AND start_tstamp < '2024-07-01' THEN 1 END) as in_range,
-        COUNT(CASE WHEN start_tstamp < '2024-06-01' THEN 1 END) as before_range,
-        COUNT(CASE WHEN session_id = 'jan_session_1' THEN 1 END) as jan_1_count,
-        COUNT(CASE WHEN session_id = 'jan_session_2' THEN 1 END) as jan_2_count,
-        COUNT(CASE WHEN session_id = 'june_session_updated' THEN 1 END) as june_updated_count
-    FROM embucket.public.sessions_target",
+        MIN(start_tstamp) as min_start,
+        MAX(start_tstamp) as max_start,
+        COUNT(CASE WHEN start_tstamp < '2024-06-01' THEN 1 END) as sessions_before_june,
+        COUNT(CASE WHEN session_id = 'session_1' THEN 1 END) as session_1_count,
+        COUNT(CASE WHEN session_id = 'session_2' THEN 1 END) as session_2_count,
+        COUNT(CASE WHEN start_tstamp = end_tstamp THEN 1 END) as zero_duration_sessions
+    FROM embucket.public.lifecycle_manifest",
     setup_queries = [
-        "CREATE TABLE embucket.public.sessions_target (session_id VARCHAR, start_tstamp TIMESTAMP, page_views INTEGER)",
-        "CREATE TABLE embucket.public.sessions_source (session_id VARCHAR, start_tstamp TIMESTAMP, page_views INTEGER)",
-        "INSERT INTO embucket.public.sessions_target VALUES ('jan_session_1', '2024-01-15 10:00:00', 5), ('jan_session_2', '2024-01-20 14:30:00', 3), ('june_session_1', '2024-06-15 09:00:00', 10), ('june_session_2', '2024-06-20 16:45:00', 7)",
-        "INSERT INTO embucket.public.sessions_source VALUES ('june_session_updated', '2024-06-15 09:00:00', 15), ('june_session_new', '2024-06-25 11:30:00', 12)",
-        "MERGE INTO sessions_target t USING sessions_source s ON (t.start_tstamp BETWEEN CAST('2024-06-01' AS TIMESTAMP) AND CAST('2024-06-30' AS TIMESTAMP)) AND (s.session_id = t.session_id) WHEN MATCHED THEN UPDATE SET t.page_views = s.page_views, t.session_id = s.session_id WHEN NOT MATCHED THEN INSERT (session_id, start_tstamp, page_views) VALUES (s.session_id, s.start_tstamp, s.page_views)",
+        "CREATE TABLE embucket.public.lifecycle_manifest (session_id VARCHAR, start_tstamp TIMESTAMP, end_tstamp TIMESTAMP)",
+        "CREATE TABLE embucket.public.lifecycle_source (session_id VARCHAR, start_tstamp TIMESTAMP, end_tstamp TIMESTAMP)",
+        "INSERT INTO embucket.public.lifecycle_manifest VALUES ('session_1', '2024-01-15 10:00:00', '2024-01-15 11:00:00'), ('session_2', '2024-01-20 14:00:00', '2024-01-20 15:00:00'), ('session_1', '2024-05-10 09:00:00', '2024-05-10 10:00:00'), ('session_2', '2024-05-15 12:00:00', '2024-05-15 13:00:00')",
+        "INSERT INTO embucket.public.lifecycle_source VALUES ('session_1', '2024-06-15 09:00:00', '2024-06-15 10:00:00'), ('session_2', '2024-06-20 11:00:00', '2024-06-20 12:00:00')",
+        "MERGE INTO lifecycle_manifest t USING lifecycle_source s ON (t.start_tstamp BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)) AND (s.session_id = t.session_id) WHEN MATCHED THEN UPDATE SET t.start_tstamp = s.start_tstamp, t.end_tstamp = s.end_tstamp WHEN NOT MATCHED THEN INSERT (session_id, start_tstamp, end_tstamp) VALUES (s.session_id, s.start_tstamp, s.end_tstamp)",
     ]
 );
 
