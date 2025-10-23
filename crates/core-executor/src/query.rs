@@ -189,7 +189,7 @@ impl UserQuery {
             .database
             .clone()
             .or_else(|| self.session.get_session_variable("database"))
-            .unwrap_or_else(|| "embucket".to_string())
+            .unwrap_or_else(|| "benchmark_database".to_string())
     }
 
     fn current_schema(&self) -> String {
@@ -197,7 +197,7 @@ impl UserQuery {
             .schema
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
-            .unwrap_or_else(|| "public".to_string())
+            .unwrap_or_else(|| "benchmark_schema".to_string())
     }
 
     #[instrument(
