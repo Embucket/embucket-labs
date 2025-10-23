@@ -503,6 +503,25 @@ test_query!(
 );
 
 test_query!(
+    merge_into_with_partition_filter_preserves_unmatched_rows,
+    "SELECT
+        COUNT(*) as total_rows,
+        COUNT(CASE WHEN event_time >= '2024-06-01' AND event_time < '2024-07-01' THEN 1 END) as june_rows,
+        COUNT(CASE WHEN event_time < '2024-06-01' THEN 1 END) as before_june_rows,
+        COUNT(CASE WHEN description = 'january data' THEN 1 END) as january_preserved,
+        COUNT(CASE WHEN description = 'updated june data' THEN 1 END) as june_updated,
+        COUNT(CASE WHEN description = 'new june data' THEN 1 END) as june_inserted
+    FROM embucket.public.events_target",
+    setup_queries = [
+        "CREATE TABLE embucket.public.events_target (ID INTEGER, event_time TIMESTAMP, description VARCHAR)",
+        "CREATE TABLE embucket.public.events_source (ID INTEGER, event_time TIMESTAMP, description VARCHAR)",
+        "INSERT INTO embucket.public.events_target VALUES (1, '2024-01-15 10:00:00', 'january data'), (2, '2024-01-20 14:30:00', 'january data'), (3, '2024-06-15 09:00:00', 'original june data'), (4, '2024-06-20 16:45:00', 'original june data')",
+        "INSERT INTO embucket.public.events_source VALUES (3, '2024-06-15 09:00:00', 'updated june data'), (5, '2024-06-25 11:30:00', 'new june data')",
+        "MERGE INTO events_target t USING events_source s ON t.id = s.id AND t.event_time >= CAST('2024-06-01' AS TIMESTAMP) AND t.event_time < CAST('2024-07-01' AS TIMESTAMP) WHEN MATCHED THEN UPDATE SET t.description = s.description WHEN NOT MATCHED THEN INSERT (id, event_time, description) VALUES (s.id, s.event_time, s.description)",
+    ]
+);
+
+test_query!(
     merge_into_with_values,
     "SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target",
     setup_queries = [
