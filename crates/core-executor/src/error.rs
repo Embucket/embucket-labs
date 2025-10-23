@@ -675,6 +675,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("DuckDB acceleration failed with: {message}"))]
+    DuckdbAccelerationFailed {
+        message: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("DuckDbConnection downcast failed"))]
     DuckDbConnectionDowncast {
         #[snafu(implicit)]

@@ -331,11 +331,16 @@ impl UserQuery {
             // Allow only SELECT statements for DuckDB acceleration mode
             if is_select_statement(&raw_statement) {
                 // If DuckDB execution fails for any reason (unsupported syntax, internal error, etc.),
-                // we fall back to the default Embucket execution path below.
+                // return an error instead of falling back.
                 let result = self.execute_duck_db(raw_statement).await;
                 match result {
                     Ok(result) => return Ok(result),
-                    Err(e) => tracing::warn!("Acceleration execution failed: {}", e),
+                    Err(e) => {
+                        return Err(ex_error::DuckdbAccelerationFailedSnafu {
+                            message: e.to_string(),
+                        }
+                        .build());
+                    }
                 }
             }
         }
