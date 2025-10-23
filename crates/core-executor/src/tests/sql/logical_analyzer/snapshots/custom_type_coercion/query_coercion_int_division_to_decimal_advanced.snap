@@ -1,0 +1,13 @@
+---
+source: crates/core-executor/src/tests/sql/logical_analyzer/custom_type_coercion.rs
+description: "\"WITH t AS (SELECT 2 AS sr, 4 AS cr, 8 AS wr) SELECT sr / (sr + cr + wr) / 3.0 * 100 AS pct FROM t\""
+---
+Ok(
+    [
+        "+------------------------+",
+        "| pct                    |",
+        "+------------------------+",
+        "| 4.76190476190476000000 |",
+        "+------------------------+",
+    ],
+)

@@ -12,7 +12,7 @@ pub mod to_timestamp;
 pub mod to_variant;
 
 use crate::conversion::to_date::ToDateFunc;
-use crate::conversion::to_decimal::ToDecimalFunc;
+pub use crate::conversion::to_decimal::ToDecimalFunc;
 use crate::conversion::to_timestamp::ToTimestampFunc;
 use crate::session_params::SessionParams;
 use datafusion::arrow::array::{ArrayRef, TimestampMicrosecondBuilder, TimestampNanosecondBuilder};
