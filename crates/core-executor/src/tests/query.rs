@@ -595,6 +595,56 @@ test_query!(
     ]
 );
 
+// Test MERGE INTO with empty source scenarios (dbt manifest pattern)
+test_query!(
+    merge_into_on_false_with_empty_source,
+    "SELECT COUNT(*) as row_count FROM embucket.public.manifest",
+    setup_queries = [
+        "CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP)",
+        "MERGE INTO manifest m USING (SELECT CAST(NULL AS VARCHAR) as model, CAST('1970-01-01' AS TIMESTAMP) as last_success WHERE FALSE) s ON (FALSE) WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)",
+    ]
+);
+
+test_query!(
+    merge_into_with_null_aggregate_subquery,
+    "SELECT COUNT(*) as row_count FROM embucket.public.manifest",
+    setup_queries = [
+        "CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP)",
+        "CREATE TABLE embucket.public.base_events (collector_tstamp TIMESTAMP)",
+        "MERGE INTO manifest m USING (SELECT 'model_name' as model, a.last_success FROM (SELECT MAX(collector_tstamp) as last_success FROM base_events) a WHERE a.last_success IS NOT NULL) s ON m.model = s.model WHEN MATCHED THEN UPDATE SET last_success = s.last_success WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)",
+    ]
+);
+
+test_query!(
+    merge_into_on_false_with_populated_source,
+    "SELECT COUNT(*) as row_count FROM embucket.public.manifest",
+    setup_queries = [
+        "CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP)",
+        "MERGE INTO manifest m USING (SELECT column1 as model, column2 as last_success FROM (VALUES ('model_a', CAST('2025-01-01' AS TIMESTAMP)), ('model_b', CAST('2025-01-02' AS TIMESTAMP)))) s ON (FALSE) WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)",
+    ]
+);
+
+test_query!(
+    merge_into_with_aggregate_null_cross_join,
+    "SELECT COUNT(*) as row_count FROM embucket.public.manifest",
+    setup_queries = [
+        "CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP)",
+        "CREATE TABLE embucket.public.base_events (collector_tstamp TIMESTAMP)",
+        "MERGE INTO manifest m USING (SELECT b.model, a.last_success FROM (SELECT MAX(collector_tstamp) as last_success FROM base_events) a, (SELECT 'model_1' as model UNION ALL SELECT 'model_2') b WHERE a.last_success IS NOT NULL) s ON m.model = s.model WHEN MATCHED THEN UPDATE SET last_success = GREATEST(m.last_success, s.last_success) WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)",
+    ]
+);
+
+test_query!(
+    merge_into_empty_source_with_existing_target_data,
+    "SELECT COUNT(*) as row_count, COUNT(CASE WHEN model = 'existing_1' THEN 1 END) as existing_1_count, COUNT(CASE WHEN model = 'existing_2' THEN 1 END) as existing_2_count FROM embucket.public.manifest",
+    setup_queries = [
+        "CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP)",
+        "INSERT INTO embucket.public.manifest VALUES ('existing_1', CAST('2025-01-01' AS TIMESTAMP))",
+        "INSERT INTO embucket.public.manifest VALUES ('existing_2', CAST('2025-01-02' AS TIMESTAMP))",
+        "MERGE INTO manifest m USING (SELECT column1 as model, column2 as last_success FROM (VALUES ('x', CAST('2025-01-01' AS TIMESTAMP))) WHERE FALSE) s ON m.model = s.model WHEN MATCHED THEN UPDATE SET last_success = s.last_success WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)",
+    ]
+);
+
 test_query!(
     copy_into_without_volume,
     "SELECT SUM(L_QUANTITY) FROM embucket.public.lineitem;",

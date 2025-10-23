@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT count(CASE WHEN description = 'updated row' THEN 1 ELSE NULL END) updated, count(CASE WHEN description = 'existing row' THEN 1 ELSE NULL END) existing FROM embucket.public.merge_target\""
+info: "Setup queries: CREATE TABLE embucket.public.merge_target (ID INTEGER, description VARCHAR); CREATE TABLE embucket.public.merge_source (ID INTEGER, description VARCHAR); MERGE INTO merge_target USING merge_source ON merge_target.id = merge_source.id WHEN MATCHED THEN UPDATE SET description = merge_source.description WHEN NOT MATCHED THEN INSERT (id, description) VALUES (merge_source.id, merge_source.description)"
+---
+Ok(
+    [
+        "+---------+----------+",
+        "| updated | existing |",
+        "+---------+----------+",
+        "| 0       | 0        |",
+        "+---------+----------+",
+    ],
+)
