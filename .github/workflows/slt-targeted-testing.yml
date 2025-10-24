@@ -134,7 +134,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download SLT Selection
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: slt-selection
           path: ./artifacts
