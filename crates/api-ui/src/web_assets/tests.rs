@@ -52,9 +52,9 @@ async fn test_web_assets_server_spa_and_root_fallback() {
 
     let client = reqwest::Client::new();
 
-    // SPA fallback route (e.g., /deadbeaf)
+    // SPA fallback route (e.g., /test)
     let res = client
-        .request(Method::GET, format!("http://{addr}/deadbeaf"))
+        .request(Method::GET, format!("http://{addr}/test"))
         .send()
         .await
         .expect("Failed to send request to web assets server");
