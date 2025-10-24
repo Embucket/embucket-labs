@@ -12,7 +12,12 @@ import { useEditorPanelsState } from '@/modules/editor/editor-panels-state-provi
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
 import type { QueryRecord } from '@/orval/models';
 import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
-import { getGetQueriesQueryKey, useCreateQuery, useGetQuery } from '@/orval/queries';
+import {
+  getGetQueriesQueryKey,
+  useCreateQuery,
+  useGetQuery,
+  useGetQueryResult,
+} from '@/orval/queries';
 
 import { EditorResizableHandle, EditorResizablePanel } from '../editor-resizable';
 import { useEditorSettingsStore } from '../editor-settings-store';
@@ -90,6 +95,15 @@ export function EditorCenterPanel() {
     },
   });
 
+  const { data: queryRecordResult, isFetching: queryRecordResultLoading } = useGetQueryResult(
+    Number(selectedQueryRecord?.id),
+    {
+      query: {
+        enabled: selectedQueryRecord?.status === 'successful',
+      },
+    },
+  );
+
   useEffect(() => {
     if (queryRecord?.status !== 'running' && id && !queryRecordLoading) {
       setPollingQueryId(undefined);
@@ -159,7 +173,10 @@ export function EditorCenterPanel() {
     });
   };
 
-  const loading = selectedQueryRecord?.status === 'running' || createQueryMutationPending;
+  const loading =
+    selectedQueryRecord?.status === 'running' ||
+    createQueryMutationPending ||
+    queryRecordResultLoading;
 
   return (
     <div className="flex h-full flex-col">
@@ -197,7 +214,11 @@ export function EditorCenterPanel() {
           order={2}
           ref={bottomRef}
         >
-          <EditorCenterBottomPanel queryRecord={selectedQueryRecord} isLoading={loading} />
+          <EditorCenterBottomPanel
+            queryRecord={selectedQueryRecord}
+            resultSet={queryRecordResult}
+            isLoading={loading}
+          />
         </EditorResizablePanel>
       </ResizablePanelGroup>
 

@@ -4,7 +4,7 @@ import { ArrowLeftIcon, DatabaseZap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetQuery } from '@/orval/queries';
+import { useGetQuery, useGetQueryResult } from '@/orval/queries';
 
 import { PageEmptyContainer } from '../shared/page/page-empty-container';
 import { PageHeader } from '../shared/page/page-header';
@@ -15,10 +15,19 @@ import { QuerySQL } from './query-sql';
 export function QueryPage() {
   const { queryId } = useParams({ from: '/queries/$queryId/' });
 
-  const { data: queryRecord, isLoading } = useGetQuery(+queryId);
+  const { data: queryRecord, isLoading: queryRecordLoading } = useGetQuery(+queryId);
 
-  const columns = queryRecord?.result.columns ?? [];
-  const rows = queryRecord?.result.rows ?? [];
+  const { data: queryRecordResult, isFetching: queryRecordResultLoading } = useGetQueryResult(
+    +queryId,
+    {
+      query: {
+        enabled: queryRecord?.status === 'successful',
+      },
+    },
+  );
+  const columns = queryRecordResult?.columns ?? [];
+  const rows = queryRecordResult?.rows ?? [];
+  const loading = queryRecordLoading || queryRecordResultLoading;
 
   // const { detailsRef, tableStyle } = useMeasureQueryResultsHeight({ isReady: !isLoading });
 
@@ -40,7 +49,7 @@ export function QueryPage() {
           </div>
         }
       />
-      {!queryRecord && !isLoading ? (
+      {!queryRecord && !loading ? (
         <PageEmptyContainer
           Icon={DatabaseZap}
           title="Query not found"
@@ -54,7 +63,7 @@ export function QueryPage() {
 
           <ScrollArea tableViewport className="mx-4 h-[calc(100%-244px)]">
             <QuerySQL queryRecord={queryRecord} />
-            <QueryResultsTable isLoading={isLoading} rows={rows} columns={columns} />
+            <QueryResultsTable isLoading={loading} rows={rows} columns={columns} />
             <ScrollBar orientation="vertical" />
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
