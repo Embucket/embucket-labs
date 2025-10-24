@@ -8,7 +8,6 @@
 import type { I64 } from './i64';
 import type { QueryRecordWorksheetId } from './queryRecordWorksheetId';
 import type { QueryStatus } from './queryStatus';
-import type { ResultSet } from './resultSet';
 
 export interface QueryRecord {
   durationMs: number;
@@ -16,7 +15,6 @@ export interface QueryRecord {
   error: string;
   id: I64;
   query: string;
-  result: ResultSet;
   resultCount: number;
   startTime: string;
   status: QueryStatus;
