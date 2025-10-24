@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { QueryRecord } from '@/orval/models';
+import type { QueryRecord, ResultSet } from '@/orval/models';
 
 import { EditorResizableHandle } from '../../editor-resizable.tsx';
 import { EditorCenterBottomPanelQueryResultTable } from './editor-center-bottom-panel-query-result-table.tsx';
@@ -17,11 +17,13 @@ import { useEditorScrollToSelectedCell } from './use-editor-scroll-to-selected-c
 interface EditorCenterPanelQueryColumnsProps {
   isLoading: boolean;
   queryRecord?: QueryRecord;
+  resultSet?: ResultSet;
 }
 
 export function EditorCenterBottomPanel({
   isLoading,
   queryRecord,
+  resultSet,
 }: EditorCenterPanelQueryColumnsProps) {
   const [selectedCellId, setSelectedCellId] = useState<string>();
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
@@ -41,14 +43,13 @@ export function EditorCenterBottomPanel({
     );
   }
 
-  const columns = !isLoading && queryRecord?.result.columns ? queryRecord.result.columns : [];
-  const rows = !isLoading && queryRecord?.result.rows ? queryRecord.result.rows : [];
+  const columns = !isLoading && resultSet?.columns ? resultSet.columns : [];
+  const rows = !isLoading && resultSet?.rows ? resultSet.rows : [];
   const noFields = !columns.length && !isLoading;
 
   const rowCount = rows.length.toString();
   const columnCount = columns.length.toString();
   const executionTime = queryRecord ? queryRecord.durationMs / 1000 : 0; // Convert ms to seconds
-
   return (
     <>
       {!queryRecord && (

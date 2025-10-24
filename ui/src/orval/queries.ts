@@ -30,6 +30,7 @@ import type {
   QueriesResponse,
   QueryCreatePayload,
   QueryRecord,
+  ResultSet,
 } from './models';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -335,6 +336,120 @@ export function useGetQuery<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetQueryQueryOptions(queryRecordId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getQueryResult = (
+  queryRecordId: I64,
+  options?: SecondParameter<typeof useAxiosMutator>,
+  signal?: AbortSignal,
+) => {
+  return useAxiosMutator<ResultSet>(
+    { url: `/ui/queries/${queryRecordId}/result`, method: 'GET', signal },
+    options,
+  );
+};
+
+export const getGetQueryResultQueryKey = (queryRecordId?: I64) => {
+  return [`/ui/queries/${queryRecordId}/result`] as const;
+};
+
+export const getGetQueryResultQueryOptions = <
+  TData = Awaited<ReturnType<typeof getQueryResult>>,
+  TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQueryResult>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetQueryResultQueryKey(queryRecordId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getQueryResult>>> = ({ signal }) =>
+    getQueryResult(queryRecordId, requestOptions, signal);
+
+  return { queryKey, queryFn, enabled: !!queryRecordId, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getQueryResult>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetQueryResultQueryResult = NonNullable<Awaited<ReturnType<typeof getQueryResult>>>;
+export type GetQueryResultQueryError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>;
+
+export function useGetQueryResult<
+  TData = Awaited<ReturnType<typeof getQueryResult>>,
+  TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQueryResult>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQueryResult>>,
+          TError,
+          Awaited<ReturnType<typeof getQueryResult>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQueryResult<
+  TData = Awaited<ReturnType<typeof getQueryResult>>,
+  TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQueryResult>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getQueryResult>>,
+          TError,
+          Awaited<ReturnType<typeof getQueryResult>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetQueryResult<
+  TData = Awaited<ReturnType<typeof getQueryResult>>,
+  TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQueryResult>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useGetQueryResult<
+  TData = Awaited<ReturnType<typeof getQueryResult>>,
+  TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>,
+>(
+  queryRecordId: I64,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getQueryResult>>, TError, TData>>;
+    request?: SecondParameter<typeof useAxiosMutator>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetQueryResultQueryOptions(queryRecordId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

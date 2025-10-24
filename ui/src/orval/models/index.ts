@@ -48,6 +48,7 @@ export * from './queryCreateResponse';
 export * from './queryGetResponse';
 export * from './queryRecord';
 export * from './queryRecordWorksheetId';
+export * from './queryResultGetResponse';
 export * from './queryStatus';
 export * from './refreshTokenResponse';
 export * from './resultSet';
