@@ -67,7 +67,7 @@ pub async fn root_handler() -> Result<Response> {
 }
 
 pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
-    let file_name = path.trim_start_matches(WEB_ASSETS_MOUNT_PATH); // changeable mount path
+    let file_name = path.trim_start_matches(WEB_ASSETS_MOUNT_PATH); // Changeable mount path
 
     // Determine content and effective file name (for MIME type and URL replacement)
     let (mut content, effective_file_name) =
