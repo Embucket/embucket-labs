@@ -190,6 +190,35 @@ impl UserSession {
         Ok(())
     }
 
+    pub fn set_session_params(
+        &self,
+        properties: HashMap<String, String>,
+        session_id: &str,
+    ) -> Result<()> {
+        let state = self.ctx.state_ref();
+        let mut write = state.write();
+        let options = write.config_mut().options_mut();
+
+        let properties = properties
+            .into_iter()
+            .map(|(name, value)| {
+                let prop = SessionProperty::from_str_value(
+                    name.clone(),
+                    value,
+                    Some(session_id.to_string()),
+                );
+                (name, prop)
+            })
+            .collect();
+
+        let config = options.extensions.get_mut::<SessionParams>();
+        if let Some(cfg) = config {
+            cfg.set_properties(properties)
+                .context(ex_error::DataFusionSnafu)?;
+        }
+        Ok(())
+    }
+
     #[must_use]
     pub fn get_session_variable(&self, variable: &str) -> Option<String> {
         let state = self.ctx.state();

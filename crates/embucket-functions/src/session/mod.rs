@@ -1,5 +1,9 @@
+pub mod current_database;
+pub mod current_schema;
+pub mod current_version;
 mod last_query_id;
 
+use crate::session_params::SessionParams;
 use datafusion::arrow::array::ListArray;
 use datafusion::arrow::datatypes::{DataType, Field};
 use datafusion_common::{Result, ScalarValue};
@@ -19,16 +23,6 @@ macro_rules! create_session_context_udf {
         });
         create_udf($name, vec![], DataType::Utf8, Volatility::Volatile, fun)
     }};
-}
-
-/// Returns the name of the current database, which varies depending on where you call the function
-fn current_database_udf() -> ScalarUDF {
-    create_session_context_udf!("current_database", "default")
-}
-
-/// Returns the name of the current schema, which varies depending on where you call the function
-fn current_schema_udf() -> ScalarUDF {
-    create_session_context_udf!("current_schema", "default")
 }
 
 /// Returns active search path schemas.
@@ -51,11 +45,6 @@ fn current_schemas_udf() -> ScalarUDF {
 /// Returns the name of the warehouse in use for the current session.
 fn current_warehouse_udf() -> ScalarUDF {
     create_session_context_udf!("current_warehouse", "default")
-}
-
-/// Returns the current Embucket version.
-fn current_version_udf() -> ScalarUDF {
-    create_session_context_udf!("current_version", env!("CARGO_PKG_VERSION"))
 }
 
 /// Returns the version of the client from which the function was called.
@@ -86,23 +75,43 @@ fn current_ip_address_udf() -> ScalarUDF {
     create_session_context_udf!("current_ip_address", "")
 }
 
-pub fn register_session_context_udfs(registry: &mut dyn FunctionRegistry) -> Result<()> {
+pub fn register_session_context_udfs(
+    registry: &mut dyn FunctionRegistry,
+    session_params: &Arc<SessionParams>,
+) -> Result<()> {
     let udfs = [
         current_client_udf(),
-        current_database_udf(),
         current_ip_address_udf(),
         current_role_udf(),
         current_role_type_udf(),
-        current_schema_udf(),
         current_schemas_udf(),
         current_session_udf(),
-        current_version_udf(),
         current_warehouse_udf(),
     ];
 
     for udf in udfs {
         registry.register_udf(udf.into())?;
     }
-    registry.register_udf(last_query_id::get_udf())?;
+
+    let functions: Vec<Arc<ScalarUDF>> = vec![
+        last_query_id::get_udf(),
+        Arc::new(ScalarUDF::from(current_version::CurrentVersion::new(
+            session_params.clone(),
+        ))),
+        Arc::new(ScalarUDF::from(current_database::CurrentDatabase::new(
+            session_params.clone(),
+        ))),
+        Arc::new(ScalarUDF::from(current_schema::CurrentSchema::new(
+            session_params.clone(),
+        ))),
+    ];
+    for func in functions {
+        registry.register_udf(func)?;
+    }
     Ok(())
+}
+
+#[must_use]
+pub fn session_prop(property: &str) -> String {
+    format!("embucket.session.{property}")
 }

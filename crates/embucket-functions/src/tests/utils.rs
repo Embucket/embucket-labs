@@ -24,8 +24,9 @@ pub fn create_session() -> Arc<SessionContext> {
         .with_expr_planners(vec![Arc::new(CustomExprPlanner)])
         .build();
     let mut ctx = SessionContext::new_with_state(state);
-    register_session_context_udfs(&mut ctx).unwrap();
-    register_udfs(&mut ctx, &Arc::new(SessionParams::default())).expect("Cannot register UDFs");
+    let session_params = Arc::new(SessionParams::default());
+    register_session_context_udfs(&mut ctx, &session_params).unwrap();
+    register_udfs(&mut ctx, &session_params).expect("Cannot register UDFs");
     register_udafs(&mut ctx).expect("Cannot register UDAFs");
     register_udtfs(&ctx, history_store_mock());
     Arc::new(ctx)
