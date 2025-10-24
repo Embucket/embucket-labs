@@ -11,6 +11,8 @@ use std::{collections::HashMap, fmt::Display};
 use validator::Validate;
 
 use super::{SchemaIdent, VolumeIdent};
+use diesel::prelude::*;
+use diesel::*;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
 /// A table identifier
@@ -100,7 +102,8 @@ impl From<String> for TableFormat {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq,
+Queryable)]
 pub struct Table {
     pub ident: TableIdent,
     pub metadata: TableMetadata,

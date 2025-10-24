@@ -35,6 +35,8 @@ use strum::Display;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::sqlite;
+
 pub const SQLITE_METASTORE_DB_NAME: &str = "sqlite_data/metastore.db";
 
 

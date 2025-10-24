@@ -38,6 +38,8 @@ regex = { workspace = true }
 rusqlite = { workspace = true }
 cfg-if = { workspace = true }
 deadpool-sqlite = { workspace = true }
+deadpool-diesel = {  version = "0.6.1", features = ["sqlite"] }
+diesel = { version = "2.3.2", features = ["sqlite"] }
 
 [dev-dependencies]
 insta = { workspace = true }

@@ -100,6 +100,7 @@ impl IntoResponse for Error {
             | core_metastore::Error::CoreSqlite { .. }
             | core_metastore::Error::CreateTables { .. }
             | core_metastore::Error::Deadpool { .. }
+            | core_metastore::Error::Diesel { .. }
             | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 

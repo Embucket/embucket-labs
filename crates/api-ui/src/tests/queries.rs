@@ -427,7 +427,7 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     .await
     .expect_err("Get query error");
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
         &client,

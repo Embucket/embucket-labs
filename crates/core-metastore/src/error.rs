@@ -272,6 +272,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Diesel error: {error}"))]
+    Diesel {
+        #[snafu(source)]
+        error: diesel::result::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 
