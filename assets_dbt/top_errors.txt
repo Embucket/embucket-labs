@@ -1,37 +1,38 @@
 # DBT Run Summary
-PASS: 10
+PASS: 1552
 WARN: 0
-ERROR: 909
-SKIP: 743
+ERROR: 51
+SKIP: 59
 TOTAL: 1662
 
 
 # Errors grouped by high-level categories
-    909 Other error
+     51 Other error
 
 # Errors grouped by type (comprehensive analysis)
-    909 Other error
+     51 Other error
 
 # Total top 10 errors (full messages)
-     10 002003 (02000): SQL compilation error: error line 7 at position 8
-      5 010001 (02000): SQL error: ParserError("Expected: an expression, found: , at Line: 10, Column: 50")
-      4 010001 (02000): SQL error: ParserError("Expected: an expression, found: , at Line: 8, Column: 50")
-      4 002003 (02000): SQL compilation error: error line 12 at position 8
-      2 002003 (02000): SQL compilation error: table 'embucket.tap_postgres.gitlab_db_user_preferences' not found
-      2 002003 (02000): SQL compilation error: table 'embucket.tap_postgres.gitlab_db_project_ci_cd_settings' not found
-      2 002003 (02000): SQL compilation error: table 'embucket.snapshots.gitlab_dotcom_namespaces_snapshots' not found
-      2 002003 (02000): SQL compilation error: table 'embucket.gitlab_data_yaml.location_factors' not found
-      2 002003 (02000): SQL compilation error: table 'embucket.gitlab_data_yaml.geo_zones' not found
-      2 002003 (02000): SQL compilation error: table 'embucket.gitlab_data_yaml.categories' not found
+      3 010001 (02000): Cannot resolve view reference 'embucket.public.flatten'
+      3 002003 (02000): SQL compilation error: column 'DEFAULT' not found
+      2 010001 (02000): type_coercion
+      2 010001 (02000): custom_type_coercion
+      2 010001 (02000): Join Error
+      2 010001 (02000): Error during planning: Internal error: Function 'variant_element' failed to match any signature, errors: Internal error: Expect TypeSignatureClass::Native(LogicalType(Native(String), String)) but received NativeType::Boolean, DataType: Boolean.
 
 # Total top 10 errors (truncated to 50 chars)
-    873 002003 (02000): SQL compilation error: table 'embu
-     19 002003 (02000): SQL compilation error: error line 
-      9 010001 (02000): SQL error: ParserError("Expected: 
+      4 002003 (02000): SQL compilation error: error line 
+      3 010001 (02000): Schema error: No field named day. 
+      3 010001 (02000): Error during planning: Internal er
+      3 010001 (02000): Cannot resolve view reference 'emb
+      3 002003 (02000): SQL compilation error: table 'embu
+      3 002003 (02000): SQL compilation error: column 'DEF
+      2 010001 (02000): type_coercion
+      2 010001 (02000): custom_type_coercion
       2 010001 (02000): SQL error: ParserError("Expected a
-      2 010001 (02000): Error during planning: table 'embu
+      2 010001 (02000): Join Error
 
 # Error categorization summary
-DBT total errors: 909
-Total error lines analyzed: 909
-Coverage: 909 out of 909 error lines captured
+DBT total errors: 51
+Total error lines analyzed: 51
+Coverage: 51 out of 51 error lines captured
