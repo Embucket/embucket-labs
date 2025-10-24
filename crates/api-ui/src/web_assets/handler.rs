@@ -43,7 +43,6 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
 }
 
 pub async fn root_handler() -> Result<Response> {
-    // Serve index.html directly instead of redirecting
     match get_file_from_tar("index.html") {
         Err(err) => Err(err),
         Ok(mut content) => {
