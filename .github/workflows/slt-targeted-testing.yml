@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload SLT Selection
         if: steps.selection.outputs.has-tests == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: slt-selection
           path: ./artifacts/selected_slts.json
@@ -180,7 +180,7 @@ jobs:
         run: python test/slt_runner_targeted.py --selection-file ./artifacts/selected_slts.json --output-dir ./artifacts
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: slt-targeted-test-results
