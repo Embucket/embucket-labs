@@ -45,46 +45,58 @@ async fn test_web_assets_server() {
 
 #[allow(clippy::expect_used)]
 #[tokio::test]
-async fn test_web_assets_server_redirect() {
+async fn test_web_assets_server_spa_and_root_fallback() {
     let addr = run_test_web_assets_server()
         .await
         .expect("Failed to run web assets server");
 
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .expect("Failed to build client for redirect");
+    let client = reqwest::Client::new();
 
+    // SPA fallback route (e.g., /deadbeaf)
     let res = client
         .request(Method::GET, format!("http://{addr}/deadbeaf"))
         .send()
         .await
         .expect("Failed to send request to web assets server");
 
-    assert_eq!(http::StatusCode::SEE_OTHER, res.status());
+    assert_eq!(http::StatusCode::OK, res.status());
 
-    let redirect = res
+    // There should be no Location header
+    assert!(res.headers().get(header::LOCATION).is_none());
+
+    // The content type should be for index.html
+    let content_type = res
         .headers()
-        .get(header::LOCATION)
-        .expect("Location header not found")
+        .get(header::CONTENT_TYPE)
+        .expect("Content-Type header not found")
         .to_str()
-        .expect("Failed to get str from Location header");
-    assert_eq!(redirect, "/index.html");
+        .expect("Failed to get str from Content-Type header");
+    assert!(
+        content_type.starts_with("text/html"),
+        "Content-Type was {content_type}, expected text/html"
+    );
 
-    // redirect from root to index.html
-    let res = client
+    // Root path "/"
+    let res_root = client
         .request(Method::GET, format!("http://{addr}/"))
         .send()
         .await
         .expect("Failed to send request to web assets server");
 
-    assert_eq!(http::StatusCode::SEE_OTHER, res.status());
+    assert_eq!(http::StatusCode::OK, res_root.status());
 
-    let redirect = res
+    // There should be no Location header
+    assert!(res_root.headers().get(header::LOCATION).is_none());
+
+    // The content type should also be for index.html
+    let content_type_root = res_root
         .headers()
-        .get(header::LOCATION)
-        .expect("Location header not found")
+        .get(header::CONTENT_TYPE)
+        .expect("Content-Type header not found")
         .to_str()
-        .expect("Failed to get str from Location header");
-    assert_eq!(redirect, "/index.html");
+        .expect("Failed to get str from Content-Type header");
+    assert!(
+        content_type_root.starts_with("text/html"),
+        "Content-Type was {content_type_root}, expected text/html"
+    );
 }
