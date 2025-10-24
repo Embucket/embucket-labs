@@ -64,7 +64,7 @@ pub fn register_udfs(
     semi_structured::register_udfs(registry)?;
     regexp::register_udfs(registry)?;
     system::register_udfs(registry)?;
-    session::register_session_context_udfs(registry)?;
+    session::register_session_context_udfs(registry, session_params)?;
     window::register_udwfs(registry)?;
     Ok(())
 }

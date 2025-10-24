@@ -33,6 +33,9 @@ pub fn register_udfs(
         date_from_parts::get_udf(),
         dayname::get_udf(),
         Arc::new(ScalarUDF::from(LastDayFunc::new(session_params.clone()))),
+        Arc::new(ScalarUDF::from(ConvertTimezoneFunc::new(
+            session_params.clone(),
+        ))),
         monthname::get_udf(),
         next_day::get_udf(),
         previous_day::get_udf(),
@@ -44,8 +47,5 @@ pub fn register_udfs(
         registry.register_udf(func)?;
     }
     date_part_extract::register_udfs(registry, session_params)?;
-    registry.register_udf(Arc::new(ScalarUDF::from(ConvertTimezoneFunc::new(
-        session_params.to_owned(),
-    ))))?;
     Ok(())
 }

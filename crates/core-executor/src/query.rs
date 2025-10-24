@@ -85,6 +85,7 @@ use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
 use duckdb::Connection;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
+use embucket_functions::session::session_prop;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
     copy_into_identifiers, fetch_to_limit, functions_rewriter, inline_aliases_in_query,
@@ -92,7 +93,6 @@ use embucket_functions::visitors::{
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
-use futures::TryStreamExt;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
@@ -198,6 +198,10 @@ impl UserQuery {
             .clone()
             .or_else(|| self.session.get_session_variable("schema"))
             .unwrap_or_else(|| "public".to_string())
+    }
+
+    fn current_version(&self) -> String {
+        self.session.config.embucket_version.clone()
     }
 
     #[instrument(
@@ -508,18 +512,21 @@ impl UserQuery {
 
         // Convert already resolved table references to iceberg_scan function call
         let setup_queries = self.update_iceberg_scan_references(&mut statement).await?;
+
+        let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
+
+        // Set session params for session UDFs and register Embucket UDFs in Duckdb connection
+        self.set_duckdb_udf_params()?;
+        register_all_udfs(
+            &conn,
+            &mut statement,
+            self.session.ctx.state().scalar_functions(),
+        )?;
+
         self.query = statement.to_string();
         let sql = self.query.clone();
 
-        let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
-        let failed = register_all_udfs(&conn, self.session.ctx.state().scalar_functions())?;
-        if !failed.is_empty() {
-            tracing::warn!(
-                "Some UDFs were not registered/overloaded in DuckDB: {:?}",
-                failed
-            );
-        }
-
+        // Apply setup queries
         apply_connection_setup_queries(&conn, &setup_queries)?;
 
         if self.session.config.use_duck_db_explain
@@ -527,22 +534,32 @@ impl UserQuery {
                 .session
                 .get_session_variable_bool("embucket.execution.explain_before_acceleration")
         {
-            // Check if possible to call duckdb with this query
-            let explain_conn = conn.try_clone().context(ex_error::DuckdbSnafu)?;
-            let _explain_result = execute_duck_db_explain(explain_conn, &sql).await?;
+            // Run EXPLAIN before query execution to check if the query is supported
+            let _explain_result = execute_duck_db_explain(&conn, &sql)?;
         }
 
-        let stream = query_duck_db_arrow(&conn, &sql)?;
-        let schema = stream.schema().clone();
-        let records = stream
-            .try_collect::<Vec<_>>()
-            .await
-            .context(ex_error::DataFusionSnafu)?;
+        let (records, schema) = query_duck_db_arrow(&conn, &sql)?;
         Ok::<QueryResult, Error>(QueryResult::new(
             records,
             schema,
             self.query_context.query_id,
         ))
+    }
+
+    #[instrument(
+        name = "UserQuery::set_duckdb_udf_params",
+        level = "trace",
+        skip(self),
+        err
+    )]
+    pub fn set_duckdb_udf_params(&self) -> Result<()> {
+        let params = HashMap::from([
+            (session_prop("current_database"), self.current_database()),
+            (session_prop("current_schema"), self.current_schema()),
+            (session_prop("current_version"), self.current_version()),
+        ]);
+        self.session
+            .set_session_params(params, &self.session.ctx.session_id())
     }
 
     #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err)]
