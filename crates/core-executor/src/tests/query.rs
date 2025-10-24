@@ -530,14 +530,14 @@ test_query!(
         COUNT(CASE WHEN start_tstamp < '2024-06-01' THEN 1 END) as sessions_before_june,
         COUNT(CASE WHEN session_id = 'jan_session_1' THEN 1 END) as jan_1_preserved,
         COUNT(CASE WHEN session_id = 'may_session_1' THEN 1 END) as may_1_preserved,
-        COUNT(CASE WHEN session_id = 'jan_session_1' AND start_tstamp >= '2024-06-01' THEN 1 END) as jan_corrupted
+        COUNT(CASE WHEN session_id = 'jan_session_1' AND start_tstamp >= '2024-06-01' THEN 1 END) as jan_new
     FROM embucket.public.lifecycle_manifest",
     setup_queries = [
         "CREATE TABLE embucket.public.lifecycle_manifest (session_id VARCHAR, start_tstamp TIMESTAMP, end_tstamp TIMESTAMP)",
         "CREATE TABLE embucket.public.lifecycle_source (session_id VARCHAR, start_tstamp TIMESTAMP, end_tstamp TIMESTAMP)",
         "INSERT INTO embucket.public.lifecycle_manifest VALUES ('jan_session_1', '2024-01-15 10:00:00', '2024-01-15 11:00:00'), ('jan_session_2', '2024-01-20 14:00:00', '2024-01-20 15:00:00'), ('may_session_1', '2024-05-10 09:00:00', '2024-05-10 10:00:00'), ('may_session_2', '2024-05-15 12:00:00', '2024-05-15 13:00:00')",
         "INSERT INTO embucket.public.lifecycle_source VALUES ('jan_session_1', '2024-06-15 09:00:00', '2024-06-15 10:00:00'), ('may_session_1', '2024-06-20 11:00:00', '2024-06-20 12:00:00')",
-        "MERGE INTO lifecycle_manifest t USING lifecycle_source s ON (t.start_tstamp BETWEEN CAST('2024-01-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)) AND (s.session_id = t.session_id) WHEN MATCHED THEN UPDATE SET t.start_tstamp = s.start_tstamp, t.end_tstamp = s.end_tstamp WHEN NOT MATCHED THEN INSERT (session_id, start_tstamp, end_tstamp) VALUES (s.session_id, s.start_tstamp, s.end_tstamp)",
+        "MERGE INTO lifecycle_manifest t USING lifecycle_source s ON (t.start_tstamp BETWEEN CAST('2024-04-01' AS TIMESTAMP) AND CAST('2024-12-31' AS TIMESTAMP)) AND (s.session_id = t.session_id) WHEN MATCHED THEN UPDATE SET t.start_tstamp = s.start_tstamp, t.end_tstamp = s.end_tstamp WHEN NOT MATCHED THEN INSERT (session_id, start_tstamp, end_tstamp) VALUES (s.session_id, s.start_tstamp, s.end_tstamp)",
     ]
 );
 
