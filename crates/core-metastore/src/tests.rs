@@ -48,7 +48,8 @@ async fn test_create_volumes() {
     let ms = get_metastore().await;
 
     let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"test".to_string(), volume)
+    let volume_id = volume.ident.clone();
+    ms.create_volume(volume)
         .await
         .expect("create volume failed");
     let all_volumes = ms
@@ -58,7 +59,7 @@ async fn test_create_volumes() {
         .expect("list volumes failed");
 
     let test_volume = ms
-        .get_volume(&"test".to_string())
+        .get_volume(&volume_id)
         .await
         .expect("get test volume failed");
 
@@ -82,7 +83,7 @@ async fn test_create_s3table_volume() {
         }),
     });
     let volume = Volume::new("s3tables".to_string(), s3table_volume);
-    ms.create_volume(&volume.ident.clone(), volume.clone())
+    ms.create_volume(volume.clone())
         .await
         .expect("create s3table volume failed");
 
@@ -104,12 +105,12 @@ async fn test_duplicate_volume() {
     let ms = get_metastore().await;
 
     let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"test".to_owned(), volume)
+    ms.create_volume(volume)
         .await
         .expect("create volume failed");
 
     let volume2 = Volume::new("test".to_owned(), VolumeType::Memory);
-    let result = ms.create_volume(&"test".to_owned(), volume2).await;
+    let result = ms.create_volume(volume2).await;
     insta::with_settings!({
         filters => insta_filters(),
     }, {
@@ -122,7 +123,7 @@ async fn test_delete_volume() {
     let ms = get_metastore().await;
 
     let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"test".to_string(), volume)
+    ms.create_volume(volume.clone())
         .await
         .expect("create volume failed");
     let all_volumes = ms
@@ -131,10 +132,10 @@ async fn test_delete_volume() {
         .await
         .expect("list volumes failed");
     let get_volume = ms
-        .get_volume(&"test".to_owned())
+        .get_volume(&volume.ident)
         .await
         .expect("get volume failed");
-    ms.delete_volume(&"test".to_string(), false)
+    ms.delete_volume(&volume.ident, false)
         .await
         .expect("delete volume failed");
     let all_volumes_after = ms
@@ -156,7 +157,7 @@ async fn test_update_volume() {
 
     let volume = Volume::new("test".to_owned(), VolumeType::Memory);
     let rwo1 = ms
-        .create_volume(&"test".to_owned(), volume)
+        .create_volume(volume.clone())
         .await
         .expect("create volume failed");
     let volume = Volume::new(
@@ -166,7 +167,7 @@ async fn test_update_volume() {
         }),
     );
     let rwo2 = ms
-        .update_volume(&"test".to_owned(), volume)
+        .update_volume(volume)
         .await
         .expect("update volume failed");
     insta::with_settings!({
@@ -185,7 +186,7 @@ async fn test_create_database() {
         properties: None,
     };
     let no_volume_result = ms
-        .create_database(&"testdb".to_owned(), database.clone())
+        .create_database(database.clone())
         .await;
 
     let volume = Volume::new("test".to_owned(), VolumeType::Memory);
@@ -195,13 +196,13 @@ async fn test_create_database() {
             path: "/tmp".to_owned(),
         }),
     );
-    ms.create_volume(&"testv1".to_owned(), volume)
+    ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_volume(&"testv2".to_owned(), volume2)
+    ms.create_volume(Volume::new("testv2".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_database(&"testdb".to_owned(), database.clone())
+    ms.create_database(database.clone())
         .await
         .expect("create database failed");
     let all_databases = ms
@@ -250,20 +251,12 @@ async fn test_schemas() {
         .create_schema(&schema.ident.clone(), schema.clone())
         .await;
 
-    let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"testv1".to_owned(), volume)
+    ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_database(
-        &"testdb".to_owned(),
-        Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        },
-    )
-    .await
-    .expect("create database failed");
+    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
+        .await
+        .expect("create database failed");
     let schema_create = ms
         .create_schema(&schema.ident.clone(), schema.clone())
         .await
@@ -338,18 +331,11 @@ async fn test_tables() {
     let no_schema_result = ms.create_table(&table.ident.clone(), table.clone()).await;
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"testv1".to_owned(), volume)
+    ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(
-        &"testdb".to_owned(),
-        Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        },
-    )
-    .await
+    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
+        .await
     .expect("create database failed");
     ms.create_schema(
         &SchemaIdent {
@@ -455,17 +441,10 @@ async fn test_temporary_tables() {
     };
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    ms.create_volume(&"testv1".to_owned(), volume)
+    ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(
-        &"testdb".to_owned(),
-        Database {
-            ident: "testdb".to_owned(),
-            volume: "testv1".to_owned(),
-            properties: None,
-        },
-    )
+    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
     .await
     .expect("create database failed");
     ms.create_schema(

@@ -206,21 +206,14 @@ impl CoreExecutionService {
     async fn bootstrap(metastore: Arc<dyn Metastore>) -> Result<()> {
         let ident = DEFAULT_CATALOG.to_string();
         metastore
-            .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
+            .create_volume(Volume::new(ident.clone(), VolumeType::Memory))
             .await
             .context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?;
 
         metastore
-            .create_database(
-                &ident,
-                Database {
-                    ident: ident.clone(),
-                    properties: None,
-                    volume: ident.clone(),
-                },
-            )
+            .create_database(Database::new(ident.clone(), ident.clone()))
             .await
             .context(ex_error::BootstrapSnafu {
                 entity_type: "database",

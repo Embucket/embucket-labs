@@ -72,7 +72,7 @@ pub async fn create_volume(
         .context(error::CreateVolumeSnafu)?;
     state
         .metastore
-        .create_volume(&volume.ident.clone(), volume)
+        .create_volume(volume)
         .await
         .context(error::CreateVolumeSnafu)
         .map(|v| Json(hide_sensitive(v)))
@@ -90,7 +90,7 @@ pub async fn update_volume(
         .context(error::UpdateVolumeSnafu)?;
     state
         .metastore
-        .update_volume(&volume_name, volume)
+        .update_volume(volume)
         .await
         .context(error::UpdateVolumeSnafu)
         .map(|v| Json(hide_sensitive(v)))
@@ -168,7 +168,7 @@ pub async fn create_database(
         .context(error::CreateDatabaseSnafu)?;
     state
         .metastore
-        .create_database(&database.ident.clone(), database)
+        .create_database(database)
         .await
         .context(error::CreateDatabaseSnafu)
         .map(Json)

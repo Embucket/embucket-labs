@@ -52,24 +52,11 @@ async fn test_execute_always_returns_schema() {
 async fn test_service_upload_file() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     metastore
-        .create_volume(
-            &"test_volume".to_string(),
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
+        .create_volume(MetastoreVolume::new("test_volume".to_string(), core_metastore::VolumeType::Memory))
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(
-            &"embucket".to_string(),
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: "test_volume".to_string(),
-            },
-        )
+        .create_database(MetastoreDatabase::new("embucket".to_string(), "test_volume".to_string()))
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -186,7 +173,6 @@ async fn test_service_create_table_file_volume() {
     let temp_path = temp_dir.to_str().expect("Failed to convert path to string");
     metastore
         .create_volume(
-            &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
                 core_metastore::VolumeType::File(core_metastore::FileVolume {
@@ -198,7 +184,6 @@ async fn test_service_create_table_file_volume() {
         .expect("Failed to create volume");
     metastore
         .create_database(
-            &"embucket".to_string(),
             MetastoreDatabase {
                 ident: "embucket".to_string(),
                 properties: None,
@@ -288,7 +273,6 @@ async fn test_query_recording() {
     let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     metastore
         .create_volume(
-            &"test_volume".to_string(),
             MetastoreVolume::new(
                 "test_volume".to_string(),
                 core_metastore::VolumeType::Memory,
@@ -301,12 +285,7 @@ async fn test_query_recording() {
 
     metastore
         .create_database(
-            &database_name.clone(),
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: "test_volume".to_string(),
-            },
+            MetastoreDatabase::new(database_name.clone(), "test_volume".to_string()),
         )
         .await
         .expect("Failed to create database");

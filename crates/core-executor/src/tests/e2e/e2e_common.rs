@@ -451,7 +451,7 @@ impl ExecutorWithObjectStore {
                     // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
                     self.metastore
-                        .update_volume(&volume_name, rwobject.data)
+                        .update_volume(rwobject.data)
                         .await
                         .context(TestMetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials
@@ -536,7 +536,6 @@ pub async fn create_volumes(
                 eprintln!("Creating memory volume: {volume}");
                 let res = metastore
                     .create_volume(
-                        &volume,
                         MetastoreVolume::new(volume.clone(), core_metastore::VolumeType::Memory),
                     )
                     .await;
@@ -552,7 +551,6 @@ pub async fn create_volumes(
                 eprintln!("Creating file volume: {volume}, {user_data_dir:?}");
                 let res = metastore
                     .create_volume(
-                        &volume,
                         MetastoreVolume::new(
                             volume.clone(),
                             core_metastore::VolumeType::File(FileVolume {
@@ -571,7 +569,6 @@ pub async fn create_volumes(
                     eprintln!("Creating s3 volume: {volume}, {s3_volume:?}");
                     let res = metastore
                         .create_volume(
-                            &volume,
                             MetastoreVolume::new(
                                 volume.clone(),
                                 core_metastore::VolumeType::S3(s3_volume),
@@ -589,7 +586,6 @@ pub async fn create_volumes(
                     eprintln!("Creating s3tables volume: {volume}, {s3_tables_volume:?}");
                     let res = metastore
                         .create_volume(
-                            &volume,
                             MetastoreVolume::new(
                                 volume.clone(),
                                 core_metastore::VolumeType::S3Tables(s3_tables_volume),

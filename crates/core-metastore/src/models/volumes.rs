@@ -252,6 +252,7 @@ impl Validate for VolumeType {
 #[serde(rename_all = "kebab-case")]
 pub struct Volume {
     pub ident: VolumeIdent,
+    // pub name: String,
     #[serde(flatten)]
     #[validate(nested)]
     pub volume: VolumeType,
@@ -262,7 +263,8 @@ pub type VolumeIdent = String;
 #[allow(clippy::as_conversions)]
 impl Volume {
     #[must_use]
-    pub const fn new(ident: VolumeIdent, volume: VolumeType) -> Self {
+    pub fn new(ident: VolumeIdent, volume: VolumeType) -> Self {
+        // Uuid::new_v4()
         Self { ident, volume }
     }
 

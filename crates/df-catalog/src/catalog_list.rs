@@ -122,7 +122,7 @@ impl EmbucketCatalogList {
         };
         let database = self
             .metastore
-            .create_database(&catalog_name.to_owned(), ident)
+            .create_database(ident)
             .await
             .context(MetastoreSnafu)?;
 
