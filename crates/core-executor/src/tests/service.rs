@@ -702,22 +702,11 @@ async fn test_submitted_query_abort_by_query_id() {
 
     let query_id = query_handle.query_id;
 
-    execution_svc
+    let query_status = execution_svc
         .abort_query(RunningQueryId::ByQueryId(query_id))
-        .expect("Failed to cancel query");
-
-    let query_result = execution_svc
-        .wait_submitted_query_result(query_handle)
         .await
-        .expect_err("Query should not succeed");
-    let query_result_str = format!("{query_result:?}");
-    match query_result {
-        Error::QueryExecution { source, .. } => match *source {
-            Error::QueryCancelled { .. } => {}
-            _ => panic!("Expected query status: Canceled, but got {query_result_str}"),
-        },
-        _ => panic!("Expected outer QueryExecution error, but got {query_result_str}"),
-    }
+        .expect("Failed to cancel query");
+    assert_eq!(query_status, QueryStatus::Canceled);
 
     let query_record = history_store
         .get_query(query_id)
@@ -760,25 +749,14 @@ async fn test_submitted_query_abort_by_request_id() {
 
     let query_id = query_handle.query_id;
 
-    execution_svc
+    let query_status =execution_svc
         .abort_query(RunningQueryId::ByRequestId(
             request_id,
             sql_text.to_string(),
         ))
-        .expect("Failed to cancel query");
-
-    let query_result = execution_svc
-        .wait_submitted_query_result(query_handle)
         .await
-        .expect_err("Query should not succeed");
-    let query_result_str = format!("{query_result:?}");
-    match query_result {
-        Error::QueryExecution { source, .. } => match *source {
-            Error::QueryCancelled { .. } => {}
-            _ => panic!("Expected query status: Canceled, but got {query_result_str}"),
-        },
-        _ => panic!("Expected outer QueryExecution error, but got {query_result_str}"),
-    }
+        .expect("Failed to cancel query");
+    assert_eq!(query_status, QueryStatus::Canceled);
 
     let query_record = history_store
         .get_query(query_id)

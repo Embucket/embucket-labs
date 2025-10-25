@@ -8,7 +8,7 @@ use super::VolumeIdent;
 /// A database identifier
 pub type DatabaseIdent = String;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Database {
     #[validate(length(min = 1))]
     pub ident: DatabaseIdent,

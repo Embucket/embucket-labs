@@ -106,6 +106,7 @@ mod tests {
         let mut results = Vec::new();
         // start retry_count from 1, to ensure it works with any retry_count as well
         for retry_count in 1_u16..20_u16 {
+            tokio::time::sleep(Duration::from_millis(100)).await;
             let result = query::<JsonResponse>(
                 &query_client,
                 &addr,
@@ -116,7 +117,7 @@ mod tests {
                 false,
             )
             .await;
-            eprintln!("Retry count: {}, Result: {}", retry_count, result.is_ok());
+            eprintln!("Retry count: {}, Result: {:?}", retry_count, result);
             if result.is_ok() {
                 results.push(result);
                 break;

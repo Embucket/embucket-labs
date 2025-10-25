@@ -56,6 +56,7 @@ pub trait ExecutionService: Send + Sync {
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
 
     /// Aborts a query by `query_id` or `request_id`.
+    /// Then it waits until it propagates query status=Canceled
     ///
     /// # Arguments
     ///
@@ -63,9 +64,9 @@ pub trait ExecutionService: Send + Sync {
     ///
     /// # Returns
     ///
-    /// A `Result` of type `()`. The `Ok` variant contains an empty tuple,
+    /// A `Result` of type `QueryStatus`. The `Ok` variant contains an empty tuple,
     /// and the `Err` variant contains an `Error`.
-    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()>;
+    async fn abort_query(&self, abort_query: RunningQueryId) -> Result<QueryStatus>;
 
     /// Submits a query to be executed asynchronously. Query result can be consumed with
     /// `wait_submitted_query_result`.
@@ -596,11 +597,21 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::abort_query",
         level = "debug",
         skip(self),
-        fields(old_queries_count = self.queries.count()),
+        fields(query_status),
         err
     )]
-    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()> {
-        self.queries.abort(abort_query)
+    async fn abort_query(&self, running_query_id: RunningQueryId) -> Result<QueryStatus> {
+        let mut running_query = self.queries.get(running_query_id.clone())?;
+
+        let query_id = running_query.query_id.clone();
+        self.queries.abort(running_query_id)?;
+        let query_status = running_query
+            .recv_query_finished()
+            .await
+            .context(ex_error::QueryStatusRecvSnafu { query_id })?;
+        tracing::debug!("Query {query_id} abortion completed: {query_status}");
+        tracing::Span::current().record("query_status", query_status.to_string());
+        Ok(query_status)
     }
 
     #[tracing::instrument(

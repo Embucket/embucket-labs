@@ -5,7 +5,7 @@ use validator::Validate;
 
 use super::DatabaseIdent;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A schema identifier
 #[derive(Default)]
 pub struct SchemaIdent {
@@ -38,7 +38,7 @@ impl std::fmt::Display for SchemaIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Schema {
     pub ident: SchemaIdent,
     pub properties: Option<HashMap<String, String>>,

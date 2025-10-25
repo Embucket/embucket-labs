@@ -14,6 +14,9 @@ cfg_if::cfg_if! {
     }
 }
 
+#[cfg(test)]
+pub mod tests;
+
 pub use error::Error;
 pub use models::*;
 pub use interface::*;

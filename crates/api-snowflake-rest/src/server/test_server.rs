@@ -11,8 +11,9 @@ pub async fn run_test_rest_api_server(data_format: &str) -> SocketAddr {
     let app_cfg = Config::new(data_format)
         .expect("Failed to create server config")
         .with_demo_credentials("embucket".to_string(), "embucket".to_string());
-
-    run_test_rest_api_server_with_config(app_cfg, UtilsConfig::default()).await
+    let exec_cfg = UtilsConfig::default()
+        .with_max_concurrency_level(2);
+    run_test_rest_api_server_with_config(app_cfg, exec_cfg).await
 }
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -39,12 +40,14 @@ pub async fn run_test_rest_api_server_with_config(
         .with_line_number(true)
         .with_span_events(FmtSpan::NONE)
         .with_level(true)
-        .with_max_level(tracing_subscriber::filter::LevelFilter::DEBUG)
+        .with_max_level(tracing_subscriber::filter::LevelFilter::TRACE)
         .finish();
 
     // ignoring error: as with parralel tests execution, just first thread is able to set it successfully
     // since all tests run in a single process
     let _ = tracing::subscriber::set_global_default(subscriber);
+
+    tracing::info!("Starting server at {}", addr);
 
     let metastore = SlateDBMetastore::new_in_memory().await;
     let history = SlateDBHistoryStore::new_in_memory().await;

@@ -14,7 +14,7 @@ use super::{SchemaIdent, VolumeIdent};
 use diesel::prelude::*;
 use diesel::*;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A table identifier
 pub struct TableIdent {
     #[validate(length(min = 1))]
@@ -69,7 +69,7 @@ impl Display for TableIdent {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema, strum::EnumString,
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, strum::EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TableFormat {

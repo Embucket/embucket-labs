@@ -7,7 +7,7 @@ use crate::{
     volumes::error::{CreateQuerySnafu, CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
         FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumeResponse, VolumeType, VolumesResponse,
+        VolumeResponse, VolumeType, VolumesResponse, AwsAccessKeyCredentials, AwsCredentials,
     },
 };
 use api_sessions::DFSessionId;
@@ -20,7 +20,8 @@ use core_metastore::error::{
     self as metastore_error, ValidationSnafu, VolumeMissingCredentialsSnafu,
 };
 use core_metastore::models::{
-    AwsAccessKeyCredentials, AwsCredentials, Volume as MetastoreVolume,
+    AwsCredentials as MetastoreAwsCredentials,
+    Volume as MetastoreVolume,
     VolumeType as MetastoreVolumeType,
 };
 use snafu::{OptionExt, ResultExt};
@@ -106,7 +107,7 @@ pub async fn create_volume(
         MetastoreVolumeType::S3(vol) => {
             let region = vol.region.clone().unwrap_or_default();
             let credentials_str = match &vol.credentials {
-                Some(AwsCredentials::AccessKey(creds)) => format!(
+                Some(MetastoreAwsCredentials::AccessKey(creds)) => format!(
                     " CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}' REGION='{region}')",
                     creds.aws_access_key_id, creds.aws_secret_access_key,
                 ),
@@ -124,11 +125,11 @@ pub async fn create_volume(
         }
         MetastoreVolumeType::S3Tables(vol) => {
             let credentials_str = match &vol.credentials {
-                AwsCredentials::AccessKey(creds) => format!(
+                MetastoreAwsCredentials::AccessKey(creds) => format!(
                     " CREDENTIALS=(AWS_KEY_ID='{}' AWS_SECRET_KEY='{}')",
                     creds.aws_access_key_id, creds.aws_secret_access_key
                 ),
-                AwsCredentials::Token(_) => {
+                MetastoreAwsCredentials::Token(_) => {
                     return VolumeMissingCredentialsSnafu.fail().context(CreateSnafu)?;
                 }
             };
