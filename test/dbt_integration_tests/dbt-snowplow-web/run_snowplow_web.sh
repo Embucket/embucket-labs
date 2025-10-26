@@ -82,7 +82,7 @@ mkdir -p logs
 echo "###############################"
 echo ""
     dbt debug --target "$DBT_TARGET"
-#    dbt clean --target "$DBT_TARGET"
+    dbt clean --target "$DBT_TARGET"
     dbt deps --target "$DBT_TARGET"
 # dbt seed
         dbt seed --full-refresh --target "$DBT_TARGET"
@@ -93,6 +93,6 @@ echo ""
         dbt run --target "$DBT_TARGET" 2>&1 | tee assets/run.log
 	#dbt run --full-refresh
     fi 
-    #dbt test --target "$DBT_TARGET"
+    dbt test --target "$DBT_TARGET"
 
 cd ..
