@@ -9,6 +9,58 @@ import random
 from datetime import datetime, timedelta
 import json
 
+def generate_consent_preferences():
+    """Generate consent preferences data."""
+    # Define consent scope combinations based on event type
+    event_types = {
+        'allow_all': ['necessary', 'preferences', 'statistics', 'marketing'],
+        'deny_all': ['necessary'],
+        'allow_selected': None  # Will be randomly selected
+    }
+    
+    # Randomly choose event type
+    event_type = random.choice(list(event_types.keys()))
+    
+    # Determine consent scopes based on event type
+    if event_type == 'allow_selected':
+        # For allow_selected, randomly choose a subset of scopes (always include necessary)
+        all_optional = ['preferences', 'statistics', 'marketing']
+        num_optional = random.randint(1, 3)  # Choose 1-3 optional scopes
+        selected_optional = random.sample(all_optional, num_optional)
+        consent_scopes = ['necessary'] + sorted(selected_optional)
+    else:
+        consent_scopes = event_types[event_type]
+    
+    # Randomly choose consent version (more likely to be 2.0)
+    consent_version = random.choice(['1.0', '2.0', '2.0', '2.0'])
+    
+    # GDPR applies (more likely to be true)
+    gdpr_applies = random.choice([True, True, True, False])
+    
+    consent_data = {
+        'eventType': event_type,
+        'basisForProcessing': 'consent',
+        'consentUrl': 'https://www.example.com/',
+        'consentVersion': consent_version,
+        'consentScopes': consent_scopes,
+        'domainsApplied': ['https://www.example.com/'],
+        'gdprApplies': gdpr_applies
+    }
+    
+    return consent_data
+
+def generate_cmp_visible():
+    """Generate CMP visible data (elapsed time for consent banner to appear)."""
+    # Based on sample data: most common values are 1.5, 7, and 20 seconds
+    elapsed_times = [1.5, 1.5, 1.5, 1.5, 7, 7, 20, 20]  # Weighted toward 1.5
+    elapsed_time = random.choice(elapsed_times)
+    
+    cmp_data = {
+        'elapsedTime': elapsed_time
+    }
+    
+    return cmp_data
+
 def generate_event_data(target_date, num_events=1000):
     """Generate sample Snowplow event data for a specific date."""
     
@@ -84,6 +136,15 @@ def generate_event_data(target_date, num_events=1000):
             'navigation_type': 'navigate',
             'ttfb': random.randint(50, 300)
         }]
+        
+        # Generate consent preferences for ~33% of events
+        consent_preferences = None
+        cmp_visible = None
+        if random.random() < 0.33:
+            consent_preferences = generate_consent_preferences()
+            # Also generate CMP visible data for ~60% of consent events
+            if random.random() < 0.6:
+                cmp_visible = generate_cmp_visible()
         
         event = [
             'default',  # app_id
@@ -216,8 +277,8 @@ def generate_event_data(target_date, num_events=1000):
             '',  # true_tstamp
             '',  # load_tstamp
             json.dumps(web_page_context),  # contexts_com_snowplowanalytics_snowplow_web_page_1
-            '',  # unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1
-            '',  # unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1
+            json.dumps(consent_preferences) if consent_preferences else '',  # unstruct_event_com_snowplowanalytics_snowplow_consent_preferences_1
+            json.dumps(cmp_visible) if cmp_visible else '',  # unstruct_event_com_snowplowanalytics_snowplow_cmp_visible_1
             json.dumps(iab_context),  # contexts_com_iab_snowplow_spiders_and_robots_1
             json.dumps(ua_context),  # contexts_com_snowplowanalytics_snowplow_ua_parser_context_1
             json.dumps(yauaa_context),  # contexts_nl_basjes_yauaa_context_1
