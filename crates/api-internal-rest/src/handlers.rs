@@ -90,7 +90,7 @@ pub async fn update_volume(
         .context(error::UpdateVolumeSnafu)?;
     state
         .metastore
-        .update_volume(volume)
+        .update_volume(&volume_name, volume)
         .await
         .context(error::UpdateVolumeSnafu)
         .map(|v| Json(hide_sensitive(v)))

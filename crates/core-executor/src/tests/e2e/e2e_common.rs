@@ -451,7 +451,7 @@ impl ExecutorWithObjectStore {
                     // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
                     self.metastore
-                        .update_volume(rwobject.data)
+                        .update_volume(&volume_name, rwobject.data)
                         .await
                         .context(TestMetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials

@@ -167,7 +167,7 @@ async fn test_update_volume() {
         }),
     );
     let rwo2 = ms
-        .update_volume(volume)
+        .update_volume(&"test".to_owned(), volume)
         .await
         .expect("update volume failed");
     insta::with_settings!({

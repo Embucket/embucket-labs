@@ -252,7 +252,6 @@ impl Validate for VolumeType {
 #[serde(rename_all = "kebab-case")]
 pub struct Volume {
     pub ident: VolumeIdent,
-    // pub name: String,
     #[serde(flatten)]
     #[validate(nested)]
     pub volume: VolumeType,

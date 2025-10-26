@@ -18,7 +18,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>>;
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
-    async fn update_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
+    async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
     async fn volume_object_store(&self, name: &VolumeIdent)
     -> Result<Option<Arc<dyn ObjectStore>>>;

@@ -1,5 +1,5 @@
 ---
-source: crates/core-metastore/src/metastore.rs
+source: crates/core-metastore/src/tests.rs
 expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntable_list_after)"
 ---
 (
@@ -81,6 +81,7 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
             is_temporary: false,
             format: Iceberg,
         },
+        id: UUID,
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",
     },
@@ -177,6 +178,7 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
                 is_temporary: false,
                 format: Iceberg,
             },
+            id: UUID,
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },
@@ -257,6 +259,7 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
                 is_temporary: false,
                 format: Iceberg,
             },
+            id: UUID,
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },

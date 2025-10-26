@@ -1,5 +1,5 @@
 ---
-source: crates/core-metastore/src/metastore.rs
+source: crates/core-metastore/src/tests.rs
 expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_after)"
 ---
 (
@@ -14,6 +14,7 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
             },
             properties: None,
         },
+        id: UUID,
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",
     },
@@ -26,6 +27,7 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
                 },
                 properties: None,
             },
+            id: UUID,
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },
@@ -39,6 +41,7 @@ expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_
                 },
                 properties: None,
             },
+            id: UUID,
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },

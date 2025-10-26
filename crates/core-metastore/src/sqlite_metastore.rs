@@ -315,7 +315,7 @@ impl Metastore for SlateDBMetastore {
                     e
                 }
             })?;
-        self.object_store_cache.insert(volume.ident, object_store);
+        self.object_store_cache.insert(volume.ident.clone(), object_store);
         Ok(rwobject)
     }
 
@@ -328,18 +328,25 @@ impl Metastore for SlateDBMetastore {
             .context(metastore_err::UtilSlateDBSnafu)
     }
 
+    // TODO: Allow rename only here or on REST API level 
     #[instrument(
         name = "Metastore::update_volume",
         level = "debug",
         skip(self, volume),
         err
     )]
-    async fn update_volume(&self, volume: Volume) -> Result<RwObject<Volume>> {
-        let key = format!("{KEY_VOLUME}/{}", volume.ident);
+    async fn update_volume(&self, ident: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
+        let key = format!("{KEY_VOLUME}/{ident}");
         let updated_volume = self.update_object(&key, volume).await?;
         let object_store = updated_volume.get_object_store()?;
-        self.object_store_cache
-            .alter(&updated_volume.ident, |_, _store| object_store.clone());
+        if ident != &updated_volume.ident {
+            // object store cache is by name, so delete old name and add new
+            self.object_store_cache.remove(ident);
+            self.object_store_cache.insert(updated_volume.ident.clone(), object_store);
+        } else {
+            self.object_store_cache
+                .alter(&updated_volume.ident, |_, _store| object_store.clone());
+        }
         Ok(updated_volume)
     }
 

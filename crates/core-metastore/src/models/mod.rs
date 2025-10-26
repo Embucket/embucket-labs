@@ -14,6 +14,8 @@ pub use table::*;
 
 pub use volumes::*;
 
+use uuid::Uuid;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RwObject<T>
 where
@@ -21,6 +23,7 @@ where
 {
     #[serde(flatten)]
     pub data: T,
+	pub id: Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -29,10 +32,12 @@ impl<T> RwObject<T>
 where
     T: Eq + PartialEq,
 {
-    pub fn new(data: T) -> Self {
+    pub fn new(data: T) -> RwObject<T> {
         let now = chrono::Utc::now().naive_utc();
+		let id = Uuid::new_v4();
         Self {
             data,
+			id,
             created_at: now,
             updated_at: now,
         }
@@ -56,7 +61,7 @@ where
 {
     type Target = T;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &T {
         &self.data
     }
 }
