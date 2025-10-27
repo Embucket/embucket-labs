@@ -1023,12 +1023,7 @@ impl UserQuery {
                     &schema,
                 )?),
             ));
-            return self
-                .execute_logical_plan_with_custom_rules(
-                    insert_plan,
-                    runtime_physical_optimizer_rules(schema),
-                )
-                .await;
+            return self.execute_logical_plan(insert_plan).await;
         }
 
         self.created_entity_response()
