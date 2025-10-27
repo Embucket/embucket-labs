@@ -105,6 +105,8 @@ insta = { version = "1.42.0", features = ["json", "filters", "redactions"] }
 cfg-if = { version = "1.0.3" }
 rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
 deadpool-sqlite = { version = "0.12.1", features = ["tracing"] }
+deadpool = { version = "0.12.3" }
+deadpool-diesel = {  version = "0.6.1", features = ["sqlite", "tracing"] }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }

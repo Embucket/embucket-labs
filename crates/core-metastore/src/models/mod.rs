@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub mod database;
@@ -24,16 +24,23 @@ where
     #[serde(flatten)]
     pub data: T,
 	pub id: Uuid,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
+
+// impl<T> Expression for RwObject<T>
+// where
+//     T: Expression,
+// {
+//     type SqlType = T::SqlType;
+// }
 
 impl<T> RwObject<T>
 where
     T: Eq + PartialEq,
 {
     pub fn new(data: T) -> RwObject<T> {
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
 		let id = Uuid::new_v4();
         Self {
             data,
@@ -46,12 +53,12 @@ where
     pub fn update(&mut self, data: T) {
         if data != self.data {
             self.data = data;
-            self.updated_at = chrono::Utc::now().naive_utc();
+            self.updated_at = chrono::Utc::now();
         }
     }
 
     pub fn touch(&mut self) {
-        self.updated_at = chrono::Utc::now().naive_utc();
+        self.updated_at = chrono::Utc::now();
     }
 }
 

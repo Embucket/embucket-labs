@@ -13,7 +13,6 @@ core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
-core-sqlite = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -37,9 +36,9 @@ validator = { workspace = true }
 regex = { workspace = true }
 rusqlite = { workspace = true }
 cfg-if = { workspace = true }
-deadpool-sqlite = { workspace = true }
-deadpool-diesel = {  version = "0.6.1", features = ["sqlite"] }
-diesel = { version = "2.3.2", features = ["sqlite"] }
+deadpool-diesel = { workspace = true }
+deadpool = { workspace = true }
+diesel = { version = "2.3.2", features = ["sqlite", "chrono", "uuid"] }
 
 [dev-dependencies]
 insta = { workspace = true }

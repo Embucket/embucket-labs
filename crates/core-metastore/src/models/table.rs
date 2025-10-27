@@ -12,7 +12,6 @@ use validator::Validate;
 
 use super::{SchemaIdent, VolumeIdent};
 use diesel::prelude::*;
-use diesel::*;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A table identifier
@@ -102,8 +101,7 @@ impl From<String> for TableFormat {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq,
-Queryable)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Table {
     pub ident: TableIdent,
     pub metadata: TableMetadata,

@@ -16,7 +16,6 @@ use crate::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
-use core_sqlite::SqliteDb;
 use core_utils::Db;
 use core_utils::scan_iterator::{ScanIterator, VecScanIterator};
 use rusqlite::Result as SqlResult;
@@ -35,23 +34,25 @@ use strum::Display;
 use tracing::instrument;
 use uuid::Uuid;
 
+use deadpool_diesel::sqlite::{Manager, Pool, Runtime};
+
 use crate::sqlite;
 
 pub const SQLITE_METASTORE_DB_NAME: &str = "sqlite_data/metastore.db";
 
 
-const METASTORE_TABLES_CREATE_TABLE: &str = "
-CREATE TABLE IF NOT EXISTS tables (
-    ident TEXT PRIMARY KEY,              -- Table identifier (UUID or unique string)
-    name TEXT NOT NULL,                  -- Table name
-    metadata TEXT NOT NULL,              -- JSON/text representation of TableMetadata
-    metadata_location TEXT NOT NULL,     -- File or object store path
-    properties TEXT,                     -- Serialized key/value map (JSON)
-    volume_ident TEXT,                   -- Optional UUID or string
-    volume_location TEXT,                -- Optional path
-    is_temporary INTEGER NOT NULL,       -- 0 or 1 (SQLite doesn’t have real BOOLEAN)
-    format TEXT NOT NULL                 -- TableFormat enum as TEXT (parquet, csv, etc.)
-);";
+// const METASTORE_TABLES_CREATE_TABLE: &str = "
+// CREATE TABLE IF NOT EXISTS tables (
+//     ident TEXT PRIMARY KEY,              -- Table identifier (UUID or unique string)
+//     name TEXT NOT NULL,                  -- Table name
+//     metadata TEXT NOT NULL,              -- JSON/text representation of TableMetadata
+//     metadata_location TEXT NOT NULL,     -- File or object store path
+//     properties TEXT,                     -- Serialized key/value map (JSON)
+//     volume_ident TEXT,                   -- Optional UUID or string
+//     volume_location TEXT,                -- Optional path
+//     is_temporary INTEGER NOT NULL,       -- 0 or 1 (SQLite doesn’t have real BOOLEAN)
+//     format TEXT NOT NULL                 -- TableFormat enum as TEXT (parquet, csv, etc.)
+// );";
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
@@ -82,7 +83,7 @@ const KEY_TABLE: &str = "tbl";
 pub struct SlateDBMetastore {
     db: Db,
     object_store_cache: DashMap<VolumeIdent, Arc<dyn ObjectStore>>,
-    pub sqlite_db: SqliteDb,
+    pub sqlite_pool: Pool,
 }
 
 impl std::fmt::Debug for SlateDBMetastore {
@@ -103,11 +104,9 @@ impl SlateDBMetastore {
             db: db.clone(), // to be removed
             object_store_cache: DashMap::new(),  // to be removed
             //
-            sqlite_db: SqliteDb::new(db.slate_db(), SQLITE_METASTORE_DB_NAME)
-                .await
-                .expect("Failed to initialize sqlite store"),
+            sqlite_pool: Self::create_pool(SQLITE_METASTORE_DB_NAME).await?,
         };
-        metastore.create_tables().await?;
+        // metastore.create_tables().await?;
         Ok(metastore)
     }
 
@@ -127,9 +126,9 @@ impl SlateDBMetastore {
             db: utils_db.clone(), // to be removed
             object_store_cache: DashMap::new(),  // to be removed
             //
-            sqlite_db: SqliteDb::new(utils_db.slate_db(), &sqlite_db_name)
+            sqlite_pool: Self::create_pool(&sqlite_db_name)
                 .await
-                .expect("Failed to create SqliteDb for queries"),
+                .expect("Failed to create Sqlite Pool for metastore"),
         };
         store
             .create_tables()
@@ -138,30 +137,42 @@ impl SlateDBMetastore {
         store
     }
 
-   #[instrument(
-        name = "SqliteMetastore::create_tables",
-        level = "debug",
-        skip(self),
-        fields(ok),
-        err
-    )]
-    pub async fn create_tables(&self) -> Result<()> {
-        let connection = self
-            .sqlite_db
-            .conn()
-            .await
-            .context(metastore_err::CoreSqliteSnafu)?;
-
-        connection.interact(|conn| -> SqlResult<usize> {
-            conn.execute("BEGIN", [])?;
-            conn.execute(METASTORE_TABLES_CREATE_TABLE, [])?;
-            conn.execute("COMMIT", [])
-        }).await?
-        .context(metastore_err::CreateTablesSnafu)?;
-
-        tracing::Span::current().record("ok", true);
-        Ok(())
+    pub async fn create_pool(conn_str: &str) -> Result<Pool> {
+        let pool = Pool::builder(
+            Manager::new(
+                conn_str, 
+                Runtime::Tokio1)
+            )
+            .max_size(8)
+            .build()
+            .context(metastore_err::BuildPoolSnafu)?;
+        Ok(pool)
     }
+
+//    #[instrument(
+//         name = "SqliteMetastore::create_tables",
+//         level = "debug",
+//         skip(self),
+//         fields(ok),
+//         err
+//     )]
+//     pub async fn create_tables(&self) -> Result<()> {
+//         let connection = self
+//             .sqlite_db
+//             .conn()
+//             .await
+//             .context(metastore_err::CoreSqliteSnafu)?;
+
+//         connection.interact(|conn| -> SqlResult<usize> {
+//             conn.execute("BEGIN", [])?;
+//             conn.execute(METASTORE_TABLES_CREATE_TABLE, [])?;
+//             conn.execute("COMMIT", [])
+//         }).await?
+//         .context(metastore_err::CreateTablesSnafu)?;
+
+//         tracing::Span::current().record("ok", true);
+//         Ok(())
+//     }
 
     #[cfg(test)]
     #[must_use]
@@ -300,32 +311,35 @@ impl Metastore for SlateDBMetastore {
         err
     )]
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>> {
-        let key = format!("{KEY_VOLUME}/{}", volume.ident);
+        // let key = format!("{KEY_VOLUME}/{}", volume.ident);
         let object_store = volume.get_object_store()?;
-        let rwobject = self
-            .create_object(&key, MetastoreObjectType::Volume, volume.clone())
-            .await
-            .map_err(|e| {
-                if matches!(e, metastore_err::Error::ObjectAlreadyExists { .. }) {
-                    metastore_err::VolumeAlreadyExistsSnafu {
-                        volume: volume.ident.clone(),
-                    }
-                    .build()
-                } else {
-                    e
-                }
-            })?;
-        self.object_store_cache.insert(volume.ident.clone(), object_store);
+
+        let rwobject = RwObject::new(volume);
+        let inserted_count = crate::sqlite::crud::volumes::create_volume(&self.sqlite_db, rwobject.clone())
+            .await?;
+
+        tracing::debug!("Volume {} created, rows inserted {inserted_count}", rwobject.ident);
+
+        // let rwobject = self
+        //     .create_object(&key, MetastoreObjectType::Volume, volume.clone())
+        //     .await
+        //     .map_err(|e| {
+        //         if matches!(e, metastore_err::Error::ObjectAlreadyExists { .. }) {
+        //             metastore_err::VolumeAlreadyExistsSnafu {
+        //                 volume: volume.ident.clone(),
+        //             }
+        //             .build()
+        //         } else {
+        //             e
+        //         }
+        //     })?;
+        self.object_store_cache.insert(rwobject.ident.clone(), object_store);
         Ok(rwobject)
     }
 
     #[instrument(name = "Metastore::get_volume", level = "trace", skip(self), err)]
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
-        let key = format!("{KEY_VOLUME}/{name}");
-        self.db
-            .get(&key)
-            .await
-            .context(metastore_err::UtilSlateDBSnafu)
+        crate::sqlite::crud::volumes::get_volume(&self.sqlite_db, name).await
     }
 
     // TODO: Allow rename only here or on REST API level 

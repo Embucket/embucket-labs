@@ -247,6 +247,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Failed to build pool"))]
+    BuildPool {
+        #[snafu(source)]
+        error: deadpool::managed::BuildError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Error creating sqlite schema: {error}"))]
     CoreSqlite {
         #[snafu(source)]
@@ -257,6 +265,15 @@ pub enum Error {
 
     #[snafu(display("Create metastore tables error: {error}"))]
     CreateTables {
+        #[snafu(source)]
+        error: rusqlite::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+
+    #[snafu(display("Sql error: {error}"))]
+    Sql {
         #[snafu(source)]
         error: rusqlite::Error,
         #[snafu(implicit)]

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+use diesel::prelude::*;
 
 use super::DatabaseIdent;
 

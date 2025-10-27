@@ -11,12 +11,13 @@ This crate provides a consistent way for other Embucket components to access and
 To run migrations use:
 
 ```bash
-diesel migration run --database-url "file:sqlite_data/metastore.db"
-```
+echo MIGRATION_DIRECTORY=crates/core-metastore/src/sqlite/migrations >> .env
 
-To get schema use:
+# run migrations (for first time it creates database tables)
+    diesel migration run --database-url "file:sqlite_data/metastore.db"
 
-```bash
+# get diesel schema (for development)
 diesel print-schema --database-url "file:sqlite_data/metastore.db"
 ```
+
 

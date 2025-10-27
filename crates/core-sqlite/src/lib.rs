@@ -7,7 +7,7 @@ pub mod vfs;
 pub use error::*;
 
 use cfg_if::cfg_if;
-use deadpool_sqlite::{Config, Object, Pool, Runtime};
+use deadpool_sqlite::{Config, Object, Pool, Runtime, BuildError, Manager};
 use error::{self as sqlite_error};
 use rusqlite::Result as SqlResult;
 use slatedb::Db;
@@ -23,16 +23,15 @@ pub struct SqliteDb {
 
 #[tracing::instrument(level = "debug", name = "SqliteDb::create_pool", fields(conn_str), err)]
 fn create_pool(db_name: &str) -> Result<Pool> {
-    let pool = Config::new(db_name)
+    Ok(Config::new(db_name)
         .create_pool(Runtime::Tokio1)
-        .context(sqlite_error::CreatePoolSnafu)?;
-    Ok(pool)
+        .context(sqlite_error::CreatePoolSnafu)?)
 }
 
 impl SqliteDb {
     #[tracing::instrument(name = "SqliteDb::new", skip(_db), err)]
     #[allow(clippy::expect_used)]
-    pub async fn new(_db: Arc<Db>, db_name: &str) -> Result<Self> {
+    pub async fn new(_db: Arc<Db>, db_name: &str, diesel: bool) -> Result<Self> {
         cfg_if! {
             // if #[cfg(feature = "vfs")] {
             // permanently disable this piece of code
