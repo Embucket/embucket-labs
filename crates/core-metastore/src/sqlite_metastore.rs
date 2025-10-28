@@ -18,6 +18,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use core_utils::Db;
 use core_utils::scan_iterator::{ScanIterator, VecScanIterator};
+use diesel::{migration, migration::MigrationVersion};
 use rusqlite::Result as SqlResult;
 use dashmap::DashMap;
 use futures::{StreamExt, TryStreamExt};
@@ -33,13 +34,15 @@ use snafu::ResultExt;
 use strum::Display;
 use tracing::instrument;
 use uuid::Uuid;
+use core_sqlite::SqliteDb;
 
-use deadpool_diesel::sqlite::{Manager, Pool, Runtime};
-
-use crate::sqlite;
+use deadpool_diesel::sqlite::{Manager, Pool as DieselPool, Runtime};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use crate::sqlite::crud;
 
 pub const SQLITE_METASTORE_DB_NAME: &str = "sqlite_data/metastore.db";
 
+pub const EMBED_MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/sqlite/migrations");
 
 // const METASTORE_TABLES_CREATE_TABLE: &str = "
 // CREATE TABLE IF NOT EXISTS tables (
@@ -83,7 +86,7 @@ const KEY_TABLE: &str = "tbl";
 pub struct SlateDBMetastore {
     db: Db,
     object_store_cache: DashMap<VolumeIdent, Arc<dyn ObjectStore>>,
-    pub sqlite_pool: Pool,
+    pub diesel_pool: DieselPool,
 }
 
 impl std::fmt::Debug for SlateDBMetastore {
@@ -99,14 +102,19 @@ impl SlateDBMetastore {
             std::fs::create_dir_all(dir_path).context(metastore_err::CreateDirSnafu)?;
         }
 
+        // use this machinery just to set pragmas
+        let _ = SqliteDb::new(db.slate_db(), SQLITE_METASTORE_DB_NAME)
+            .await
+            .context(metastore_err::CoreSqliteSnafu)?;
+
         let metastore = Self {
             //
             db: db.clone(), // to be removed
             object_store_cache: DashMap::new(),  // to be removed
             //
-            sqlite_pool: Self::create_pool(SQLITE_METASTORE_DB_NAME).await?,
+            diesel_pool: Self::create_pool(SQLITE_METASTORE_DB_NAME).await?,
         };
-        // metastore.create_tables().await?;
+        metastore.create_tables().await?;
         Ok(metastore)
     }
 
@@ -121,15 +129,19 @@ impl SlateDBMetastore {
             .name()
             .map_or("<unnamed>", |s| s.split("::").last().unwrap_or("<unnamed>"));
         let sqlite_db_name = format!("file:{thread_name}_meta?mode=memory");
+        let _ = SqliteDb::new(utils_db.slate_db(), &sqlite_db_name)
+            .await
+            .expect("Failed to create Sqlite Db for metastore");        
         let store = Self {
             //
             db: utils_db.clone(), // to be removed
             object_store_cache: DashMap::new(),  // to be removed
             //
-            sqlite_pool: Self::create_pool(&sqlite_db_name)
+            diesel_pool: Self::create_pool(&sqlite_db_name)
                 .await
-                .expect("Failed to create Sqlite Pool for metastore"),
+                .expect("Failed to create Diesel Pool for metastore"),
         };
+
         store
             .create_tables()
             .await
@@ -137,8 +149,8 @@ impl SlateDBMetastore {
         store
     }
 
-    pub async fn create_pool(conn_str: &str) -> Result<Pool> {
-        let pool = Pool::builder(
+    pub async fn create_pool(conn_str: &str) -> Result<DieselPool> {
+        let pool = DieselPool::builder(
             Manager::new(
                 conn_str, 
                 Runtime::Tokio1)
@@ -149,30 +161,27 @@ impl SlateDBMetastore {
         Ok(pool)
     }
 
-//    #[instrument(
-//         name = "SqliteMetastore::create_tables",
-//         level = "debug",
-//         skip(self),
-//         fields(ok),
-//         err
-//     )]
-//     pub async fn create_tables(&self) -> Result<()> {
-//         let connection = self
-//             .sqlite_db
-//             .conn()
-//             .await
-//             .context(metastore_err::CoreSqliteSnafu)?;
+   #[instrument(
+        name = "SqliteMetastore::create_tables",
+        level = "debug",
+        skip(self),
+        fields(ok),
+        err
+    )]
+    pub async fn create_tables(&self) -> Result<()> {
+        let conn = self.diesel_pool.get()
+            .await
+            .context(metastore_err::DieselPoolSnafu)?;
+        
+        let migrations = conn.interact(|conn| -> migration::Result<Vec<String>> {
+            Ok(conn.run_pending_migrations(EMBED_MIGRATIONS)?.iter().map(|m| m.to_string()).collect::<Vec<String>>())
+        })
+        .await?
+        .context(metastore_err::GenericSnafu)?;
 
-//         connection.interact(|conn| -> SqlResult<usize> {
-//             conn.execute("BEGIN", [])?;
-//             conn.execute(METASTORE_TABLES_CREATE_TABLE, [])?;
-//             conn.execute("COMMIT", [])
-//         }).await?
-//         .context(metastore_err::CreateTablesSnafu)?;
-
-//         tracing::Span::current().record("ok", true);
-//         Ok(())
-//     }
+        tracing::info!("create_tables using migrations: {migrations:?}");
+        Ok(())
+    }
 
     #[cfg(test)]
     #[must_use]
@@ -315,7 +324,7 @@ impl Metastore for SlateDBMetastore {
         let object_store = volume.get_object_store()?;
 
         let rwobject = RwObject::new(volume);
-        let inserted_count = crate::sqlite::crud::volumes::create_volume(&self.sqlite_db, rwobject.clone())
+        let inserted_count = crud::volumes::create_volume(&self.diesel_pool, rwobject.clone())
             .await?;
 
         tracing::debug!("Volume {} created, rows inserted {inserted_count}", rwobject.ident);
@@ -339,7 +348,7 @@ impl Metastore for SlateDBMetastore {
 
     #[instrument(name = "Metastore::get_volume", level = "trace", skip(self), err)]
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
-        crate::sqlite::crud::volumes::get_volume(&self.sqlite_db, name).await
+        crud::volumes::get_volume(&self.diesel_pool, name).await
     }
 
     // TODO: Allow rename only here or on REST API level 
@@ -366,6 +375,8 @@ impl Metastore for SlateDBMetastore {
 
     #[instrument(name = "Metastore::delete_volume", level = "debug", skip(self), err)]
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()> {
+        crud::volumes::delete_volume(&self.diesel_pool, name).await?;
+        
         let key = format!("{KEY_VOLUME}/{name}");
         let databases_using = self
             .iter_databases()

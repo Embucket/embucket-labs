@@ -14,6 +14,10 @@ use slatedb::Db;
 use snafu::ResultExt;
 use std::sync::Arc;
 
+// TODO:
+// Transform (mostly rename) SqliteDb just to connection pool
+// Supporting feature="vfs" and setting pragmas when created
+
 #[derive(Clone)]
 pub struct SqliteDb {
     #[allow(dead_code)]
@@ -31,7 +35,7 @@ fn create_pool(db_name: &str) -> Result<Pool> {
 impl SqliteDb {
     #[tracing::instrument(name = "SqliteDb::new", skip(_db), err)]
     #[allow(clippy::expect_used)]
-    pub async fn new(_db: Arc<Db>, db_name: &str, diesel: bool) -> Result<Self> {
+    pub async fn new(_db: Arc<Db>, db_name: &str) -> Result<Self> {
         cfg_if! {
             // if #[cfg(feature = "vfs")] {
             // permanently disable this piece of code

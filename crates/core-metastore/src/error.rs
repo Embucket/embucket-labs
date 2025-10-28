@@ -256,6 +256,14 @@ pub enum Error {
     },
 
     #[snafu(display("Error creating sqlite schema: {error}"))]
+    DieselPool {
+        #[snafu(source)]
+        error: deadpool::managed::PoolError<deadpool_diesel::Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Core Sqlite error: {error}"))]
     CoreSqlite {
         #[snafu(source)]
         error: core_sqlite::Error,
@@ -270,7 +278,6 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-
 
     #[snafu(display("Sql error: {error}"))]
     Sql {
@@ -297,6 +304,14 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Generic error: {error}"))]
+    Generic {
+        #[snafu(source)]
+        error: Box<dyn std::error::Error + 'static + Send + Sync>,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 
@@ -307,5 +322,12 @@ impl From<deadpool_sqlite::InteractError> for Error {
             error: core_sqlite::StringError(format!("{err:?}")),
             location: location!(),
         }
+    }
+}
+
+// syntax sugar to use ? without .context()
+impl From<deadpool::managed::PoolError<deadpool_diesel::Error>> for Error {
+    fn from(error: deadpool::managed::PoolError<deadpool_diesel::Error>) -> Self {
+        Self::DieselPool { error, location: location!() }
     }
 }
