@@ -522,7 +522,7 @@ test_query!(
 );
 
 test_query!(
-    merge_into_dbt_pattern_timestamp_corruption_bug,
+    merge_into_between_timestamp,
     "SELECT
         COUNT(*) as total_rows,
         MIN(start_tstamp) as min_start,
