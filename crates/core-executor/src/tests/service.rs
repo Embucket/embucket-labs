@@ -16,6 +16,7 @@ use core_metastore::{
 };
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
 use std::sync::Arc;
+use futures::future::join_all;
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
@@ -584,6 +585,43 @@ async fn test_max_concurrency_level2() {
         res.is_err(),
         "Expected concurrency limit error but got {res:?}"
     );
+}
+
+
+#[tokio::test]
+#[allow(clippy::expect_used)]
+async fn test_parallel_run() {
+    const MAX_CONCURRENCY_LEVEL: usize = 10;
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let execution_svc = Arc::new(
+        CoreExecutionService::new(
+            metastore.clone(),
+            history_store.clone(),
+            Arc::new(Config::default().with_max_concurrency_level(MAX_CONCURRENCY_LEVEL)),
+        )
+        .await
+        .expect("Failed to create execution service"),
+    );
+
+    let _session = execution_svc
+        .create_session("test_session_id")
+        .await
+        .expect("Failed to create session");
+
+    let mut futures = Vec::new();
+    for _ in 0..MAX_CONCURRENCY_LEVEL {
+        let future = execution_svc.submit_query(
+            "test_session_id",
+            "SELECT 1",
+            QueryContext::default(),
+        );
+        futures.push(future);
+    }
+
+    let results = join_all(futures).await;
+    let ok_count = results.iter().map(|r|r.is_ok()).count();
+    assert_eq!(ok_count, MAX_CONCURRENCY_LEVEL);
 }
 
 #[tokio::test]
