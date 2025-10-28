@@ -588,7 +588,7 @@ async fn test_max_concurrency_level2() {
 }
 
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::expect_used)]
 async fn test_parallel_run() {
     const MAX_CONCURRENCY_LEVEL: usize = 10;
@@ -604,24 +604,37 @@ async fn test_parallel_run() {
         .expect("Failed to create execution service"),
     );
 
-    let _session = execution_svc
-        .create_session("test_session_id")
-        .await
-        .expect("Failed to create session");
+    let _ = execution_svc
+            .create_session("test_session_id")
+            .await
+            .expect("Failed to create session");
+
+    async fn exec_query(execution_svc: Arc<dyn ExecutionService>, sql: &str) -> crate::Result<QueryResult> {
+        execution_svc.query(
+            "test_session_id",
+            sql,
+            QueryContext::default(),
+        ).await
+    }
 
     let mut futures = Vec::new();
     for _ in 0..MAX_CONCURRENCY_LEVEL {
-        let future = execution_svc.submit_query(
-            "test_session_id",
+        let future = tokio::task::spawn(exec_query(
+            execution_svc.clone(),
             "SELECT 1",
-            QueryContext::default(),
-        );
+        ));
         futures.push(future);
     }
 
-    let results = join_all(futures).await;
-    let ok_count = results.iter().map(|r|r.is_ok()).count();
-    assert_eq!(ok_count, MAX_CONCURRENCY_LEVEL);
+    let results = join_all(futures)
+        .await
+        .into_iter()
+        .map(|r| r.expect("Task panicked"))
+        // .map(|_| Ok::<String, Error>(String::from("OK")))
+        .collect::<Vec<_>>();
+    let fails_count = results.iter().filter(|r| r.is_err()).count();
+    eprintln!("queries results: {results:?}");
+    assert_eq!(0, fails_count);
 }
 
 #[tokio::test]

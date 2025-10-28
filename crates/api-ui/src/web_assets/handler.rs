@@ -8,7 +8,7 @@ use axum::{
     body::Body,
     extract::Path,
     http::header,
-    response::{IntoResponse, Redirect, Response},
+    response::Response,
 };
 use mime_guess;
 use snafu::ResultExt;
