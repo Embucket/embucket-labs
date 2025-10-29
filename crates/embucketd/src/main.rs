@@ -203,7 +203,14 @@ async fn async_main(
     let db = Db::new(slate_db);
 
     let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(SlateDBHistoryStore::new(db.clone()).await?);
+    let history_store = Arc::new(
+        SlateDBHistoryStore::new(
+            db.clone(),
+            opts.query_history_db_name.clone(),
+            opts.query_results_db_name.clone(),
+        )
+        .await?,
+    );
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(

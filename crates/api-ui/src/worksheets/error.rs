@@ -85,7 +85,11 @@ impl IntoStatusCode for Error {
                 },
                 WorksheetError::NothingToUpdate { .. } => StatusCode::BAD_REQUEST,
             },
-            Self::List { .. } | Self::Datetime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::List { source, .. } => match source {
+                core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            Self::Datetime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

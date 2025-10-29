@@ -4,12 +4,7 @@ use super::error::{
 };
 use crate::error::{Error, Result};
 use api_ui_static_assets::WEB_ASSETS_TARBALL;
-use axum::{
-    body::Body,
-    extract::Path,
-    http::header,
-    response::{IntoResponse, Redirect, Response},
-};
+use axum::{body::Body, extract::Path, http::header, response::Response};
 use mime_guess;
 use snafu::ResultExt;
 use std::io::Cursor;

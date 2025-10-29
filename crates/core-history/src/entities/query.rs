@@ -2,8 +2,12 @@ use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr};
+use std::sync::Arc;
+use std::{fmt::Display, str::FromStr, sync::LazyLock};
+
+static LATEST_TIMESTAMP: LazyLock<Arc<Mutex<i64>>> = LazyLock::new(|| Arc::new(Mutex::new(0_i64)));
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -75,8 +79,22 @@ impl QueryRecord {
     #[must_use]
     pub fn new(query: &str, worksheet_id: Option<WorksheetId>) -> Self {
         let start_time = Utc::now();
+
+        // following block forces returned QueryRecordId to be unique
+        let mut latest_timestamp = LATEST_TIMESTAMP.lock();
+        let mut current_timestamp = start_time.timestamp_micros();
+        // it can be equal if two queries executed just simultaneously
+        // ot it is can be less at previous invocation we already fixed the timestamp
+        if current_timestamp <= *latest_timestamp {
+            // just bump to the next microsecond
+            *latest_timestamp += 1;
+            current_timestamp = *latest_timestamp;
+        } else {
+            *latest_timestamp = current_timestamp;
+        }
+
         Self {
-            id: Self::inverted_id(QueryRecordId(start_time.timestamp_micros())),
+            id: Self::inverted_id(QueryRecordId(current_timestamp)),
             worksheet_id,
             query: String::from(query),
             start_time,
