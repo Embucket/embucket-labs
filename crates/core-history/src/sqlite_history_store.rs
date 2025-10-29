@@ -12,9 +12,6 @@ use rusqlite::named_params;
 use snafu::ResultExt;
 use tracing::instrument;
 
-pub const SQLITE_HISTORY_DB_NAME: &str = "sqlite_data/queries.db";
-pub const SQLITE_RESULTS_DB_NAME: &str = "sqlite_data/results.db";
-
 const RESULTS_CREATE_TABLE: &str = "
 CREATE TABLE IF NOT EXISTS results (
     id TEXT PRIMARY KEY,                -- using TEXT for timestamp (ISO8601)
@@ -66,16 +63,20 @@ impl std::fmt::Debug for SlateDBHistoryStore {
 
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
-    pub async fn new(db: core_utils::Db) -> Result<Self> {
-        if let Some(dir_path) = std::path::Path::new(SQLITE_HISTORY_DB_NAME).parent() {
+    pub async fn new(db: core_utils::Db, history_db_name: String, results_db_name: String) -> Result<Self> {
+        // try creating dirs for every separate db file
+        if let Some(dir_path) = std::path::Path::new(&history_db_name).parent() {
             std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
         }
+        if let Some(dir_path) = std::path::Path::new(&results_db_name).parent() {
+            std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
+        }        
 
         let history_store = Self {
-            queries_db: SqliteDb::new(db.slate_db(), SQLITE_HISTORY_DB_NAME)
+            queries_db: SqliteDb::new(db.slate_db(), &history_db_name)
                 .await
                 .expect("Failed to initialize sqlite store"),
-            results_db: SqliteDb::new(db.slate_db(), SQLITE_RESULTS_DB_NAME)
+            results_db: SqliteDb::new(db.slate_db(), &results_db_name)
                 .await
                 .expect("Failed to initialize sqlite store"),
         };
@@ -743,11 +744,11 @@ impl HistoryStore for SlateDBHistoryStore {
             .interact(move |conn| -> SqlResult<(i64, Bytes, String)> {
                 let mut stmt = conn.prepare(
                     "SELECT
-                    rows_count,
-                    result,
-                    data_format
-                FROM results
-                WHERE id = ?1",
+                        rows_count,
+                        result,
+                        data_format
+                    FROM results
+                    WHERE id = ?1",
                 )?;
 
                 // result will be NULL if no corresponding record in results
@@ -757,6 +758,14 @@ impl HistoryStore for SlateDBHistoryStore {
                     let data_format = row.get::<_, String>(2)?;
 
                     Ok((rows_count, raw_result, data_format))
+                })
+                .or_else(|err| {
+                    // in case if there are no results available for this query
+                    // return empty resut set
+                    if err == rusqlite::Error::QueryReturnedNoRows {
+                        return Ok((0, ResultSet::default().serialize_with_soft_limit(0).unwrap().into(), String::new()));
+                    }
+                    Err(err)
                 })
             })
             .await?
