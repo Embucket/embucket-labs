@@ -693,11 +693,7 @@ pub async fn create_executor(
             .await
             .context(TestMetastoreSnafu)?,
     );
-    let history_store = Arc::new(
-        SlateDBHistoryStore::new(db.clone())
-            .await
-            .context(TestHistoryStoreSnafu)?,
-    );
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -742,11 +738,7 @@ pub async fn create_executor_with_early_volumes_creation(
     let used_volumes =
         create_volumes(metastore.clone(), &object_store_type, override_volumes).await?;
 
-    let history_store = Arc::new(
-        SlateDBHistoryStore::new(db.clone())
-            .await
-            .context(TestHistoryStoreSnafu)?,
-    );
+    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),

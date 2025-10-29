@@ -29,6 +29,7 @@ rusqlite = { workspace = true }
 cfg-if = { workspace = true }
 deadpool-sqlite = { workspace = true }
 tokio = { workspace = true }
+parking_lot = "0.12.4"
 
 [dev-dependencies]
 tokio = { workspace = true }

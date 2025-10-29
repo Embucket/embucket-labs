@@ -87,21 +87,8 @@ impl IntoResponse for Error {
             | core_metastore::Error::TableNotFound { .. }
             | core_metastore::Error::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             core_metastore::Error::ObjectStore { .. }
-            | core_metastore::Error::ObjectStorePath { .. }
-            | core_metastore::Error::CreateDirectory { .. }
-            | core_metastore::Error::SlateDB { .. }
-            | core_metastore::Error::UtilSlateDB { .. }
-            | core_metastore::Error::Iceberg { .. }
-            | core_metastore::Error::IcebergSpec { .. }
-            | core_metastore::Error::Serde { .. }
-            | core_metastore::Error::TableMetadataBuilder { .. }
-            | core_metastore::Error::TableObjectStoreNotFound { .. }
-            | core_metastore::Error::CreateDir { .. }
-            | core_metastore::Error::CoreSqlite { .. }
-            | core_metastore::Error::CreateTables { .. }
-            | core_metastore::Error::Deadpool { .. }
-            | core_metastore::Error::Diesel { .. }
-            | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            | core_metastore::Error::ObjectStorePath { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            _ => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         // Record the result as part of the current span.

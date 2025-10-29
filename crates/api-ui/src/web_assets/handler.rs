@@ -4,12 +4,7 @@ use super::error::{
 };
 use crate::error::{Error, Result};
 use api_ui_static_assets::WEB_ASSETS_TARBALL;
-use axum::{
-    body::Body,
-    extract::Path,
-    http::header,
-    response::{IntoResponse, Redirect, Response},
-};
+use axum::{body::Body, extract::Path, http::header, response::Response};
 use mime_guess;
 use snafu::ResultExt;
 use std::io::Cursor;
@@ -43,34 +38,19 @@ fn get_file_from_tar(file_name: &str) -> Result<Vec<u8>> {
 }
 
 pub async fn root_handler() -> Result<Response> {
-    Ok(Redirect::to("/index.html").into_response())
-}
-
-pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
-    let file_name = path.trim_start_matches(WEB_ASSETS_MOUNT_PATH); // changeable mount path
-
-    let content = get_file_from_tar(file_name);
-    match content {
-        Err(err) => match err {
-            Error::WebAssets { source } => match source {
-                WebAssetsError::NotFound { .. } => Ok(Redirect::to("/index.html").into_response()),
-                err => Err(err.into()),
-            },
-            _ => Err(err),
-        },
+    match get_file_from_tar("index.html") {
+        Err(err) => Err(err),
         Ok(mut content) => {
             // Replace __API_URL__ placeholder in index.html with the actual API URL
-            if file_name == "index.html" {
-                let api_url = std::env::var("API_URL")
-                    .unwrap_or_else(|_| "http://localhost:3000".to_string());
-                let content_str = String::from_utf8_lossy(&content);
-                let updated_content = content_str.replace("__API_URL__", &api_url);
-                content = updated_content.into_bytes();
-            }
+            let api_url =
+                std::env::var("API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+            let content_str = String::from_utf8_lossy(&content);
+            let updated_content = content_str.replace("__API_URL__", &api_url);
+            content = updated_content.into_bytes();
 
-            let mime = mime_guess::from_path(path)
+            let mime = mime_guess::from_path("index.html")
                 .first_raw()
-                .unwrap_or("application/octet-stream");
+                .unwrap_or("text/html"); // Use text/html as a safe default
             Ok(Response::builder()
                 .header(header::CONTENT_TYPE, mime.to_string())
                 .header(header::CONTENT_LENGTH, content.len().to_string())
@@ -78,4 +58,48 @@ pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
                 .context(ResponseBodySnafu)?)
         }
     }
+}
+
+pub async fn tar_handler(Path(path): Path<String>) -> Result<Response> {
+    let file_name = path.trim_start_matches(WEB_ASSETS_MOUNT_PATH); // Changeable mount path
+
+    // Determine content and effective file name (for MIME type and URL replacement)
+    let (mut content, effective_file_name) = match get_file_from_tar(file_name) {
+        Ok(content) => {
+            // Found the requested file (e.g., /styles.css)
+            (content, file_name)
+        }
+        Err(err) => match err {
+            Error::WebAssets { source } => match source {
+                WebAssetsError::NotFound { .. } => {
+                    // Not found (e.g., /home), serve index.html as fallback for SPA routing
+                    match get_file_from_tar("index.html") {
+                        Ok(index_content) => (index_content, "index.html"),
+                        Err(index_err) => return Err(index_err), // Critical: index.html missing
+                    }
+                }
+                err => return Err(err.into()),
+            },
+            _ => return Err(err),
+        },
+    };
+
+    // Replace __API_URL__ placeholder in index.html with the actual API URL
+    if effective_file_name == "index.html" {
+        let api_url =
+            std::env::var("API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let content_str = String::from_utf8_lossy(&content);
+        let updated_content = content_str.replace("__API_URL__", &api_url);
+        content = updated_content.into_bytes();
+    }
+
+    // Guess MIME type from the *actual* file being served, not the original path
+    let mime = mime_guess::from_path(effective_file_name)
+        .first_raw()
+        .unwrap_or("application/octet-stream");
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, mime.to_string())
+        .header(header::CONTENT_LENGTH, content.len().to_string())
+        .body(Body::from(content))
+        .context(ResponseBodySnafu)?)
 }

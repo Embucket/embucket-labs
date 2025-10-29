@@ -94,7 +94,10 @@ impl IntoStatusCode for Error {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Query { source, .. } => match &source {
-                QueryError::Execution { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                QueryError::Execution { source, .. } => match source {
+                    core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
+                    _ => StatusCode::UNPROCESSABLE_ENTITY,
+                },
                 QueryError::Store { .. } => StatusCode::BAD_REQUEST,
                 QueryError::ResultParse { .. }
                 | QueryError::Utf8 { .. }
@@ -104,6 +107,10 @@ impl IntoStatusCode for Error {
             },
             Self::Queries { source, .. } => match &source {
                 QueryError::ResultParse { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+                QueryError::Execution { source, .. } => match source {
+                    core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::GetQueryRecord { source, .. } => match &source {

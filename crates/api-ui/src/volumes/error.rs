@@ -88,7 +88,10 @@ impl IntoStatusCode for Error {
                 core_metastore::Error::Validation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::List { source, .. } => match source {
+                core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
             Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
         }
     }

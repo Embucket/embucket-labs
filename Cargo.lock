@@ -2314,6 +2314,7 @@ dependencies = [
  "error-stack-trace",
  "futures",
  "mockall",
+ "parking_lot",
  "rusqlite",
  "serde",
  "serde_json",

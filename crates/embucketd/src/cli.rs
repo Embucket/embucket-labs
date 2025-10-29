@@ -234,6 +234,20 @@ pub struct CliOpts {
     )]
     pub query_history_rows_limit: usize,
 
+    #[arg(
+        long,
+        env = "QUERY_HISTORY_DB_NAME",
+        default_value = "sqlite_data/queries.db"
+    )]
+    pub query_history_db_name: String,
+
+    #[arg(
+        long,
+        env = "QUERY_RESULTS_DB_NAME",
+        default_value = "sqlite_data/results.db"
+    )]
+    pub query_results_db_name: String,
+
     // should unset JWT_SECRET env var after loading
     #[arg(
         long,
@@ -289,21 +303,21 @@ enum StoreBackend {
 
 impl CliOpts {
     #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    pub fn object_store_backend(self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
+    pub fn object_store_backend(&self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
         match self.backend {
             StoreBackend::S3 => {
                 let s3_allow_http = self.allow_http.unwrap_or(false);
 
                 let s3_builder = AmazonS3Builder::new()
-                    .with_access_key_id(self.access_key_id.unwrap())
-                    .with_secret_access_key(self.secret_access_key.unwrap())
-                    .with_region(self.region.unwrap())
-                    .with_bucket_name(self.bucket.unwrap())
+                    .with_access_key_id(self.access_key_id.clone().unwrap())
+                    .with_secret_access_key(self.secret_access_key.clone().unwrap())
+                    .with_region(self.region.clone().unwrap())
+                    .with_bucket_name(self.bucket.clone().unwrap())
                     .with_conditional_put(S3ConditionalPut::ETagMatch);
 
-                if let Some(endpoint) = self.endpoint {
+                if let Some(endpoint) = &self.endpoint {
                     s3_builder
-                        .with_endpoint(&endpoint)
+                        .with_endpoint(endpoint)
                         .with_allow_http(s3_allow_http)
                         .build()
                         .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
@@ -314,7 +328,7 @@ impl CliOpts {
                 }
             }
             StoreBackend::File => {
-                let file_storage_path = self.file_storage_path.unwrap();
+                let file_storage_path = self.file_storage_path.clone().unwrap();
                 let path = file_storage_path.as_path();
                 if !path.exists() || !path.is_dir() {
                     fs::create_dir(path).unwrap();

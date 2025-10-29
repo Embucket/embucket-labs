@@ -1,0 +1,14 @@
+---
+source: crates/core-executor/src/tests/query.rs
+description: "\"SELECT COUNT(*) as row_count, COUNT(CASE WHEN model = 'existing_1' THEN 1 END) as existing_1_count, COUNT(CASE WHEN model = 'existing_2' THEN 1 END) as existing_2_count FROM embucket.public.manifest\""
+info: "Setup queries: CREATE TABLE embucket.public.manifest (model VARCHAR, last_success TIMESTAMP); INSERT INTO embucket.public.manifest VALUES ('existing_1', CAST('2025-01-01' AS TIMESTAMP)); INSERT INTO embucket.public.manifest VALUES ('existing_2', CAST('2025-01-02' AS TIMESTAMP)); MERGE INTO manifest m USING (SELECT column1 as model, column2 as last_success FROM (VALUES ('x', CAST('2025-01-01' AS TIMESTAMP))) WHERE FALSE) s ON m.model = s.model WHEN MATCHED THEN UPDATE SET last_success = s.last_success WHEN NOT MATCHED THEN INSERT (model, last_success) VALUES (s.model, s.last_success)"
+---
+Ok(
+    [
+        "+-----------+------------------+------------------+",
+        "| row_count | existing_1_count | existing_2_count |",
+        "+-----------+------------------+------------------+",
+        "| 2         | 1                | 1                |",
+        "+-----------+------------------+------------------+",
+    ],
+)
