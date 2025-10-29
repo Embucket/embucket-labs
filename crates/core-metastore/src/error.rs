@@ -311,7 +311,15 @@ pub enum Error {
         error: Box<dyn std::error::Error + 'static + Send + Sync>,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
+
+    #[snafu(display("UUID parse error: {error}"))]
+    UuidParse {
+        #[snafu(source)]
+        error: uuid::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 

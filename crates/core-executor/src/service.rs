@@ -205,12 +205,17 @@ impl CoreExecutionService {
     #[allow(clippy::cognitive_complexity)]
     async fn bootstrap(metastore: Arc<dyn Metastore>) -> Result<()> {
         let ident = DEFAULT_CATALOG.to_string();
-        metastore
+        let volume_res = metastore
             .create_volume(Volume::new(ident.clone(), VolumeType::Memory))
-            .await
-            .context(ex_error::BootstrapSnafu {
+            .await;
+        if let Err(core_metastore::Error::VolumeAlreadyExists { .. }) = &volume_res {
+            tracing::info!("Bootstrap volume '{}' skipped: already exists", ident);
+        }
+        else {
+            volume_res.context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?;
+        }
 
         metastore
             .create_database(Database::new(ident.clone(), ident.clone()))
