@@ -28,10 +28,9 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let volumes = self
             .metastore
-            .iter_volumes()
-            .collect()
+            .get_volumes()
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         for volume in volumes {
             builder.add_volume(
                 &volume.ident,

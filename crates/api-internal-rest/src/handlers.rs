@@ -29,10 +29,8 @@ pub struct QueryParameters {
 pub async fn list_volumes(State(state): State<AppState>) -> Result<Json<RwObjectVec<Volume>>> {
     let volumes = state
         .metastore
-        .iter_volumes()
-        .collect()
+        .get_volumes()
         .await
-        .context(metastore_error::UtilSlateDBSnafu)
         .context(error::ListVolumesSnafu)?
         .iter()
         .map(|v| hide_sensitive(v.clone()))

@@ -15,7 +15,7 @@ use object_store::ObjectStore;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
-    fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>>;
+    async fn get_volumes(&self) -> Result<Vec<RwObject<Volume>>>;
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
     async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;

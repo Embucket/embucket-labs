@@ -53,8 +53,7 @@ async fn test_create_volumes() {
         .await
         .expect("create volume failed");
     let all_volumes = ms
-        .iter_volumes()
-        .collect()
+        .get_volumes()
         .await
         .expect("list volumes failed");
 
@@ -127,8 +126,7 @@ async fn test_delete_volume() {
         .await
         .expect("create volume failed");
     let all_volumes = ms
-        .iter_volumes()
-        .collect()
+        .get_volumes()
         .await
         .expect("list volumes failed");
     let get_volume = ms
@@ -139,8 +137,7 @@ async fn test_delete_volume() {
         .await
         .expect("delete volume failed");
     let all_volumes_after = ms
-        .iter_volumes()
-        .collect()
+        .get_volumes()
         .await
         .expect("list volumes failed");
 

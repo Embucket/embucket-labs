@@ -35,6 +35,14 @@ pub enum DFExternalError {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Metastore error: {error}"))]
+    Metastore {
+        #[snafu(source)]
+        error: core_metastore::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    // TODO: remove after finishing Metastore sqlite implementation    
     #[snafu(display("Core utils error: {error}"))]
     CoreUtils {
         #[snafu(source)]

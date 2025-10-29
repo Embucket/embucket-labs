@@ -162,7 +162,7 @@ impl SlateDBMetastore {
     }
 
    #[instrument(
-        name = "SqliteMetastore::create_tables",
+        name = "SqliteSqliteMetastore::create_tables",
         level = "debug",
         skip(self),
         fields(ok),
@@ -197,7 +197,7 @@ impl SlateDBMetastore {
     }
 
     #[instrument(
-        name = "SlateDBMetastore::create_object",
+        name = "SlateDBSqliteMetastore::create_object",
         level = "debug",
         skip(self, object),
         err
@@ -234,7 +234,7 @@ impl SlateDBMetastore {
     }
 
     #[instrument(
-        name = "SlateDBMetastore::update_object",
+        name = "SlateDBSqliteMetastore::update_object",
         level = "debug",
         skip(self, object),
         err
@@ -261,7 +261,7 @@ impl SlateDBMetastore {
     }
 
     #[instrument(
-        name = "SlateDBMetastore::delete_object",
+        name = "SlateDBSqliteMetastore::delete_object",
         level = "debug",
         skip(self),
         err
@@ -292,7 +292,7 @@ impl SlateDBMetastore {
 
 
     // #[instrument(
-    //     name = "SlateDBMetastore::create_object",
+    //     name = "SlateDBSqliteMetastore::create_object",
     //     level = "debug",
     //     skip(self, object),
     //     err
@@ -309,12 +309,18 @@ impl SlateDBMetastore {
 
 #[async_trait]
 impl Metastore for SlateDBMetastore {
-    fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>> {
-        self.iter_objects(KEY_VOLUME.to_string())
+    #[instrument(
+        name = "SqliteMetastore::get_volumes",
+        level = "debug",
+        skip(self),
+        err
+    )]
+    async fn get_volumes(&self) -> Result<Vec<RwObject<Volume>>> {
+        crud::volumes::list_volumes(&self.diesel_pool).await
     }
 
     #[instrument(
-        name = "Metastore::create_volume",
+        name = "SqliteMetastore::create_volume",
         level = "debug",
         skip(self, volume),
         err
@@ -346,14 +352,14 @@ impl Metastore for SlateDBMetastore {
         Ok(rwobject)
     }
 
-    #[instrument(name = "Metastore::get_volume", level = "trace", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::get_volume", level = "trace", skip(self), err)]
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
         crud::volumes::get_volume(&self.diesel_pool, name).await
     }
 
     // TODO: Allow rename only here or on REST API level 
     #[instrument(
-        name = "Metastore::update_volume",
+        name = "SqliteMetastore::update_volume",
         level = "debug",
         skip(self, volume),
         err
@@ -373,7 +379,7 @@ impl Metastore for SlateDBMetastore {
         Ok(updated_volume)
     }
 
-    #[instrument(name = "Metastore::delete_volume", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::delete_volume", level = "debug", skip(self), err)]
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()> {
         crud::volumes::delete_volume(&self.diesel_pool, name).await?;
         
@@ -407,7 +413,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(
-        name = "Metastore::volume_object_store",
+        name = "SqliteMetastore::volume_object_store",
         level = "trace",
         skip(self),
         err
@@ -432,13 +438,13 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::iter_databases", level = "trace", skip(self))]
+    #[instrument(name = "SqliteMetastore::iter_databases", level = "trace", skip(self))]
     fn iter_databases(&self) -> VecScanIterator<RwObject<Database>> {
         self.iter_objects(KEY_DATABASE.to_string())
     }
 
     #[instrument(
-        name = "Metastore::create_database",
+        name = "SqliteMetastore::create_database",
         level = "debug",
         skip(self, database),
         err
@@ -458,7 +464,7 @@ impl Metastore for SlateDBMetastore {
             .await
     }
 
-    #[instrument(name = "Metastore::get_database", level = "trace", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::get_database", level = "trace", skip(self), err)]
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
         let key = format!("{KEY_DATABASE}/{name}");
         self.db
@@ -468,7 +474,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(
-        name = "Metastore::update_database",
+        name = "SqliteMetastore::update_database",
         level = "debug",
         skip(self, database),
         err
@@ -482,7 +488,7 @@ impl Metastore for SlateDBMetastore {
         self.update_object(&key, database).await
     }
 
-    #[instrument(name = "Metastore::delete_database", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::delete_database", level = "debug", skip(self), err)]
     async fn delete_database(&self, name: &str, cascade: bool) -> Result<()> {
         let schemas = self
             .iter_schemas(name)
@@ -509,7 +515,7 @@ impl Metastore for SlateDBMetastore {
         let key = format!("{KEY_DATABASE}/{name}");
         self.delete_object(&key).await
     }
-    #[instrument(name = "Metastore::iter_schemas", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::iter_schemas", level = "debug", skip(self))]
     fn iter_schemas(&self, database: &str) -> VecScanIterator<RwObject<Schema>> {
         //If database is empty, we are iterating over all schemas
         let key = if database.is_empty() {
@@ -521,7 +527,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(
-        name = "Metastore::create_schema",
+        name = "SqliteMetastore::create_schema",
         level = "debug",
         skip(self, schema),
         err
@@ -539,7 +545,7 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::get_schema", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::get_schema", level = "debug", skip(self), err)]
     async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>> {
         let key = format!("{KEY_SCHEMA}/{}/{}", ident.database, ident.schema);
         self.db
@@ -549,7 +555,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(
-        name = "Metastore::update_schema",
+        name = "SqliteMetastore::update_schema",
         level = "debug",
         skip(self, schema),
         err
@@ -559,7 +565,7 @@ impl Metastore for SlateDBMetastore {
         self.update_object(&key, schema).await
     }
 
-    #[instrument(name = "Metastore::delete_schema", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::delete_schema", level = "debug", skip(self), err)]
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()> {
         let tables = self
             .iter_tables(ident)
@@ -577,7 +583,7 @@ impl Metastore for SlateDBMetastore {
         self.delete_object(&key).await
     }
 
-    #[instrument(name = "Metastore::iter_tables", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::iter_tables", level = "debug", skip(self))]
     fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>> {
         //If database and schema is empty, we are iterating over all tables
         let key = if schema.schema.is_empty() && schema.database.is_empty() {
@@ -589,7 +595,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[allow(clippy::too_many_lines)]
-    #[instrument(name = "Metastore::create_table", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::create_table", level = "debug", skip(self), err)]
     async fn create_table(
         &self,
         ident: &TableIdent,
@@ -727,7 +733,7 @@ impl Metastore for SlateDBMetastore {
     }
 
     #[instrument(
-        name = "Metastore::update_table",
+        name = "SqliteMetastore::update_table",
         level = "debug",
         skip(self, update),
         err
@@ -804,7 +810,7 @@ impl Metastore for SlateDBMetastore {
         Ok(rw_table)
     }
 
-    #[instrument(name = "Metastore::delete_table", level = "debug", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::delete_table", level = "debug", skip(self), err)]
     async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> Result<()> {
         if let Some(table) = self.get_table(ident).await? {
             if cascade {
@@ -855,7 +861,7 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::get_table", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::get_table", level = "debug", skip(self))]
     async fn get_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Table>>> {
         let key = format!(
             "{KEY_TABLE}/{}/{}/{}",
@@ -867,7 +873,7 @@ impl Metastore for SlateDBMetastore {
             .context(metastore_err::UtilSlateDBSnafu)
     }
 
-    #[instrument(name = "Metastore::table_object_store", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::table_object_store", level = "debug", skip(self))]
     async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>> {
         if let Some(volume) = self.volume_for_table(ident).await? {
             self.volume_object_store(&volume.ident).await
@@ -876,12 +882,12 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "Metastore::table_exists", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::table_exists", level = "debug", skip(self))]
     async fn table_exists(&self, ident: &TableIdent) -> Result<bool> {
         self.get_table(ident).await.map(|table| table.is_some())
     }
 
-    #[instrument(name = "Metastore::url_for_table", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::url_for_table", level = "debug", skip(self))]
     async fn url_for_table(&self, ident: &TableIdent) -> Result<String> {
         if let Some(tbl) = self.get_table(ident).await? {
             let database = self.get_database(&ident.database).await?.ok_or_else(|| {
@@ -939,7 +945,7 @@ impl Metastore for SlateDBMetastore {
         .build())
     }
 
-    #[instrument(name = "Metastore::volume_for_table", level = "debug", skip(self))]
+    #[instrument(name = "SqliteMetastore::volume_for_table", level = "debug", skip(self))]
     async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>> {
         let volume_ident = if let Some(Some(volume_ident)) = self
             .get_table(ident)
