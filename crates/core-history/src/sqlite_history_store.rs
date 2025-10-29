@@ -63,14 +63,18 @@ impl std::fmt::Debug for SlateDBHistoryStore {
 
 impl SlateDBHistoryStore {
     #[allow(clippy::expect_used)]
-    pub async fn new(db: core_utils::Db, history_db_name: String, results_db_name: String) -> Result<Self> {
+    pub async fn new(
+        db: core_utils::Db,
+        history_db_name: String,
+        results_db_name: String,
+    ) -> Result<Self> {
         // try creating dirs for every separate db file
         if let Some(dir_path) = std::path::Path::new(&history_db_name).parent() {
             std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
         }
         if let Some(dir_path) = std::path::Path::new(&results_db_name).parent() {
             std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
-        }        
+        }
 
         let history_store = Self {
             queries_db: SqliteDb::new(db.slate_db(), &history_db_name)
@@ -763,7 +767,14 @@ impl HistoryStore for SlateDBHistoryStore {
                     // in case if there are no results available for this query
                     // return empty resut set
                     if err == rusqlite::Error::QueryReturnedNoRows {
-                        return Ok((0, ResultSet::default().serialize_with_soft_limit(0).unwrap().into(), String::new()));
+                        return Ok((
+                            0,
+                            ResultSet::default()
+                                .serialize_with_soft_limit(0)
+                                .unwrap_or_default()
+                                .into(),
+                            String::new(),
+                        ));
                     }
                     Err(err)
                 })

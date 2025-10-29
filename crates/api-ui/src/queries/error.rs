@@ -97,7 +97,7 @@ impl IntoStatusCode for Error {
                 QueryError::Execution { source, .. } => match source {
                     core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
                     _ => StatusCode::UNPROCESSABLE_ENTITY,
-                }
+                },
                 QueryError::Store { .. } => StatusCode::BAD_REQUEST,
                 QueryError::ResultParse { .. }
                 | QueryError::Utf8 { .. }
@@ -110,7 +110,7 @@ impl IntoStatusCode for Error {
                 QueryError::Execution { source, .. } => match source {
                     core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
+                },
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::GetQueryRecord { source, .. } => match &source {

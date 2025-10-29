@@ -89,7 +89,7 @@ impl IntoStatusCode for Error {
                 core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            | Self::Datetime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Datetime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

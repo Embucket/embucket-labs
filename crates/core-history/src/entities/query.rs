@@ -2,10 +2,10 @@ use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core_utils::iterable::IterableEntity;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr, sync::LazyLock};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::{fmt::Display, str::FromStr, sync::LazyLock};
 
 static LATEST_TIMESTAMP: LazyLock<Arc<Mutex<i64>>> = LazyLock::new(|| Arc::new(Mutex::new(0_i64)));
 

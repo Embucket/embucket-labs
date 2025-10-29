@@ -237,14 +237,14 @@ pub struct CliOpts {
     #[arg(
         long,
         env = "QUERY_HISTORY_DB_NAME",
-        default_value = "sqlite_data/queries.db",
+        default_value = "sqlite_data/queries.db"
     )]
     pub query_history_db_name: String,
 
     #[arg(
         long,
         env = "QUERY_RESULTS_DB_NAME",
-        default_value = "sqlite_data/results.db",
+        default_value = "sqlite_data/results.db"
     )]
     pub query_results_db_name: String,
 

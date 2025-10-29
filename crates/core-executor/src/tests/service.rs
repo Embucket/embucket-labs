@@ -15,8 +15,8 @@ use core_metastore::{
     Volume as MetastoreVolume,
 };
 use datafusion::{arrow::csv::reader::Format, assert_batches_eq};
-use std::sync::Arc;
 use futures::future::join_all;
+use std::sync::Arc;
 
 #[tokio::test]
 #[allow(clippy::expect_used)]
@@ -587,9 +587,9 @@ async fn test_max_concurrency_level2() {
     );
 }
 
-
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::expect_used)]
+#[allow(clippy::items_after_statements)]
 async fn test_parallel_run() {
     const MAX_CONCURRENCY_LEVEL: usize = 10;
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
@@ -605,24 +605,22 @@ async fn test_parallel_run() {
     );
 
     let _ = execution_svc
-            .create_session("test_session_id")
-            .await
-            .expect("Failed to create session");
+        .create_session("test_session_id")
+        .await
+        .expect("Failed to create session");
 
-    async fn exec_query(execution_svc: Arc<dyn ExecutionService>, sql: &str) -> crate::Result<QueryResult> {
-        execution_svc.query(
-            "test_session_id",
-            sql,
-            QueryContext::default(),
-        ).await
+    async fn exec_query(
+        execution_svc: Arc<dyn ExecutionService>,
+        sql: &str,
+    ) -> crate::Result<QueryResult> {
+        execution_svc
+            .query("test_session_id", sql, QueryContext::default())
+            .await
     }
 
     let mut futures = Vec::new();
     for _ in 0..MAX_CONCURRENCY_LEVEL {
-        let future = tokio::task::spawn(exec_query(
-            execution_svc.clone(),
-            "SELECT 1",
-        ));
+        let future = tokio::task::spawn(exec_query(execution_svc.clone(), "SELECT 1"));
         futures.push(future);
     }
 
