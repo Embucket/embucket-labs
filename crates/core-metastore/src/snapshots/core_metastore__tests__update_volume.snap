@@ -15,11 +15,7 @@ expression: "(rwo1, rwo2)"
     RwObject {
         data: Volume {
             ident: "test",
-            volume: File(
-                FileVolume {
-                    path: "/tmp",
-                },
-            ),
+            volume: Memory,
         },
         id: UUID,
         created_at: "TIMESTAMP",

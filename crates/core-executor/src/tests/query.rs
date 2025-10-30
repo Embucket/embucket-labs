@@ -170,7 +170,7 @@ macro_rules! test_query {
         $(, snowflake_error = $snowflake_error:expr)?
     ) => {
         paste::paste! {
-            #[tokio::test]
+            #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
             async fn [< query_ $test_fn_name >]() {
                 let ctx = $crate::tests::query::create_df_session().await;
 

@@ -48,7 +48,7 @@ async fn test_execute_always_returns_schema() {
     assert_eq!(columns[2].r#type, "text");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
@@ -164,7 +164,7 @@ async fn test_service_upload_file() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_service_create_table_file_volume() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
 

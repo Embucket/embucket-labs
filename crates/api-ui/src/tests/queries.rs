@@ -407,6 +407,7 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     // })
     // .to_string();
 
+    // submit query asynchronously async_exec=true by default
     let query_record = http_req::<QueryRecord>(
         &client,
         Method::POST,

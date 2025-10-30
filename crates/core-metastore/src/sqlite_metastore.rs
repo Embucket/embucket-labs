@@ -131,7 +131,8 @@ impl SlateDBMetastore {
         let sqlite_db_name = format!("file:{thread_name}_meta?mode=memory");
         let _ = SqliteDb::new(utils_db.slate_db(), &sqlite_db_name)
             .await
-            .expect("Failed to create Sqlite Db for metastore");        
+            .expect("Failed to create Sqlite Db for metastore");
+
         let store = Self {
             //
             db: utils_db.clone(), // to be removed
@@ -289,22 +290,6 @@ impl SlateDBMetastore {
         Self::update_properties_timestamps(&mut properties);
         properties
     }
-
-
-    // #[instrument(
-    //     name = "SlateDBSqliteMetastore::create_object",
-    //     level = "debug",
-    //     skip(self, object),
-    //     err
-    // )]
-    // async fn create_object<T>(
-    //     &self,
-    //     key: &str,
-    //     object_type: MetastoreObjectType,
-    //     object: T,
-    // ) -> Result<RwObject<T>> {
-
-    // }
 }
 
 #[async_trait]
@@ -365,8 +350,7 @@ impl Metastore for SlateDBMetastore {
         err
     )]
     async fn update_volume(&self, ident: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
-        let key = format!("{KEY_VOLUME}/{ident}");
-        let updated_volume = self.update_object(&key, volume).await?;
+        let updated_volume = crud::volumes::update_volume(&self.diesel_pool, ident, volume.clone()).await?;
         let object_store = updated_volume.get_object_store()?;
         if ident != &updated_volume.ident {
             // object store cache is by name, so delete old name and add new

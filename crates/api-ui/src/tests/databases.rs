@@ -2,11 +2,13 @@
 
 use crate::databases::models::{
     DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdateResponse, DatabasesResponse,
+    DatabaseUpdatePayload, Database,
 };
 use crate::error::ErrorResponse;
-use crate::tests::common::{Entity, Op, req, ui_test_op};
+use crate::tests::common::{Entity, Op, req, ui_test_op, http_req};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
+use serde_json::json;
 use http::Method;
 
 #[tokio::test]
@@ -16,6 +18,7 @@ use http::Method;
 )]
 async fn test_ui_databases_metastore_update_bug() {
     let addr = run_test_server().await;
+    let client = reqwest::Client::new();
 
     // Create volume with empty name
     let res = ui_test_op(
@@ -46,39 +49,35 @@ async fn test_ui_databases_metastore_update_bug() {
         name: "new-test".to_string(),
         volume: volume.name.clone(),
     };
-    let res = ui_test_op(
-        addr,
-        Op::Update,
-        Some(&Entity::Database(DatabaseCreatePayload {
-            name: created_database.name.clone(),
-            volume: created_database.volume.clone(),
-        })),
-        &Entity::Database(new_database.clone()),
+    let renamed_database = http_req::<Database>(
+        &client,
+        Method::PUT,
+        &format!("http://{addr}/ui/databases/{}", created_database.name),
+        json!(DatabaseUpdatePayload {
+            name: new_database.name.clone(),
+            volume: new_database.volume.clone(),
+        })
+        .to_string(),
     )
-    .await;
-    assert_eq!(http::StatusCode::OK, res.status());
-    let DatabaseUpdateResponse(renamed_database) = res.json().await.unwrap();
+    .await
+    .expect("Failed update database");
     assert_eq!(new_database.name, renamed_database.name); // server confirmed it's renamed
     assert_eq!(new_database.volume, renamed_database.volume);
 
     // get non existing database using old name, expected error 404
-    let res = ui_test_op(
-        addr,
-        Op::Get,
-        None,
-        &Entity::Database(DatabaseCreatePayload {
+    let res = http_req::<()>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases/{}", created_database.name),
+        json!(DatabaseCreatePayload {
             name: created_database.name.clone(),
             volume: created_database.volume.clone(),
-        }),
+        })
+        .to_string(),
     )
-    .await;
-    // TODO: Fix this test case, it should return 404
-    // Database not updated as old name is still accessable
-    let error = res
-        .json::<ErrorResponse>()
-        .await
-        .expect("Failed to get error response");
-    assert_eq!(http::StatusCode::NOT_FOUND, error.status_code);
+    .await
+    .expect_err("Failed to get error response");
+    assert_eq!(http::StatusCode::NOT_FOUND, res.status);
 
     // Get existing database using new name, expected Ok
     let res = ui_test_op(

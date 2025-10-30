@@ -84,7 +84,8 @@ pub async fn get_volume(pool: &Pool, volume_ident: &VolumeIdent) -> Result<Optio
 
 pub async fn list_volumes(pool: &Pool) -> Result<Vec<RwObject<Volume>>> {
     let conn = pool.get().await?;
-    conn.interact(|conn| volumes::table.load::<VolumeRecord>(conn))
+    // order by name to be compatible with previous slatedb metastore
+    conn.interact(|conn| volumes::table.order(volumes::ident.asc()).load::<VolumeRecord>(conn))
         .await?
         .context(metastore_err::DieselSnafu)?
         .into_iter()

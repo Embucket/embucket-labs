@@ -1,4 +1,5 @@
 [env]
+DIESEL_MIGRATIONS_PATH="crates/core-metastore/src/sqlite/migrations"
 WEB_ASSETS_SOURCE_PATH = { value = "ui/dist", relative = true }
 WEB_ASSETS_TARBALL_PATH = { value = "ui/dist.tar", relative = true }
 LIBSQLITE3_FLAGS = """-DSQLITE_ENABLE_COLUMN_METADATA=1 \
