@@ -3405,8 +3405,8 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
 async fn target_filter_expression(
     table: &DataFusionTable,
 ) -> Result<Option<datafusion_expr::Expr>> {
-    let lock = table.tabular.read().await;
-    let table = match &*lock {
+    #[allow(clippy::unwrap_used)]
+    let table = match table.tabular.read().unwrap().clone() {
         Tabular::Table(table) => Ok(table),
         _ => MergeSourceNotSupportedSnafu.fail(),
     }?;
