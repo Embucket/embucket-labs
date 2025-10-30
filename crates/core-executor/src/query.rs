@@ -345,8 +345,6 @@ impl UserQuery {
             }
         }
 
-        tracing::error!("Executing query: {}", self.raw_query);
-
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
