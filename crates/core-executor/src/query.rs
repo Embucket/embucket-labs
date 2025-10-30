@@ -287,6 +287,11 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
+        let statement = if let DFStatement::Explain(explain) = statement {
+            explain.statement.as_mut()
+        } else {
+            statement
+        };
         if let DFStatement::Statement(value) = statement {
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
@@ -339,6 +344,8 @@ impl UserQuery {
                 }
             }
         }
+
+        tracing::error!("Executing query: {}", self.raw_query);
 
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
