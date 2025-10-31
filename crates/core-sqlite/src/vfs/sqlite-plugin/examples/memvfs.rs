@@ -73,7 +73,7 @@ impl Vfs for MemVfs {
     }
 
     fn open(&self, path: Option<&str>, opts: OpenOpts) -> VfsResult<Self::Handle> {
-        log::debug!("open: path={:?}, opts={:?}", path, opts);
+        log::debug!("open: path={path:?}, opts={opts:?}");
         let mode = opts.mode();
         if mode.is_readonly() {
             // readonly makes no sense since an in-memory VFS is not backed by
@@ -113,7 +113,7 @@ impl Vfs for MemVfs {
     }
 
     fn delete(&self, path: &str) -> VfsResult<()> {
-        log::debug!("delete: path={}", path);
+        log::debug!("delete: path={path}");
         let mut found = false;
         self.files.lock().retain(|file| {
             if file.is_named(path) {
@@ -130,7 +130,7 @@ impl Vfs for MemVfs {
     }
 
     fn access(&self, path: &str, flags: AccessFlags) -> VfsResult<bool> {
-        log::debug!("access: path={}, flags={:?}", path, flags);
+        log::debug!("access: path={path}, flags={flags:?}");
         Ok(self.files.lock().iter().any(|f| f.is_named(path)))
     }
 

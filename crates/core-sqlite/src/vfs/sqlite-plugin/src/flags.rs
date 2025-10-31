@@ -16,7 +16,8 @@ pub enum OpenKind {
 }
 
 impl OpenKind {
-    pub fn is_temp(&self) -> bool {
+    #[must_use] 
+    pub const fn is_temp(&self) -> bool {
         matches!(self, Self::TempDb | Self::TempJournal | Self::TransientDb)
     }
 }
@@ -68,10 +69,12 @@ impl From<i32> for OpenMode {
 }
 
 impl OpenMode {
-    pub fn must_create(&self) -> bool {
+    #[must_use] 
+    pub const fn must_create(&self) -> bool {
         matches!(self, Self::ReadWrite { create: CreateMode::MustCreate })
     }
-    pub fn is_readonly(&self) -> bool {
+    #[must_use] 
+    pub const fn is_readonly(&self) -> bool {
         matches!(self, Self::ReadOnly)
     }
 }
@@ -82,27 +85,32 @@ pub struct OpenOpts {
 }
 
 impl OpenOpts {
-    pub fn new(flags: i32) -> Self {
+    #[must_use] 
+    pub const fn new(flags: i32) -> Self {
         Self { flags }
     }
 
-    pub fn flags(&self) -> i32 {
+    #[must_use] 
+    pub const fn flags(&self) -> i32 {
         self.flags
     }
 
+    #[must_use] 
     pub fn kind(&self) -> OpenKind {
         self.flags.into()
     }
 
+    #[must_use] 
     pub fn mode(&self) -> OpenMode {
         self.flags.into()
     }
 
-    pub fn delete_on_close(&self) -> bool {
+    #[must_use] 
+    pub const fn delete_on_close(&self) -> bool {
         self.flags & vars::SQLITE_OPEN_DELETEONCLOSE > 0
     }
 
-    pub fn set_readonly(&mut self) {
+    pub const fn set_readonly(&mut self) {
         self.flags &= !vars::SQLITE_OPEN_READWRITE;
         self.flags |= vars::SQLITE_OPEN_READONLY;
     }
@@ -189,11 +197,11 @@ impl From<i32> for LockLevel {
 impl Into<i32> for LockLevel {
     fn into(self) -> i32 {
         match self {
-            LockLevel::Unlocked => vars::SQLITE_LOCK_NONE,
-            LockLevel::Shared => vars::SQLITE_LOCK_SHARED,
-            LockLevel::Reserved => vars::SQLITE_LOCK_RESERVED,
-            LockLevel::Pending => vars::SQLITE_LOCK_PENDING,
-            LockLevel::Exclusive => vars::SQLITE_LOCK_EXCLUSIVE,
+            Self::Unlocked => vars::SQLITE_LOCK_NONE,
+            Self::Shared => vars::SQLITE_LOCK_SHARED,
+            Self::Reserved => vars::SQLITE_LOCK_RESERVED,
+            Self::Pending => vars::SQLITE_LOCK_PENDING,
+            Self::Exclusive => vars::SQLITE_LOCK_EXCLUSIVE,
         }
     }
 }

@@ -13,7 +13,7 @@ pub enum SqliteLogLevel {
 }
 
 impl SqliteLogLevel {
-    fn into_err_code(self) -> c_int {
+    const fn into_err_code(self) -> c_int {
         match self {
             Self::Notice => vars::SQLITE_NOTICE,
             Self::Warn => vars::SQLITE_WARNING,
@@ -40,7 +40,7 @@ impl SqliteLogger {
         let code = level.into_err_code();
         for line in buf.split(|b| *b == b'\n') {
             // skip if line only contains whitespace
-            if line.iter().all(|b| b.is_ascii_whitespace()) {
+            if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
 

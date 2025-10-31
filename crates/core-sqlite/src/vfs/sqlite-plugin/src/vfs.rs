@@ -68,8 +68,9 @@ pub enum PragmaErr {
 }
 
 impl PragmaErr {
+    #[must_use] 
     pub fn required_arg(p: &Pragma<'_>) -> Self {
-        PragmaErr::Fail(
+        Self::Fail(
             SQLITE_ERROR,
             Some(format!(
                 "argument required (e.g. `pragma {} = ...`)",
@@ -230,6 +231,7 @@ pub struct SqliteApi {
 
 impl SqliteApi {
     #[cfg(feature = "static")]
+    #[must_use] 
     pub fn new_static() -> Self {
         Self {
             register: ffi::sqlite3_vfs_register,
@@ -305,12 +307,9 @@ fn register_inner<T: Vfs>(
     opts: RegisterOpts,
 ) -> VfsResult<()> {
     let version = unsafe { (sqlite_api.libversion_number)() };
-    if version < MIN_SQLITE_VERSION_NUMBER {
-        panic!(
-            "sqlite3 must be at least version {}, found version {}",
-            MIN_SQLITE_VERSION_NUMBER, version
+    assert!((version >= MIN_SQLITE_VERSION_NUMBER), 
+            "sqlite3 must be at least version {MIN_SQLITE_VERSION_NUMBER}, found version {version}"
         );
-    }
 
     let io_methods = ffi::sqlite3_io_methods {
         iVersion: 3,
@@ -371,16 +370,16 @@ fn register_inner<T: Vfs>(
     }));
 
     let result = unsafe { vfs_register(p_vfs, opts.make_default.into()) };
-    if result != vars::SQLITE_OK {
+    if result == vars::SQLITE_OK {
+        Ok(())
+    } else {
         // cleanup memory
         unsafe {
             drop(Box::from_raw(p_vfs));
             drop(Box::from_raw(p_appdata));
-            drop(CString::from_raw(p_name as *mut c_char));
+            drop(CString::from_raw(p_name.cast_mut()));
         };
         Err(result)
-    } else {
-        Ok(())
     }
 }
 
@@ -395,7 +394,7 @@ unsafe extern "C" fn x_open<T: Vfs>(
         let opts = flags.into();
         let name = unsafe { lossy_cstr(z_name) }.ok();
         let vfs = unwrap_vfs!(p_vfs, T)?;
-        let handle = vfs.open(name.as_ref().map(|s| s.as_ref()), opts)?;
+        let handle = vfs.open(name.as_ref().map(core::convert::AsRef::as_ref), opts)?;
 
         let out_file = unwrap_file!(p_file, T)?;
         let appdata = unwrap_appdata!(p_vfs, T)?;
@@ -411,7 +410,7 @@ unsafe extern "C" fn x_open<T: Vfs>(
             *p_out_flags = out_flags;
         }
 
-        out_file.file.pMethods = &appdata.io_methods;
+        out_file.file.pMethods = &raw const appdata.io_methods;
         out_file.vfs = p_vfs;
         out_file.handle.write(handle);
 
@@ -443,7 +442,7 @@ unsafe extern "C" fn x_access<T: Vfs>(
         let vfs = unwrap_vfs!(p_vfs, T)?;
         let result = vfs.access(&name, flags.into())?;
         let out = unsafe { p_res_out.as_mut() }.ok_or(vars::SQLITE_IOERR_ACCESS)?;
-        *out = result as i32;
+        *out = i32::from(result);
         Ok(vars::SQLITE_OK)
     })
 }
@@ -459,7 +458,7 @@ unsafe extern "C" fn x_full_pathname<T: Vfs>(
         let vfs = unwrap_vfs!(p_vfs, T)?;
         let full_name = vfs.canonical_path(name)?;
         let n_out = n_out.try_into().map_err(|_| vars::SQLITE_INTERNAL)?;
-        let out = unsafe { slice::from_raw_parts_mut(z_out as *mut u8, n_out) };
+        let out = unsafe { slice::from_raw_parts_mut(z_out.cast::<u8>(), n_out) };
         let from = &full_name.as_bytes()[..full_name.len().min(n_out - 1)];
         // copy the name into the output buffer
         out[..from.len()].copy_from_slice(from);
