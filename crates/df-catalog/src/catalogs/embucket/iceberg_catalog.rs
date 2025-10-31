@@ -64,7 +64,7 @@ impl EmbucketIcebergCatalog {
     #[must_use]
     pub fn ident(&self, identifier: &IcebergIdentifier) -> MetastoreTableIdent {
         MetastoreTableIdent {
-            database: self.database.to_string(),
+            database: self.database.clone(),
             schema: identifier.namespace().to_string(),
             table: identifier.name().to_string(),
         }

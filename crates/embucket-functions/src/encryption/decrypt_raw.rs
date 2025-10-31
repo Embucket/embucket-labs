@@ -8,15 +8,15 @@ use datafusion::logical_expr::{ColumnarValue, Signature, Volatility};
 use datafusion_common::cast::{as_binary_array, as_string_array};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 
-use std::any::Any;
-use std::sync::Arc;
-
 use crate::encryption::errors::{
     ArrayLengthMismatchSnafu, CiphertextTooShortSnafu, DecryptionFailedSnafu,
     InvalidArgumentTypesSnafu, InvalidIvSizeSnafu, InvalidKeyLengthSnafu,
-    MalformedEncryptionMethodSnafu, NullIvForDecryptionSnafu, UnsupportedEncryptionAlgorithmSnafu,
-    UnsupportedEncryptionModeSnafu,
+    MalformedEncryptionMethodSnafu, NullIvForDecryptionSnafu, SliceCreationFailedSnafu,
+    UnsupportedEncryptionAlgorithmSnafu, UnsupportedEncryptionModeSnafu,
 };
+use snafu::ResultExt;
+use std::any::Any;
+use std::sync::Arc;
 
 type Aes192Gcm = AesGcm<Aes192, aes_gcm::aead::consts::U12>;
 
@@ -323,10 +323,10 @@ fn decrypt<C: Aead + KeyInit>(ct: &[u8], key: &[u8], iv: &[u8], aad: &[u8]) -> D
     // Using map_err instead of .context() to avoid exposing crypto library implementation details
     // and to maintain a clean abstraction layer over the underlying AES-GCM operations
     let cipher = C::new_from_slice(key).map_err(|_| DecryptionFailedSnafu.build())?;
-    let nonce = Nonce::from_slice(iv);
+    let nonce = Nonce::<C::NonceSize>::try_from(iv).context(SliceCreationFailedSnafu)?;
     let payload = Payload { msg: ct, aad };
     let pt = cipher
-        .decrypt(nonce, payload)
+        .decrypt(&nonce, payload)
         .map_err(|_| DecryptionFailedSnafu.build())?;
     Ok(pt)
 }

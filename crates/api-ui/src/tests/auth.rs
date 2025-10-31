@@ -454,7 +454,7 @@ async fn test_account_ok() {
             ),
         ]),
         &format!("http://{addr}/ui/auth/account"),
-        String::new().to_string(),
+        String::new().clone(),
     )
     .await
     .expect("Failed to get account");
@@ -484,7 +484,7 @@ async fn test_account_unauthorized() {
             HeaderValue::from_static("application/json"),
         )]),
         &format!("http://{addr}/ui/auth/account"),
-        String::new().to_string(),
+        String::new().clone(),
     )
     .await
     .expect_err("Account should fail");

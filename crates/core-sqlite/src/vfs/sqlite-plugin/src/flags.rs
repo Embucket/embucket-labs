@@ -154,8 +154,10 @@ impl From<i32> for AccessFlags {
 /// Represents one of the 5 `SQLite` locking levels.
 /// See [SQLite documentation](https://www.sqlite.org/lockingv3.html) for more information.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Default)]
 pub enum LockLevel {
     /// No locks are held; the database may be neither read nor written.
+    #[default]
     Unlocked,
 
     /// The database may be read but not written. Multiple Shared locks can
@@ -174,11 +176,6 @@ pub enum LockLevel {
     Exclusive,
 }
 
-impl Default for LockLevel {
-    fn default() -> Self {
-        Self::Unlocked
-    }
-}
 
 impl From<i32> for LockLevel {
     fn from(lock: i32) -> Self {

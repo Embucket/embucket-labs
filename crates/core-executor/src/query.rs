@@ -958,7 +958,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&catalog_name).map_err(|_| {
             ex_error::CatalogNotFoundSnafu {
                 operation_on: OperationOn::Table(OperationType::Create),
-                catalog: catalog_name.to_string(),
+                catalog: catalog_name.clone(),
             }
             .build()
         })?;
@@ -2551,8 +2551,8 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?
             .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.to_string(),
-                table: ident.table.to_string(),
+                schema: ident.schema.clone(),
+                table: ident.table.clone(),
             })?;
         let volume = self
             .metastore
@@ -2560,8 +2560,8 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?
             .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.to_string(),
-                table: ident.table.to_string(),
+                schema: ident.schema.clone(),
+                table: ident.table.clone(),
             })?;
         let setup_query = match volume.volume.clone() {
             VolumeType::S3(s3_volume) => {
@@ -3224,10 +3224,8 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 if values.rows.len() != 1 {
                     return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
                 }
-                let mut all_columns: HashSet<String> = target_schema
-                    .iter()
-                    .map(|x| x.1.name().to_string())
-                    .collect();
+                let mut all_columns: HashSet<String> =
+                    target_schema.iter().map(|x| x.1.name().clone()).collect();
                 for (column, value) in insert.columns.iter().zip(
                     values
                         .rows
@@ -3411,7 +3409,8 @@ async fn target_filter_expression(
     table: &DataFusionTable,
 ) -> Result<Option<datafusion_expr::Expr>> {
     #[allow(clippy::unwrap_used)]
-    let table = match table.tabular.read().unwrap().clone() {
+    let value = table.tabular.read().unwrap().clone();
+    let table = match value {
         Tabular::Table(table) => Ok(table),
         _ => MergeSourceNotSupportedSnafu.fail(),
     }?;

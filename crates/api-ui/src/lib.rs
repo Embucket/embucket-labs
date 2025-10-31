@@ -50,7 +50,7 @@ impl Display for SearchParameters {
             .offset
             .map_or_else(|| str.to_string(), |offset| format!("{str}offset={offset}"));
         let str = self.limit.map_or_else(
-            || str.to_string(),
+            || str.clone(),
             |limit| {
                 format!(
                     "{str}{}limit={limit}",
@@ -59,7 +59,7 @@ impl Display for SearchParameters {
             },
         );
         let str = self.search.clone().map_or_else(
-            || str.to_string(),
+            || str.clone(),
             |search| {
                 format!(
                     "{str}{}search={search}",
@@ -68,7 +68,7 @@ impl Display for SearchParameters {
             },
         );
         let str = self.order_by.clone().map_or_else(
-            || str.to_string(),
+            || str.clone(),
             |order_by| {
                 format!(
                     "{str}{}orderBy={order_by}",
@@ -77,7 +77,7 @@ impl Display for SearchParameters {
             },
         );
         let str = self.order_direction.map_or_else(
-            || str.to_string(),
+            || str.clone(),
             |order_direction| {
                 format!(
                     "{str}{}orderDirection={order_direction}",
@@ -91,16 +91,13 @@ impl Display for SearchParameters {
 
 #[derive(Debug, Deserialize, ToSchema, Copy, Clone)]
 #[serde(rename_all = "UPPERCASE")]
+#[derive(Default)]
 pub enum OrderDirection {
     ASC,
+    #[default]
     DESC,
 }
 
-impl Default for OrderDirection {
-    fn default() -> Self {
-        Self::DESC
-    }
-}
 
 impl Display for OrderDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

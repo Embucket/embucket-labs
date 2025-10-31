@@ -141,7 +141,7 @@ impl ScalarUDFImpl for RegexpLikeFunc {
                     | ScalarValue::Utf8View(Some(value))
                     | ScalarValue::LargeUtf8(Some(value)),
                 ) => regexp_errors::WrongArgValueSnafu {
-                    got: value.to_string(),
+                    got: value.clone(),
                     //We just checked if value is empty, if not - this is valid, since we are getting here the excluded range so just the zeroes character
                     reason: format!("Unknown parameter: '{}'", value.get(0..1).unwrap()),
                 }

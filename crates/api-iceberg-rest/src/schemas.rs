@@ -19,8 +19,7 @@ pub fn to_schema(request: CreateNamespaceRequest, db: String) -> MetastoreSchema
             schema: request
                 .namespace
                 .first()
-                .unwrap_or(&String::new())
-                .to_string(),
+                .unwrap_or(&String::new()).clone(),
             database: db,
         },
         properties: request.properties,
