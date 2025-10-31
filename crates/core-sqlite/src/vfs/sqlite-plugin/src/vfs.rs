@@ -305,9 +305,12 @@ fn register_inner<T: Vfs>(
     opts: RegisterOpts,
 ) -> VfsResult<()> {
     let version = unsafe { (sqlite_api.libversion_number)() };
-    assert!((version >= MIN_SQLITE_VERSION_NUMBER),
-            "sqlite3 must be at least version {MIN_SQLITE_VERSION_NUMBER}, found version {version}"
+    if version < MIN_SQLITE_VERSION_NUMBER {
+        panic!(
+            "sqlite3 must be at least version {}, found version {}",
+            MIN_SQLITE_VERSION_NUMBER, version
         );
+    }
 
     let io_methods = ffi::sqlite3_io_methods {
         iVersion: 3,
