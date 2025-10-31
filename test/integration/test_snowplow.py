@@ -380,14 +380,156 @@ def load_expected_sessions(exec_fn, test_run_id):
     # Create table for expected sessions
     exec_fn(f"""
         CREATE TABLE embucket.public.snowplow_web_sessions_expected_{test_run_id} (
-            domain_sessionid VARCHAR(128),
-            user_id VARCHAR(255),
+            -- Core identifiers (1-5)
+            app_id VARCHAR(255),
+            platform VARCHAR(255),
+            domain_sessionid VARCHAR(128) PRIMARY KEY,
+            original_domain_sessionid VARCHAR(128),
+            domain_sessionidx INTEGER,
+
+            -- Timestamps (6-7)
             start_tstamp TIMESTAMP,
             end_tstamp TIMESTAMP,
+
+            -- User identifiers (8-12)
+            user_id VARCHAR(255),
+            domain_userid VARCHAR(128),
+            original_domain_userid VARCHAR(128),
+            stitched_user_id VARCHAR(255),
+            network_userid VARCHAR(128),
+
+            -- Engagement metrics (13-18)
             page_views INTEGER,
+            engaged_time_in_s INTEGER,
+            event_counts VARCHAR(10000),
             total_events INTEGER,
             is_engaged BOOLEAN,
-            absolute_time_in_s INTEGER
+            absolute_time_in_s INTEGER,
+
+            -- First page attributes (19-25)
+            first_page_title VARCHAR(2000),
+            first_page_url TEXT,
+            first_page_urlscheme VARCHAR(16),
+            first_page_urlhost VARCHAR(255),
+            first_page_urlpath VARCHAR(3000),
+            first_page_urlquery VARCHAR(6000),
+            first_page_urlfragment VARCHAR(3000),
+
+            -- Last page attributes (26-32)
+            last_page_title VARCHAR(2000),
+            last_page_url TEXT,
+            last_page_urlscheme VARCHAR(16),
+            last_page_urlhost VARCHAR(255),
+            last_page_urlpath VARCHAR(3000),
+            last_page_urlquery VARCHAR(6000),
+            last_page_urlfragment VARCHAR(3000),
+
+            -- Referrer attributes (33-41)
+            referrer TEXT,
+            refr_urlscheme VARCHAR(16),
+            refr_urlhost VARCHAR(255),
+            refr_urlpath VARCHAR(6000),
+            refr_urlquery VARCHAR(6000),
+            refr_urlfragment VARCHAR(3000),
+            refr_medium VARCHAR(25),
+            refr_source VARCHAR(50),
+            refr_term VARCHAR(255),
+
+            -- Marketing parameters (42-50)
+            mkt_medium VARCHAR(255),
+            mkt_source VARCHAR(255),
+            mkt_term VARCHAR(255),
+            mkt_content VARCHAR(500),
+            mkt_campaign VARCHAR(255),
+            mkt_clickid VARCHAR(255),
+            mkt_network VARCHAR(64),
+            mkt_source_platform VARCHAR(255),
+            default_channel_group VARCHAR(255),
+
+            -- Geo attributes (51-65)
+            geo_country VARCHAR(2),
+            geo_region VARCHAR(3),
+            geo_region_name VARCHAR(100),
+            geo_city VARCHAR(75),
+            geo_zipcode VARCHAR(15),
+            geo_latitude DOUBLE PRECISION,
+            geo_longitude DOUBLE PRECISION,
+            geo_timezone VARCHAR(64),
+            geo_country_name VARCHAR(255),
+            geo_continent VARCHAR(255),
+            last_geo_country VARCHAR(2),
+            last_geo_region_name VARCHAR(100),
+            last_geo_city VARCHAR(75),
+            last_geo_country_name VARCHAR(255),
+            last_geo_continent VARCHAR(255),
+
+            -- Device/Browser attributes (66-73)
+            user_ipaddress VARCHAR(128),
+            useragent VARCHAR(1000),
+            br_renderengine VARCHAR(50),
+            br_lang VARCHAR(255),
+            br_lang_name VARCHAR(255),
+            last_br_lang VARCHAR(255),
+            last_br_lang_name VARCHAR(255),
+            os_timezone VARCHAR(255),
+
+            -- IAB enrichment (74-77)
+            category VARCHAR(255),
+            primary_impact VARCHAR(255),
+            reason VARCHAR(255),
+            spider_or_robot BOOLEAN,
+
+            -- UA Parser enrichment (78-89)
+            useragent_family VARCHAR(255),
+            useragent_major VARCHAR(50),
+            useragent_minor VARCHAR(50),
+            useragent_patch VARCHAR(50),
+            useragent_version VARCHAR(255),
+            os_family VARCHAR(255),
+            os_major VARCHAR(50),
+            os_minor VARCHAR(50),
+            os_patch VARCHAR(50),
+            os_patch_minor VARCHAR(50),
+            os_version VARCHAR(255),
+            device_family VARCHAR(255),
+
+            -- YAUAA enrichment (90-111)
+            device_class VARCHAR(255),
+            device_category VARCHAR(255),
+            screen_resolution VARCHAR(50),
+            agent_class VARCHAR(255),
+            agent_name VARCHAR(255),
+            agent_name_version VARCHAR(255),
+            agent_name_version_major VARCHAR(255),
+            agent_version VARCHAR(255),
+            agent_version_major VARCHAR(255),
+            device_brand VARCHAR(255),
+            device_name VARCHAR(255),
+            device_version VARCHAR(255),
+            layout_engine_class VARCHAR(255),
+            layout_engine_name VARCHAR(255),
+            layout_engine_name_version VARCHAR(255),
+            layout_engine_name_version_major VARCHAR(255),
+            layout_engine_version VARCHAR(255),
+            layout_engine_version_major VARCHAR(255),
+            operating_system_class VARCHAR(255),
+            operating_system_name VARCHAR(255),
+            operating_system_name_version VARCHAR(255),
+            operating_system_version VARCHAR(255),
+
+            -- Conversion metrics (112-119)
+            cv_view_page_volume INTEGER,
+            cv_view_page_events VARCHAR(10000),
+            cv_view_page_values VARCHAR(10000),
+            cv_view_page_total DOUBLE PRECISION,
+            cv_view_page_first_conversion TIMESTAMP,
+            cv_view_page_converted BOOLEAN,
+            cv__all_volume INTEGER,
+            cv__all_total DOUBLE PRECISION,
+
+            -- Passthrough fields (120-121)
+            event_id VARCHAR(36),
+            event_id2 VARCHAR(36)
         );
     """)
 
@@ -994,63 +1136,63 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
     result = embucket_exec(
         f"SELECT COUNT(*) as event_count FROM embucket.public.events_{test_run_id}"
     )
-    print(f"✓ Event count: {result[0]['event_count']}")
+    print(f"✓ Event count: {result[0][0]}")
 
     print("\n--- Calculating time window (first run) ---")
     populate_new_event_limits(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT lower_limit, upper_limit FROM embucket.public.snowplow_web_base_new_event_limits_{test_run_id}"
     )
-    print(f"✓ Time window: {result[0]['lower_limit']} to {result[0]['upper_limit']}")
+    print(f"✓ Time window: {result[0][0]} to {result[0][1]}")
 
     print("\n--- Merging sessions into lifecycle manifest ---")
     merge_sessions_lifecycle_manifest(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as session_count FROM embucket.public.snowplow_web_base_sessions_lifecycle_manifest_{test_run_id}"
     )
-    print(f"✓ Sessions in lifecycle manifest: {result[0]['session_count']}")
+    print(f"✓ Sessions in lifecycle manifest: {result[0][0]}")
 
     print("\n--- Detecting quarantined sessions ---")
     detect_quarantined_sessions(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as quarantined_count FROM embucket.public.snowplow_web_base_quarantined_sessions_{test_run_id}"
     )
-    print(f"✓ Quarantined sessions: {result[0]['quarantined_count']}")
+    print(f"✓ Quarantined sessions: {result[0][0]}")
 
     print("\n--- Updating incremental manifest ---")
     update_incremental_manifest(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT model, last_success FROM embucket.public.snowplow_web_incremental_manifest_{test_run_id}"
     )
-    print(f"✓ Last success: {result[0]['last_success']}")
+    print(f"✓ Last success: {result[0][1]}")
 
     print("\n--- Selecting sessions to process ---")
     create_sessions_this_run(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_base_sessions_this_run_{test_run_id}"
     )
-    print(f"✓ Sessions this run: {result[0]['count']}")
+    print(f"✓ Sessions this run: {result[0][0]}")
 
     print("\n--- Filtering events for sessions ---")
     create_events_this_run(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_base_events_this_run_{test_run_id}"
     )
-    print(f"✓ Events this run: {result[0]['count']}")
+    print(f"✓ Events this run: {result[0][0]}")
 
     print("\n--- Aggregating events into session records ---")
     build_sessions_from_events(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_sessions_this_run_{test_run_id}"
     )
-    print(f"✓ Sessions built: {result[0]['count']}")
+    print(f"✓ Sessions built: {result[0][0]}")
 
     print("\n--- Merging sessions into final table ---")
     merge_sessions_into_final_table(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as session_count FROM embucket.public.snowplow_web_sessions_{test_run_id}"
     )
-    print(f"✓ Total sessions in final table: {result[0]['session_count']}")
+    print(f"✓ Total sessions in final table: {result[0][0]}")
 
     # =========================================================================
     # BATCH 2: Incremental Update
@@ -1064,63 +1206,63 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
     result = embucket_exec(
         f"SELECT COUNT(*) as event_count FROM embucket.public.events_{test_run_id}"
     )
-    print(f"✓ Total event count: {result[0]['event_count']}")
+    print(f"✓ Total event count: {result[0][0]}")
 
     print("\n--- Recalculating time window (with 6-hour lookback) ---")
     populate_new_event_limits(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT lower_limit, upper_limit FROM embucket.public.snowplow_web_base_new_event_limits_{test_run_id}"
     )
-    print(f"✓ Time window: {result[0]['lower_limit']} to {result[0]['upper_limit']}")
+    print(f"✓ Time window: {result[0][0]} to {result[0][1]}")
 
     print("\n--- Incremental MERGE: extending existing sessions + adding new ---")
     merge_sessions_lifecycle_manifest(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as session_count FROM embucket.public.snowplow_web_base_sessions_lifecycle_manifest_{test_run_id}"
     )
-    print(f"✓ Sessions in lifecycle manifest: {result[0]['session_count']}")
+    print(f"✓ Sessions in lifecycle manifest: {result[0][0]}")
 
     print("\n--- Detecting quarantined sessions ---")
     detect_quarantined_sessions(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as quarantined_count FROM embucket.public.snowplow_web_base_quarantined_sessions_{test_run_id}"
     )
-    print(f"✓ Quarantined sessions: {result[0]['quarantined_count']}")
+    print(f"✓ Quarantined sessions: {result[0][0]}")
 
     print("\n--- Updating incremental manifest ---")
     update_incremental_manifest(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT model, last_success FROM embucket.public.snowplow_web_incremental_manifest_{test_run_id}"
     )
-    print(f"✓ Last success: {result[0]['last_success']}")
+    print(f"✓ Last success: {result[0][1]}")
 
     print("\n--- Selecting sessions to process (incremental) ---")
     create_sessions_this_run(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_base_sessions_this_run_{test_run_id}"
     )
-    print(f"✓ Sessions this run: {result[0]['count']}")
+    print(f"✓ Sessions this run: {result[0][0]}")
 
     print("\n--- Filtering events for sessions (incremental) ---")
     create_events_this_run(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_base_events_this_run_{test_run_id}"
     )
-    print(f"✓ Events this run: {result[0]['count']}")
+    print(f"✓ Events this run: {result[0][0]}")
 
     print("\n--- Aggregating events into session records (incremental) ---")
     build_sessions_from_events(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as count FROM embucket.public.snowplow_web_sessions_this_run_{test_run_id}"
     )
-    print(f"✓ Sessions built: {result[0]['count']}")
+    print(f"✓ Sessions built: {result[0][0]}")
 
     print("\n--- Merging sessions into final table (incremental) ---")
     merge_sessions_into_final_table(embucket_exec, test_run_id)
     result = embucket_exec(
         f"SELECT COUNT(*) as session_count FROM embucket.public.snowplow_web_sessions_{test_run_id}"
     )
-    print(f"✓ Total sessions in final table: {result[0]['session_count']}")
+    print(f"✓ Total sessions in final table: {result[0][0]}")
 
     # =========================================================================
     # FINAL VERIFICATION
@@ -1138,12 +1280,12 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
     computed_count = embucket_exec(f"""
         SELECT COUNT(*) as count
         FROM embucket.public.snowplow_web_sessions_{test_run_id}
-    """)[0]["count"]
+    """)[0][0]
 
     expected_count = embucket_exec(f"""
         SELECT COUNT(*) as count
         FROM embucket.public.snowplow_web_sessions_expected_{test_run_id}
-    """)[0]["count"]
+    """)[0][0]
 
     print(f"✓ Computed: {computed_count} sessions")
     print(f"✓ Expected: {expected_count} sessions")
@@ -1175,17 +1317,17 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
     """)
 
     if only_in_computed:
-        session_ids = [row["domain_sessionid"] for row in only_in_computed]
+        session_ids = [row[0] for row in only_in_computed]
         print(f"⚠ Sessions only in computed: {session_ids}")
     if only_in_expected:
-        session_ids = [row["domain_sessionid"] for row in only_in_expected]
+        session_ids = [row[0] for row in only_in_expected]
         print(f"⚠ Sessions only in expected: {session_ids}")
 
     assert len(only_in_computed) == 0, (
-        f"Unexpected sessions in computed: {[row['domain_sessionid'] for row in only_in_computed]}"
+        f"Unexpected sessions in computed: {[row[0] for row in only_in_computed]}"
     )
     assert len(only_in_expected) == 0, (
-        f"Missing sessions in computed: {[row['domain_sessionid'] for row in only_in_expected]}"
+        f"Missing sessions in computed: {[row[0] for row in only_in_expected]}"
     )
     print(f"✓ All session IDs match")
 
@@ -1213,19 +1355,15 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
         print("\n⚠ Metric mismatches found:")
         mismatches_list = []
         for row in metric_mismatches:
-            session_id = row["domain_sessionid"]
-            if row["computed_page_views"] != row["expected_page_views"]:
+            session_id = row[0]
+            if row[1] != row[2]:
+                mismatches_list.append(f"{session_id}: page_views {row[1]} != {row[2]}")
+            if row[3] != row[4]:
                 mismatches_list.append(
-                    f"{session_id}: page_views {row['computed_page_views']} != {row['expected_page_views']}"
+                    f"{session_id}: total_events {row[3]} != {row[4]}"
                 )
-            if row["computed_total_events"] != row["expected_total_events"]:
-                mismatches_list.append(
-                    f"{session_id}: total_events {row['computed_total_events']} != {row['expected_total_events']}"
-                )
-            if row["computed_is_engaged"] != row["expected_is_engaged"]:
-                mismatches_list.append(
-                    f"{session_id}: is_engaged {row['computed_is_engaged']} != {row['expected_is_engaged']}"
-                )
+            if row[5] != row[6]:
+                mismatches_list.append(f"{session_id}: is_engaged {row[5]} != {row[6]}")
 
         for mismatch in mismatches_list[:10]:  # Show first 10
             print(f"  - {mismatch}")
