@@ -16,8 +16,7 @@ pub enum OpenKind {
 }
 
 impl OpenKind {
-    #[must_use] 
-    pub const fn is_temp(&self) -> bool {
+    pub fn is_temp(&self) -> bool {
         matches!(self, Self::TempDb | Self::TempJournal | Self::TransientDb)
     }
 }
@@ -69,12 +68,10 @@ impl From<i32> for OpenMode {
 }
 
 impl OpenMode {
-    #[must_use] 
-    pub const fn must_create(&self) -> bool {
+    pub fn must_create(&self) -> bool {
         matches!(self, Self::ReadWrite { create: CreateMode::MustCreate })
     }
-    #[must_use] 
-    pub const fn is_readonly(&self) -> bool {
+    pub fn is_readonly(&self) -> bool {
         matches!(self, Self::ReadOnly)
     }
 }
@@ -85,32 +82,27 @@ pub struct OpenOpts {
 }
 
 impl OpenOpts {
-    #[must_use] 
-    pub const fn new(flags: i32) -> Self {
+    pub fn new(flags: i32) -> Self {
         Self { flags }
     }
 
-    #[must_use] 
-    pub const fn flags(&self) -> i32 {
+    pub fn flags(&self) -> i32 {
         self.flags
     }
 
-    #[must_use] 
     pub fn kind(&self) -> OpenKind {
         self.flags.into()
     }
 
-    #[must_use] 
     pub fn mode(&self) -> OpenMode {
         self.flags.into()
     }
 
-    #[must_use] 
-    pub const fn delete_on_close(&self) -> bool {
+    pub fn delete_on_close(&self) -> bool {
         self.flags & vars::SQLITE_OPEN_DELETEONCLOSE > 0
     }
 
-    pub const fn set_readonly(&mut self) {
+    pub fn set_readonly(&mut self) {
         self.flags &= !vars::SQLITE_OPEN_READWRITE;
         self.flags |= vars::SQLITE_OPEN_READONLY;
     }
@@ -154,10 +146,8 @@ impl From<i32> for AccessFlags {
 /// Represents one of the 5 `SQLite` locking levels.
 /// See [SQLite documentation](https://www.sqlite.org/lockingv3.html) for more information.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-#[derive(Default)]
 pub enum LockLevel {
     /// No locks are held; the database may be neither read nor written.
-    #[default]
     Unlocked,
 
     /// The database may be read but not written. Multiple Shared locks can
@@ -175,7 +165,6 @@ pub enum LockLevel {
     /// The database may be read or written, but no other locks can be held.
     Exclusive,
 }
-
 
 impl From<i32> for LockLevel {
     fn from(lock: i32) -> Self {

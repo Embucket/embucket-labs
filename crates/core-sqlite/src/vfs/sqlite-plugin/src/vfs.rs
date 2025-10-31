@@ -68,9 +68,8 @@ pub enum PragmaErr {
 }
 
 impl PragmaErr {
-    #[must_use] 
     pub fn required_arg(p: &Pragma<'_>) -> Self {
-        Self::Fail(
+        PragmaErr::Fail(
             SQLITE_ERROR,
             Some(format!(
                 "argument required (e.g. `pragma {} = ...`)",
@@ -231,7 +230,6 @@ pub struct SqliteApi {
 
 impl SqliteApi {
     #[cfg(feature = "static")]
-    #[must_use] 
     pub fn new_static() -> Self {
         Self {
             register: ffi::sqlite3_vfs_register,
@@ -307,7 +305,7 @@ fn register_inner<T: Vfs>(
     opts: RegisterOpts,
 ) -> VfsResult<()> {
     let version = unsafe { (sqlite_api.libversion_number)() };
-    assert!((version >= MIN_SQLITE_VERSION_NUMBER), 
+    assert!((version >= MIN_SQLITE_VERSION_NUMBER),
             "sqlite3 must be at least version {MIN_SQLITE_VERSION_NUMBER}, found version {version}"
         );
 
