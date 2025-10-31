@@ -199,6 +199,7 @@ macro_rules! test_query {
                 settings.set_omit_expression(true);
                 settings.set_prepend_module_to_snapshot(false);
                 settings.set_snapshot_path(concat!("snapshots", "/") $(.to_owned() + $user_snapshot_path)?);
+                settings.add_filter(r"[0-9a-fA-F-]{36}", "[UUID]");
 
                 let setup: Vec<&str> = vec![$($($setup_queries),*)?];
                 if !setup.is_empty() {
