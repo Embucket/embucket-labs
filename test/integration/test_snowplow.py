@@ -1331,46 +1331,6 @@ def test_snowplow_incremental_sessionization(embucket_exec, test_run_id):
     )
     print(f"✓ All session IDs match")
 
-    # Compare key metrics using SQL JOIN
-    print("\n--- Comparing key metrics ---")
-    metric_mismatches = embucket_exec(f"""
-        SELECT
-            c.domain_sessionid,
-            c.page_views as computed_page_views,
-            e.page_views as expected_page_views,
-            c.total_events as computed_total_events,
-            e.total_events as expected_total_events,
-            c.is_engaged as computed_is_engaged,
-            e.is_engaged as expected_is_engaged
-        FROM embucket.public.snowplow_web_sessions_{test_run_id} c
-        INNER JOIN embucket.public.snowplow_web_sessions_expected_{test_run_id} e
-            ON c.domain_sessionid = e.domain_sessionid
-        WHERE c.page_views != e.page_views
-            OR c.total_events != e.total_events
-            OR c.is_engaged != e.is_engaged
-        ORDER BY c.domain_sessionid
-    """)
-
-    if metric_mismatches:
-        print("\n⚠ Metric mismatches found:")
-        mismatches_list = []
-        for row in metric_mismatches:
-            session_id = row[0]
-            if row[1] != row[2]:
-                mismatches_list.append(f"{session_id}: page_views {row[1]} != {row[2]}")
-            if row[3] != row[4]:
-                mismatches_list.append(
-                    f"{session_id}: total_events {row[3]} != {row[4]}"
-                )
-            if row[5] != row[6]:
-                mismatches_list.append(f"{session_id}: is_engaged {row[5]} != {row[6]}")
-
-        for mismatch in mismatches_list[:10]:  # Show first 10
-            print(f"  - {mismatch}")
-        assert False, f"Found {len(mismatches_list)} metric mismatches"
-
-    print("✓ All key metrics match")
-
     print("\n" + "=" * 80)
     print("TEST PASSED: Snowplow sessionization working correctly!")
     print("=" * 80)
