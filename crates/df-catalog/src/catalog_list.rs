@@ -117,7 +117,7 @@ impl EmbucketCatalogList {
 
         let ident = Database {
             ident: catalog_name.to_owned(),
-            volume: volume_ident.to_owned(),
+            volume_id: volume.id,
             properties: None,
         };
         let database = self
@@ -127,9 +127,10 @@ impl EmbucketCatalogList {
             .context(MetastoreSnafu)?;
 
         let catalog = match &volume.volume {
-            VolumeType::S3(_) | VolumeType::File(_) => self.get_embucket_catalog(&database)?,
+            VolumeType::S3(_) | VolumeType::File(_) => self.get_embucket_catalog(&database).await?,
             VolumeType::Memory => self
-                .get_embucket_catalog(&database)?
+                .get_embucket_catalog(&database)
+                .await?
                 .with_catalog_type(CatalogType::Memory),
             VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), catalog_name).await?,
         };
@@ -187,24 +188,22 @@ impl EmbucketCatalogList {
         for db in databases {
             let volume = self
                 .metastore
-                .get_volume(&db.volume)
+                .get_volume_by_id(db.volume_id)
                 .await
-                .context(MetastoreSnafu)?
-                .context(MissingVolumeSnafu {
-                    name: db.volume.clone(),
-                })?;
+                .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type
             let catalog = match &volume.volume {
                 VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), &db.ident).await?,
-                _ => self.get_embucket_catalog(&db)?,
+                _ => self.get_embucket_catalog(&db).await?,
             };
             catalogs.push(catalog);
         }
         Ok(catalogs)
     }
 
-    fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
-        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
+    async fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
+        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), db)
+            .await
             .context(MetastoreSnafu)?;
         let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
             db.ident.clone(),

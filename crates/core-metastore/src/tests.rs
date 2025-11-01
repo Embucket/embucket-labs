@@ -177,28 +177,35 @@ async fn test_update_volume() {
 #[tokio::test]
 async fn test_create_database() {
     let ms = get_metastore().await;
-    let mut database = Database {
-        ident: "testdb".to_owned(),
-        volume: "testv1".to_owned(),
-        properties: None,
-    };
+    let mut database = Database::new(
+        "testdb".to_owned(),
+        0 // non existing volumes
+    );
+    // let mut database = Database {
+    //     ident: "testdb".to_owned(),
+    //     volume: "testv1".to_owned(),
+    //     properties: None,
+    // };
     let no_volume_result = ms
         .create_database(database.clone())
-        .await;
+        .await
+        .expect_err("create database with non existing volume should fail");
 
-    let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    let volume2 = Volume::new(
-        "test2".to_owned(),
-        VolumeType::File(FileVolume {
-            path: "/tmp".to_owned(),
-        }),
-    );
-    ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
+    // let volume = Volume::new("test".to_owned(), VolumeType::Memory);
+    // let volume2 = Volume::new(
+    //     "test2".to_owned(),
+    //     VolumeType::File(FileVolume {
+    //         path: "/tmp".to_owned(),
+    //     }),
+    // );
+    let volume_testv1 = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
+        .await
+        .expect("create volume failed");    
+    let volume_testv2 = ms.create_volume(Volume::new("testv2".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_volume(Volume::new("testv2".to_owned(), VolumeType::Memory))
-        .await
-        .expect("create volume failed");
+
+    database.volume_id = volume_testv1.id;
     ms.create_database(database.clone())
         .await
         .expect("create database failed");
@@ -208,7 +215,7 @@ async fn test_create_database() {
         .await
         .expect("list databases failed");
 
-    database.volume = "testv2".to_owned();
+    database.volume_id = volume_testv2.id;
     ms.update_database(&"testdb".to_owned(), database)
         .await
         .expect("update database failed");
@@ -248,10 +255,10 @@ async fn test_schemas() {
         .create_schema(&schema.ident.clone(), schema.clone())
         .await;
 
-    ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
+    let volume = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
+    ms.create_database(Database::new("testdb".to_owned(), volume.id))
         .await
         .expect("create database failed");
     let schema_create = ms
@@ -328,10 +335,10 @@ async fn test_tables() {
     let no_schema_result = ms.create_table(&table.ident.clone(), table.clone()).await;
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    ms.create_volume(volume)
+    let volume = ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
+    ms.create_database(Database::new("testdb".to_owned(), volume.id))
         .await
     .expect("create database failed");
     ms.create_schema(
@@ -354,7 +361,7 @@ async fn test_tables() {
         .await
         .expect("create table failed");
     let vol_object_store = ms
-        .volume_object_store(&"testv1".to_owned())
+        .volume_object_store(volume.id)
         .await
         .expect("get volume object store failed")
         .expect("Object store not found");
@@ -438,10 +445,10 @@ async fn test_temporary_tables() {
     };
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    ms.create_volume(volume)
+    let volume = ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), "testv1".to_owned()))
+    ms.create_database(Database::new("testdb".to_owned(), volume.id))
     .await
     .expect("create database failed");
     ms.create_schema(

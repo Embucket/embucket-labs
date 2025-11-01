@@ -23,28 +23,21 @@ where
 {
     #[serde(flatten)]
     pub data: T,
-	pub id: Uuid,
+    // TODO: make it Optional after migrating to sqlite finished
+	pub id: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
-
-// impl<T> Expression for RwObject<T>
-// where
-//     T: Expression,
-// {
-//     type SqlType = T::SqlType;
-// }
 
 impl<T> RwObject<T>
 where
     T: Eq + PartialEq,
 {
-    pub fn new(data: T) -> RwObject<T> {
+    pub fn new(data: T, id: Option<i64>) -> RwObject<T> {
         let now = chrono::Utc::now();
-		let id = Uuid::new_v4();
         Self {
             data,
-			id,
+			id: id.unwrap_or_default(),
             created_at: now,
             updated_at: now,
         }

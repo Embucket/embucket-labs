@@ -16,17 +16,16 @@ pub struct Database {
     // pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, String>>,
-    /// Volume identifier
-    pub volume: VolumeIdent,
+    pub volume_id: i64,
 }
 
 impl Database {
-    pub fn new(ident: DatabaseIdent, volume: VolumeIdent) -> Self {
+    pub fn new(ident: DatabaseIdent, volume_id: i64) -> Self {
         Self {
             // ident: Uuid::new_v4(),
             ident,
             properties: None,
-            volume,
+            volume_id,
         }
     }
     #[must_use]
@@ -41,7 +40,7 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let db = Database::new("db".to_string(), "vol".to_string());
+        let db = Database::new("db".to_string(), 0);
         assert_eq!(db.prefix("parent"), "parent/db".to_string());
     }
 }

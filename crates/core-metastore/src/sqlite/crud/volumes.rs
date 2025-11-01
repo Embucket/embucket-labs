@@ -3,25 +3,27 @@ use diesel::query_dsl::methods::FindDsl;
 use crate::models::Volume;
 use crate::models::VolumeIdent;
 use crate::models::RwObject;
+use crate::sqlite::crud::databases::list_databases;
 use validator::Validate;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use diesel::sql_types::TimestamptzSqlite;
 use uuid::Uuid;
 use crate::sqlite::diesel_gen::volumes;
+use crate::sqlite::diesel_gen::databases;
 use crate::models::{Table};
-use deadpool_diesel::sqlite::Pool;
+use deadpool_diesel::sqlite::Connection;
 use diesel::result::QueryResult;
 use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
-use snafu::ResultExt;
+use snafu::{ResultExt, OptionExt};
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable)]
 #[serde(rename_all = "kebab-case")]
 #[diesel(table_name = crate::sqlite::diesel_gen::volumes)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct VolumeRecord {
-	pub id: String,
+	pub id: i64,
     pub ident: VolumeIdent,
     pub volume: String,
     pub created_at: String, // if using TimestamptzSqlite it doen't support Eq
@@ -31,7 +33,7 @@ pub struct VolumeRecord {
 impl From<RwObject<Volume>> for VolumeRecord {
     fn from(value: RwObject<Volume>) -> Self {
         Self {
-            id: value.id.to_string(),
+            id: value.id,
             ident: value.ident.clone(),
             volume: serde_json::to_string(&value.volume).unwrap(),
             created_at: Utc::now().to_rfc3339(),
@@ -44,7 +46,8 @@ impl TryInto<RwObject<Volume>> for VolumeRecord {
     type Error = metastore_err::Error;
     fn try_into(self) -> Result<RwObject<Volume>> {
         Ok(RwObject {
-            id: Uuid::parse_str(&self.id).context(metastore_err::UuidParseSnafu)?,
+            id: self.id,
+            // todo: replace unwrap by fallible conversion
             data: Volume::new(self.ident, serde_json::from_str(&self.volume).unwrap()),
             created_at: DateTime::parse_from_rfc3339(&self.created_at).unwrap().with_timezone(&Utc),
             updated_at: DateTime::parse_from_rfc3339(&self.updated_at).unwrap().with_timezone(&Utc),
@@ -52,11 +55,9 @@ impl TryInto<RwObject<Volume>> for VolumeRecord {
     }
 }
 
-pub async fn create_volume(pool: &Pool, volume: RwObject<Volume>) -> Result<usize> {
+pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Result<usize> {
     let volume = VolumeRecord::from(volume);
     let volume_name = volume.ident.clone();
-    let conn = pool.get().await
-        .context(metastore_err::DieselPoolSnafu)?;
     let create_volume_res = conn.interact(move |conn| -> QueryResult<usize> {
         diesel::insert_into(volumes::table)
             .values(&volume)
@@ -68,8 +69,7 @@ pub async fn create_volume(pool: &Pool, volume: RwObject<Volume>) -> Result<usiz
     create_volume_res.context(metastore_err::DieselSnafu)
 }
 
-pub async fn get_volume(pool: &Pool, volume_ident: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
-    let conn = pool.get().await?;
+pub async fn get_volume(conn: &Connection, volume_ident: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
     let ident_owned = volume_ident.to_string();
     conn.interact(move |conn| -> QueryResult<Option<VolumeRecord>> {
         volumes::table
@@ -82,8 +82,19 @@ pub async fn get_volume(pool: &Pool, volume_ident: &VolumeIdent) -> Result<Optio
     .transpose()
 }
 
-pub async fn list_volumes(pool: &Pool) -> Result<Vec<RwObject<Volume>>> {
-    let conn = pool.get().await?;
+pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<Option<RwObject<Volume>>> {
+    conn.interact(move |conn| -> QueryResult<Option<VolumeRecord>> {
+        volumes::table
+            .filter(volumes::id.eq(volume_id))
+            .first::<VolumeRecord>(conn)
+            .optional()
+    }).await?
+    .context(metastore_err::DieselSnafu)?
+    .map(TryInto::try_into)
+    .transpose()
+}
+
+pub async fn list_volumes(conn: &Connection) -> Result<Vec<RwObject<Volume>>> {
     // order by name to be compatible with previous slatedb metastore
     conn.interact(|conn| volumes::table.order(volumes::ident.asc()).load::<VolumeRecord>(conn))
         .await?
@@ -93,8 +104,8 @@ pub async fn list_volumes(pool: &Pool) -> Result<Vec<RwObject<Volume>>> {
         .collect()
 }
 
-pub async fn update_volume(pool: &Pool, ident: &VolumeIdent, updated: Volume) -> Result<RwObject<Volume>> {
-    let conn = pool.get().await?;
+// Only rename volume is supported
+pub async fn update_volume(conn: &Connection, ident: &VolumeIdent, updated: Volume) -> Result<RwObject<Volume>> {
     let ident_owned = ident.to_string();
     let new_ident = updated.ident.to_string();
     conn.interact(move |conn| {
@@ -110,8 +121,7 @@ pub async fn update_volume(pool: &Pool, ident: &VolumeIdent, updated: Volume) ->
     .try_into()
 }
 
-pub async fn delete_volume(pool: &Pool, ident: &str) -> Result<RwObject<Volume>> {
-    let conn = pool.get().await?;
+pub async fn delete_volume_cascade(conn: &Connection, ident: &VolumeIdent) -> Result<RwObject<Volume>> {
     let ident_owned = ident.to_string();
     conn.interact(move |conn| {
         diesel::delete(volumes::table.filter(volumes::dsl::ident.eq(ident_owned)))

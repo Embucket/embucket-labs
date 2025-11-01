@@ -8,11 +8,11 @@ This crate provides a consistent way for other Embucket components to access and
 
 ### Using Sqlite based Metastore with Diesel ORM
 
+Find Diesel config in `diesel.toml` file. 
+
 To run migrations use:
 
 ```bash
-echo MIGRATION_DIRECTORY=crates/core-metastore/src/sqlite/migrations >> .env
-
 # run migrations (for first time it creates database tables)
     diesel migration run --database-url "file:sqlite_data/metastore.db"
 

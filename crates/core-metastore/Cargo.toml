@@ -40,7 +40,7 @@ cfg-if = { workspace = true }
 deadpool-diesel = { workspace = true }
 deadpool = { workspace = true }
 deadpool-sqlite = { workspace = true }
-diesel = { version = "2.3.2", features = ["sqlite", "chrono", "uuid", "returning_clauses_for_sqlite_3_35"] }
+diesel = { version = "2.3.2", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
 diesel_migrations = { version = "2.3.0", features = ["sqlite"] }
 
 [dev-dependencies]

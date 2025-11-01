@@ -3493,13 +3493,11 @@ version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8496eeb328dce26ee9d9b73275d396d9bddb433fa30106cf6056dd8c3c2764c"
 dependencies = [
- "chrono",
  "diesel_derives",
  "downcast-rs 2.0.2",
  "libsqlite3-sys",
  "sqlite-wasm-rs",
  "time",
- "uuid",
 ]
 
 [[package]]

@@ -3,11 +3,12 @@ use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
 use crate::df_error;
-use core_metastore::{Metastore, SchemaIdent};
+use core_metastore::{Metastore, RwObject, SchemaIdent, Volume};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct MetastoreViewConfig {
@@ -58,10 +59,22 @@ impl MetastoreViewConfig {
             .collect()
             .await
             .context(df_error::CoreUtilsSnafu)?;
+        let mut volumes: HashMap<i64, RwObject<Volume>> = HashMap::new();
         for database in databases {
+            let volume_name = if let Some(volume) = volumes.get(&database.volume_id) {
+                volume.ident.clone()
+            } else {
+                let volume = self.metastore
+                    .get_volume_by_id(database.volume_id)
+                    .await
+                    .context(df_error::MetastoreSnafu)?;
+                let volume_ident = volume.ident.clone();
+                volumes.insert(database.volume_id, volume);
+                volume_ident
+            };
             builder.add_database(
                 database.ident.as_str(),
-                &database.volume,
+                volume_name,
                 database.created_at.to_string(),
                 database.updated_at.to_string(),
             );

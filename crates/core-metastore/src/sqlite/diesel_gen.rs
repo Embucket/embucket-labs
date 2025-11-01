@@ -1,10 +1,11 @@
 // @generated automatically by Diesel CLI.
+
 diesel::table! {
     databases (id) {
-        id -> Text,
+        id -> BigInt,
         ident -> Text,
         properties -> Nullable<Text>,
-        volume_ident -> Text,
+        volume_id -> BigInt,
         created_at -> Text,
         updated_at -> Text,
     }
@@ -12,8 +13,9 @@ diesel::table! {
 
 diesel::table! {
     schemas (id) {
-        id -> Text,
+        id -> BigInt,
         ident -> Text,
+        database_id -> BigInt,
         properties -> Nullable<Text>,
         created_at -> Text,
         updated_at -> Text,
@@ -22,7 +24,7 @@ diesel::table! {
 
 diesel::table! {
     tables (id) {
-        id -> Text,
+        id -> BigInt,
         ident -> Text,
         metadata -> Text,
         metadata_location -> Text,
@@ -38,10 +40,15 @@ diesel::table! {
 
 diesel::table! {
     volumes (id) {
-        id -> Text,
+        id -> BigInt,
         ident -> Text,
         volume -> Text,
         created_at -> Text,
         updated_at -> Text,
     }
 }
+
+diesel::joinable!(databases -> volumes (volume_id));
+diesel::joinable!(schemas -> databases (database_id));
+
+diesel::allow_tables_to_appear_in_same_query!(databases, schemas, tables, volumes,);
