@@ -52,12 +52,12 @@ async fn test_execute_always_returns_schema() {
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    metastore
+    let volume = metastore
         .create_volume(MetastoreVolume::new("test_volume".to_string(), core_metastore::VolumeType::Memory))
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(MetastoreDatabase::new("embucket".to_string(), "test_volume".to_string()))
+        .create_database(MetastoreDatabase::new("embucket".to_string(), volume.id))
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -172,7 +172,7 @@ async fn test_service_create_table_file_volume() {
     let temp_dir = std::env::temp_dir().join("test_file_volume");
     let _ = std::fs::create_dir_all(&temp_dir);
     let temp_path = temp_dir.to_str().expect("Failed to convert path to string");
-    metastore
+    let volume = metastore
         .create_volume(
             MetastoreVolume::new(
                 "test_volume".to_string(),
@@ -188,7 +188,7 @@ async fn test_service_create_table_file_volume() {
             MetastoreDatabase {
                 ident: "embucket".to_string(),
                 properties: None,
-                volume: "test_volume".to_string(),
+                volume_id: volume.id,
             },
         )
         .await
@@ -272,7 +272,7 @@ async fn test_service_create_table_file_volume() {
 async fn test_query_recording() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
-    metastore
+    let volume = metastore
         .create_volume(
             MetastoreVolume::new(
                 "test_volume".to_string(),
@@ -284,9 +284,9 @@ async fn test_query_recording() {
 
     let database_name = "embucket".to_string();
 
-    metastore
+    let database = metastore
         .create_database(
-            MetastoreDatabase::new(database_name.clone(), "test_volume".to_string()),
+            MetastoreDatabase::new(database_name.clone(), volume.id),
         )
         .await
         .expect("Failed to create database");

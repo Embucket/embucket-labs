@@ -1,6 +1,7 @@
 #![allow(clippy::needless_for_each)]
 use crate::error::Result;
 use crate::state::AppState;
+use crate::volumes::error::VolumeNotFoundSnafu;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
     SearchParameters,
@@ -84,9 +85,16 @@ pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> Result<Json<DatabaseCreateResponse>> {
+    let volume = state
+        .metastore
+        .get_volume(&database.volume)
+        .await
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+    
     let database = MetastoreDatabase {
         ident: database.name,
-        volume: database.volume,
+        volume_id: volume.id,
         properties: None,
     };
     database
@@ -99,7 +107,7 @@ pub async fn create_database(
             &session_id,
             &format!(
                 "CREATE DATABASE {} EXTERNAL_VOLUME = '{}'",
-                database.ident, database.volume
+                database.ident, volume.ident
             ),
             QueryContext::default(),
         )
@@ -115,7 +123,15 @@ pub async fn create_database(
             database: database.ident.clone(),
         })?;
 
-    Ok(Json(DatabaseCreateResponse(Database::from(database))))
+    // Switch using this after moving id added to ui models
+    // Ok(Json(DatabaseCreateResponse(Database::from(database))))
+
+    Ok(Json(DatabaseCreateResponse(Database {
+        name: database.ident.clone(),
+        volume: volume.ident.clone(),
+        created_at: database.created_at.to_string(),
+        updated_at: database.updated_at.to_string(),
+    })))
 }
 
 #[utoipa::path(
@@ -155,10 +171,21 @@ pub async fn get_database(
             })
         })
         .context(GetSnafu)?
-        .map(Database::from)
         .context(GetSnafu)?;
 
-    Ok(Json(DatabaseResponse(database)))
+    let volume = state
+        .metastore
+        .get_volume_by_id(database.volume_id)
+        .await
+        .context(GetSnafu)?;
+
+    // .map(Database::from)
+    Ok(Json(DatabaseResponse(Database {
+        name: database.ident.clone(),
+        volume: volume.ident.clone(),
+        created_at: database.created_at.to_string(),
+        updated_at: database.updated_at.to_string(),
+    })))
 }
 
 #[utoipa::path(
@@ -230,9 +257,16 @@ pub async fn update_database(
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
 ) -> Result<Json<DatabaseUpdateResponse>> {
+    let volume = state
+        .metastore
+        .get_volume(&database.volume)
+        .await
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+
     let database = MetastoreDatabase {
         ident: database.name,
-        volume: database.volume,
+        volume_id: volume.id,
         properties: None,
     };
     database
@@ -244,7 +278,13 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        .map(Database::from)
+        // .map(Database::from)
+        .map(|d| Database {
+            name: d.ident.clone(),
+            volume: volume.ident.clone(),
+            created_at: d.created_at.to_string(),
+            updated_at: d.updated_at.to_string(),
+        })
         .context(UpdateSnafu)?;
 
     Ok(Json(DatabaseUpdateResponse(database)))

@@ -30,16 +30,17 @@ pub struct Database {
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreDatabase>> for Database {
-    fn from(db: RwObject<MetastoreDatabase>) -> Self {
-        Self {
-            name: db.data.ident,
-            volume: db.data.volume,
-            created_at: db.created_at.to_string(),
-            updated_at: db.updated_at.to_string(),
-        }
-    }
-}
+// TODO: Enable this conversion after id is added to UI Database
+// impl From<RwObject<MetastoreDatabase>> for Database {
+//     fn from(db: RwObject<MetastoreDatabase>) -> Self {
+//         Self {
+//             name: db.data.ident,
+//             volume: db.data.volume,
+//             created_at: db.created_at.to_string(),
+//             updated_at: db.updated_at.to_string(),
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::DatabaseCreatePayload;
+use crate::databases::models::{DatabaseCreatePayload, Database};
 use crate::queries::models::QueryCreatePayload;
 use crate::schemas::models::SchemaCreatePayload;
 use crate::tables::models::{
@@ -10,7 +10,6 @@ use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use crate::worksheets::{Worksheet, WorksheetCreatePayload, WorksheetResponse};
-use core_metastore::Database as MetastoreDatabase;
 use http::Method;
 use serde_json::json;
 
@@ -35,18 +34,13 @@ async fn test_ui_tables() {
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let expected1 = MetastoreDatabase {
-        ident: database_name.clone(),
-        properties: None,
-        volume: volume.name.clone(),
-    };
     let _res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Database(DatabaseCreatePayload {
-            name: expected1.clone().ident.clone(),
-            volume: expected1.clone().volume.clone(),
+            name: database_name.clone(),
+            volume: volume.name.clone(),
         }),
     )
     .await;

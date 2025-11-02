@@ -431,8 +431,9 @@ impl ExecutorWithObjectStore {
                             .rev()
                             .collect(),
                     });
+                    // This not going to work, just compile since volumes migrated to sqlite
                     // wrap as a fresh RwObject, this sets new updated at
-                    let rwobject = RwObject::new(MetastoreVolume::new(
+                    let volume = RwObject::new(MetastoreVolume::new(
                         volume_name.clone(),
                         VolumeType::S3(S3Volume {
                             region: s3_volume.region,
@@ -440,24 +441,25 @@ impl ExecutorWithObjectStore {
                             endpoint: s3_volume.endpoint,
                             credentials: Some(aws_credentials),
                         }),
-                    ));
-                    eprintln!("Intentionally corrupting volume: {:#?}", rwobject.data);
+                    ), None);
+                    let volume_id = volume.id;
+                    eprintln!("Intentionally corrupting volume: {:#?}", volume);
                     // Use db.put to update volume in metastore
                     self.db
-                        .put(&db_key, &rwobject)
+                        .put(&db_key, &volume)
                         .await
                         .context(UtilSlateDBSnafu)
                         .context(TestMetastoreSnafu)?;
                     // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
                     self.metastore
-                        .update_volume(&volume_name, rwobject.data)
+                        .update_volume(&volume_name, volume.data)
                         .await
                         .context(TestMetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials
                     let object_store = self
                         .metastore
-                        .volume_object_store(&volume_name)
+                        .volume_object_store(volume_id)
                         .await
                         .context(TestMetastoreSnafu)?;
                     if let Some(object_store) = object_store {

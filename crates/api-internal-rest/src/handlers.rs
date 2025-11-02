@@ -184,5 +184,5 @@ pub async fn query_by_id(
         .await
         .context(GetQuerySnafu)?;
 
-    Ok(Json(RwObject::new(query_record)))
+    Ok(Json(RwObject::new(query_record, Some(query_id.as_i64()))))
 }

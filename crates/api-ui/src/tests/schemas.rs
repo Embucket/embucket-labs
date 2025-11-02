@@ -1,11 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::DatabaseCreatePayload;
+use crate::databases::models::{DatabaseCreatePayload};
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
-use core_metastore::Database as MetastoreDatabase;
 use http::Method;
 use serde_json::json;
 
@@ -30,11 +29,7 @@ async fn test_ui_schemas() {
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let _expected1 = MetastoreDatabase {
-        ident: database_name.clone(),
-        properties: None,
-        volume: volume.name.clone(),
-    };
+
     let _res = ui_test_op(
         addr,
         Op::Create,

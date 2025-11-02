@@ -98,7 +98,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
     let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
     let running_queries = Arc::new(RunningQueriesRegistry::new());
 
-    metastore
+    let volume = metastore
         .create_volume(
             MetastoreVolume::new(
                 "test_volume".to_string(),
@@ -107,12 +107,12 @@ pub async fn create_df_session() -> Arc<UserSession> {
         )
         .await
         .expect("Failed to create volume");
-    metastore
+    let _database = metastore
         .create_database(
             MetastoreDatabase {
                 ident: "embucket".to_string(),
                 properties: None,
-                volume: "test_volume".to_string(),
+                volume_id: volume.id,
             },
         )
         .await

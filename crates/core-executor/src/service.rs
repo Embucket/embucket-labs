@@ -13,7 +13,7 @@ use datafusion::execution::memory_pool::{
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 use std::vec;
@@ -33,7 +33,7 @@ use core_history::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryResultError, QueryStatus};
 use core_metastore::{
     Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
-    Volume, VolumeType,
+    Volume, VolumeType, error as metastore_err,
 };
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
@@ -217,8 +217,20 @@ impl CoreExecutionService {
             })?;
         }
 
+        // now volume should exist
+        let volume = metastore
+            .get_volume(&ident)
+            .await
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "volume",
+            })?
+            .context(metastore_err::VolumeNotFoundSnafu { volume: ident.clone() })
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "volume",
+            })?;
+
         metastore
-            .create_database(Database::new(ident.clone(), ident.clone()))
+            .create_database(Database::new(ident.clone(), volume.id))
             .await
             .context(ex_error::BootstrapSnafu {
                 entity_type: "database",
