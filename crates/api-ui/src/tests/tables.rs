@@ -213,7 +213,7 @@ async fn test_ui_tables() {
     assert_eq!(http::StatusCode::OK, res.status());
     let TableStatisticsResponse(table) = res.json().await.unwrap();
     assert_eq!(0, table.total_bytes);
-    assert_eq!(0, table.total_rows);
+    assert_eq!(2, table.total_rows);
 
     //Create three more tables
     let query_payload = QueryCreatePayload {
