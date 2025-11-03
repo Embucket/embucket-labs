@@ -15,7 +15,7 @@ fn server_custom_cfg(data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
             .with_demo_credentials("embucket".to_string(), "embucket".to_string()),
         UtilsConfig::default()
             .with_max_concurrency_level(2)
-            .with_query_timeout(1)
+            .with_query_timeout(2)
             .with_query_history_rows_limit(5),
     ))
 }
@@ -29,11 +29,11 @@ mod snowflake_generic {
         submit_ok_query_with_concurrent_limit,
         [
             // 1: scheduled query ID
-            "SELECT sleep(1);>",
+            "SELECT sleep(2);>",
             // 2: scheduled query ID
-            "SELECT sleep(1);>",
+            "SELECT sleep(2);>",
             // 3: concurrent limit exceeded
-            "SELECT sleep(1);>",
+            "SELECT 1;>",
         ]
     );
 

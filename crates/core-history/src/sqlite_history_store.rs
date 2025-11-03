@@ -140,18 +140,23 @@ impl SlateDBHistoryStore {
 
         let result = tokio::try_join!(
             queries_connection.interact(|conn| -> SqlResult<usize> {
-                conn.execute("BEGIN", [])?;
-                conn.execute(WORKSHEETS_CREATE_TABLE, [])?;
-                conn.execute(QUERIES_CREATE_TABLE, [])?;
-                conn.execute("COMMIT", [])
+                let mut res = 0;
+                res += conn.execute("BEGIN", [])?;
+                res += conn.execute(WORKSHEETS_CREATE_TABLE, [])?;
+                res += conn.execute(QUERIES_CREATE_TABLE, [])?;
+                res += conn.execute("COMMIT", [])?;
+                Ok(res)
             }),
             results_connection
                 .interact(|conn| -> SqlResult<usize> { conn.execute(RESULTS_CREATE_TABLE, []) }),
         )?;
-        result.0.context(history_err::CreateTablesSnafu)?;
-        result.1.context(history_err::CreateTablesSnafu)?;
+        let queries_tables = result.0.context(history_err::CreateTablesSnafu)?;
+        let results_tables = result.1.context(history_err::CreateTablesSnafu)?;
 
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", format!(
+            "created_queries_tables={}, created_results_tables={}",
+            queries_tables, results_tables
+        ));
         Ok(())
     }
 }
@@ -175,7 +180,7 @@ impl HistoryStore for SlateDBHistoryStore {
 
         let sql = WORKSHEET_ADD.to_string();
         let worksheet_cloned = worksheet.clone();
-        let _res = conn
+        let res = conn
             .interact(move |conn| -> SqlResult<usize> {
                 let params = named_params! {
                     ":id": worksheet_cloned.id,
@@ -189,7 +194,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .await?
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::WorksheetAddSnafu)?;
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", res);
         Ok(worksheet)
     }
 
@@ -232,10 +237,11 @@ impl HistoryStore for SlateDBHistoryStore {
             }
             .fail()
         } else {
-            tracing::Span::current().record("ok", true);
-            Ok(res
+            let worksheet = res
                 .context(core_utils_err::RuSqliteSnafu)
-                .context(history_err::WorksheetGetSnafu)?)
+                .context(history_err::WorksheetGetSnafu)?;
+            tracing::Span::current().record("ok", true);
+            Ok(worksheet)
         }
     }
 
@@ -250,7 +256,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::WorksheetUpdateSnafu)?;
 
-        let _res = conn
+        let res = conn
             .interact(move |conn| -> SqlResult<usize> {
                 conn.execute(
                     "UPDATE worksheets
@@ -268,7 +274,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::WorksheetUpdateSnafu)?;
 
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", res);
         Ok(())
     }
 
@@ -304,7 +310,7 @@ impl HistoryStore for SlateDBHistoryStore {
             }
             .fail()
         } else {
-            tracing::Span::current().record("ok", true);
+            tracing::Span::current().record("ok", deleted);
             Ok(())
         }
     }
@@ -349,7 +355,7 @@ impl HistoryStore for SlateDBHistoryStore {
         .context(core_utils_err::RuSqliteSnafu)
         .context(history_err::WorksheetsListSnafu)?;
 
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", res.len());
         Ok(res)
     }
 
@@ -369,7 +375,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(history_err::WorksheetAddSnafu)?;
 
         let q = item.clone();
-        conn.interact(move |conn| -> SqlResult<usize> {
+        let res = conn.interact(move |conn| -> SqlResult<usize> {
             conn.execute(
                 "INSERT INTO queries (
                     id,
@@ -415,7 +421,7 @@ impl HistoryStore for SlateDBHistoryStore {
         .context(core_utils_err::RuSqliteSnafu)
         .context(history_err::QueryAddSnafu)?;
 
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", res);
         Ok(())
     }
 
@@ -603,10 +609,11 @@ impl HistoryStore for SlateDBHistoryStore {
         if res == Err(rusqlite::Error::QueryReturnedNoRows) {
             history_err::QueryNotFoundSnafu { query_id: id }.fail()
         } else {
-            tracing::Span::current().record("ok", true);
-            Ok(res
+            let query = res
                 .context(core_utils_err::RuSqliteSnafu)
-                .context(history_err::QueryGetSnafu)?)
+                .context(history_err::QueryGetSnafu)?;
+            tracing::Span::current().record("ok", true);
+            Ok(query)
         }
     }
 
@@ -693,7 +700,7 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(core_utils_err::RuSqliteSnafu)
             .context(history_err::QueryGetSnafu)?;
 
-        tracing::Span::current().record("ok", true);
+        tracing::Span::current().record("ok", items.len());
         Ok(items)
     }
 

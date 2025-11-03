@@ -117,7 +117,7 @@ pub async fn run_test_rest_api_server_with_config(
         cvar.notify_one(); // Notify the waiting thread
     }
     
-    tracing::info!("Server started");
+    tracing::info!("Server ready at {}", addr);
 
     // Serve the application
     axum_server::from_tcp(listener)
