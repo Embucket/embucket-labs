@@ -505,8 +505,6 @@ async fn test_max_concurrency_level() {
                 .await;
             barrier.wait().await;
         });
-        // add delay as miliseconds granularity used for query_id is not enough
-        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     }
 
     let res = execution_svc
@@ -553,8 +551,6 @@ async fn test_max_concurrency_level2() {
                 QueryContext::default(),
             )
             .await;
-        // add delay as miliseconds granularity used for query_id is not enough
-        tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     }
 
     let res = execution_svc

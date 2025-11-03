@@ -408,15 +408,16 @@ impl Metastore for SlateDBMetastore {
         }
     }
 
-    #[instrument(name = "SqliteMetastore::iter_databases", level = "trace", skip(self))]
-    fn iter_databases(&self) -> VecScanIterator<RwObject<Database>> {
-        self.iter_objects(KEY_DATABASE.to_string())
+    #[instrument(name = "SqliteMetastore::get_databases", level = "trace", skip(self))]
+    async fn get_databases(&self, volume_id: Option<i64>) -> Result<Vec<RwObject<Database>>> {
+        let conn = self.connection().await?;
+        crud::databases::list_databases(&conn, volume_id).await
     }
 
     #[instrument(
         name = "SqliteMetastore::create_database",
         level = "debug",
-        skip(self, database),
+        skip(self),
         err
     )]
     async fn create_database(
@@ -427,6 +428,7 @@ impl Metastore for SlateDBMetastore {
             .await
             .context(metastore_err::DieselPoolSnafu)?;
         let rwobject = RwObject::new(database, None);
+        tracing::info!("Database object: {rwobject:?}");
         let inserted_count = crud::databases::create_database(&conn, rwobject.clone())
             .await?;
 

@@ -191,13 +191,6 @@ async fn test_create_database() {
         .await
         .expect_err("create database with non existing volume should fail");
 
-    // let volume = Volume::new("test".to_owned(), VolumeType::Memory);
-    // let volume2 = Volume::new(
-    //     "test2".to_owned(),
-    //     VolumeType::File(FileVolume {
-    //         path: "/tmp".to_owned(),
-    //     }),
-    // );
     let volume_testv1 = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");    
@@ -210,8 +203,7 @@ async fn test_create_database() {
         .await
         .expect("create database failed");
     let all_databases = ms
-        .iter_databases()
-        .collect()
+        .get_databases(None)
         .await
         .expect("list databases failed");
 
@@ -228,8 +220,7 @@ async fn test_create_database() {
         .await
         .expect("delete database failed");
     let all_dbs_after = ms
-        .iter_databases()
-        .collect()
+        .get_databases(None)
         .await
         .expect("list databases failed");
 

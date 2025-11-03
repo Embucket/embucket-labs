@@ -61,7 +61,7 @@ impl std::fmt::Display for HistoricalCodes {
 
 #[macro_export]
 macro_rules! sql_test {
-    ($data_format:expr, $name:ident, $sqls:expr) => {
+    ($server_cfg:expr, $name:ident, $sqls:expr) => {
         #[tokio::test(flavor = "multi_thread")]
         async fn $name() {
             use $crate::tests::snow_sql::snow_sql;
@@ -72,10 +72,12 @@ macro_rules! sql_test {
             };
             use $crate::tests::sql_macro::arrow_record_batch_from_snapshot;
 
+            let server_addr = run_test_rest_api_server($server_cfg);
+
             let mod_name = module_path!().split("::").last().unwrap();
-            let server_addr = run_test_rest_api_server($data_format).await;
             let mut prev_response: Option<JsonResponse> = None;
             let test_start = std::time::Instant::now();
+            let mut submitted_queries_handles = Vec::new();
             for (idx, sql) in $sqls.iter().enumerate() {
                 let idx = idx + 1;
                 let mut sql = sql.to_string();
@@ -88,7 +90,10 @@ macro_rules! sql_test {
                     sql = sql.replace("$LAST_QUERY_ID", &last_query_id);
                 }
 
-                let snapshot = snow_sql(&server_addr, DEMO_USER, DEMO_PASSWORD, &sql).await;
+                let (snapshot, task_handle) = snow_sql(&server_addr, DEMO_USER, DEMO_PASSWORD, &sql).await;
+                if let Some(handle) = task_handle {
+                    submitted_queries_handles.push(handle);
+                }
                 let test_duration = test_start.elapsed().as_millis();
                 let sql_duration = sql_start.elapsed().as_millis();
                 let async_query = sql.ends_with(";>").then(|| "Async ").unwrap_or("");
@@ -117,6 +122,8 @@ macro_rules! sql_test {
 
                 prev_response = Some(snapshot);
             }
+            // wait async queries, to prevent canceling queries when test finishes
+            futures::future::join_all(submitted_queries_handles).await;
         }
     };
 }

@@ -9,8 +9,10 @@ cfg_if::cfg_if! {
         pub mod test_generic_sqls;
         pub mod test_requests_abort;
         pub use crate::server::test_server::run_test_rest_api_server;
+        pub use crate::server::test_server::server_default_cfg;
     } else {
         pub mod external_server;
         pub use crate::tests::external_server::run_test_rest_api_server;
+        pub use crate::tests::external_server::server_default_cfg;
     }
 }

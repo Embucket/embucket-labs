@@ -55,10 +55,9 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let databases = self
             .metastore
-            .iter_databases()
-            .collect()
+            .get_databases(None)
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         let mut volumes: HashMap<i64, RwObject<Volume>> = HashMap::new();
         for database in databases {
             let volume_name = if let Some(volume) = volumes.get(&database.volume_id) {

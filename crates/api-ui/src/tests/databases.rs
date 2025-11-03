@@ -13,14 +13,11 @@ use http::Method;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-#[should_panic(
-    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 120) }"
-)]
-async fn test_ui_databases_metastore_update_bug() {
+async fn test_ui_databases_metastore_update() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    // Create volume with empty name
+    // Create volume
     let res = ui_test_op(
         addr,
         Op::Create,
@@ -61,8 +58,8 @@ async fn test_ui_databases_metastore_update_bug() {
     )
     .await
     .expect("Failed update database");
-    assert_eq!(new_database.name, renamed_database.name); // server confirmed it's renamed
-    assert_eq!(new_database.volume, renamed_database.volume);
+    assert_eq!("new-test", renamed_database.name); // server confirmed it's renamed
+    assert_eq!(volume.name, renamed_database.volume);
 
     // get non existing database using old name, expected error 404
     let res = http_req::<()>(
@@ -80,22 +77,15 @@ async fn test_ui_databases_metastore_update_bug() {
     assert_eq!(http::StatusCode::NOT_FOUND, res.status);
 
     // Get existing database using new name, expected Ok
-    let res = ui_test_op(
-        addr,
-        Op::Get,
-        None,
-        &Entity::Database(DatabaseCreatePayload {
-            name: renamed_database.name.clone(),
-            volume: renamed_database.volume.clone(),
-        }),
+    let database = http_req::<Database>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases/{}", renamed_database.name),
+        String::new(),
     )
-    .await;
-    assert_eq!(http::StatusCode::OK, res.status());
-    let error = res
-        .json::<ErrorResponse>()
-        .await
-        .expect("Failed to get error response");
-    assert_eq!(http::StatusCode::OK, error.status_code);
+    .await
+    .expect("Failed geting database");
+    assert_eq!("new-test", database.name);
 }
 
 #[tokio::test]
@@ -104,13 +94,13 @@ async fn test_ui_databases() {
     let addr = run_test_server().await;
     let client = reqwest::Client::new();
 
-    // Create volume with empty name
+    // Create volume
     let res = ui_test_op(
         addr,
         Op::Create,
         None,
         &Entity::Volume(VolumeCreatePayload {
-            name: String::new(),
+            name: String::from("foo"),
             volume: VolumeType::Memory,
         }),
     )

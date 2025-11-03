@@ -28,7 +28,7 @@ use crate::sqlite::crud::volumes::VolumeRecord;
 #[diesel(table_name = crate::sqlite::diesel_gen::databases)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct DatabaseRecord {
-    pub id: i64,    
+    pub id: i64,
     pub ident: DatabaseIdent,
     pub volume_id: i64,
     pub properties: Option<String>,
@@ -74,9 +74,17 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
     let db = database.ident.clone();
     let create_res = conn.interact(move |conn| -> QueryResult<usize> {
         diesel::insert_into(databases::table)
-            .values(&database)
+            //.values(&database)
+            .values((
+                databases::ident.eq(database.ident),
+                databases::volume_id.eq(database.volume_id),
+                databases::properties.eq(database.properties),
+                databases::created_at.eq(database.created_at),
+                databases::updated_at.eq(database.updated_at),
+            ))
             .execute(conn)
     }).await?;
+    tracing::info!("create_database: {create_res:?}");
     if let Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) = create_res {
         return metastore_err::DatabaseAlreadyExistsSnafu{ db }.fail();
     }

@@ -23,7 +23,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
     async fn volume_object_store(&self, volume_id: i64) -> Result<Option<Arc<dyn ObjectStore>>>;
 
-    fn iter_databases(&self) -> VecScanIterator<RwObject<Database>>;
+    async fn get_databases(&self, volume_id: Option<i64>) -> Result<Vec<RwObject<Database>>>;
     async fn create_database(
         &self,
         database: Database,

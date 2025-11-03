@@ -1,14 +1,11 @@
 use super::client::{get_query_result, login, query};
-use crate::models::{JsonResponse, LoginResponse};
-use http::header;
-use std::net::SocketAddr;
+use crate::{models::{JsonResponse, LoginResponse, ResponseData}, tests::client::TestHttpError};
+use http::{HeaderMap, header};
+use tracing_subscriber::fmt::format::Json;
+use std::{net::SocketAddr, thread::JoinHandle};
 use uuid::Uuid;
 
-pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &str) -> JsonResponse {
-    // introduce 2ms (to be sure) delay every time running query via "snow sql" as an issue workaround:
-    // https://github.com/Embucket/embucket/issues/1630
-    tokio::time::sleep(tokio::time::Duration::from_millis(2)).await;
-
+pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &str) -> (JsonResponse, Option<tokio::task::JoinHandle<()>>) {
     let client = reqwest::Client::new();
     let (headers, login_res) = login::<LoginResponse>(&client, server_addr, user, pass)
         .await
@@ -27,7 +24,7 @@ pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &st
             get_query_result::<JsonResponse>(&client, server_addr, &access_token, query_id)
                 .await
                 .expect("Failed to get query result");
-        history_res
+        (history_res, None)
     } else {
         // if sql ends with ;> it is async query
         let (sql, async_exec) = if sql.ends_with(";>") {
@@ -55,6 +52,24 @@ pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &st
         )
         .await
         .expect("Failed to run query");
-        res
+
+        if async_exec {
+            // spawn task to fetch results
+            if let Some(ResponseData{ query_id: Some(query_id), .. }) = res.data.as_ref() {
+                let server_addr = server_addr.clone();
+                let query_id = query_id.clone();
+                let async_res = tokio::task::spawn(async move {
+                    // ignore result
+                    let _ = get_query_result::<JsonResponse>(
+                        &reqwest::Client::new(), 
+                        &server_addr, 
+                        &access_token, 
+                        &query_id).await;
+                    ()
+                });
+                return (res, Some(async_res))
+            }
+        }
+        (res, None)
     }
 }

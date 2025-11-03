@@ -181,10 +181,9 @@ impl EmbucketCatalogList {
         let mut catalogs = Vec::new();
         let databases = self
             .metastore
-            .iter_databases()
-            .collect()
+            .get_databases(None)
             .await
-            .context(df_catalog_error::CoreSnafu)?;
+            .context(df_catalog_error::MetastoreSnafu)?;
         for db in databases {
             let volume = self
                 .metastore

@@ -46,10 +46,8 @@ pub struct ApiDoc;
 pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<DashboardResponse>> {
     let rw_databases = state
         .metastore
-        .iter_databases()
-        .collect()
+        .get_databases(None)
         .await
-        .context(UtilSlateDBSnafu)
         .context(MetastoreSnafu)?;
     let total_databases = rw_databases.len();
     let mut total_schemas = 0;

@@ -229,12 +229,17 @@ impl CoreExecutionService {
                 entity_type: "volume",
             })?;
 
-        metastore
+        let database_res = metastore
             .create_database(Database::new(ident.clone(), volume.id))
-            .await
-            .context(ex_error::BootstrapSnafu {
+            .await;
+        if let Err(core_metastore::Error::DatabaseAlreadyExists { .. }) = &database_res {
+            tracing::info!("Bootstrap database '{}' skipped: already exists", ident);
+        }
+        else {
+            database_res.context(ex_error::BootstrapSnafu {
                 entity_type: "database",
             })?;
+        }
 
         let schema_ident = SchemaIdent::new(ident.clone(), DEFAULT_SCHEMA.to_string());
         metastore

@@ -60,7 +60,13 @@ pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Resul
     let volume_name = volume.ident.clone();
     let create_volume_res = conn.interact(move |conn| -> QueryResult<usize> {
         diesel::insert_into(volumes::table)
-            .values(&volume)
+            // prepare values explicitely to filter out id
+            .values((
+                volumes::ident.eq(volume.ident),
+                volumes::volume.eq(volume.volume),
+                volumes::created_at.eq(volume.created_at),
+                volumes::updated_at.eq(volume.updated_at),
+            ))
             .execute(conn)
     }).await?;
     if let Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) = create_volume_res {
