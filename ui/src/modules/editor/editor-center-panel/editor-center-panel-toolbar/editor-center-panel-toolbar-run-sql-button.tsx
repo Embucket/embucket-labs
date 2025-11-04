@@ -46,7 +46,7 @@ export function EditorCenterPanelToolbarRunSqlButton({ onRunQuery, disabled }: R
   return (
     <div className="w-fit">
       <Button size="sm" className="justify-start" disabled={disabled} onClick={handleRunQuery}>
-        Run <span className="opacity-40">⌘ ⏎</span>
+        Run <span className="opacity-50">⌘ ⏎</span>
       </Button>
     </div>
   );

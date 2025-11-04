@@ -3,7 +3,8 @@ import { SidebarGroup } from '@/components/ui/sidebar';
 import { EditorContextDropdown } from '../editor-context-dropdown/editor-context-dropdown';
 import { EditorCenterPanelToolbarBeautifyButton } from './editor-center-panel-toolbar-beautify-button';
 import { EditorCenterPanelToolbarRunSqlButton } from './editor-center-panel-toolbar-run-sql-button';
-import { EditorCenterPanelToolbarShareButton } from './editor-center-panel-toolbar-share-button';
+
+// import { EditorCenterPanelToolbarShareButton } from './editor-center-panel-toolbar-share-button';
 
 interface EditorToolbarProps {
   onRunQuery: (query: string) => void;
@@ -19,7 +20,7 @@ export const EditorCenterPanelToolbar = ({ onRunQuery, isLoading }: EditorToolba
           <EditorContextDropdown />
           <div className="ml-auto flex items-center gap-1">
             <EditorCenterPanelToolbarBeautifyButton />
-            <EditorCenterPanelToolbarShareButton />
+            {/* <EditorCenterPanelToolbarShareButton /> */}
           </div>
         </div>
       </SidebarGroup>

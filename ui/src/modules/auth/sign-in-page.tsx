@@ -1,4 +1,4 @@
-import { EmbucketLogo, EmbucketLogoText } from '@/app/layout/sidebar/logo';
+import { EmbucketLogo } from '@/app/layout/sidebar/logo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { SignInForm } from './sign-in-form';
@@ -9,7 +9,6 @@ export function SignInPage() {
       <div className="flex min-w-[400px] flex-col gap-6">
         <div className="m-auto flex items-center gap-1">
           <EmbucketLogo />
-          <EmbucketLogoText />
         </div>
         <Card>
           <CardHeader>
