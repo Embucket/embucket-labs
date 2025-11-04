@@ -44,4 +44,6 @@ jobs:
           sudo apt install -y llvm-18 libclang-18-dev
           sudo ldconfig
       - name: cargo test
+        env:
+          COLUMNS: "80"
         run: RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=lld" cargo test --profile=ci --workspace --all-features --all-targets
