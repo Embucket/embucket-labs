@@ -41,7 +41,7 @@ pub enum Error {
 
     #[snafu(display("Get databases error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },

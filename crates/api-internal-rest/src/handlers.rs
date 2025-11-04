@@ -126,7 +126,7 @@ pub async fn list_databases(
 ) -> Result<Json<Vec<RwObject<Database>>>> {
     state
         .metastore
-        .get_databases(None)
+        .get_databases(ListParams::default())
         .await
         .context(error::ListDatabasesSnafu)
         .map(Json)

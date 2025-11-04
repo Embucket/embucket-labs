@@ -74,7 +74,7 @@ async fn update_worksheet(
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets_sort() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let templates = vec![
@@ -352,7 +352,7 @@ async fn test_ui_worksheets_sort() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let resp = http_req::<()>(
@@ -414,7 +414,7 @@ async fn test_ui_worksheets() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets_ops() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     // bad payload, None instead of string
@@ -527,7 +527,7 @@ async fn test_ui_worksheets_ops() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_worksheets_search() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let templates = vec![

@@ -326,6 +326,7 @@ dependencies = [
  "api-sessions",
  "api-ui-static-assets",
  "axum 0.8.6",
+ "axum-server",
  "chrono",
  "core-executor",
  "core-history",

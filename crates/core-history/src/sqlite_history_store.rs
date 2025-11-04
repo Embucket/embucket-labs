@@ -95,11 +95,8 @@ impl SlateDBHistoryStore {
 
         // use unique filename for every test, create in memory database
         let thread = std::thread::current();
-        let thread_name = thread
-            .name()
-            .map_or("<unnamed>", |s| s.split("::").last().unwrap_or("<unnamed>"));
-        let queries_db_name = format!("file:{thread_name}?mode=memory");
-        let results_db_name = format!("file:{thread_name}_r?mode=memory");
+        let queries_db_name = format!("file:{:?}_q?mode=memory&cache=shared", thread.id());
+        let results_db_name = format!("file:{:?}_r?mode=memory&cache=shared", thread.id());
         let store = Self {
             queries_db: SqliteDb::new(utils_db.slate_db(), &queries_db_name)
                 .await
@@ -121,7 +118,6 @@ impl SlateDBHistoryStore {
         name = "SqliteHistoryStore::create_tables",
         level = "debug",
         skip(self),
-        fields(ok),
         err
     )]
     pub async fn create_tables(&self) -> Result<()> {
@@ -139,24 +135,21 @@ impl SlateDBHistoryStore {
             .context(history_err::CoreUtilsSnafu)?;
 
         let result = tokio::try_join!(
-            queries_connection.interact(|conn| -> SqlResult<usize> {
-                let mut res = 0;
-                res += conn.execute("BEGIN", [])?;
-                res += conn.execute(WORKSHEETS_CREATE_TABLE, [])?;
-                res += conn.execute(QUERIES_CREATE_TABLE, [])?;
-                res += conn.execute("COMMIT", [])?;
-                Ok(res)
+            queries_connection.interact(|conn| -> SqlResult<()> {
+                conn.execute_batch(&format!("
+                    BEGIN;
+                    {WORKSHEETS_CREATE_TABLE}
+                    {QUERIES_CREATE_TABLE}
+                    COMMIT;"
+                ))
             }),
             results_connection
                 .interact(|conn| -> SqlResult<usize> { conn.execute(RESULTS_CREATE_TABLE, []) }),
         )?;
-        let queries_tables = result.0.context(history_err::CreateTablesSnafu)?;
-        let results_tables = result.1.context(history_err::CreateTablesSnafu)?;
+        let _queries_tables = result.0.context(history_err::CreateTablesSnafu)?;
+        let _results_tables = result.1.context(history_err::CreateTablesSnafu)?;
 
-        tracing::Span::current().record("ok", format!(
-            "created_queries_tables={}, created_results_tables={}",
-            queries_tables, results_tables
-        ));
+        tracing::debug!("History tables created");
         Ok(())
     }
 }
@@ -202,7 +195,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::get_worksheet",
         level = "debug",
         skip(self),
-        fields(ok),
+        fields(ok=""),
         err
     )]
     async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet> {
@@ -245,7 +238,7 @@ impl HistoryStore for SlateDBHistoryStore {
         }
     }
 
-    #[instrument(name = "SqliteHistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(ok, id = worksheet.id), err)]
+    #[instrument(name = "SqliteHistoryStore::update_worksheet", level = "debug", skip(self, worksheet), fields(ok="", id = worksheet.id), err)]
     async fn update_worksheet(&self, mut worksheet: Worksheet) -> Result<()> {
         worksheet.set_updated_at(None); // set current time
 
@@ -740,8 +733,9 @@ impl HistoryStore for SlateDBHistoryStore {
 
     #[instrument(
         name = "SlateDBSqliteHistoryStore::get_query_result",
+        level = "debug",
         skip(self),
-        fields(ok, rows_count, data_format)
+        fields(rows_count, data_format)
     )]
     async fn get_query_result(&self, id: QueryRecordId) -> Result<ResultSet> {
         let conn = self
@@ -792,10 +786,10 @@ impl HistoryStore for SlateDBHistoryStore {
 
         tracing::Span::current()
             .record("rows_count", rows_count)
-            .record("data_format", data_format)
-            .record("ok", true);
+            .record("data_format", data_format);
 
-        ResultSet::try_from(raw_result)
+        // inject query id into result set, since id is not a part of serialized result set
+        ResultSet::try_from(raw_result).map(|res| res.with_query_id(id))
     }
 }
 

@@ -15,7 +15,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_dashboard() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
     let url = format!("http://{addr}/ui/dashboard");
     let res = req(&client, Method::GET, &url, String::new())
@@ -43,19 +43,19 @@ async fn test_ui_dashboard() {
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
         name: "test1".to_string(),
-        volume: volume.name.clone(),
+        volume_id: volume.id,
     };
     let expected2 = DatabaseCreatePayload {
         name: "test2".to_string(),
-        volume: volume.name.clone(),
+        volume_id: volume.id,
     };
     let expected3 = DatabaseCreatePayload {
         name: "test3".to_string(),
-        volume: volume.name.clone(),
+        volume_id: volume.id,
     };
     let expected4 = DatabaseCreatePayload {
         name: "test4".to_string(),
-        volume: volume.name.clone(),
+        volume_id: volume.id,
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;

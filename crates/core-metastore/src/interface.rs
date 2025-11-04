@@ -12,6 +12,7 @@ use crate::{
 use async_trait::async_trait;
 use core_utils::scan_iterator::VecScanIterator;
 use object_store::ObjectStore;
+use crate::list_parameters::ListParams;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
@@ -23,7 +24,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
     async fn volume_object_store(&self, volume_id: i64) -> Result<Option<Arc<dyn ObjectStore>>>;
 
-    async fn get_databases(&self, volume_id: Option<i64>) -> Result<Vec<RwObject<Database>>>;
+    async fn get_databases(&self, params: ListParams) -> Result<Vec<RwObject<Database>>>;
     async fn create_database(
         &self,
         database: Database,

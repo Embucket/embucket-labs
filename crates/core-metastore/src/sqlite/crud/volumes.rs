@@ -55,10 +55,10 @@ impl TryInto<RwObject<Volume>> for VolumeRecord {
     }
 }
 
-pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Result<usize> {
+pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Result<RwObject<Volume>> {
     let volume = VolumeRecord::from(volume);
     let volume_name = volume.ident.clone();
-    let create_volume_res = conn.interact(move |conn| -> QueryResult<usize> {
+    let create_volume_res = conn.interact(move |conn| -> QueryResult<VolumeRecord> {
         diesel::insert_into(volumes::table)
             // prepare values explicitely to filter out id
             .values((
@@ -67,12 +67,15 @@ pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Resul
                 volumes::created_at.eq(volume.created_at),
                 volumes::updated_at.eq(volume.updated_at),
             ))
-            .execute(conn)
+            .returning(VolumeRecord::as_returning())
+            .get_result(conn)
     }).await?;
     if let Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) = create_volume_res {
         return metastore_err::VolumeAlreadyExistsSnafu{ volume: volume_name }.fail();
     }
-    create_volume_res.context(metastore_err::DieselSnafu)
+    create_volume_res
+        .context(metastore_err::DieselSnafu)?
+        .try_into()
 }
 
 pub async fn get_volume(conn: &Connection, volume_ident: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
@@ -101,13 +104,16 @@ pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<Optio
 }
 
 pub async fn list_volumes(conn: &Connection) -> Result<Vec<RwObject<Volume>>> {
-    // order by name to be compatible with previous slatedb metastore
-    conn.interact(|conn| volumes::table.order(volumes::ident.asc()).load::<VolumeRecord>(conn))
-        .await?
-        .context(metastore_err::DieselSnafu)?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+    // TODO: add filtering, ordering params
+    conn.interact(|conn| volumes::table
+        .order(volumes::created_at.desc())
+        .load::<VolumeRecord>(conn)
+    )
+    .await?
+    .context(metastore_err::DieselSnafu)?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
 }
 
 // Only rename volume is supported

@@ -39,7 +39,7 @@ pub enum Error {
     },
     #[snafu(display("Get volumes error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -89,7 +89,6 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::List { source, .. } => match source {
-                core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,

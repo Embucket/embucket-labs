@@ -19,13 +19,15 @@ use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
 use snafu::{ResultExt, OptionExt};
 use crate::sqlite::crud::volumes::VolumeRecord;
+use crate::{ListParams, OrderBy, OrderDirection};
 
 // This intermediate struct is used for storage, though it is not used directly by the user (though it could)
 // after it is loaded from sqlite it is converted to the RwObject<T> which we use as public interface.
 // Fields order is matter and should match schema
-#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable)]
+#[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable, Associations)]
 #[serde(rename_all = "kebab-case")]
 #[diesel(table_name = crate::sqlite::diesel_gen::databases)]
+#[diesel(belongs_to(Volume))]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct DatabaseRecord {
     pub id: i64,
@@ -69,12 +71,11 @@ fn lookup_volume(conn: &mut SqliteConnection, volume_ident: &str) -> Option<Volu
         .ok()
 }
 
-pub async fn create_database(conn: &Connection, database: RwObject<Database>) -> Result<usize> {
+pub async fn create_database(conn: &Connection, database: RwObject<Database>) -> Result<RwObject<Database>> {
     let database = DatabaseRecord::from(database);
     let db = database.ident.clone();
-    let create_res = conn.interact(move |conn| -> QueryResult<usize> {
+    let create_res = conn.interact(move |conn| -> QueryResult<DatabaseRecord> {
         diesel::insert_into(databases::table)
-            //.values(&database)
             .values((
                 databases::ident.eq(database.ident),
                 databases::volume_id.eq(database.volume_id),
@@ -82,13 +83,16 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
                 databases::created_at.eq(database.created_at),
                 databases::updated_at.eq(database.updated_at),
             ))
-            .execute(conn)
+            .returning(DatabaseRecord::as_returning())
+            .get_result(conn)
     }).await?;
     tracing::info!("create_database: {create_res:?}");
     if let Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) = create_res {
         return metastore_err::DatabaseAlreadyExistsSnafu{ db }.fail();
     }
-    create_res.context(metastore_err::DieselSnafu)
+    create_res
+        .context(metastore_err::DieselSnafu)
+        .and_then(TryInto::try_into)
 }
 
 pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
@@ -105,21 +109,52 @@ pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> 
     .transpose()
 }
 
-pub async fn list_databases(conn: &Connection, volume_id: Option<i64>) -> Result<Vec<RwObject<Database>>> {
-    // order by name to be compatible with previous slatedb metastore
+pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec<RwObject<Database>>> {
+    // TODO: add filtering, ordering params
     conn.interact(move |conn| {
-        if let Some(volume_id) = volume_id {
-            databases::table
-                .filter(databases::volume_id.eq(volume_id))
-                .order(databases::ident.asc())
-                .select(DatabaseRecord::as_select())
-                .load::<DatabaseRecord>(conn)
-        } else {
-            databases::table
-                .order(databases::ident.asc())
-                .select(DatabaseRecord::as_select())
-                .load::<DatabaseRecord>(conn)
+        // map params to orm request in other way
+        let mut query = databases::table.into_boxed();
+        if let Some(volume_id) = params.parent_id {
+            query = query.filter(databases::volume_id.eq(volume_id));
         }
+
+        if let Some(offset) = params.offset {
+            query = query.offset(offset);
+        }
+
+        if let Some(limit) = params.limit {
+            query = query.limit(limit);
+        }
+
+        if let Some(search) = params.search {
+            query = query.filter(databases::ident.like(format!("%{}%", search)));
+        }
+
+        for order_by in params.order_by {
+            query = match order_by {
+                OrderBy::Name(direction) => match direction {
+                    OrderDirection::Desc => query.order(databases::ident.desc()),
+                    OrderDirection::Asc => query.order(databases::ident.asc()),
+                },
+                // TODO: add parent name ordering (as separate function)
+                OrderBy::ParentName(direction) => match direction {
+                    OrderDirection::Desc => query.order(databases::ident.desc()),
+                    OrderDirection::Asc => query.order(databases::ident.asc()),
+                },                
+                OrderBy::CreatedAt(direction) => match direction {
+                    OrderDirection::Desc => query.order(databases::created_at.desc()),
+                    OrderDirection::Asc => query.order(databases::created_at.asc()),
+                },
+                OrderBy::UpdatedAt(direction) => match direction {
+                    OrderDirection::Desc => query.order(databases::updated_at.desc()),
+                    OrderDirection::Asc => query.order(databases::updated_at.asc()),
+                }
+            }
+        }
+
+        query
+            .select(DatabaseRecord::as_select())
+            .load::<DatabaseRecord>(conn)
     }).await?
     .context(metastore_err::DieselSnafu)?
     .into_iter()

@@ -6,6 +6,7 @@ use crate::state::AppState;
 use axum::{Json, extract::State};
 use core_history::GetQueriesParams;
 use core_metastore::error::UtilSlateDBSnafu;
+use core_metastore::ListParams;
 use core_utils::scan_iterator::ScanIterator;
 use snafu::ResultExt;
 use utoipa::OpenApi;
@@ -46,7 +47,7 @@ pub struct ApiDoc;
 pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<DashboardResponse>> {
     let rw_databases = state
         .metastore
-        .get_databases(None)
+        .get_databases(ListParams::default())
         .await
         .context(MetastoreSnafu)?;
     let total_databases = rw_databases.len();

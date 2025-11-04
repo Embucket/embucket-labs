@@ -13,7 +13,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
-use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType};
+use core_metastore::{AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
@@ -181,7 +181,7 @@ impl EmbucketCatalogList {
         let mut catalogs = Vec::new();
         let databases = self
             .metastore
-            .get_databases(None)
+            .get_databases(ListParams::default())
             .await
             .context(df_catalog_error::MetastoreSnafu)?;
         for db in databases {

@@ -96,19 +96,19 @@ pub struct VolumeCreatePayload {
     pub volume: VolumeType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct VolumeUpdatePayload {
-    pub name: Option<String>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct VolumeUpdatePayload {
+//     pub name: Option<String>,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VolumeCreateResponse(pub Volume);
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct VolumeUpdateResponse(pub Volume);
+// #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct VolumeUpdateResponse(pub Volume);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -117,6 +117,7 @@ pub struct VolumeResponse(pub Volume);
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Volume {
+    pub id: i64,
     pub name: String,
     pub r#type: String,
     pub created_at: String,
@@ -126,6 +127,7 @@ pub struct Volume {
 impl From<RwObject<MetastoreVolume>> for Volume {
     fn from(value: RwObject<MetastoreVolume>) -> Self {
         Self {
+            id: value.id,
             name: value.data.ident,
             r#type: value.data.volume.to_string(),
             created_at: value.created_at.to_string(),

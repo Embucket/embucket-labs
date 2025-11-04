@@ -3,7 +3,7 @@ use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
 use crate::df_error;
-use core_metastore::{Metastore, RwObject, SchemaIdent, Volume};
+use core_metastore::{ListParams, Metastore, RwObject, SchemaIdent, Volume};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
@@ -55,7 +55,7 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let databases = self
             .metastore
-            .get_databases(None)
+            .get_databases(ListParams::default())
             .await
             .context(df_error::MetastoreSnafu)?;
         let mut volumes: HashMap<i64, RwObject<Volume>> = HashMap::new();

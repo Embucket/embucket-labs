@@ -58,8 +58,8 @@ impl<'de> Deserialize<'de> for QueryIdParam {
 impl Into<QueryRecordId> for QueryIdParam {
     fn into(self) -> QueryRecordId {
         match self {
-            Self::Int(i64) => QueryRecordId::from(i64),
-            Self::Uuid(uuid) => QueryRecordId::from(uuid),
+            Self::Int(a) => QueryRecordId::from(a),
+            Self::Uuid(a) => QueryRecordId::from(a),
         }
     }
 }

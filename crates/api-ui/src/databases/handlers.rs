@@ -23,6 +23,7 @@ use axum::{
 };
 use core_executor::models::{QueryContext, QueryResult};
 use core_metastore::Database as MetastoreDatabase;
+use core_metastore::ListParams;
 use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use snafu::{OptionExt, ResultExt};
 use utoipa::OpenApi;
@@ -87,10 +88,9 @@ pub async fn create_database(
 ) -> Result<Json<DatabaseCreateResponse>> {
     let volume = state
         .metastore
-        .get_volume(&database.volume)
+        .get_volume_by_id(database.volume_id)
         .await
-        .context(GetSnafu)?
-        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+        .context(GetSnafu)?;
     
     let database = MetastoreDatabase {
         ident: database.name,
@@ -123,15 +123,7 @@ pub async fn create_database(
             database: database.ident.clone(),
         })?;
 
-    // Switch using this after moving id added to ui models
-    // Ok(Json(DatabaseCreateResponse(Database::from(database))))
-
-    Ok(Json(DatabaseCreateResponse(Database {
-        name: database.ident.clone(),
-        volume: volume.ident.clone(),
-        created_at: database.created_at.to_string(),
-        updated_at: database.updated_at.to_string(),
-    })))
+    Ok(Json(DatabaseCreateResponse(Database::from(database))))
 }
 
 #[utoipa::path(
@@ -162,30 +154,14 @@ pub async fn get_database(
         .metastore
         .get_database(&database_name)
         .await
-        .map(|opt_rw_obj| {
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::DatabaseNotFoundSnafu {
-                    db: database_name.clone(),
-                }
-                .build()
-            })
-        })
         .context(GetSnafu)?
+        .context(metastore_error::DatabaseNotFoundSnafu {
+            db: database_name.clone(),
+        })
+        .map(Database::from)
         .context(GetSnafu)?;
 
-    let volume = state
-        .metastore
-        .get_volume_by_id(database.volume_id)
-        .await
-        .context(GetSnafu)?;
-
-    // .map(Database::from)
-    Ok(Json(DatabaseResponse(Database {
-        name: database.ident.clone(),
-        volume: volume.ident.clone(),
-        created_at: database.created_at.to_string(),
-        updated_at: database.updated_at.to_string(),
-    })))
+    Ok(Json(DatabaseResponse(database)))
 }
 
 #[utoipa::path(
@@ -259,10 +235,9 @@ pub async fn update_database(
 ) -> Result<Json<DatabaseUpdateResponse>> {
     let volume = state
         .metastore
-        .get_volume(&database.volume)
+        .get_volume_by_id(database.volume_id)
         .await
-        .context(GetSnafu)?
-        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+        .context(GetSnafu)?;
 
     let database = MetastoreDatabase {
         ident: database.name,
@@ -278,13 +253,7 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        // .map(Database::from)
-        .map(|d| Database {
-            name: d.ident.clone(),
-            volume: volume.ident.clone(),
-            created_at: d.created_at.to_string(),
-            updated_at: d.updated_at.to_string(),
-        })
+        .map(Database::from)
         .context(UpdateSnafu)?;
 
     Ok(Json(DatabaseUpdateResponse(database)))
@@ -320,38 +289,47 @@ pub async fn list_databases(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> Result<Json<DatabasesResponse>> {
-    let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
-    let sql_string = apply_parameters(
-        &sql_string,
-        parameters,
-        &["database_name", "volume_name"],
-        "created_at",
-        OrderDirection::DESC,
-    );
-    let QueryResult { records, .. } = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+// let context = QueryContext::default();
+    // let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
+    // let sql_string = apply_parameters(
+    //     &sql_string,
+    //     parameters,
+    //     &["database_name", "volume_name"],
+    //     "created_at",
+    //     OrderDirection::DESC,
+    // );
+    // let QueryResult { records, .. } = state
+    //     .execution_svc
+    //     .query(&session_id, sql_string.as_str(), context)
+    //     .await
+    //     .context(databases_error::ListSnafu)?;
+    // let mut items = Vec::new();
+    // for record in records {
+    //     let database_names =
+    //         downcast_string_column(&record, "database_name").context(databases_error::ListSnafu)?;
+    //     let volume_names =
+    //         downcast_string_column(&record, "volume_name").context(databases_error::ListSnafu)?;
+    //     let created_at_timestamps =
+    //         downcast_string_column(&record, "created_at").context(databases_error::ListSnafu)?;
+    //     let updated_at_timestamps =
+    //         downcast_string_column(&record, "updated_at").context(databases_error::ListSnafu)?;
+    //     for i in 0..record.num_rows() {
+    //         items.push(Database {
+    //             name: database_names.value(i).to_string(),
+    //             volume: volume_names.value(i).to_string(),
+    //             created_at: created_at_timestamps.value(i).to_string(),
+    //             updated_at: updated_at_timestamps.value(i).to_string(),
+    //         });
+    //     }
+    // }
+    // Ok(Json(DatabasesResponse { items }))
+    
+    let items = state.metastore
+        .get_databases(parameters.into())
         .await
-        .context(databases_error::ListSnafu)?;
-    let mut items = Vec::new();
-    for record in records {
-        let database_names =
-            downcast_string_column(&record, "database_name").context(databases_error::ListSnafu)?;
-        let volume_names =
-            downcast_string_column(&record, "volume_name").context(databases_error::ListSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(databases_error::ListSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(databases_error::ListSnafu)?;
-        for i in 0..record.num_rows() {
-            items.push(Database {
-                name: database_names.value(i).to_string(),
-                volume: volume_names.value(i).to_string(),
-                created_at: created_at_timestamps.value(i).to_string(),
-                updated_at: updated_at_timestamps.value(i).to_string(),
-            });
-        }
-    }
+        .context(databases_error::ListSnafu)?
+        .into_iter()
+        .map(Database::from)
+        .collect();
     Ok(Json(DatabasesResponse { items }))
 }

@@ -25,28 +25,27 @@ use utoipa::ToSchema;
 #[serde(rename_all = "camelCase")]
 pub struct Database {
     pub name: String,
-    pub volume: String,
+    pub volume_id: i64,
     pub created_at: String,
     pub updated_at: String,
 }
 
-// TODO: Enable this conversion after id is added to UI Database
-// impl From<RwObject<MetastoreDatabase>> for Database {
-//     fn from(db: RwObject<MetastoreDatabase>) -> Self {
-//         Self {
-//             name: db.data.ident,
-//             volume: db.data.volume,
-//             created_at: db.created_at.to_string(),
-//             updated_at: db.updated_at.to_string(),
-//         }
-//     }
-// }
+impl From<RwObject<MetastoreDatabase>> for Database {
+    fn from(db: RwObject<MetastoreDatabase>) -> Self {
+        Self {
+            name: db.data.ident,
+            volume_id: db.data.volume_id,
+            created_at: db.created_at.to_string(),
+            updated_at: db.updated_at.to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseCreatePayload {
     pub name: String,
-    pub volume: String,
+    pub volume_id: i64,
 }
 
 // TODO: make Database fields optional in update payload, not used currently
@@ -54,7 +53,7 @@ pub struct DatabaseCreatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseUpdatePayload {
     pub name: String,
-    pub volume: String,
+    pub volume_id: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

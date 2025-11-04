@@ -203,7 +203,7 @@ async fn test_create_database() {
         .await
         .expect("create database failed");
     let all_databases = ms
-        .get_databases(None)
+        .get_databases(ListParams::default())
         .await
         .expect("list databases failed");
 
@@ -220,7 +220,7 @@ async fn test_create_database() {
         .await
         .expect("delete database failed");
     let all_dbs_after = ms
-        .get_databases(None)
+        .get_databases(ListParams::default())
         .await
         .expect("list databases failed");
 

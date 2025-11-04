@@ -276,36 +276,45 @@ pub async fn list_volumes(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> Result<Json<VolumesResponse>> {
-    let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
-    let sql_string = apply_parameters(
-        &sql_string,
-        parameters,
-        &["volume_name", "volume_type"],
-        "created_at",
-        OrderDirection::DESC,
-    );
-    let QueryResult { records, .. } = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+    // let context = QueryContext::default();
+    // let sql_string = "SELECT * FROM slatedb.meta.volumes".to_string();
+    // let sql_string = apply_parameters(
+    //     &sql_string,
+    //     parameters,
+    //     &["volume_name", "volume_type"],
+    //     "created_at",
+    //     OrderDirection::DESC,
+    // );
+    // let QueryResult { records, .. } = state
+    //     .execution_svc
+    //     .query(&session_id, sql_string.as_str(), context)
+    //     .await
+    //     .context(ListSnafu)?;
+    // let mut items = Vec::new();
+    // for record in records {
+    //     let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
+    //     let volume_types = downcast_string_column(&record, "volume_type").context(ListSnafu)?;
+    //     let created_at_timestamps =
+    //         downcast_string_column(&record, "created_at").context(ListSnafu)?;
+    //     let updated_at_timestamps =
+    //         downcast_string_column(&record, "updated_at").context(ListSnafu)?;
+    //     for i in 0..record.num_rows() {
+    //         items.push(Volume {
+    //             name: volume_names.value(i).to_string(),
+    //             r#type: volume_types.value(i).to_string(),
+    //             created_at: created_at_timestamps.value(i).to_string(),
+    //             updated_at: updated_at_timestamps.value(i).to_string(),
+    //         });
+    //     }
+    // }
+    // Ok(Json(VolumesResponse { items }))
+    let items = state
+        .metastore
+        .get_volumes()
         .await
-        .context(ListSnafu)?;
-    let mut items = Vec::new();
-    for record in records {
-        let volume_names = downcast_string_column(&record, "volume_name").context(ListSnafu)?;
-        let volume_types = downcast_string_column(&record, "volume_type").context(ListSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(ListSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
-        for i in 0..record.num_rows() {
-            items.push(Volume {
-                name: volume_names.value(i).to_string(),
-                r#type: volume_types.value(i).to_string(),
-                created_at: created_at_timestamps.value(i).to_string(),
-                updated_at: updated_at_timestamps.value(i).to_string(),
-            });
-        }
-    }
+        .context(ListSnafu)?
+        .into_iter()
+        .map(Volume::from)
+        .collect();
     Ok(Json(VolumesResponse { items }))
 }

@@ -16,7 +16,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_tables() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     // Create volume with empty name
@@ -40,7 +40,7 @@ async fn test_ui_tables() {
         None,
         &Entity::Database(DatabaseCreatePayload {
             name: database_name.clone(),
-            volume: volume.name.clone(),
+            volume_id: volume.id,
         }),
     )
     .await;

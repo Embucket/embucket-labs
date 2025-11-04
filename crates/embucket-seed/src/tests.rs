@@ -19,8 +19,7 @@ async fn test_seed_client() {
         "secret".to_string(),
         "user1".to_string(),
         "pass1".to_string(),
-    )
-    .await;
+    );
 
     seed_database(
         addr,

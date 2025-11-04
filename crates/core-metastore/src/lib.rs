@@ -1,6 +1,7 @@
 pub mod error;
 pub mod models;
 pub mod interface;
+pub mod list_parameters;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "sqlite")]
@@ -20,3 +21,4 @@ pub mod tests;
 pub use error::Error;
 pub use models::*;
 pub use interface::*;
+pub use list_parameters::*;
