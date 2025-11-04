@@ -42,6 +42,7 @@ diesel::table! {
     volumes (id) {
         id -> BigInt,
         ident -> Text,
+        volume_type -> Text,
         volume -> Text,
         created_at -> Text,
         updated_at -> Text,

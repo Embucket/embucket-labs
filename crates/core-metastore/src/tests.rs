@@ -179,7 +179,7 @@ async fn test_create_database() {
     let ms = get_metastore().await;
     let mut database = Database::new(
         "testdb".to_owned(),
-        0 // non existing volumes
+        "non_existing".to_owned(),
     );
     // let mut database = Database {
     //     ident: "testdb".to_owned(),
@@ -198,7 +198,7 @@ async fn test_create_database() {
         .await
         .expect("create volume failed");
 
-    database.volume_id = volume_testv1.id;
+    database.volume = volume_testv1.ident.clone();
     ms.create_database(database.clone())
         .await
         .expect("create database failed");
@@ -207,7 +207,7 @@ async fn test_create_database() {
         .await
         .expect("list databases failed");
 
-    database.volume_id = volume_testv2.id;
+    database.volume = volume_testv2.ident.clone();
     ms.update_database(&"testdb".to_owned(), database)
         .await
         .expect("update database failed");
@@ -249,7 +249,7 @@ async fn test_schemas() {
     let volume = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), volume.id))
+    ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
         .await
         .expect("create database failed");
     let schema_create = ms
@@ -329,7 +329,7 @@ async fn test_tables() {
     let volume = ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), volume.id))
+    ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
         .await
     .expect("create database failed");
     ms.create_schema(
@@ -352,7 +352,7 @@ async fn test_tables() {
         .await
         .expect("create table failed");
     let vol_object_store = ms
-        .volume_object_store(volume.id)
+        .volume_object_store(volume.id().expect("Volume id not defined"))
         .await
         .expect("get volume object store failed")
         .expect("Object store not found");
@@ -439,7 +439,7 @@ async fn test_temporary_tables() {
     let volume = ms.create_volume(volume)
         .await
         .expect("create volume failed");
-    ms.create_database(Database::new("testdb".to_owned(), volume.id))
+    ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
     .await
     .expect("create database failed");
     ms.create_schema(

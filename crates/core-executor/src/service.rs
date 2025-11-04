@@ -230,7 +230,7 @@ impl CoreExecutionService {
             })?;
 
         let database_res = metastore
-            .create_database(Database::new(ident.clone(), volume.id))
+            .create_database(Database::new(ident.clone(), volume.ident.clone()))
             .await;
         if let Err(core_metastore::Error::DatabaseAlreadyExists { .. }) = &database_res {
             tracing::info!("Bootstrap database '{}' skipped: already exists", ident);

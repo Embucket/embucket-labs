@@ -38,43 +38,45 @@ pub struct DatabaseRecord {
     pub updated_at: String,
 }
 
-impl From<RwObject<Database>> for DatabaseRecord {
-    fn from(value: RwObject<Database>) -> Self {
-        Self {
-            id: value.id,
+impl TryFrom<RwObject<Database>> for DatabaseRecord {
+    type Error = metastore_err::Error;
+    fn try_from(value: RwObject<Database>) -> Result<Self> {
+        Ok(Self {
+            id: value.id()?,
             ident: value.ident.clone(),
-            volume_id: value.volume_id,
+            volume_id: value.volume_id()?,
             properties: serde_json::to_string(&value.properties).ok(),
             created_at: Utc::now().to_rfc3339(),
             updated_at: Utc::now().to_rfc3339(),
-        }
-    }
-}
-
-impl TryInto<RwObject<Database>> for DatabaseRecord {
-    type Error = metastore_err::Error;
-    fn try_into(self) -> Result<RwObject<Database>> {
-        let volume_id = self.volume_id;
-        Ok(RwObject {
-            id: self.id,
-            data: Database::new(self.ident, volume_id),
-            created_at: DateTime::parse_from_rfc3339(&self.created_at).unwrap().with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&self.updated_at).unwrap().with_timezone(&Utc),
         })
     }
 }
 
-fn lookup_volume(conn: &mut SqliteConnection, volume_ident: &str) -> Option<VolumeRecord> {
-    volumes::table
-        .filter(volumes::ident.eq(volume_ident))
-        .first::<VolumeRecord>(conn)
-        .ok()
+// DatabaseRecord has no `volume_ident` field, so provide it as 2nd tuple item
+impl TryInto<RwObject<Database>> for (DatabaseRecord, VolumeIdent) {
+    type Error = metastore_err::Error;
+    fn try_into(self) -> Result<RwObject<Database>> {
+        let volume_ident = self.1;
+        Ok(RwObject::new(Database::new(self.0.ident, volume_ident))
+            .with_id(self.0.id)
+            .with_volume_id(self.0.volume_id)
+            .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at).unwrap().with_timezone(&Utc))
+            .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at).unwrap().with_timezone(&Utc)))
+    }
 }
 
+// fn lookup_volume(conn: &mut SqliteConnection, volume_ident: &str) -> Option<VolumeRecord> {
+//     volumes::table
+//         .filter(volumes::ident.eq(volume_ident))
+//         .first::<VolumeRecord>(conn)
+//         .ok()
+// }
+
 pub async fn create_database(conn: &Connection, database: RwObject<Database>) -> Result<RwObject<Database>> {
-    let database = DatabaseRecord::from(database);
-    let db = database.ident.clone();
-    let create_res = conn.interact(move |conn| -> QueryResult<DatabaseRecord> {
+    let database_ident = database.ident.clone();
+    let volume_ident = database.volume.clone();
+    let database = DatabaseRecord::try_from(database)?;
+    let create_res = conn.interact(move |conn| {
         diesel::insert_into(databases::table)
             .values((
                 databases::ident.eq(database.ident),
@@ -88,19 +90,21 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
     }).await?;
     tracing::info!("create_database: {create_res:?}");
     if let Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) = create_res {
-        return metastore_err::DatabaseAlreadyExistsSnafu{ db }.fail();
+        return metastore_err::DatabaseAlreadyExistsSnafu{ db: database_ident }.fail();
     }
     create_res
         .context(metastore_err::DieselSnafu)
+        .map(|r| (r, volume_ident))
         .and_then(TryInto::try_into)
 }
 
 pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
     let ident_owned = database_ident.to_string();
-    conn.interact(move |conn| -> QueryResult<Option<DatabaseRecord>> {
+    conn.interact(move |conn| -> QueryResult<Option<(DatabaseRecord, VolumeIdent)>> {
         databases::table
+            .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
             .filter(databases::ident.eq(ident_owned))
-            .select(DatabaseRecord::as_select())
+            .select((DatabaseRecord::as_select(), volumes::ident))
             .first(conn)
             .optional()
     }).await?
@@ -153,8 +157,9 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
         }
 
         query
-            .select(DatabaseRecord::as_select())
-            .load::<DatabaseRecord>(conn)
+            .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
+            .select((DatabaseRecord::as_select(), volumes::ident))
+            .load::<(DatabaseRecord, String)>(conn)
     }).await?
     .context(metastore_err::DieselSnafu)?
     .into_iter()
@@ -162,11 +167,12 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
     .collect()
 }
 
-pub async fn update_database(conn: &Connection, ident: &VolumeIdent, updated: Database) -> Result<RwObject<Database>> {
+pub async fn update_database(conn: &Connection, ident: &DatabaseIdent, updated: Database) -> Result<RwObject<Database>> {
     let ident_owned = ident.to_string();
-    // DatabaseRecord (id, created_at, updated_at)  from converted item are fake and should not be used
-    // nor returned, only needed to get converted to intermediate DatabaseRecord
-    let updated = DatabaseRecord::from(RwObject::new(updated, None));
+    let volume_ident = updated.volume.clone();
+    // updated RwObject didn't set (id, created_at, updated_at) fields, 
+    // as it is only used for converting to a DatabaseRecord
+    let updated = DatabaseRecord::try_from(RwObject::new(updated))?;
     conn.interact(move |conn| {
         diesel::update(databases::table.filter(databases::dsl::ident.eq(ident_owned)))
             .set((
@@ -177,18 +183,18 @@ pub async fn update_database(conn: &Connection, ident: &VolumeIdent, updated: Da
             .get_result(conn)
     })
     .await?
+    .map(|r| (r, volume_ident))
     .context(metastore_err::DieselSnafu)?
     .try_into()
 }
 
-pub async fn delete_database_cascade(conn: &Connection, ident: &DatabaseIdent) -> Result<RwObject<Database>> {
+pub async fn delete_database_cascade(conn: &Connection, ident: &DatabaseIdent) -> Result<i64> {
     let ident_owned = ident.to_string();
 
     conn.interact(move |conn| {
         diesel::delete(databases::table.filter(databases::dsl::ident.eq(ident_owned)))
-            .returning(DatabaseRecord::as_returning())
+            .returning(databases::id)
             .get_result(conn)
     }).await?
-    .context(metastore_err::DieselSnafu)?
-    .try_into()
+    .context(metastore_err::DieselSnafu)
 }

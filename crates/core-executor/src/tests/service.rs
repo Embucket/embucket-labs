@@ -57,7 +57,7 @@ async fn test_service_upload_file() {
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(MetastoreDatabase::new("embucket".to_string(), volume.id))
+        .create_database(MetastoreDatabase::new("embucket".to_string(), volume.ident.clone()))
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -188,7 +188,7 @@ async fn test_service_create_table_file_volume() {
             MetastoreDatabase {
                 ident: "embucket".to_string(),
                 properties: None,
-                volume_id: volume.id,
+                volume: volume.ident.clone(),
             },
         )
         .await
@@ -284,9 +284,9 @@ async fn test_query_recording() {
 
     let database_name = "embucket".to_string();
 
-    let database = metastore
+    let _database = metastore
         .create_database(
-            MetastoreDatabase::new(database_name.clone(), volume.id),
+            MetastoreDatabase::new(database_name.clone(), volume.ident.clone()),
         )
         .await
         .expect("Failed to create database");

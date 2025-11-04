@@ -112,7 +112,7 @@ pub async fn create_df_session() -> Arc<UserSession> {
             MetastoreDatabase {
                 ident: "embucket".to_string(),
                 properties: None,
-                volume_id: volume.id,
+                volume: volume.ident.clone(),
             },
         )
         .await

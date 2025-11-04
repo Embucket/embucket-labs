@@ -2,6 +2,9 @@ use std::ops::Deref;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use crate::error::{Result, NoNamedIdSnafu};
+use snafu::OptionExt;
 
 pub mod database;
 pub mod schema;
@@ -14,7 +17,10 @@ pub use table::*;
 
 pub use volumes::*;
 
-use uuid::Uuid;
+const MAP_ID: &str = "id";
+const MAP_VOLUME_ID: &str = "volume_id";
+const MAP_DATABASE_ID: &str = "database_id";
+const MAP_SCHEMA_ID: &str = "schema_id";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RwObject<T>
@@ -23,24 +29,104 @@ where
 {
     #[serde(flatten)]
     pub data: T,
-    // TODO: make it Optional after migrating to sqlite finished
-	pub id: i64,
+    pub ids: HashMap<String, i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
+impl RwObject<Database> {
+    pub fn with_volume_id(self, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(MAP_VOLUME_ID.to_string(), id);
+        Self { ids, ..self }
+    }
+
+    pub fn volume_id(&self) -> Result<i64> {
+        self.named_id(MAP_VOLUME_ID)
+    }
+}
+
+impl RwObject<Schema> {
+    pub fn with_database_id(self, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(MAP_DATABASE_ID.to_string(), id);
+        Self { ids, ..self }
+    }
+    
+    pub fn database_id(&self) -> Result<i64> {
+        self.named_id(MAP_DATABASE_ID)
+    }
+
+    pub fn schema_id(&self) -> Result<i64> {
+        self.named_id(MAP_SCHEMA_ID)
+    }
+}
+
+impl RwObject<Table> {
+    pub fn with_database_id(self, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(MAP_DATABASE_ID.to_string(), id);
+        Self { ids, ..self }
+    }
+    
+    pub fn with_schema_id(self, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(MAP_SCHEMA_ID.to_string(), id);
+        Self { ids, ..self }
+    }
+
+    pub fn database_id(&self) -> Result<i64> {
+        self.named_id(MAP_DATABASE_ID)
+    }
+
+    pub fn schema_id(&self) -> Result<i64> {
+        self.named_id(MAP_SCHEMA_ID)
+    }
+}
+
 impl<T> RwObject<T>
 where
-    T: Eq + PartialEq,
+    T: Eq + PartialEq + Serialize,
 {
-    pub fn new(data: T, id: Option<i64>) -> RwObject<T> {
+    pub fn new(data: T) -> RwObject<T> {
         let now = chrono::Utc::now();
         Self {
             data,
-			id: id.unwrap_or_default(),
+            ids: HashMap::new(),
             created_at: now,
             updated_at: now,
         }
+    }
+
+    pub fn id(&self) -> Result<i64> {
+        self.named_id(MAP_ID)
+    }
+
+    fn named_id(&self, name: &str) -> Result<i64> {
+        self.ids.get(name).cloned()
+            .context(NoNamedIdSnafu { name, object: 
+                serde_json::to_string(self).unwrap_or_default()
+            })
+    }
+   
+    pub fn with_id(self, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(MAP_ID.to_string(), id);
+        Self { ids, ..self }
+    }    
+
+    pub fn with_named_id(self, name: String, id: i64) -> Self {
+        let mut ids = self.ids;
+        ids.insert(name, id);
+        Self { ids, ..self }
+    }
+
+    pub fn with_created_at(self, created_at: DateTime<Utc>) -> Self {
+        Self { created_at, ..self }
+    }
+
+    pub fn with_updated_at(self, updated_at: DateTime<Utc>) -> Self {
+        Self { updated_at, ..self }
     }
 
     pub fn update(&mut self, data: T) {
@@ -65,36 +151,3 @@ where
         &self.data
     }
 }
-
-/*#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RwObjectVec<T>(pub Vec<RwObject<T>>) where T: Eq + PartialEq;
-
-impl<T> Deref for RwObjectVec<T> where T: Eq + PartialEq
-{
-    type Target = Vec<RwObject<T>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T: Eq + PartialEq> From<Vec<RwObject<T>>> for RwObjectVec<T> {
-    fn from(rw_objects: Vec<RwObject<T>>) -> Self {
-        Self(rw_objects)
-    }
-}
-
-impl<T: Eq + PartialEq> From<RwObjectVec<T>> for Vec<RwObject<T>> {
-    fn from(rw_objects: RwObjectVec<T>) -> Self {
-        rw_objects.0
-    }
-}
-
-impl<T: Eq + PartialEq> IntoIterator for RwObjectVec<T> {
-    type Item = RwObject<T>;
-    type IntoIter = std::vec::IntoIter<RwObject<T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}*/

@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS volumes (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     ident TEXT NOT NULL UNIQUE,
+    volume_type TEXT NOT NULL CHECK(volume_type IN ('s3', 's3_tables', 'file', 'memory')) NOT NULL,
     volume TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

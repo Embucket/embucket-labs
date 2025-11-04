@@ -43,9 +43,9 @@ impl EmbucketIcebergCatalog {
     pub async fn new(metastore: Arc<dyn Metastore>, database: &RwObject<Database>) -> MetastoreResult<Self> {
         // making it async, as blocking operation for sqlite is not good to have here
         let object_store = metastore
-            .volume_object_store(database.volume_id)
+            .volume_object_store(database.volume_id()?)
             .await?
-            .context(metastore_error::VolumeNotFoundSnafu { volume: database.volume_id.to_string() })?;
+            .context(metastore_error::VolumeNotFoundSnafu { volume: database.volume.clone() })?;
         Ok(Self {
             metastore,
             database: database.ident.clone(),

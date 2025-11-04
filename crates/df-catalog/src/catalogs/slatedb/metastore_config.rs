@@ -58,22 +58,10 @@ impl MetastoreViewConfig {
             .get_databases(ListParams::default())
             .await
             .context(df_error::MetastoreSnafu)?;
-        let mut volumes: HashMap<i64, RwObject<Volume>> = HashMap::new();
         for database in databases {
-            let volume_name = if let Some(volume) = volumes.get(&database.volume_id) {
-                volume.ident.clone()
-            } else {
-                let volume = self.metastore
-                    .get_volume_by_id(database.volume_id)
-                    .await
-                    .context(df_error::MetastoreSnafu)?;
-                let volume_ident = volume.ident.clone();
-                volumes.insert(database.volume_id, volume);
-                volume_ident
-            };
             builder.add_database(
                 database.ident.as_str(),
-                volume_name,
+                &database.volume,
                 database.created_at.to_string(),
                 database.updated_at.to_string(),
             );

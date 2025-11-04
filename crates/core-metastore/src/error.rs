@@ -320,6 +320,21 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("No id field in {object}"))]
+    NoId {
+        object: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("No {name} id field in {object}"))]
+    NoNamedId {
+        name: String,
+        object: String,
+        #[snafu(implicit)]
+        location: Location,
+    }    
 }
 
 

@@ -24,6 +24,7 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Database {
+    pub id: i64,
     pub name: String,
     pub volume_id: i64,
     pub created_at: String,
@@ -33,8 +34,9 @@ pub struct Database {
 impl From<RwObject<MetastoreDatabase>> for Database {
     fn from(db: RwObject<MetastoreDatabase>) -> Self {
         Self {
+            id: db.id().unwrap(),
+            volume_id: db.volume_id().unwrap(),
             name: db.data.ident,
-            volume_id: db.data.volume_id,
             created_at: db.created_at.to_string(),
             updated_at: db.updated_at.to_string(),
         }

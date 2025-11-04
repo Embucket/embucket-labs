@@ -117,7 +117,7 @@ impl EmbucketCatalogList {
 
         let ident = Database {
             ident: catalog_name.to_owned(),
-            volume_id: volume.id,
+            volume: volume.ident.clone(),
             properties: None,
         };
         let database = self
@@ -185,9 +185,10 @@ impl EmbucketCatalogList {
             .await
             .context(df_catalog_error::MetastoreSnafu)?;
         for db in databases {
+            let volume_id = db.volume_id().context(MetastoreSnafu)?;
             let volume = self
                 .metastore
-                .get_volume_by_id(db.volume_id)
+                .get_volume_by_id(volume_id)
                 .await
                 .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type

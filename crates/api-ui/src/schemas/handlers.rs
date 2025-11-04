@@ -117,7 +117,6 @@ pub async fn create_schema(
         })
         .context(GetSnafu)?
         .map(Schema::from)?;
-
     Ok(Json(SchemaCreateResponse(schema)))
 }
 

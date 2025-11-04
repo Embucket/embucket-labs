@@ -441,8 +441,8 @@ impl ExecutorWithObjectStore {
                             endpoint: s3_volume.endpoint,
                             credentials: Some(aws_credentials),
                         }),
-                    ), None);
-                    let volume_id = volume.id;
+                    ));
+                    let volume_id = volume.id().context(TestMetastoreSnafu)?;
                     eprintln!("Intentionally corrupting volume: {:#?}", volume);
                     // Use db.put to update volume in metastore
                     self.db

@@ -94,13 +94,19 @@ pub async fn create_database(
     
     let database = MetastoreDatabase {
         ident: database.name,
-        volume_id: volume.id,
+        volume: volume.ident.clone(),
         properties: None,
     };
     database
         .validate()
         .context(ValidationSnafu)
         .context(CreateSnafu)?;
+    // let database = state
+    //     .metastore
+    //     .create_database(database)
+    //     .await
+    //     .context(CreateSnafu)?;
+
     state
         .execution_svc
         .query(
@@ -189,20 +195,25 @@ pub async fn delete_database(
     Query(query): Query<QueryParameters>,
     Path(database_name): Path<String>,
 ) -> Result<()> {
-    let cascade = if query.cascade.unwrap_or_default() {
-        " CASCADE"
-    } else {
-        ""
-    };
+    // let cascade = if query.cascade.unwrap_or_default() {
+    //     " CASCADE"
+    // } else {
+    //     ""
+    // };
+    // state
+    //     .execution_svc
+    //     .query(
+    //         &session_id,
+    //         &format!("DROP DATABASE {database_name}{cascade}"),
+    //         QueryContext::default(),
+    //     )
+    //     .await
+    //     .context(crate::schemas::error::DeleteSnafu)?;
     state
-        .execution_svc
-        .query(
-            &session_id,
-            &format!("DROP DATABASE {database_name}{cascade}"),
-            QueryContext::default(),
-        )
+        .metastore
+        .delete_database(&database_name, query.cascade.unwrap_or_default())
         .await
-        .context(crate::schemas::error::DeleteSnafu)?;
+        .context(crate::databases::error::DeleteSnafu)?;
     Ok(())
 }
 
@@ -241,7 +252,7 @@ pub async fn update_database(
 
     let database = MetastoreDatabase {
         ident: database.name,
-        volume_id: volume.id,
+        volume: volume.ident.clone(),
         properties: None,
     };
     database

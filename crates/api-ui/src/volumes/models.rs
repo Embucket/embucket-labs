@@ -127,7 +127,7 @@ pub struct Volume {
 impl From<RwObject<MetastoreVolume>> for Volume {
     fn from(value: RwObject<MetastoreVolume>) -> Self {
         Self {
-            id: value.id,
+            id: value.id().unwrap(),
             name: value.data.ident,
             r#type: value.data.volume.to_string(),
             created_at: value.created_at.to_string(),

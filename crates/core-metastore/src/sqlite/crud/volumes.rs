@@ -17,6 +17,7 @@ use diesel::result::QueryResult;
 use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
 use snafu::{ResultExt, OptionExt};
+use crate::error::{SerdeSnafu, NoIdSnafu};
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable)]
 #[serde(rename_all = "kebab-case")]
@@ -25,38 +26,39 @@ use snafu::{ResultExt, OptionExt};
 pub struct VolumeRecord {
 	pub id: i64,
     pub ident: VolumeIdent,
+    pub volume_type: String, // display name
     pub volume: String,
     pub created_at: String, // if using TimestamptzSqlite it doen't support Eq
     pub updated_at: String,
 }
 
-impl From<RwObject<Volume>> for VolumeRecord {
-    fn from(value: RwObject<Volume>) -> Self {
-        Self {
-            id: value.id,
+impl TryFrom<RwObject<Volume>> for VolumeRecord {
+    type Error = metastore_err::Error;
+    fn try_from(value: RwObject<Volume>) -> Result<Self> {
+        Ok(Self {
+            id: value.id()?,
             ident: value.ident.clone(),
-            volume: serde_json::to_string(&value.volume).unwrap(),
+            volume_type: value.volume.to_string(), // display name
+            volume: serde_json::to_string(&value.volume).context(SerdeSnafu)?,
             created_at: Utc::now().to_rfc3339(),
             updated_at: Utc::now().to_rfc3339(),
-        }
+        })
     }
 }
 
 impl TryInto<RwObject<Volume>> for VolumeRecord {
     type Error = metastore_err::Error;
     fn try_into(self) -> Result<RwObject<Volume>> {
-        Ok(RwObject {
-            id: self.id,
-            // todo: replace unwrap by fallible conversion
-            data: Volume::new(self.ident, serde_json::from_str(&self.volume).unwrap()),
-            created_at: DateTime::parse_from_rfc3339(&self.created_at).unwrap().with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(&self.updated_at).unwrap().with_timezone(&Utc),
-        })
+        let volume_type = serde_json::from_str(&self.volume).context(SerdeSnafu)?;
+        Ok(RwObject::new(Volume::new(self.ident, volume_type))
+            .with_id(self.id)
+            .with_created_at(DateTime::parse_from_rfc3339(&self.created_at).unwrap().with_timezone(&Utc))
+            .with_updated_at(DateTime::parse_from_rfc3339(&self.updated_at).unwrap().with_timezone(&Utc)))
     }
 }
 
 pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Result<RwObject<Volume>> {
-    let volume = VolumeRecord::from(volume);
+    let volume = VolumeRecord::try_from(volume)?;
     let volume_name = volume.ident.clone();
     let create_volume_res = conn.interact(move |conn| -> QueryResult<VolumeRecord> {
         diesel::insert_into(volumes::table)

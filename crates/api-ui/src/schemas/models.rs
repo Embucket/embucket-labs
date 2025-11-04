@@ -7,8 +7,10 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Schema {
+    pub id: i64,
     pub name: String,
     pub database: String,
+    pub database_id: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -16,6 +18,8 @@ pub struct Schema {
 impl From<RwObject<MetastoreSchema>> for Schema {
     fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
         Self {
+            id: rw_schema.id().unwrap(),
+            database_id: rw_schema.database_id().unwrap(),
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
             created_at: rw_schema.created_at.to_string(),
