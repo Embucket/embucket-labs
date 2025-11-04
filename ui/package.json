@@ -61,7 +61,7 @@
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
     "i18next": "^25.6.0",
-    "lucide-react": "^0.548.0",
+    "lucide-react": "^0.552.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
