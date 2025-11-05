@@ -18,11 +18,7 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::duckdb::functions::register_all_udfs;
-use crate::duckdb::query::{
-    apply_connection_setup_queries, execute_duck_db_explain, is_select_statement,
-    query_duck_db_arrow,
-};
+use crate::duckdb::{execute_duck_db_explain, is_select_statement};
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
@@ -80,10 +76,11 @@ use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
 use datafusion_physical_plan::collect;
+use datafusion_table_providers::sql::db_connection_pool::duckdbpool::DuckDbConnectionPool;
+use datafusion_table_providers::sql::sql_provider_datafusion::get_stream;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
-use duckdb::Connection;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
@@ -287,11 +284,6 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
-        let statement = if let DFStatement::Explain(explain) = statement {
-            explain.statement.as_mut()
-        } else {
-            statement
-        };
         if let DFStatement::Statement(value) = statement {
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
@@ -516,9 +508,11 @@ impl UserQuery {
         self.query = statement.to_string();
         let sql = self.query.clone();
 
-        let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
-        register_all_udfs(&conn)?;
-        apply_connection_setup_queries(&conn, &setup_queries)?;
+        let duckdb_pool = Arc::new(
+            DuckDbConnectionPool::new_memory()
+                .context(ex_error::DuckdbConnectionPoolSnafu)?
+                .with_connection_setup_queries(setup_queries),
+        );
 
         if self.session.config.use_duck_db_explain
             || self
@@ -526,11 +520,12 @@ impl UserQuery {
                 .get_session_variable_bool("embucket.execution.explain_before_acceleration")
         {
             // Check if possible to call duckdb with this query
-            let explain_conn = conn.try_clone().context(ex_error::DuckdbSnafu)?;
-            let _explain_result = execute_duck_db_explain(explain_conn, &sql).await?;
+            let _explain_result = execute_duck_db_explain(duckdb_pool.clone(), &sql).await?;
         }
 
-        let stream = query_duck_db_arrow(&conn, &sql)?;
+        let stream = get_stream(duckdb_pool, sql, Arc::new(ArrowSchema::empty()))
+            .await
+            .context(ex_error::DataFusionSnafu)?;
         let schema = stream.schema().clone();
         let records = stream
             .try_collect::<Vec<_>>()
@@ -958,7 +953,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&catalog_name).map_err(|_| {
             ex_error::CatalogNotFoundSnafu {
                 operation_on: OperationOn::Table(OperationType::Create),
-                catalog: catalog_name.clone(),
+                catalog: catalog_name.to_string(),
             }
             .build()
         })?;
@@ -2551,8 +2546,8 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?
             .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.clone(),
-                table: ident.table.clone(),
+                schema: ident.schema.to_string(),
+                table: ident.table.to_string(),
             })?;
         let volume = self
             .metastore
@@ -2560,8 +2555,8 @@ impl UserQuery {
             .await
             .context(ex_error::MetastoreSnafu)?
             .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.clone(),
-                table: ident.table.clone(),
+                schema: ident.schema.to_string(),
+                table: ident.table.to_string(),
             })?;
         let setup_query = match volume.volume.clone() {
             VolumeType::S3(s3_volume) => {
@@ -3224,8 +3219,10 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 if values.rows.len() != 1 {
                     return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
                 }
-                let mut all_columns: HashSet<String> =
-                    target_schema.iter().map(|x| x.1.name().clone()).collect();
+                let mut all_columns: HashSet<String> = target_schema
+                    .iter()
+                    .map(|x| x.1.name().to_string())
+                    .collect();
                 for (column, value) in insert.columns.iter().zip(
                     values
                         .rows
@@ -3408,9 +3405,8 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
 async fn target_filter_expression(
     table: &DataFusionTable,
 ) -> Result<Option<datafusion_expr::Expr>> {
-    #[allow(clippy::unwrap_used)]
-    let value = table.tabular.read().unwrap().clone();
-    let table = match value {
+    let lock = table.tabular.read().await;
+    let table = match &*lock {
         Tabular::Table(table) => Ok(table),
         _ => MergeSourceNotSupportedSnafu.fail(),
     }?;
