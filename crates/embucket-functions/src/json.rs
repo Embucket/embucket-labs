@@ -672,7 +672,7 @@ pub fn encode_struct_array(array: ArrayRef) -> Result<JsonValue, ArrowError> {
             #[allow(clippy::unwrap_used)]
             for (encoded_array, field) in &encoded_arrays {
                 let encoded_value = encoded_array.get(i).unwrap();
-                struct_value.insert(field.name().to_string(), encoded_value.clone());
+                struct_value.insert(field.name().clone(), encoded_value.clone());
             }
             JsonValue::Object(struct_value)
         });

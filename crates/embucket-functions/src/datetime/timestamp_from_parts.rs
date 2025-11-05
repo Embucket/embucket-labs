@@ -566,7 +566,7 @@ mod test {
                     fn_args.push(columnar_value_fn(is_scalar, *nano));
                 }
                 if let Some(t) = tz {
-                    fn_args.push(columnar_value_fn(is_scalar, t.to_string()));
+                    fn_args.push(columnar_value_fn(is_scalar, t.clone()));
                 }
                 let arg_fields = fn_args
                     .iter()

@@ -179,7 +179,7 @@ impl ToDecimalFunc {
                 .map(|opt| {
                     opt.map(|str| {
                         str.strip_prefix('$')
-                            .map_or_else(|| str.to_string(), std::string::ToString::to_string)
+                            .map_or_else(|| str.clone(), std::string::ToString::to_string)
                     })
                 })
                 .collect()

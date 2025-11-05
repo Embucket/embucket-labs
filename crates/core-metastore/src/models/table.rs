@@ -168,7 +168,7 @@ impl TableRequirementExt {
             TableRequirement::AssertCreate => {
                 if !metadata.snapshots.is_empty() {
                     return Err(metastore_error::TableDataExistsSnafu {
-                        path: metadata.location.to_string(),
+                        path: metadata.location.clone(),
                     }
                     .build());
                 }

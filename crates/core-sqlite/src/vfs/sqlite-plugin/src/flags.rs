@@ -166,12 +166,6 @@ pub enum LockLevel {
     Exclusive,
 }
 
-impl Default for LockLevel {
-    fn default() -> Self {
-        Self::Unlocked
-    }
-}
-
 impl From<i32> for LockLevel {
     fn from(lock: i32) -> Self {
         match lock {
@@ -189,11 +183,11 @@ impl From<i32> for LockLevel {
 impl Into<i32> for LockLevel {
     fn into(self) -> i32 {
         match self {
-            LockLevel::Unlocked => vars::SQLITE_LOCK_NONE,
-            LockLevel::Shared => vars::SQLITE_LOCK_SHARED,
-            LockLevel::Reserved => vars::SQLITE_LOCK_RESERVED,
-            LockLevel::Pending => vars::SQLITE_LOCK_PENDING,
-            LockLevel::Exclusive => vars::SQLITE_LOCK_EXCLUSIVE,
+            Self::Unlocked => vars::SQLITE_LOCK_NONE,
+            Self::Shared => vars::SQLITE_LOCK_SHARED,
+            Self::Reserved => vars::SQLITE_LOCK_RESERVED,
+            Self::Pending => vars::SQLITE_LOCK_PENDING,
+            Self::Exclusive => vars::SQLITE_LOCK_EXCLUSIVE,
         }
     }
 }

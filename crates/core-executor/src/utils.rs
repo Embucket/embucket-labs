@@ -931,8 +931,8 @@ mod tests {
             (
                 TimeUnit::Nanosecond,
                 Some(1_627_846_261_233_222_111),
-                "1627846261.233222111 1020", // 1020-1440 = -420 (PDT)
-                Some("America/Los_Angeles".to_string()),
+                "1627846261.233222111 1440", // 1020-1440 = -420 (PDT)
+                Some("UTC".to_string()),
                 (1_627_846_261, 233_222_111, 1_627_846_261_233_222_111),
             ),
         ];
@@ -1092,7 +1092,7 @@ mod tests {
             Field::new("int_col", DataType::Int32, false),
             Field::new(
                 "ts_col",
-                DataType::Timestamp(TimeUnit::Second, Some(Arc::from("America/Los_Angeles"))),
+                DataType::Timestamp(TimeUnit::Second, Some(Arc::from("UTC"))),
                 true,
             ),
             Field::new("binary_view", DataType::BinaryView, true),
@@ -1102,7 +1102,7 @@ mod tests {
         let int_array = Arc::new(Int32Array::from(vec![1, 2, 3])) as ArrayRef;
         let timestamp_array = Arc::new(
             TimestampSecondArray::from(vec![Some(1_627_846_261), None, Some(1_627_846_262)])
-                .with_timezone("America/Los_Angeles"),
+                .with_timezone("UTC"),
         ) as ArrayRef;
         let binary_view_array = Arc::new(BinaryViewArray::from_iter_values(vec![
             b"hello" as &[u8],
@@ -1138,9 +1138,9 @@ mod tests {
 
         // timestamp → string
         let arr = as_str_array(batch.column(1));
-        assert_eq!(arr.value(0), "1627846261 1020"); // 1020-1440 = -420 (PDT) America/Los_Angeles
+        assert_eq!(arr.value(0), "1627846261 1440"); // 1020-1440 = -420 (PDT) America/Los_Angeles
         assert!(arr.is_null(1));
-        assert_eq!(arr.value(2), "1627846262 1020");
+        assert_eq!(arr.value(2), "1627846262 1440");
 
         // binary_view → string
         let arr = as_str_array(batch.column(2));

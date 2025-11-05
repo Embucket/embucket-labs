@@ -11,15 +11,15 @@ use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use rand::RngCore;
 use serde_json::json;
 
-use std::any::Any;
-use std::sync::Arc;
-
 use crate::encryption::errors::{
     ArrayLengthMismatchSnafu, CipherCreationSnafu, EncryptionFailedSnafu,
     InvalidArgumentTypesSnafu, InvalidIvSizeSnafu, InvalidKeySizeSnafu,
-    MalformedEncryptionMethodSnafu, UnsupportedEncryptionAlgorithmSnafu,
+    MalformedEncryptionMethodSnafu, SliceCreationFailedSnafu, UnsupportedEncryptionAlgorithmSnafu,
     UnsupportedEncryptionModeSnafu,
 };
+use snafu::ResultExt;
+use std::any::Any;
+use std::sync::Arc;
 
 type Aes192Gcm = AesGcm<Aes192, aes_gcm::aead::consts::U12>;
 
@@ -303,10 +303,10 @@ fn encrypt<C: Aead + KeyInit>(
     // Using map_err instead of .context() to avoid exposing crypto library implementation details
     // and to maintain a clean abstraction layer over the underlying AES-GCM operations
     let cipher = C::new_from_slice(key).map_err(|_| CipherCreationSnafu.build())?;
-    let nonce = Nonce::from_slice(iv);
+    let nonce = Nonce::<C::NonceSize>::try_from(iv).context(SliceCreationFailedSnafu)?;
     let payload = Payload { msg: value, aad };
     let mut ct = cipher
-        .encrypt(nonce, payload)
+        .encrypt(&nonce, payload)
         .map_err(|_| EncryptionFailedSnafu.build())?;
     let tag = ct.split_off(ct.len() - 16);
     Ok((ct, tag))
