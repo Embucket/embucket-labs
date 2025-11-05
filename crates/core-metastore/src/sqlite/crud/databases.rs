@@ -18,21 +18,21 @@ use diesel::result::QueryResult;
 use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
 use snafu::{ResultExt, OptionExt};
-use crate::sqlite::crud::volumes::VolumeRecord;
 use crate::{ListParams, OrderBy, OrderDirection};
+use crate::sqlite::crud::current_ts_str;
 
 // This intermediate struct is used for storage, though it is not used directly by the user (though it could)
 // after it is loaded from sqlite it is converted to the RwObject<T> which we use as public interface.
 // Fields order is matter and should match schema
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable, Associations)]
 #[serde(rename_all = "kebab-case")]
-#[diesel(table_name = crate::sqlite::diesel_gen::databases)]
+#[diesel(table_name = databases)]
 #[diesel(belongs_to(Volume))]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct DatabaseRecord {
     pub id: i64,
-    pub ident: DatabaseIdent,
-    pub volume_id: i64,
+    pub volume_id: i64,    
+    pub name: String,
     pub properties: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -44,11 +44,11 @@ impl TryFrom<RwObject<Database>> for DatabaseRecord {
         Ok(Self {
             // ignore missing id, maybe its insert, otherwise constraint will fail
             id: value.id().unwrap_or_default(),
-            ident: value.ident.clone(),
+            name: value.ident.clone(),
             volume_id: value.volume_id()?,
             properties: serde_json::to_string(&value.properties).ok(),
-            created_at: Utc::now().to_rfc3339(),
-            updated_at: Utc::now().to_rfc3339(),
+            created_at: value.created_at.to_rfc3339(),
+            updated_at: value.updated_at.to_rfc3339(),
         })
     }
 }
@@ -58,20 +58,13 @@ impl TryInto<RwObject<Database>> for (DatabaseRecord, VolumeIdent) {
     type Error = metastore_err::Error;
     fn try_into(self) -> Result<RwObject<Database>> {
         let volume_ident = self.1;
-        Ok(RwObject::new(Database::new(self.0.ident, volume_ident))
+        Ok(RwObject::new(Database::new(self.0.name, volume_ident))
             .with_id(self.0.id)
             .with_volume_id(self.0.volume_id)
             .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at).unwrap().with_timezone(&Utc))
             .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at).unwrap().with_timezone(&Utc)))
     }
 }
-
-// fn lookup_volume(conn: &mut SqliteConnection, volume_ident: &str) -> Option<VolumeRecord> {
-//     volumes::table
-//         .filter(volumes::ident.eq(volume_ident))
-//         .first::<VolumeRecord>(conn)
-//         .ok()
-// }
 
 pub async fn create_database(conn: &Connection, database: RwObject<Database>) -> Result<RwObject<Database>> {
     let database_ident = database.ident.clone();
@@ -80,7 +73,7 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
     let create_res = conn.interact(move |conn| {
         diesel::insert_into(databases::table)
             .values((
-                databases::ident.eq(database.ident),
+                databases::name.eq(database.name),
                 databases::volume_id.eq(database.volume_id),
                 databases::properties.eq(database.properties),
                 databases::created_at.eq(database.created_at),
@@ -99,13 +92,14 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
         .and_then(TryInto::try_into)
 }
 
+// TODO: get_database should be using list_databases
 pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
-    let ident_owned = database_ident.to_string();
+    let ident_owned = database_ident.clone();
     conn.interact(move |conn| -> QueryResult<Option<(DatabaseRecord, VolumeIdent)>> {
         databases::table
             .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
-            .filter(databases::ident.eq(ident_owned))
-            .select((DatabaseRecord::as_select(), volumes::ident))
+            .filter(databases::name.eq(ident_owned))
+            .select((DatabaseRecord::as_select(), volumes::name))
             .first(conn)
             .optional()
     }).await?
@@ -115,10 +109,13 @@ pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> 
 }
 
 pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec<RwObject<Database>>> {
-    // TODO: add filtering, ordering params
     conn.interact(move |conn| {
         // map params to orm request in other way
-        let mut query = databases::table.into_boxed();
+        let mut query = databases::table
+            .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
+            .select((DatabaseRecord::as_select(), volumes::name))
+            .into_boxed();
+
         if let Some(volume_id) = params.parent_id {
             query = query.filter(databases::volume_id.eq(volume_id));
         }
@@ -132,19 +129,18 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
         }
 
         if let Some(search) = params.search {
-            query = query.filter(databases::ident.like(format!("%{}%", search)));
+            query = query.filter(databases::name.like(format!("%{}%", search)));
         }
 
         for order_by in params.order_by {
             query = match order_by {
                 OrderBy::Name(direction) => match direction {
-                    OrderDirection::Desc => query.order(databases::ident.desc()),
-                    OrderDirection::Asc => query.order(databases::ident.asc()),
+                    OrderDirection::Desc => query.order(databases::name.desc()),
+                    OrderDirection::Asc => query.order(databases::name.asc()),
                 },
-                // TODO: add parent name ordering (as separate function)
                 OrderBy::ParentName(direction) => match direction {
-                    OrderDirection::Desc => query.order(databases::ident.desc()),
-                    OrderDirection::Asc => query.order(databases::ident.asc()),
+                    OrderDirection::Desc => query.order(volumes::name.desc()),
+                    OrderDirection::Asc => query.order(volumes::name.asc()),
                 },                
                 OrderBy::CreatedAt(direction) => match direction {
                     OrderDirection::Desc => query.order(databases::created_at.desc()),
@@ -157,10 +153,7 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
             }
         }
 
-        query
-            .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
-            .select((DatabaseRecord::as_select(), volumes::ident))
-            .load::<(DatabaseRecord, String)>(conn)
+        query.load::<(DatabaseRecord, String)>(conn)
     }).await?
     .context(metastore_err::DieselSnafu)?
     .into_iter()
@@ -169,17 +162,18 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
 }
 
 pub async fn update_database(conn: &Connection, ident: &DatabaseIdent, updated: Database) -> Result<RwObject<Database>> {
-    let ident_owned = ident.to_string();
+    let ident_owned = ident.clone();
     let volume_ident = updated.volume.clone();
-    // updated RwObject didn't set (id, created_at, updated_at) fields, 
+    // updated RwObject doesn't set (id, created_at, updated_at) fields, 
     // as it is only used for converting to a DatabaseRecord
     let updated = DatabaseRecord::try_from(RwObject::new(updated))?;
     conn.interact(move |conn| {
-        diesel::update(databases::table.filter(databases::dsl::ident.eq(ident_owned)))
+        diesel::update(databases::table.filter(databases::dsl::name.eq(ident_owned)))
             .set((
-                databases::dsl::ident.eq(updated.ident),
+                databases::dsl::name.eq(updated.name),
                 databases::dsl::properties.eq(updated.properties),
-                databases::dsl::volume_id.eq(updated.volume_id)))
+                databases::dsl::volume_id.eq(updated.volume_id),
+                databases::dsl::updated_at.eq(current_ts_str())))
             .returning(DatabaseRecord::as_returning())
             .get_result(conn)
     })
@@ -190,10 +184,10 @@ pub async fn update_database(conn: &Connection, ident: &DatabaseIdent, updated: 
 }
 
 pub async fn delete_database_cascade(conn: &Connection, ident: &DatabaseIdent) -> Result<i64> {
-    let ident_owned = ident.to_string();
+    let ident_owned = ident.clone();
 
     conn.interact(move |conn| {
-        diesel::delete(databases::table.filter(databases::dsl::ident.eq(ident_owned)))
+        diesel::delete(databases::table.filter(databases::dsl::name.eq(ident_owned)))
             .returning(databases::id)
             .get_result(conn)
     }).await?

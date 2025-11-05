@@ -51,14 +51,14 @@ async fn test_ui_databases_metastore_update() {
         &format!("http://{addr}/ui/databases/{}", created_database.name),
         json!(DatabaseUpdatePayload {
             name: new_database.name.clone(),
-            volume_id: new_database.volume_id,
+            volume: new_database.volume.clone(),
         })
         .to_string(),
     )
     .await
     .expect("Failed update database");
     assert_eq!("new-test", renamed_database.name); // server confirmed it's renamed
-    assert_eq!(volume.id, renamed_database.volume_id);
+    assert_eq!(volume.name, renamed_database.volume.clone());
 
     // get non existing database using old name, expected error 404
     let res = http_req::<()>(
@@ -67,7 +67,7 @@ async fn test_ui_databases_metastore_update() {
         &format!("http://{addr}/ui/databases/{}", created_database.name),
         json!(DatabaseCreatePayload {
             name: created_database.name.clone(),
-            volume_id: created_database.volume_id,
+            volume: created_database.volume.clone(),
         })
         .to_string(),
     )
@@ -110,7 +110,7 @@ async fn test_ui_databases() {
     // Create database with empty name, error 400
     let expected = DatabaseCreatePayload {
         name: String::new(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::BAD_REQUEST, res.status());
@@ -128,25 +128,25 @@ async fn test_ui_databases() {
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
         name: "test".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let DatabaseCreateResponse(created_database) = res.json().await.unwrap();
     assert_eq!(expected1.name, created_database.name);
-    assert_eq!(expected1.volume_id, created_database.volume_id);
+    assert_eq!(expected1.volume, created_database.volume);
 
     let expected2 = DatabaseCreatePayload {
         name: "test2".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let expected3 = DatabaseCreatePayload {
         name: "test3".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let expected4 = DatabaseCreatePayload {
         name: "test4".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected2.clone())).await;
@@ -165,7 +165,7 @@ async fn test_ui_databases() {
         Op::Delete,
         Some(&Entity::Database(DatabaseCreatePayload {
             name: created_database.name.clone(),
-            volume_id: created_database.volume_id,
+            volume: created_database.volume.clone(),
         })),
         &stub,
     )
@@ -190,9 +190,10 @@ async fn test_ui_databases() {
     )
     .await
     .expect("Failed to get list databases with limit");
+    eprintln!("items: {:#?}", items);
     // created_at desc is default order
     assert_eq!(
-        vec!["test".to_string(), "test2".to_string()],
+        vec!["test".to_string(), "test4".to_string()],
         items.iter().map(|d| d.name.clone()).collect::<Vec<_>>(),
     );
     //Get list databases with parameters
@@ -215,7 +216,7 @@ async fn test_ui_databases() {
     // Create database with another name, Ok
     let expected_another = DatabaseCreatePayload {
         name: "name".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let res = ui_test_op(
         addr,

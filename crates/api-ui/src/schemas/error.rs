@@ -40,10 +40,17 @@ pub enum Error {
 
     #[snafu(display("Get schemas error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("No id error: {source}"))]
+    NoId {
+        source: core_metastore::Error,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 // Select which status code to return.
@@ -76,7 +83,7 @@ impl IntoStatusCode for Error {
                 core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

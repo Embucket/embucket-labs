@@ -40,19 +40,19 @@ async fn test_ui_databases_navigation() {
     // Create database, Ok
     let expected1 = DatabaseCreatePayload {
         name: "test1".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let expected2 = DatabaseCreatePayload {
         name: "test2".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let expected3 = DatabaseCreatePayload {
         name: "test3".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let expected4 = DatabaseCreatePayload {
         name: "test4".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     //4 DBs
     let _res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected1.clone())).await;

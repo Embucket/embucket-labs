@@ -22,9 +22,7 @@ impl TryFrom<RwObject<MetastoreDatabase>> for Database {
             id: db.id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
-            volume: db.volume_id()
-                .context(metastore_err::NoIdSnafu)
-                .context(super::error::NoIdSnafu)?,
+            volume: db.data.volume,
             name: db.data.ident,
             created_at: db.created_at.to_string(),
             updated_at: db.updated_at.to_string(),

@@ -258,8 +258,8 @@ async fn test_schemas() {
         .expect("create schema failed");
 
     let schema_list = ms
-        .iter_schemas(&schema.ident.database)
-        .collect()
+        .get_schemas(ListParams::default()
+            .with_parent_name(schema.ident.database.clone()))
         .await
         .expect("list schemas failed");
     let schema_get = ms
@@ -270,8 +270,8 @@ async fn test_schemas() {
         .await
         .expect("delete schema failed");
     let schema_list_after = ms
-        .iter_schemas(&schema.ident.database)
-        .collect()
+        .get_schemas(ListParams::default()
+            .with_parent_name(schema.ident.database))
         .await
         .expect("list schemas failed");
 

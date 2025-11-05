@@ -46,6 +46,13 @@ pub struct Schema {
 }
 
 impl Schema {
+    pub fn new(ident: SchemaIdent) -> Self {
+        Self {
+            ident,
+            properties: None,
+        }
+    }
+
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident.schema)
@@ -64,13 +71,10 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let schema = Schema {
-            ident: SchemaIdent {
-                schema: "schema".to_string(),
-                database: "db".to_string(),
-            },
-            properties: None,
-        };
+        let schema = Schema::new(SchemaIdent {
+            schema: "schema".to_string(),
+            database: "db".to_string(),
+        });
         assert_eq!(schema.prefix("parent"), "parent/schema");
     }
 }

@@ -83,10 +83,9 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let schemas = self
             .metastore
-            .iter_schemas(&String::new())
-            .collect()
+            .get_schemas(ListParams::default())
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         for schema in schemas {
             builder.add_schema(
                 schema.id().context(df_error::MetastoreSnafu)?,

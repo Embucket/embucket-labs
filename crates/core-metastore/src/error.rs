@@ -199,6 +199,15 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Schema {database}.{schema} in use by table(s): {table}"))]
+    SchemaInUse {
+        database: String,
+        schema: String,
+        table: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Iceberg error: {error}"))]
     Iceberg {
         #[snafu(source(from(IcebergError, Box::new)))]
@@ -333,6 +342,14 @@ pub enum Error {
     NoId {
         #[snafu(source(from(Error, Box::new)))]
         source: Box<Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("SqliteDb error: {error}"))]
+    SqliteDb {
+        #[snafu(source)]
+        error: core_sqlite::Error,
         #[snafu(implicit)]
         location: Location,
     }

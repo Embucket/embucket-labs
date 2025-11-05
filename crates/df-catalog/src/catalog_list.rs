@@ -13,6 +13,7 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
+use core_metastore::error::VolumeNotFoundSnafu;
 use core_metastore::{AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
 use core_utils::scan_iterator::ScanIterator;
@@ -184,12 +185,21 @@ impl EmbucketCatalogList {
             .get_databases(ListParams::default())
             .await
             .context(df_catalog_error::MetastoreSnafu)?;
+        // use volumes hashmap to avoid excessive volume fetches
+        let mut volumes = std::collections::HashMap::new();
         for db in databases {
             let volume_id = db.volume_id().context(MetastoreSnafu)?;
-            let volume = self
-                .metastore
-                .get_volume_by_id(volume_id)
-                .await
+            if !volumes.contains_key(&volume_id) {
+                let volume = self
+                    .metastore
+                    .get_volume_by_id(volume_id)
+                    .await
+                    .context(MetastoreSnafu)?;
+                volumes.insert(volume_id, volume);
+            };
+            // should not fail here
+            let volume = volumes.get(&volume_id)
+                .context(VolumeNotFoundSnafu { volume: db.volume.clone() })
                 .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type
             let catalog = match &volume.volume {

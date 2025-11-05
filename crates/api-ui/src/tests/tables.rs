@@ -40,7 +40,7 @@ async fn test_ui_tables() {
         None,
         &Entity::Database(DatabaseCreatePayload {
             name: database_name.clone(),
-            volume_id: volume.id,
+            volume: volume.name.clone(),
         }),
     )
     .await;

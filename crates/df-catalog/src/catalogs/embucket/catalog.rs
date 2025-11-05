@@ -1,7 +1,7 @@
 use super::schema::EmbucketSchema;
 use crate::block_in_new_runtime;
 use core_metastore::{Metastore, SchemaIdent};
-use core_utils::scan_iterator::ScanIterator;
+use core_metastore::ListParams;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use iceberg_rust::catalog::Catalog as IcebergCatalog;
 use std::{any::Any, sync::Arc};
@@ -52,7 +52,9 @@ impl CatalogProvider for EmbucketCatalog {
         let database = self.database.clone();
 
         block_in_new_runtime(async move {
-            match metastore.iter_schemas(&database).collect().await {
+            let schemas_res = metastore.get_schemas(
+                ListParams::default().with_parent_name(database.clone())).await;
+            match schemas_res {
                 Ok(schemas) => schemas
                     .into_iter()
                     .map(|s| s.ident.schema.clone())

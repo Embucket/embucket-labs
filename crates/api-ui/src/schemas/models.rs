@@ -3,6 +3,9 @@ use core_metastore::models::Schema as MetastoreSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use utoipa::ToSchema;
+use core_metastore::error as metastore_err;
+use crate::Result;
+use snafu::ResultExt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -15,16 +18,21 @@ pub struct Schema {
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreSchema>> for Schema {
-    fn from(rw_schema: RwObject<MetastoreSchema>) -> Self {
-        Self {
-            id: rw_schema.id().unwrap(),
-            database_id: rw_schema.database_id().unwrap(),
+impl TryFrom<RwObject<MetastoreSchema>> for Schema {
+    type Error = crate::error::Error;
+    fn try_from(rw_schema: RwObject<MetastoreSchema>) -> Result<Self> {
+        Ok(Self {
+            id: rw_schema.id()
+                .context(metastore_err::NoIdSnafu)
+                .context(super::error::NoIdSnafu)?,
+            database_id: rw_schema.database_id()
+                .context(metastore_err::NoIdSnafu)
+                .context(super::error::NoIdSnafu)?,
             name: rw_schema.data.ident.schema,
             database: rw_schema.data.ident.database,
             created_at: rw_schema.created_at.to_string(),
             updated_at: rw_schema.updated_at.to_string(),
-        }
+        })
     }
 }
 

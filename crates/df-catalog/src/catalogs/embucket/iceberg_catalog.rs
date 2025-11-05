@@ -8,7 +8,6 @@ use core_metastore::{
     TableUpdate as MetastoreTableUpdate, RwObject, Database,
 };
 use core_utils::scan_iterator::ScanIterator;
-use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
         Catalog as IcebergCatalog,
@@ -30,6 +29,7 @@ use iceberg_rust_spec::{
 };
 use object_store::ObjectStore;
 use snafu::{OptionExt, ResultExt};
+use core_metastore::ListParams;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -296,10 +296,8 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .ok_or_else(|| IcebergError::NotFound(format!("database {}", self.name())))?;
         let schemas = self
             .metastore
-            .iter_schemas(&database.ident)
-            .collect()
+            .get_schemas(ListParams::default().with_parent_name(database.ident.clone()))
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for schema in schemas {
             namespaces.push(IcebergNamespace::try_new(std::slice::from_ref(

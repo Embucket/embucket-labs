@@ -102,7 +102,9 @@ impl Into<ListParams> for SearchParameters {
             None => MetaOrderDirection::Desc,
         };
         ListParams {
+            id: None,
             parent_id: None,
+            parent_name: None,
             offset: self.offset.map(|offset| i64::try_from(offset).unwrap_or_default()),
             limit: self.limit.map(|limit| i64::from(limit)),
             search: self.search,
@@ -111,9 +113,11 @@ impl Into<ListParams> for SearchParameters {
                     "database_name" => vec![MetaOrderBy::Name(meta_order_direction)],
                     "created_at" => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
                     "updated_at" => vec![MetaOrderBy::UpdatedAt(meta_order_direction)],
-                    _ => vec![],
+                    // use this default sort order if order_by preferences are not valid
+                    _ => vec![MetaOrderBy::CreatedAt(MetaOrderDirection::Desc)],
                 }
-                _ => vec![],
+                // default sort order if not specified
+                _ => vec![MetaOrderBy::CreatedAt(MetaOrderDirection::Desc)],
             },
         }
     }

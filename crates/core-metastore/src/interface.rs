@@ -13,9 +13,12 @@ use async_trait::async_trait;
 use core_utils::scan_iterator::VecScanIterator;
 use object_store::ObjectStore;
 use crate::list_parameters::ListParams;
+use crate::sqlite::Stats;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
+    async fn get_stats(&self) -> Result<Stats>;
+
     async fn get_volumes(&self) -> Result<Vec<RwObject<Volume>>>;
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
@@ -25,21 +28,15 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn volume_object_store(&self, volume_id: i64) -> Result<Option<Arc<dyn ObjectStore>>>;
 
     async fn get_databases(&self, params: ListParams) -> Result<Vec<RwObject<Database>>>;
-    async fn create_database(
-        &self,
-        database: Database,
-    ) -> Result<RwObject<Database>>;
+    async fn create_database(&self,database: Database) -> Result<RwObject<Database>>;
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>>;
-    async fn update_database(
-        &self,
-        name: &DatabaseIdent,
-        database: Database,
-    ) -> Result<RwObject<Database>>;
+    async fn update_database(&self, name: &DatabaseIdent, database: Database) -> Result<RwObject<Database>>;
     async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> Result<()>;
 
-    fn iter_schemas(&self, database: &str) -> VecScanIterator<RwObject<Schema>>;
+    async fn get_schemas(&self, params: ListParams) -> Result<Vec<RwObject<Schema>>>;
     async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
     async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>>;
+    async fn get_schema_by_id(&self, id: i64) -> Result<RwObject<Schema>>;
     async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()>;
 
