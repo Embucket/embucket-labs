@@ -6,11 +6,11 @@ info: "Setup queries: CREATE OR REPLACE TABLE testing (name VARCHAR)\nAS SELECT 
 Ok(
     [
         "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
-        "| plan_type     | plan                                                                                                                                            |",
+        "| plan_type     | plan                                                                                                              |",
         "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
-        "| logical_plan  | TableScan: testing projection=[name]                                                                                                                              |",
+        "| logical_plan  | TableScan: testing projection=[name]                                                                                                              |",
         "| physical_plan | DataSourceExec: file_groups={1 group: [[embucket/public/testing/data/[HEX]/[UUID].parquet]]}, projection=[name], file_type=parquet |",
-        "|               |                                                                                                                                            |",
+        "|               |                                                                                                              |",
         "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
     ],
 )
