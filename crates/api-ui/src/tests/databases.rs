@@ -32,18 +32,18 @@ async fn test_ui_databases_metastore_update() {
     // Create database, Ok
     let expected = DatabaseCreatePayload {
         name: "test".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let res = ui_test_op(addr, Op::Create, None, &Entity::Database(expected.clone())).await;
     assert_eq!(http::StatusCode::OK, res.status());
     let DatabaseCreateResponse(created_database) = res.json().await.unwrap();
     assert_eq!(expected.name, created_database.name);
-    assert_eq!(expected.volume_id, created_database.volume_id);
+    assert_eq!(expected.volume, created_database.volume);
 
     // Update database test -> new-test, Ok
     let new_database = DatabaseCreatePayload {
         name: "new-test".to_string(),
-        volume_id: volume.id,
+        volume: volume.name.clone(),
     };
     let renamed_database = http_req::<Database>(
         &client,

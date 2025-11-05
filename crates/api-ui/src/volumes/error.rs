@@ -49,6 +49,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("No id error: {source}"))]
+    NoId {
+        source: core_metastore::Error,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 fn core_executor_error(source: &core_executor::Error) -> StatusCode {
@@ -92,6 +98,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
+            Self::NoId { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

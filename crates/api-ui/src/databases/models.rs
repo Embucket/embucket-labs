@@ -2,44 +2,33 @@ use core_metastore::RwObject;
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-// impl From<MetastoreDatabase> for DatabasePayload {
-//     fn from(db: MetastoreDatabase) -> Self {
-//         Self {
-//             name: db.ident,
-//             volume: db.volume,
-//         }
-//     }
-// }
-
-// impl From<Database> for DatabasePayload {
-//     fn from(db: Database) -> Self {
-//         Self {
-//             name: db.name.clone(),
-//             volume: db.volume,
-//         }
-//     }
-// }
+use core_metastore::error as metastore_err;
+use snafu::ResultExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Database {
     pub id: i64,
     pub name: String,
-    pub volume_id: i64,
+    pub volume: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreDatabase>> for Database {
-    fn from(db: RwObject<MetastoreDatabase>) -> Self {
-        Self {
-            id: db.id().unwrap(),
-            volume_id: db.volume_id().unwrap(),
+impl TryFrom<RwObject<MetastoreDatabase>> for Database {
+    type Error = super::Error;
+    fn try_from(db: RwObject<MetastoreDatabase>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: db.id()
+                .context(metastore_err::NoIdSnafu)
+                .context(super::error::NoIdSnafu)?,
+            volume: db.volume_id()
+                .context(metastore_err::NoIdSnafu)
+                .context(super::error::NoIdSnafu)?,
             name: db.data.ident,
             created_at: db.created_at.to_string(),
             updated_at: db.updated_at.to_string(),
-        }
+        })
     }
 }
 
@@ -47,7 +36,7 @@ impl From<RwObject<MetastoreDatabase>> for Database {
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseCreatePayload {
     pub name: String,
-    pub volume_id: i64,
+    pub volume: String,
 }
 
 // TODO: make Database fields optional in update payload, not used currently
@@ -55,7 +44,7 @@ pub struct DatabaseCreatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseUpdatePayload {
     pub name: String,
-    pub volume_id: i64,
+    pub volume: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

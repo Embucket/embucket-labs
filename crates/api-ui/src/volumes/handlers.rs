@@ -163,7 +163,7 @@ pub async fn create_volume(
         .context(GetSnafu)?
         .context(VolumeNotFoundSnafu { volume: ident })?;
 
-    Ok(Json(VolumeCreateResponse(Volume::from(volume))))
+    Ok(Json(VolumeCreateResponse(Volume::try_from(volume).context(CreateSnafu)?)))
 }
 
 #[utoipa::path(
@@ -195,22 +195,10 @@ pub async fn get_volume(
         .metastore
         .get_volume(&volume_name)
         .await
-        .map(|opt_rw_obj| {
-            // We create here core_metastore::Error since Metastore instead of error returns Option = None
-            // TODO: Remove after refactor Metastore
-            opt_rw_obj
-                .ok_or_else(|| {
-                    metastore_error::VolumeNotFoundSnafu {
-                        volume: volume_name.clone(),
-                    }
-                    .build()
-                })
-                .context(GetSnafu)
-        })
         .context(GetSnafu)?
-        .map(Volume::from)?;
+        .context(VolumeNotFoundSnafu { volume: volume_name.clone() })?;
 
-    Ok(Json(VolumeResponse(volume)))
+    Ok(Json(VolumeResponse(Volume::try_from(volume).context(GetSnafu)?)))
 }
 
 #[utoipa::path(
@@ -314,7 +302,7 @@ pub async fn list_volumes(
         .await
         .context(ListSnafu)?
         .into_iter()
-        .map(Volume::from)
-        .collect();
+        .map(|data| Volume::try_from(data).context(ListSnafu))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok(Json(VolumesResponse { items }))
 }

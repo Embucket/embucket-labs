@@ -171,8 +171,7 @@ impl CoreExecutionService {
         config: Arc<Config>,
     ) -> Result<Self> {
         if config.bootstrap_default_entities {
-            // do not fail on bootstrap errors
-            let _ = Self::bootstrap(metastore.clone()).await;
+            Self::bootstrap(metastore.clone()).await?;
         }
 
         Self::initialize_datafusion_tracer();

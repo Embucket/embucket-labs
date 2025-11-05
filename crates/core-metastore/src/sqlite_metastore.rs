@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use crate::{
-    Metastore, error::{self as metastore_err, Result}, list_parameters::ListParams, models::{
+    Metastore, error::{self as metastore_err, Result, Error}, list_parameters::ListParams, models::{
         RwObject,
         database::{Database, DatabaseIdent},
         schema::{Schema, SchemaIdent},
@@ -11,6 +11,7 @@ use crate::{
         volumes::{Volume, VolumeIdent},
     }
 };
+use crate::error::{NoIdSnafu};
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::Utc;
@@ -311,7 +312,7 @@ impl Metastore for SlateDBMetastore {
 
         tracing::debug!("Volume {} created", resulted.ident);
 
-        self.object_store_cache.insert(resulted.id()?, object_store);
+        self.object_store_cache.insert(resulted.id().context(NoIdSnafu)?, object_store);
         Ok(resulted)
     }
 
@@ -343,8 +344,9 @@ impl Metastore for SlateDBMetastore {
         let updated_volume = crud::volumes::update_volume(&conn, ident, volume.clone()).await?;
         let object_store = updated_volume.get_object_store()?;
         // object store cached by id so just alter value
-        self.object_store_cache
-            .alter(&updated_volume.id()?, |_, _store| object_store.clone());
+        self.object_store_cache.alter(
+            &updated_volume.id().context(NoIdSnafu)?,
+            |_, _store| object_store.clone());
         Ok(updated_volume)
     }
 
@@ -355,7 +357,7 @@ impl Metastore for SlateDBMetastore {
         let volume = crud::volumes::get_volume(&conn, name)
             .await?
             .context(metastore_err::VolumeNotFoundSnafu{ volume: name.to_string() })?;
-        let volume_id = volume.id()?;
+        let volume_id = volume.id().context(NoIdSnafu)?;
         let db_names = crud::databases::list_databases(&conn, ListParams::new().with_parent_id(volume_id))
             .await?
             .iter().map(|db| db.ident.clone()).collect::<Vec<String>>();
@@ -405,8 +407,13 @@ impl Metastore for SlateDBMetastore {
         let conn = self.diesel_pool.get()
             .await
             .context(metastore_err::DieselPoolSnafu)?;
-        let rwobject = RwObject::new(database);
-        let resulted = crud::databases::create_database(&conn, rwobject.clone())
+        let volume = crud::volumes::get_volume(&conn, &database.volume)
+            .await?
+            .context(metastore_err::VolumeNotFoundSnafu{ volume: database.volume.clone() })?;
+
+        let database = RwObject::new(database)
+            .with_volume_id(volume.id().context(NoIdSnafu)?);
+        let resulted = crud::databases::create_database(&conn, database.clone())
             .await?;
 
         tracing::debug!("Created database: {}", resulted.ident);
@@ -838,7 +845,7 @@ impl Metastore for SlateDBMetastore {
     #[instrument(name = "SqliteMetastore::table_object_store", level = "debug", skip(self))]
     async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>> {
         if let Some(volume) = self.volume_for_table(ident).await? {
-            self.volume_object_store(volume.id()?).await
+            self.volume_object_store(volume.id().context(NoIdSnafu)?).await
         } else {
             Ok(None)
         }

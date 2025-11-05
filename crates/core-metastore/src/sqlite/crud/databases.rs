@@ -42,7 +42,8 @@ impl TryFrom<RwObject<Database>> for DatabaseRecord {
     type Error = metastore_err::Error;
     fn try_from(value: RwObject<Database>) -> Result<Self> {
         Ok(Self {
-            id: value.id()?,
+            // ignore missing id, maybe its insert, otherwise constraint will fail
+            id: value.id().unwrap_or_default(),
             ident: value.ident.clone(),
             volume_id: value.volume_id()?,
             properties: serde_json::to_string(&value.properties).ok(),

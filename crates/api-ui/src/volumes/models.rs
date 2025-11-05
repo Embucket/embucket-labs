@@ -3,9 +3,10 @@ use core_metastore::models::{
     AwsCredentials as MetastoreAwsCredentials, FileVolume as MetastoreFileVolume,
     S3Volume as MetastoreS3Volume, Volume as MetastoreVolume, VolumeType as MetastoreVolumeType,
 };
-use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume};
+use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume, error as metastore_err};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use snafu::ResultExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -124,15 +125,16 @@ pub struct Volume {
     pub updated_at: String,
 }
 
-impl From<RwObject<MetastoreVolume>> for Volume {
-    fn from(value: RwObject<MetastoreVolume>) -> Self {
-        Self {
-            id: value.id().unwrap(),
+impl TryFrom<RwObject<MetastoreVolume>> for Volume {
+    type Error = metastore_err::Error;
+    fn try_from(value: RwObject<MetastoreVolume>) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id().context(metastore_err::NoIdSnafu)?,
             name: value.data.ident,
             r#type: value.data.volume.to_string(),
             created_at: value.created_at.to_string(),
             updated_at: value.updated_at.to_string(),
-        }
+        })
     }
 }
 

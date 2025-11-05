@@ -1,5 +1,5 @@
 #![allow(clippy::needless_for_each)]
-use crate::Result;
+use crate::{Result, downcast_int64_column};
 use crate::state::AppState;
 use crate::{OrderDirection, apply_parameters};
 use crate::{
@@ -303,7 +303,7 @@ pub async fn list_schemas(
         now.clone()
     );
     let sql_information_schema = match database_name.as_str() {
-        "slatedb" => format!(
+        "sqlite" => format!(
             "UNION ALL SELECT 'information_schema' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
             now.clone(),
             now.clone()
@@ -333,6 +333,8 @@ pub async fn list_schemas(
 
     let mut items = Vec::new();
     for record in records {
+        let schema_ids = downcast_int64_column(&record, "schema_id").context(ListSnafu)?;
+        let database_ids = downcast_int64_column(&record, "database_id").context(ListSnafu)?;
         let schema_names = downcast_string_column(&record, "schema_name").context(ListSnafu)?;
         let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
         let created_at_timestamps =
@@ -341,6 +343,8 @@ pub async fn list_schemas(
             downcast_string_column(&record, "updated_at").context(ListSnafu)?;
         for i in 0..record.num_rows() {
             items.push(Schema {
+                id: schema_ids.value(i),
+                database_id: database_ids.value(i),
                 name: schema_names.value(i).to_string(),
                 database: database_names.value(i).to_string(),
                 created_at: created_at_timestamps.value(i).to_string(),

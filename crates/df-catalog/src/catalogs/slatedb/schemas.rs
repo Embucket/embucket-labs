@@ -2,6 +2,7 @@ use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
     array::StringBuilder,
+    array::Int64Builder,
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -21,6 +22,8 @@ pub struct SchemasView {
 impl SchemasView {
     pub(crate) fn new(config: MetastoreViewConfig) -> Self {
         let schema = Arc::new(Schema::new(vec![
+            Field::new("schema_id", DataType::Int64, false),
+            Field::new("database_id", DataType::Int64, false),
             Field::new("schema_name", DataType::Utf8, false),
             Field::new("database_name", DataType::Utf8, false),
             Field::new("created_at", DataType::Utf8, false),
@@ -32,6 +35,8 @@ impl SchemasView {
 
     fn builder(&self) -> SchemasViewBuilder {
         SchemasViewBuilder {
+            schema_ids: Int64Builder::new(),
+            database_ids: Int64Builder::new(),
             schema_names: StringBuilder::new(),
             database_names: StringBuilder::new(),
             created_at_timestamps: StringBuilder::new(),
@@ -61,6 +66,8 @@ impl PartitionStream for SchemasView {
 
 pub struct SchemasViewBuilder {
     schema: SchemaRef,
+    schema_ids: Int64Builder,
+    database_ids: Int64Builder,
     schema_names: StringBuilder,
     database_names: StringBuilder,
     created_at_timestamps: StringBuilder,
@@ -70,12 +77,16 @@ pub struct SchemasViewBuilder {
 impl SchemasViewBuilder {
     pub fn add_schema(
         &mut self,
+        schema_id: i64,
+        database_id: i64,
         schema_name: impl AsRef<str>,
         database_name: impl AsRef<str>,
         created_at: impl AsRef<str>,
         updated_at: impl AsRef<str>,
     ) {
         // Note: append_value is actually infallible.
+        self.schema_ids.append_value(schema_id);
+        self.database_ids.append_value(database_id);
         self.schema_names.append_value(schema_name.as_ref());
         self.database_names.append_value(database_name.as_ref());
         self.created_at_timestamps.append_value(created_at.as_ref());
@@ -86,6 +97,8 @@ impl SchemasViewBuilder {
         RecordBatch::try_new(
             Arc::clone(&self.schema),
             vec![
+                Arc::new(self.schema_ids.finish()),
+                Arc::new(self.database_ids.finish()),
                 Arc::new(self.schema_names.finish()),
                 Arc::new(self.database_names.finish()),
                 Arc::new(self.created_at_timestamps.finish()),

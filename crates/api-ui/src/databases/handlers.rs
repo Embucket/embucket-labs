@@ -7,7 +7,7 @@ use crate::{
     SearchParameters,
     databases::error::{
         self as databases_error, CreateQuerySnafu, CreateSnafu, DatabaseNotFoundSnafu, GetSnafu,
-        UpdateSnafu,
+        UpdateSnafu, ListSnafu,
     },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
@@ -88,9 +88,10 @@ pub async fn create_database(
 ) -> Result<Json<DatabaseCreateResponse>> {
     let volume = state
         .metastore
-        .get_volume_by_id(database.volume_id)
+        .get_volume(&database.volume)
         .await
-        .context(GetSnafu)?;
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
     
     let database = MetastoreDatabase {
         ident: database.name,
@@ -101,11 +102,6 @@ pub async fn create_database(
         .validate()
         .context(ValidationSnafu)
         .context(CreateSnafu)?;
-    // let database = state
-    //     .metastore
-    //     .create_database(database)
-    //     .await
-    //     .context(CreateSnafu)?;
 
     state
         .execution_svc
@@ -129,7 +125,7 @@ pub async fn create_database(
             database: database.ident.clone(),
         })?;
 
-    Ok(Json(DatabaseCreateResponse(Database::from(database))))
+    Ok(Json(DatabaseCreateResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -164,10 +160,9 @@ pub async fn get_database(
         .context(metastore_error::DatabaseNotFoundSnafu {
             db: database_name.clone(),
         })
-        .map(Database::from)
         .context(GetSnafu)?;
 
-    Ok(Json(DatabaseResponse(database)))
+    Ok(Json(DatabaseResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -195,25 +190,25 @@ pub async fn delete_database(
     Query(query): Query<QueryParameters>,
     Path(database_name): Path<String>,
 ) -> Result<()> {
-    // let cascade = if query.cascade.unwrap_or_default() {
-    //     " CASCADE"
-    // } else {
-    //     ""
-    // };
-    // state
-    //     .execution_svc
-    //     .query(
-    //         &session_id,
-    //         &format!("DROP DATABASE {database_name}{cascade}"),
-    //         QueryContext::default(),
-    //     )
-    //     .await
-    //     .context(crate::schemas::error::DeleteSnafu)?;
+    let cascade = if query.cascade.unwrap_or_default() {
+        " CASCADE"
+    } else {
+        ""
+    };
     state
-        .metastore
-        .delete_database(&database_name, query.cascade.unwrap_or_default())
+        .execution_svc
+        .query(
+            &session_id,
+            &format!("DROP DATABASE {database_name}{cascade}"),
+            QueryContext::default(),
+        )
         .await
-        .context(crate::databases::error::DeleteSnafu)?;
+        .context(crate::schemas::error::DeleteSnafu)?;
+    // state
+    //     .metastore
+    //     .delete_database(&database_name, query.cascade.unwrap_or_default())
+    //     .await
+    //     .context(crate::databases::error::DeleteSnafu)?;
     Ok(())
 }
 
@@ -246,9 +241,10 @@ pub async fn update_database(
 ) -> Result<Json<DatabaseUpdateResponse>> {
     let volume = state
         .metastore
-        .get_volume_by_id(database.volume_id)
+        .get_volume(&database.volume)
         .await
-        .context(GetSnafu)?;
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
 
     let database = MetastoreDatabase {
         ident: database.name,
@@ -264,10 +260,9 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        .map(Database::from)
         .context(UpdateSnafu)?;
 
-    Ok(Json(DatabaseUpdateResponse(database)))
+    Ok(Json(DatabaseUpdateResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -340,7 +335,8 @@ pub async fn list_databases(
         .await
         .context(databases_error::ListSnafu)?
         .into_iter()
-        .map(Database::from)
-        .collect();
+        .map(Database::try_from)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+
     Ok(Json(DatabasesResponse { items }))
 }

@@ -17,7 +17,7 @@ use diesel::result::QueryResult;
 use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
 use snafu::{ResultExt, OptionExt};
-use crate::error::{SerdeSnafu, NoIdSnafu};
+use crate::error::SerdeSnafu;
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable)]
 #[serde(rename_all = "kebab-case")]
@@ -36,7 +36,8 @@ impl TryFrom<RwObject<Volume>> for VolumeRecord {
     type Error = metastore_err::Error;
     fn try_from(value: RwObject<Volume>) -> Result<Self> {
         Ok(Self {
-            id: value.id()?,
+            // ignore missing id, maybe its insert, otherwise constraint will fail
+            id: value.id().unwrap_or_default(),
             ident: value.ident.clone(),
             volume_type: value.volume.to_string(), // display name
             volume: serde_json::to_string(&value.volume).context(SerdeSnafu)?,
@@ -65,6 +66,7 @@ pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Resul
             // prepare values explicitely to filter out id
             .values((
                 volumes::ident.eq(volume.ident),
+                volumes::volume_type.eq(volume.volume_type),
                 volumes::volume.eq(volume.volume),
                 volumes::created_at.eq(volume.created_at),
                 volumes::updated_at.eq(volume.updated_at),

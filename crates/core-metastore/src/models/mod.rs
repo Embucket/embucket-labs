@@ -36,9 +36,7 @@ where
 
 impl RwObject<Database> {
     pub fn with_volume_id(self, id: i64) -> Self {
-        let mut ids = self.ids;
-        ids.insert(MAP_VOLUME_ID.to_string(), id);
-        Self { ids, ..self }
+        self.with_named_id(MAP_VOLUME_ID.to_string(), id)
     }
 
     pub fn volume_id(&self) -> Result<i64> {
@@ -48,9 +46,7 @@ impl RwObject<Database> {
 
 impl RwObject<Schema> {
     pub fn with_database_id(self, id: i64) -> Self {
-        let mut ids = self.ids;
-        ids.insert(MAP_DATABASE_ID.to_string(), id);
-        Self { ids, ..self }
+        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
     }
     
     pub fn database_id(&self) -> Result<i64> {
@@ -64,15 +60,11 @@ impl RwObject<Schema> {
 
 impl RwObject<Table> {
     pub fn with_database_id(self, id: i64) -> Self {
-        let mut ids = self.ids;
-        ids.insert(MAP_DATABASE_ID.to_string(), id);
-        Self { ids, ..self }
+        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
     }
     
     pub fn with_schema_id(self, id: i64) -> Self {
-        let mut ids = self.ids;
-        ids.insert(MAP_SCHEMA_ID.to_string(), id);
-        Self { ids, ..self }
+        self.with_named_id(MAP_SCHEMA_ID.to_string(), id)
     }
 
     pub fn database_id(&self) -> Result<i64> {
@@ -98,27 +90,25 @@ where
         }
     }
 
+    pub fn with_id(self, id: i64) -> Self {
+        self.with_named_id(MAP_ID.to_string(), id)
+    }
+
     pub fn id(&self) -> Result<i64> {
         self.named_id(MAP_ID)
     }
 
-    fn named_id(&self, name: &str) -> Result<i64> {
-        self.ids.get(name).cloned()
-            .context(NoNamedIdSnafu { name, object: 
-                serde_json::to_string(self).unwrap_or_default()
-            })
-    }
-   
-    pub fn with_id(self, id: i64) -> Self {
-        let mut ids = self.ids;
-        ids.insert(MAP_ID.to_string(), id);
-        Self { ids, ..self }
-    }    
-
-    pub fn with_named_id(self, name: String, id: i64) -> Self {
+    fn with_named_id(self, name: String, id: i64) -> Self {
         let mut ids = self.ids;
         ids.insert(name, id);
         Self { ids, ..self }
+    }
+
+    fn named_id(&self, name: &str) -> Result<i64> {
+        self.ids.get(name).cloned().context(NoNamedIdSnafu {
+            name,
+            object: serde_json::to_string(self).unwrap_or_default(),
+        })
     }
 
     pub fn with_created_at(self, created_at: DateTime<Utc>) -> Self {

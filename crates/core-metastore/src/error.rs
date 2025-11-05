@@ -321,20 +321,21 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("No id field in {object}"))]
-    NoId {
-        object: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("No {name} id field in {object}"))]
+    #[snafu(display("No {name} field in RwObject: {object}"))]
     NoNamedId {
         name: String,
         object: String,
         #[snafu(implicit)]
         location: Location,
-    }    
+    },
+
+    #[snafu(display("RWObject id Field error: {source}"))]
+    NoId {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<Error>,
+        #[snafu(implicit)]
+        location: Location,
+    }
 }
 
 
