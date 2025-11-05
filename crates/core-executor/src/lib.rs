@@ -1,7 +1,6 @@
 pub use df_catalog as catalog;
 pub mod datafusion;
 pub mod dedicated_executor;
-mod duckdb;
 pub mod error;
 pub mod error_code;
 pub mod models;

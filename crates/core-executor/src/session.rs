@@ -199,27 +199,4 @@ impl UserSession {
         }
         None
     }
-
-    #[must_use]
-    pub fn get_session_variable_bool(&self, variable: &str) -> bool {
-        let state = self.ctx.state();
-        let config = state.config().options().extensions.get::<SessionParams>();
-
-        if let Some(cfg) = config
-            && let Some(prop) = cfg.properties.get(variable)
-            && let Some(parsed) = parse_bool(&prop.value)
-        {
-            return parsed;
-        }
-        false
-    }
-}
-
-#[must_use]
-pub fn parse_bool(value: &str) -> Option<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "1" => Some(true),
-        "false" | "0" => Some(false),
-        _ => None,
-    }
 }
