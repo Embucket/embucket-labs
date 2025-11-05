@@ -1,10 +1,11 @@
-use super::extension_planner::CustomExtensionPlanner;
 use async_trait::async_trait;
 use datafusion::{
     execution::context::QueryPlanner,
     physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner},
 };
 use std::{fmt, sync::Arc};
+
+use super::extension_planner::CustomExtensionPlanner;
 
 pub struct CustomQueryPlanner(DefaultPhysicalPlanner);
 

@@ -17,7 +17,6 @@ aws-credential-types = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
-datafusion-table-providers = { version = "0.8.1", features = ["duckdb"] }
 datafusion = { workspace = true }
 datafusion-common = { workspace = true }
 datafusion-doc = { workspace = true }

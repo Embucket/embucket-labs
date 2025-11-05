@@ -61,7 +61,6 @@ impl TableProvider for CachingTable {
     fn table_type(&self) -> TableType {
         self.table.table_type()
     }
-
     async fn scan(
         &self,
         state: &dyn Session,

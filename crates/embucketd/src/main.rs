@@ -169,7 +169,6 @@ async fn async_main(
         mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
         disk_pool_size_mb: opts.disk_pool_size_mb,
         query_history_rows_limit: opts.query_history_rows_limit,
-        use_duck_db: opts.use_duck_db.unwrap_or(false),
     };
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
