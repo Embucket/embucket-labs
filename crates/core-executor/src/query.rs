@@ -18,19 +18,14 @@ use crate::datafusion::physical_plan::merge::{
     DATA_FILE_PATH_COLUMN, MANIFEST_FILE_PATH_COLUMN, SOURCE_EXISTS_COLUMN, TARGET_EXISTS_COLUMN,
 };
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
-use crate::duckdb::functions::register_all_udfs;
-use crate::duckdb::query::{
-    apply_connection_setup_queries, execute_duck_db_explain, is_select_statement,
-    query_duck_db_arrow,
-};
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
 use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
-    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, TableIdent, Volume,
-    VolumeType, models::volumes::create_object_store_from_url,
+    TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume, VolumeType,
+    models::volumes::create_object_store_from_url,
 };
 use datafusion::arrow::array::{Int64Array, RecordBatch};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
@@ -83,7 +78,6 @@ use datafusion_physical_plan::collect;
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
-use duckdb::Connection;
 use embucket_functions::semi_structured::variant::visitors::visit_all;
 use embucket_functions::session_params::SessionProperty;
 use embucket_functions::visitors::{
@@ -92,7 +86,6 @@ use embucket_functions::visitors::{
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
-use futures::TryStreamExt;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
@@ -106,7 +99,7 @@ use iceberg_rust::spec::table_metadata::TableMetadata;
 use iceberg_rust::spec::types::StructType;
 use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
-use object_store::aws::{AmazonS3Builder, AmazonS3ConfigKey as S3Key, resolve_bucket_region};
+use object_store::aws::{AmazonS3Builder, resolve_bucket_region};
 use object_store::{ClientOptions, ObjectStore};
 use snafu::{OptionExt, ResultExt, location};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
@@ -169,13 +162,6 @@ impl UserQuery {
             Error::DataFusion { error, .. } => *error,
             _ => DataFusionError::NotImplemented(e.to_string()),
         })?;
-        Ok(statement)
-    }
-
-    pub fn statement(&self) -> std::result::Result<DFStatement, DataFusionError> {
-        let state = self.session.ctx.state();
-        let dialect = state.config().options().sql_parser.dialect.as_str();
-        let statement = state.sql_to_statement(&self.raw_query, dialect)?;
         Ok(statement)
     }
 
@@ -323,28 +309,6 @@ impl UserQuery {
         err
     )]
     pub async fn execute(&mut self) -> Result<QueryResult> {
-        // If the config or session variable "use_duck_db" is set, we bypass DataFusion entirely
-        // and execute the full SQL query directly using DuckDB in-memory engine.
-        // This is typically used for heavy or complex queries that DataFusion handles poorly,
-        // such as large joins or subqueries, while preserving the same schema and query context.
-        if self.session.config.use_duck_db
-            || self
-                .session
-                .get_session_variable_bool("embucket.execution.acceleration")
-        {
-            let raw_statement = self.statement().context(ex_error::DataFusionSnafu)?;
-            // Allow only SELECT statements for DuckDB acceleration mode
-            if is_select_statement(&raw_statement) {
-                // If DuckDB execution fails for any reason (unsupported syntax, internal error, etc.),
-                // we fall back to the default Embucket execution path below.
-                let result = self.execute_duck_db(raw_statement).await;
-                match result {
-                    Ok(result) => return Ok(result),
-                    Err(e) => tracing::warn!("Acceleration execution failed: {}", e),
-                }
-            }
-        }
-
         let statement = self.parse_query().context(ex_error::DataFusionSnafu)?;
         self.query = statement.to_string();
 
@@ -494,53 +458,6 @@ impl UserQuery {
             return Box::pin(self.create_external_table_query(cetable)).await;
         }
         self.execute_sql(&self.query).await
-    }
-
-    #[instrument(
-        name = "UserQuery::execute_duck_db",
-        level = "debug",
-        skip(self),
-        fields(
-            statement,
-            query_id = self.query_context.query_id.as_i64(),
-            query_uuid = self.query_context.query_id.as_uuid().to_string(),
-        ),
-        err
-    )]
-    pub async fn execute_duck_db(&mut self, mut statement: DFStatement) -> Result<QueryResult> {
-        // Fully qualify all table references
-        self.update_statement_references(&mut statement)?;
-
-        // Convert already resolved table references to iceberg_scan function call
-        let setup_queries = self.update_iceberg_scan_references(&mut statement).await?;
-        self.query = statement.to_string();
-        let sql = self.query.clone();
-
-        let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
-        register_all_udfs(&conn)?;
-        apply_connection_setup_queries(&conn, &setup_queries)?;
-
-        if self.session.config.use_duck_db_explain
-            || self
-                .session
-                .get_session_variable_bool("embucket.execution.explain_before_acceleration")
-        {
-            // Check if possible to call duckdb with this query
-            let explain_conn = conn.try_clone().context(ex_error::DuckdbSnafu)?;
-            let _explain_result = execute_duck_db_explain(explain_conn, &sql).await?;
-        }
-
-        let stream = query_duck_db_arrow(&conn, &sql)?;
-        let schema = stream.schema().clone();
-        let records = stream
-            .try_collect::<Vec<_>>()
-            .await
-            .context(ex_error::DataFusionSnafu)?;
-        Ok::<QueryResult, Error>(QueryResult::new(
-            records,
-            schema,
-            self.query_context.query_id,
-        ))
     }
 
     #[instrument(name = "UserQuery::get_catalog", level = "trace", skip(self), err)]
@@ -725,7 +642,7 @@ impl UserQuery {
     ) -> Result<QueryResult> {
         let ident = &self.resolve_table_object_name(name.0.clone())?;
         let resolved = self.resolve_table_ref(ident);
-        // Inject more information to to the error
+        // Inject more information to the error
         let catalog = self.get_catalog(&resolved.catalog).map_err(|_| {
             ex_error::CatalogNotFoundSnafu {
                 operation_on: OperationOn::Table(OperationType::Alter),
@@ -812,7 +729,7 @@ impl UserQuery {
                     ObjectType::Database => OperationOn::Database(OperationType::Drop),
                     _ => OperationOn::Unknown,
                 },
-                catalog: catalog_name.to_string(),
+                catalog: catalog_name,
             }
             .build()
         })?;
@@ -2276,78 +2193,6 @@ impl UserQuery {
         }
     }
 
-    /// This function traverses the SQL statement and updates table references
-    /// to their `iceberg_scan(...)`, based on the current session context and catalog state.
-    ///
-    /// - Table references that are part of Common Table Expressions (CTEs) are skipped and left as-is.
-    /// - Table functions (recognized by the session context) are also skipped and left unresolved.
-    /// - All other table references are resolved using `resolve_table_object_name` and updated in-place.
-    ///
-    /// These replacements allow the query to be executed directly
-    /// through `DuckDB` against Iceberg tables, bypassing the `DataFusion` planner.
-    ///
-    /// # Arguments
-    /// * `statement` - The SQL statement (`DFStatement`) to update.
-    ///
-    /// # Errors
-    /// Returns an error if table resolution fails for any non-CTE, non-table-function reference,
-    /// or if any DuckDB-specific pre-resolution step encounters an error.
-    pub async fn update_iceberg_scan_references(
-        &self,
-        statement: &mut DFStatement,
-    ) -> Result<Vec<Arc<str>>> {
-        let (tables, ctes) = resolve_table_references(
-            statement,
-            self.session
-                .ctx
-                .state()
-                .config()
-                .options()
-                .sql_parser
-                .enable_ident_normalization,
-        )
-        .context(ex_error::DataFusionSnafu)?;
-        // Collect all table references to replace them by iceberg_scan function
-        let mut duckdb_resolved: HashMap<String, ObjectName> = HashMap::new();
-        let mut setup_queries = Vec::new();
-        for table in &tables {
-            if let Ok((resolved, setup_query)) = self.resolve_iceberg_scan(table.clone()).await {
-                duckdb_resolved.insert(table.to_string(), resolved);
-                if let Some(query) = setup_query {
-                    setup_queries.push(query);
-                }
-            }
-        }
-        match statement {
-            DFStatement::Statement(stmt) => {
-                let cte_names: HashSet<String> = ctes
-                    .into_iter()
-                    .map(|cte| cte.table().to_string())
-                    .collect();
-
-                let _ = visit_relations_mut(stmt, |table_name: &mut ObjectName| {
-                    let name_str = table_name.to_string();
-
-                    let is_table_func = self
-                        .session
-                        .ctx
-                        .table_function(table_name.to_string().to_ascii_lowercase().as_str())
-                        .is_ok();
-                    if !cte_names.contains(&table_name.to_string())
-                        && !is_table_func
-                        && let Some(resolved_duck_db) = duckdb_resolved.get(&name_str)
-                    {
-                        *table_name = resolved_duck_db.clone();
-                    }
-                    ControlFlow::<(), ()>::Continue(())
-                });
-                Ok(setup_queries)
-            }
-            // If needed, handle other DFStatement variants like CreateExternalTable similarly
-            _ => Ok(setup_queries),
-        }
-    }
-
     pub async fn sql_statement_to_plan(&self, statement: Statement) -> Result<LogicalPlan> {
         let tables = self
             .table_references_for_statement(
@@ -2537,60 +2382,6 @@ impl UserQuery {
             }
         }
         Ok(tables)
-    }
-
-    async fn resolve_iceberg_scan(
-        &self,
-        table_ref: TableReference,
-    ) -> Result<(ObjectName, Option<Arc<str>>)> {
-        let resolved = self.resolve_table_ref(table_ref);
-        let ident: TableIdent = NormalizedIdent::from_resolved(&resolved).into();
-        let tabular = self
-            .metastore
-            .get_table(&ident)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.clone(),
-                table: ident.table.clone(),
-            })?;
-        let volume = self
-            .metastore
-            .volume_for_table(&ident)
-            .await
-            .context(ex_error::MetastoreSnafu)?
-            .context(ex_error::TableNotFoundSnafu {
-                schema: ident.schema.clone(),
-                table: ident.table.clone(),
-            })?;
-        let setup_query = match volume.volume.clone() {
-            VolumeType::S3(s3_volume) => {
-                let builder = s3_volume.get_s3_builder();
-                let access_key_id = builder
-                    .get_config_value(&S3Key::AccessKeyId)
-                    .unwrap_or_default();
-                let secret_access_key = builder
-                    .get_config_value(&S3Key::SecretAccessKey)
-                    .unwrap_or_default();
-                let region = builder.get_config_value(&S3Key::Region).unwrap_or_default();
-                Some(Arc::from(format!(
-                    "CREATE OR REPLACE SECRET secret (
-                        TYPE s3,
-                        PROVIDER config,
-                        KEY_ID '{access_key_id}',
-                        SECRET '{secret_access_key}',
-                        REGION '{region}'
-                );"
-                )))
-            }
-            _ => None,
-        };
-        let location = tabular.metadata_location.clone();
-        let duckdb_iceberg = format!("iceberg_scan('{location}')");
-        Ok((
-            ObjectName::from(vec![Ident::new(duckdb_iceberg)]),
-            setup_query,
-        ))
     }
 
     /// Resolves a [`TableReference`] to a [`ResolvedTableReference`]
