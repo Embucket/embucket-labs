@@ -7,9 +7,7 @@ use datafusion::logical_expr::{
 };
 use datafusion_common::ScalarValue;
 use datafusion_common::cast::as_generic_string_array;
-use datafusion_common::types::{
-    NativeType, logical_float16, logical_float32, logical_float64, logical_string,
-};
+use datafusion_common::types::{NativeType, logical_float32, logical_float64, logical_string};
 use datafusion_expr::{ScalarFunctionArgs, ScalarUDFImpl};
 use ipnet::IpNet;
 use serde_json::json;
@@ -65,7 +63,6 @@ impl ParseIpFunc {
                             TypeSignatureClass::Native(logical_float64()),
                             vec![
                                 TypeSignatureClass::Integer,
-                                TypeSignatureClass::Native(logical_float16()),
                                 TypeSignatureClass::Native(logical_float32()),
                             ],
                             NativeType::Float64,

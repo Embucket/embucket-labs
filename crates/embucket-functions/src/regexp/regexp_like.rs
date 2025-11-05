@@ -55,6 +55,7 @@ impl Default for RegexpLikeFunc {
 }
 
 impl RegexpLikeFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(

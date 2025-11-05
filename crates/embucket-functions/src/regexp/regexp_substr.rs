@@ -65,6 +65,7 @@ impl Default for RegexpSubstrFunc {
 }
 
 impl RegexpSubstrFunc {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(

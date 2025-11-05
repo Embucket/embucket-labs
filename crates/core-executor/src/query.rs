@@ -517,7 +517,14 @@ impl UserQuery {
         let sql = self.query.clone();
 
         let conn = Connection::open_in_memory().context(ex_error::DuckdbSnafu)?;
-        register_all_udfs(&conn)?;
+        let failed = register_all_udfs(&conn, self.session.ctx.state().scalar_functions())?;
+        if !failed.is_empty() {
+            tracing::warn!(
+                "Some UDFs were not registered/overloaded in DuckDB: {:?}",
+                failed
+            );
+        }
+
         apply_connection_setup_queries(&conn, &setup_queries)?;
 
         if self.session.config.use_duck_db_explain
