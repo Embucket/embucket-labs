@@ -113,11 +113,16 @@ pub async fn delete_volume(
 #[must_use]
 pub fn hide_sensitive(volume: RwObject<Volume>) -> RwObject<Volume> {
     let mut new_volume = volume;
-    if let VolumeType::S3(ref mut s3_volume) = new_volume.data.volume
-        && let Some(AwsCredentials::AccessKey(ref mut access_key)) = s3_volume.credentials
-    {
-        access_key.aws_access_key_id = "******".to_string();
-        access_key.aws_secret_access_key = "******".to_string();
+    match &mut new_volume.data.volume {
+        VolumeType::S3(s3_volume) => {
+            if let Some(credentials) = &mut s3_volume.credentials {
+                mask_credentials(credentials);
+            }
+        }
+        VolumeType::S3Tables(s3_tables_volume) => {
+            mask_credentials(&mut s3_tables_volume.credentials);
+        }
+        VolumeType::File(_) | VolumeType::Memory => {}
     }
     new_volume
 }
@@ -187,4 +192,99 @@ pub async fn query_by_id(
         .context(GetQuerySnafu)?;
 
     Ok(Json(RwObject::new(query_record)))
+}
+
+fn mask_credentials(credentials: &mut AwsCredentials) {
+    match credentials {
+        AwsCredentials::AccessKey(access_key) => {
+            access_key.aws_access_key_id = "******".to_string();
+            access_key.aws_secret_access_key = "******".to_string();
+        }
+        AwsCredentials::Token(token) => {
+            *token = "******".to_string();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_volume(volume_type: VolumeType) -> RwObject<Volume> {
+        RwObject::new(Volume {
+            ident: "demo".to_string(),
+            volume: volume_type,
+        })
+    }
+
+    #[test]
+    fn hide_sensitive_masks_s3_access_key_credentials() {
+        let rw_volume = base_volume(VolumeType::S3(S3Volume {
+            region: None,
+            bucket: None,
+            endpoint: None,
+            credentials: Some(AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                aws_access_key_id: "AKIAAAAAAAAAAAAAAAAA".to_string(),
+                aws_secret_access_key: "abcdEFGHijklMNOPqrstUVWXyz0123456789abcd".to_string(),
+            })),
+        }));
+
+        let masked = hide_sensitive(rw_volume);
+        if let VolumeType::S3(s3_volume) = &masked.data.volume {
+            let creds = s3_volume.credentials.as_ref().expect("credentials missing");
+            match creds {
+                AwsCredentials::AccessKey(access_key) => {
+                    assert_eq!(access_key.aws_access_key_id, "******");
+                    assert_eq!(access_key.aws_secret_access_key, "******");
+                }
+                AwsCredentials::Token(_) => panic!("unexpected token credentials"),
+            }
+        } else {
+            panic!("expected s3 volume");
+        }
+    }
+
+    #[test]
+    fn hide_sensitive_masks_s3_tables_token_credentials() {
+        let rw_volume = base_volume(VolumeType::S3Tables(S3TablesVolume {
+            endpoint: None,
+            credentials: AwsCredentials::Token("some-token-value".to_string()),
+            arn: "arn:aws:s3tables:us-east-1:123456789012:bucket/demo".to_string(),
+        }));
+
+        let masked = hide_sensitive(rw_volume);
+        if let VolumeType::S3Tables(s3_tables_volume) = &masked.data.volume {
+            match &s3_tables_volume.credentials {
+                AwsCredentials::AccessKey(_) => panic!("expected token credentials"),
+                AwsCredentials::Token(token) => assert_eq!(token, "******"),
+            }
+        } else {
+            panic!("expected s3 tables volume");
+        }
+    }
+
+    #[test]
+    fn hide_sensitive_masks_s3_tables_access_key_credentials() {
+        let rw_volume = base_volume(VolumeType::S3Tables(S3TablesVolume {
+            endpoint: None,
+            credentials: AwsCredentials::AccessKey(AwsAccessKeyCredentials {
+                aws_access_key_id: "AKIAAAAAAAAAAAAAAAAA".to_string(),
+                aws_secret_access_key: "abcdEFGHijklMNOPqrstUVWXyz0123456789abcd".to_string(),
+            }),
+            arn: "arn:aws:s3tables:us-east-1:123456789012:bucket/demo".to_string(),
+        }));
+
+        let masked = hide_sensitive(rw_volume);
+        if let VolumeType::S3Tables(s3_tables_volume) = &masked.data.volume {
+            match &s3_tables_volume.credentials {
+                AwsCredentials::AccessKey(creds) => {
+                    assert_eq!(creds.aws_access_key_id, "******");
+                    assert_eq!(creds.aws_secret_access_key, "******");
+                }
+                AwsCredentials::Token(_) => panic!("expected access key credentials"),
+            }
+        } else {
+            panic!("expected s3 tables volume");
+        }
+    }
 }
