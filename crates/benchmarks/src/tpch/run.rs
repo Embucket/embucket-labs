@@ -135,14 +135,6 @@ impl RunOpt {
         )
         .await?;
 
-        if self.common.use_duckdb {
-            let mut query = session.query(
-                "SET embucket.execution.acceleration = true",
-                query_context(),
-            );
-            query.execute().await?;
-        }
-
         let mut millis = vec![];
         // run benchmark
         let mut query_results = vec![];
