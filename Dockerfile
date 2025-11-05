@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y \
 # Copy source code
 COPY . .
 
-# Build the application with optimizations
-RUN cargo build --release --bin embucketd
+# Build the application without experimental features
+RUN cargo build --release --bin embucketd --no-default-features
 
 # Stage 4: Final runtime image
 FROM gcr.io/distroless/cc-debian12 AS runtime
