@@ -72,15 +72,15 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast,
-    UserDefinedLogicalNode, and, build_join_schema, is_null, lit, when,
+    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
+    build_join_schema, is_null, lit, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
-use datafusion_physical_plan::{ExecutionPlan, collect, displayable};
+use datafusion_physical_plan::{ExecutionPlan, collect};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -93,9 +93,7 @@ use embucket_functions::visitors::{
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
-use futures::FutureExt;
 use futures::TryStreamExt;
-use futures::future::join_all;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
@@ -130,7 +128,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use tokio::task::AbortHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::{Instrument, error};
@@ -2430,12 +2427,12 @@ impl UserQuery {
                 tokio::spawn(async move {
                     loop {
                         tokio::select! {
-                            _ = sleep(Duration::from_secs(1)) => {
+                            () = sleep(Duration::from_secs(1)) => {
                                 if let Err(e) = save_plan_metrics(history_store.clone(), query_id, &metrics_plan).await {
                                     error!("Failed to save intermediate plan metrics: {:?}", e);
                                 }
                             }
-                            _ = bg_token.cancelled() => {
+                            () = bg_token.cancelled() => {
                                 if let Err(e) = save_plan_metrics(history_store.clone(), query_id, &metrics_plan).await {
                                     error!("Failed to save final plan metrics: {:?}", e);
                                 }
@@ -3789,7 +3786,7 @@ pub async fn save_plan_metrics(
     let counter = AtomicUsize::new(0);
     let mut collected = Vec::new();
 
-    collect_plan_metrics(query_id, plan, None, 0, &counter, &mut collected);
+    collect_plan_metrics(query_id, plan, None, &counter, &mut collected);
 
     tracing::debug!(
         "Collected {} metrics from plan, saving to metrics store...",
@@ -3806,7 +3803,6 @@ fn collect_plan_metrics(
     query_id: QueryRecordId,
     plan: &Arc<dyn ExecutionPlan>,
     parent: Option<usize>,
-    level: usize,
     counter: &AtomicUsize,
     out: &mut Vec<QueryMetric>,
 ) {
@@ -3831,6 +3827,6 @@ fn collect_plan_metrics(
     ));
 
     for child in plan.children() {
-        collect_plan_metrics(query_id, &child, Some(node_id), level + 1, counter, out);
+        collect_plan_metrics(query_id, child, Some(node_id), counter, out);
     }
 }
