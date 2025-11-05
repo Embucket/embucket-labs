@@ -3,6 +3,7 @@
 debug/
 target/
 object_store/
+sqlite_data/
 test/dbt_integration_tests/dbt-gitlab/logs/
 test/slt_errors_stats_embucket.csv
 

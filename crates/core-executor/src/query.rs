@@ -273,6 +273,12 @@ impl UserQuery {
 
     #[instrument(name = "UserQuery::postprocess_query_statement", level = "trace", err)]
     pub fn postprocess_query_statement_with_validation(statement: &mut DFStatement) -> Result<()> {
+        let statement = if let DFStatement::Explain(explain) = statement {
+            explain.statement.as_mut()
+        } else {
+            statement
+        };
+
         if let DFStatement::Statement(value) = statement {
             rlike_regexp_expr_rewriter::visit(value);
             functions_rewriter::visit(value);
@@ -641,7 +647,7 @@ impl UserQuery {
     ) -> Result<QueryResult> {
         let ident = &self.resolve_table_object_name(name.0.clone())?;
         let resolved = self.resolve_table_ref(ident);
-        // Inject more information to to the error
+        // Inject more information to the error
         let catalog = self.get_catalog(&resolved.catalog).map_err(|_| {
             ex_error::CatalogNotFoundSnafu {
                 operation_on: OperationOn::Table(OperationType::Alter),
@@ -728,7 +734,7 @@ impl UserQuery {
                     ObjectType::Database => OperationOn::Database(OperationType::Drop),
                     _ => OperationOn::Unknown,
                 },
-                catalog: catalog_name.to_string(),
+                catalog: catalog_name,
             }
             .build()
         })?;
@@ -874,7 +880,7 @@ impl UserQuery {
         let catalog = self.get_catalog(&catalog_name).map_err(|_| {
             ex_error::CatalogNotFoundSnafu {
                 operation_on: OperationOn::Table(OperationType::Create),
-                catalog: catalog_name.to_string(),
+                catalog: catalog_name.clone(),
             }
             .build()
         })?;
@@ -1962,13 +1968,13 @@ impl UserQuery {
         let resolved_ident = self.resolve_table_object_name(table_name.0)?;
         let table_ident = self.resolve_table_ref(&resolved_ident);
         let query = format!(
-            "SELECT 
+            "SELECT =
                 column_name as name,
                 upper(snowflake_data_type) as type,
                 is_nullable as 'null?'
             FROM {}.information_schema.columns
-            WHERE table_catalog = '{}' 
-              AND table_schema = '{}' 
+            WHERE table_catalog = '{}'
+              AND table_schema = '{}'
               AND table_name = '{}'
             ORDER BY ordinal_position",
             table_ident.catalog, table_ident.catalog, table_ident.schema, table_ident.table
@@ -3004,10 +3010,8 @@ pub fn merge_clause_projection<S: ContextProvider>(
                 if values.rows.len() != 1 {
                     return Err(ex_error::MergeInsertOnlyOneRowSnafu.build());
                 }
-                let mut all_columns: HashSet<String> = target_schema
-                    .iter()
-                    .map(|x| x.1.name().to_string())
-                    .collect();
+                let mut all_columns: HashSet<String> =
+                    target_schema.iter().map(|x| x.1.name().clone()).collect();
                 for (column, value) in insert.columns.iter().zip(
                     values
                         .rows
@@ -3190,8 +3194,9 @@ fn merge_clause_expression(merge_clause: &MergeClause) -> Result<DFExpr> {
 async fn target_filter_expression(
     table: &DataFusionTable,
 ) -> Result<Option<datafusion_expr::Expr>> {
-    let lock = table.tabular.read().await;
-    let table = match &*lock {
+    #[allow(clippy::unwrap_used)]
+    let value = table.tabular.read().unwrap().clone();
+    let table = match value {
         Tabular::Table(table) => Ok(table),
         _ => MergeSourceNotSupportedSnafu.fail(),
     }?;

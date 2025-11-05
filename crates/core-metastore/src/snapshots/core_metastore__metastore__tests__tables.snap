@@ -74,7 +74,9 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
             },
             metadata_location: "memory:///testdb/testschema/testtable/metadata/UUID.metadata.json",
             properties: {PROPERTIES},
-            volume_ident: None,
+            volume_ident: Some(
+                "testv1",
+            ),
             volume_location: None,
             is_temporary: false,
             format: Iceberg,
@@ -168,7 +170,9 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
                 },
                 metadata_location: "memory:///testdb/testschema/testtable/metadata/UUID.metadata.json",
                 properties: {PROPERTIES},
-                volume_ident: None,
+                volume_ident: Some(
+                    "testv1",
+                ),
                 volume_location: None,
                 is_temporary: false,
                 format: Iceberg,
@@ -246,7 +250,9 @@ expression: "(no_schema_result, table_create, paths, table_list, table_get,\ntab
                 },
                 metadata_location: "memory:///testdb/testschema/testtable/metadata/UUID.metadata.json",
                 properties: {PROPERTIES},
-                volume_ident: None,
+                volume_ident: Some(
+                    "testv1",
+                ),
                 volume_location: None,
                 is_temporary: false,
                 format: Iceberg,
