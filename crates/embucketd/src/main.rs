@@ -208,6 +208,7 @@ async fn async_main(
             db.clone(),
             opts.query_history_db_name.clone(),
             opts.query_results_db_name.clone(),
+            opts.query_metrics_db_name.clone(),
         )
         .await?,
     );

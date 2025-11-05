@@ -596,6 +596,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Query History metrics error: {source}"))]
+    QueryHistoryMetrics {
+        #[snafu(source(from(core_history::errors::Error, Box::new)))]
+        source: Box<core_history::errors::Error>,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Query {} cancelled", query_id.as_uuid()))]
     QueryCancelled {
         query_id: QueryRecordId,

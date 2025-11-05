@@ -1,6 +1,6 @@
 use crate::ResultSet;
 use crate::errors::Result;
-use crate::{QueryRecord, QueryRecordId, QueryStatus, Worksheet, WorksheetId};
+use crate::{QueryMetric, QueryRecord, QueryRecordId, QueryStatus, Worksheet, WorksheetId};
 use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
@@ -84,4 +84,6 @@ pub trait HistoryStore: std::fmt::Debug + Send + Sync {
     fn new_query_record(&self, query: &str, worksheet_id: Option<WorksheetId>) -> QueryRecord;
     async fn save_query_record(&self, query_record: &QueryRecord, result_set: Option<ResultSet>);
     async fn get_query_result(&self, query_record_id: QueryRecordId) -> Result<ResultSet>;
+    async fn add_query_metrics(&self, metric: &QueryMetric) -> Result<()>;
+    async fn add_query_metrics_batch(&self, metrics: &[QueryMetric]) -> Result<()>;
 }

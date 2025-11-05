@@ -76,6 +76,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Error adding query metrics: {source}"))]
+    MetricsAdd {
+        source: core_utils::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Error adding query record: {source}"))]
     QueryAdd {
         source: core_utils::Error,

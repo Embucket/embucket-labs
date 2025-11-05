@@ -25,7 +25,8 @@ use crate::duckdb::query::{
 };
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
-use core_history::HistoryStore;
+use core_history::query_metrics::QueryMetric;
+use core_history::{HistoryStore, QueryRecordId};
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
@@ -71,15 +72,15 @@ use datafusion_expr::logical_plan::dml::{DmlStatement, InsertOp, WriteOp};
 use datafusion_expr::planner::ContextProvider;
 use datafusion_expr::{
     BinaryExpr, CreateMemoryTable, DdlStatement, Expr as DFExpr, ExprSchemable, Extension,
-    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast, and,
-    build_join_schema, is_null, lit, when,
+    JoinType, LogicalPlanBuilder, Operator, Projection, SubqueryAlias, TryCast,
+    UserDefinedLogicalNode, and, build_join_schema, is_null, lit, when,
 };
 use datafusion_iceberg::DataFusionTable;
 use datafusion_iceberg::catalog::catalog::IcebergCatalog;
 use datafusion_iceberg::catalog::mirror::Mirror;
 use datafusion_iceberg::catalog::schema::IcebergSchema;
 use datafusion_iceberg::table::DataFusionTableConfigBuilder;
-use datafusion_physical_plan::collect;
+use datafusion_physical_plan::{ExecutionPlan, collect, displayable};
 use df_catalog::catalog::CachingCatalog;
 use df_catalog::catalog_list::CachedEntity;
 use df_catalog::table::CachingTable;
@@ -92,7 +93,9 @@ use embucket_functions::visitors::{
     table_functions_cte_relation, timestamp, top_limit,
     unimplemented::functions_checker::visit as unimplemented_functions_checker,
 };
+use futures::FutureExt;
 use futures::TryStreamExt;
+use futures::future::join_all;
 use iceberg_rust::catalog::Catalog;
 use iceberg_rust::catalog::create::CreateTableBuilder;
 use iceberg_rust::catalog::identifier::Identifier;
@@ -108,6 +111,7 @@ use iceberg_rust::spec::values::Value as IcebergValue;
 use iceberg_rust::table::manifest_list::snapshot_partition_bounds;
 use object_store::aws::{AmazonS3Builder, AmazonS3ConfigKey as S3Key, resolve_bucket_region};
 use object_store::{ClientOptions, ObjectStore};
+use serde_json::json;
 use snafu::{OptionExt, ResultExt, location};
 use sqlparser::ast::helpers::key_value_options::KeyValueOptions;
 use sqlparser::ast::helpers::stmt_data_loading::StageParamsObject;
@@ -124,7 +128,12 @@ use std::ops::ControlFlow;
 use std::result::Result as StdResult;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::Instrument;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+use tokio::task::AbortHandle;
+use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
+use tracing::{Instrument, error};
 use tracing_attributes::instrument;
 use url::Url;
 
@@ -2394,6 +2403,7 @@ impl UserQuery {
     async fn execute_logical_plan(&self, plan: LogicalPlan) -> Result<QueryResult> {
         let session = self.session.clone();
         let query_id = self.query_context.query_id;
+        let history_store = Arc::clone(&self.history_store);
 
         let span = tracing::debug_span!("UserQuery::execute_logical_plan");
 
@@ -2406,11 +2416,42 @@ impl UserQuery {
                     .ctx
                     .execute_logical_plan(plan)
                     .await
-                    .context(ex_error::DataFusionSnafu)?
-                    .collect()
+                    .context(ex_error::DataFusionSnafu)?;
+
+                let plan = records
+                    .create_physical_plan()
+                    .await
+                    .context(ex_error::DataFusionSnafu)?;
+
+                // Run background job to save physical plan metrics
+                let token = CancellationToken::new();
+                let bg_token = token.clone();
+                let metrics_plan = Arc::clone(&plan);
+                tokio::spawn(async move {
+                    loop {
+                        tokio::select! {
+                            _ = sleep(Duration::from_secs(1)) => {
+                                if let Err(e) = save_plan_metrics(history_store.clone(), query_id, &metrics_plan).await {
+                                    error!("Failed to save intermediate plan metrics: {:?}", e);
+                                }
+                            }
+                            _ = bg_token.cancelled() => {
+                                if let Err(e) = save_plan_metrics(history_store.clone(), query_id, &metrics_plan).await {
+                                    error!("Failed to save final plan metrics: {:?}", e);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                let task_ctx = session.ctx.task_ctx();
+                let records = collect(plan, task_ctx)
                     .instrument(span)
                     .await
                     .context(ex_error::DataFusionSnafu)?;
+                // Stop metrics background job
+                token.cancel();
                 if !records.is_empty() {
                     schema = records[0].schema().as_ref().clone();
                 }
@@ -3737,5 +3778,59 @@ fn normalize_resolved_ref(table_ref: &ResolvedTableReference) -> ResolvedTableRe
         catalog: Arc::from(table_ref.catalog.to_ascii_lowercase()),
         schema: Arc::from(table_ref.schema.to_ascii_lowercase()),
         table: Arc::from(table_ref.table.to_ascii_lowercase()),
+    }
+}
+
+pub async fn save_plan_metrics(
+    history_store: Arc<dyn HistoryStore>,
+    query_id: QueryRecordId,
+    plan: &Arc<dyn ExecutionPlan>,
+) -> Result<()> {
+    let counter = AtomicUsize::new(0);
+    let mut collected = Vec::new();
+
+    collect_plan_metrics(query_id, plan, None, 0, &counter, &mut collected);
+
+    tracing::debug!(
+        "Collected {} metrics from plan, saving to metrics store...",
+        collected.len()
+    );
+    history_store
+        .add_query_metrics_batch(&collected)
+        .await
+        .context(ex_error::QueryHistoryMetricsSnafu)
+}
+
+/// Recursively collect metrics into a vector (non-async).
+fn collect_plan_metrics(
+    query_id: QueryRecordId,
+    plan: &Arc<dyn ExecutionPlan>,
+    parent: Option<usize>,
+    level: usize,
+    counter: &AtomicUsize,
+    out: &mut Vec<QueryMetric>,
+) {
+    let node_id = counter.fetch_add(1, Ordering::SeqCst);
+
+    let metrics_json = if let Some(metrics) = plan.metrics() {
+        json!({
+            "spill_count": metrics.spill_count(),
+            "output_rows": metrics.output_rows(),
+            "elapsed_compute": metrics.elapsed_compute(),
+        })
+    } else {
+        json!({})
+    };
+
+    out.push(QueryMetric::new(
+        query_id,
+        node_id,
+        parent,
+        plan.name(),
+        metrics_json,
+    ));
+
+    for child in plan.children() {
+        collect_plan_metrics(query_id, &child, Some(node_id), level + 1, counter, out);
     }
 }
