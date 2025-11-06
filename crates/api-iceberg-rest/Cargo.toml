@@ -11,6 +11,7 @@ error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
 axum = { workspace = true }
+axum-auth = "0.8"
 http = { workspace = true }
 iceberg-rest-catalog = { workspace = true }
 iceberg-rust = { workspace = true }

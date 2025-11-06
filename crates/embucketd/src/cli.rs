@@ -243,6 +243,14 @@ pub struct CliOpts {
 
     #[arg(
         long,
+        env = "ICEBERG_REST_BEARER_TOKEN",
+        hide_env_values = true,
+        help = "Bearer token for Iceberg REST API authorization"
+    )]
+    pub iceberg_rest_bearer_token: Option<String>,
+
+    #[arg(
+        long,
         env = "AUTH_DEMO_USER",
         value_parser = clap::builder::NonEmptyStringValueParser::new(),
         default_value = "embucket",

@@ -5,6 +5,7 @@ pub(crate) mod cli;
 pub(crate) mod helpers;
 pub(crate) mod layers;
 
+use api_iceberg_rest::auth::require_auth as iceberg_require_auth;
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
@@ -258,10 +259,17 @@ async fn async_main(
         .with_state(snowflake_state.clone())
         .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
-    let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
+    let iceberg_state = IcebergAppState {
         metastore: metastore.clone(),
         config: Arc::new(iceberg_config),
-    });
+        bearer_token: opts.iceberg_rest_bearer_token.clone(),
+    };
+    let iceberg_router = create_iceberg_router()
+        .with_state(iceberg_state.clone())
+        .layer(middleware::from_fn_with_state(
+            iceberg_state,
+            iceberg_require_auth,
+        ));
 
     // --- OpenAPI specs ---
     let mut spec = ApiDoc::openapi();
