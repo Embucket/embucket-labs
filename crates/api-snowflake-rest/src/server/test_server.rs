@@ -12,6 +12,8 @@ use tokio::runtime::Builder;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex, Condvar};
 
+#[allow(clippy::expect_used)]
+#[must_use]
 pub fn server_default_cfg(data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
     Some((
         Config::new(data_format)
@@ -24,14 +26,16 @@ pub fn server_default_cfg(data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
 #[allow(clippy::expect_used)]
 pub fn run_test_rest_api_server(server_cfg: Option<(AppCfg, UtilsConfig)>) -> SocketAddr {
     let (app_cfg, executor_cfg) = server_cfg.unwrap_or_else(|| {
-        server_default_cfg("json").unwrap()
+        server_default_cfg("json").expect("Failed to create default server config")
     });
 
     let server_cond = Arc::new((Mutex::new(false), Condvar::new())); // Shared state with a condition 
     let server_cond_clone = Arc::clone(&server_cond);
 
-    let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    let addr = listener.local_addr().unwrap();
+    let listener = TcpListener::bind("0.0.0.0:0")
+        .expect("Failed to bind to address");
+    let addr = listener.local_addr()
+        .expect("Failed to get local address");
 
     // Start a new thread for the server
     let _handle = std::thread::spawn(move || {
@@ -43,7 +47,9 @@ pub fn run_test_rest_api_server(server_cfg: Option<(AppCfg, UtilsConfig)>) -> So
 
         // Start the Axum server
         rt.block_on(async {
-            let _ = run_test_rest_api_server_with_config(app_cfg, executor_cfg, listener, server_cond_clone).await;
+            let () = run_test_rest_api_server_with_config(
+                app_cfg, executor_cfg, listener, server_cond_clone
+            ).await;
         });
     });
     // Note: Not joining thread as
@@ -53,15 +59,17 @@ pub fn run_test_rest_api_server(server_cfg: Option<(AppCfg, UtilsConfig)>) -> So
     let timeout_duration = std::time::Duration::from_secs(1);
 
     // Lock the mutex and wait for notification with timeout
-    let notified = lock.lock().unwrap();
-    let result = cvar.wait_timeout(notified, timeout_duration).unwrap();
+    let notified = lock.lock().expect("Failed to lock mutex");
+    let result = cvar
+        .wait_timeout(notified, timeout_duration)
+        .expect("Failed to wait for server start");
 
     // Check if notified or timed out
-    if !*result.0 {
-        tracing::error!("Timeout occurred while waiting for server start.");
-    } else {
+    if *result.0 {
         tracing::info!("Test server is up and running.");
         thread::sleep(Duration::from_millis(10));
+    } else {
+        tracing::error!("Timeout occurred while waiting for server start.");
     }
 
     addr

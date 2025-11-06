@@ -2,18 +2,17 @@
 use crate::error::Result;
 use crate::state::AppState;
 use crate::volumes::error::VolumeNotFoundSnafu;
-use crate::{OrderDirection, apply_parameters};
+use crate::OrderDirection;
 use crate::{
     SearchParameters,
     databases::error::{
         self as databases_error, CreateQuerySnafu, CreateSnafu, DatabaseNotFoundSnafu, GetSnafu,
-        UpdateSnafu, ListSnafu,
+        UpdateSnafu,
     },
     databases::models::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
-    downcast_string_column,
     error::ErrorResponse,
 };
 use api_sessions::DFSessionId;
@@ -21,9 +20,8 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext, QueryResult};
+use core_executor::models::QueryContext;
 use core_metastore::Database as MetastoreDatabase;
-use core_metastore::ListParams;
 use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use snafu::{OptionExt, ResultExt};
 use utoipa::OpenApi;

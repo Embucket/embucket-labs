@@ -7,7 +7,6 @@ use core_executor::session::UserSession;
 use core_executor::utils::Config;
 use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
-use core_utils::Db;
 use datafusion::error::Result;
 pub use options::{BoolDefaultTrue, CommonOpt};
 pub use run::{BenchQuery, BenchmarkRun};

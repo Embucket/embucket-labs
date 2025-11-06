@@ -119,7 +119,7 @@ mod tests {
                 false,
             )
             .await;
-            eprintln!("Retry count: {}, Result: {:?}", retry_count, result);
+            eprintln!("Retry count: {retry_count}, Result: {result:?}");
             if result.is_ok() {
                 results.push(result);
                 break;

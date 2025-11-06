@@ -36,52 +36,11 @@ where
     pub updated_at: DateTime<Utc>,
 }
 
-impl RwObject<Database> {
-    pub fn with_volume_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_VOLUME_ID.to_string(), id)
-    }
-
-    pub fn volume_id(&self) -> Result<i64> {
-        self.named_id(MAP_VOLUME_ID)
-    }
-}
-
-impl RwObject<Schema> {
-    pub fn with_database_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
-    }
-    
-    pub fn database_id(&self) -> Result<i64> {
-        self.named_id(MAP_DATABASE_ID)
-    }
-
-    pub fn schema_id(&self) -> Result<i64> {
-        self.named_id(MAP_SCHEMA_ID)
-    }
-}
-
-impl RwObject<Table> {
-    pub fn with_database_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
-    }
-    
-    pub fn with_schema_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_SCHEMA_ID.to_string(), id)
-    }
-
-    pub fn database_id(&self) -> Result<i64> {
-        self.named_id(MAP_DATABASE_ID)
-    }
-
-    pub fn schema_id(&self) -> Result<i64> {
-        self.named_id(MAP_SCHEMA_ID)
-    }
-}
-
 impl<T> RwObject<T>
 where
     T: Eq + PartialEq + Serialize,
 {
+    #[allow(clippy::use_self)]
     pub fn new(data: T) -> RwObject<T> {
         let now = chrono::Utc::now();
         Self {
@@ -92,6 +51,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn with_id(self, id: i64) -> Self {
         self.with_named_id(MAP_ID.to_string(), id)
     }
@@ -107,16 +67,18 @@ where
     }
 
     fn named_id(&self, name: &str) -> Result<i64> {
-        self.ids.get(name).cloned().context(NoNamedIdSnafu {
+        self.ids.get(name).copied().context(NoNamedIdSnafu {
             name,
             object: serde_json::to_string(self).unwrap_or_default(),
         })
     }
 
+    #[must_use]
     pub fn with_created_at(self, created_at: DateTime<Utc>) -> Self {
         Self { created_at, ..self }
     }
 
+    #[must_use]
     pub fn with_updated_at(self, updated_at: DateTime<Utc>) -> Self {
         Self { updated_at, ..self }
     }

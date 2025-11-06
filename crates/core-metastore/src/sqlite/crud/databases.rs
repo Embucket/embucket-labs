@@ -1,23 +1,14 @@
-use std::str::FromStr;
-
 use diesel::prelude::*;
-use diesel::query_dsl::methods::FindDsl;
 use crate::models::{Volume, Database};
 use crate::models::{VolumeIdent, DatabaseIdent};
 use crate::models::RwObject;
 use validator::Validate;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use diesel::sql_types::TimestamptzSqlite;
-use uuid::Uuid;
 use crate::sqlite::diesel_gen::{databases, volumes};
-use crate::models::{Table};
-use deadpool_diesel::sqlite::Pool;
 use deadpool_diesel::sqlite::Connection;
-use diesel::result::QueryResult;
-use diesel::result::Error;
-use crate::error::{self as metastore_err, DatabaseNotFoundSnafu, Result};
-use snafu::{ResultExt, OptionExt};
+use crate::error::{self as metastore_err, Result};
+use snafu::ResultExt;
 use crate::{ListParams, OrderBy, OrderDirection};
 use crate::sqlite::crud::current_ts_str;
 
@@ -62,8 +53,12 @@ impl TryInto<RwObject<Database>> for (DatabaseRecord, VolumeIdent) {
         Ok(RwObject::new(Database::new(self.0.name, volume_ident))
             .with_id(self.0.id)
             .with_volume_id(self.0.volume_id)
-            .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at).unwrap().with_timezone(&Utc))
-            .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at).unwrap().with_timezone(&Utc)))
+            .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc))
+            .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc)))
     }
 }
 
@@ -96,7 +91,7 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
 // TODO: get_database should be using list_databases
 pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
     let mut items = list_databases(
-        conn, ListParams::default().with_name(database_ident.clone())).await?;
+        conn, ListParams::default().by_name(database_ident.clone())).await?;
     if items.is_empty() {
         Ok(None)
     } else {
@@ -121,7 +116,7 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
         }
 
         if let Some(search) = params.search {
-            query = query.filter(databases::name.like(format!("%{}%", search)));
+            query = query.filter(databases::name.like(format!("%{search}%")));
         }
 
         if let Some(name) = params.name {
@@ -185,6 +180,9 @@ pub async fn update_database(conn: &Connection, ident: &DatabaseIdent, updated: 
             .get_result(conn)
     })
     .await?
+    // in case if user specified different volume, we return substituted result,
+    // but volume will not be actually updated. We could be doing extra sql to return error
+    // but it is not worth it.
     .map(|r| (r, volume_ident))
     .context(metastore_err::DieselSnafu)?
     .try_into()

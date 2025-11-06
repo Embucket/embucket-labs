@@ -146,7 +146,7 @@ impl SlateDBHistoryStore {
             results_connection
                 .interact(|conn| -> SqlResult<usize> { conn.execute(RESULTS_CREATE_TABLE, []) }),
         )?;
-        let _queries_tables = result.0.context(history_err::CreateTablesSnafu)?;
+        result.0.context(history_err::CreateTablesSnafu)?;
         let _results_tables = result.1.context(history_err::CreateTablesSnafu)?;
 
         tracing::debug!("History tables created");

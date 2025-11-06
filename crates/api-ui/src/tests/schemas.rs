@@ -113,7 +113,7 @@ async fn test_ui_schemas() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
-    assert_eq!(4, schemas_response.items.len());
+    assert_eq!(3, schemas_response.items.len());
 
     //Get list schemas with parameters
     let res = req(
@@ -150,7 +150,7 @@ async fn test_ui_schemas() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
-    assert_eq!(3, schemas_response.items.len());
+    assert_eq!(2, schemas_response.items.len());
     assert_eq!(
         "testing2".to_string(),
         schemas_response.items.first().unwrap().name
@@ -210,8 +210,8 @@ async fn test_ui_schemas() {
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(
-        "testing1".to_string(),
-        schemas_response.items.first().unwrap().name
+        vec!["testing1".to_string(), "testing2".to_string(), "testing3".to_string()],
+        schemas_response.items.into_iter().map(|s| s.name).collect::<Vec<String>>()
     );
 
     //Get list schemas with parameters

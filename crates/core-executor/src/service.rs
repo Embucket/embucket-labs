@@ -616,7 +616,7 @@ impl ExecutionService for CoreExecutionService {
     async fn abort_query(&self, running_query_id: RunningQueryId) -> Result<QueryStatus> {
         let mut running_query = self.queries.get(running_query_id.clone())?;
 
-        let query_id = running_query.query_id.clone();
+        let query_id = running_query.query_id;
         self.queries.abort(running_query_id)?;
         let query_status = running_query
             .recv_query_finished()

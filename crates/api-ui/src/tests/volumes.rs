@@ -124,10 +124,9 @@ async fn test_ui_volumes() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let volumes_response: VolumesResponse = res.json().await.unwrap();
-    assert_eq!(2, volumes_response.items.len());
     assert_eq!(
-        "embucket2".to_string(),
-        volumes_response.items.last().unwrap().name
+        vec!["embucket3".to_string(), "embucket2".to_string()],
+        volumes_response.items.iter().map(|d| d.name.clone()).collect::<Vec<_>>(),
     );
 
     //Get list volumes with parameters

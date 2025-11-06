@@ -55,7 +55,7 @@ pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &st
         if async_exec {
             // spawn task to fetch results
             if let Some(ResponseData{ query_id: Some(query_id), .. }) = res.data.as_ref() {
-                let server_addr = server_addr.clone();
+                let server_addr = *server_addr;
                 let query_id = query_id.clone();
                 let async_res = tokio::task::spawn(async move {
                     // ignore result
@@ -64,7 +64,6 @@ pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &st
                         &server_addr, 
                         &access_token, 
                         &query_id).await;
-                    ()
                 });
                 return (res, Some(async_res))
             }

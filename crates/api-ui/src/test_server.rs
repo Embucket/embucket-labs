@@ -85,17 +85,18 @@ pub fn run_test_server_with_demo_auth(
     let result = cvar.wait_timeout(notified, timeout_duration).unwrap();
 
     // Check if notified or timed out
-    if !*result.0 {
-        tracing::error!("Timeout occurred while waiting for server start.");
-    } else {
+    if *result.0 {
         tracing::info!("Test server is up and running.");
         std::thread::sleep(Duration::from_millis(10));
+    } else {
+        tracing::error!("Timeout occurred while waiting for server start.");
     }
 
     addr
 }
 
 #[allow(clippy::unwrap_used)]
+#[must_use]
 pub fn run_test_server() -> SocketAddr {
     run_test_server_with_demo_auth(String::new(), String::new(), String::new())
 }

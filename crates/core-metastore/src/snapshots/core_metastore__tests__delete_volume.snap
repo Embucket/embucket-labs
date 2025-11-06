@@ -9,7 +9,9 @@ expression: "(all_volumes, get_volume, all_volumes_after)"
                 ident: "test",
                 volume: Memory,
             },
-            id: UUID,
+            ids: {
+                "id": 1,
+            },
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },
@@ -20,7 +22,9 @@ expression: "(all_volumes, get_volume, all_volumes_after)"
                 ident: "test",
                 volume: Memory,
             },
-            id: UUID,
+            ids: {
+                "id": 1,
+            },
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
         },

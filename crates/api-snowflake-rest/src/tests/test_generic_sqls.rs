@@ -8,6 +8,7 @@ use crate::sql_test;
 
 // Below configs will be used by tests defined in this file only.
 
+#[allow(clippy::unnecessary_wraps)]
 fn server_custom_cfg(data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
     Some((
         AppCfg::new(data_format)

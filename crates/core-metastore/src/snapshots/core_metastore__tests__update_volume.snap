@@ -8,7 +8,9 @@ expression: "(rwo1, rwo2)"
             ident: "test",
             volume: Memory,
         },
-        id: UUID,
+        ids: {
+            "id": 1,
+        },
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",
     },
@@ -17,7 +19,9 @@ expression: "(rwo1, rwo2)"
             ident: "test",
             volume: Memory,
         },
-        id: UUID,
+        ids: {
+            "id": 1,
+        },
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",
     },

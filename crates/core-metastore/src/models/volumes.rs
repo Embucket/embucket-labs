@@ -11,12 +11,6 @@ use snafu::ResultExt;
 use std::fmt::Display;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
-use diesel::prelude::*;
-use diesel::sql_types::{Text};
-use diesel::serialize::{ToSql, Output, IsNull};
-use diesel::deserialize::FromSql;
-use diesel::backend::{self, Backend};
-use diesel::sqlite::Sqlite;
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -231,25 +225,6 @@ pub enum VolumeType {
     Memory,
 }
 
-impl ToSql<Text, Sqlite> for VolumeType {
-    fn to_sql<'b>(&self, out: &mut Output<'b, '_, Sqlite>) -> diesel::serialize::Result {
-        let s = serde_json::to_string(self)?;
-        out.set_value(s);
-        Ok(IsNull::No)
-    }
-}
-
-impl<DB, ST> FromSql<ST, DB> for VolumeType
-where
-    DB: Backend,
-    String: FromSql<ST, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        serde_json::from_str::<VolumeType>( &String::from_sql(bytes)? )
-            .map_err(Into::into)
-    }
-}
-
 impl Display for VolumeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -286,8 +261,7 @@ pub type VolumeIdent = String;
 #[allow(clippy::as_conversions)]
 impl Volume {
     #[must_use]
-    pub fn new(ident: VolumeIdent, volume: VolumeType) -> Self {
-        // Uuid::new_v4()
+    pub const fn new(ident: VolumeIdent, volume: VolumeType) -> Self {
         Self { ident, volume }
     }
 

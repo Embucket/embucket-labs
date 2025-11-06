@@ -1,21 +1,16 @@
 use diesel::prelude::*;
-use diesel::query_dsl::methods::FindDsl;
 use crate::models::Volume;
 use crate::models::{VolumeIdent, DatabaseIdent};
 use crate::models::RwObject;
 use validator::Validate;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use diesel::sql_types::TimestamptzSqlite;
-use uuid::Uuid;
 use crate::sqlite::diesel_gen::volumes;
 use crate::sqlite::diesel_gen::databases;
-use crate::models::{Table};
 use deadpool_diesel::sqlite::Connection;
 use diesel::result::QueryResult;
-use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
-use snafu::{ResultExt, OptionExt};
+use snafu::ResultExt;
 use crate::error::{SerdeSnafu, VolumeNotFoundSnafu};
 use crate::{ListParams, OrderBy, OrderDirection};
 use crate::sqlite::crud::current_ts_str;
@@ -54,8 +49,12 @@ impl TryInto<RwObject<Volume>> for VolumeRecord {
         let volume_type = serde_json::from_str(&self.volume).context(SerdeSnafu)?;
         Ok(RwObject::new(Volume::new(self.name, volume_type))
             .with_id(self.id)
-            .with_created_at(DateTime::parse_from_rfc3339(&self.created_at).unwrap().with_timezone(&Utc))
-            .with_updated_at(DateTime::parse_from_rfc3339(&self.updated_at).unwrap().with_timezone(&Utc)))
+            .with_created_at(DateTime::parse_from_rfc3339(&self.created_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc))
+            .with_updated_at(DateTime::parse_from_rfc3339(&self.updated_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc)))
     }
 }
 
@@ -85,7 +84,7 @@ pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Resul
 
 pub async fn get_volume(conn: &Connection, volume_ident: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
     let mut items = list_volumes(
-        conn, ListParams::default().with_name(volume_ident.clone())).await?;
+        conn, ListParams::default().by_name(volume_ident.clone())).await?;
     if items.is_empty() {
         VolumeNotFoundSnafu{ volume: volume_ident.clone() }.fail()
     } else {
@@ -95,7 +94,7 @@ pub async fn get_volume(conn: &Connection, volume_ident: &VolumeIdent) -> Result
 
 pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<RwObject<Volume>> {
     let mut items = list_volumes(
-        conn, ListParams::default().with_id(volume_id)).await?;
+        conn, ListParams::default().by_id(volume_id)).await?;
     if items.is_empty() {
         VolumeNotFoundSnafu{ volume: volume_id.to_string() }.fail()
     } else {
@@ -128,7 +127,7 @@ pub async fn list_volumes(conn: &Connection, params: ListParams) -> Result<Vec<R
         }
         
         if let Some(search) = params.search {
-            query = query.filter(volumes::name.like(format!("%{}%", search)));
+            query = query.filter(volumes::name.like(format!("%{search}%")));
         }
 
         if let Some(name) = params.name {
@@ -150,7 +149,7 @@ pub async fn list_volumes(conn: &Connection, params: ListParams) -> Result<Vec<R
                     OrderDirection::Asc => query.order(volumes::name.asc()),
                 },
                 // TODO: add parent name ordering (as separate function)
-                OrderBy::ParentName(direction) => {
+                OrderBy::ParentName(_) => {
                     tracing::warn!("ParentName ordering is not supported for volumes");
                     query
                 },                

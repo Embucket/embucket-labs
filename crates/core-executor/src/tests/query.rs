@@ -14,7 +14,6 @@ use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
-use core_utils::Db;
 use datafusion::sql::parser::DFParser;
 use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;

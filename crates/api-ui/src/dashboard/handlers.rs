@@ -5,9 +5,6 @@ use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use axum::{Json, extract::State};
 use core_history::GetQueriesParams;
-use core_metastore::error::UtilSlateDBSnafu;
-use core_metastore::ListParams;
-use core_utils::scan_iterator::ScanIterator;
 use snafu::ResultExt;
 use utoipa::OpenApi;
 
@@ -51,10 +48,17 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<Dashboa
         .await
         .context(MetastoreSnafu)?;
 
+    let total_queries = state
+        .history_store
+        .get_queries(GetQueriesParams::new())
+        .await
+        .context(HistorySnafu)?
+        .len();
+    
     Ok(Json(DashboardResponse(Dashboard {
         total_databases: stats.total_databases,
         total_schemas: stats.total_schemas,
         total_tables: stats.total_tables,
-        total_queries: 0,
+        total_queries,
     })))
 }

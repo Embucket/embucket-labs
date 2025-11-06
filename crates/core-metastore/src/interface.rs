@@ -19,7 +19,7 @@ use crate::sqlite::Stats;
 pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn get_stats(&self) -> Result<Stats>;
 
-    async fn get_volumes(&self) -> Result<Vec<RwObject<Volume>>>;
+    async fn get_volumes(&self, params: ListParams) -> Result<Vec<RwObject<Volume>>>;
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
     async fn get_volume_by_id(&self, id: i64) -> Result<RwObject<Volume>>;

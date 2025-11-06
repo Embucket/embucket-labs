@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::databases::models::{
-    DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdateResponse, DatabasesResponse,
+    DatabaseCreatePayload, DatabaseCreateResponse, DatabasesResponse,
     DatabaseUpdatePayload, Database,
 };
 use crate::error::ErrorResponse;
@@ -190,7 +190,6 @@ async fn test_ui_databases() {
     )
     .await
     .expect("Failed to get list databases with limit");
-    eprintln!("items: {:#?}", items);
     // created_at desc is default order
     assert_eq!(
         vec!["test".to_string(), "test4".to_string()],

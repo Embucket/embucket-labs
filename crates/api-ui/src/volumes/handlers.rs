@@ -2,7 +2,7 @@
 use crate::state::AppState;
 use crate::volumes::error::VolumeNotFoundSnafu;
 use crate::{
-    OrderDirection, Result, SearchParameters, apply_parameters, downcast_string_column,
+    OrderDirection, Result, SearchParameters,
     error::ErrorResponse,
     volumes::error::{CreateQuerySnafu, CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
@@ -15,9 +15,9 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext, QueryResult};
+use core_executor::models::{QueryContext};
 use core_metastore::error::{
-    self as metastore_error, ValidationSnafu, VolumeMissingCredentialsSnafu,
+    ValidationSnafu, VolumeMissingCredentialsSnafu,
 };
 use core_metastore::models::{
     AwsCredentials as MetastoreAwsCredentials,
@@ -298,7 +298,7 @@ pub async fn list_volumes(
     // Ok(Json(VolumesResponse { items }))
     let items = state
         .metastore
-        .get_volumes()
+        .get_volumes(parameters.into())
         .await
         .context(ListSnafu)?
         .into_iter()

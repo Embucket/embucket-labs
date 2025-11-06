@@ -41,51 +41,60 @@ impl Default for ListParams {
 }
 
 impl ListParams {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn with_id(self, id: i64) -> Self {
+    #[must_use]
+    pub fn by_id(self, id: i64) -> Self {
         Self {
             id: Some(id),
             ..self
         }
     }
-    pub fn with_parent_id(self, parent_id: i64) -> Self {
+    #[must_use]
+    pub fn by_parent_id(self, parent_id: i64) -> Self {
         Self {
             parent_id: Some(parent_id),
             ..self
         }
     }
-    pub fn with_name(self, name: String) -> Self {
+    #[must_use]
+    pub fn by_name(self, name: String) -> Self {
         Self {
             name: Some(name),
             ..self
         }
     }
-    pub fn with_parent_name(self, parent_name: String) -> Self {
+    #[must_use]
+    pub fn by_parent_name(self, parent_name: String) -> Self {
         Self {
             parent_name: Some(parent_name),
             ..self
         }
     }
+    #[must_use]
     pub fn with_offset(self, offset: i64) -> Self {
         Self {
             offset: Some(offset),
             ..self
         }
     }
+    #[must_use]
     pub fn with_limit(self, limit: i64) -> Self {
         Self {
             limit: Some(limit),
             ..self
         }
     }
+    #[must_use]
     pub fn with_search(self, search: String) -> Self {
         Self {
             search: Some(search),
             ..self
         }
     }
+    #[must_use]
     pub fn with_order_by(self, order_by: Vec<OrderBy>) -> Self {
         Self {
             order_by,

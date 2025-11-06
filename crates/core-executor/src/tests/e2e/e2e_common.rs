@@ -443,7 +443,7 @@ impl ExecutorWithObjectStore {
                         }),
                     ));
                     let volume_id = volume.id().context(TestMetastoreSnafu)?;
-                    eprintln!("Intentionally corrupting volume: {:#?}", volume);
+                    eprintln!("Intentionally corrupting volume: {volume:#?}");
                     // Use db.put to update volume in metastore
                     self.db
                         .put(&db_key, &volume)

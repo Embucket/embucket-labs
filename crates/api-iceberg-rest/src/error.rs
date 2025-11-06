@@ -56,6 +56,7 @@ impl IntoResponse for Error {
         fields(status_code),
         skip(self)
     )]
+    #[allow(clippy::match_same_arms)]
     fn into_response(self) -> axum::response::Response {
         tracing::error!(error_message = %self.output_msg(), "Iceberg API error");
         let metastore_error = match self {

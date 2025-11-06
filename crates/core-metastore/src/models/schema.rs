@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use diesel::prelude::*;
 
 use super::DatabaseIdent;
+use super::RwObject;
+use super::MAP_DATABASE_ID;
+use super::MAP_SCHEMA_ID;
+use crate::error::Result;
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A schema identifier
@@ -45,8 +48,24 @@ pub struct Schema {
     pub properties: Option<HashMap<String, String>>,
 }
 
+impl RwObject<Schema> {
+    #[must_use]
+    pub fn with_database_id(self, id: i64) -> Self {
+        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
+    }
+    
+    pub fn database_id(&self) -> Result<i64> {
+        self.named_id(MAP_DATABASE_ID)
+    }
+
+    pub fn schema_id(&self) -> Result<i64> {
+        self.named_id(MAP_SCHEMA_ID)
+    }
+}
+
 impl Schema {
-    pub fn new(ident: SchemaIdent) -> Self {
+    #[must_use]
+    pub const fn new(ident: SchemaIdent) -> Self {
         Self {
             ident,
             properties: None,

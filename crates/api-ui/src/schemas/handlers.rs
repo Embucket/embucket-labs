@@ -1,9 +1,9 @@
 #![allow(clippy::needless_for_each)]
-use crate::{Result, downcast_int64_column};
+use crate::Result;
 use crate::state::AppState;
-use crate::{OrderDirection, apply_parameters};
+use crate::OrderDirection;
 use crate::{
-    SearchParameters, downcast_string_column,
+    SearchParameters,
     error::ErrorResponse,
     schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, UpdateSnafu},
     schemas::models::{
@@ -16,7 +16,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext, QueryResult};
+use core_executor::models::QueryContext;
 use core_metastore::error as metastore_error;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use snafu::ResultExt;

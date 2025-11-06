@@ -92,7 +92,8 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    pub fn with_query_id(mut self, id: QueryRecordId) -> Self {
+    #[must_use]
+    pub const fn with_query_id(mut self, id: QueryRecordId) -> Self {
         self.id = id;
         self
     }

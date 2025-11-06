@@ -94,11 +94,8 @@ impl IntoStatusCode for Error {
                 core_metastore::Error::Validation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { source, .. } => match source {
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
             Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
-            Self::NoId { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

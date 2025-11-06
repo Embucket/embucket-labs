@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-
+use crate::error::Result;
 use super::VolumeIdent;
+use super::RwObject;
+use super::MAP_VOLUME_ID;
 
 /// A database identifier
 pub type DatabaseIdent = String;
@@ -18,7 +20,8 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(ident: DatabaseIdent, volume: VolumeIdent) -> Self {
+    #[must_use]
+    pub const fn new(ident: DatabaseIdent, volume: VolumeIdent) -> Self {
         Self {
             ident,
             properties: None,
@@ -28,6 +31,17 @@ impl Database {
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident)
+    }
+}
+
+impl RwObject<Database> {
+    #[must_use]
+    pub fn with_volume_id(self, id: i64) -> Self {
+        self.with_named_id(MAP_VOLUME_ID.to_string(), id)
+    }
+
+    pub fn volume_id(&self) -> Result<i64> {
+        self.named_id(MAP_VOLUME_ID)
     }
 }
 

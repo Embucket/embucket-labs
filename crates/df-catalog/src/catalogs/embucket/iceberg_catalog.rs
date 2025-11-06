@@ -296,7 +296,7 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .ok_or_else(|| IcebergError::NotFound(format!("database {}", self.name())))?;
         let schemas = self
             .metastore
-            .get_schemas(ListParams::default().with_parent_name(database.ident.clone()))
+            .get_schemas(ListParams::default().by_parent_name(database.ident.clone()))
             .await
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for schema in schemas {

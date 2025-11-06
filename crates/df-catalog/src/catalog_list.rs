@@ -16,7 +16,6 @@ use core_history::HistoryStore;
 use core_metastore::error::VolumeNotFoundSnafu;
 use core_metastore::{AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
-use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
@@ -189,14 +188,14 @@ impl EmbucketCatalogList {
         let mut volumes = std::collections::HashMap::new();
         for db in databases {
             let volume_id = db.volume_id().context(MetastoreSnafu)?;
-            if !volumes.contains_key(&volume_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = volumes.entry(volume_id) {
                 let volume = self
                     .metastore
                     .get_volume_by_id(volume_id)
                     .await
                     .context(MetastoreSnafu)?;
-                volumes.insert(volume_id, volume);
-            };
+                e.insert(volume);
+            }
             // should not fail here
             let volume = volumes.get(&volume_id)
                 .context(VolumeNotFoundSnafu { volume: db.volume.clone() })

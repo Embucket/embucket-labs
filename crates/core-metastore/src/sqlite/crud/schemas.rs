@@ -1,21 +1,12 @@
-use std::str::FromStr;
-
 use diesel::prelude::*;
-use diesel::query_dsl::methods::FindDsl;
 use crate::models::{Database, Schema};
 use crate::models::{DatabaseIdent, SchemaIdent};
 use crate::models::RwObject;
 use validator::Validate;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use diesel::sql_types::TimestamptzSqlite;
-use uuid::Uuid;
 use crate::sqlite::diesel_gen::{databases, schemas};
-use crate::models::{Table};
-use deadpool_diesel::sqlite::Pool;
 use deadpool_diesel::sqlite::Connection;
-use diesel::result::QueryResult;
-use diesel::result::Error;
 use crate::error::{self as metastore_err, Result, SchemaNotFoundSnafu};
 use snafu::{ResultExt, OptionExt};
 use crate::sqlite::crud::databases::get_database;
@@ -63,8 +54,12 @@ impl TryInto<RwObject<Schema>> for (SchemaRecord, DatabaseIdent) {
             SchemaIdent { schema: self.0.name, database: database_name }))
             .with_id(self.0.id)
             .with_database_id(self.0.database_id)
-            .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at).unwrap().with_timezone(&Utc))
-            .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at).unwrap().with_timezone(&Utc)))
+            .with_created_at(DateTime::parse_from_rfc3339(&self.0.created_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc))
+            .with_updated_at(DateTime::parse_from_rfc3339(&self.0.updated_at)
+                .context(metastore_err::TimeParseSnafu)?
+                .with_timezone(&Utc)))
     }
 }
 
@@ -98,7 +93,7 @@ pub async fn create_schema(conn: &Connection, schema: RwObject<Schema>) -> Resul
 
 pub async fn get_schema(conn: &Connection, schema_ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>> {
     let mut items = list_schemas(
-        conn, ListParams::default().with_name(schema_ident.schema.clone())).await?;
+        conn, ListParams::default().by_name(schema_ident.schema.clone())).await?;
     if items.is_empty() {
         Ok(None)
     } else {
@@ -108,7 +103,7 @@ pub async fn get_schema(conn: &Connection, schema_ident: &SchemaIdent) -> Result
 
 pub async fn get_schema_by_id(conn: &Connection, id: i64) -> Result<RwObject<Schema>> {
     let mut items = list_schemas(
-        conn, ListParams::default().with_id(id)).await?;
+        conn, ListParams::default().by_id(id)).await?;
     if items.is_empty() {
         SchemaNotFoundSnafu{ db: "", schema: format!("schemaId={id}") }.fail()
     } else {
@@ -134,7 +129,7 @@ pub async fn list_schemas(conn: &Connection, params: ListParams) -> Result<Vec<R
         }
 
         if let Some(search) = params.search {
-            query = query.filter(schemas::name.like(format!("%{}%", search)));
+            query = query.filter(schemas::name.like(format!("%{search}%")));
         }
 
         if let Some(name) = params.name {

@@ -9,9 +9,9 @@ use iceberg_rust_spec::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
 use validator::Validate;
-
 use super::{SchemaIdent, VolumeIdent};
-use diesel::prelude::*;
+use super::RwObject;
+use super::{MAP_DATABASE_ID, MAP_SCHEMA_ID};
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A table identifier
@@ -111,6 +111,26 @@ pub struct Table {
     pub volume_location: Option<String>,
     pub is_temporary: bool,
     pub format: TableFormat,
+}
+
+impl RwObject<Table> {
+    #[must_use]
+    pub fn with_database_id(self, id: i64) -> Self {
+        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
+    }
+    
+    #[must_use]
+    pub fn with_schema_id(self, id: i64) -> Self {
+        self.with_named_id(MAP_SCHEMA_ID.to_string(), id)
+    }
+
+    pub fn database_id(&self) -> Result<i64> {
+        self.named_id(MAP_DATABASE_ID)
+    }
+
+    pub fn schema_id(&self) -> Result<i64> {
+        self.named_id(MAP_SCHEMA_ID)
+    }
 }
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

@@ -61,6 +61,7 @@ pub enum Error {
 
 // Select which status code to return.
 impl IntoStatusCode for Error {
+    #[allow(clippy::collapsible_match)]
     fn status_code(&self) -> StatusCode {
         match self {
             Self::CreateQuery { source, .. } => match &source {

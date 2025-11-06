@@ -53,7 +53,7 @@ async fn test_create_volumes() {
         .await
         .expect("create volume failed");
     let all_volumes = ms
-        .get_volumes()
+        .get_volumes(ListParams::default())
         .await
         .expect("list volumes failed");
 
@@ -126,7 +126,7 @@ async fn test_delete_volume() {
         .await
         .expect("create volume failed");
     let all_volumes = ms
-        .get_volumes()
+        .get_volumes(ListParams::default())
         .await
         .expect("list volumes failed");
     let get_volume = ms
@@ -137,7 +137,7 @@ async fn test_delete_volume() {
         .await
         .expect("delete volume failed");
     let all_volumes_after = ms
-        .get_volumes()
+        .get_volumes(ListParams::default())
         .await
         .expect("list volumes failed");
 
@@ -181,11 +181,6 @@ async fn test_create_database() {
         "testdb".to_owned(),
         "non_existing".to_owned(),
     );
-    // let mut database = Database {
-    //     ident: "testdb".to_owned(),
-    //     volume: "testv1".to_owned(),
-    //     properties: None,
-    // };
     let no_volume_result = ms
         .create_database(database.clone())
         .await
@@ -194,9 +189,6 @@ async fn test_create_database() {
     let volume_testv1 = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");    
-    let volume_testv2 = ms.create_volume(Volume::new("testv2".to_owned(), VolumeType::Memory))
-        .await
-        .expect("create volume failed");
 
     database.volume = volume_testv1.ident.clone();
     ms.create_database(database.clone())
@@ -207,16 +199,17 @@ async fn test_create_database() {
         .await
         .expect("list databases failed");
 
-    database.volume = volume_testv2.ident.clone();
+    // tests rename
+    database.ident = "updated_testdb".to_owned();
     ms.update_database(&"testdb".to_owned(), database)
         .await
         .expect("update database failed");
     let fetched_db = ms
-        .get_database(&"testdb".to_owned())
+        .get_database(&"updated_testdb".to_owned())
         .await
         .expect("get database failed");
 
-    ms.delete_database(&"testdb".to_string(), false)
+    ms.delete_database(&"updated_testdb".to_string(), false)
         .await
         .expect("delete database failed");
     let all_dbs_after = ms
@@ -259,7 +252,7 @@ async fn test_schemas() {
 
     let schema_list = ms
         .get_schemas(ListParams::default()
-            .with_parent_name(schema.ident.database.clone()))
+            .by_parent_name(schema.ident.database.clone()))
         .await
         .expect("list schemas failed");
     let schema_get = ms
@@ -271,7 +264,7 @@ async fn test_schemas() {
         .expect("delete schema failed");
     let schema_list_after = ms
         .get_schemas(ListParams::default()
-            .with_parent_name(schema.ident.database))
+            .by_parent_name(schema.ident.database))
         .await
         .expect("list schemas failed");
 

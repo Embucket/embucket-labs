@@ -53,7 +53,7 @@ impl CatalogProvider for EmbucketCatalog {
 
         block_in_new_runtime(async move {
             let schemas_res = metastore.get_schemas(
-                ListParams::default().with_parent_name(database.clone())).await;
+                ListParams::default().by_parent_name(database.clone())).await;
             match schemas_res {
                 Ok(schemas) => schemas
                     .into_iter()

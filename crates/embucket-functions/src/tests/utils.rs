@@ -63,7 +63,7 @@ pub fn history_store_mock() -> Arc<dyn HistoryStore> {
             "data_format": "arrow",
             "schema": "{\"fields\":[{\"name\":\"a\",\"data_type\":\"Float64\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"b\",\"data_type\":\"Utf8\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}},{\"name\":\"c\",\"data_type\":\"Boolean\",\"nullable\":false,\"dict_id\":0,\"dict_is_ordered\":false,\"metadata\":{}}],\"metadata\":{}}"
         }"#;
-        let mut result = ResultSet::try_from(Bytes::from(buf.as_bytes()))?
+        let result = ResultSet::try_from(Bytes::from(buf.as_bytes()))?
             .with_query_id(id);
         Ok(result)
     });

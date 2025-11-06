@@ -352,7 +352,15 @@ pub enum Error {
         error: core_sqlite::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
+
+    #[snafu(display("Time parse error: {error}"))]
+    TimeParse {
+        #[snafu(source)]
+        error: chrono::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 

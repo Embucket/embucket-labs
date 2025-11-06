@@ -3,16 +3,16 @@ pub mod crud;
 
 use crate::Result;
 use crate::error::SqlSnafu;
-use deadpool_sqlite::{Config, Object, Pool, Runtime, BuildError, Manager};
+use deadpool_sqlite::Object;
 use rusqlite::Result as SqlResult;
 use snafu::ResultExt;
 
 #[derive(Debug, Clone)]
 pub struct Stats {
+    pub total_volumes: usize,
     pub total_databases: usize,
     pub total_schemas: usize,
     pub total_tables: usize,
-    pub total_volumes: usize,
 }
 
 pub async fn get_stats(connection: &Object) -> Result<Stats> {
@@ -24,8 +24,8 @@ pub async fn get_stats(connection: &Object) -> Result<Stats> {
         COUNT(DISTINCT t.id) AS table_count
     FROM
         volumes v
-    LEFT JOIN databases d ON v.database_id = d.id
-    LEFT JOIN schemas s ON d.schema_id = s.id
+    LEFT JOIN databases d ON d.volume_id = v.id
+    LEFT JOIN schemas s ON s.database_id = d.id
     LEFT JOIN tables t ON t.schema_id = s.id;";
 
     let stats = connection.interact(move |conn| -> SqlResult<Stats> {

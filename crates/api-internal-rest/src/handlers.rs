@@ -14,7 +14,6 @@ use core_metastore::{
 };
 
 use crate::{error::GetQuerySnafu, state::State as AppState};
-use core_utils::scan_iterator::ScanIterator;
 use validator::Validate;
 
 pub type RwObjectVec<T> = Vec<RwObject<T>>;
@@ -29,7 +28,7 @@ pub struct QueryParameters {
 pub async fn list_volumes(State(state): State<AppState>) -> Result<Json<RwObjectVec<Volume>>> {
     let volumes = state
         .metastore
-        .get_volumes()
+        .get_volumes(ListParams::default())
         .await
         .context(error::ListVolumesSnafu)?
         .iter()

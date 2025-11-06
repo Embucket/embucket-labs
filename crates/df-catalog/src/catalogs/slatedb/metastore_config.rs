@@ -3,12 +3,11 @@ use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
 use crate::df_error;
-use core_metastore::{ListParams, Metastore, RwObject, SchemaIdent, Volume};
+use core_metastore::{ListParams, Metastore, SchemaIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
 use std::sync::Arc;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct MetastoreViewConfig {
@@ -29,7 +28,7 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let volumes = self
             .metastore
-            .get_volumes()
+            .get_volumes(ListParams::default())
             .await
             .context(df_error::MetastoreSnafu)?;
         for volume in volumes {

@@ -1,3 +1,4 @@
+#![allow(clippy::from_over_into)]
 use core_executor::error::{self as ex_error};
 use core_metastore::{
     ListParams,
@@ -95,6 +96,7 @@ impl Display for SearchParameters {
 }
 
 impl Into<ListParams> for SearchParameters {
+    #[allow(clippy::match_same_arms)]
     fn into(self) -> ListParams {
         let meta_order_direction = match self.order_direction {
             Some(OrderDirection::ASC) => MetaOrderDirection::Asc,
@@ -107,18 +109,18 @@ impl Into<ListParams> for SearchParameters {
             name: None,
             parent_name: None,
             offset: self.offset.map(|offset| i64::try_from(offset).unwrap_or_default()),
-            limit: self.limit.map(|limit| i64::from(limit)),
+            limit: self.limit.map(i64::from),
             search: self.search,
             order_by: match self.order_by {
                 Some(order_by) => match order_by.as_str() {
                     "database_name" => vec![MetaOrderBy::Name(meta_order_direction)],
                     "created_at" => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
                     "updated_at" => vec![MetaOrderBy::UpdatedAt(meta_order_direction)],
-                    // use this default sort order if order_by preferences are not valid
-                    _ => vec![MetaOrderBy::CreatedAt(MetaOrderDirection::Desc)],
+                    // by default order_by created_at
+                    _ => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
                 }
-                // default sort order if not specified
-                _ => vec![MetaOrderBy::CreatedAt(MetaOrderDirection::Desc)],
+                // by default order_by created_at
+                _ => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
             },
         }
     }

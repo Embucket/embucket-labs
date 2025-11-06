@@ -94,7 +94,7 @@ pub async fn list_namespaces(
 ) -> Result<Json<ListNamespacesResponse>> {
     let schemas = state
         .metastore
-        .get_schemas(ListParams::default().with_parent_name(database_name.clone()))
+        .get_schemas(ListParams::default().by_parent_name(database_name.clone()))
         .await
         .context(api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::ListNamespaces,
