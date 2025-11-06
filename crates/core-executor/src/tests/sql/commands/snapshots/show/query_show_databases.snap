@@ -8,7 +8,7 @@ Ok(
         "| created_on | name     | kind     | database_name | schema_name |",
         "+------------+----------+----------+---------------+-------------+",
         "|            | embucket | STANDARD |               |             |",
-        "|            | slatedb  | STANDARD |               |             |",
+        "|            | sqlite   | STANDARD |               |             |",
         "+------------+----------+----------+---------------+-------------+",
     ],
 )
