@@ -14,8 +14,15 @@ RUN apt-get update && apt-get install -y \
 # Copy source code
 COPY . .
 
-# Build the application without experimental features
-RUN cargo build --release --bin embucketd --no-default-features
+# Build the application, optionally enabling experimental features
+ARG ENABLE_EXPERIMENTAL=false
+RUN if [ "$ENABLE_EXPERIMENTAL" = "true" ]; then \
+        echo "Building embucketd with experimental features enabled"; \
+        cargo build --release --bin embucketd --features experimental; \
+    else \
+        echo "Building embucketd without experimental features"; \
+        cargo build --release --bin embucketd --no-default-features; \
+    fi
 
 # Stage 4: Final runtime image
 FROM gcr.io/distroless/cc-debian12 AS runtime
