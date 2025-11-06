@@ -1,4 +1,3 @@
-use crate::datetime::timestamp_from_parts::take_function_args;
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors;
 use datafusion::arrow::array::Array;
@@ -6,6 +5,7 @@ use datafusion::arrow::array::builder::StringBuilder;
 use datafusion::arrow::array::cast::AsArray;
 use datafusion::arrow::compute::cast;
 use datafusion::arrow::datatypes::DataType;
+use datafusion_common::utils::take_function_args;
 use datafusion_common::{
     Result as DFResult, ScalarValue,
     types::{
