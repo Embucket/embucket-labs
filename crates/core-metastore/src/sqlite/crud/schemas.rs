@@ -120,6 +120,7 @@ pub async fn list_schemas(conn: &Connection, params: ListParams) -> Result<Vec<R
     conn.interact(move |conn| {
         // map params to orm request in other way
         let mut query = schemas::table
+            //  doing join to get database name
             .inner_join(databases::table.on(schemas::database_id.eq(databases::id)))
             .select((SchemaRecord::as_select(), databases::name))
             .into_boxed();
@@ -141,7 +142,7 @@ pub async fn list_schemas(conn: &Connection, params: ListParams) -> Result<Vec<R
         }
 
         if let Some(parent_name) = params.parent_name {
-            query = query.filter(schemas::name.eq(parent_name));
+            query = query.filter(databases::name.eq(parent_name));
         }
 
         if let Some(offset) = params.offset {

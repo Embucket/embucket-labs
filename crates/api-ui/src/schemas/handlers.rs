@@ -307,10 +307,10 @@ pub async fn list_schemas(
     //         now.clone(),
     //         now.clone()
     //     ),
-    //     _ => "UNION ALL SELECT 'information_schema' AS schema_name, database_name, created_at, updated_at FROM slatedb.meta.databases".to_string()
+    //     _ => "UNION ALL SELECT 'information_schema' AS schema_name, database_name, created_at, updated_at FROM sqlite.meta.databases".to_string()
     // };
     // let sql_string = format!(
-    //     "SELECT * FROM (SELECT * FROM slatedb.meta.schemas {sql_history_schema} {sql_meta_schema} {sql_information_schema})"
+    //     "SELECT * FROM (SELECT * FROM sqlite.meta.schemas {sql_history_schema} {sql_meta_schema} {sql_information_schema})"
     // );
     // let sql_string = format!(
     //     "{} WHERE database_name = '{}'",

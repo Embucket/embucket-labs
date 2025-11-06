@@ -296,7 +296,7 @@ pub async fn list_databases(
     State(state): State<AppState>,
 ) -> Result<Json<DatabasesResponse>> {
 // let context = QueryContext::default();
-    // let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
+    // let sql_string = "SELECT * FROM sqlite.meta.databases".to_string();
     // let sql_string = apply_parameters(
     //     &sql_string,
     //     parameters,

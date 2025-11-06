@@ -222,7 +222,7 @@ pub async fn queries(
     // TODO: Consider switching to using history store directly
     //
     let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.history.queries".to_string();
+    let sql_string = "SELECT * FROM sqlite.history.queries".to_string();
     let sql_string = special_parameters.worksheet_id.map_or_else(
         || sql_string.clone(),
         |worksheet_id| format!("{sql_string} WHERE worksheet_id = {worksheet_id}"),

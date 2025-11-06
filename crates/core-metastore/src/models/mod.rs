@@ -29,6 +29,8 @@ where
 {
     #[serde(flatten)]
     pub data: T,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default)]
     pub ids: HashMap<String, i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

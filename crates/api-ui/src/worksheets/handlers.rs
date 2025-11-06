@@ -78,7 +78,7 @@ pub async fn worksheets(
     Query(parameters): Query<SearchParameters>,
 ) -> Result<Json<WorksheetsResponse>> {
     let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.history.worksheets".to_string();
+    let sql_string = "SELECT * FROM sqlite.history.worksheets".to_string();
     let sql_string = apply_parameters(
         &sql_string,
         parameters,
