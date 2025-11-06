@@ -8,8 +8,6 @@ pub(crate) mod layers;
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
-use api_internal_rest::router::create_router as create_internal_router;
-use api_internal_rest::state::State as InternalAppState;
 #[cfg(feature = "ui")]
 use api_sessions::layer::propagate_session_cookie;
 use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
@@ -242,10 +240,6 @@ async fn async_main(
         }
     });
 
-    let internal_router = create_internal_router().with_state(InternalAppState::new(
-        metastore.clone(),
-        history_store.clone(),
-    ));
     let snowflake_state = SnowflakeAppState {
         execution_svc: execution_svc.clone(),
         config: snowflake_rest_cfg,
@@ -277,7 +271,6 @@ async fn async_main(
 
     #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
     let mut router = Router::new()
-        .nest("/v1/metastore", internal_router)
         .merge(snowflake_router)
         .nest("/catalog", iceberg_router);
     #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
