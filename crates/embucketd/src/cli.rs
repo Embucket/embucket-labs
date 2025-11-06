@@ -324,6 +324,7 @@ impl CliOpts {
         }
     }
 
+    #[cfg(feature = "ui")]
     // method resets a secret env
     pub fn jwt_secret(&self) -> String {
         unsafe {
