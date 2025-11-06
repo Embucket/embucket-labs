@@ -98,9 +98,9 @@ pub async fn create_schema(conn: &Connection, schema: RwObject<Schema>) -> Resul
 
 pub async fn get_schema(conn: &Connection, schema_ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>> {
     let mut items = list_schemas(
-        conn, ListParams::default().with_parent_name(schema_ident.database.clone())).await?;
+        conn, ListParams::default().with_name(schema_ident.schema.clone())).await?;
     if items.is_empty() {
-        SchemaNotFoundSnafu{ db: schema_ident.database.clone(), schema: schema_ident.schema.clone() }.fail()
+        Ok(None)
     } else {
         Ok(Some(items.remove(0)))
     }
@@ -123,8 +123,25 @@ pub async fn list_schemas(conn: &Connection, params: ListParams) -> Result<Vec<R
             .inner_join(databases::table.on(schemas::database_id.eq(databases::id)))
             .select((SchemaRecord::as_select(), databases::name))
             .into_boxed();
-        if let Some(volume_id) = params.parent_id {
-            query = query.filter(schemas::database_id.eq(volume_id));
+        
+        if let Some(id) = params.id {
+            query = query.filter(schemas::id.eq(id));
+        }
+        
+        if let Some(database_id) = params.parent_id {
+            query = query.filter(schemas::database_id.eq(database_id));
+        }
+
+        if let Some(search) = params.search {
+            query = query.filter(schemas::name.like(format!("%{}%", search)));
+        }
+
+        if let Some(name) = params.name {
+            query = query.filter(schemas::name.eq(name));
+        }
+
+        if let Some(parent_name) = params.parent_name {
+            query = query.filter(schemas::name.eq(parent_name));
         }
 
         if let Some(offset) = params.offset {
@@ -133,10 +150,6 @@ pub async fn list_schemas(conn: &Connection, params: ListParams) -> Result<Vec<R
 
         if let Some(limit) = params.limit {
             query = query.limit(limit);
-        }
-
-        if let Some(search) = params.search {
-            query = query.filter(schemas::name.like(format!("%{}%", search)));
         }
 
         for order_by in params.order_by {

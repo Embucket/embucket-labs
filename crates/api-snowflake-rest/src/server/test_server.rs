@@ -8,46 +8,9 @@ use std::net::SocketAddr;
 use std::thread;
 use std::time::Duration;
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::layer::Layer;
-use tracing_subscriber::prelude::*;
-use tracing::field::{Visit, Field};
-use std::fmt::Write;
 use tokio::runtime::Builder;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex, Condvar};
-
-// Add addr to every event so we can distinguish logs realted to different test servers
-pub struct AddrVisitor {
-    addr: String,
-}
-
-impl Visit for AddrVisitor {
-    fn record_str(&mut self, _field: &Field, value: &str) {
-        self.addr = value.to_string();
-    }
-
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        write!(self.addr, "xyz{} = {:?}; ", field.name(), value).unwrap();
-    }
-}
-
-struct AddrLayer {
-    addr: String,
-}
-
-impl AddrLayer {
-    fn new(addr: std::net::SocketAddr) -> Self {
-        AddrLayer { addr: addr.to_string() }
-    }
-}
-
-impl<S: tracing::Subscriber> Layer<S> for AddrLayer {
-    fn on_event(&self, event: &tracing::Event, _context: tracing_subscriber::layer::Context<S>) {
-        event.record(&mut AddrVisitor {
-            addr: self.addr.clone(),
-        });
-    }
-}
 
 pub fn server_default_cfg(data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
     Some((
@@ -119,8 +82,6 @@ pub async fn run_test_rest_api_server_with_config(
         .open("traces.log")
         .expect("Failed to open traces.log");
 
-    let custom_layer = AddrLayer::new(addr);
-
     let subscriber = tracing_subscriber::fmt()
         // using stderr as it won't be showed until test failed
         .with_writer(traces_writer)
@@ -132,8 +93,7 @@ pub async fn run_test_rest_api_server_with_config(
         .with_span_events(FmtSpan::NONE)
         .with_level(true)
         .with_max_level(tracing_subscriber::filter::LevelFilter::TRACE)
-        .finish()
-        .with(custom_layer);
+        .finish();
 
     // ignoring error: as with parralel tests execution, just first thread is able to set it successfully
     // since all tests run in a single process

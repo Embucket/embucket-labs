@@ -16,7 +16,7 @@ use deadpool_diesel::sqlite::Pool;
 use deadpool_diesel::sqlite::Connection;
 use diesel::result::QueryResult;
 use diesel::result::Error;
-use crate::error::{self as metastore_err, Result};
+use crate::error::{self as metastore_err, DatabaseNotFoundSnafu, Result};
 use snafu::{ResultExt, OptionExt};
 use crate::{ListParams, OrderBy, OrderDirection};
 use crate::sqlite::crud::current_ts_str;
@@ -45,7 +45,8 @@ impl TryFrom<RwObject<Database>> for DatabaseRecord {
             // ignore missing id, maybe its insert, otherwise constraint will fail
             id: value.id().unwrap_or_default(),
             name: value.ident.clone(),
-            volume_id: value.volume_id()?,
+            // ignore missing volume_id, maybe its insert/update, otherwise constraint will fail
+            volume_id: value.volume_id().unwrap_or_default(),
             properties: serde_json::to_string(&value.properties).ok(),
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
@@ -94,18 +95,13 @@ pub async fn create_database(conn: &Connection, database: RwObject<Database>) ->
 
 // TODO: get_database should be using list_databases
 pub async fn get_database(conn: &Connection, database_ident: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
-    let ident_owned = database_ident.clone();
-    conn.interact(move |conn| -> QueryResult<Option<(DatabaseRecord, VolumeIdent)>> {
-        databases::table
-            .inner_join(volumes::table.on(databases::volume_id.eq(volumes::id)))
-            .filter(databases::name.eq(ident_owned))
-            .select((DatabaseRecord::as_select(), volumes::name))
-            .first(conn)
-            .optional()
-    }).await?
-    .context(metastore_err::DieselSnafu)?
-    .map(TryInto::try_into)
-    .transpose()
+    let mut items = list_databases(
+        conn, ListParams::default().with_name(database_ident.clone())).await?;
+    if items.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(items.remove(0)))
+    }
 }
 
 pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec<RwObject<Database>>> {
@@ -116,8 +112,24 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
             .select((DatabaseRecord::as_select(), volumes::name))
             .into_boxed();
 
+        if let Some(id) = params.id {
+            query = query.filter(databases::id.eq(id));
+        }
+     
         if let Some(volume_id) = params.parent_id {
             query = query.filter(databases::volume_id.eq(volume_id));
+        }
+
+        if let Some(search) = params.search {
+            query = query.filter(databases::name.like(format!("%{}%", search)));
+        }
+
+        if let Some(name) = params.name {
+            query = query.filter(databases::name.eq(name));
+        }
+
+        if let Some(parent_name) = params.parent_name {
+            query = query.filter(volumes::name.eq(parent_name));
         }
 
         if let Some(offset) = params.offset {
@@ -126,10 +138,6 @@ pub async fn list_databases(conn: &Connection, params: ListParams) -> Result<Vec
 
         if let Some(limit) = params.limit {
             query = query.limit(limit);
-        }
-
-        if let Some(search) = params.search {
-            query = query.filter(databases::name.like(format!("%{}%", search)));
         }
 
         for order_by in params.order_by {
@@ -172,7 +180,6 @@ pub async fn update_database(conn: &Connection, ident: &DatabaseIdent, updated: 
             .set((
                 databases::dsl::name.eq(updated.name),
                 databases::dsl::properties.eq(updated.properties),
-                databases::dsl::volume_id.eq(updated.volume_id),
                 databases::dsl::updated_at.eq(current_ts_str())))
             .returning(DatabaseRecord::as_returning())
             .get_result(conn)

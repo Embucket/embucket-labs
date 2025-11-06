@@ -241,18 +241,17 @@ impl CoreExecutionService {
         }
 
         let schema_ident = SchemaIdent::new(ident.clone(), DEFAULT_SCHEMA.to_string());
-        metastore
-            .create_schema(
-                &schema_ident,
-                Schema {
-                    ident: schema_ident.clone(),
-                    properties: None,
-                },
-            )
-            .await
-            .context(ex_error::BootstrapSnafu {
+        let schema_res = metastore
+            .create_schema(&schema_ident, Schema::new(schema_ident.clone()))
+            .await;
+        if let Err(core_metastore::Error::SchemaAlreadyExists { .. }) = &schema_res {
+            tracing::info!("Bootstrap schema '{}' skipped: already exists", ident);
+        }
+        else {
+            schema_res.context(ex_error::BootstrapSnafu {
                 entity_type: "schema",
             })?;
+        }
 
         Ok(())
     }

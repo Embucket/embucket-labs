@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 use diesel::query_dsl::methods::FindDsl;
 use crate::models::Volume;
-use crate::models::VolumeIdent;
+use crate::models::{VolumeIdent, DatabaseIdent};
 use crate::models::RwObject;
 use validator::Validate;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use diesel::result::QueryResult;
 use diesel::result::Error;
 use crate::error::{self as metastore_err, Result};
 use snafu::{ResultExt, OptionExt};
-use crate::error::SerdeSnafu;
+use crate::error::{SerdeSnafu, VolumeNotFoundSnafu};
 use crate::{ListParams, OrderBy, OrderDirection};
 use crate::sqlite::crud::current_ts_str;
 
@@ -84,22 +84,31 @@ pub async fn create_volume(conn: &Connection, volume: RwObject<Volume>) -> Resul
 }
 
 pub async fn get_volume(conn: &Connection, volume_ident: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
-    let ident_owned = volume_ident.clone();
-    conn.interact(move |conn| -> QueryResult<Option<VolumeRecord>> {
-        volumes::table
-            .filter(volumes::name.eq(ident_owned))
-            .first::<VolumeRecord>(conn)
-            .optional()
-    }).await?
-    .context(metastore_err::DieselSnafu)?
-    .map(TryInto::try_into)
-    .transpose()
+    let mut items = list_volumes(
+        conn, ListParams::default().with_name(volume_ident.clone())).await?;
+    if items.is_empty() {
+        VolumeNotFoundSnafu{ volume: volume_ident.clone() }.fail()
+    } else {
+        Ok(Some(items.remove(0)))
+    }    
 }
 
-pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<Option<RwObject<Volume>>> {
+pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<RwObject<Volume>> {
+    let mut items = list_volumes(
+        conn, ListParams::default().with_id(volume_id)).await?;
+    if items.is_empty() {
+        VolumeNotFoundSnafu{ volume: volume_id.to_string() }.fail()
+    } else {
+        Ok(items.remove(0))
+    }
+}
+
+pub async fn get_volume_by_database(conn: &Connection, database_name: DatabaseIdent) -> Result<Option<RwObject<Volume>>> {
     conn.interact(move |conn| -> QueryResult<Option<VolumeRecord>> {
         volumes::table
-            .filter(volumes::id.eq(volume_id))
+            .inner_join(databases::table.on(databases::volume_id.eq(volumes::id)))
+            .filter(databases::name.eq(database_name))
+            .select(VolumeRecord::as_select())
             .first::<VolumeRecord>(conn)
             .optional()
     }).await?
@@ -114,16 +123,24 @@ pub async fn list_volumes(conn: &Connection, params: ListParams) -> Result<Vec<R
 // map params to orm request in other way
         let mut query = volumes::table.into_boxed();
 
+        if let Some(id) = params.id {
+            query = query.filter(volumes::id.eq(id));
+        }
+        
+        if let Some(search) = params.search {
+            query = query.filter(volumes::name.like(format!("%{}%", search)));
+        }
+
+        if let Some(name) = params.name {
+            query = query.filter(volumes::name.eq(name));
+        }
+        
         if let Some(offset) = params.offset {
             query = query.offset(offset);
         }
 
         if let Some(limit) = params.limit {
             query = query.limit(limit);
-        }
-
-        if let Some(search) = params.search {
-            query = query.filter(volumes::name.like(format!("%{}%", search)));
         }
 
         for order_by in params.order_by {

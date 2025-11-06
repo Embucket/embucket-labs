@@ -104,6 +104,7 @@ impl Into<ListParams> for SearchParameters {
         ListParams {
             id: None,
             parent_id: None,
+            name: None,
             parent_name: None,
             offset: self.offset.map(|offset| i64::try_from(offset).unwrap_or_default()),
             limit: self.limit.map(|limit| i64::from(limit)),

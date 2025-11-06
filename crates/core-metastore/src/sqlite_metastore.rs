@@ -97,10 +97,8 @@ impl SlateDBMetastore {
             .context(metastore_err::CoreSqliteSnafu)?;
 
         let metastore = Self {
-            //
-            db: db.clone(), // to be removed
-            object_store_cache: DashMap::new(),  // to be removed
-            //
+            db: db.clone(), // TODO: to be removed
+            object_store_cache: DashMap::new(),
             diesel_pool: Self::create_pool(SQLITE_METASTORE_DB_NAME).await?,
             raw_sqls_db: sqlite_db,
         };
@@ -121,10 +119,8 @@ impl SlateDBMetastore {
             .expect("Failed to create Sqlite Db for metastore");
 
         let store = Self {
-            //
-            db: utils_db.clone(), // to be removed
-            object_store_cache: DashMap::new(),  // to be removed
-            //
+            db: utils_db.clone(), // TODO: to be removed
+            object_store_cache: DashMap::new(),
             diesel_pool: Self::create_pool(&sqlite_db_name)
                 .await
                 .expect("Failed to create Diesel Pool for metastore"),
@@ -158,10 +154,7 @@ impl SlateDBMetastore {
         err
     )]
     pub async fn create_tables(&self) -> Result<()> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
-        
+        let conn = self.connection().await?;
         let migrations = conn.interact(|conn| -> migration::Result<Vec<String>> {
             Ok(conn.run_pending_migrations(EMBED_MIGRATIONS)?.iter().map(|m| m.to_string()).collect::<Vec<String>>())
         })
@@ -326,31 +319,33 @@ impl Metastore for SlateDBMetastore {
         err
     )]
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>> {
-        let object_store = volume.get_object_store()?;
-
-        let rwobject = RwObject::new(volume);
         let conn = self.connection().await?;
-        let resulted = crud::volumes::create_volume(&conn, rwobject)
+        let object_store = volume.get_object_store()?;
+        let resulted = crud::volumes::create_volume(&conn, RwObject::new(volume))
             .await?;
 
         tracing::debug!("Volume {} created", resulted.ident);
-
+        
         self.object_store_cache.insert(resulted.id().context(NoIdSnafu)?, object_store);
         Ok(resulted)
     }
 
-    #[instrument(name = "SqliteMetastore::get_volume", level = "trace", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::get_volume", level = "debug", skip(self), err)]
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
         let conn = self.connection().await?;
         crud::volumes::get_volume(&conn, name).await
     }
 
-    #[instrument(name = "SqliteMetastore::get_volume_by_id", level = "trace", skip(self), err)]
+    #[instrument(name = "SqliteMetastore::get_volume_by_id", level = "debug", skip(self), err)]
     async fn get_volume_by_id(&self, id: i64) -> Result<RwObject<Volume>> {
         let conn = self.connection().await?;
-        crud::volumes::get_volume_by_id(&conn, id)
-            .await?
-            .context(metastore_err::VolumeNotFoundSnafu { volume: id.to_string() })
+        crud::volumes::get_volume_by_id(&conn, id).await
+    }
+
+    #[instrument(name = "SqliteMetastore::get_volume_by_database", level = "debug", skip(self), err)]
+    async fn get_volume_by_database(&self, database: &DatabaseIdent) -> Result<Option<RwObject<Volume>>> {
+        let conn = self.connection().await?;
+        crud::volumes::get_volume_by_database(&conn, database.clone()).await
     }
 
     // TODO: Allow rename only here or on REST API level 
@@ -361,9 +356,7 @@ impl Metastore for SlateDBMetastore {
         err
     )]
     async fn update_volume(&self, ident: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
+        let conn = self.connection().await?;
         let updated_volume = crud::volumes::update_volume(&conn, ident, volume.clone()).await?;
         let object_store = updated_volume.get_object_store()?;
         // object store cached by id so just alter value
@@ -427,9 +420,7 @@ impl Metastore for SlateDBMetastore {
         &self,
         database: Database,
     ) -> Result<RwObject<Database>> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
+        let conn = self.connection().await?;
         let volume = crud::volumes::get_volume(&conn, &database.volume)
             .await?
             .context(metastore_err::VolumeNotFoundSnafu{ volume: database.volume.clone() })?;
@@ -445,9 +436,7 @@ impl Metastore for SlateDBMetastore {
 
     #[instrument(name = "SqliteMetastore::get_database", level = "trace", skip(self), err)]
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
+        let conn = self.connection().await?;
         crud::databases::get_database(&conn, name).await
     }
 
@@ -462,9 +451,7 @@ impl Metastore for SlateDBMetastore {
         name: &DatabaseIdent,
         database: Database,
     ) -> Result<RwObject<Database>> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
+        let conn = self.connection().await?;
         crud::databases::update_database(&conn, name, database).await
     }
 
@@ -506,9 +493,7 @@ impl Metastore for SlateDBMetastore {
         err
     )]
     async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>> {
-        let conn = self.diesel_pool.get()
-            .await
-            .context(metastore_err::DieselPoolSnafu)?;
+        let conn = self.connection().await?;
         let database = crud::databases::get_database(&conn, &ident.database)
             .await?
             .context(metastore_err::DatabaseNotFoundSnafu{ db: ident.database.clone() })?;
@@ -620,21 +605,13 @@ impl Metastore for SlateDBMetastore {
                     |volume_location| format!("{}/{volume_location}", volume.prefix()),
                 )
             } else {
-                let database = self.get_database(&ident.database).await?.ok_or_else(|| {
-                    metastore_err::DatabaseNotFoundSnafu {
-                        db: ident.database.clone(),
-                    }
-                    .build()
-                })?;
-                let volume_id = database.volume_id()?;
-                let volume = crud::volumes::get_volume_by_id(&conn, volume_id).await?.ok_or_else(|| {
-                    metastore_err::VolumeNotFoundSnafu {
-                        volume: volume_id.to_string(),
-                    }
-                    .build()
-                })?;
+                let volume = self.get_volume_by_database(&ident.database)
+                    .await?
+                    .context(metastore_err::VolumeNotFoundSnafu {
+                        volume: ident.database.clone(),
+                    })?;
                 if table.volume_ident.is_none() {
-                    table.volume_ident = Some(volume_id.to_string());
+                    table.volume_ident = Some(volume.ident.clone());
                 }
 
                 let schema = url_encode(&ident.schema);
@@ -782,12 +759,7 @@ impl Metastore for SlateDBMetastore {
             }
             .build()
         })?;
-        let volume = crud::volumes::get_volume_by_id(&conn, db.volume_id()?)
-            .await?
-            .context(metastore_err::VolumeNotFoundSnafu {
-                volume: db.volume_id()?.to_string(),
-            })?;
-
+        let volume = crud::volumes::get_volume_by_id(&conn, db.volume_id()?).await?;
         let object_store = volume.get_object_store()?;
         let data =
             Bytes::from(serde_json::to_vec(&table.metadata).context(metastore_err::SerdeSnafu)?);
@@ -911,10 +883,7 @@ impl Metastore for SlateDBMetastore {
             }
 
             let volume = crud::volumes::get_volume_by_id(&conn, database.volume_id()?)
-                .await?
-                .context(metastore_err::VolumeNotFoundSnafu {
-                    volume: database.volume_id()?.to_string(),
-                })?;
+                .await?;
 
             let prefix = volume.prefix();
 
@@ -945,14 +914,15 @@ impl Metastore for SlateDBMetastore {
             .await?
             .map(|table| table.volume_ident.clone())
         {
-            self.get_volume(&volume_ident).await
+            crud::volumes::get_volume(&conn, &volume_ident).await
         } else {
             let database = crud::databases::get_database(&conn, &ident.database)
                 .await?
                 .context(metastore_err::DatabaseNotFoundSnafu {
                         db: ident.database.clone(),
                 })?;
-            crud::volumes::get_volume_by_id(&conn, database.volume_id()?).await
+            Ok(Some(crud::volumes::get_volume_by_id(&conn, database.volume_id()?)
+                .await?))
         }       
     }
 }
