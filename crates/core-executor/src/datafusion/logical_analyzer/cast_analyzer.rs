@@ -101,6 +101,22 @@ impl CastAnalyzer {
             data_type @ (DataType::Decimal128(_, _) | DataType::Int32 | DataType::Int64) => {
                 Self::rewrite_numeric_cast(expr, data_type, try_mode)
             }
+            DataType::Utf8 | DataType::LargeUtf8 => {
+                // Rewrite json_get::VARCHAR to json_get_str to get unwrapped string values
+                // This matches Snowflake behavior where casting VARIANT accessor to VARCHAR strips quotes
+                if let Expr::ScalarFunction(ScalarFunction { func, args }) = expr {
+                    let func_name = func.name().to_lowercase();
+                    if func_name == "json_get" || func_name.ends_with(".json_get") {
+                        // Replace json_get with json_get_str - it returns unwrapped strings
+                        let json_get_str_udf = datafusion_functions_json::udfs::json_get_str_udf();
+                        return Ok(Transformed::yes(Expr::ScalarFunction(ScalarFunction {
+                            func: json_get_str_udf,
+                            args: args.clone(),
+                        })));
+                    }
+                }
+                Ok(Transformed::no(original_expr.clone()))
+            }
             _ => Ok(Transformed::no(original_expr.clone())),
         }
     }
