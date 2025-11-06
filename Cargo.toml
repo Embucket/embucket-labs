@@ -4,7 +4,6 @@ members = [
   "crates/embucketd",
   # "crates/embucket-seed",
   "crates/api-iceberg-rest",
-  "crates/api-internal-rest",
   "crates/api-snowflake-rest",
   "crates/api-ui",
   "crates/api-ui-static-assets",

@@ -245,25 +245,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "api-internal-rest"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.6",
- "core-history",
- "core-metastore",
- "core-utils",
- "error-stack",
- "error-stack-trace",
- "http 1.3.1",
- "serde",
- "serde_json",
- "snafu",
- "tracing",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "api-sessions"
 version = "0.1.0"
 dependencies = [
@@ -3657,7 +3638,6 @@ name = "embucketd"
 version = "0.1.0"
 dependencies = [
  "api-iceberg-rest",
- "api-internal-rest",
  "api-sessions",
  "api-snowflake-rest",
  "api-ui",

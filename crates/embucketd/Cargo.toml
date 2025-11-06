@@ -13,7 +13,6 @@ api-ui = { path = "../api-ui", optional = true }
 api-sessions = { path = "../api-sessions" }
 api-snowflake-rest = { path = "../api-snowflake-rest" }
 api-iceberg-rest = { path = "../api-iceberg-rest" }
-api-internal-rest = { path = "../api-internal-rest" }
 
 core-sqlite = { workspace = true }
 axum = { workspace = true }
