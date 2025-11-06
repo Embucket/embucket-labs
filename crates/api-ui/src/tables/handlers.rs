@@ -263,7 +263,7 @@ pub async fn get_table_preview_data(
                 .collect();
 
             preview_data_columns.push(TablePreviewDataColumn {
-                name: schema.field(i).name().to_string(),
+                name: schema.field(i).name().clone(),
                 rows: preview_data_rows,
             });
         }

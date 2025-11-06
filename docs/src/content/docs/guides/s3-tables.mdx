@@ -116,7 +116,12 @@ CREATE EXTERNAL VOLUME IF NOT EXISTS demo
 STORAGE_LOCATIONS = ((
   NAME = 'demo'
   STORAGE_PROVIDER = 's3-tables'
-  ARN = 'arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket'
+  STORAGE_AWS_ACCESS_POINT_ARN = 'arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket'
+  CREDENTIALS = (
+    AWS_KEY_ID = 'YOUR_ACCESS_KEY'
+    AWS_SECRET_KEY = 'YOUR_SECRET_KEY'
+    REGION = 'us-east-1'
+  )
 ));
 ```
 

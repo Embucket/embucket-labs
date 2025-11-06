@@ -45,7 +45,7 @@ impl SchemaProvider for EmbucketSchema {
     fn table_names(&self) -> Vec<String> {
         let metastore = self.metastore.clone();
         let database = self.database.clone();
-        let schema = self.schema.to_string();
+        let schema = self.schema.clone();
 
         let table_names = block_in_new_runtime(async move {
             match metastore

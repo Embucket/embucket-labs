@@ -114,7 +114,7 @@ impl InformationSchemaConfig {
                 builder.add_navigation_tree(
                     &catalog_name,
                     Some(INFORMATION_SCHEMA.to_string()),
-                    Some(table.key().to_string()),
+                    Some(table.key().clone()),
                     Some(TableType::View),
                 );
             }
@@ -313,8 +313,8 @@ impl InformationSchemaConfig {
                                 routine_type: &str,
                                 is_deterministic: bool,
                                 doc: Option<&Documentation>| {
-            let description = doc.map(|d| d.description.to_string());
-            let example = doc.map(|d| d.syntax_example.to_string());
+            let description = doc.map(|d| d.description.clone());
+            let example = doc.map(|d| d.syntax_example.clone());
 
             for return_type in return_types {
                 builder.add_routine(

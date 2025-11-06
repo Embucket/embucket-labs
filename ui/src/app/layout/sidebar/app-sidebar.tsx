@@ -29,9 +29,8 @@ import { useAuth } from '@/modules/auth/AuthProvider';
 
 import { AppSidebarAvatarMenu } from './app-sidebar-avatar-menu';
 import { AppSidebarGroup } from './app-sidebar-group';
-import { AppSidebarOrgMenu } from './app-sidebar-org-menu';
 import { AppSidebarSqlGroup } from './app-sidebar-sql-group';
-import { EmbucketLogo, EmbucketLogoText } from './logo';
+import { EmbucketLogo } from './logo';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
@@ -45,11 +44,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       className="h-auto rounded-md border-none"
       {...props}
     >
-      <SidebarHeader className="flex flex-row items-center justify-between">
+      <SidebarHeader className="flex flex-row items-center justify-between overflow-hidden">
         <Link to={isAuthenticated ? '/home' : '/'}>
           <div className={cn('flex items-center gap-1 transition-all', open && 'ml-2')}>
             <EmbucketLogo />
-            {open && <EmbucketLogoText />}
           </div>
         </Link>
         {open && (
@@ -60,11 +58,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </Button>
         )}
       </SidebarHeader>
-      <SidebarHeader className="py-2">
-        <AppSidebarOrgMenu />
-      </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="mt-5">
         <AppSidebarGroup
           items={[
             {

@@ -8,8 +8,7 @@ pub(crate) mod layers;
 use api_iceberg_rest::router::create_router as create_iceberg_router;
 use api_iceberg_rest::state::Config as IcebergConfig;
 use api_iceberg_rest::state::State as IcebergAppState;
-use api_internal_rest::router::create_router as create_internal_router;
-use api_internal_rest::state::State as InternalAppState;
+#[cfg(feature = "ui")]
 use api_sessions::layer::propagate_session_cookie;
 use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
 use api_snowflake_rest::server::layer::require_auth as snowflake_require_auth;
@@ -17,16 +16,17 @@ use api_snowflake_rest::server::router::create_auth_router as create_snowflake_a
 use api_snowflake_rest::server::router::create_router as create_snowflake_router;
 use api_snowflake_rest::server::server_models::Config;
 use api_snowflake_rest::server::state::AppState as SnowflakeAppState;
-use api_ui::auth::layer::require_auth as ui_require_auth;
-use api_ui::auth::router::create_router as create_ui_auth_router;
-use api_ui::config::AuthConfig as UIAuthConfig;
-use api_ui::config::WebConfig as UIWebConfig;
-use api_ui::layers::make_cors_middleware;
-use api_ui::router::create_router as create_ui_router;
-use api_ui::router::ui_open_api_spec;
-use api_ui::state::AppState as UIAppState;
-use api_ui::web_assets::config::StaticWebConfig;
-use api_ui::web_assets::web_assets_app;
+#[cfg(feature = "ui")]
+use api_ui::{
+    auth::{
+        layer::require_auth as ui_require_auth, router::create_router as create_ui_auth_router,
+    },
+    config::{AuthConfig as UIAuthConfig, WebConfig as UIWebConfig},
+    layers::make_cors_middleware,
+    router::{create_router as create_ui_router, ui_open_api_spec},
+    state::AppState as UIAppState,
+    web_assets::{config::StaticWebConfig, web_assets_app},
+};
 use axum::middleware;
 use axum::{
     Json, Router,
@@ -169,23 +169,26 @@ async fn async_main(
         mem_enable_track_consumers_pool: opts.mem_enable_track_consumers_pool,
         disk_pool_size_mb: opts.disk_pool_size_mb,
         query_history_rows_limit: opts.query_history_rows_limit,
-        use_duck_db: opts.use_duck_db.unwrap_or(false),
-        use_duck_db_explain: opts.use_duck_db_explain.unwrap_or(false),
     };
+    let host = opts.host.clone().unwrap();
+    let port = opts.port.unwrap();
+    let iceberg_config = IcebergConfig {
+        iceberg_catalog_url: opts.catalog_url.clone().unwrap(),
+    };
+    #[cfg(feature = "ui")]
     let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
         opts.auth_demo_user.clone().unwrap(),
         opts.auth_demo_password.clone().unwrap(),
     );
+    #[cfg(feature = "ui")]
     let web_config = UIWebConfig {
-        host: opts.host.clone().unwrap(),
-        port: opts.port.unwrap(),
+        host: host.clone(),
+        port,
         allow_origin: opts.cors_allow_origin.clone(),
     };
-    let iceberg_config = IcebergConfig {
-        iceberg_catalog_url: opts.catalog_url.clone().unwrap(),
-    };
+    #[cfg(feature = "ui")]
     let static_web_config = StaticWebConfig {
-        host: web_config.host.clone(),
+        host: host.clone(),
         port: opts.assets_port.unwrap(),
     };
 
@@ -237,31 +240,8 @@ async fn async_main(
         }
     });
 
-    let internal_router = create_internal_router().with_state(InternalAppState::new(
-        metastore.clone(),
-        history_store.clone(),
-    ));
-    let ui_state = UIAppState::new(
-        metastore.clone(),
-        history_store,
-        execution_svc.clone(),
-        Arc::new(web_config.clone()),
-        Arc::new(auth_config),
-    );
-    let ui_router =
-        create_ui_router()
-            .with_state(ui_state.clone())
-            .layer(middleware::from_fn_with_state(
-                session_store,
-                propagate_session_cookie,
-            ));
-    let ui_router = ui_router.layer(middleware::from_fn_with_state(
-        ui_state.clone(),
-        ui_require_auth,
-    ));
-    let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
     let snowflake_state = SnowflakeAppState {
-        execution_svc,
+        execution_svc: execution_svc.clone(),
         config: snowflake_rest_cfg,
     };
     let compression_layer = ServiceBuilder::new()
@@ -279,7 +259,7 @@ async fn async_main(
         .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
     let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
-        metastore,
+        metastore: metastore.clone(),
         config: Arc::new(iceberg_config),
     });
 
@@ -289,26 +269,60 @@ async fn async_main(
         spec = spec.merge_from(extra_spec);
     }
 
-    let ui_spec = ui_open_api_spec();
-
-    let ui_router = Router::new()
-        .nest("/ui", ui_router)
-        .nest("/ui/auth", ui_auth_router);
-    let ui_router = match web_config.allow_origin {
-        Some(allow_origin) => ui_router.layer(make_cors_middleware(&allow_origin)),
-        None => ui_router,
-    };
-
-    let router = Router::new()
-        .merge(ui_router)
-        .nest("/v1/metastore", internal_router)
+    #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
+    let mut router = Router::new()
         .merge(snowflake_router)
-        .nest("/catalog", iceberg_router)
-        .merge(
-            SwaggerUi::new("/")
-                .url("/openapi.json", spec)
-                .url("/ui_openapi.json", ui_spec),
-        )
+        .nest("/catalog", iceberg_router);
+    #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
+    let mut swagger = SwaggerUi::new("/").url("/openapi.json", spec);
+
+    #[cfg(feature = "ui")]
+    {
+        let ui_state = UIAppState::new(
+            metastore.clone(),
+            history_store,
+            execution_svc.clone(),
+            Arc::new(web_config.clone()),
+            Arc::new(auth_config),
+        );
+        let ui_router = create_ui_router()
+            .with_state(ui_state.clone())
+            .layer(middleware::from_fn_with_state(
+                session_store.clone(),
+                propagate_session_cookie,
+            ))
+            .layer(middleware::from_fn_with_state(
+                ui_state.clone(),
+                ui_require_auth,
+            ));
+        let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
+        let ui_router = Router::new()
+            .nest("/ui", ui_router)
+            .nest("/ui/auth", ui_auth_router);
+        let ui_router = match web_config.allow_origin.as_ref() {
+            Some(allow_origin) => ui_router.layer(make_cors_middleware(allow_origin)),
+            None => ui_router,
+        };
+        router = router.merge(ui_router);
+
+        let ui_spec = ui_open_api_spec();
+        swagger = swagger.url("/ui_openapi.json", ui_spec);
+
+        let web_assets_addr = helpers::resolve_ipv4(format!(
+            "{}:{}",
+            static_web_config.host, static_web_config.port
+        ))
+        .expect("Failed to resolve web assets server address");
+        let listener = tokio::net::TcpListener::bind(web_assets_addr)
+            .await
+            .expect("Failed to bind to web assets server address");
+        let addr = listener.local_addr().expect("Failed to get local address");
+        tracing::info!(%addr, "Listening on http");
+        tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
+    }
+
+    let router = router
+        .merge(swagger)
         .route("/health", get(|| async { Json("OK") }))
         .route("/telemetry/send", post(|| async { Json("OK") }))
         .layer(TraceLayer::new_for_http())
@@ -316,22 +330,7 @@ async fn async_main(
         .layer(CatchPanicLayer::new())
         .into_make_service_with_connect_info::<SocketAddr>();
 
-    // Create web assets server
-    let web_assets_addr = helpers::resolve_ipv4(format!(
-        "{}:{}",
-        static_web_config.host, static_web_config.port
-    ))
-    .expect("Failed to resolve web assets server address");
-    let listener = tokio::net::TcpListener::bind(web_assets_addr)
-        .await
-        .expect("Failed to bind to web assets server address");
-    let addr = listener.local_addr().expect("Failed to get local address");
-    tracing::info!(%addr, "Listening on http");
-    // Runs web assets server in background
-    tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
-
-    // Create web server
-    let web_addr = helpers::resolve_ipv4(format!("{}:{}", web_config.host, web_config.port))
+    let web_addr = helpers::resolve_ipv4(format!("{host}:{port}"))
         .expect("Failed to resolve web server address");
     let listener = tokio::net::TcpListener::bind(web_addr)
         .await

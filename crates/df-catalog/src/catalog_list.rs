@@ -336,7 +336,7 @@ impl EmbucketCatalogList {
                         let schema = CachingSchema {
                             schema: schema_provider,
                             tables_cache: DashMap::default(),
-                            name: schema.to_string(),
+                            name: schema.clone(),
                         };
                         catalog_ref
                             .schemas_cache
@@ -376,9 +376,9 @@ impl EmbucketCatalogList {
                 {
                     // ensure table is cached
                     schema_ref.tables_cache.insert(
-                        table.to_string(),
+                        table.clone(),
                         Arc::new(CachingTable::new_with_schema(
-                            table.to_string(),
+                            table.clone(),
                             table_provider.schema(),
                             Arc::clone(&table_provider),
                         )),
@@ -420,7 +420,7 @@ impl EmbucketCatalogList {
                         let schema = CachingSchema {
                             schema: schema_provider,
                             tables_cache: DashMap::default(),
-                            name: schema.to_string(),
+                            name: schema.clone(),
                         };
                         let tables = schema.schema.table_names();
                         for table in tables {
@@ -447,7 +447,7 @@ impl EmbucketCatalogList {
                 }
                 // Cleanup removed schemas from the cache
                 for schema in &catalog.schemas_cache {
-                    if !schemas.contains(&schema.key().to_string()) {
+                    if !schemas.contains(&schema.key().clone()) {
                         catalog.schemas_cache.remove(schema.key());
                     }
                 }

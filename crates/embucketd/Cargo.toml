@@ -9,11 +9,10 @@ core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
 core-utils = { path = "../core-utils" }
 core-history = { path = "../core-history" }
-api-ui = { path = "../api-ui" }
+api-ui = { path = "../api-ui", optional = true }
 api-sessions = { path = "../api-sessions" }
 api-snowflake-rest = { path = "../api-snowflake-rest" }
 api-iceberg-rest = { path = "../api-iceberg-rest" }
-api-internal-rest = { path = "../api-internal-rest" }
 
 core-sqlite = { workspace = true }
 axum = { workspace = true }
@@ -49,4 +48,7 @@ strum.workspace = true
 workspace = true
 
 [features]
+default = ["experimental"]
+experimental = ["ui"]
+ui = ["dep:api-ui"]
 alloc-tracing = ["dep:tracing-allocations"]

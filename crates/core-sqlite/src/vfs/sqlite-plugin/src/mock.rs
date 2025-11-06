@@ -158,7 +158,7 @@ impl Vfs for MockVfs {
 
         if let Some(path) = path {
             // if file is already open return existing handle
-            for (handle, file) in shared.files.iter() {
+            for (handle, file) in &shared.files {
                 if file.name == path {
                     return Ok(*handle);
                 }

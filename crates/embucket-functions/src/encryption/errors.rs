@@ -1,6 +1,7 @@
 use datafusion::error::DataFusionError;
 use snafu::Location;
 use snafu::Snafu;
+use std::array::TryFromSliceError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -95,6 +96,14 @@ pub enum Error {
 
     #[snafu(display("Decryption failed. Check encrypted data, key, AAD, or AEAD tag."))]
     NullIvForDecryption {
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Slice creation falied: {error}"))]
+    SliceCreationFailed {
+        #[snafu(source)]
+        error: TryFromSliceError,
         #[snafu(implicit)]
         location: Location,
     },

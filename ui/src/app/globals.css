@@ -160,7 +160,7 @@
   --popover: var(--color1);
   --popover-foreground: var(--color2);
   /* Primary colors for <Button /> */
-  --primary: #0064d2;
+  --primary: #bcf080;
   --primary-foreground: #ffffff;
   /* Secondary colors for <Button /> */
   --secondary: var(--color5);
@@ -185,13 +185,13 @@
 
   --sidebar: #171717;
   /* Sidebar - Bg hover + Active bg */
-  --sidebar-accent: #0064d2;
-  /* Active + Hover Text */
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent: #bcf080;
+  /* Active Text */
+  --sidebar-accent-foreground: var(--color1);
   /* Default - White */
   --sidebar-foreground: #ffffff;
   --sidebar-border: #2e2e2e;
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar-ring: #bcf080;
 }
 
 @layer base {

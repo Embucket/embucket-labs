@@ -103,7 +103,7 @@ impl VisitorMut for FunctionsRewriter {
                                 })
                                 .to_string()
                         } else {
-                            (*value).to_string()
+                            (*value).clone()
                         };
                         *replacement = Expr::Value(ValueWithSpan {
                             value: SingleQuotedString(value),

@@ -1,0 +1,16 @@
+---
+source: crates/core-executor/src/tests/sql/commands/explain.rs
+description: "\"EXPLAIN SELECT name FROM testing;\""
+info: "Setup queries: CREATE OR REPLACE TABLE testing (name VARCHAR)\nAS SELECT * FROM VALUES\n  ('yes'),\n  ('no')"
+---
+Ok(
+    [
+        "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
+        "| plan_type     | plan                                                                                                              |",
+        "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
+        "| logical_plan  | TableScan: testing projection=[name]                                                                                                              |",
+        "| physical_plan | DataSourceExec: file_groups={1 group: [[embucket/public/testing/data/[HEX]/[UUID].parquet]]}, projection=[name], file_type=parquet |",
+        "|               |                                                                                                              |",
+        "+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+",
+    ],
+)
