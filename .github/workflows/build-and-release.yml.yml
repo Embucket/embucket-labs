@@ -4,8 +4,6 @@ on:
   # Run nightly at 2 AM UTC
   schedule:
     - cron: '0 2 * * *'
-  # Temporary trigger to allow testing from PR branches
-  pull_request:
   push:
     tags:
       - "v*.*.*"
