@@ -16,7 +16,11 @@ COPY . .
 
 # Build the application, optionally enabling experimental features
 ARG ENABLE_EXPERIMENTAL=false
-RUN if [ "$ENABLE_EXPERIMENTAL" = "true" ]; then \
+# Optionally skip cargo build for fast validation runs
+ARG SKIP_CARGO_BUILD=false
+RUN if [ "$SKIP_CARGO_BUILD" = "true" ]; then \
+        echo "Skipping cargo build (validation mode)"; \
+    elif [ "$ENABLE_EXPERIMENTAL" = "true" ]; then \
         echo "Building embucketd with experimental features enabled"; \
         cargo build --release --bin embucketd --features experimental; \
     else \
