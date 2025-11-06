@@ -1,3 +1,6 @@
+use super::RwObject;
+use super::{MAP_DATABASE_ID, MAP_SCHEMA_ID};
+use super::{SchemaIdent, VolumeIdent};
 use crate::error::{self as metastore_error, Result};
 use iceberg_rust::{
     catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
@@ -9,9 +12,6 @@ use iceberg_rust_spec::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
 use validator::Validate;
-use super::{SchemaIdent, VolumeIdent};
-use super::RwObject;
-use super::{MAP_DATABASE_ID, MAP_SCHEMA_ID};
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A table identifier
@@ -67,9 +67,7 @@ impl Display for TableIdent {
     }
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, strum::EnumString,
-)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, strum::EnumString)]
 #[serde(rename_all = "kebab-case")]
 pub enum TableFormat {
     /*
@@ -118,7 +116,7 @@ impl RwObject<Table> {
     pub fn with_database_id(self, id: i64) -> Self {
         self.with_named_id(MAP_DATABASE_ID.to_string(), id)
     }
-    
+
     #[must_use]
     pub fn with_schema_id(self, id: i64) -> Self {
         self.with_named_id(MAP_SCHEMA_ID.to_string(), id)

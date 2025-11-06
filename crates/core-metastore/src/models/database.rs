@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use super::MAP_VOLUME_ID;
+use super::RwObject;
+use super::VolumeIdent;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::error::Result;
-use super::VolumeIdent;
-use super::RwObject;
-use super::MAP_VOLUME_ID;
 
 /// A database identifier
 pub type DatabaseIdent = String;

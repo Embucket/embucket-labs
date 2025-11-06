@@ -1,11 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use core_metastore::ListParams;
 use core_metastore::error::{self as metastore_error, Result as MetastoreResult};
 use core_metastore::{
-    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Database, Metastore, RwObject, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
-    TableUpdate as MetastoreTableUpdate, RwObject, Database,
+    TableUpdate as MetastoreTableUpdate,
 };
 use core_utils::scan_iterator::ScanIterator;
 use iceberg_rust::{
@@ -29,7 +30,6 @@ use iceberg_rust_spec::{
 };
 use object_store::ObjectStore;
 use snafu::{OptionExt, ResultExt};
-use core_metastore::ListParams;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -40,12 +40,17 @@ pub struct EmbucketIcebergCatalog {
 
 impl EmbucketIcebergCatalog {
     #[tracing::instrument(name = "EmbucketIcebergCatalog::new", level = "trace", skip(metastore))]
-    pub async fn new(metastore: Arc<dyn Metastore>, database: &RwObject<Database>) -> MetastoreResult<Self> {
+    pub async fn new(
+        metastore: Arc<dyn Metastore>,
+        database: &RwObject<Database>,
+    ) -> MetastoreResult<Self> {
         // making it async, as blocking operation for sqlite is not good to have here
         let object_store = metastore
             .volume_object_store(database.volume_id()?)
             .await?
-            .context(metastore_error::VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+            .context(metastore_error::VolumeNotFoundSnafu {
+                volume: database.volume.clone(),
+            })?;
         Ok(Self {
             metastore,
             database: database.ident.clone(),

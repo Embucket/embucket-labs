@@ -13,10 +13,10 @@ use core_executor::utils::Config;
 use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use std::net::SocketAddr;
-use tokio::runtime::Builder;
 use std::net::TcpListener;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
+use tokio::runtime::Builder;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub fn run_test_server_with_demo_auth(
@@ -24,7 +24,6 @@ pub fn run_test_server_with_demo_auth(
     demo_user: String,
     demo_password: String,
 ) -> SocketAddr {
-
     let server_cond = Arc::new((Mutex::new(false), Condvar::new())); // Shared state with a condition 
     let server_cond_clone = Arc::clone(&server_cond);
 
@@ -43,7 +42,8 @@ pub fn run_test_server_with_demo_auth(
         rt.block_on(async move {
             let metastore = SlateDBMetastore::new_in_memory().await;
             let history = SlateDBHistoryStore::new_in_memory().await;
-            let auth_config = AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
+            let auth_config =
+                AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
             let app = make_app(
                 metastore,
@@ -66,12 +66,9 @@ pub fn run_test_server_with_demo_auth(
                 *notify_server_started = true; // Set notification
                 cvar.notify_one(); // Notify the waiting thread
             }
-                        
+
             // Serve the application
-            axum_server::from_tcp(listener)
-                .serve(app)
-                .await
-                .unwrap();
+            axum_server::from_tcp(listener).serve(app).await.unwrap();
         });
     });
     // Note: Not joining thread as

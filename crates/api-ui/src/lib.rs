@@ -1,10 +1,6 @@
 #![allow(clippy::from_over_into)]
 use core_executor::error::{self as ex_error};
-use core_metastore::{
-    ListParams,
-    OrderBy as MetaOrderBy,
-    OrderDirection as MetaOrderDirection,
-};
+use core_metastore::{ListParams, OrderBy as MetaOrderBy, OrderDirection as MetaOrderDirection};
 use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
 use serde::Deserialize;
 use std::fmt::Display;
@@ -108,7 +104,9 @@ impl Into<ListParams> for SearchParameters {
             parent_id: None,
             name: None,
             parent_name: None,
-            offset: self.offset.map(|offset| i64::try_from(offset).unwrap_or_default()),
+            offset: self
+                .offset
+                .map(|offset| i64::try_from(offset).unwrap_or_default()),
             limit: self.limit.map(i64::from),
             search: self.search,
             order_by: match self.order_by {
@@ -118,7 +116,7 @@ impl Into<ListParams> for SearchParameters {
                     "updated_at" => vec![MetaOrderBy::UpdatedAt(meta_order_direction)],
                     // by default order_by created_at
                     _ => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
-                }
+                },
                 // by default order_by created_at
                 _ => vec![MetaOrderBy::CreatedAt(meta_order_direction)],
             },

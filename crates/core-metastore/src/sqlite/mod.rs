@@ -1,5 +1,5 @@
-pub mod diesel_gen;
 pub mod crud;
+pub mod diesel_gen;
 
 use crate::Result;
 use crate::error::SqlSnafu;
@@ -28,22 +28,23 @@ pub async fn get_stats(connection: &Object) -> Result<Stats> {
     LEFT JOIN schemas s ON s.database_id = d.id
     LEFT JOIN tables t ON t.schema_id = s.id;";
 
-    let stats = connection.interact(move |conn| -> SqlResult<Stats> {
-        conn.query_row(sql, [], 
-        |row| {
-            let total_volumes = row.get::<_, usize>(0)?;
-            let total_databases = row.get::<_, usize>(1)?;
-            let total_schemas = row.get::<_, usize>(2)?;
-            let total_tables = row.get::<_, usize>(3)?;
-            Ok(Stats {
-                total_volumes,
-                total_databases,
-                total_schemas,
-                total_tables,
+    let stats = connection
+        .interact(move |conn| -> SqlResult<Stats> {
+            conn.query_row(sql, [], |row| {
+                let total_volumes = row.get::<_, usize>(0)?;
+                let total_databases = row.get::<_, usize>(1)?;
+                let total_schemas = row.get::<_, usize>(2)?;
+                let total_tables = row.get::<_, usize>(3)?;
+                Ok(Stats {
+                    total_volumes,
+                    total_databases,
+                    total_schemas,
+                    total_tables,
+                })
             })
         })
-    }).await?
-    .context(SqlSnafu)?;
+        .await?
+        .context(SqlSnafu)?;
 
     Ok(stats)
 }

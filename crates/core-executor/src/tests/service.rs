@@ -53,11 +53,17 @@ async fn test_execute_always_returns_schema() {
 async fn test_service_upload_file() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     let volume = metastore
-        .create_volume(MetastoreVolume::new("test_volume".to_string(), core_metastore::VolumeType::Memory))
+        .create_volume(MetastoreVolume::new(
+            "test_volume".to_string(),
+            core_metastore::VolumeType::Memory,
+        ))
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(MetastoreDatabase::new("embucket".to_string(), volume.ident.clone()))
+        .create_database(MetastoreDatabase::new(
+            "embucket".to_string(),
+            volume.ident.clone(),
+        ))
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -173,24 +179,20 @@ async fn test_service_create_table_file_volume() {
     let _ = std::fs::create_dir_all(&temp_dir);
     let temp_path = temp_dir.to_str().expect("Failed to convert path to string");
     let volume = metastore
-        .create_volume(
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::File(core_metastore::FileVolume {
-                    path: temp_path.to_string(),
-                }),
-            ),
-        )
+        .create_volume(MetastoreVolume::new(
+            "test_volume".to_string(),
+            core_metastore::VolumeType::File(core_metastore::FileVolume {
+                path: temp_path.to_string(),
+            }),
+        ))
         .await
         .expect("Failed to create volume");
     metastore
-        .create_database(
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: volume.ident.clone(),
-            },
-        )
+        .create_database(MetastoreDatabase {
+            ident: "embucket".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        })
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -273,21 +275,20 @@ async fn test_query_recording() {
     let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let volume = metastore
-        .create_volume(
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
+        .create_volume(MetastoreVolume::new(
+            "test_volume".to_string(),
+            core_metastore::VolumeType::Memory,
+        ))
         .await
         .expect("Failed to create volume");
 
     let database_name = "embucket".to_string();
 
     let _database = metastore
-        .create_database(
-            MetastoreDatabase::new(database_name.clone(), volume.ident.clone()),
-        )
+        .create_database(MetastoreDatabase::new(
+            database_name.clone(),
+            volume.ident.clone(),
+        ))
         .await
         .expect("Failed to create database");
 
@@ -773,7 +774,7 @@ async fn test_submitted_query_abort_by_request_id() {
 
     let query_id = query_handle.query_id;
 
-    let query_status =execution_svc
+    let query_status = execution_svc
         .abort_query(RunningQueryId::ByRequestId(
             request_id,
             sql_text.to_string(),

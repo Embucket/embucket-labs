@@ -2,22 +2,22 @@
 #![allow(clippy::wildcard_imports)]
 
 use super::*;
+use crate::models::*;
+use crate::{
+    Metastore,
+    models::{
+        database::Database,
+        schema::{Schema, SchemaIdent},
+        table::{TableCreateRequest, TableIdent},
+        volumes::Volume,
+    },
+};
 use futures::StreamExt;
 use iceberg_rust_spec::{
     schema::Schema as IcebergSchema,
     types::{PrimitiveType, StructField, Type},
 };
 use std::result::Result;
-use crate::models::*;
-use crate::{
-    Metastore,
-    models::{
-        database::{Database},
-        schema::{Schema, SchemaIdent},
-        table::{TableCreateRequest, TableIdent},
-        volumes::{Volume},
-    },
-};
 
 use core_utils::scan_iterator::ScanIterator;
 use object_store::ObjectStore;
@@ -177,18 +177,16 @@ async fn test_update_volume() {
 #[tokio::test]
 async fn test_create_database() {
     let ms = get_metastore().await;
-    let mut database = Database::new(
-        "testdb".to_owned(),
-        "non_existing".to_owned(),
-    );
+    let mut database = Database::new("testdb".to_owned(), "non_existing".to_owned());
     let no_volume_result = ms
         .create_database(database.clone())
         .await
         .expect_err("create database with non existing volume should fail");
 
-    let volume_testv1 = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
+    let volume_testv1 = ms
+        .create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
-        .expect("create volume failed");    
+        .expect("create volume failed");
 
     database.volume = volume_testv1.ident.clone();
     ms.create_database(database.clone())
@@ -239,7 +237,8 @@ async fn test_schemas() {
         .create_schema(&schema.ident.clone(), schema.clone())
         .await;
 
-    let volume = ms.create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
+    let volume = ms
+        .create_volume(Volume::new("testv1".to_owned(), VolumeType::Memory))
         .await
         .expect("create volume failed");
     ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
@@ -251,8 +250,7 @@ async fn test_schemas() {
         .expect("create schema failed");
 
     let schema_list = ms
-        .get_schemas(ListParams::default()
-            .by_parent_name(schema.ident.database.clone()))
+        .get_schemas(ListParams::default().by_parent_name(schema.ident.database.clone()))
         .await
         .expect("list schemas failed");
     let schema_get = ms
@@ -263,8 +261,7 @@ async fn test_schemas() {
         .await
         .expect("delete schema failed");
     let schema_list_after = ms
-        .get_schemas(ListParams::default()
-            .by_parent_name(schema.ident.database))
+        .get_schemas(ListParams::default().by_parent_name(schema.ident.database))
         .await
         .expect("list schemas failed");
 
@@ -319,12 +316,13 @@ async fn test_tables() {
     let no_schema_result = ms.create_table(&table.ident.clone(), table.clone()).await;
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    let volume = ms.create_volume(volume)
+    let volume = ms
+        .create_volume(volume)
         .await
         .expect("create volume failed");
     ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
         .await
-    .expect("create database failed");
+        .expect("create database failed");
     ms.create_schema(
         &SchemaIdent {
             database: "testdb".to_owned(),
@@ -429,12 +427,13 @@ async fn test_temporary_tables() {
     };
 
     let volume = Volume::new("testv1".to_owned(), VolumeType::Memory);
-    let volume = ms.create_volume(volume)
+    let volume = ms
+        .create_volume(volume)
         .await
         .expect("create volume failed");
     ms.create_database(Database::new("testdb".to_owned(), volume.ident.clone()))
-    .await
-    .expect("create database failed");
+        .await
+        .expect("create database failed");
     ms.create_schema(
         &SchemaIdent {
             database: "testdb".to_owned(),

@@ -88,7 +88,9 @@ impl IntoResponse for Error {
             | core_metastore::Error::TableNotFound { .. }
             | core_metastore::Error::ObjectNotFound { .. } => http::StatusCode::NOT_FOUND,
             core_metastore::Error::ObjectStore { .. }
-            | core_metastore::Error::ObjectStorePath { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            | core_metastore::Error::ObjectStorePath { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
             _ => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 

@@ -1,8 +1,8 @@
 #![allow(clippy::needless_for_each)]
+use crate::OrderDirection;
 use crate::error::Result;
 use crate::state::AppState;
 use crate::volumes::error::VolumeNotFoundSnafu;
-use crate::OrderDirection;
 use crate::{
     SearchParameters,
     databases::error::{
@@ -89,8 +89,10 @@ pub async fn create_database(
         .get_volume(&database.volume)
         .await
         .context(GetSnafu)?
-        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
-    
+        .context(VolumeNotFoundSnafu {
+            volume: database.volume.clone(),
+        })?;
+
     let database = MetastoreDatabase {
         ident: database.name,
         volume: volume.ident.clone(),
@@ -242,7 +244,9 @@ pub async fn update_database(
         .get_volume(&database.volume)
         .await
         .context(GetSnafu)?
-        .context(VolumeNotFoundSnafu { volume: database.volume.clone() })?;
+        .context(VolumeNotFoundSnafu {
+            volume: database.volume.clone(),
+        })?;
 
     let database = MetastoreDatabase {
         ident: database.name,
@@ -293,7 +297,7 @@ pub async fn list_databases(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> Result<Json<DatabasesResponse>> {
-// let context = QueryContext::default();
+    // let context = QueryContext::default();
     // let sql_string = "SELECT * FROM sqlite.meta.databases".to_string();
     // let sql_string = apply_parameters(
     //     &sql_string,
@@ -327,8 +331,9 @@ pub async fn list_databases(
     //     }
     // }
     // Ok(Json(DatabasesResponse { items }))
-    
-    let items = state.metastore
+
+    let items = state
+        .metastore
         .get_databases(parameters.into())
         .await
         .context(databases_error::ListSnafu)?

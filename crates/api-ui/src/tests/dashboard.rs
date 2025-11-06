@@ -4,8 +4,8 @@ use crate::dashboard::models::DashboardResponse;
 use crate::databases::models::DatabaseCreatePayload;
 use crate::queries::models::QueryCreatePayload;
 use crate::schemas::models::{SchemaCreatePayload, SchemaCreateResponse};
-use crate::tests::common::{req, http_req};
 use crate::tests::common::{Entity, Op, ui_test_op};
+use crate::tests::common::{http_req, req};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use crate::worksheets::models::{Worksheet, WorksheetCreatePayload, WorksheetResponse};
@@ -28,7 +28,7 @@ async fn test_ui_dashboard() {
     assert_eq!(0, dashboard.total_tables);
     assert_eq!(0, dashboard.total_queries);
 
-let res = ui_test_op(
+    let res = ui_test_op(
         addr,
         Op::Create,
         None,
@@ -71,7 +71,7 @@ let res = ui_test_op(
     assert_eq!(4, dashboard.total_databases);
     assert_eq!(0, dashboard.total_schemas);
     assert_eq!(0, dashboard.total_tables);
-    // TODO: fix after metastore done if queries remained 
+    // TODO: fix after metastore done if queries remained
     // assert_eq!(5, dashboard.total_queries);
 
     let schema_name = "testing1".to_string();

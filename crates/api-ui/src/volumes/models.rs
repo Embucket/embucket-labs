@@ -5,8 +5,8 @@ use core_metastore::models::{
 };
 use core_metastore::{RwObject, S3TablesVolume as MetastoreS3TablesVolume, error as metastore_err};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use snafu::ResultExt;
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]

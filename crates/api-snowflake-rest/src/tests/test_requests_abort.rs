@@ -3,9 +3,9 @@
 mod tests {
     use crate::models::{JsonResponse, LoginResponse};
     use crate::server::test_server::run_test_rest_api_server;
+    use crate::server::test_server::server_default_cfg;
     use crate::tests::client::{abort, get_query_result, login, query};
     use crate::tests::sql_macro::{JSON, query_id_from_snapshot};
-    use crate::server::test_server::server_default_cfg;
     use axum::http;
     use http::header;
     use std::time::Duration;

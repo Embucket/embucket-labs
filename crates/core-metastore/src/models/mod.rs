@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
+use crate::error::{NoNamedIdSnafu, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use crate::error::{Result, NoNamedIdSnafu};
 use snafu::OptionExt;
+use std::collections::HashMap;
 
 pub mod database;
 pub mod schema;

@@ -42,11 +42,7 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(name = "api_ui::get_dashboard", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<DashboardResponse>> {
-    let stats = state
-        .metastore
-        .get_stats()
-        .await
-        .context(MetastoreSnafu)?;
+    let stats = state.metastore.get_stats().await.context(MetastoreSnafu)?;
 
     let total_queries = state
         .history_store
@@ -54,7 +50,7 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<Dashboa
         .await
         .context(HistorySnafu)?
         .len();
-    
+
     Ok(Json(DashboardResponse(Dashboard {
         total_databases: stats.total_databases,
         total_schemas: stats.total_schemas,

@@ -1,8 +1,8 @@
 use crate::catalogs::slatedb::metastore_config::MetastoreViewConfig;
 use datafusion::arrow::error::ArrowError;
 use datafusion::arrow::{
-    array::StringBuilder,
     array::Int64Builder,
+    array::StringBuilder,
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };

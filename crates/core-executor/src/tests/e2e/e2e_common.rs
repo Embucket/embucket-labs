@@ -537,9 +537,10 @@ pub async fn create_volumes(
             TestVolumeType::Memory => {
                 eprintln!("Creating memory volume: {volume}");
                 let res = metastore
-                    .create_volume(
-                        MetastoreVolume::new(volume.clone(), core_metastore::VolumeType::Memory),
-                    )
+                    .create_volume(MetastoreVolume::new(
+                        volume.clone(),
+                        core_metastore::VolumeType::Memory,
+                    ))
                     .await;
                 if let Err(e) = res {
                     eprintln!("Failed to create memory volume: {e}");
@@ -552,14 +553,12 @@ pub async fn create_volumes(
                 let user_data_dir = user_data_dir.as_path();
                 eprintln!("Creating file volume: {volume}, {user_data_dir:?}");
                 let res = metastore
-                    .create_volume(
-                        MetastoreVolume::new(
-                            volume.clone(),
-                            core_metastore::VolumeType::File(FileVolume {
-                                path: user_data_dir.display().to_string(),
-                            }),
-                        ),
-                    )
+                    .create_volume(MetastoreVolume::new(
+                        volume.clone(),
+                        core_metastore::VolumeType::File(FileVolume {
+                            path: user_data_dir.display().to_string(),
+                        }),
+                    ))
                     .await;
                 if let Err(e) = res {
                     eprintln!("Failed to create file volume: {e}");
@@ -570,12 +569,10 @@ pub async fn create_volumes(
                 if let Ok(s3_volume) = s3_volume(prefix) {
                     eprintln!("Creating s3 volume: {volume}, {s3_volume:?}");
                     let res = metastore
-                        .create_volume(
-                            MetastoreVolume::new(
-                                volume.clone(),
-                                core_metastore::VolumeType::S3(s3_volume),
-                            ),
-                        )
+                        .create_volume(MetastoreVolume::new(
+                            volume.clone(),
+                            core_metastore::VolumeType::S3(s3_volume),
+                        ))
                         .await;
                     if let Err(e) = res {
                         eprintln!("Failed to create s3 volume: {e}");
@@ -587,12 +584,10 @@ pub async fn create_volumes(
                 if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
                     eprintln!("Creating s3tables volume: {volume}, {s3_tables_volume:?}");
                     let res = metastore
-                        .create_volume(
-                            MetastoreVolume::new(
-                                volume.clone(),
-                                core_metastore::VolumeType::S3Tables(s3_tables_volume),
-                            ),
-                        )
+                        .create_volume(MetastoreVolume::new(
+                            volume.clone(),
+                            core_metastore::VolumeType::S3Tables(s3_tables_volume),
+                        ))
                         .await;
                     if let Err(e) = res {
                         eprintln!("Failed to create s3tables volume: {e}");

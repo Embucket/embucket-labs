@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use crate::list_parameters::ListParams;
+use crate::sqlite::Stats;
 use crate::{
     error::Result,
     models::{
@@ -12,8 +13,7 @@ use crate::{
 use async_trait::async_trait;
 use core_utils::scan_iterator::VecScanIterator;
 use object_store::ObjectStore;
-use crate::list_parameters::ListParams;
-use crate::sqlite::Stats;
+use std::sync::Arc;
 
 #[async_trait]
 pub trait Metastore: std::fmt::Debug + Send + Sync {
@@ -23,15 +23,22 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
     async fn get_volume_by_id(&self, id: i64) -> Result<RwObject<Volume>>;
-    async fn get_volume_by_database(&self, database: &DatabaseIdent) -> Result<Option<RwObject<Volume>>>;
+    async fn get_volume_by_database(
+        &self,
+        database: &DatabaseIdent,
+    ) -> Result<Option<RwObject<Volume>>>;
     async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
     async fn volume_object_store(&self, volume_id: i64) -> Result<Option<Arc<dyn ObjectStore>>>;
 
     async fn get_databases(&self, params: ListParams) -> Result<Vec<RwObject<Database>>>;
-    async fn create_database(&self,database: Database) -> Result<RwObject<Database>>;
+    async fn create_database(&self, database: Database) -> Result<RwObject<Database>>;
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>>;
-    async fn update_database(&self, name: &DatabaseIdent, database: Database) -> Result<RwObject<Database>>;
+    async fn update_database(
+        &self,
+        name: &DatabaseIdent,
+        database: Database,
+    ) -> Result<RwObject<Database>>;
     async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> Result<()>;
 
     async fn get_schemas(&self, params: ListParams) -> Result<Vec<RwObject<Schema>>>;

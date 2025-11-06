@@ -54,7 +54,7 @@ pub enum Error {
         source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
 }
 
 fn core_executor_error(source: &core_executor::Error) -> StatusCode {

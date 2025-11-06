@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{DatabaseCreatePayload};
+use crate::databases::models::DatabaseCreatePayload;
 use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
@@ -210,8 +210,16 @@ async fn test_ui_schemas() {
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(
-        vec!["testing1".to_string(), "testing2".to_string(), "testing3".to_string()],
-        schemas_response.items.into_iter().map(|s| s.name).collect::<Vec<String>>()
+        vec![
+            "testing1".to_string(),
+            "testing2".to_string(),
+            "testing3".to_string()
+        ],
+        schemas_response
+            .items
+            .into_iter()
+            .map(|s| s.name)
+            .collect::<Vec<String>>()
     );
 
     //Get list schemas with parameters

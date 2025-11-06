@@ -2,9 +2,9 @@ use error_stack_trace;
 use iceberg_rust::error::Error as IcebergError;
 use iceberg_rust_spec::table_metadata::TableMetadataBuilderError;
 use snafu::Location;
+use snafu::location;
 use snafu::prelude::*;
 use strum_macros::AsRefStr;
-use snafu::location;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -363,7 +363,6 @@ pub enum Error {
     },
 }
 
-
 // One drawback using this conversion instead of .context() is about useless error location pointing to below line
 impl From<deadpool_sqlite::InteractError> for Error {
     fn from(err: deadpool_sqlite::InteractError) -> Self {
@@ -377,6 +376,9 @@ impl From<deadpool_sqlite::InteractError> for Error {
 // syntax sugar to use ? without .context()
 impl From<deadpool::managed::PoolError<deadpool_diesel::Error>> for Error {
     fn from(error: deadpool::managed::PoolError<deadpool_diesel::Error>) -> Self {
-        Self::DieselPool { error, location: location!() }
+        Self::DieselPool {
+            error,
+            location: location!(),
+        }
     }
 }

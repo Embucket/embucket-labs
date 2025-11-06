@@ -5,8 +5,6 @@
 // use diesel::result::Error;
 // use crate::error::*;
 
-
-
 // pub async fn create_table(pool: &Pool, new_table: NewTable) -> Result<()> {
 //     let conn = pool.get().await;
 //     conn.interact(move |conn| {

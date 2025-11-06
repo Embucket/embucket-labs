@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone)]
 pub enum OrderDirection {
     Asc,
@@ -96,9 +95,6 @@ impl ListParams {
     }
     #[must_use]
     pub fn with_order_by(self, order_by: Vec<OrderBy>) -> Self {
-        Self {
-            order_by,
-            ..self
-        }
+        Self { order_by, ..self }
     }
 }

@@ -6,8 +6,8 @@ use crate::{
     error::ErrorResponse,
     volumes::error::{CreateQuerySnafu, CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu},
     volumes::models::{
-        FileVolume, S3TablesVolume, S3Volume, Volume, VolumeCreatePayload, VolumeCreateResponse,
-        VolumeResponse, VolumeType, VolumesResponse, AwsAccessKeyCredentials, AwsCredentials,
+        AwsAccessKeyCredentials, AwsCredentials, FileVolume, S3TablesVolume, S3Volume, Volume,
+        VolumeCreatePayload, VolumeCreateResponse, VolumeResponse, VolumeType, VolumesResponse,
     },
 };
 use api_sessions::DFSessionId;
@@ -15,13 +15,10 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext};
-use core_metastore::error::{
-    ValidationSnafu, VolumeMissingCredentialsSnafu,
-};
+use core_executor::models::QueryContext;
+use core_metastore::error::{ValidationSnafu, VolumeMissingCredentialsSnafu};
 use core_metastore::models::{
-    AwsCredentials as MetastoreAwsCredentials,
-    Volume as MetastoreVolume,
+    AwsCredentials as MetastoreAwsCredentials, Volume as MetastoreVolume,
     VolumeType as MetastoreVolumeType,
 };
 use snafu::{OptionExt, ResultExt};
@@ -163,7 +160,9 @@ pub async fn create_volume(
         .context(GetSnafu)?
         .context(VolumeNotFoundSnafu { volume: ident })?;
 
-    Ok(Json(VolumeCreateResponse(Volume::try_from(volume).context(CreateSnafu)?)))
+    Ok(Json(VolumeCreateResponse(
+        Volume::try_from(volume).context(CreateSnafu)?,
+    )))
 }
 
 #[utoipa::path(
@@ -196,9 +195,13 @@ pub async fn get_volume(
         .get_volume(&volume_name)
         .await
         .context(GetSnafu)?
-        .context(VolumeNotFoundSnafu { volume: volume_name.clone() })?;
+        .context(VolumeNotFoundSnafu {
+            volume: volume_name.clone(),
+        })?;
 
-    Ok(Json(VolumeResponse(Volume::try_from(volume).context(GetSnafu)?)))
+    Ok(Json(VolumeResponse(
+        Volume::try_from(volume).context(GetSnafu)?,
+    )))
 }
 
 #[utoipa::path(

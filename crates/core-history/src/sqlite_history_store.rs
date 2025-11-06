@@ -136,7 +136,8 @@ impl SlateDBHistoryStore {
 
         let result = tokio::try_join!(
             queries_connection.interact(|conn| -> SqlResult<()> {
-                conn.execute_batch(&format!("
+                conn.execute_batch(&format!(
+                    "
                     BEGIN;
                     {WORKSHEETS_CREATE_TABLE}
                     {QUERIES_CREATE_TABLE}
@@ -195,7 +196,7 @@ impl HistoryStore for SlateDBHistoryStore {
         name = "SqliteHistoryStore::get_worksheet",
         level = "debug",
         skip(self),
-        fields(ok=""),
+        fields(ok = ""),
         err
     )]
     async fn get_worksheet(&self, id: WorksheetId) -> Result<Worksheet> {
@@ -368,9 +369,10 @@ impl HistoryStore for SlateDBHistoryStore {
             .context(history_err::WorksheetAddSnafu)?;
 
         let q = item.clone();
-        let res = conn.interact(move |conn| -> SqlResult<usize> {
-            conn.execute(
-                "INSERT INTO queries (
+        let res = conn
+            .interact(move |conn| -> SqlResult<usize> {
+                conn.execute(
+                    "INSERT INTO queries (
                     id,
                     worksheet_id,
                     result_id,                    
@@ -395,24 +397,24 @@ impl HistoryStore for SlateDBHistoryStore {
                     :error,
                     :diagnostic_error
                     )",
-                named_params! {
-                    ":id": q.id.to_string(),
-                    ":worksheet_id": q.worksheet_id,
-                    ":result_id": None::<String>,
-                    ":query": q.query,
-                    ":start_time": q.start_time.to_rfc3339(),
-                    ":end_time": q.end_time.to_rfc3339(),
-                    ":duration_ms": q.duration_ms,
-                    ":result_count": q.result_count,
-                    ":status": q.status.to_string(),
-                    ":error": q.error,
-                    ":diagnostic_error": q.diagnostic_error,
-                },
-            )
-        })
-        .await?
-        .context(core_utils_err::RuSqliteSnafu)
-        .context(history_err::QueryAddSnafu)?;
+                    named_params! {
+                        ":id": q.id.to_string(),
+                        ":worksheet_id": q.worksheet_id,
+                        ":result_id": None::<String>,
+                        ":query": q.query,
+                        ":start_time": q.start_time.to_rfc3339(),
+                        ":end_time": q.end_time.to_rfc3339(),
+                        ":duration_ms": q.duration_ms,
+                        ":result_count": q.result_count,
+                        ":status": q.status.to_string(),
+                        ":error": q.error,
+                        ":diagnostic_error": q.diagnostic_error,
+                    },
+                )
+            })
+            .await?
+            .context(core_utils_err::RuSqliteSnafu)
+            .context(history_err::QueryAddSnafu)?;
 
         tracing::Span::current().record("ok", res);
         Ok(())

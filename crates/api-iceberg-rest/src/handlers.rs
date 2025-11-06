@@ -7,7 +7,9 @@ use crate::state::State as AppState;
 use axum::http::StatusCode;
 use axum::{Json, extract::Path, extract::Query, extract::State};
 use core_metastore::error::{self as metastore_error};
-use core_metastore::{ListParams, SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent};
+use core_metastore::{
+    ListParams, SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent,
+};
 use core_utils::scan_iterator::ScanIterator;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,

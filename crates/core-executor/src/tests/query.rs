@@ -98,22 +98,18 @@ pub async fn create_df_session() -> Arc<UserSession> {
     let running_queries = Arc::new(RunningQueriesRegistry::new());
 
     let volume = metastore
-        .create_volume(
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
+        .create_volume(MetastoreVolume::new(
+            "test_volume".to_string(),
+            core_metastore::VolumeType::Memory,
+        ))
         .await
         .expect("Failed to create volume");
     let _database = metastore
-        .create_database(
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: volume.ident.clone(),
-            },
-        )
+        .create_database(MetastoreDatabase {
+            ident: "embucket".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        })
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {

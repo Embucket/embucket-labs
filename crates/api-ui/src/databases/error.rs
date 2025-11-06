@@ -56,7 +56,7 @@ pub enum Error {
         source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
-    }
+    },
 }
 
 // Select which status code to return.

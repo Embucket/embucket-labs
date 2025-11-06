@@ -12,6 +12,6 @@ pub fn run_test_rest_api_server(_: Option<(AppCfg, UtilsConfig)>) -> SocketAddr 
 }
 
 pub fn server_default_cfg(_data_format: &str) -> Option<(AppCfg, UtilsConfig)> {
-    // should use defaults, when using external server as we doesn't link with core-executor 
+    // should use defaults, when using external server as we doesn't link with core-executor
     None
 }

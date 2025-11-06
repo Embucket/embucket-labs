@@ -1,7 +1,7 @@
-use crate::server::test_server::run_test_rest_api_server;
 use crate::server::server_models::Config as AppCfg;
-use core_executor::utils::Config as UtilsConfig;
+use crate::server::test_server::run_test_rest_api_server;
 use crate::sql_test;
+use core_executor::utils::Config as UtilsConfig;
 
 // These tests will be compiled / executed us usually. They spawn own server on every test.
 // In case you need faster development cycle - go to test_rest_sqls.rs

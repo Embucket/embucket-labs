@@ -5,12 +5,12 @@ use core_executor::utils::Config as UtilsConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
 use std::net::SocketAddr;
+use std::net::TcpListener;
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
-use tracing_subscriber::fmt::format::FmtSpan;
 use tokio::runtime::Builder;
-use std::net::TcpListener;
-use std::sync::{Arc, Mutex, Condvar};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[allow(clippy::expect_used)]
 #[must_use]
@@ -32,10 +32,8 @@ pub fn run_test_rest_api_server(server_cfg: Option<(AppCfg, UtilsConfig)>) -> So
     let server_cond = Arc::new((Mutex::new(false), Condvar::new())); // Shared state with a condition 
     let server_cond_clone = Arc::clone(&server_cond);
 
-    let listener = TcpListener::bind("0.0.0.0:0")
-        .expect("Failed to bind to address");
-    let addr = listener.local_addr()
-        .expect("Failed to get local address");
+    let listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind to address");
+    let addr = listener.local_addr().expect("Failed to get local address");
 
     // Start a new thread for the server
     let _handle = std::thread::spawn(move || {
@@ -48,8 +46,12 @@ pub fn run_test_rest_api_server(server_cfg: Option<(AppCfg, UtilsConfig)>) -> So
         // Start the Axum server
         rt.block_on(async {
             let () = run_test_rest_api_server_with_config(
-                app_cfg, executor_cfg, listener, server_cond_clone
-            ).await;
+                app_cfg,
+                executor_cfg,
+                listener,
+                server_cond_clone,
+            )
+            .await;
         });
     });
     // Note: Not joining thread as
@@ -124,12 +126,9 @@ pub async fn run_test_rest_api_server_with_config(
         *notify_server_started = true; // Set notification
         cvar.notify_one(); // Notify the waiting thread
     }
-    
+
     tracing::info!("Server ready at {addr}");
 
     // Serve the application
-    axum_server::from_tcp(listener)
-        .serve(app)
-        .await
-        .unwrap();
+    axum_server::from_tcp(listener).serve(app).await.unwrap();
 }

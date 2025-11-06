@@ -42,7 +42,6 @@ pub enum MetastoreObjectType {
     Table,
 }
 
-
 ///
 /// vol -> List of volumes
 /// vol/<name> -> `Volume`

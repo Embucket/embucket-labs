@@ -1,7 +1,7 @@
 #![allow(clippy::needless_for_each)]
+use crate::OrderDirection;
 use crate::Result;
 use crate::state::AppState;
-use crate::OrderDirection;
 use crate::{
     SearchParameters,
     error::ErrorResponse,
@@ -351,7 +351,8 @@ pub async fn list_schemas(
     //         });
     //     }
     // }
-    let items = state.metastore
+    let items = state
+        .metastore
         .get_schemas(parameters.into())
         .await
         .context(ListSnafu)?

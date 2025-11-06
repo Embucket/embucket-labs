@@ -209,8 +209,7 @@ impl CoreExecutionService {
             .await;
         if let Err(core_metastore::Error::VolumeAlreadyExists { .. }) = &volume_res {
             tracing::info!("Bootstrap volume '{}' skipped: already exists", ident);
-        }
-        else {
+        } else {
             volume_res.context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?;
@@ -223,7 +222,9 @@ impl CoreExecutionService {
             .context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?
-            .context(metastore_err::VolumeNotFoundSnafu { volume: ident.clone() })
+            .context(metastore_err::VolumeNotFoundSnafu {
+                volume: ident.clone(),
+            })
             .context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?;
@@ -233,8 +234,7 @@ impl CoreExecutionService {
             .await;
         if let Err(core_metastore::Error::DatabaseAlreadyExists { .. }) = &database_res {
             tracing::info!("Bootstrap database '{}' skipped: already exists", ident);
-        }
-        else {
+        } else {
             database_res.context(ex_error::BootstrapSnafu {
                 entity_type: "database",
             })?;
@@ -246,8 +246,7 @@ impl CoreExecutionService {
             .await;
         if let Err(core_metastore::Error::SchemaAlreadyExists { .. }) = &schema_res {
             tracing::info!("Bootstrap schema '{}' skipped: already exists", ident);
-        }
-        else {
+        } else {
             schema_res.context(ex_error::BootstrapSnafu {
                 entity_type: "schema",
             })?;

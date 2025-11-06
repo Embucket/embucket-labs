@@ -14,7 +14,9 @@ use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
 use core_metastore::error::VolumeNotFoundSnafu;
-use core_metastore::{AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType};
+use core_metastore::{
+    AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType,
+};
 use core_metastore::{SchemaIdent, TableIdent};
 use dashmap::DashMap;
 use datafusion::{
@@ -197,8 +199,11 @@ impl EmbucketCatalogList {
                 e.insert(volume);
             }
             // should not fail here
-            let volume = volumes.get(&volume_id)
-                .context(VolumeNotFoundSnafu { volume: db.volume.clone() })
+            let volume = volumes
+                .get(&volume_id)
+                .context(VolumeNotFoundSnafu {
+                    volume: db.volume.clone(),
+                })
                 .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type
             let catalog = match &volume.volume {

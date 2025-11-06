@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::databases::models::{
-    DatabaseCreatePayload, DatabaseCreateResponse, DatabasesResponse,
-    DatabaseUpdatePayload, Database,
+    Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdatePayload,
+    DatabasesResponse,
 };
 use crate::error::ErrorResponse;
-use crate::tests::common::{Entity, Op, req, ui_test_op, http_req};
+use crate::tests::common::{Entity, Op, http_req, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType, Volume};
-use serde_json::json;
+use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use http::Method;
+use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]

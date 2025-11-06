@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::databases::models::{DatabaseCreatePayload};
+use crate::databases::models::DatabaseCreatePayload;
 use crate::queries::models::QueryCreatePayload;
 use crate::schemas::models::SchemaCreatePayload;
 use crate::tables::models::{

@@ -1,9 +1,9 @@
 use core_metastore::RwObject;
+use core_metastore::error as metastore_err;
 use core_metastore::models::Database as MetastoreDatabase;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-use core_metastore::error as metastore_err;
 use snafu::ResultExt;
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +19,8 @@ impl TryFrom<RwObject<MetastoreDatabase>> for Database {
     type Error = super::Error;
     fn try_from(db: RwObject<MetastoreDatabase>) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: db.id()
+            id: db
+                .id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
             volume: db.data.volume,

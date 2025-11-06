@@ -1,11 +1,11 @@
+use crate::Result;
 use core_metastore::RwObject;
+use core_metastore::error as metastore_err;
 use core_metastore::models::Schema as MetastoreSchema;
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use std::convert::From;
 use utoipa::ToSchema;
-use core_metastore::error as metastore_err;
-use crate::Result;
-use snafu::ResultExt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -22,10 +22,12 @@ impl TryFrom<RwObject<MetastoreSchema>> for Schema {
     type Error = crate::error::Error;
     fn try_from(rw_schema: RwObject<MetastoreSchema>) -> Result<Self> {
         Ok(Self {
-            id: rw_schema.id()
+            id: rw_schema
+                .id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
-            database_id: rw_schema.database_id()
+            database_id: rw_schema
+                .database_id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
             name: rw_schema.data.ident.schema,
