@@ -1,3 +1,4 @@
+use crate::datetime::timestamp_from_parts::take_function_args;
 use crate::macros::make_udf_function;
 use crate::semi_structured::errors;
 use datafusion::arrow::array::Array;
@@ -102,94 +103,72 @@ impl ScalarUDFImpl for VariantArrayElementUDF {
 
     #[allow(clippy::too_many_lines, clippy::unwrap_used)]
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        let ScalarFunctionArgs { mut args, .. } = args;
-        let (flatten, index, array_str) = if args.len() == 3 {
-            (args.pop(), args.pop().unwrap(), args.pop().unwrap())
-        } else if args.len() == 2 {
-            (None, args.pop().unwrap(), args.pop().unwrap())
-        } else {
-            return errors::InvalidNumberOfArgumentsSnafu.fail()?;
+        let ScalarFunctionArgs {
+            args, number_rows, ..
+        } = args;
+        let (array, index, flatten_opt) = match args.len() {
+            3 => {
+                let [array, index, flatten] = take_function_args("var_element", args)?;
+                (
+                    array.into_array(number_rows)?,
+                    index.into_array(number_rows)?,
+                    Some(flatten),
+                )
+            }
+            2 => {
+                let [array, index] = take_function_args("var_element", args)?;
+                (
+                    array.into_array(number_rows)?,
+                    index.into_array(number_rows)?,
+                    None,
+                )
+            }
+            _ => return errors::InvalidNumberOfArgumentsSnafu.fail()?,
         };
-        match (array_str, index) {
-            (ColumnarValue::Array(array), ColumnarValue::Scalar(index_value)) => {
-                let ScalarValue::Utf8(Some(index)) = index_value else {
-                    return errors::ExpectedJsonPathValueForIndexSnafu.fail()?;
-                };
 
-                let flatten =
-                    if let Some(ColumnarValue::Scalar(ScalarValue::Boolean(Some(b)))) = flatten {
-                        b
-                    } else {
-                        false
-                    };
+        let flatten = match flatten_opt {
+            Some(ColumnarValue::Scalar(ScalarValue::Boolean(Some(b)))) => b,
+            _ => false,
+        };
 
-                // Normalize to Utf8 to support Utf8View/LargeUtf8 uniformly
-                let array = cast(&array, &DataType::Utf8)?;
-                let string_array = array.as_string::<i32>();
-                let mut builder = StringBuilder::new();
+        let array = cast(&array, &DataType::Utf8)?;
+        let arr = array.as_string::<i32>();
 
-                for i in 0..string_array.len() {
-                    if string_array.is_null(i) {
+        let index = cast(&index, &DataType::Utf8)?;
+        let path_arr = index.as_string::<i32>();
+
+        let mut builder = StringBuilder::new();
+        for i in 0..arr.len() {
+            if arr.is_null(i) || path_arr.is_null(i) {
+                builder.append_null();
+                continue;
+            }
+
+            let json_str = arr.value(i);
+            let json_path = path_arr.value(i);
+
+            // Run JSONPath
+            let extracted: Option<Vec<Value>> = jsonpath_lib::select_as(json_str, json_path).ok();
+
+            match extracted {
+                None => builder.append_null(),
+                Some(values) => {
+                    if values.is_empty() {
                         builder.append_null();
-                    } else {
-                        let value: Option<Vec<Value>> =
-                            jsonpath_lib::select_as(string_array.value(i), &index).ok();
-                        match value {
-                            Some(s) => {
-                                if s.is_empty() {
-                                    builder.append_null();
-                                } else if flatten {
-                                    if s.len() == 1 {
-                                        builder.append_value(s[0].to_string());
-                                    } else {
-                                        builder.append_value(Value::Array(s).to_string());
-                                    }
-                                } else {
-                                    builder.append_value(Value::Array(s).to_string());
-                                }
-                            }
-                            None => builder.append_null(),
+                    } else if flatten {
+                        match &values[0] {
+                            Value::Null => builder.append_null(),
+                            Value::String(s) => builder.append_value(s.as_str()),
+                            other => builder.append_value(other.to_string()),
                         }
+                    } else {
+                        // return JSON array
+                        builder.append_value(Value::Array(values).to_string());
                     }
                 }
-
-                Ok(ColumnarValue::Array(Arc::new(builder.finish())))
             }
-            (ColumnarValue::Scalar(array_value), ColumnarValue::Scalar(index_value)) => {
-                let ScalarValue::Utf8(Some(index)) = index_value else {
-                    return errors::ExpectedJsonPathValueForIndexSnafu.fail()?;
-                };
-
-                let ScalarValue::Utf8(Some(array_str)) = array_value else {
-                    return errors::ExpectedStringArraySnafu.fail()?;
-                };
-
-                let flatten =
-                    if let Some(ColumnarValue::Scalar(ScalarValue::Boolean(Some(b)))) = flatten {
-                        b
-                    } else {
-                        false
-                    };
-                let value: Option<Vec<Value>> = jsonpath_lib::select_as(&array_str, &index).ok();
-                match value {
-                    Some(s) => {
-                        if s.is_empty() {
-                            Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None)))
-                        } else if flatten {
-                            Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(
-                                s[0].to_string(),
-                            ))))
-                        } else {
-                            Ok(ColumnarValue::Scalar(ScalarValue::Utf8(Some(
-                                Value::Array(s).to_string(),
-                            ))))
-                        }
-                    }
-                    None => Ok(ColumnarValue::Scalar(ScalarValue::Utf8(None))),
-                }
-            }
-            _ => errors::InvalidArgumentTypesSnafu.fail()?,
         }
+        Ok(ColumnarValue::Array(Arc::new(builder.finish())))
     }
 }
 
@@ -221,10 +200,8 @@ mod tests {
         ctx.sql(sql).await?.collect().await?;
 
         // Test basic array indexing
-        let sql = "SELECT arrvar[0] as first, \
-                         arrvar[1] as second, \
-                         arrvar[2] as third \
-                  FROM test_table WHERE id = 1";
+        let sql =
+            "SELECT arrvar[0] as first, arrvar[1] as second, arrvar[2] as third FROM test_table";
 
         let mut statement = ctx.state().sql_to_statement(sql, "snowflake")?;
         if let Statement::Statement(ref mut stmt) = statement {
@@ -239,7 +216,8 @@ mod tests {
                 "| first | second | third |",
                 "+-------+--------+-------+",
                 "| 1     | 2      | 3     |",
-                "+-------+--------+-------+"
+                "| a     | b      | c     |",
+                "+-------+--------+-------+",
             ],
             &result
         );
@@ -260,26 +238,6 @@ mod tests {
                 "+---------------+",
                 "|               |",
                 "+---------------+",
-            ],
-            &result
-        );
-
-        // Test mixed type array
-        let sql = "SELECT arrvar[1] as str_element FROM test_table WHERE id = 2";
-        let mut statement = ctx.state().sql_to_statement(sql, "snowflake")?;
-        if let Statement::Statement(ref mut stmt) = statement {
-            variant_element::visit(stmt);
-        }
-        let plan = ctx.state().statement_to_plan(statement).await?;
-        let result = ctx.execute_logical_plan(plan).await?.collect().await?;
-
-        assert_batches_eq!(
-            [
-                "+-------------+",
-                "| str_element |",
-                "+-------------+",
-                "| \"b\"         |",
-                "+-------------+"
             ],
             &result
         );
@@ -339,7 +297,7 @@ mod tests {
                 "| first_elem |",
                 "+------------+",
                 "| 1          |",
-                "| \"x\"        |",
+                "| x          |",
                 "+------------+"
             ],
             &result
