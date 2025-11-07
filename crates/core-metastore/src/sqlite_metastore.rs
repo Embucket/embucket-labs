@@ -385,13 +385,11 @@ impl Metastore for SlateDBMetastore {
         )?;
         let volume_id = volume.id().context(NoIdSnafu)?;
         let db_names =
-            crud::databases::list_databases(&conn,
-                ListParams::new().by_parent_id(*volume_id)
-            )
-            .await?
-            .iter()
-            .map(|db| db.ident.clone())
-            .collect::<Vec<String>>();
+            crud::databases::list_databases(&conn, ListParams::new().by_parent_id(*volume_id))
+                .await?
+                .iter()
+                .map(|db| db.ident.clone())
+                .collect::<Vec<String>>();
 
         if cascade && !db_names.is_empty() {
             return metastore_err::VolumeInUseSnafu {
@@ -410,7 +408,10 @@ impl Metastore for SlateDBMetastore {
         skip(self),
         err
     )]
-    async fn volume_object_store(&self, volume_id: VolumeId) -> Result<Option<Arc<dyn ObjectStore>>> {
+    async fn volume_object_store(
+        &self,
+        volume_id: VolumeId,
+    ) -> Result<Option<Arc<dyn ObjectStore>>> {
         if let Some(store) = self.object_store_cache.get(&*volume_id) {
             Ok(Some(store.clone()))
         } else {

@@ -1,10 +1,10 @@
-use crate::error::{self as metastore_err, Result};
-use crate::error::{SerdeSnafu};
-use crate::models::RwObject;
-use crate::models::{Table, TableId, SchemaId, DatabaseId, VolumeId};
-use crate::models::{TableFormat, VolumeIdent, TableIdent};
-use crate::sqlite::diesel_gen::tables;
 use crate::SchemaIdent;
+use crate::error::SerdeSnafu;
+use crate::error::{self as metastore_err, Result};
+use crate::models::RwObject;
+use crate::models::{DatabaseId, SchemaId, Table, TableId, VolumeId};
+use crate::models::{TableFormat, TableIdent, VolumeIdent};
+use crate::sqlite::diesel_gen::tables;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -43,11 +43,9 @@ impl TryFrom<RwObject<Table>> for TableRecord {
             database_id: value.database_id().map_or(0, Into::into),
             volume_id: value.volume_id().map_or(0, Into::into),
             name: value.ident.to_string(),
-            metadata: serde_json::to_string(&value.metadata)
-                .context(SerdeSnafu)?,
+            metadata: serde_json::to_string(&value.metadata).context(SerdeSnafu)?,
             metadata_location: value.metadata_location.clone(),
-            properties: serde_json::to_string(&value.properties)
-                .context(SerdeSnafu)?,
+            properties: serde_json::to_string(&value.properties).context(SerdeSnafu)?,
             volume_location: value.volume_location.clone(),
             is_temporary: value.is_temporary,
             format: value.format.to_string(),
@@ -65,17 +63,11 @@ impl TryInto<RwObject<Table>> for (TableRecord, SchemaIdent, VolumeIdent) {
         let volume = self.2;
         // let volume_type = serde_json::from_str(&self.volume).context(SerdeSnafu)?;
         Ok(RwObject::new(Table {
-            ident: TableIdent::new(
-                &database,
-                &schema,
-                &table.name,
-            ),
-            metadata: serde_json::from_str(&table.metadata)
-                .context(SerdeSnafu)?,
+            ident: TableIdent::new(&database, &schema, &table.name),
+            metadata: serde_json::from_str(&table.metadata).context(SerdeSnafu)?,
             metadata_location: table.metadata_location,
-            properties: serde_json::from_str(&table.properties)
-                .context(SerdeSnafu)?,
-            volume_ident: Some(volume),     
+            properties: serde_json::from_str(&table.properties).context(SerdeSnafu)?,
+            volume_ident: Some(volume),
             volume_location: table.volume_location,
             is_temporary: table.is_temporary,
             format: TableFormat::from(table.format),

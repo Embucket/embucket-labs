@@ -1,7 +1,7 @@
 use crate::error::{self as metastore_err, Result};
 use crate::models::RwObject;
 use crate::models::{Database, Volume};
-use crate::models::{DatabaseIdent, VolumeIdent, VolumeId, DatabaseId};
+use crate::models::{DatabaseId, DatabaseIdent, VolumeId, VolumeIdent};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::diesel_gen::{databases, volumes};
 use crate::{ListParams, OrderBy, OrderDirection};

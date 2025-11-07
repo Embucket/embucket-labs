@@ -5,9 +5,9 @@ use crate::{
     models::{
         RwObject,
         database::{Database, DatabaseIdent},
-        schema::{Schema, SchemaIdent, SchemaId},
+        schema::{Schema, SchemaId, SchemaIdent},
         table::{Table, TableCreateRequest, TableIdent, TableUpdate},
-        volumes::{Volume, VolumeIdent, VolumeId},
+        volumes::{Volume, VolumeId, VolumeIdent},
     },
 };
 use async_trait::async_trait;
@@ -29,7 +29,10 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     ) -> Result<Option<RwObject<Volume>>>;
     async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
-    async fn volume_object_store(&self, volume_id: VolumeId) -> Result<Option<Arc<dyn ObjectStore>>>;
+    async fn volume_object_store(
+        &self,
+        volume_id: VolumeId,
+    ) -> Result<Option<Arc<dyn ObjectStore>>>;
 
     async fn get_databases(&self, params: ListParams) -> Result<Vec<RwObject<Database>>>;
     async fn create_database(&self, database: Database) -> Result<RwObject<Database>>;

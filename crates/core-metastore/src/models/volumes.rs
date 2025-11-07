@@ -1,5 +1,5 @@
-use crate::error::{self as metastore_error, Result};
 use super::{MAP_VOLUME_ID, NamedId, RwObject};
+use crate::error::{self as metastore_error, Result};
 use object_store::{
     ClientOptions, ObjectStore,
     aws::{AmazonS3Builder, resolve_bucket_region},

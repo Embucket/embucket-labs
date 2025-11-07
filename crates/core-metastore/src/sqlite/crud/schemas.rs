@@ -1,7 +1,7 @@
 use crate::error::{self as metastore_err, Result, SchemaNotFoundSnafu};
 use crate::models::RwObject;
 use crate::models::{Database, Schema};
-use crate::models::{DatabaseIdent, SchemaIdent, SchemaId, DatabaseId};
+use crate::models::{DatabaseId, DatabaseIdent, SchemaId, SchemaIdent};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::crud::databases::get_database;
 use crate::sqlite::diesel_gen::{databases, schemas};

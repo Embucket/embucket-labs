@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
+use super::VolumeIdent;
+use super::{MAP_DATABASE_ID, NamedId, RwObject, VolumeId};
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use super::VolumeIdent;
-use super::{MAP_DATABASE_ID, RwObject, NamedId, VolumeId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DatabaseId(pub i64);
@@ -66,7 +66,7 @@ impl RwObject<Database> {
     pub fn id(&self) -> Result<DatabaseId> {
         self.named_id(DatabaseId::type_name()).map(DatabaseId)
     }
-    
+
     #[must_use]
     pub fn with_volume_id(self, id: VolumeId) -> Self {
         self.with_named_id(VolumeId::type_name(), id.into())

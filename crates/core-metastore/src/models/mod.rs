@@ -39,7 +39,7 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RwObject<T>
 where
-    T: Eq + PartialEq
+    T: Eq + PartialEq,
 {
     #[serde(flatten)]
     pub data: T,
@@ -52,7 +52,7 @@ where
 
 impl<T> RwObject<T>
 where
-    T: Eq + PartialEq + Serialize
+    T: Eq + PartialEq + Serialize,
 {
     #[allow(clippy::use_self)]
     pub fn new(data: T) -> RwObject<T> {

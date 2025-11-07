@@ -2,7 +2,7 @@ use crate::error::{self as metastore_err, Result};
 use crate::error::{SerdeSnafu, VolumeNotFoundSnafu};
 use crate::models::RwObject;
 use crate::models::Volume;
-use crate::models::{DatabaseIdent, VolumeIdent, VolumeId};
+use crate::models::{DatabaseIdent, VolumeId, VolumeIdent};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::diesel_gen::databases;
 use crate::sqlite::diesel_gen::volumes;
@@ -115,8 +115,7 @@ pub async fn get_volume(
 }
 
 pub async fn get_volume_by_id(conn: &Connection, volume_id: VolumeId) -> Result<RwObject<Volume>> {
-    let mut items = list_volumes(conn, 
-        ListParams::default().by_id(*volume_id)).await?;
+    let mut items = list_volumes(conn, ListParams::default().by_id(*volume_id)).await?;
     if items.is_empty() {
         VolumeNotFoundSnafu {
             volume: volume_id.to_string(),

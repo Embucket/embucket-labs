@@ -1,5 +1,5 @@
+use super::{DatabaseId, MAP_TABLE_ID, NamedId, SchemaId, VolumeId};
 use super::{RwObject, SchemaIdent, VolumeIdent};
-use super::{MAP_TABLE_ID, VolumeId, DatabaseId, SchemaId, NamedId};
 use crate::error::{self as metastore_error, Result};
 use iceberg_rust::{
     catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
@@ -143,7 +143,7 @@ impl RwObject<Table> {
     pub fn id(&self) -> Result<TableId> {
         self.named_id(TableId::type_name()).map(TableId)
     }
-    
+
     #[must_use]
     pub fn with_volume_id(self, id: VolumeId) -> Self {
         self.with_named_id(VolumeId::type_name(), *id)

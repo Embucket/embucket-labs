@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use super::DatabaseIdent;
-use super::{MAP_SCHEMA_ID, RwObject, NamedId, DatabaseId};
+use super::{DatabaseId, MAP_SCHEMA_ID, NamedId, RwObject};
 use crate::error::Result;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +79,7 @@ impl RwObject<Schema> {
     pub fn id(&self) -> Result<SchemaId> {
         self.named_id(SchemaId::type_name()).map(SchemaId)
     }
-    
+
     #[must_use]
     pub fn with_database_id(self, id: DatabaseId) -> Self {
         self.with_named_id(DatabaseId::type_name(), *id)
