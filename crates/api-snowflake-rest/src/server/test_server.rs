@@ -2,8 +2,8 @@ use super::server_models::Config;
 use crate::server::router::make_app;
 use crate::server::server_models::Config as AppCfg;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_history::HistoryStoreDb;
+use core_metastore::MetastoreDb;
 use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::sync::{Arc, Condvar, Mutex};
@@ -111,8 +111,8 @@ pub async fn run_test_rest_api_server_with_config(
 
     tracing::info!("Starting server at {addr}");
 
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history = SlateDBHistoryStore::new_in_memory().await;
+    let metastore = MetastoreDb::new_in_memory().await;
+    let history = HistoryStoreDb::new_in_memory().await;
 
     let app = make_app(metastore, history, app_cfg, execution_cfg)
         .await

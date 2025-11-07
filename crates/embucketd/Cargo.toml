@@ -7,7 +7,6 @@ license-file.workspace = true
 [dependencies]
 core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
-core-utils = { path = "../core-utils" }
 core-history = { path = "../core-history" }
 api-ui = { path = "../api-ui", optional = true }
 api-sessions = { path = "../api-sessions" }
@@ -35,7 +34,6 @@ tikv-jemallocator = { workspace = true }
 time = { workspace = true }
 tower = { workspace = true }
 tokio = { workspace = true }
-slatedb = { workspace = true }
 tower-sessions = { workspace = true }
 tower-http = { workspace = true }
 serde_yaml = { workspace = true }

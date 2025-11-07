@@ -2,7 +2,6 @@
 default-members = ["crates/embucketd"]
 members = [
   "crates/embucketd",
-  # "crates/embucket-seed",
   "crates/api-iceberg-rest",
   "crates/api-snowflake-rest",
   "crates/api-ui",
@@ -14,9 +13,7 @@ members = [
   "crates/core-executor",
   "crates/core-history",
   "crates/core-metastore",
-  "crates/core-utils",
   "crates/api-sessions",
-  "crates/benchmarks",
   "crates/core-sqlite"
 ]
 resolver = "2"
@@ -34,7 +31,7 @@ lto = "off"
 debug = false
 
 [workspace.dependencies]
-core-sqlite = { path = "crates/core-sqlite" } # features = ["vfs"]
+core-sqlite = { path = "crates/core-sqlite" }
 async-trait = { version = "0.1.84" }
 aws-config = { version = "1.5.17" }
 aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}
@@ -69,7 +66,6 @@ regex = "1.11.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-slatedb = { version = "0.8.2", features = ["moka"] }
 snafu = { version = "0.8.5", features = ["futures"] }
 tikv-jemallocator = { version = "0.6.0" }
 strum = { version = "0.27.2", features = ["derive"] }
@@ -96,7 +92,7 @@ url = "2.5"
 utoipa = { version = "5.3.1", features = ["uuid", "chrono"] }
 utoipa-axum = { version = "0.2.0" }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
-uuid = { version = "1.10.0", features = ["v4", "serde"] }
+uuid = { version = "1.18.1", features = ["v4", "v7", "serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
 mockall = "0.13.1"
 reqwest = "0.12.14"

@@ -11,7 +11,6 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use core_utils::scan_iterator::VecScanIterator;
 use object_store::ObjectStore;
 use std::sync::Arc;
 
@@ -51,7 +50,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()>;
 
-    fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>>;
+    async fn get_tables(&self, schema: &SchemaIdent) -> Result<Vec<RwObject<Table>>>;
     async fn create_table(
         &self,
         ident: &TableIdent,
@@ -67,6 +66,5 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>>;
 
     async fn table_exists(&self, ident: &TableIdent) -> Result<bool>;
-    async fn url_for_table(&self, ident: &TableIdent) -> Result<String>;
     async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>>;
 }

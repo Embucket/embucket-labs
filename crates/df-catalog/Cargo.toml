@@ -5,7 +5,6 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-core-utils = { path = "../core-utils" }
 core-metastore = { path = "../core-metastore" }
 core-history = { path = "../core-history" }
 embucket-functions = { path = "../embucket-functions" }

@@ -8,7 +8,6 @@ use core_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
     TableUpdate as MetastoreTableUpdate,
 };
-use core_utils::scan_iterator::ScanIterator;
 use iceberg_rust::{
     catalog::{
         Catalog as IcebergCatalog,
@@ -29,7 +28,7 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use object_store::ObjectStore;
-use snafu::{OptionExt, ResultExt};
+use snafu::OptionExt;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -266,10 +265,8 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
         };
         Ok(self
             .metastore
-            .iter_tables(&schema_ident)
-            .collect()
+            .get_tables(&schema_ident)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?
             .iter()
             .map(|table| {

@@ -1,7 +1,6 @@
 use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use core_utils::iterable::IterableEntity;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -162,17 +161,5 @@ impl QueryRecord {
             '9' => '0',
             _ => digit, // Return the digit unchanged if it's not a number (just in case)
         }
-    }
-}
-
-impl IterableEntity for QueryRecord {
-    type Cursor = i64;
-
-    fn cursor(&self) -> Self::Cursor {
-        self.id.into()
-    }
-
-    fn key(&self) -> Bytes {
-        Self::get_key(self.cursor())
     }
 }

@@ -1,13 +1,7 @@
 use clap::{Parser, ValueEnum};
 use core_executor::utils::DEFAULT_QUERY_HISTORY_ROWS_LIMIT;
 use core_executor::utils::MemPoolType;
-use object_store::{
-    ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
-    local::LocalFileSystem, memory::InMemory,
-};
-use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tracing_subscriber::filter::LevelFilter;
 
 #[derive(Parser)]
@@ -286,44 +280,6 @@ enum StoreBackend {
 }
 
 impl CliOpts {
-    #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    pub fn object_store_backend(&self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
-        match self.backend {
-            StoreBackend::S3 => {
-                let s3_allow_http = self.allow_http.unwrap_or(false);
-
-                let s3_builder = AmazonS3Builder::new()
-                    .with_access_key_id(self.access_key_id.clone().unwrap())
-                    .with_secret_access_key(self.secret_access_key.clone().unwrap())
-                    .with_region(self.region.clone().unwrap())
-                    .with_bucket_name(self.bucket.clone().unwrap())
-                    .with_conditional_put(S3ConditionalPut::ETagMatch);
-
-                if let Some(endpoint) = &self.endpoint {
-                    s3_builder
-                        .with_endpoint(endpoint)
-                        .with_allow_http(s3_allow_http)
-                        .build()
-                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                } else {
-                    s3_builder
-                        .build()
-                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                }
-            }
-            StoreBackend::File => {
-                let file_storage_path = self.file_storage_path.clone().unwrap();
-                let path = file_storage_path.as_path();
-                if !path.exists() || !path.is_dir() {
-                    fs::create_dir(path).unwrap();
-                }
-                LocalFileSystem::new_with_prefix(file_storage_path)
-                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
-            }
-            StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
-        }
-    }
-
     #[cfg(feature = "ui")]
     // method resets a secret env
     pub fn jwt_secret(&self) -> String {

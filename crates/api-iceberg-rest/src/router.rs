@@ -4,14 +4,14 @@ use axum::routing::{delete, get, post};
 
 use crate::handlers::{
     commit_table, create_namespace, create_table, delete_namespace, delete_table, get_config,
-    get_namespace, get_table, list_namespaces, list_tables, list_views, register_table,
+    get_namespace, get_table, get_tables, list_namespaces, list_views, register_table,
     report_metrics,
 };
 
 pub fn create_router() -> Router<State> {
     let table_router: Router<State> = Router::new()
         .route("/", post(create_table))
-        .route("/", get(list_tables))
+        .route("/", get(get_tables))
         .route("/{table}", get(get_table))
         .route("/{table}", delete(delete_table))
         .route("/{table}", post(commit_table))

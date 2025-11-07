@@ -9,8 +9,8 @@ use super::state;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_history::HistoryStoreDb;
+use core_metastore::MetastoreDb;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
@@ -30,8 +30,8 @@ pub fn create_router() -> Router<AppState> {
 // TODO: We should consider using this by both main and tests
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
-    metastore: SlateDBMetastore,
-    history_store: SlateDBHistoryStore,
+    metastore: MetastoreDb,
+    history_store: HistoryStoreDb,
     snowflake_rest_cfg: Config,
     execution_cfg: UtilsConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {

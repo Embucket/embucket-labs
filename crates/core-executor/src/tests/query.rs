@@ -9,7 +9,7 @@ use crate::utils::Config;
 use core_history::MockHistoryStore;
 use core_history::{HistoryStore, QueryRecord};
 use core_metastore::Metastore;
-use core_metastore::SlateDBMetastore;
+use core_metastore::MetastoreDb;
 use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
@@ -83,7 +83,7 @@ static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn create_df_session() -> Arc<UserSession> {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
     let mut mock = MockHistoryStore::new();
     mock.expect_get_queries().returning(|_| {
         let mut records = Vec::new();

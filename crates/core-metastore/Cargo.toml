@@ -4,12 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license-file = { workspace = true }
 
-[features]
-default = ["sqlite"]
-sqlite = []
-
 [dependencies]
-core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
@@ -24,7 +19,6 @@ iceberg-rust-spec = { workspace = true }
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-slatedb = { workspace = true }
 snafu = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }

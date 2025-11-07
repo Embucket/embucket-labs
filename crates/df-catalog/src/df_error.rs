@@ -42,14 +42,6 @@ pub enum DFExternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    // TODO: remove after finishing Metastore sqlite implementation
-    #[snafu(display("Core utils error: {error}"))]
-    CoreUtils {
-        #[snafu(source)]
-        error: core_utils::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Catalog '{name}' not found in catalog list"))]
     CatalogNotFound {
         name: String,

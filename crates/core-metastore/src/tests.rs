@@ -19,7 +19,6 @@ use iceberg_rust_spec::{
 };
 use std::result::Result;
 
-use core_utils::scan_iterator::ScanIterator;
 use object_store::ObjectStore;
 
 fn insta_filters() -> Vec<(&'static str, &'static str)> {
@@ -39,8 +38,8 @@ fn insta_filters() -> Vec<(&'static str, &'static str)> {
     ]
 }
 
-async fn get_metastore() -> SlateDBMetastore {
-    SlateDBMetastore::new_in_memory().await
+async fn get_metastore() -> MetastoreDb {
+    MetastoreDb::new_in_memory().await
 }
 
 #[tokio::test]
@@ -356,8 +355,7 @@ async fn test_tables() {
         .collect();
 
     let table_list = ms
-        .iter_tables(&table.ident.clone().into())
-        .collect()
+        .get_tables(&table.ident.clone().into())
         .await
         .expect("list tables failed");
     let table_get = ms.get_table(&table.ident).await.expect("get table failed");
@@ -365,8 +363,7 @@ async fn test_tables() {
         .await
         .expect("delete table failed");
     let table_list_after = ms
-        .iter_tables(&table.ident.into())
-        .collect()
+        .get_tables(&table.ident.into())
         .await
         .expect("list tables failed");
 

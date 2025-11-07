@@ -1,7 +1,7 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::{CachingCatalog, CatalogType, Properties};
-use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
+use crate::catalogs::sqlite::catalog::{SQLITE_CATALOG, SqliteCatalog};
 use crate::df_error;
 use crate::error::{
     self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, MissingVolumeSnafu,
@@ -239,11 +239,11 @@ impl EmbucketCatalogList {
         skip(self)
     )]
     pub fn slatedb_catalog(&self) -> CachingCatalog {
-        let catalog: Arc<dyn CatalogProvider> = Arc::new(SlateDBCatalog::new(
+        let catalog: Arc<dyn CatalogProvider> = Arc::new(SqliteCatalog::new(
             self.metastore.clone(),
             self.history_store.clone(),
         ));
-        CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
+        CachingCatalog::new(catalog, SQLITE_CATALOG.to_string())
             .with_catalog_type(CatalogType::Memory)
             .with_properties(Properties::default())
     }

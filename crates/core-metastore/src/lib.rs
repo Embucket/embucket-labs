@@ -3,17 +3,9 @@ pub mod interface;
 pub mod list_parameters;
 pub mod models;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "sqlite")]
-    {
-        pub mod sqlite;
-        pub mod sqlite_metastore;
-        pub use sqlite_metastore::*;
-    } else {
-        pub mod metastore;
-        pub use metastore::*;
-    }
-}
+pub mod metastore;
+pub mod sqlite;
+pub use metastore::*;
 
 #[cfg(test)]
 pub mod tests;

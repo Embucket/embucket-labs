@@ -84,8 +84,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Get { source, .. } | Self::Delete { source, .. } => match &source {
-                core_metastore::Error::UtilSlateDB { .. }
-                | core_metastore::Error::ObjectNotFound { .. } => StatusCode::NOT_FOUND,
+                core_metastore::Error::ObjectNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source, .. } => match &source {

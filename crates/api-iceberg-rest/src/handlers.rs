@@ -10,7 +10,6 @@ use core_metastore::error::{self as metastore_error};
 use core_metastore::{
     ListParams, SchemaIdent as MetastoreSchemaIdent, TableIdent as MetastoreTableIdent,
 };
-use core_utils::scan_iterator::ScanIterator;
 use iceberg_rest_catalog::models::{
     CatalogConfig, CommitTableResponse, CreateNamespaceRequest, CreateNamespaceResponse,
     CreateTableRequest, GetNamespaceResponse, ListNamespacesResponse, ListTablesResponse,
@@ -263,20 +262,16 @@ pub async fn delete_table(
 }
 
 #[tracing::instrument(level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]
-pub async fn list_tables(
+pub async fn get_tables(
     State(state): State<AppState>,
     Path((database_name, schema_name)): Path<(String, String)>,
 ) -> Result<Json<ListTablesResponse>> {
     let schema_ident = MetastoreSchemaIdent::new(database_name, schema_name);
-    let tables = state
-        .metastore
-        .iter_tables(&schema_ident)
-        .collect()
-        .await
-        .context(metastore_error::UtilSlateDBSnafu)
-        .context(api_iceberg_rest_error::MetastoreSnafu {
+    let tables = state.metastore.get_tables(&schema_ident).await.context(
+        api_iceberg_rest_error::MetastoreSnafu {
             operation: Operation::ListTables,
-        })?;
+        },
+    )?;
     Ok(Json(from_tables_list(tables)))
 }
 

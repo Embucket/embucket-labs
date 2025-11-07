@@ -3,8 +3,8 @@ use crate::information_schema::information_schema::{
     INFORMATION_SCHEMA, InformationSchemaProvider,
 };
 use crate::test_utils::sort_record_batch_by_sortable_columns;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_history::HistoryStoreDb;
+use core_metastore::MetastoreDb;
 use datafusion::execution::SessionStateBuilder;
 use datafusion::execution::context::SessionContext;
 use datafusion::prelude::SessionConfig;
@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 #[allow(clippy::unwrap_used)]
 async fn create_session_context() -> Arc<SessionContext> {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let catalog_list_impl = Arc::new(EmbucketCatalogList::new(
         metastore.clone(),
         history_store.clone(),

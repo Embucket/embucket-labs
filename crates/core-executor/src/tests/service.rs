@@ -3,12 +3,12 @@ use crate::models::{QueryContext, QueryResult};
 use crate::running_queries::RunningQueryId;
 use crate::service::{CoreExecutionService, ExecutionService};
 use crate::utils::Config;
+use core_history::HistoryStore;
 use core_history::QueryStatus;
-use core_history::SlateDBHistoryStore;
 use core_history::entities::worksheet::Worksheet;
-use core_history::{GetQueriesParams, HistoryStore};
+use core_history::{GetQueriesParams, HistoryStoreDb};
 use core_metastore::Metastore;
-use core_metastore::SlateDBMetastore;
+use core_metastore::MetastoreDb;
 use core_metastore::models::table::TableIdent as MetastoreTableIdent;
 use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
@@ -21,8 +21,8 @@ use std::sync::Arc;
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_execute_always_returns_schema() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc =
         CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
             .await
@@ -51,7 +51,7 @@ async fn test_execute_always_returns_schema() {
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_service_upload_file() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
     let volume = metastore
         .create_volume(MetastoreVolume::new(
             "test_volume".to_string(),
@@ -92,7 +92,7 @@ async fn test_service_upload_file() {
     let csv_content = "id,name,value\n1,test1,100\n2,test2,200\n3,test3,300";
     let data = csv_content.as_bytes().to_vec();
 
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -172,7 +172,7 @@ async fn test_service_upload_file() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_service_create_table_file_volume() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
 
     // Create a temporary directory for the file volume
     let temp_dir = std::env::temp_dir().join("test_file_volume");
@@ -215,7 +215,7 @@ async fn test_service_create_table_file_volume() {
         schema: "public".to_string(),
         table: "target_table".to_string(),
     };
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
         history_store.clone(),
@@ -272,8 +272,8 @@ async fn test_service_create_table_file_volume() {
 #[tokio::test]
 #[allow(clippy::expect_used, clippy::too_many_lines)]
 async fn test_query_recording() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let volume = metastore
         .create_volume(MetastoreVolume::new(
             "test_volume".to_string(),
@@ -473,8 +473,8 @@ async fn test_query_recording() {
 async fn test_max_concurrency_level() {
     use tokio::sync::Barrier;
 
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -527,8 +527,8 @@ async fn test_max_concurrency_level() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_max_concurrency_level2() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -568,8 +568,8 @@ async fn test_max_concurrency_level2() {
 #[allow(clippy::items_after_statements)]
 async fn test_parallel_run() {
     const MAX_CONCURRENCY_LEVEL: usize = 10;
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -614,8 +614,8 @@ async fn test_parallel_run() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_query_timeout() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = Arc::new(
         CoreExecutionService::new(
             metastore.clone(),
@@ -647,8 +647,8 @@ async fn test_query_timeout() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_timeout() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -700,8 +700,8 @@ async fn test_submitted_query_timeout() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_abort_by_query_id() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -745,8 +745,8 @@ async fn test_submitted_query_abort_by_query_id() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_abort_by_request_id() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),
@@ -795,8 +795,8 @@ async fn test_submitted_query_abort_by_request_id() {
 #[tokio::test]
 #[allow(clippy::expect_used)]
 async fn test_submitted_query_ok() {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore,
         history_store.clone(),

@@ -28,11 +28,10 @@ use crate::running_queries::RunningQueryId;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
-use core_history::HistoryStore;
-use core_history::SlateDBHistoryStore;
+use core_history::{HistoryStore, HistoryStoreDb};
 use core_history::{QueryRecordId, QueryResultError, QueryStatus};
 use core_metastore::{
-    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
+    Database, Metastore, MetastoreDb, Schema, SchemaIdent, TableIdent as MetastoreTableIdent,
     Volume, VolumeType, error as metastore_err,
 };
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
@@ -919,8 +918,8 @@ impl ExecutionService for CoreExecutionService {
 //Test environment
 #[allow(clippy::expect_used)]
 pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(MetastoreDb::new_in_memory().await);
+    let history_store = Arc::new(HistoryStoreDb::new_in_memory().await);
     Arc::new(
         CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
             .await

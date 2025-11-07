@@ -1,4 +1,3 @@
-use core_utils::Error as CoreError;
 use datafusion_common::DataFusionError;
 use error_stack_trace;
 use iceberg_s3tables_catalog::error::Error as S3TablesError;
@@ -19,14 +18,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Core error: {source}"))]
-    Core {
-        #[snafu(source(from(CoreError, Box::new)))]
-        source: Box<CoreError>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("DataFusion error: {error}"))]
     DataFusion {
         #[snafu(source(from(DataFusionError, Box::new)))]
@@ -43,7 +34,7 @@ pub enum Error {
         location: Location,
     },
 
-    // TODO: find better place. maybe separate tokio-runtime module in core-utils ?
+    // TODO: find better place. maybe separate tokio-runtime module
     #[snafu(display("Error creating Tokio runtime: {error}"))]
     CreateTokioRuntime {
         #[snafu(source)]

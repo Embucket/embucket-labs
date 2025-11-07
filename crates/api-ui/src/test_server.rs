@@ -10,8 +10,8 @@ use axum::Router;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_history::HistoryStoreDb;
+use core_metastore::MetastoreDb;
 use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::sync::{Arc, Condvar, Mutex};
@@ -40,8 +40,8 @@ pub fn run_test_server_with_demo_auth(
 
         // Start the Axum server
         rt.block_on(async move {
-            let metastore = SlateDBMetastore::new_in_memory().await;
-            let history = SlateDBHistoryStore::new_in_memory().await;
+            let metastore = MetastoreDb::new_in_memory().await;
+            let history = HistoryStoreDb::new_in_memory().await;
             let auth_config =
                 AuthConfig::new(jwt_secret).with_demo_credentials(demo_user, demo_password);
 
@@ -100,8 +100,8 @@ pub fn run_test_server() -> SocketAddr {
 
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
-    metastore: SlateDBMetastore,
-    history_store: SlateDBHistoryStore,
+    metastore: MetastoreDb,
+    history_store: HistoryStoreDb,
     config: &WebConfig,
     auth_config: AuthConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {

@@ -1,6 +1,5 @@
 use crate::{QueryRecordId, WorksheetId};
 use bytes::Bytes;
-use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 
 // QueryRecordReference struct is used for referencing QueryRecord from worksheet.
@@ -26,17 +25,5 @@ impl QueryRecordReference {
         data.windows(pattern.len())
             .position(|w| w == pattern)
             .map(|pos| data.slice(pos..))
-    }
-}
-
-impl IterableEntity for QueryRecordReference {
-    type Cursor = i64;
-
-    fn cursor(&self) -> Self::Cursor {
-        self.id.into()
-    }
-
-    fn key(&self) -> Bytes {
-        Self::get_key(self.worksheet_id, self.id)
     }
 }

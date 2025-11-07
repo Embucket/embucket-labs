@@ -81,22 +81,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("SlateDB error: {error}"))]
-    SlateDB {
-        #[snafu(source)]
-        error: slatedb::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("SlateDB error: {source}"))]
-    UtilSlateDB {
-        #[snafu(source(from(core_utils::Error, Box::new)))]
-        source: Box<core_utils::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Metastore object of type {type_name} with name {name} already exists"))]
     ObjectAlreadyExists {
         type_name: String,
@@ -232,6 +216,14 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("Failed to serialize table metadata: {error}"))]
+    SerializeMetadata {
+        #[snafu(source)]
+        error: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("Validation Error: {error}"))]
     Validation {
         #[snafu(source)]
@@ -358,6 +350,13 @@ pub enum Error {
     TimeParse {
         #[snafu(source)]
         error: chrono::ParseError,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Table {table} is missing an associated volume"))]
+    TableVolumeMissing {
+        table: String,
         #[snafu(implicit)]
         location: Location,
     },
