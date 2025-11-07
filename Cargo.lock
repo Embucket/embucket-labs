@@ -2324,6 +2324,7 @@ dependencies = [
  "iceberg-rust-spec",
  "insta",
  "object_store",
+ "parking_lot",
  "regex",
  "serde",
  "serde_json",

@@ -81,9 +81,10 @@ volumes:
     type: s3_tables
     arn: "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
     endpoint: "https://s3tables.us-east-1.amazonaws.com"
-    credentials: !AccessKey
-      aws_access_key_id: "AKIAIOSFODNN7EXAMPLE"
-      aws_secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: "AKIAIOSFODNN7EXAMPLE"
+      aws-secret-access-key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     databases:
       - name: my_db
       - name: another_db

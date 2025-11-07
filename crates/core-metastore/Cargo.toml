@@ -31,6 +31,7 @@ utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
 regex = { workspace = true }
+parking_lot = "0.12.5"
 
 [dev-dependencies]
 insta = { workspace = true }

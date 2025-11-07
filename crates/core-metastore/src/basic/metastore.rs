@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
-    Metastore,
+    Metastore, VolumeType,
     basic::config::BasicMetastoreConfig,
     error::{self as metastore_error, Result},
     models::{
@@ -17,13 +17,14 @@ use async_trait::async_trait;
 use core_utils::scan_iterator::VecScanIterator;
 use dashmap::DashMap;
 use object_store::ObjectStore;
+use parking_lot::RwLock;
 
 /// Basic metastore implementation that reads volumes and databases from config
 /// and returns "Not yet implemented" for write operations and schema/table operations
 #[derive(Debug)]
 pub struct BasicMetastore {
-    volumes: HashMap<VolumeIdent, RwObject<Volume>>,
-    databases: HashMap<DatabaseIdent, RwObject<Database>>,
+    volumes: RwLock<HashMap<VolumeIdent, RwObject<Volume>>>,
+    databases: RwLock<HashMap<DatabaseIdent, RwObject<Database>>>,
     object_store_cache: DashMap<VolumeIdent, Arc<dyn ObjectStore>>,
 }
 
@@ -50,8 +51,8 @@ impl BasicMetastore {
         }
 
         Self {
-            volumes,
-            databases,
+            volumes: RwLock::new(volumes),
+            databases: RwLock::new(databases),
             object_store_cache: DashMap::new(),
         }
     }
@@ -90,20 +91,28 @@ impl BasicMetastore {
 impl Metastore for BasicMetastore {
     // Volume operations - read-only
     fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>> {
-        VecScanIterator::from_vec(self.volumes.values().cloned().collect())
+        let guard = self.volumes.read();
+        VecScanIterator::from_vec(guard.values().cloned().collect())
     }
 
-    async fn create_volume(
-        &self,
-        _name: &VolumeIdent,
-        _volume: Volume,
-    ) -> Result<RwObject<Volume>> {
-        Self::not_implemented("create_volume - use config to define volumes")?;
-        unreachable!()
+    async fn create_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>> {
+        match &volume.volume {
+            VolumeType::S3Tables(_) => {
+                let rw_object = RwObject::new(volume);
+                let mut guard = self.volumes.write();
+                guard.insert(name.clone(), rw_object.clone());
+                Ok(rw_object)
+            }
+            _ => metastore_error::NotYetImplementedSnafu {
+                operation: "create_volume - allowed only for s3 tables type",
+            }
+            .fail(),
+        }
     }
 
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>> {
-        Ok(self.volumes.get(name).cloned())
+        let guard = self.volumes.read();
+        Ok(guard.get(name).cloned())
     }
 
     async fn update_volume(
@@ -129,7 +138,8 @@ impl Metastore for BasicMetastore {
         }
 
         // Get volume and create object store
-        if let Some(volume_obj) = self.volumes.get(name) {
+        let guard = self.volumes.read();
+        if let Some(volume_obj) = guard.get(name) {
             let store = volume_obj.data.get_object_store()?;
 
             // Cache it
@@ -143,7 +153,8 @@ impl Metastore for BasicMetastore {
 
     // Database operations - read-only
     fn iter_databases(&self) -> VecScanIterator<RwObject<Database>> {
-        VecScanIterator::from_vec(self.databases.values().cloned().collect())
+        let guard = self.databases.read();
+        VecScanIterator::from_vec(guard.values().cloned().collect())
     }
 
     async fn create_database(
@@ -156,7 +167,8 @@ impl Metastore for BasicMetastore {
     }
 
     async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>> {
-        Ok(self.databases.get(name).cloned())
+        let guard = self.databases.read();
+        Ok(guard.get(name).cloned())
     }
 
     async fn update_database(
@@ -318,7 +330,7 @@ volumes:
                 &"test".to_string(),
                 Volume {
                     ident: "test".to_string(),
-                    volume: crate::models::VolumeType::Memory,
+                    volume: VolumeType::Memory,
                 },
             )
             .await;
