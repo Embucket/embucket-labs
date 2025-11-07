@@ -259,18 +259,20 @@ impl Metastore for BasicMetastore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core_utils::scan_iterator::ScanIterator;
 
     #[tokio::test]
+    #[allow(clippy::unwrap_used)]
     async fn test_basic_metastore_from_config() {
         let yaml = r#"
 volumes:
   - name: my_volume
     type: s3_tables
     arn: "arn:aws:s3tables:us-east-1:123456789012:bucket/my-bucket"
-    endpoint: "https://s3tables.us-east-1.amazonaws.com"
-    credentials: !AccessKey
-      aws_access_key_id: "AKIAIOSFODNN7EXAMPLE"
-      aws_secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: "AKIAIOSFODNN7EXAMPLE"
+      aws-secret-access-key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     databases:
       - name: my_db
       - name: another_db
@@ -279,19 +281,27 @@ volumes:
         let metastore = BasicMetastore::from_yaml_str(yaml).expect("Failed to create metastore");
 
         // Test volumes
-        let volumes: Vec<_> = metastore.iter_volumes().collect();
+        let volumes: Vec<_> = metastore
+            .iter_volumes()
+            .collect()
+            .await
+            .expect("Failed to iter volumes");
         assert_eq!(volumes.len(), 1);
-        assert_eq!(volumes[0].data.ident.0, "my_volume");
+        assert_eq!(volumes[0].data.ident, "my_volume");
 
         // Test get_volume
         let volume = metastore
-            .get_volume(&VolumeIdent("my_volume".to_string()))
+            .get_volume(&"my_volume".to_string())
             .await
             .expect("Failed to get volume");
         assert!(volume.is_some());
 
         // Test databases
-        let databases: Vec<_> = metastore.iter_databases().collect();
+        let databases: Vec<_> = metastore
+            .iter_databases()
+            .collect()
+            .await
+            .expect("Failed to iter databases");
         assert_eq!(databases.len(), 2);
 
         // Test get_database
@@ -305,9 +315,9 @@ volumes:
         // Test write operations return not implemented
         let result = metastore
             .create_volume(
-                &VolumeIdent("test".to_string()),
+                &"test".to_string(),
                 Volume {
-                    ident: VolumeIdent("test".to_string()),
+                    ident: "test".to_string(),
                     volume: crate::models::VolumeType::Memory,
                 },
             )

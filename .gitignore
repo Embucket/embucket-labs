@@ -43,6 +43,7 @@ tests/benchmark/*.json
 test/errors.log
 test/test_statistics.csv
 snowplow
+crates/api-snowflake-rest/traces.log
 
 *.manifest
 *.sst
