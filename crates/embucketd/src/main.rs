@@ -205,7 +205,7 @@ async fn async_main(
 
     let db = Db::new(slate_db);
 
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore = Arc::new(SlateDBMetastore::new(db.clone()).await?);
     let history_store = Arc::new(
         SlateDBHistoryStore::new(
             db.clone(),

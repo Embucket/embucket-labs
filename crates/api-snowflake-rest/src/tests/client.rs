@@ -31,6 +31,7 @@ pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
     url: &String,
     payload: String,
 ) -> Result<(HeaderMap, T), TestHttpError> {
+    tracing::trace!("Request: {method} {url}");
     let res = client
         .request(method.clone(), url)
         .headers(headers)

@@ -5,7 +5,7 @@ use core_metastore::Metastore;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use std::{any::Any, sync::Arc};
 
-pub const SLATEDB_CATALOG: &str = "slatedb";
+pub const SLATEDB_CATALOG: &str = "sqlite";
 pub const METASTORE_SCHEMA: &str = "meta";
 pub const HISTORY_STORE_SCHEMA: &str = "history";
 pub const SLATEDB_SCHEMAS: &[&str] = &[METASTORE_SCHEMA, HISTORY_STORE_SCHEMA];

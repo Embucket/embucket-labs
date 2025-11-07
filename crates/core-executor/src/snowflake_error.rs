@@ -560,48 +560,11 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
             } else if let Some(e) = err.downcast_ref::<DFCatalogExternalDFError>() {
                 let message = e.to_string();
                 let error_code = ErrorCode::Catalog;
-                match e {
-                    DFCatalogExternalDFError::OrdinalPositionParamOverflow { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CoreHistory { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CoreUtils { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CatalogNotFound { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CannotResolveViewReference { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::SessionDowncast { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::ObjectStoreNotFound { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
+                CustomSnafu {
+                    message,
+                    error_code,
                 }
+                .build()
             } else if let Some(e) = err.downcast_ref::<ArrowError>() {
                 CustomSnafu {
                     message: e.to_string(),

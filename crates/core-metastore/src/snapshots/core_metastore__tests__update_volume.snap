@@ -1,5 +1,5 @@
 ---
-source: crates/metastore/src/metastore.rs
+source: crates/core-metastore/src/tests.rs
 expression: "(rwo1, rwo2)"
 ---
 (
@@ -8,17 +8,19 @@ expression: "(rwo1, rwo2)"
             ident: "test",
             volume: Memory,
         },
+        ids: {
+            "id": 1,
+        },
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",
     },
     RwObject {
         data: Volume {
             ident: "test",
-            volume: File(
-                FileVolume {
-                    path: "/tmp",
-                },
-            ),
+            volume: Memory,
+        },
+        ids: {
+            "id": 1,
         },
         created_at: "TIMESTAMP",
         updated_at: "TIMESTAMP",

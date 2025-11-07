@@ -10,7 +10,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("Failed to create directory: {error}"))]
+    #[snafu(display("Failed to create directory for history store: {error}"))]
     CreateDir {
         #[snafu(source)]
         error: std::io::Error,

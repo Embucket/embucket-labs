@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
 use crate::{
+    Metastore,
     error::{self as metastore_error, Result},
     models::{
         RwObject,
@@ -39,56 +40,6 @@ pub enum MetastoreObjectType {
     Database,
     Schema,
     Table,
-}
-
-#[async_trait]
-pub trait Metastore: std::fmt::Debug + Send + Sync {
-    fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>>;
-    async fn create_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
-    async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
-    async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
-    async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
-    async fn volume_object_store(&self, name: &VolumeIdent)
-    -> Result<Option<Arc<dyn ObjectStore>>>;
-
-    fn iter_databases(&self) -> VecScanIterator<RwObject<Database>>;
-    async fn create_database(
-        &self,
-        name: &DatabaseIdent,
-        database: Database,
-    ) -> Result<RwObject<Database>>;
-    async fn get_database(&self, name: &DatabaseIdent) -> Result<Option<RwObject<Database>>>;
-    async fn update_database(
-        &self,
-        name: &DatabaseIdent,
-        database: Database,
-    ) -> Result<RwObject<Database>>;
-    async fn delete_database(&self, name: &DatabaseIdent, cascade: bool) -> Result<()>;
-
-    fn iter_schemas(&self, database: &DatabaseIdent) -> VecScanIterator<RwObject<Schema>>;
-    async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
-    async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>>;
-    async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
-    async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()>;
-
-    fn iter_tables(&self, schema: &SchemaIdent) -> VecScanIterator<RwObject<Table>>;
-    async fn create_table(
-        &self,
-        ident: &TableIdent,
-        table: TableCreateRequest,
-    ) -> Result<RwObject<Table>>;
-    async fn get_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Table>>>;
-    async fn update_table(
-        &self,
-        ident: &TableIdent,
-        update: TableUpdate,
-    ) -> Result<RwObject<Table>>;
-    async fn delete_table(&self, ident: &TableIdent, cascade: bool) -> Result<()>;
-    async fn table_object_store(&self, ident: &TableIdent) -> Result<Option<Arc<dyn ObjectStore>>>;
-
-    async fn table_exists(&self, ident: &TableIdent) -> Result<bool>;
-    async fn url_for_table(&self, ident: &TableIdent) -> Result<String>;
-    async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>>;
 }
 
 ///

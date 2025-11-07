@@ -1669,7 +1669,7 @@ impl UserQuery {
         };
         // Create volume in the metastore
         self.metastore
-            .create_volume(&ident, volume.clone())
+            .create_volume(volume)
             .await
             .context(ex_error::MetastoreSnafu)?;
         self.created_entity_response()

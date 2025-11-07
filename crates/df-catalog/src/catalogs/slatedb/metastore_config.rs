@@ -3,7 +3,7 @@ use crate::catalogs::slatedb::schemas::SchemasViewBuilder;
 use crate::catalogs::slatedb::tables::TablesViewBuilder;
 use crate::catalogs::slatedb::volumes::VolumesViewBuilder;
 use crate::df_error;
-use core_metastore::{Metastore, SchemaIdent};
+use core_metastore::{ListParams, Metastore, SchemaIdent};
 use core_utils::scan_iterator::ScanIterator;
 use datafusion_common::DataFusionError;
 use snafu::ResultExt;
@@ -28,12 +28,12 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let volumes = self
             .metastore
-            .iter_volumes()
-            .collect()
+            .get_volumes(ListParams::default())
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         for volume in volumes {
             builder.add_volume(
+                *volume.id().context(df_error::MetastoreSnafu)?,
                 &volume.ident,
                 volume.volume.to_string(),
                 volume.created_at.to_string(),
@@ -55,12 +55,13 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let databases = self
             .metastore
-            .iter_databases()
-            .collect()
+            .get_databases(ListParams::default())
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         for database in databases {
             builder.add_database(
+                *database.id().context(df_error::MetastoreSnafu)?,
+                *database.volume_id().context(df_error::MetastoreSnafu)?,
                 database.ident.as_str(),
                 &database.volume,
                 database.created_at.to_string(),
@@ -81,12 +82,13 @@ impl MetastoreViewConfig {
     ) -> datafusion_common::Result<(), DataFusionError> {
         let schemas = self
             .metastore
-            .iter_schemas(&String::new())
-            .collect()
+            .get_schemas(ListParams::default())
             .await
-            .context(df_error::CoreUtilsSnafu)?;
+            .context(df_error::MetastoreSnafu)?;
         for schema in schemas {
             builder.add_schema(
+                *schema.id().context(df_error::MetastoreSnafu)?,
+                *schema.database_id().context(df_error::MetastoreSnafu)?,
                 &schema.ident.schema,
                 &schema.ident.database,
                 schema.created_at.to_string(),

@@ -13,9 +13,11 @@ use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use core_history::HistoryStore;
-use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType};
+use core_metastore::error::VolumeNotFoundSnafu;
+use core_metastore::{
+    AwsCredentials, Database, ListParams, Metastore, RwObject, S3TablesVolume, VolumeType,
+};
 use core_metastore::{SchemaIdent, TableIdent};
-use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
@@ -117,19 +119,20 @@ impl EmbucketCatalogList {
 
         let ident = Database {
             ident: catalog_name.to_owned(),
-            volume: volume_ident.to_owned(),
+            volume: volume.ident.clone(),
             properties: None,
         };
         let database = self
             .metastore
-            .create_database(&catalog_name.to_owned(), ident)
+            .create_database(ident)
             .await
             .context(MetastoreSnafu)?;
 
         let catalog = match &volume.volume {
-            VolumeType::S3(_) | VolumeType::File(_) => self.get_embucket_catalog(&database)?,
+            VolumeType::S3(_) | VolumeType::File(_) => self.get_embucket_catalog(&database).await?,
             VolumeType::Memory => self
-                .get_embucket_catalog(&database)?
+                .get_embucket_catalog(&database)
+                .await?
                 .with_catalog_type(CatalogType::Memory),
             VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), catalog_name).await?,
         };
@@ -180,31 +183,41 @@ impl EmbucketCatalogList {
         let mut catalogs = Vec::new();
         let databases = self
             .metastore
-            .iter_databases()
-            .collect()
+            .get_databases(ListParams::default())
             .await
-            .context(df_catalog_error::CoreSnafu)?;
+            .context(df_catalog_error::MetastoreSnafu)?;
+        // use volumes hashmap to avoid excessive volume fetches
+        let mut volumes = std::collections::HashMap::new();
         for db in databases {
-            let volume = self
-                .metastore
-                .get_volume(&db.volume)
-                .await
-                .context(MetastoreSnafu)?
-                .context(MissingVolumeSnafu {
-                    name: db.volume.clone(),
-                })?;
+            let volume_id = db.volume_id().context(MetastoreSnafu)?;
+            if let std::collections::hash_map::Entry::Vacant(e) = volumes.entry(*volume_id) {
+                let volume = self
+                    .metastore
+                    .get_volume_by_id(volume_id)
+                    .await
+                    .context(MetastoreSnafu)?;
+                e.insert(volume);
+            }
+            // should not fail here
+            let volume = volumes
+                .get(&*volume_id)
+                .context(VolumeNotFoundSnafu {
+                    volume: db.volume.to_string(),
+                })
+                .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type
             let catalog = match &volume.volume {
                 VolumeType::S3Tables(vol) => self.s3tables_catalog(vol.clone(), &db.ident).await?,
-                _ => self.get_embucket_catalog(&db)?,
+                _ => self.get_embucket_catalog(&db).await?,
             };
             catalogs.push(catalog);
         }
         Ok(catalogs)
     }
 
-    fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
-        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), db.ident.clone())
+    async fn get_embucket_catalog(&self, db: &RwObject<Database>) -> Result<CachingCatalog> {
+        let iceberg_catalog = EmbucketIcebergCatalog::new(self.metastore.clone(), db)
+            .await
             .context(MetastoreSnafu)?;
         let catalog: Arc<dyn CatalogProvider> = Arc::new(EmbucketCatalog::new(
             db.ident.clone(),

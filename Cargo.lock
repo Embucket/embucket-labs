@@ -270,6 +270,7 @@ dependencies = [
  "api-sessions",
  "arrow 56.2.0",
  "axum 0.8.6",
+ "axum-server",
  "base64 0.22.1",
  "cfg-if",
  "core-executor",
@@ -280,6 +281,7 @@ dependencies = [
  "error-stack",
  "error-stack-trace",
  "flate2",
+ "futures",
  "http 1.3.1",
  "indexmap 2.12.0",
  "insta",
@@ -305,6 +307,7 @@ dependencies = [
  "api-sessions",
  "api-ui-static-assets",
  "axum 0.8.6",
+ "axum-server",
  "chrono",
  "core-executor",
  "core-history",
@@ -1605,6 +1608,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-server"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "495c05f60d6df0093e8fb6e74aa5846a0ad06abaf96d76166283720bf740f8ab"
+dependencies = [
+ "bytes",
+ "fs-err",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "hyper 1.7.0",
+ "hyper-util",
+ "tokio",
+ "tower-service",
+]
+
+[[package]]
 name = "backon"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2314,9 +2333,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
+ "cfg-if",
  "chrono",
+ "core-sqlite",
  "core-utils",
  "dashmap",
+ "deadpool",
+ "deadpool-diesel",
+ "deadpool-sqlite",
+ "diesel",
+ "diesel_migrations",
  "error-stack",
  "error-stack-trace",
  "futures",
@@ -2325,6 +2351,7 @@ dependencies = [
  "insta",
  "object_store",
  "regex",
+ "rusqlite",
  "serde",
  "serde_json",
  "slatedb",
@@ -2346,6 +2373,8 @@ dependencies = [
  "cfg-if",
  "chrono",
  "dashmap",
+ "deadpool",
+ "deadpool-diesel",
  "deadpool-sqlite",
  "deadpool-sync",
  "error-stack",
@@ -3319,6 +3348,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "deadpool-diesel"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "590573e9e29c5190a5ff782136f871e6e652e35d598a349888e028693601adf1"
+dependencies = [
+ "deadpool",
+ "deadpool-sync",
+ "diesel",
+]
+
+[[package]]
 name = "deadpool-runtime"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3459,6 +3499,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "diesel"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8496eeb328dce26ee9d9b73275d396d9bddb433fa30106cf6056dd8c3c2764c"
+dependencies = [
+ "diesel_derives",
+ "downcast-rs 2.0.2",
+ "libsqlite3-sys",
+ "sqlite-wasm-rs",
+ "time",
+]
+
+[[package]]
+name = "diesel_derives"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09af0e983035368439f1383011cd87c46f41da81d0f21dc3727e2857d5a43c8e"
+dependencies = [
+ "diesel_table_macro_syntax",
+ "dsl_auto_type",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.107",
+]
+
+[[package]]
+name = "diesel_migrations"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee060f709c3e3b1cadd83fcd0f61711f7a8cf493348f758d3a1c1147d70b3c97"
+dependencies = [
+ "diesel",
+ "migrations_internals",
+ "migrations_macros",
+]
+
+[[package]]
+name = "diesel_table_macro_syntax"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe2444076b48641147115697648dc743c2c00b61adade0f01ce67133c7babe8c"
+dependencies = [
+ "syn 2.0.107",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3513,6 +3599,26 @@ name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
+
+[[package]]
+name = "downcast-rs"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "117240f60069e65410b3ae1bb213295bd828f707b5bec6596a1afc8793ce0cbc"
+
+[[package]]
+name = "dsl_auto_type"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd122633e4bef06db27737f21d3738fb89c8f6d5360d6d9d7635dda142a7757e"
+dependencies = [
+ "darling 0.21.3",
+ "either",
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.107",
+]
 
 [[package]]
 name = "dunce"
@@ -4051,6 +4157,16 @@ name = "fragile"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
+
+[[package]]
+name = "fs-err"
+version = "3.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ad492b2cf1d89d568a43508ab24f98501fe03f2f31c01e1d0fe7366a71745d2"
+dependencies = [
+ "autocfg",
+ "tokio",
+]
 
 [[package]]
 name = "fs4"
@@ -5719,7 +5835,7 @@ dependencies = [
  "async-task",
  "bincode",
  "bytes",
- "downcast-rs",
+ "downcast-rs 1.2.1",
  "errno",
  "futures-util",
  "lazy_static",
@@ -5806,6 +5922,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "migrations_internals"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36c791ecdf977c99f45f23280405d7723727470f6689a5e6dbf513ac547ae10d"
+dependencies = [
+ "serde",
+ "toml 0.9.8",
+]
+
+[[package]]
+name = "migrations_macros"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36fc5ac76be324cfd2d3f2cf0fdf5d5d3c4f14ed8aaebadb09e304ba42282703"
+dependencies = [
+ "migrations_internals",
+ "proc-macro2",
+ "quote",
 ]
 
 [[package]]
@@ -8210,6 +8347,21 @@ dependencies = [
  "log",
  "parking_lot",
  "rusqlite",
+]
+
+[[package]]
+name = "sqlite-wasm-rs"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54e4348c16a3d2e2a45437eff67efc5462b60443de76f61b5d0ed9111c626d9d"
+dependencies = [
+ "js-sys",
+ "once_cell",
+ "thiserror 2.0.17",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

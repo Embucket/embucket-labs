@@ -144,8 +144,9 @@ pub async fn abort(
         request_id,
     }): Json<AbortRequestBody>,
 ) -> Result<Json<serde_json::value::Value>> {
-    state
+    let _query_status = state
         .execution_svc
-        .abort_query(RunningQueryId::ByRequestId(request_id, sql_text))?;
+        .abort_query(RunningQueryId::ByRequestId(request_id, sql_text))
+        .await?;
     Ok(Json(serde_json::value::Value::Null))
 }

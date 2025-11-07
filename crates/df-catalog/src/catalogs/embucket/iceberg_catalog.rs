@@ -1,14 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use core_metastore::ListParams;
 use core_metastore::error::{self as metastore_error, Result as MetastoreResult};
 use core_metastore::{
-    Metastore, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
+    Database, Metastore, RwObject, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
     TableUpdate as MetastoreTableUpdate,
 };
 use core_utils::scan_iterator::ScanIterator;
-use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
         Catalog as IcebergCatalog,
@@ -29,7 +29,7 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use object_store::ObjectStore;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -40,23 +40,20 @@ pub struct EmbucketIcebergCatalog {
 
 impl EmbucketIcebergCatalog {
     #[tracing::instrument(name = "EmbucketIcebergCatalog::new", level = "trace", skip(metastore))]
-    pub fn new(metastore: Arc<dyn Metastore>, database: String) -> MetastoreResult<Self> {
-        let db = block_on(metastore.get_database(&database))?.ok_or_else(|| {
-            metastore_error::DatabaseNotFoundSnafu {
-                db: database.clone(),
-            }
-            .build()
-        })?;
-        let object_store =
-            block_on(metastore.volume_object_store(&db.volume))?.ok_or_else(|| {
-                metastore_error::VolumeNotFoundSnafu {
-                    volume: db.volume.clone(),
-                }
-                .build()
+    pub async fn new(
+        metastore: Arc<dyn Metastore>,
+        database: &RwObject<Database>,
+    ) -> MetastoreResult<Self> {
+        // making it async, as blocking operation for sqlite is not good to have here
+        let object_store = metastore
+            .volume_object_store(database.volume_id()?)
+            .await?
+            .context(metastore_error::VolumeNotFoundSnafu {
+                volume: database.volume.clone(),
             })?;
         Ok(Self {
             metastore,
-            database,
+            database: database.ident.clone(),
             object_store,
         })
     }
@@ -304,10 +301,8 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .ok_or_else(|| IcebergError::NotFound(format!("database {}", self.name())))?;
         let schemas = self
             .metastore
-            .iter_schemas(&database.ident)
-            .collect()
+            .get_schemas(ListParams::default().by_parent_name(database.ident.clone()))
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for schema in schemas {
             namespaces.push(IcebergNamespace::try_new(std::slice::from_ref(

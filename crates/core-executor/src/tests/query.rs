@@ -14,7 +14,6 @@ use core_metastore::{
     Database as MetastoreDatabase, Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent,
     Volume as MetastoreVolume,
 };
-use core_utils::Db;
 use datafusion::sql::parser::DFParser;
 use embucket_functions::session_params::SessionProperty;
 use std::sync::Arc;
@@ -84,8 +83,7 @@ static TABLE_SETUP: &str = include_str!(r"./table_setup.sql");
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 pub async fn create_df_session() -> Arc<UserSession> {
-    let db = Db::memory().await;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
     let mut mock = MockHistoryStore::new();
     mock.expect_get_queries().returning(|_| {
         let mut records = Vec::new();
@@ -99,25 +97,19 @@ pub async fn create_df_session() -> Arc<UserSession> {
     let history_store: Arc<dyn HistoryStore> = Arc::new(mock);
     let running_queries = Arc::new(RunningQueriesRegistry::new());
 
-    metastore
-        .create_volume(
-            &"test_volume".to_string(),
-            MetastoreVolume::new(
-                "test_volume".to_string(),
-                core_metastore::VolumeType::Memory,
-            ),
-        )
+    let volume = metastore
+        .create_volume(MetastoreVolume::new(
+            "test_volume".to_string(),
+            core_metastore::VolumeType::Memory,
+        ))
         .await
         .expect("Failed to create volume");
-    metastore
-        .create_database(
-            &"embucket".to_string(),
-            MetastoreDatabase {
-                ident: "embucket".to_string(),
-                properties: None,
-                volume: "test_volume".to_string(),
-            },
-        )
+    let _database = metastore
+        .create_database(MetastoreDatabase {
+            ident: "embucket".to_string(),
+            properties: None,
+            volume: volume.ident.clone(),
+        })
         .await
         .expect("Failed to create database");
     let schema_ident = MetastoreSchemaIdent {
@@ -173,7 +165,7 @@ macro_rules! test_query {
         $(, snowflake_error = $snowflake_error:expr)?
     ) => {
         paste::paste! {
-            #[tokio::test]
+            #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
             async fn [< query_ $test_fn_name >]() {
                 let ctx = $crate::tests::query::create_df_session().await;
 

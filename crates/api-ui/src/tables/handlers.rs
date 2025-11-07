@@ -403,7 +403,7 @@ pub async fn get_tables(
 ) -> Result<Json<TablesResponse>> {
     let context = QueryContext::new(Some(database_name.clone()), None, None);
     let sql_string = format!(
-        "SELECT * FROM slatedb.meta.tables WHERE schema_name = '{}' AND database_name = '{}'",
+        "SELECT * FROM sqlite.meta.tables WHERE schema_name = '{}' AND database_name = '{}'",
         schema_name.clone(),
         database_name.clone()
     );

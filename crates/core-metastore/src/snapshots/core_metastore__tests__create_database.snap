@@ -1,17 +1,19 @@
 ---
-source: crates/core-metastore/src/metastore.rs
+source: crates/core-metastore/src/tests.rs
 expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
 ---
 (
-    Err(
-        0: Volume testv1 not found, at file:line:col,
-    ),
+    0: Volume non_existing not found, at file:line:col,
     [
         RwObject {
             data: Database {
                 ident: "testdb",
                 properties: None,
                 volume: "testv1",
+            },
+            ids: {
+                "id": 1,
+                "volume_id": 1,
             },
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",
@@ -20,9 +22,13 @@ expression: "(no_volume_result, all_databases, fetched_db, all_dbs_after)"
     Some(
         RwObject {
             data: Database {
-                ident: "testdb",
+                ident: "updated_testdb",
                 properties: None,
-                volume: "testv2",
+                volume: "testv1",
+            },
+            ids: {
+                "id": 1,
+                "volume_id": 1,
             },
             created_at: "TIMESTAMP",
             updated_at: "TIMESTAMP",

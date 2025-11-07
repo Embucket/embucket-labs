@@ -18,7 +18,7 @@ pub struct RunningQuery {
     rx: watch::Receiver<QueryStatus>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RunningQueryId {
     ByQueryId(QueryRecordId),  // (query_id)
     ByRequestId(Uuid, String), // (request_id, sql_text)

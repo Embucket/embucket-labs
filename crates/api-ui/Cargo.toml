@@ -17,6 +17,7 @@ core-history = { path = "../core-history" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
+axum-server = "0.7.2"
 axum = { workspace = true }
 chrono = { workspace = true }
 datafusion = { workspace = true }

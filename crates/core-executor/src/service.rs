@@ -13,7 +13,7 @@ use datafusion::execution::memory_pool::{
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
-use snafu::ResultExt;
+use snafu::{OptionExt, ResultExt};
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 use std::vec;
@@ -33,7 +33,7 @@ use core_history::SlateDBHistoryStore;
 use core_history::{QueryRecordId, QueryResultError, QueryStatus};
 use core_metastore::{
     Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
-    Volume, VolumeType,
+    Volume, VolumeType, error as metastore_err,
 };
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
@@ -56,6 +56,7 @@ pub trait ExecutionService: Send + Sync {
     fn get_sessions(&self) -> Arc<RwLock<HashMap<String, Arc<UserSession>>>>;
 
     /// Aborts a query by `query_id` or `request_id`.
+    /// Then it waits until it propagates query status=Canceled
     ///
     /// # Arguments
     ///
@@ -63,9 +64,9 @@ pub trait ExecutionService: Send + Sync {
     ///
     /// # Returns
     ///
-    /// A `Result` of type `()`. The `Ok` variant contains an empty tuple,
+    /// A `Result` of type `QueryStatus`. The `Ok` variant contains an empty tuple,
     /// and the `Err` variant contains an `Error`.
-    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()>;
+    async fn abort_query(&self, abort_query: RunningQueryId) -> Result<QueryStatus>;
 
     /// Submits a query to be executed asynchronously. Query result can be consumed with
     /// `wait_submitted_query_result`.
@@ -170,8 +171,7 @@ impl CoreExecutionService {
         config: Arc<Config>,
     ) -> Result<Self> {
         if config.bootstrap_default_entities {
-            // do not fail on bootstrap errors
-            let _ = Self::bootstrap(metastore.clone()).await;
+            Self::bootstrap(metastore.clone()).await?;
         }
 
         Self::initialize_datafusion_tracer();
@@ -204,40 +204,53 @@ impl CoreExecutionService {
     #[allow(clippy::cognitive_complexity)]
     async fn bootstrap(metastore: Arc<dyn Metastore>) -> Result<()> {
         let ident = DEFAULT_CATALOG.to_string();
-        metastore
-            .create_volume(&ident, Volume::new(ident.clone(), VolumeType::Memory))
+        let volume_res = metastore
+            .create_volume(Volume::new(ident.clone(), VolumeType::Memory))
+            .await;
+        if let Err(core_metastore::Error::VolumeAlreadyExists { .. }) = &volume_res {
+            tracing::info!("Bootstrap volume '{}' skipped: already exists", ident);
+        } else {
+            volume_res.context(ex_error::BootstrapSnafu {
+                entity_type: "volume",
+            })?;
+        }
+
+        // now volume should exist
+        let volume = metastore
+            .get_volume(&ident)
             .await
+            .context(ex_error::BootstrapSnafu {
+                entity_type: "volume",
+            })?
+            .context(metastore_err::VolumeNotFoundSnafu {
+                volume: ident.clone(),
+            })
             .context(ex_error::BootstrapSnafu {
                 entity_type: "volume",
             })?;
 
-        metastore
-            .create_database(
-                &ident,
-                Database {
-                    ident: ident.clone(),
-                    properties: None,
-                    volume: ident.clone(),
-                },
-            )
-            .await
-            .context(ex_error::BootstrapSnafu {
+        let database_res = metastore
+            .create_database(Database::new(ident.clone(), volume.ident.clone()))
+            .await;
+        if let Err(core_metastore::Error::DatabaseAlreadyExists { .. }) = &database_res {
+            tracing::info!("Bootstrap database '{}' skipped: already exists", ident);
+        } else {
+            database_res.context(ex_error::BootstrapSnafu {
                 entity_type: "database",
             })?;
+        }
 
         let schema_ident = SchemaIdent::new(ident.clone(), DEFAULT_SCHEMA.to_string());
-        metastore
-            .create_schema(
-                &schema_ident,
-                Schema {
-                    ident: schema_ident.clone(),
-                    properties: None,
-                },
-            )
-            .await
-            .context(ex_error::BootstrapSnafu {
+        let schema_res = metastore
+            .create_schema(&schema_ident, Schema::new(schema_ident.clone()))
+            .await;
+        if let Err(core_metastore::Error::SchemaAlreadyExists { .. }) = &schema_res {
+            tracing::info!("Bootstrap schema '{}' skipped: already exists", ident);
+        } else {
+            schema_res.context(ex_error::BootstrapSnafu {
                 entity_type: "schema",
             })?;
+        }
 
         Ok(())
     }
@@ -596,11 +609,21 @@ impl ExecutionService for CoreExecutionService {
         name = "ExecutionService::abort_query",
         level = "debug",
         skip(self),
-        fields(old_queries_count = self.queries.count()),
+        fields(query_status),
         err
     )]
-    fn abort_query(&self, abort_query: RunningQueryId) -> Result<()> {
-        self.queries.abort(abort_query)
+    async fn abort_query(&self, running_query_id: RunningQueryId) -> Result<QueryStatus> {
+        let mut running_query = self.queries.get(running_query_id.clone())?;
+
+        let query_id = running_query.query_id;
+        self.queries.abort(running_query_id)?;
+        let query_status = running_query
+            .recv_query_finished()
+            .await
+            .context(ex_error::QueryStatusRecvSnafu { query_id })?;
+        tracing::debug!("Query {query_id} abortion completed: {query_status}");
+        tracing::Span::current().record("query_status", query_status.to_string());
+        Ok(query_status)
     }
 
     #[tracing::instrument(

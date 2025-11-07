@@ -1,5 +1,6 @@
 use crate::schema::CachingSchema;
-use chrono::NaiveDateTime;
+use chrono::DateTime;
+use chrono::Utc;
 use dashmap::DashMap;
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
 use std::fmt::{Display, Formatter};
@@ -18,13 +19,13 @@ pub struct CachingCatalog {
 
 #[derive(Clone)]
 pub struct Properties {
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Default for Properties {
     fn default() -> Self {
-        let now = chrono::Utc::now().naive_utc();
+        let now = Utc::now();
         Self {
             created_at: now,
             updated_at: now,

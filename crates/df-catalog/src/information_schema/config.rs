@@ -241,8 +241,8 @@ impl InformationSchemaConfig {
                 let (created_at, updated_at) =
                     if let Some(props) = caching_catalog.properties.clone() {
                         (
-                            Some(props.created_at.and_utc().timestamp_millis()),
-                            Some(props.updated_at.and_utc().timestamp_millis()),
+                            Some(props.created_at.timestamp_millis()),
+                            Some(props.updated_at.timestamp_millis()),
                         )
                     } else {
                         (None, None)

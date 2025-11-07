@@ -431,8 +431,9 @@ impl ExecutorWithObjectStore {
                             .rev()
                             .collect(),
                     });
+                    // This not going to work, just compile since volumes migrated to sqlite
                     // wrap as a fresh RwObject, this sets new updated at
-                    let rwobject = RwObject::new(MetastoreVolume::new(
+                    let volume = RwObject::new(MetastoreVolume::new(
                         volume_name.clone(),
                         VolumeType::S3(S3Volume {
                             region: s3_volume.region,
@@ -441,23 +442,24 @@ impl ExecutorWithObjectStore {
                             credentials: Some(aws_credentials),
                         }),
                     ));
-                    eprintln!("Intentionally corrupting volume: {:#?}", rwobject.data);
+                    let volume_id = volume.id().context(TestMetastoreSnafu)?;
+                    eprintln!("Intentionally corrupting volume: {volume:#?}");
                     // Use db.put to update volume in metastore
                     self.db
-                        .put(&db_key, &rwobject)
+                        .put(&db_key, &volume)
                         .await
                         .context(UtilSlateDBSnafu)
                         .context(TestMetastoreSnafu)?;
                     // Probably update_volume could be used instead of db.put,
                     // so use update_volume to update just cached object_store
                     self.metastore
-                        .update_volume(&volume_name, rwobject.data)
+                        .update_volume(&volume_name, volume.data)
                         .await
                         .context(TestMetastoreSnafu)?;
                     // Directly check if ObjectStore can't access data using bad credentials
                     let object_store = self
                         .metastore
-                        .volume_object_store(&volume_name)
+                        .volume_object_store(volume_id)
                         .await
                         .context(TestMetastoreSnafu)?;
                     if let Some(object_store) = object_store {
@@ -535,10 +537,10 @@ pub async fn create_volumes(
             TestVolumeType::Memory => {
                 eprintln!("Creating memory volume: {volume}");
                 let res = metastore
-                    .create_volume(
-                        &volume,
-                        MetastoreVolume::new(volume.clone(), core_metastore::VolumeType::Memory),
-                    )
+                    .create_volume(MetastoreVolume::new(
+                        volume.clone(),
+                        core_metastore::VolumeType::Memory,
+                    ))
                     .await;
                 if let Err(e) = res {
                     eprintln!("Failed to create memory volume: {e}");
@@ -551,15 +553,12 @@ pub async fn create_volumes(
                 let user_data_dir = user_data_dir.as_path();
                 eprintln!("Creating file volume: {volume}, {user_data_dir:?}");
                 let res = metastore
-                    .create_volume(
-                        &volume,
-                        MetastoreVolume::new(
-                            volume.clone(),
-                            core_metastore::VolumeType::File(FileVolume {
-                                path: user_data_dir.display().to_string(),
-                            }),
-                        ),
-                    )
+                    .create_volume(MetastoreVolume::new(
+                        volume.clone(),
+                        core_metastore::VolumeType::File(FileVolume {
+                            path: user_data_dir.display().to_string(),
+                        }),
+                    ))
                     .await;
                 if let Err(e) = res {
                     eprintln!("Failed to create file volume: {e}");
@@ -570,13 +569,10 @@ pub async fn create_volumes(
                 if let Ok(s3_volume) = s3_volume(prefix) {
                     eprintln!("Creating s3 volume: {volume}, {s3_volume:?}");
                     let res = metastore
-                        .create_volume(
-                            &volume,
-                            MetastoreVolume::new(
-                                volume.clone(),
-                                core_metastore::VolumeType::S3(s3_volume),
-                            ),
-                        )
+                        .create_volume(MetastoreVolume::new(
+                            volume.clone(),
+                            core_metastore::VolumeType::S3(s3_volume),
+                        ))
                         .await;
                     if let Err(e) = res {
                         eprintln!("Failed to create s3 volume: {e}");
@@ -588,13 +584,10 @@ pub async fn create_volumes(
                 if let Ok(s3_tables_volume) = s3_tables_volume(database, prefix) {
                     eprintln!("Creating s3tables volume: {volume}, {s3_tables_volume:?}");
                     let res = metastore
-                        .create_volume(
-                            &volume,
-                            MetastoreVolume::new(
-                                volume.clone(),
-                                core_metastore::VolumeType::S3Tables(s3_tables_volume),
-                            ),
-                        )
+                        .create_volume(MetastoreVolume::new(
+                            volume.clone(),
+                            core_metastore::VolumeType::S3Tables(s3_tables_volume),
+                        ))
                         .await;
                     if let Err(e) = res {
                         eprintln!("Failed to create s3tables volume: {e}");
@@ -692,7 +685,11 @@ pub async fn create_executor(
     eprintln!("Creating executor with object store type: {object_store_type}");
 
     let db = object_store_type.db().await?;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore = Arc::new(
+        SlateDBMetastore::new(db.clone())
+            .await
+            .context(TestMetastoreSnafu)?,
+    );
     let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
     let execution_svc = CoreExecutionService::new(
         metastore.clone(),
@@ -727,7 +724,11 @@ pub async fn create_executor_with_early_volumes_creation(
     eprintln!("Creating executor with object store type: {object_store_type}");
 
     let db = object_store_type.db().await?;
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore = Arc::new(
+        SlateDBMetastore::new(db.clone())
+            .await
+            .context(TestMetastoreSnafu)?,
+    );
 
     // create volumes before execution service is not a part of normal Embucket flow,
     // but we need it now to test s3 tables somehow

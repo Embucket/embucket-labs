@@ -15,7 +15,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases_navigation() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
     let url = format!("http://{addr}/ui/navigation-trees");
     let res = req(&client, Method::GET, &url, String::new())

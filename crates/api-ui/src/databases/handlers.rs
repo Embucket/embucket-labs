@@ -1,7 +1,8 @@
 #![allow(clippy::needless_for_each)]
+use crate::OrderDirection;
 use crate::error::Result;
 use crate::state::AppState;
-use crate::{OrderDirection, apply_parameters};
+use crate::volumes::error::VolumeNotFoundSnafu;
 use crate::{
     SearchParameters,
     databases::error::{
@@ -12,7 +13,6 @@ use crate::{
         Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseResponse,
         DatabaseUpdatePayload, DatabaseUpdateResponse, DatabasesResponse,
     },
-    downcast_string_column,
     error::ErrorResponse,
 };
 use api_sessions::DFSessionId;
@@ -20,7 +20,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext, QueryResult};
+use core_executor::models::QueryContext;
 use core_metastore::Database as MetastoreDatabase;
 use core_metastore::error::{self as metastore_error, ValidationSnafu};
 use snafu::{OptionExt, ResultExt};
@@ -84,22 +84,32 @@ pub async fn create_database(
     State(state): State<AppState>,
     Json(database): Json<DatabaseCreatePayload>,
 ) -> Result<Json<DatabaseCreateResponse>> {
+    let volume = state
+        .metastore
+        .get_volume(&database.volume)
+        .await
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu {
+            volume: database.volume.clone(),
+        })?;
+
     let database = MetastoreDatabase {
         ident: database.name,
-        volume: database.volume,
+        volume: volume.ident.clone(),
         properties: None,
     };
     database
         .validate()
         .context(ValidationSnafu)
         .context(CreateSnafu)?;
+
     state
         .execution_svc
         .query(
             &session_id,
             &format!(
                 "CREATE DATABASE {} EXTERNAL_VOLUME = '{}'",
-                database.ident, database.volume
+                database.ident, volume.ident
             ),
             QueryContext::default(),
         )
@@ -115,7 +125,7 @@ pub async fn create_database(
             database: database.ident.clone(),
         })?;
 
-    Ok(Json(DatabaseCreateResponse(Database::from(database))))
+    Ok(Json(DatabaseCreateResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -146,19 +156,13 @@ pub async fn get_database(
         .metastore
         .get_database(&database_name)
         .await
-        .map(|opt_rw_obj| {
-            opt_rw_obj.ok_or_else(|| {
-                metastore_error::DatabaseNotFoundSnafu {
-                    db: database_name.clone(),
-                }
-                .build()
-            })
-        })
         .context(GetSnafu)?
-        .map(Database::from)
+        .context(metastore_error::DatabaseNotFoundSnafu {
+            db: database_name.clone(),
+        })
         .context(GetSnafu)?;
 
-    Ok(Json(DatabaseResponse(database)))
+    Ok(Json(DatabaseResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -200,6 +204,11 @@ pub async fn delete_database(
         )
         .await
         .context(crate::schemas::error::DeleteSnafu)?;
+    // state
+    //     .metastore
+    //     .delete_database(&database_name, query.cascade.unwrap_or_default())
+    //     .await
+    //     .context(crate::databases::error::DeleteSnafu)?;
     Ok(())
 }
 
@@ -230,9 +239,18 @@ pub async fn update_database(
     Path(database_name): Path<String>,
     Json(database): Json<DatabaseUpdatePayload>,
 ) -> Result<Json<DatabaseUpdateResponse>> {
+    let volume = state
+        .metastore
+        .get_volume(&database.volume)
+        .await
+        .context(GetSnafu)?
+        .context(VolumeNotFoundSnafu {
+            volume: database.volume.clone(),
+        })?;
+
     let database = MetastoreDatabase {
         ident: database.name,
-        volume: database.volume,
+        volume: volume.ident.clone(),
         properties: None,
     };
     database
@@ -244,10 +262,9 @@ pub async fn update_database(
         .metastore
         .update_database(&database_name, database)
         .await
-        .map(Database::from)
         .context(UpdateSnafu)?;
 
-    Ok(Json(DatabaseUpdateResponse(database)))
+    Ok(Json(DatabaseUpdateResponse(Database::try_from(database)?)))
 }
 
 #[utoipa::path(
@@ -280,38 +297,49 @@ pub async fn list_databases(
     Query(parameters): Query<SearchParameters>,
     State(state): State<AppState>,
 ) -> Result<Json<DatabasesResponse>> {
-    let context = QueryContext::default();
-    let sql_string = "SELECT * FROM slatedb.meta.databases".to_string();
-    let sql_string = apply_parameters(
-        &sql_string,
-        parameters,
-        &["database_name", "volume_name"],
-        "created_at",
-        OrderDirection::DESC,
-    );
-    let QueryResult { records, .. } = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+    // let context = QueryContext::default();
+    // let sql_string = "SELECT * FROM sqlite.meta.databases".to_string();
+    // let sql_string = apply_parameters(
+    //     &sql_string,
+    //     parameters,
+    //     &["database_name", "volume_name"],
+    //     "created_at",
+    //     OrderDirection::DESC,
+    // );
+    // let QueryResult { records, .. } = state
+    //     .execution_svc
+    //     .query(&session_id, sql_string.as_str(), context)
+    //     .await
+    //     .context(databases_error::ListSnafu)?;
+    // let mut items = Vec::new();
+    // for record in records {
+    //     let database_names =
+    //         downcast_string_column(&record, "database_name").context(databases_error::ListSnafu)?;
+    //     let volume_names =
+    //         downcast_string_column(&record, "volume_name").context(databases_error::ListSnafu)?;
+    //     let created_at_timestamps =
+    //         downcast_string_column(&record, "created_at").context(databases_error::ListSnafu)?;
+    //     let updated_at_timestamps =
+    //         downcast_string_column(&record, "updated_at").context(databases_error::ListSnafu)?;
+    //     for i in 0..record.num_rows() {
+    //         items.push(Database {
+    //             name: database_names.value(i).to_string(),
+    //             volume: volume_names.value(i).to_string(),
+    //             created_at: created_at_timestamps.value(i).to_string(),
+    //             updated_at: updated_at_timestamps.value(i).to_string(),
+    //         });
+    //     }
+    // }
+    // Ok(Json(DatabasesResponse { items }))
+
+    let items = state
+        .metastore
+        .get_databases(parameters.into())
         .await
-        .context(databases_error::ListSnafu)?;
-    let mut items = Vec::new();
-    for record in records {
-        let database_names =
-            downcast_string_column(&record, "database_name").context(databases_error::ListSnafu)?;
-        let volume_names =
-            downcast_string_column(&record, "volume_name").context(databases_error::ListSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(databases_error::ListSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(databases_error::ListSnafu)?;
-        for i in 0..record.num_rows() {
-            items.push(Database {
-                name: database_names.value(i).to_string(),
-                volume: volume_names.value(i).to_string(),
-                created_at: created_at_timestamps.value(i).to_string(),
-                updated_at: updated_at_timestamps.value(i).to_string(),
-            });
-        }
-    }
+        .context(databases_error::ListSnafu)?
+        .into_iter()
+        .map(Database::try_from)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+
     Ok(Json(DatabasesResponse { items }))
 }
