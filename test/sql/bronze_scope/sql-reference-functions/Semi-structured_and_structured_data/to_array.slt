@@ -1,7 +1,0 @@
-query TT
-WITH array_demo_2 AS (
-    SELECT TO_ARRAY(1) AS array1, TO_ARRAY(3) AS array2
-)
-SELECT array1, array2 FROM array_demo_2
-----
-'[1]'	'[3]'

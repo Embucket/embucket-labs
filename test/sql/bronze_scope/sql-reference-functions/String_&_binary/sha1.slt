@@ -1,9 +1,0 @@
-query T
-SELECT sha1('Snowflake')
-----
-fda76b0bcc1e87cf259b1d1e3271d76f590fb5dd
-
-query TTT
-SELECT 'AbCd0', SHA1('AbCd0'), SHA1_HEX('AbCd0')
-----
-AbCd0	9ddb991863d53b35a52c490db256207c776ab8d8	9ddb991863d53b35a52c490db256207c776ab8d8

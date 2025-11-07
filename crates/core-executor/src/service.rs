@@ -15,7 +15,7 @@ use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
 use snafu::ResultExt;
 use std::num::NonZeroUsize;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
@@ -24,15 +24,13 @@ use super::error::{self as ex_error, Result};
 use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
 use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
 use super::session::UserSession;
+use crate::query_types::{QueryRecordId, QueryStatus};
 use crate::running_queries::RunningQueryId;
 use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
 use crate::tracing::SpanTracer;
 use crate::utils::{Config, MemPoolType};
-use core_history::HistoryStore;
-use core_history::SlateDBHistoryStore;
-use core_history::{QueryRecordId, QueryResultError, QueryStatus};
 use core_metastore::{
-    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
+    Database, InMemoryMetastore, Metastore, Schema, SchemaIdent, TableIdent as MetastoreTableIdent,
     Volume, VolumeType,
 };
 use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
@@ -101,22 +99,6 @@ pub trait ExecutionService: Send + Sync {
         query_handle: AsyncQueryHandle,
     ) -> Result<QueryResult>;
 
-    /// Wait while any running query finished, it returns query result loaded from query history
-    /// or error which is just a simple wrapper around stringified error loaded from history
-    /// # Arguments
-    ///
-    /// * `query_id` - The ID of the query to wait for.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` of type `Result<QueryResult>`. The `Ok` variant contains nested Result loaded from
-    /// query history including query result / error. The `Err` variant is a simple error wrapper
-    /// `Error::QueryExecution` with `query_id`.
-    async fn wait_historical_query_result(
-        &self,
-        query_id: QueryRecordId,
-    ) -> Result<Result<QueryResult>>;
-
     /// Synchronously executes a query and returns the result.
     /// It is a wrapper around `submit_query` and `wait_submitted_query_result`.
     ///
@@ -149,26 +131,22 @@ pub trait ExecutionService: Send + Sync {
 
 pub struct CoreExecutionService {
     metastore: Arc<dyn Metastore>,
-    history_store: Arc<dyn HistoryStore>,
     df_sessions: Arc<RwLock<HashMap<String, Arc<UserSession>>>>,
     config: Arc<Config>,
     catalog_list: Arc<EmbucketCatalogList>,
     runtime_env: Arc<RuntimeEnv>,
     queries: Arc<RunningQueriesRegistry>,
+    next_query_id: AtomicI64,
 }
 
 impl CoreExecutionService {
     #[tracing::instrument(
         name = "CoreExecutionService::new",
         level = "debug",
-        skip(metastore, history_store, config),
+        skip(metastore, config),
         err
     )]
-    pub async fn new(
-        metastore: Arc<dyn Metastore>,
-        history_store: Arc<dyn HistoryStore>,
-        config: Arc<Config>,
-    ) -> Result<Self> {
+    pub async fn new(metastore: Arc<dyn Metastore>, config: Arc<Config>) -> Result<Self> {
         if config.bootstrap_default_entities {
             // do not fail on bootstrap errors
             let _ = Self::bootstrap(metastore.clone()).await;
@@ -176,16 +154,16 @@ impl CoreExecutionService {
 
         Self::initialize_datafusion_tracer();
 
-        let catalog_list = Self::catalog_list(metastore.clone(), history_store.clone()).await?;
+        let catalog_list = Self::catalog_list(metastore.clone()).await?;
         let runtime_env = Self::runtime_env(&config, catalog_list.clone())?;
         Ok(Self {
             metastore,
-            history_store,
             df_sessions: Arc::new(RwLock::new(HashMap::new())),
             config,
             catalog_list,
             runtime_env,
             queries: Arc::new(RunningQueriesRegistry::new()),
+            next_query_id: AtomicI64::new(1),
         })
     }
 
@@ -245,17 +223,11 @@ impl CoreExecutionService {
     #[tracing::instrument(
         name = "CoreExecutionService::catalog_list",
         level = "debug",
-        skip(metastore, history_store),
+        skip(metastore),
         err
     )]
-    pub async fn catalog_list(
-        metastore: Arc<dyn Metastore>,
-        history_store: Arc<dyn HistoryStore>,
-    ) -> Result<Arc<EmbucketCatalogList>> {
-        let catalog_list = Arc::new(EmbucketCatalogList::new(
-            metastore.clone(),
-            history_store.clone(),
-        ));
+    pub async fn catalog_list(metastore: Arc<dyn Metastore>) -> Result<Arc<EmbucketCatalogList>> {
+        let catalog_list = Arc::new(EmbucketCatalogList::new(metastore.clone()));
         catalog_list
             .register_catalogs()
             .await
@@ -326,6 +298,10 @@ impl CoreExecutionService {
     fn initialize_datafusion_tracer() {
         let _ = set_join_set_tracer(&SpanTracer);
     }
+
+    fn next_query_id(&self) -> QueryRecordId {
+        QueryRecordId(self.next_query_id.fetch_add(1, Ordering::Relaxed))
+    }
 }
 
 #[async_trait::async_trait]
@@ -346,7 +322,6 @@ impl ExecutionService for CoreExecutionService {
         }
         let user_session: Arc<UserSession> = Arc::new(UserSession::new(
             self.metastore.clone(),
-            self.history_store.clone(),
             self.queries.clone(),
             self.config.clone(),
             self.catalog_list.clone(),
@@ -539,60 +514,6 @@ impl ExecutionService for CoreExecutionService {
     }
 
     #[tracing::instrument(
-        name = "ExecutionService::wait_historical_query_result",
-        level = "debug",
-        skip(self),
-        fields(query_status, query_uuid = query_id.as_uuid().to_string(), running_queries_count = self.queries.count()),
-        err
-    )]
-    async fn wait_historical_query_result(
-        &self,
-        query_id: QueryRecordId,
-    ) -> Result<Result<QueryResult>> {
-        if let Ok(mut running_query) = self.queries.get(RunningQueryId::ByQueryId(query_id)) {
-            let query_status = running_query
-                .recv_query_finished()
-                .await
-                .context(ex_error::QueryStatusRecvSnafu { query_id })?;
-            tracing::Span::current().record("query_status", query_status.to_string());
-        }
-
-        // query is not running or not running anymore, get the result from history
-        let query_record = self
-            .history_store
-            .get_query(query_id)
-            .await
-            .context(ex_error::QueryHistorySnafu)
-            .context(ex_error::QueryExecutionSnafu { query_id })?;
-
-        if query_record.status == QueryStatus::Running {
-            ex_error::QueryIsRunningSnafu { query_id }
-                .fail()
-                .context(ex_error::QueryExecutionSnafu { query_id })
-        } else {
-            let fetched_query_result: Result<QueryResult> = if query_record.error.is_some() {
-                // convert saved query error to result
-                Err(query_record
-                    .try_into()
-                    .context(ex_error::QueryExecutionSnafu { query_id })?)
-            } else {
-                let result_set = self
-                    .history_store
-                    .get_query_result(query_id)
-                    .await
-                    .context(ex_error::QueryHistoryResultSnafu)
-                    .context(ex_error::QueryExecutionSnafu { query_id })?;
-
-                // convert saved ResultSet to result
-                Ok(result_set
-                    .try_into()
-                    .context(ex_error::QueryExecutionSnafu { query_id })?)
-            };
-            Ok(fetched_query_result)
-        }
-    }
-
-    #[tracing::instrument(
         name = "ExecutionService::abort_query",
         level = "debug",
         skip(self),
@@ -622,11 +543,7 @@ impl ExecutionService for CoreExecutionService {
             return ex_error::ConcurrencyLimitSnafu.fail();
         }
 
-        let mut history_record = self
-            .history_store
-            .new_query_record(query, query_context.worksheet_id);
-
-        let query_id = history_record.query_id();
+        let query_id = self.next_query_id();
 
         // Record the result as part of the current span.
         tracing::Span::current()
@@ -641,20 +558,11 @@ impl ExecutionService for CoreExecutionService {
         };
 
         // Attach the generated query ID to the query context before execution.
-        // This ensures consistent tracking and logging of the query across all layers.
         let query_obj = user_session.query(query, query_context.with_query_id(query_id));
 
         let cancel_token = self.queries.add(running_query);
 
-        // Add query to history with status: Running
-        self.history_store
-            .save_query_record(&history_record, None)
-            .await;
-
         let query_timeout_secs = self.config.query_timeout_secs;
-        let query_history_rows_limit = self.config.query_history_rows_limit;
-
-        let history_store_ref = self.history_store.clone();
         let queries_ref = self.queries.clone();
 
         let (tx, rx) = oneshot::channel();
@@ -664,7 +572,7 @@ impl ExecutionService for CoreExecutionService {
         let alloc_span = tracing::info_span!(
             target: "alloc",
             "query_alloc",
-            query_id = %history_record.query_id(),
+            query_id = %query_id.as_i64(),
             session_id = %session_id
         );
         tokio::spawn(async move {
@@ -721,39 +629,7 @@ impl ExecutionService for CoreExecutionService {
 
             let query_status = query_result_status.status;
 
-            let result_set = match &query_result_status.query_result {
-                Ok(query_result) => {
-                    let result_count: usize = query_result
-                        .records
-                        .iter()
-                        .map(RecordBatch::num_rows)
-                        .sum();
-                    // We are safe, no chance we will have more than i64::MAX rows
-                    #[allow(clippy::unwrap_used)]
-                    let result_count = i64::try_from(result_count).unwrap();
-                    history_record.finished_with_status(query_status, result_count);
-                    if let Ok(result_set) = query_result.as_result_set(Some(query_history_rows_limit)) {
-                        Some(result_set)
-                    } else {
-                        tracing::error!("failed to convert query result {query_id} to result_set");
-                        None
-                    }
-                }
-                Err(err) => {
-                    let execution_err = QueryResultError {
-                        status: query_status,
-                        message: err.to_snowflake_error().to_string(),
-                        diagnostic_message: format!("{err:?}"),
-                    };
-                    history_record.finished_with_error(&execution_err);
-                    None
-                }
-            };
-
-            // Record the query in the session’s history, including result count or error message.
-            // This ensures all queries are traceable and auditable within a session, which enables
-            // features like `last_query_id()` and enhances debugging and observability.
-            history_store_ref.save_query_record(&history_record, result_set).await;
+            query_obj.session.record_query_id(query_id);
 
             // Send result to the result owner
             if tx.send(query_result_status).is_err() {
@@ -896,10 +772,9 @@ impl ExecutionService for CoreExecutionService {
 //Test environment
 #[allow(clippy::expect_used)]
 pub async fn make_test_execution_svc() -> Arc<CoreExecutionService> {
-    let metastore = Arc::new(SlateDBMetastore::new_in_memory().await);
-    let history_store = Arc::new(SlateDBHistoryStore::new_in_memory().await);
+    let metastore = Arc::new(InMemoryMetastore::new());
     Arc::new(
-        CoreExecutionService::new(metastore, history_store, Arc::new(Config::default()))
+        CoreExecutionService::new(metastore, Arc::new(Config::default()))
             .await
             .expect("Failed to create a execution service"),
     )

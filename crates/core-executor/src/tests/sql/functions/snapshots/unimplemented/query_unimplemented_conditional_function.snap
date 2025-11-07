@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT GREATEST_IGNORE_NULLS(true, false)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'greatest_ignore_nulls' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/greatest_ignore_nulls",
-)

@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/encryption/encrypt_raw.rs
-description: "\"SELECT ENCRYPT_RAW(\n        TO_BINARY('426F6E6A6F7572', 'HEX'),  -- 'Bonjour' in hex\n        TO_BINARY('0123456789ABCDEF0123456789ABCDEF01234567', 'HEX'),  -- 24-byte key (AES-192)\n        TO_BINARY('416C736F4E6F745365637265', 'HEX')  -- 12-byte IV (24 hex chars)\n    ) AS encrypted\""
----
-Err(
-    "Error: External error: Key size of 160 bits not found for encryption algorithm AES",
-)

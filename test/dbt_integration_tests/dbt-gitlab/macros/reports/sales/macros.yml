@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: rpt_retention
-    description: '{{ doc("rpt_retention") }}'
-    arguments:
-      - name: reporting_count
-        type: array
-        description: This is the amount of subscriptions/seats reporting metric.

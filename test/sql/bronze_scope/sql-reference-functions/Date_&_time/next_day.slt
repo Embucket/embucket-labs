@@ -1,6 +1,0 @@
-query TT
-SELECT CURRENT_DATE() AS "Today's Date",
-       NEXT_DAY(CURRENT_DATE(), 'Friday') AS "Next Friday"
-----
-<REGEX>:'\d{4}-\d{2}-\d{2}'	<REGEX>:'\d{4}-\d{2}-\d{2}'
-

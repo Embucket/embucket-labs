@@ -1,9 +1,0 @@
-query T
-SELECT TO_GEOGRAPHY('POINT(-122.35 37.55)');
-----
-'{"coordinates":[-122.35,37.55],"type":"Point"}'
-
-query T
-SELECT TO_GEOGRAPHY('POINTZ(-122.35 37.55 30)');
-----
-'{"coordinates":[-122.35,37.55,30],"type":"Point"}'

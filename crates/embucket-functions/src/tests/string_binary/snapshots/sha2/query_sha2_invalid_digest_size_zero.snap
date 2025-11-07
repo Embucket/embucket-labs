@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/string_binary/sha2.rs
-description: "\"SELECT sha2('test', 0)\""
----
-Err(
-    "Error: Execution error: Invalid digest size: 0. Must be 224, 256, 384, or 512",
-)

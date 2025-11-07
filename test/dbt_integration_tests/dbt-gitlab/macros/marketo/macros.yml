@@ -1,7 +1,0 @@
- version: 2
-
-macros:
-  - name: form_ids_type
-    description: Groups specific Marketo form IDs into the type of forms that they are
-  - name: marketo_campaign_activity_type
-    description: Groups attributes of SFDC campaigns into a campaign category/activity_type

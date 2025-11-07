@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT ADD_MONTHS('2023-01-01', 3)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'add_months' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/add_months",
-)

@@ -1,8 +1,0 @@
-version: 2
-models:
-  - name: customers_db_customers_pii
-    description: Model for Customers sensitive data
-    columns:
-        - name: customer_id
-          data_tests:
-              - not_null

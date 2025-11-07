@@ -7,19 +7,11 @@ license-file.workspace = true
 [dependencies]
 core-executor = { path = "../core-executor" }
 core-metastore = { path = "../core-metastore" }
-core-utils = { path = "../core-utils" }
-core-history = { path = "../core-history" }
-api-ui = { path = "../api-ui", optional = true }
-api-sessions = { path = "../api-sessions" }
 api-snowflake-rest = { path = "../api-snowflake-rest" }
-api-iceberg-rest = { path = "../api-iceberg-rest" }
-
-core-sqlite = { workspace = true }
 axum = { workspace = true }
 clap = {  workspace = true }
 console-subscriber = { version = "0.4.1" } 
 dotenv = "0.15.0"
-object_store = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "registry", "fmt", "json"] }
 tracing-opentelemetry = { version = "0.31.0" }
@@ -35,20 +27,18 @@ tikv-jemallocator = { workspace = true }
 time = { workspace = true }
 tower = { workspace = true }
 tokio = { workspace = true }
-slatedb = { workspace = true }
-tower-sessions = { workspace = true }
 tower-http = { workspace = true }
-serde_yaml = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 strum.workspace = true
+serde_yaml = { workspace = true }
+serde = { workspace = true }
+snafu = { workspace = true }
 
 [lints]
 workspace = true
 
 [features]
-default = ["experimental"]
-experimental = ["ui"]
-ui = ["dep:api-ui"]
+default = []
 alloc-tracing = ["dep:tracing-allocations"]

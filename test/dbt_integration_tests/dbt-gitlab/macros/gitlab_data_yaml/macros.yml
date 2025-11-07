@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: create_pi_source_table
-    description: '{{ doc("create_pi_source_table") }}'
-    arguments:
-        - name: source_performance_indicator
-          type: string
-          description: Name of the performance indicator file yaml file that is being transformed.

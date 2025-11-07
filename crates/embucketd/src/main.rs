@@ -4,29 +4,13 @@
 pub(crate) mod cli;
 pub(crate) mod helpers;
 pub(crate) mod layers;
+pub(crate) mod metastore_config;
 
-use api_iceberg_rest::router::create_router as create_iceberg_router;
-use api_iceberg_rest::state::Config as IcebergConfig;
-use api_iceberg_rest::state::State as IcebergAppState;
-#[cfg(feature = "ui")]
-use api_sessions::layer::propagate_session_cookie;
-use api_sessions::session::{SESSION_EXPIRATION_SECONDS, SessionStore};
 use api_snowflake_rest::server::layer::require_auth as snowflake_require_auth;
 use api_snowflake_rest::server::router::create_auth_router as create_snowflake_auth_router;
 use api_snowflake_rest::server::router::create_router as create_snowflake_router;
 use api_snowflake_rest::server::server_models::Config;
 use api_snowflake_rest::server::state::AppState as SnowflakeAppState;
-#[cfg(feature = "ui")]
-use api_ui::{
-    auth::{
-        layer::require_auth as ui_require_auth, router::create_router as create_ui_auth_router,
-    },
-    config::{AuthConfig as UIAuthConfig, WebConfig as UIWebConfig},
-    layers::make_cors_middleware,
-    router::{create_router as create_ui_router, ui_open_api_spec},
-    state::AppState as UIAppState,
-    web_assets::{config::StaticWebConfig, web_assets_app},
-};
 use axum::middleware;
 use axum::{
     Json, Router,
@@ -35,20 +19,14 @@ use axum::{
 use clap::Parser;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
-use core_utils::Db;
+use core_metastore::InMemoryMetastore;
 use dotenv::dotenv;
-use object_store::path::Path;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
-use slatedb::DbBuilder;
-use slatedb::config::Settings;
-use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
@@ -62,8 +40,9 @@ use tracing_subscriber::filter::{FilterExt, LevelFilter, Targets, filter_fn};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
-use utoipa::openapi;
 use utoipa_swagger_ui::SwaggerUi;
+
+use crate::metastore_config::MetastoreBootstrapConfig;
 // use core_sqlite::SqliteDb;
 
 #[cfg(feature = "alloc-tracing")]
@@ -80,16 +59,10 @@ mod alloc_tracing {
 #[global_allocator]
 static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-const TARGETS: [&str; 16] = [
+const TARGETS: [&str; 10] = [
     "embucketd",
-    "api_ui",
-    "api_sessions",
     "api_snowflake_rest",
-    "api_iceberg_rest",
     "core_executor",
-    "core_utils",
-    "core_history",
-    "core_sqlite",
     "core_metastore",
     "df_catalog",
     "datafusion",
@@ -141,7 +114,6 @@ async fn async_main(
     opts: cli::CliOpts,
     tracing_provider: SdkTracerProvider,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
         .clone()
@@ -172,73 +144,24 @@ async fn async_main(
     };
     let host = opts.host.clone().unwrap();
     let port = opts.port.unwrap();
-    let iceberg_config = IcebergConfig {
-        iceberg_catalog_url: opts.catalog_url.clone().unwrap(),
-    };
-    #[cfg(feature = "ui")]
-    let auth_config = UIAuthConfig::new(opts.jwt_secret()).with_demo_credentials(
-        opts.auth_demo_user.clone().unwrap(),
-        opts.auth_demo_password.clone().unwrap(),
-    );
-    #[cfg(feature = "ui")]
-    let web_config = UIWebConfig {
-        host: host.clone(),
-        port,
-        allow_origin: opts.cors_allow_origin.clone(),
-    };
-    #[cfg(feature = "ui")]
-    let static_web_config = StaticWebConfig {
-        host: host.clone(),
-        port: opts.assets_port.unwrap(),
-    };
+    let metastore = Arc::new(InMemoryMetastore::new());
 
-    let object_store = opts
-        .object_store_backend()
-        .expect("Failed to create object store");
-    let slate_db = Arc::new(
-        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-            .with_settings(slatedb_default_settings())
-            .build()
-            .await
-            .expect("Failed to start Slate DB"),
-    );
-
-    let db = Db::new(slate_db);
-
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(
-        SlateDBHistoryStore::new(
-            db.clone(),
-            opts.query_history_db_name.clone(),
-            opts.query_results_db_name.clone(),
-        )
-        .await?,
-    );
+    if let Some(config_path) = &opts.metastore_config {
+        tracing::info!(
+            path = %config_path.display(),
+            "Bootstrapping metastore from config"
+        );
+        let config = MetastoreBootstrapConfig::load(config_path.as_path()).await?;
+        config.apply(metastore.clone()).await?;
+    }
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(
-        CoreExecutionService::new(
-            metastore.clone(),
-            history_store.clone(),
-            Arc::new(execution_cfg),
-        )
-        .await
-        .expect("Failed to create execution service"),
+        CoreExecutionService::new(metastore.clone(), Arc::new(execution_cfg))
+            .await
+            .expect("Failed to create execution service"),
     );
     tracing::info!("Execution service created");
-
-    let session_store = SessionStore::new(execution_svc.clone());
-
-    tokio::task::spawn({
-        let session_store = session_store.clone();
-        async move {
-            session_store
-                .continuously_delete_expired(tokio::time::Duration::from_secs(
-                    SESSION_EXPIRATION_SECONDS,
-                ))
-                .await;
-        }
-    });
 
     let snowflake_state = SnowflakeAppState {
         execution_svc: execution_svc.clone(),
@@ -258,70 +181,12 @@ async fn async_main(
         .with_state(snowflake_state.clone())
         .layer(compression_layer);
     let snowflake_router = snowflake_router.merge(snowflake_auth_router);
-    let iceberg_router = create_iceberg_router().with_state(IcebergAppState {
-        metastore: metastore.clone(),
-        config: Arc::new(iceberg_config),
-    });
 
     // --- OpenAPI specs ---
-    let mut spec = ApiDoc::openapi();
-    if let Some(extra_spec) = load_openapi_spec() {
-        spec = spec.merge_from(extra_spec);
-    }
+    let swagger = SwaggerUi::new("/").url("/openapi.json", ApiDoc::openapi());
 
-    #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
-    let mut router = Router::new()
+    let router = Router::new()
         .merge(snowflake_router)
-        .nest("/catalog", iceberg_router);
-    #[cfg_attr(not(feature = "ui"), allow(unused_mut))]
-    let mut swagger = SwaggerUi::new("/").url("/openapi.json", spec);
-
-    #[cfg(feature = "ui")]
-    {
-        let ui_state = UIAppState::new(
-            metastore.clone(),
-            history_store,
-            execution_svc.clone(),
-            Arc::new(web_config.clone()),
-            Arc::new(auth_config),
-        );
-        let ui_router = create_ui_router()
-            .with_state(ui_state.clone())
-            .layer(middleware::from_fn_with_state(
-                session_store.clone(),
-                propagate_session_cookie,
-            ))
-            .layer(middleware::from_fn_with_state(
-                ui_state.clone(),
-                ui_require_auth,
-            ));
-        let ui_auth_router = create_ui_auth_router().with_state(ui_state.clone());
-        let ui_router = Router::new()
-            .nest("/ui", ui_router)
-            .nest("/ui/auth", ui_auth_router);
-        let ui_router = match web_config.allow_origin.as_ref() {
-            Some(allow_origin) => ui_router.layer(make_cors_middleware(allow_origin)),
-            None => ui_router,
-        };
-        router = router.merge(ui_router);
-
-        let ui_spec = ui_open_api_spec();
-        swagger = swagger.url("/ui_openapi.json", ui_spec);
-
-        let web_assets_addr = helpers::resolve_ipv4(format!(
-            "{}:{}",
-            static_web_config.host, static_web_config.port
-        ))
-        .expect("Failed to resolve web assets server address");
-        let listener = tokio::net::TcpListener::bind(web_assets_addr)
-            .await
-            .expect("Failed to bind to web assets server address");
-        let addr = listener.local_addr().expect("Failed to get local address");
-        tracing::info!(%addr, "Listening on http");
-        tokio::spawn(async { axum::serve(listener, web_assets_app()).await });
-    }
-
-    let router = router
         .merge(swagger)
         .route("/health", get(|| async { Json("OK") }))
         .route("/telemetry/send", post(|| async { Json("OK") }))
@@ -338,7 +203,7 @@ async fn async_main(
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!(%addr, "Listening on http");
     axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Failed to start server");
 
@@ -347,11 +212,6 @@ async fn async_main(
         .expect("TracerProvider should shutdown successfully");
 
     Ok(())
-}
-
-#[allow(clippy::expect_used)]
-fn slatedb_default_settings() -> Settings {
-    Settings::load().expect("Failed to load SlateDB settings")
 }
 
 #[allow(clippy::expect_used, clippy::redundant_closure_for_method_calls)]
@@ -461,7 +321,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal(db: Arc<Db>) {
+async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -481,11 +341,9 @@ async fn shutdown_signal(db: Arc<Db>) {
 
     tokio::select! {
         () = ctrl_c => {
-            db.close().await.expect("Failed to close database");
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
         },
         () = terminate => {
-            db.close().await.expect("Failed to close database");
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
     }
@@ -497,11 +355,3 @@ async fn shutdown_signal(db: Arc<Db>) {
 #[derive(OpenApi)]
 #[openapi()]
 pub struct ApiDoc;
-
-fn load_openapi_spec() -> Option<openapi::OpenApi> {
-    let openapi_yaml_content = fs::read_to_string("rest-catalog-open-api.yaml").ok()?;
-    let mut original_spec = serde_yaml::from_str::<openapi::OpenApi>(&openapi_yaml_content).ok()?;
-    // Dropping all paths from the original spec
-    original_spec.paths = openapi::Paths::new();
-    Some(original_spec)
-}

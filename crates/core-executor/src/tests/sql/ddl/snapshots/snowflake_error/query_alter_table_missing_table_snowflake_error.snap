@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE embucket.public.missing_table add column c5 VARCHAR\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Table 'embucket.public.missing_table' does not exist or not authorized",
-)

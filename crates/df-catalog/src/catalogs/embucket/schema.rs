@@ -2,7 +2,6 @@ use crate::block_in_new_runtime;
 use async_trait::async_trait;
 use core_metastore::error as metastore_error;
 use core_metastore::{Metastore, SchemaIdent, TableIdent};
-use core_utils::scan_iterator::ScanIterator;
 use datafusion::catalog::{SchemaProvider, TableProvider};
 use datafusion_common::DataFusionError;
 use datafusion_iceberg::DataFusionTable as IcebergDataFusionTable;
@@ -48,14 +47,11 @@ impl SchemaProvider for EmbucketSchema {
         let schema = self.schema.clone();
 
         let table_names = block_in_new_runtime(async move {
-            match metastore
-                .iter_tables(&SchemaIdent::new(database, schema))
-                .collect()
+            metastore
+                .list_tables(&SchemaIdent::new(database, schema))
                 .await
-            {
-                Ok(tables) => tables.into_iter().map(|s| s.ident.table.clone()).collect(),
-                Err(_) => vec![],
-            }
+                .map(|tables| tables.into_iter().map(|s| s.ident.table.clone()).collect())
+                .unwrap_or_else(|_| vec![])
         })
         .unwrap_or_else(|_| vec![]);
 

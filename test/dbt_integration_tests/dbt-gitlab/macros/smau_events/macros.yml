@@ -1,5 +1,0 @@
-version: 2
-
-macros:
-  - name: smau_events_ctes
-    description: '{{ doc("smau_events_ctes") }}'

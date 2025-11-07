@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT DIV0NULL(10, 0)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'div0null' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/div0null",
-)

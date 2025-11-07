@@ -43,11 +43,11 @@ Embucket uses the [dbt](https://docs.getdbt.com/) Gitlab project as a compatibil
 
 Snowflake provides a managed analytics database built on [FoundationDB](https://www.foundationdb.org) and object storage such as S3. Snowflake delivers a managed service for deploying and scaling analytics workloads. See their [whitepaper](https://www.cs.cmu.edu/~15721-f24/papers/Snowflake.pdf) for details.
 
-Embucket provides an open source Snowflake alternative with the same ease of use and manageability. You gain open source and self-hosting benefits. The system uses open technologies including [Apache DataFusion](https://datafusion.apache.org/), [Apache Iceberg](https://iceberg.apache.org/), [SlateDB](https://slatedb.io/), [Apache Arrow](https://arrow.apache.org/), and Parquet.
+Embucket provides an open source Snowflake alternative with the same ease of use and manageability. You gain open source and self-hosting benefits. The system uses open technologies including [Apache DataFusion](https://datafusion.apache.org/), [Apache Iceberg](https://iceberg.apache.org/), [Apache Arrow](https://arrow.apache.org/), and Parquet, plus a lightweight embedded metastore.
 
 These technology choices differ structurally:
 
-- **Metadata storage**: [SlateDB](https://slatedb.io/) on object storage instead of FoundationDB distributed database
+- **Metadata storage**: Embedded metastore synchronized with object storage instead of FoundationDB distributed database
 - **Data format**: [Iceberg](https://iceberg.apache.org/) and Parquet format instead of proprietary format
 - **Query execution**: Single-node [DataFusion](https://datafusion.apache.org/) SQL engine with [Arrow](https://arrow.apache.org/) in-memory representation
 

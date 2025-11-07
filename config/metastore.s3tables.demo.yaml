@@ -1,0 +1,12 @@
+volumes:
+  - ident: demo
+    type: s3-tables
+    database: demo
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: ACCESS_KEY_ID
+      aws-secret-access-key: SECRET_ACCESS_KEY
+    arn: arn:aws:s3tables:us-east-2:767397688925:bucket/my-table-bucket
+schemas:
+  - database: demo
+    schema: public

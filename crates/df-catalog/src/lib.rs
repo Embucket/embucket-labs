@@ -12,9 +12,6 @@ pub mod information_schema;
 pub mod schema;
 pub mod table;
 
-#[cfg(test)]
-pub mod tests;
-
 // TBD: Should we move this into a separate crate? As this is duplicate implementation
 // of what we have in embucket-functions crate.
 pub fn block_in_new_runtime<F, R>(future: F) -> Result<R>

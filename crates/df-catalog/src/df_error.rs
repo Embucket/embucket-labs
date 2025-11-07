@@ -28,20 +28,6 @@ pub enum DFExternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Core history error: {error}"))]
-    CoreHistory {
-        #[snafu(source)]
-        error: core_history::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Core utils error: {error}"))]
-    CoreUtils {
-        #[snafu(source)]
-        error: core_utils::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Catalog '{name}' not found in catalog list"))]
     CatalogNotFound {
         name: String,

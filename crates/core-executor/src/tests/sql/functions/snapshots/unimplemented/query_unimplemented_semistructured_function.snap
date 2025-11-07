@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT CHECK_JSON('{\\\"key\\\": \\\"value\\\"}')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'check_json' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/check_json",
-)

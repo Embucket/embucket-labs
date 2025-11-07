@@ -1,8 +1,0 @@
-query T
-WITH collation1 AS (
-  SELECT 'ñ'::VARCHAR COLLATE 'es' AS v
-)
-SELECT COLLATION(v)
-FROM collation1
-----
-es

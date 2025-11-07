@@ -1,8 +1,0 @@
-query T
-WITH as_varchar_example AS (
-  SELECT TO_VARIANT('My VARCHAR value') AS varchar1
-)
-SELECT AS_VARCHAR(varchar1) AS varchar_value
-  FROM as_varchar_example
-----
-My VARCHAR value

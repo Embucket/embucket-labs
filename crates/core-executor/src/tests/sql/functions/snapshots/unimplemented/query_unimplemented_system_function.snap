@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT SYSTEM$GET_CMK_INFO()\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'system$get_cmk_info' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/system_get_cmk_info",
-)

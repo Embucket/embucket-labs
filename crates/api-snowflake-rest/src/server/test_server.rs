@@ -1,9 +1,9 @@
 use super::server_models::Config;
 use crate::server::router::make_app;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_metastore::{InMemoryMetastore, Metastore};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 #[allow(clippy::expect_used)]
@@ -46,10 +46,9 @@ pub async fn run_test_rest_api_server_with_config(
     // since all tests run in a single process
     let _ = tracing::subscriber::set_global_default(subscriber);
 
-    let metastore = SlateDBMetastore::new_in_memory().await;
-    let history = SlateDBHistoryStore::new_in_memory().await;
+    let metastore: Arc<dyn Metastore> = Arc::new(InMemoryMetastore::new());
 
-    let app = make_app(metastore, history, app_cfg, execution_cfg)
+    let app = make_app(metastore, app_cfg, execution_cfg)
         .await
         .unwrap()
         .into_make_service_with_connect_info::<SocketAddr>();

@@ -1,9 +1,0 @@
-metric_backend,free,paid,internal
-HTTPs Git Data Transfer,0.4,0.543,0.0570
-Registry Data Transfer,0.4,0.543,0.0570
-API Data Transfer,0.4,0.543,0.0570
-Web Data Transfer,0.4,0.543,0.0570
-Pages Data Transfer,0.4,0.543,0.0570
-WebSockets Data Transfer,0.4,0.543,0.0570
-SSH Data Transfer,0.4,0.543,0.0570
-TBD,0,0,1

@@ -1,7 +1,5 @@
 use super::snowflake_error::SnowflakeError;
-use core_history::QueryRecord;
-use core_history::QueryRecordId;
-use core_history::QueryStatus;
+use crate::query_types::{QueryRecordId, QueryStatus};
 use datafusion_common::DataFusionError;
 use df_catalog::error::Error as CatalogError;
 use error_stack_trace;
@@ -580,22 +578,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Query History error: {source}"))]
-    QueryHistory {
-        #[snafu(source(from(core_history::errors::Error, Box::new)))]
-        source: Box<core_history::errors::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Query History result error: {source}"))]
-    QueryHistoryResult {
-        #[snafu(source(from(core_history::errors::Error, Box::new)))]
-        source: Box<core_history::errors::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Query {} cancelled", query_id.as_uuid()))]
     QueryCancelled {
         query_id: QueryRecordId,
@@ -637,19 +619,6 @@ pub enum Error {
         location: Location,
     },
 
-    // This is logical error, means error getting error from QueryRecord as it contains result data
-    #[snafu(display(""))]
-    HistoricalQueryContainsData {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    // Just a text error loaded from QueryHistory
-    #[snafu(display("{error}"))]
-    HistoricalQueryError {
-        error: String,
-    },
-
     #[snafu(display("Failed to bootstrap {entity_type}: {source}"))]
     Bootstrap {
         entity_type: String,
@@ -688,16 +657,6 @@ impl Error {
         } else {
             matches!(self, Self::QueryTimeout { .. })
         }
-    }
-}
-
-impl TryFrom<QueryRecord> for Error {
-    type Error = Self;
-    fn try_from(value: QueryRecord) -> std::result::Result<Self, Self::Error> {
-        value.error.map_or_else(
-            || Err(HistoricalQueryContainsDataSnafu {}.build()),
-            |error| Ok(HistoricalQuerySnafu { error }.build()),
-        )
     }
 }
 

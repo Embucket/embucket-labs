@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"DROP TABLE IF EXISTS missing_catalog.public.some_table\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Database 'missing_catalog' does not exist or not authorized",
-)

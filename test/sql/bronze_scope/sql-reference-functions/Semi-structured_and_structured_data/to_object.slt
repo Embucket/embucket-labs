@@ -1,7 +1,0 @@
-query T
-WITH t1 AS (
-    SELECT PARSE_JSON('{"a":1}') AS vo
-)
-SELECT TO_OBJECT(vo) FROM t1
-----
-'{"a":1}'

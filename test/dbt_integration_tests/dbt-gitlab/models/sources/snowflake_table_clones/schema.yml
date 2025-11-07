@@ -1,6 +1,0 @@
-version: 2
-
-models:
-  - name: mart_arr_clone_rollup_source
-    description: Source layer for all snapshots of Snowflake roles.
-

@@ -1,5 +1,0 @@
-query T
-SELECT REPEAT('xy', 5)
-----
-xyxyxyxyxy
-

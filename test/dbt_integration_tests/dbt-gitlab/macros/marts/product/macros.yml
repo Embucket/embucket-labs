@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: macro_mart_ping_instance_metric
-    description: '{{ doc("macro_mart_ping_instance_metric") }}'
-    arguments:
-      - name: model_name1
-        type: string
-        description: Name of the model

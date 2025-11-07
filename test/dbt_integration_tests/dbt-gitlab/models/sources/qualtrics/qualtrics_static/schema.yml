@@ -1,5 +1,0 @@
-version: 2
-
-models:
-    - name: qualtrics_post_purchase_survey_answers_from_issue_15225
-      description: '{{ doc("qualtrics_post_purchase_survey_answers_from_issue_15225") }}'

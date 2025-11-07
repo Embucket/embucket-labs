@@ -1,9 +1,0 @@
-version: 2
-
-models:
-  - name: user_history
-    description: '{{ doc("iterable_docs") }}'
-  - name: user_unsubscribed_channel
-    description: '{{ doc("iterable_docs") }}'
-  - name: user_unsubscribed_message_type
-    description: '{{ doc("iterable_docs") }}'

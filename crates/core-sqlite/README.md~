@@ -1,7 +1,0 @@
-# SQLITE
-
-### Prerequisites
-Linux:
-``` sh
-sudo apt install libclang-dev
-```

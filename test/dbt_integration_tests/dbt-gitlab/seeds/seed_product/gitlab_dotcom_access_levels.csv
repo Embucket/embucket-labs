@@ -1,8 +1,0 @@
-access,label,name
-0,NO_ACCESS,No Access
-5,MINIMAL_ACCESS,Minimal Access
-10,GUEST,Guest
-20,REPORTER,Reporter
-30,DEVELOPER,Developer
-40,MAINTAINER,Maintainer
-50,OWNER,Owner

@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE missing_catalog.public.hello add column c5 VARCHAR\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Database 'missing_catalog' does not exist or not authorized",
-)

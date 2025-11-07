@@ -1,6 +1,0 @@
-query TT
-SELECT 
-       '2013-05-08T23:39:20.123-07:00'::TIMESTAMP AS tstamp,
-       MONTH(tstamp) AS "MONTH"
-----
-'2013-05-08T23:39:20.123000'	5

@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: is_project_part_of_product
-    description: '{{ doc("is_project_part_of_product") }}'
-  - name: is_project_part_of_product_ops
-    description: '{{ doc("is_project_part_of_product_ops") }}'
-  - name: is_project_included_in_engineering_metrics
-    description: '{{ doc("is_project_included_in_engineering_metrics") }}'

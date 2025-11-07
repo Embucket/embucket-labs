@@ -1,8 +1,0 @@
-parsed_resource_name,ai_category,ai_subcategory,release_status
-%codegen-training%,AI Assisted,Code Suggestions,Beta
-%code-suggestion-%,AI Assisted,Code Suggestions,Beta
-%code-suggestions-%,AI Assisted,Code Suggestions,Beta
-%codesuggestions-%,AI Assisted,Code Suggestions,Beta
-%ai-assist-%,AI Assisted,Code Suggestions,Experiments
-%gke-reviewer-%,AI Assisted,Suggested Reviewer,GA
-%deepspeed-vm-%,AI Assisted,Code Suggestions,Beta

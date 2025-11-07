@@ -1,7 +1,7 @@
 cfg_if::cfg_if! {
     if #[cfg(feature = "default-server")] {
         use core_executor::models::ColumnInfo as ColumnInfoModel;
-        use core_history::result_set::Row;
+        use core_executor::Row;
     } else {
         // Define simple representation for Row
         // As with external-server we won't have any dependences (especially trivial)

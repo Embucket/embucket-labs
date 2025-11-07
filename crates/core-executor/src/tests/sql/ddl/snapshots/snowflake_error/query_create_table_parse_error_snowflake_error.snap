@@ -1,8 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"CREATE TABLE foo\""
-info: Tests Snowflake Error
----
-Err(
-    "Snowflake Error: SQL compilation error: syntax error unexpected end of input",
-)

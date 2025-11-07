@@ -1,5 +1,0 @@
-query T
-SELECT LOCALTIME()
-----
-<REGEX>:'\d{2}:\d{2}:\d{2}\.\d{6}'
-

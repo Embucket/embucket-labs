@@ -1,9 +1,0 @@
-
-query T
-WITH as_time_example AS (
-  SELECT TO_VARIANT(TO_TIME('12:34:56')) AS time1
-)
-SELECT TO_TIME(time1) AS time_value
-  FROM as_time_example
-----
-'12:34:56'

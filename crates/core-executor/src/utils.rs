@@ -864,7 +864,7 @@ impl std::fmt::Display for NormalizedIdent {
 mod tests {
     use super::*;
     use crate::models::ColumnInfo;
-    use core_history::QueryRecordId;
+    use crate::query_types::QueryRecordId;
     use datafusion::arrow::array::{
         ArrayRef, BooleanArray, Float64Array, Int32Array, TimestampSecondArray, UInt64Array,
         UnionArray,

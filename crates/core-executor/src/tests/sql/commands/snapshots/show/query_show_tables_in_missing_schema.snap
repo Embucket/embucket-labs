@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/commands/show.rs
-description: "\"SHOW TABLES IN test_schema\""
----
-Err(
-    "Error: Schema test_schema not found in database embucket",
-)

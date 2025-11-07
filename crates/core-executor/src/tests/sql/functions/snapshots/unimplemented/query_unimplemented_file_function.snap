@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT BUILD_SCOPED_FILE_URL('@my_stage', 'file.txt')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'build_scoped_file_url' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/build_scoped_file_url",
-)

@@ -5,21 +5,18 @@ edition = "2024"
 license-file = { workspace = true }
 
 [dependencies]
-core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
 async-trait = { workspace = true }
-bytes = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
-futures = { workspace = true }
 iceberg-rust = { workspace = true }
 iceberg-rust-spec = { workspace = true }
 object_store = { workspace = true }
+bytes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-slatedb = { workspace = true }
 snafu = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }

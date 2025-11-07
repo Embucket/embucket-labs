@@ -1,9 +1,0 @@
-query T
-WITH union_test(a) AS (
-    SELECT PARSE_JSON('[ 1, 1, 2]')
-    UNION ALL
-    SELECT PARSE_JSON('[ 1, 2, 3]')
-)
-SELECT ARRAY_UNION_AGG(a) FROM union_test
-----
-'[1,1,2,3]'

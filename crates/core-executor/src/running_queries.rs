@@ -1,6 +1,5 @@
 use super::error::{self as ex_error, Result};
-use core_history::QueryRecordId;
-use core_history::QueryStatus;
+use crate::query_types::{QueryRecordId, QueryStatus};
 use dashmap::DashMap;
 use snafu::OptionExt;
 use std::sync::Arc;

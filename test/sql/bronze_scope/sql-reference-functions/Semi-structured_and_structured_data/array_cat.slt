@@ -1,8 +1,0 @@
-
-query T
-WITH array_demo AS (
-    SELECT 1 AS ID, ARRAY_CONSTRUCT(1, 2) AS array1, ARRAY_CONSTRUCT(3, 4) AS array2
-)
-SELECT ARRAY_CAT(array1, array2) FROM array_demo
-----
-'[1,2,3,4]'

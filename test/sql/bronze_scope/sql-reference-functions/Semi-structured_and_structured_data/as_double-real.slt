@@ -1,8 +1,0 @@
-query T
-WITH as_double_example AS (
-  SELECT TO_VARIANT(TO_DOUBLE(1.23)) AS double1
-)
-SELECT AS_DOUBLE(double1) double_value
-FROM as_double_example
-----
-1.23

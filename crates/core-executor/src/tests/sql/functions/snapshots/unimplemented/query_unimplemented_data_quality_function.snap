@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT DATA_QUALITY_MONITORING_RESULTS('rule1', 'expression')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'data_quality_monitoring_results' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/data_quality_monitoring_results",
-)

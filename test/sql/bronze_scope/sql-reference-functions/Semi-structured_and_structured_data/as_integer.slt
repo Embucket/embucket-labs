@@ -1,9 +1,0 @@
-
-query T
-WITH as_integer_example AS (
-  SELECT TO_VARIANT(15) AS integer1
-)
-SELECT AS_INTEGER(integer1) AS integer_value
-  FROM as_integer_example
-----
-15

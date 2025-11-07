@@ -1,7 +1,0 @@
-version: 2
-
-models:
-  - name: snowplow_web_page
-    description: This model is needed for the snowplow dbt package.
-  - name: snowplow_performance_timing_metrics
-    description: This model is needed for the snowplow dbt package.

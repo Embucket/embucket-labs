@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: ref
-    description: '{{ doc("ref") }}'
-  - name: generate_schema_name
-    description: '{{ doc("generate_schema_name") }}'
-  - name: generate_database_name
-    description: '{{ doc("generate_database_name") }}'

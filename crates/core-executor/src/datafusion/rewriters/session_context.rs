@@ -1,14 +1,14 @@
 use crate::models::QueryContext;
+use crate::query_types::QueryRecordId;
 use crate::running_queries::{RunningQueries, RunningQueryId};
-use core_history::{GetQueriesParams, HistoryStore, QueryRecordId};
 use datafusion::arrow::array::{ListArray, ListBuilder, StringBuilder};
 use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion_common::tree_node::{Transformed, TreeNode, TreeNodeRewriter};
-use datafusion_common::{DataFusionError, Result, ScalarValue};
-use df_catalog::block_in_new_runtime;
+use datafusion_common::{Result, ScalarValue};
+use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use uuid::Uuid;
 
 pub struct SessionContextExprRewriter {
@@ -19,7 +19,7 @@ pub struct SessionContextExprRewriter {
     pub session_id: String,
     pub version: String,
     pub query_context: QueryContext,
-    pub history_store: Arc<dyn HistoryStore>,
+    pub recent_queries: Arc<RwLock<VecDeque<QueryRecordId>>>,
     pub running_queries: Arc<dyn RunningQueries>,
 }
 
@@ -48,26 +48,13 @@ impl SessionContextExprRewriter {
 
     #[allow(clippy::cast_possible_truncation)]
     pub fn last_query_id(&self, index: i64) -> Result<ScalarValue> {
-        let history_store = self.history_store.clone();
-        let worksheet_id = self.query_context.worksheet_id;
-
-        let id = block_in_new_runtime(async move {
-            let mut params = GetQueriesParams::default();
-            if let Some(id) = worksheet_id {
-                params = params.with_worksheet_id(id);
-            }
-            let queries = history_store
-                .get_queries(params)
-                .await
-                .map_err(|e| DataFusionError::External(Box::new(e)))?
-                .into_iter()
-                .map(|q| q.id.to_string())
-                .collect::<Vec<_>>();
-            let query_id = get_query_by_index(&queries, index).unwrap_or_default();
-            Ok::<String, DataFusionError>(query_id)
-        })
-        .map_err(|e| DataFusionError::Execution(e.to_string()))??;
-        Ok(utf8_val(&id))
+        let queries = self
+            .recent_queries
+            .read()
+            .map(|guard| guard.iter().map(|q| q.to_string()).collect::<Vec<_>>())
+            .unwrap_or_default();
+        let query_id = get_query_by_index(&queries, index).unwrap_or_default();
+        Ok(utf8_val(&query_id))
     }
 
     #[allow(clippy::needless_pass_by_value)]

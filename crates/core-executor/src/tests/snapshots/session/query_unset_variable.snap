@@ -1,8 +1,0 @@
----
-source: crates/core-executor/src/tests/query.rs
-description: "\"UNSET v3\""
-info: "Setup queries: SET v1 = 'test'; SET v2 = 1; SET v3 = true"
----
-Err(
-    "Error: DataFusion error: SQL error: ParserError(\"Expected: an SQL statement, found: UNSET at Line: 1, Column: 1\")",
-)

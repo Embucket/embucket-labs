@@ -1,13 +1,6 @@
 use clap::{Parser, ValueEnum};
-use core_executor::utils::DEFAULT_QUERY_HISTORY_ROWS_LIMIT;
-use core_executor::utils::MemPoolType;
-use object_store::{
-    ObjectStore, Result as ObjectStoreResult, aws::AmazonS3Builder, aws::S3ConditionalPut,
-    local::LocalFileSystem, memory::InMemory,
-};
-use std::fs;
+use core_executor::utils::{DEFAULT_QUERY_HISTORY_ROWS_LIMIT, MemPoolType};
 use std::path::PathBuf;
-use std::sync::Arc;
 use tracing_subscriber::filter::LevelFilter;
 
 #[derive(Parser)]
@@ -22,73 +15,12 @@ pub struct CliOpts {
     pub no_bootstrap: bool,
 
     #[arg(
-        short,
         long,
-        value_enum,
-        env = "OBJECT_STORE_BACKEND",
-        default_value = "memory",
-        help = "Backend to use for state storage"
+        env = "METASTORE_CONFIG",
+        value_name = "PATH",
+        help = "Path to YAML config describing volumes/databases to seed the metastore"
     )]
-    backend: StoreBackend,
-
-    #[arg(
-        long,
-        env = "AWS_ACCESS_KEY_ID",
-        required_if_eq("backend", "s3"),
-        help = "AWS Access Key ID",
-        help_heading = "S3 Backend Options"
-    )]
-    access_key_id: Option<String>,
-    #[arg(
-        long,
-        env = "AWS_SECRET_ACCESS_KEY",
-        required_if_eq("backend", "s3"),
-        help = "AWS Secret Access Key",
-        help_heading = "S3 Backend Options"
-    )]
-    secret_access_key: Option<String>,
-    #[arg(
-        long,
-        env = "AWS_REGION",
-        required_if_eq("backend", "s3"),
-        help = "AWS Region",
-        help_heading = "S3 Backend Options"
-    )]
-    region: Option<String>,
-    #[arg(
-        long,
-        env = "S3_BUCKET",
-        required_if_eq("backend", "s3"),
-        help = "S3 Bucket Name",
-        help_heading = "S3 Backend Options"
-    )]
-    bucket: Option<String>,
-    #[arg(
-        long,
-        env = "S3_ENDPOINT",
-        help = "S3 Endpoint (Optional)",
-        help_heading = "S3 Backend Options"
-    )]
-    endpoint: Option<String>,
-    #[arg(
-        long,
-        env = "S3_ALLOW_HTTP",
-        help = "Allow HTTP for S3 (Optional)",
-        help_heading = "S3 Backend Options"
-    )]
-    allow_http: Option<bool>,
-
-    #[arg(
-        long,
-        env = "FILE_STORAGE_PATH",
-        required_if_eq("backend", "file"),
-        help_heading = "File Backend Options",
-        help = "Path to the directory where files will be stored"
-    )]
-    file_storage_path: Option<PathBuf>,
-
-    #[arg(short, long, env = "SLATEDB_PREFIX", default_value = "state")]
-    pub slatedb_prefix: String,
+    pub metastore_config: Option<PathBuf>,
 
     #[arg(
         long,
@@ -105,39 +37,6 @@ pub struct CliOpts {
         help = "Port to bind to"
     )]
     pub port: Option<u16>,
-
-    #[arg(
-        long,
-        env = "WEB_ASSETS_PORT",
-        default_value = "8080",
-        help = "Port of web assets server to bind to"
-    )]
-    pub assets_port: Option<u16>,
-
-    #[arg(
-        long,
-        env = "CATALOG_URL",
-        default_value = "http://127.0.0.1:3000",
-        help = "Iceberg catalog url"
-    )]
-    pub catalog_url: Option<String>,
-
-    #[arg(
-        long,
-        env = "CORS_ENABLED",
-        help = "Enable CORS",
-        default_value = "true"
-    )]
-    pub cors_enabled: Option<bool>,
-
-    #[arg(
-        long,
-        env = "CORS_ALLOW_ORIGIN",
-        default_value = "http://localhost:8080",
-        required_if_eq("cors_enabled", "true"),
-        help = "CORS Allow Origin"
-    )]
-    pub cors_allow_origin: Option<String>,
 
     #[arg(
         short,
@@ -220,29 +119,6 @@ pub struct CliOpts {
 
     #[arg(
         long,
-        env = "QUERY_HISTORY_DB_NAME",
-        default_value = "sqlite_data/queries.db"
-    )]
-    pub query_history_db_name: String,
-
-    #[arg(
-        long,
-        env = "QUERY_RESULTS_DB_NAME",
-        default_value = "sqlite_data/results.db"
-    )]
-    pub query_results_db_name: String,
-
-    // should unset JWT_SECRET env var after loading
-    #[arg(
-        long,
-        env = "JWT_SECRET",
-        hide_env_values = true,
-        help = "JWT secret for auth"
-    )]
-    jwt_secret: Option<String>,
-
-    #[arg(
-        long,
         env = "AUTH_DEMO_USER",
         value_parser = clap::builder::NonEmptyStringValueParser::new(),
         default_value = "embucket",
@@ -276,62 +152,6 @@ pub struct CliOpts {
         help = "Tracing span processor"
     )]
     pub tracing_span_processor: TracingSpanProcessor,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-enum StoreBackend {
-    S3,
-    File,
-    Memory,
-}
-
-impl CliOpts {
-    #[allow(clippy::unwrap_used, clippy::as_conversions)]
-    pub fn object_store_backend(&self) -> ObjectStoreResult<Arc<dyn ObjectStore>> {
-        match self.backend {
-            StoreBackend::S3 => {
-                let s3_allow_http = self.allow_http.unwrap_or(false);
-
-                let s3_builder = AmazonS3Builder::new()
-                    .with_access_key_id(self.access_key_id.clone().unwrap())
-                    .with_secret_access_key(self.secret_access_key.clone().unwrap())
-                    .with_region(self.region.clone().unwrap())
-                    .with_bucket_name(self.bucket.clone().unwrap())
-                    .with_conditional_put(S3ConditionalPut::ETagMatch);
-
-                if let Some(endpoint) = &self.endpoint {
-                    s3_builder
-                        .with_endpoint(endpoint)
-                        .with_allow_http(s3_allow_http)
-                        .build()
-                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                } else {
-                    s3_builder
-                        .build()
-                        .map(|s3| Arc::new(s3) as Arc<dyn ObjectStore>)
-                }
-            }
-            StoreBackend::File => {
-                let file_storage_path = self.file_storage_path.clone().unwrap();
-                let path = file_storage_path.as_path();
-                if !path.exists() || !path.is_dir() {
-                    fs::create_dir(path).unwrap();
-                }
-                LocalFileSystem::new_with_prefix(file_storage_path)
-                    .map(|fs| Arc::new(fs) as Arc<dyn ObjectStore>)
-            }
-            StoreBackend::Memory => Ok(Arc::new(InMemory::new()) as Arc<dyn ObjectStore>),
-        }
-    }
-
-    #[cfg(feature = "ui")]
-    // method resets a secret env
-    pub fn jwt_secret(&self) -> String {
-        unsafe {
-            std::env::remove_var("JWT_SECRET");
-        }
-        self.jwt_secret.clone().unwrap_or_default()
-    }
 }
 
 #[derive(Debug, Clone, ValueEnum)]

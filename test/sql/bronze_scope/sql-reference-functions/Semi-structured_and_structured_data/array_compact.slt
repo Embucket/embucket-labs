@@ -1,7 +1,0 @@
-query TT
-WITH array_demo AS (
-    SELECT 2 AS ID, ARRAY_CONSTRUCT(10, NULL, 30) AS array1, ARRAY_CONSTRUCT(40) AS array2
-)
-SELECT array1, ARRAY_COMPACT(array1) FROM array_demo WHERE ID = 2
-----
-'[10,null,30]'	'[10,30]'

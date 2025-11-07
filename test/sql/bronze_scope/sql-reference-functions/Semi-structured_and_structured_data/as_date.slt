@@ -1,9 +1,0 @@
-
-query T
-WITH as_date_example AS (
-  SELECT TO_VARIANT(TO_DATE('2024-10-10')) AS date1
-)
-SELECT AS_DATE(date1) date_value
-  FROM as_date_example
-----
-'2024-10-10'

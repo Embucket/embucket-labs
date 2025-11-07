@@ -334,7 +334,6 @@ regr_sxy
 regr_syy
 repeat
 replace
-result_scan
 reverse
 right
 rlike

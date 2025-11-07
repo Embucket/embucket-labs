@@ -85,7 +85,7 @@ These settings control Embucket's basic operation and most deployments need them
 
 ## Storage backends
 
-Embucket uses SlateDB to store metadata and supports three storage backends. Choose the backend that matches your deployment environment and performance requirements.
+Embucket ships with an embedded metastore and keeps metadata inside the process. When you configure S3 volumes, metadata snapshots are written next to your Iceberg tables, so there are no additional services to manage.
 
 ### Memory backend
 
@@ -180,14 +180,37 @@ S3_ALLOW_HTTP=false
 
 ### Bootstrapping
 
-| Setting          | Environment Variable | Default | Description                                                     |
-| ---------------- | -------------------- | ------- | --------------------------------------------------------------- |
-| `--no-bootstrap` | N/A                  | `false` | Skip bootstrap process that creates default database and schema |
+| Setting              | Environment Variable | Default | Description                                                                       |
+| -------------------- | -------------------- | ------- | --------------------------------------------------------------------------------- |
+| `--no-bootstrap`     | N/A                  | `false` | Skip bootstrap process that creates default database and schema                   |
+| `--metastore-config` | `METASTORE_CONFIG`   | _unset_ | Path to a YAML file that seeds volumes, databases, and schemas before startup     |
 
 <Aside type="note">
   The bootstrap process creates an in-memory volume, default database named `embucket`, and default
-  schema named `public`.
+  schema named `public`. Provide a metastore config to create your own external volumes instead.
 </Aside>
+
+#### Metastore config files
+
+Point `--metastore-config` at a YAML file to pre-provision the in-memory metastore:
+
+```yaml
+volumes:
+  - ident: demo
+    type: s3-tables
+    database: demo
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: YOUR_ACCESS_KEY
+      aws-secret-access-key: YOUR_SECRET_KEY
+    arn: arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket
+schemas:
+  - database: demo
+    schema: public
+```
+
+Each volume entry is created if missing and (optionally) wires up a database pointing at it. You can also
+list additional databases and schemas in `databases:` and `schemas:` sections for more advanced layouts.
 
 ### Tracing and debugging
 

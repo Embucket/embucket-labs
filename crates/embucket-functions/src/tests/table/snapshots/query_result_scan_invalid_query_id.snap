@@ -1,5 +1,0 @@
----
-source: crates/embucket-functions/src/tests/table/result_scan.rs
-description: "\"SELECT * FROM result_scan('aa')\""
----
-"Error: External error: invalid digit found in string"

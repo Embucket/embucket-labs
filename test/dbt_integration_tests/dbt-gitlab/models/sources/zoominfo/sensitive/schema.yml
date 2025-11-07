@@ -1,4 +1,0 @@
-version: 2
-models:
-  - name: gitlab_contact_enhance_pii
-    description:  Model for gitlab contact enhance sensitive data

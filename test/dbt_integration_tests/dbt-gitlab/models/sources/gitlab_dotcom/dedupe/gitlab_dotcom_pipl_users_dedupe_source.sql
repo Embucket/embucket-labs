@@ -1,1 +1,0 @@
-{{ dedupe_source(source_table='pipl_users', unique_key='user_id') }}

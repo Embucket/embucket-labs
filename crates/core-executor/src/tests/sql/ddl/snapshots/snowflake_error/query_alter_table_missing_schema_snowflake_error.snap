@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE embucket.missing_schema.hello add column c5 VARCHAR\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Schema 'embucket.missing_schema' does not exist or not authorized",
-)

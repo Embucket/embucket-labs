@@ -54,14 +54,12 @@ All table data stays in your object storage using Parquet files organized by Ice
 
 ### Metadata management
 
-[SlateDB](https://slatedb.io/) stores catalog metadata directly in object storage:
+Embucket ships with a lightweight in-memory metastore:
 
-- **Embedded Log-Structured Merge tree**: No external database dependencies
-- **Object storage native**: Writes Sorted String Table files directly to S3
-- **Consistency guarantees**: Strong consistency for metadata operations
-- **Crash recovery**: Automatic recovery from node failures
-
-SlateDB eliminates the need for external database dependencies while maintaining metadata durability.
+- **No external services**: Metadata lives inside the Embucket process
+- **Object storage native**: Table metadata snapshots are written next to your Iceberg data
+- **Fast startup**: State is reconstructed from object storage, so nodes remain stateless
+- **Simple ops**: Nothing to provision or babysit
 
 ### API compatibility
 

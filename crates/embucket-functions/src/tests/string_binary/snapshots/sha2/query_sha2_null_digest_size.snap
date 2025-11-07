@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/string_binary/sha2.rs
-description: "\"SELECT sha2('test', NULL)\""
----
-Err(
-    "Error: Execution error: Digest size must be an integer",
-)

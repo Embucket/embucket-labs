@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE embucket.missing.table ADD COLUMN new_col INT\""
----
-Err(
-    "Error: Schema missing not found in database embucket",
-)

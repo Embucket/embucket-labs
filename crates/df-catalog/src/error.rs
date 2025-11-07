@@ -1,4 +1,3 @@
-use core_utils::Error as CoreError;
 use datafusion_common::DataFusionError;
 use error_stack_trace;
 use iceberg_s3tables_catalog::error::Error as S3TablesError;
@@ -15,14 +14,6 @@ pub enum Error {
     Metastore {
         #[snafu(source(from(core_metastore::Error, Box::new)))]
         source: Box<core_metastore::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Core error: {source}"))]
-    Core {
-        #[snafu(source(from(CoreError, Box::new)))]
-        source: Box<CoreError>,
         #[snafu(implicit)]
         location: Location,
     },
@@ -58,20 +49,6 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Failed to get worksheets: {error}"))]
-    FailedToGetWorksheets {
-        #[snafu(source(from(core_history::Error, Box::new)))]
-        error: Box<core_history::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
-    #[snafu(display("Failed to get queries: {error}"))]
-    FailedToGetQueries {
-        #[snafu(source(from(core_history::Error, Box::new)))]
-        error: Box<core_history::Error>,
-        #[snafu(implicit)]
-        location: Location,
-    },
     #[snafu(display("Invalid cache: Can't locate '{entity:?}' entity = {name}"))]
     InvalidCache {
         entity: String,

@@ -3,7 +3,6 @@
 use crate::error::{Error, OperationOn, OperationType};
 use crate::error_code::ErrorCode;
 use core_metastore::error::Error as MetastoreError;
-use core_utils::errors::Error as DbError;
 use datafusion::arrow::error::ArrowError;
 use datafusion_common::Diagnostic;
 use datafusion_common::diagnostic::DiagnosticKind;
@@ -238,13 +237,6 @@ pub fn executor_error(error: &Error) -> SnowflakeError {
             error: CompilationUnsupportedFeatureSnafu { error: statement }.build(),
             error_code: ErrorCode::UnsupportedFeature,
         },
-        Error::HistoricalQueryError { error: message } => CustomSnafu {
-            // Has no query error type neither status code for queries errors fetched from history
-            // So use some generic error type and introduce ErrorCode::History
-            message,
-            error_code: ErrorCode::HistoricalQueryError,
-        }
-        .build(),
         Error::Arrow { .. }
         | Error::SerdeParse { .. }
         | Error::CatalogListDowncast { .. }
@@ -277,41 +269,11 @@ fn catalog_error(error: &CatalogError, subtext: &[&str]) -> SnowflakeError {
     }
 }
 
-fn core_utils_error(error: &core_utils::Error, subtext: &[&str]) -> SnowflakeError {
-    let subtext = [subtext, &["Db"]].concat();
-    let error_code = ErrorCode::Db;
-    match error {
-        DbError::Database { error, .. }
-        | DbError::KeyGet { error, .. }
-        | DbError::KeyDelete { error, .. }
-        | DbError::KeyPut { error, .. }
-        | DbError::ScanFailed { error, .. } =>
-        // Since slatedb v0.8 SlateDbError is private, objectstore error can't be downcasted anymore
-        // Just return generic error, insteead of commented option
-        // slatedb::error::SlateDBError::ObjectStoreError(obj_store_error) => {
-        //     object_store_error(obj_store_error, &subtext)
-        // }
-        {
-            CustomSnafu {
-                message: format_message(&subtext, error.to_string()),
-                error_code,
-            }
-            .build()
-        }
-        _ => CustomSnafu {
-            message: format_message(&subtext, error.to_string()),
-            error_code,
-        }
-        .build(),
-    }
-}
-
 fn metastore_error(error: &MetastoreError, subtext: &[&str]) -> SnowflakeError {
     let subtext = [subtext, &["Metastore"]].concat();
     let message = error.to_string();
     match error {
         MetastoreError::ObjectStore { error, .. } => object_store_error(error, &subtext),
-        MetastoreError::UtilSlateDB { source, .. } => core_utils_error(source, &subtext),
         MetastoreError::Iceberg { error, .. } => iceberg_error(error, &subtext),
         MetastoreError::SchemaNotFound { schema, db, .. } => SnowflakeError::SqlCompilation {
             error: EntityDoesntExistSnafu {
@@ -501,8 +463,6 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                 object_store_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<iceberg_rust::error::Error>() {
                 iceberg_error(e, &subtext)
-            } else if let Some(e) = err.downcast_ref::<DbError>() {
-                core_utils_error(e, &subtext)
             } else if let Some(e) = err.downcast_ref::<EmubucketFunctionsExternalDFError>() {
                 let message = e.to_string();
                 match e {
@@ -567,16 +527,6 @@ fn datafusion_error(df_error: &DataFusionError, subtext: &[&str]) -> SnowflakeEr
                     }
                     .build(),
                     DFCatalogExternalDFError::RidParamDoesntFitInU8 { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CoreHistory { .. } => CustomSnafu {
-                        message,
-                        error_code,
-                    }
-                    .build(),
-                    DFCatalogExternalDFError::CoreUtils { .. } => CustomSnafu {
                         message,
                         error_code,
                     }

@@ -1,4 +1,0 @@
-query T
-SELECT AS_DECIMAL(TO_VARIANT(1.23::DECIMAL(6, 3)), 6, 3) AS decimal_value
-----
-1.230

@@ -133,6 +133,24 @@ STORAGE_LOCATIONS = ((
   ARN with your specific account ID and bucket details.
 </Aside>
 
+You can also provision the same volume at startup by providing a YAML file via
+`--metastore-config`:
+
+```yaml
+volumes:
+  - ident: demo
+    type: s3-tables
+    database: demo
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: YOUR_ACCESS_KEY
+      aws-secret-access-key: YOUR_SECRET_KEY
+    arn: arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket
+```
+
+Run `embucketd --metastore-config path/to/file.yaml --no-bootstrap` to load the volume before the HTTP
+API starts.
+
 ## Create and query tables
 
 Create tables, load data, and run queries using the Snowflake command-line tool or any Snowflake-compatible tool. Use [Snowflake command-line tool guide](/guides/snowflake-cli) for the information on how to connect to Embucket.

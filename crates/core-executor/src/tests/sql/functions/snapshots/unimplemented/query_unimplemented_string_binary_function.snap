@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT BASE64_DECODE_BINARY('hello')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'base64_decode_binary' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/base64_decode_binary",
-)

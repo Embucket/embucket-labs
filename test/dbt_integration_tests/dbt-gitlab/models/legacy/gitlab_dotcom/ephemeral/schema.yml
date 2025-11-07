@@ -1,6 +1,0 @@
-version: 2
-
-models:
-  - name: gitlab_dotcom_highest_paid_subscription_plan
-
-

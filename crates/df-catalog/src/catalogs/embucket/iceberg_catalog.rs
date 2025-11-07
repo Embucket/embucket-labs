@@ -7,7 +7,6 @@ use core_metastore::{
     TableCreateRequest as MetastoreTableCreateRequest, TableIdent as MetastoreTableIdent,
     TableUpdate as MetastoreTableUpdate,
 };
-use core_utils::scan_iterator::ScanIterator;
 use futures::executor::block_on;
 use iceberg_rust::{
     catalog::{
@@ -29,7 +28,6 @@ use iceberg_rust_spec::{
     identifier::FullIdentifier as IcebergFullIdentifier, namespace::Namespace as IcebergNamespace,
 };
 use object_store::ObjectStore;
-use snafu::ResultExt;
 
 #[derive(Debug)]
 pub struct EmbucketIcebergCatalog {
@@ -267,13 +265,12 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             database: self.name().to_string(),
             schema: namespace.join(""),
         };
-        Ok(self
+        let tables = self
             .metastore
-            .iter_tables(&schema_ident)
-            .collect()
+            .list_tables(&schema_ident)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
-            .map_err(|e| IcebergError::External(Box::new(e)))?
+            .map_err(|e| IcebergError::External(Box::new(e)))?;
+        Ok(tables
             .iter()
             .map(|table| {
                 IcebergIdentifier::new(
@@ -304,10 +301,8 @@ impl IcebergCatalog for EmbucketIcebergCatalog {
             .ok_or_else(|| IcebergError::NotFound(format!("database {}", self.name())))?;
         let schemas = self
             .metastore
-            .iter_schemas(&database.ident)
-            .collect()
+            .list_schemas(&database.ident)
             .await
-            .context(metastore_error::UtilSlateDBSnafu)
             .map_err(|e| IcebergError::External(Box::new(e)))?;
         for schema in schemas {
             namespaces.push(IcebergNamespace::try_new(std::slice::from_ref(

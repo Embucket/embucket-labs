@@ -20,7 +20,6 @@ use crate::datafusion::physical_plan::merge::{
 use crate::datafusion::rewriters::session_context::SessionContextExprRewriter;
 use crate::error::{OperationOn, OperationType};
 use crate::models::{QueryContext, QueryResult};
-use core_history::HistoryStore;
 use core_metastore::{
     AwsAccessKeyCredentials, AwsCredentials, FileVolume, Metastore, S3TablesVolume, S3Volume,
     SchemaIdent as MetastoreSchemaIdent, TableCreateRequest as MetastoreTableCreateRequest,
@@ -123,7 +122,6 @@ use url::Url;
 
 pub struct UserQuery {
     pub metastore: Arc<dyn Metastore>,
-    pub history_store: Arc<dyn HistoryStore>,
     pub running_queries: Arc<dyn RunningQueries>,
     pub raw_query: String,
     pub query: String,
@@ -143,7 +141,6 @@ impl UserQuery {
     {
         Self {
             metastore: session.metastore.clone(),
-            history_store: session.history_store.clone(),
             running_queries: session.running_queries.clone(),
             raw_query: query.clone().into(),
             query: query.into(),
@@ -266,7 +263,7 @@ impl UserQuery {
             session_id: self.session.ctx.session_id(),
             version: self.session.config.embucket_version.clone(),
             query_context: self.query_context.clone(),
-            history_store: self.history_store.clone(),
+            recent_queries: self.session.recent_queries.clone(),
             running_queries: self.running_queries.clone(),
         }
     }

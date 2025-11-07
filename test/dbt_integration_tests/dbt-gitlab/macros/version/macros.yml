@@ -1,7 +1,0 @@
-version: 2
-
-macros:
-  - name: sales_wave_2_3_metrics
-    description: '{{ doc("sales_wave_2_3_metrics") }}'
-  - name: ping_instance_wave_metrics
-    description: '{{ doc("ping_instance_wave_metrics") }}'

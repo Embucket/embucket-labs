@@ -1,8 +1,0 @@
-query T
-WITH as_binary_example AS (
-  SELECT TO_VARIANT(TO_BINARY('F0A5')) AS binary1
-)
-SELECT AS_BINARY(binary1) AS binary_value
-  FROM as_binary_example
-----
-x'f0a5'

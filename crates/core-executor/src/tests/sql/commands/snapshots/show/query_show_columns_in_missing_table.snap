@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/commands/show.rs
-description: "\"SHOW COLUMNS IN missing\""
----
-Err(
-    "Error: Table missing not found in embucket.public",
-)

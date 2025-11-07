@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT BITSHIFTLEFT(15, 7)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'bitshiftleft' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/bitshiftleft",
-)

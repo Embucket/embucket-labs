@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT GENERATOR(10)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'generator' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/generator",
-)

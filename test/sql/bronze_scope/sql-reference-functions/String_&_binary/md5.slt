@@ -1,5 +1,0 @@
-query T
-SELECT md5('Snowflake')
-----
-edf1439075a83a447fb8b630ddc9c8de
-

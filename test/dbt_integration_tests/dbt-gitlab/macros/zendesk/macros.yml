@@ -1,5 +1,0 @@
-version: 2
-
-macros:
-  - name: support_sla_met
-    description: '{{ doc("support_sla_met") }}'

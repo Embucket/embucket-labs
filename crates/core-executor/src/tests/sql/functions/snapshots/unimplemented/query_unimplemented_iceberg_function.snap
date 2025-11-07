@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT ICEBERG_TABLE_FILES('table1')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'iceberg_table_files' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/iceberg_table_files",
-)

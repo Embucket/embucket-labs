@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/string_binary/hex_decode_string.rs
-description: "\"SELECT HEX_DECODE_STRING('ABC') AS should_error\""
----
-Err(
-    "Error: External error: The following string is not a legal hex-encoded value: ABC",
-)

@@ -1,5 +1,0 @@
----
-source: crates/embucket-functions/src/tests/table/table.rs
-description: "\"SELECT * FROM result_scan('100')\""
----
-"Error: Execution error: Query 100 has not been executed successfully: Some(\"query error\")"

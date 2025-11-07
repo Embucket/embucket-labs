@@ -44,8 +44,6 @@ pub mod session_params;
 pub mod string_binary;
 pub mod system;
 pub mod table;
-#[cfg(test)]
-pub mod tests;
 mod utils;
 pub mod visitors;
 pub mod window;

@@ -1,5 +1,0 @@
-version: 2
-
-models:
-    - name: snowflake_imports_usage_ping_payloads_source
-      description: This is the source table for manually imported usage ping data

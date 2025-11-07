@@ -1,9 +1,0 @@
-query TT
-WITH temp AS (
-    SELECT DATE '2025-05-01' AS "Today's Date"
-)
-SELECT "Today's Date",
-       PREVIOUS_DAY("Today's Date", 'Friday') AS "Previous Friday"
-FROM temp;
-----
-'2025-05-01'	'2025-04-25'

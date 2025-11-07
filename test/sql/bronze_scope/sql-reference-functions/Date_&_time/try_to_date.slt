@@ -1,7 +1,0 @@
-query TT
-SELECT 
-  TRY_TO_DATE('2024-05-10') AS valid_date, 
-  TRY_TO_DATE('Invalid') AS invalid_date
-----
-'2024-05-10'	NULL
-

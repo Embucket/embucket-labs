@@ -11,9 +11,9 @@ use crate::datafusion::physical_optimizer::physical_optimizer_rules;
 use crate::datafusion::query_planner::CustomQueryPlanner;
 use crate::models::QueryContext;
 use crate::query::UserQuery;
+use crate::query_types::QueryRecordId;
 use crate::running_queries::RunningQueries;
 use crate::utils::Config;
-use core_history::HistoryStore;
 use core_metastore::Metastore;
 use datafusion::config::ConfigOptions;
 use datafusion::execution::runtime_env::RuntimeEnv;
@@ -27,10 +27,10 @@ use embucket_functions::register_udafs;
 use embucket_functions::session_params::{SessionParams, SessionProperty};
 use embucket_functions::table::register_udtfs;
 use snafu::ResultExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::num::NonZero;
-use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
+use std::sync::{Arc, RwLock};
 use std::thread::available_parallelism;
 use time::{Duration, OffsetDateTime};
 
@@ -46,7 +46,6 @@ pub const fn to_unix(t: OffsetDateTime) -> i64 {
 
 pub struct UserSession {
     pub metastore: Arc<dyn Metastore>,
-    pub history_store: Arc<dyn HistoryStore>,
     // running_queries contains all the queries running across sessions
     pub running_queries: Arc<dyn RunningQueries>,
     pub ctx: SessionContext,
@@ -55,12 +54,12 @@ pub struct UserSession {
     pub config: Arc<Config>,
     pub expiry: AtomicI64,
     pub session_params: Arc<SessionParams>,
+    pub recent_queries: Arc<RwLock<VecDeque<QueryRecordId>>>,
 }
 
 impl UserSession {
     pub fn new(
         metastore: Arc<dyn Metastore>,
-        history_store: Arc<dyn HistoryStore>,
         running_queries: Arc<dyn RunningQueries>,
         config: Arc<Config>,
         catalog_list: Arc<EmbucketCatalogList>,
@@ -122,7 +121,7 @@ impl UserSession {
         let mut ctx = SessionContext::new_with_state(state);
         register_udfs(&mut ctx, &session_params_arc).context(ex_error::RegisterUDFSnafu)?;
         register_udafs(&mut ctx).context(ex_error::RegisterUDAFSnafu)?;
-        register_udtfs(&ctx, history_store.clone());
+        register_udtfs(&ctx);
         register_json_udfs(&mut ctx).context(ex_error::RegisterUDFSnafu)?;
         //register_geo_native(&ctx);
         //register_geo_udfs(&ctx);
@@ -130,7 +129,6 @@ impl UserSession {
         let enable_ident_normalization = ctx.enable_ident_normalization();
         let session = Self {
             metastore,
-            history_store,
             running_queries,
             ctx,
             ident_normalizer: IdentNormalizer::new(enable_ident_normalization),
@@ -141,6 +139,7 @@ impl UserSession {
                     + Duration::seconds(SESSION_INACTIVITY_EXPIRATION_SECONDS),
             )),
             session_params: session_params_arc,
+            recent_queries: Arc::new(RwLock::new(VecDeque::new())),
         };
         Ok(session)
     }
@@ -212,6 +211,16 @@ impl UserSession {
             return parsed;
         }
         false
+    }
+
+    pub fn record_query_id(&self, query_id: QueryRecordId) {
+        if let Ok(mut guard) = self.recent_queries.write() {
+            guard.push_front(query_id);
+            const MAX_QUERIES: usize = 64;
+            while guard.len() > MAX_QUERIES {
+                guard.pop_back();
+            }
+        }
     }
 }
 

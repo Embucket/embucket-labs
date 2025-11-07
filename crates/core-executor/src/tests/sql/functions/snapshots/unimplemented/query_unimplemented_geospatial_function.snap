@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT H3_CELL_TO_BOUNDARY('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'h3_cell_to_boundary' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/h3_cell_to_boundary",
-)

@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/query.rs
-description: "\"TRUNCATE TABLE missing_table\""
----
-Err(
-    "Error: DataFusion error: Error during planning: table 'embucket.public.missing_table' not found",
-)

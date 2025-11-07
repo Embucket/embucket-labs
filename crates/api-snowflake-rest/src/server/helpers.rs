@@ -7,12 +7,10 @@ use base64::engine::general_purpose::STANDARD as engine_base64;
 use base64::prelude::*;
 use core_executor::models::QueryResult;
 use core_executor::utils::{DataSerializationFormat, convert_record_batches};
-use core_executor::{Result as ExecutionResult, error as ex_error};
-use core_history::QueryRecordId;
 use datafusion::arrow::ipc::MetadataVersion;
 use datafusion::arrow::ipc::writer::{IpcWriteOptions, StreamWriter};
 use datafusion::arrow::record_batch::RecordBatch;
-use snafu::{ResultExt, location};
+use snafu::ResultExt;
 use uuid::Uuid;
 
 // https://arrow.apache.org/docs/format/Columnar.html#buffer-alignment-and-padding
@@ -81,34 +79,4 @@ pub fn handle_query_ok_result(
         code: None,
     });
     Ok(json_resp)
-}
-
-#[tracing::instrument(
-    name = "handle_historical_query_result",
-    level = "debug",
-    err,
-    ret(level = tracing::Level::TRACE))
-]
-pub fn handle_historical_query_result(
-    query_id: QueryRecordId,
-    historical_query_result: ExecutionResult<QueryResult>,
-    ser_fmt: DataSerializationFormat,
-) -> Result<Json<JsonResponse>> {
-    match historical_query_result {
-        Ok(query_result) => handle_query_ok_result("", query_result, ser_fmt),
-        // Return the same response as it would be returned when error is propagated
-        Err(error) => {
-            // Create without using build(), and not using context which works with result
-            let error = Error::Execution {
-                source: ex_error::Error::QueryExecution {
-                    query_id,
-                    source: Box::new(error),
-                    location: location!(),
-                },
-            };
-
-            let (_http_code, body) = error.prepare_response();
-            Ok(body)
-        }
-    }
 }

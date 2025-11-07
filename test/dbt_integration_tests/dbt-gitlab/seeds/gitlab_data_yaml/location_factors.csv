@@ -1,3 +1,0 @@
-jsontext,uploaded_at
-"[{""area"": ""North America"", ""country"": ""United States"", ""locationFactor"": 1.000, ""factor"": 1.000, ""metro_areas"": [{""name"": ""San Francisco"", ""factor"": 1.850}], ""states_or_provinces"": [{""name"": ""California"", ""factor"": 1.250, ""metro_areas"": [{""name"": ""Los Angeles"", ""factor"": 1.450}]}]}]",2024-01-15 08:00:00
-"[{""area"": ""North America"", ""country"": ""United States"", ""locationFactor"": 1.000, ""factor"": 1.000, ""metro_areas"": [{""name"": ""San Francisco"", ""factor"": 1.900}], ""states_or_provinces"": [{""name"": ""California"", ""factor"": 1.300, ""metro_areas"": [{""name"": ""Los Angeles"", ""factor"": 1.500}]}]}]",2024-02-20 09:30:00

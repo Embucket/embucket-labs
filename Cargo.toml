@@ -2,22 +2,14 @@
 default-members = ["crates/embucketd"]
 members = [
   "crates/embucketd",
-  # "crates/embucket-seed",
-  "crates/api-iceberg-rest",
   "crates/api-snowflake-rest",
-  "crates/api-ui",
-  "crates/api-ui-static-assets",
-  "crates/embucket-functions",
-  "crates/df-catalog",
-  "crates/error-stack",
-  "crates/error-stack-trace",
-  "crates/core-executor",
-  "crates/core-history",
-  "crates/core-metastore",
-  "crates/core-utils",
   "crates/api-sessions",
-  "crates/benchmarks",
-  "crates/core-sqlite"
+  "crates/core-executor",
+  "crates/core-metastore",
+  "crates/df-catalog",
+  "crates/embucket-functions",
+  "crates/error-stack",
+  "crates/error-stack-trace"
 ]
 resolver = "2"
 package.license-file = "LICENSE"
@@ -34,7 +26,6 @@ lto = "off"
 debug = false
 
 [workspace.dependencies]
-core-sqlite = { path = "crates/core-sqlite" } # features = ["vfs"]
 async-trait = { version = "0.1.84" }
 aws-config = { version = "1.5.17" }
 aws-credential-types = { version = "1.2.1",  features = ["hardcoded-credentials"]}
@@ -69,7 +60,6 @@ regex = "1.11.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-slatedb = { version = "0.8.2", features = ["moka"] }
 snafu = { version = "0.8.5", features = ["futures"] }
 tikv-jemallocator = { version = "0.6.0" }
 strum = { version = "0.27.2", features = ["derive"] }
@@ -102,8 +92,6 @@ mockall = "0.13.1"
 reqwest = "0.12.14"
 insta = { version = "1.42.0", features = ["json", "filters", "redactions"] }
 cfg-if = { version = "1.0.3" }
-rusqlite = { version = "0.37.0", features = ["blob", "trace", "bundled"] }
-deadpool-sqlite = { version = "0.12.1", features = ["tracing"] }
 
 [patch.crates-io]
 datafusion = { git = "https://github.com/Embucket/datafusion.git", rev = "832c278922863064571c0a7c5716a3ff87ce5201" }

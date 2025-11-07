@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT APPLICATION_JSON()\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'application_json' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/application_json",
-)

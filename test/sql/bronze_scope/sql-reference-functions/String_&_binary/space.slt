@@ -1,5 +1,0 @@
-query T
-SELECT SPACE(3)
-----
-   
-

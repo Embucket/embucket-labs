@@ -1,9 +1,0 @@
-version: 2
-
-models:
-    - name: rspec_overall_time_source
-      columns:
-        - name: commit
-          data_tests:
-            - not_null
-            - unique

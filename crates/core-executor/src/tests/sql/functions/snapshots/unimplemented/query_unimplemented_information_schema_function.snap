@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT WAREHOUSE_METERING_HISTORY()\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'warehouse_metering_history' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/warehouse_metering_history",
-)

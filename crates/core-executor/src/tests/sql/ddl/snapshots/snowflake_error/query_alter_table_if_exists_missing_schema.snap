@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE IF EXISTS embucket.missing.table ADD COLUMN new_col INT\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Schema 'embucket.missing' does not exist or not authorized",
-)

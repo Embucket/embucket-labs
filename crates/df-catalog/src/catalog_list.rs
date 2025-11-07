@@ -1,7 +1,6 @@
 use super::catalogs::embucket::catalog::EmbucketCatalog;
 use super::catalogs::embucket::iceberg_catalog::EmbucketIcebergCatalog;
 use crate::catalog::{CachingCatalog, CatalogType, Properties};
-use crate::catalogs::slatedb::catalog::{SLATEDB_CATALOG, SlateDBCatalog};
 use crate::df_error;
 use crate::error::{
     self as df_catalog_error, InvalidCacheSnafu, MetastoreSnafu, MissingVolumeSnafu,
@@ -12,10 +11,8 @@ use crate::table::CachingTable;
 use aws_config::{BehaviorVersion, Region, SdkConfig};
 use aws_credential_types::Credentials;
 use aws_credential_types::provider::SharedCredentialsProvider;
-use core_history::HistoryStore;
 use core_metastore::{AwsCredentials, Database, Metastore, RwObject, S3TablesVolume, VolumeType};
 use core_metastore::{SchemaIdent, TableIdent};
-use core_utils::scan_iterator::ScanIterator;
 use dashmap::DashMap;
 use datafusion::{
     catalog::{CatalogProvider, CatalogProviderList},
@@ -54,18 +51,16 @@ impl CachedEntity {
 
 pub struct EmbucketCatalogList {
     pub metastore: Arc<dyn Metastore>,
-    pub history_store: Arc<dyn HistoryStore>,
     pub table_object_store: Arc<DashMap<String, Arc<dyn ObjectStore>>>,
     pub catalogs: DashMap<String, Arc<CachingCatalog>>,
 }
 
 impl EmbucketCatalogList {
-    pub fn new(metastore: Arc<dyn Metastore>, history_store: Arc<dyn HistoryStore>) -> Self {
+    pub fn new(metastore: Arc<dyn Metastore>) -> Self {
         let table_object_store: DashMap<String, Arc<dyn ObjectStore>> = DashMap::new();
         table_object_store.insert("file://".to_string(), Arc::new(LocalFileSystem::new()));
         Self {
             metastore,
-            history_store,
             table_object_store: Arc::new(table_object_store),
             catalogs: DashMap::default(),
         }
@@ -160,9 +155,6 @@ impl EmbucketCatalogList {
         let mut all_catalogs = Vec::new();
         // Add metastore databases as catalogs
         all_catalogs.extend(self.internal_catalogs().await?);
-        // Add the SlateDB catalog to support querying against internal tables via SQL
-        all_catalogs.push(self.slatedb_catalog());
-
         for catalog in all_catalogs {
             self.catalogs
                 .insert(catalog.name.clone(), Arc::new(catalog));
@@ -180,10 +172,9 @@ impl EmbucketCatalogList {
         let mut catalogs = Vec::new();
         let databases = self
             .metastore
-            .iter_databases()
-            .collect()
+            .list_databases()
             .await
-            .context(df_catalog_error::CoreSnafu)?;
+            .context(MetastoreSnafu)?;
         for db in databases {
             let volume = self
                 .metastore
@@ -217,22 +208,6 @@ impl EmbucketCatalogList {
                 created_at: db.created_at,
                 updated_at: db.created_at,
             }))
-    }
-
-    #[must_use]
-    #[tracing::instrument(
-        name = "EmbucketCatalogList::slatedb_catalog",
-        level = "debug",
-        skip(self)
-    )]
-    pub fn slatedb_catalog(&self) -> CachingCatalog {
-        let catalog: Arc<dyn CatalogProvider> = Arc::new(SlateDBCatalog::new(
-            self.metastore.clone(),
-            self.history_store.clone(),
-        ));
-        CachingCatalog::new(catalog, SLATEDB_CATALOG.to_string())
-            .with_catalog_type(CatalogType::Memory)
-            .with_properties(Properties::default())
     }
 
     #[tracing::instrument(

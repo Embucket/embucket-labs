@@ -1,7 +1,0 @@
----
-source: crates/embucket-functions/src/tests/conversion/to_binary.rs
-description: "\"SELECT TO_BINARY('SNOW') AS binary_value\""
----
-Err(
-    "Error: External error: Failed to decode hex string: Invalid character 'S' at position 0",
-)

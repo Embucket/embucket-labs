@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"DROP TABLE IF EXISTS embucket.missing_schema.some_table\""
----
-Err(
-    "Snowflake Error: SQL compilation error: Schema 'embucket.missing_schema' does not exist or not authorized",
-)

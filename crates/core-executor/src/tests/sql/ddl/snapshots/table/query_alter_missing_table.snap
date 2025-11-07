@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE embucket.public.missing ADD COLUMN new_col INT\""
----
-Err(
-    "Error: Table missing not found in embucket.public",
-)

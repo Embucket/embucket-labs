@@ -1,8 +1,0 @@
----
-source: crates/core-executor/src/tests/query.rs
-description: "\"EXPLAIN SELECT missing FROM embucket.public.employee_table limit 1\""
-info: "Setup queries: SET datafusion.explain.logical_plan_only = true"
----
-Err(
-    "Error: DataFusion error: Schema error: No field named missing. Valid fields are embucket.public.employee_table.employee_id, embucket.public.employee_table.last_name, embucket.public.employee_table.first_name, embucket.public.employee_table.department_id.",
-)

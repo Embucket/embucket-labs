@@ -1,4 +1,0 @@
-query T
-SELECT AS_CHAR(TO_VARIANT('X')) AS char_value
-----
-X

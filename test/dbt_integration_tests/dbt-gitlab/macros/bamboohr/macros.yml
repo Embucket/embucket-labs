@@ -1,9 +1,0 @@
-version: 2
-
-macros:
-  - name: bamboohr_division_grouping
-    description: '{{ doc("bamboohr_division_grouping") }}'
-  - name: bamboohr_department_grouping
-    description: '{{ doc("bamboohr_department_grouping") }}'
-  - name: max_date_in_bamboo_analyses
-    description: '{{ doc("max_date_in_bamboo_analyses") }}'

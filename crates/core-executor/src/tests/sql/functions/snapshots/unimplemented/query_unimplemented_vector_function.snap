@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT VECTOR_COSINE_SIMILARITY(ARRAY[1, 2], ARRAY[3, 4])\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'vector_cosine_similarity' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/vector_cosine_similarity",
-)

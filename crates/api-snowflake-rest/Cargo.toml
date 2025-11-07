@@ -11,8 +11,6 @@ default-server = [
     "dep:api-sessions", 
     "dep:core-executor", 
     "dep:core-metastore", 
-    "dep:core-history", 
-    "dep:core-utils",
     "dep:tower-sessions",
     "dep:tower-http",
     "dep:axum",
@@ -29,8 +27,6 @@ default-server = [
 api-sessions = { path = "../api-sessions", optional = true }
 core-executor = { path = "../core-executor", optional = true }
 core-metastore = { path = "../core-metastore", optional = true }
-core-history = { path = "../core-history", optional = true }
-core-utils = { path = "../core-utils", optional = true }
 
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }

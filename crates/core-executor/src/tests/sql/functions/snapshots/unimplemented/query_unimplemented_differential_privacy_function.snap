@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT DP_INTERVAL_HIGH(*)\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'dp_interval_high' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/dp_interval_high",
-)

@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT CUMULATIVE_PRIVACY_LOSSES()\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'cumulative_privacy_losses' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/cumulative_privacy_losses",
-)

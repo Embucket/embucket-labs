@@ -11,18 +11,32 @@
 Start Embucket and run your first query in 30 seconds:
 
 ```bash
-docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
+docker run --name embucket --rm -p 3000:3000 embucket/embucket
 ```
 
-Open [localhost:8080](http://localhost:8080)—login: `embucket`/`embucket`—and run:
+Run the Snowflake CLI against the local endpoint:
 
-```sql
-CREATE TABLE sales (id INT, product STRING, revenue DECIMAL(10,2));
-INSERT INTO sales VALUES (1, 'Widget A', 1250.00), (2, 'Widget B', 899.50);
-SELECT product, revenue FROM sales WHERE revenue > 1000;
+```bash
+snow sql -c local -a local -u embucket -p embucket -q "select 1;"
 ```
 
-**Done.** You just ran Snowflake SQL dialect on Apache Iceberg tables with zero configuration.
+**Done.** You just ran Snowflake SQL dialect against the local Embucket instance with zero configuration.
+
+### Bootstrap external volumes via config
+
+You can pre-create volumes, databases, and schemas by pointing `embucketd` at a YAML config file. This
+is handy when you want to mount an S3 Tables bucket at startup without sending API calls after the
+process is online.
+
+```bash
+cargo run -p embucketd -- \
+  --no-bootstrap \
+  --metastore-config config/metastore.s3tables.demo.yaml
+```
+
+The sample config under `config/metastore.s3tables.demo.yaml` provisions a `demo` database backed by an
+S3 Tables bucket using the credentials provided in the file. Update the file with your own secrets
+for real deployments.
 
 ## What just happened?
 
@@ -43,8 +57,8 @@ Perfect for teams who want Snowflake's simplicity with bring-your-own-cloud cont
 
 Built on proven open source:
 - [Apache DataFusion](https://datafusion.apache.org/) for SQL execution
-- [Apache Iceberg](https://iceberg.apache.org/) for ACID transactions  
-- [SlateDB](https://slatedb.io/) for metadata management
+- [Apache Iceberg](https://iceberg.apache.org/) for ACID table metadata  
+- A lightweight in-memory metastore purpose-built for Embucket
 
 ## Why Embucket?
 
@@ -85,4 +99,3 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License  
 
 This project uses the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
-

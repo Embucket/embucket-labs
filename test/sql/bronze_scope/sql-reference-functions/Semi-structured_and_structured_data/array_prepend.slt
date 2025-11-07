@@ -1,5 +1,0 @@
-query T
-SELECT ARRAY_PREPEND(ARRAY_CONSTRUCT(0,1,2,3),'hello')
-----
-'["hello",0,1,2,3]'
-

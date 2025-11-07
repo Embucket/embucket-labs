@@ -19,7 +19,6 @@ geospatial = [
 ]
 
 [dependencies]
-core-history = { path = "../core-history" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
@@ -71,16 +70,6 @@ dashmap = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 ipnet = "2.11.0"
-
-[dev-dependencies]
-bytes = { workspace = true }
-insta = { version = "1.42.0", features = ["yaml", "filters"] }
-snafu = { workspace = true }
-paste = "1"
-
-[[bin]]
-name = "generate-implemented-functions"
-path = "src/bin/generate_implemented_functions.rs"
 
 [lints]
 workspace = true

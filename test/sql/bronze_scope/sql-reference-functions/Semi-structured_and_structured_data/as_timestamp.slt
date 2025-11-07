@@ -1,8 +1,0 @@
-query T
-WITH test_data AS (
-  SELECT TO_VARIANT(TO_TIMESTAMP_NTZ('2024-10-10 12:34:56')) AS timestamp1
-)
-SELECT AS_TIMESTAMP_NTZ(timestamp1) AS timestamp_value
-FROM test_data
-----
-'2024-10-10T12:34:56'

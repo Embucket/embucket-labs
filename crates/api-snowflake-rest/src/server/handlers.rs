@@ -1,16 +1,15 @@
 use super::state::AppState;
 use crate::models::{
     AbortRequestBody, JsonResponse, LoginRequestBody, LoginRequestData, LoginResponse,
-    LoginResponseData, QueryRequest, QueryRequestBody, ResponseData,
+    LoginResponseData, QueryRequest, QueryRequestBody,
 };
 use crate::server::error::{self as api_snowflake_rest_error, Result};
-use crate::server::helpers::{handle_historical_query_result, handle_query_ok_result};
+use crate::server::helpers::handle_query_ok_result;
 use api_sessions::DFSessionId;
 use axum::Json;
-use axum::extract::{ConnectInfo, Path, Query, State};
+use axum::extract::{ConnectInfo, Query, State};
 use core_executor::RunningQueryId;
 use core_executor::models::QueryContext;
-use core_history::{QueryIdParam, QueryRecordId};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -31,7 +30,7 @@ pub async fn login(
         return api_snowflake_rest_error::InvalidAuthDataSnafu.fail()?;
     }
 
-    let session_id = uuid::Uuid::new_v4().to_string();
+    let session_id = Uuid::new_v4().to_string();
 
     let _ = state.execution_svc.create_session(&session_id).await?;
 
@@ -67,73 +66,14 @@ pub async fn query(
         .with_request_id(query.request_id);
 
     if async_exec {
-        let query_handle = state
-            .execution_svc
-            .submit_query(&session_id, &sql_text, query_context)
-            .await?;
-        let query_uuid: Uuid = query_handle.query_id.as_uuid();
-        // Record the result as part of the current span.
-        tracing::Span::current()
-            .record("query_id", query_handle.query_id.as_i64())
-            .record("query_uuid", query_uuid.to_string());
-
-        Ok(Json(JsonResponse {
-            data: Option::from(ResponseData {
-                query_id: Some(query_uuid.to_string()),
-                ..Default::default()
-            }),
-            success: true,
-            message: Option::from("successfully executed".to_string()),
-            code: None,
-        }))
-    } else {
-        // find running query by request_id
-        let session = state.execution_svc.get_session(&session_id).await?;
-        let running_query = session.running_queries.get(RunningQueryId::ByRequestId(
-            query.request_id,
-            sql_text.clone(),
-        ));
-
-        if query.retry_count.unwrap_or_default() > 0 && running_query.is_ok() {
-            let query_id = running_query?.query_id;
-            let historical_result = state
-                .execution_svc
-                .wait_historical_query_result(query_id)
-                .await?;
-            handle_historical_query_result(query_id, historical_result, serialization_format)
-        } else {
-            // execute new query
-            let result = state
-                .execution_svc
-                .query(&session_id, &sql_text, query_context)
-                .await?;
-            handle_query_ok_result(&sql_text, result, serialization_format)
-        }
+        return api_snowflake_rest_error::NotImplementedSnafu.fail();
     }
-}
 
-#[tracing::instrument(name = "api_snowflake_rest::get_query", level = "debug", skip(state), fields(query_id, query_uuid), err, ret(level = tracing::Level::TRACE))]
-pub async fn get_query(
-    State(state): State<AppState>,
-    Path(query_id): Path<QueryIdParam>,
-) -> Result<Json<JsonResponse>> {
-    let query_id: QueryRecordId = query_id.into();
-
-    let query_uuid: Uuid = query_id.as_uuid();
-    // Record the result as part of the current span.
-    tracing::Span::current()
-        .record("query_id", query_id.as_i64())
-        .record("query_uuid", query_uuid.to_string());
-
-    let query_result = state
+    let result = state
         .execution_svc
-        .wait_historical_query_result(query_id)
+        .query(&session_id, &sql_text, query_context)
         .await?;
-    handle_historical_query_result(
-        query_id,
-        query_result,
-        state.config.dbt_serialization_format,
-    )
+    handle_query_ok_result(&sql_text, result, serialization_format)
 }
 
 #[tracing::instrument(name = "api_snowflake_rest::abort", level = "debug", skip(state), err, ret(level = tracing::Level::TRACE))]

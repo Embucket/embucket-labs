@@ -1,5 +1,0 @@
-query T
-SELECT CURRENT_DATABASE()
-----
-EMBUCKET
-

@@ -1,9 +1,0 @@
-query T
-WITH varbin AS (
-  SELECT TO_VARIANT(TO_BINARY('snow', 'utf-8')) AS v
-)
-SELECT v AS hex_encoded_binary_value
-FROM varbin
-WHERE IS_BINARY(v)
-----
-"736E6F77"

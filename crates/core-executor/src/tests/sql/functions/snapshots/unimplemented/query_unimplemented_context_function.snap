@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT CURRENT_AVAILABLE_ROLES()\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'current_available_roles' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/current_available_roles",
-)

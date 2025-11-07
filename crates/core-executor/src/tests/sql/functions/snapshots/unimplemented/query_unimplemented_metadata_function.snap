@@ -1,7 +1,0 @@
----
-source: crates/core-executor/src/tests/sql/functions/unimplemented.rs
-description: "\"SELECT GET_DDL('table', 'employee_table')\""
----
-Err(
-    "Error: DataFusion error: This feature is not implemented: Function 'get_ddl' is not implemented yet. Details: https://docs.snowflake.com/en/sql-reference/functions/get_ddl",
-)

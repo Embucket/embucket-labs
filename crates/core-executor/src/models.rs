@@ -1,9 +1,8 @@
-use crate::Result;
-use crate::error as ex_error;
+use crate::query_types::{QueryRecordId, QueryStatus};
+use crate::result_set::{Column, ResultSet, Row};
 use crate::utils::{DataSerializationFormat, convert_record_batches, convert_struct_to_timestamp};
+use crate::{Result, error as ex_error};
 use arrow_schema::SchemaRef;
-use core_history::result_set::{Column, ResultSet, Row};
-use core_history::{QueryRecordId, QueryStatus};
 use datafusion::arrow;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, TimeUnit};

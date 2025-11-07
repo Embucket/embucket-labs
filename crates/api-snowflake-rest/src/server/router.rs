@@ -1,7 +1,7 @@
-use super::handlers::{abort, get_query, login, query};
+use super::handlers::{abort, login, query};
 use super::state::AppState;
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::post;
 
 use super::layer::require_auth;
 use super::server_models::Config;
@@ -9,8 +9,7 @@ use super::state;
 use axum::middleware;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as UtilsConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+use core_metastore::Metastore;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
@@ -24,25 +23,19 @@ pub fn create_router() -> Router<AppState> {
     Router::new()
         .route("/queries/v1/query-request", post(query))
         .route("/queries/v1/abort-request", post(abort))
-        .route("/queries/{queryId}/result", get(get_query))
 }
 
 // TODO: We should consider using this by both main and tests
 #[allow(clippy::needless_pass_by_value, clippy::expect_used)]
 pub async fn make_app(
-    metastore: SlateDBMetastore,
-    history_store: SlateDBHistoryStore,
+    metastore: Arc<dyn Metastore>,
     snowflake_rest_cfg: Config,
     execution_cfg: UtilsConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let execution_svc = Arc::new(
-        CoreExecutionService::new(
-            Arc::new(metastore),
-            Arc::new(history_store),
-            Arc::new(execution_cfg),
-        )
-        .await
-        .expect("Failed to create execution service"),
+        CoreExecutionService::new(metastore, Arc::new(execution_cfg))
+            .await
+            .expect("Failed to create execution service"),
     );
 
     // Create the application state
