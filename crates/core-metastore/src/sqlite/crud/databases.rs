@@ -1,7 +1,7 @@
 use crate::error::{self as metastore_err, Result};
 use crate::models::RwObject;
 use crate::models::{Database, Volume};
-use crate::models::{DatabaseIdent, VolumeIdent};
+use crate::models::{DatabaseIdent, VolumeIdent, VolumeId, DatabaseId};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::diesel_gen::{databases, volumes};
 use crate::{ListParams, OrderBy, OrderDirection};
@@ -28,7 +28,6 @@ use validator::Validate;
     Insertable,
     Associations,
 )]
-#[serde(rename_all = "kebab-case")]
 #[diesel(table_name = databases)]
 #[diesel(belongs_to(Volume))]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
@@ -46,10 +45,10 @@ impl TryFrom<RwObject<Database>> for DatabaseRecord {
     fn try_from(value: RwObject<Database>) -> Result<Self> {
         Ok(Self {
             // ignore missing id, maybe its insert, otherwise constraint will fail
-            id: value.id().unwrap_or_default(),
-            name: value.ident.clone(),
+            id: value.id().map_or(0, Into::into),
             // ignore missing volume_id, maybe its insert/update, otherwise constraint will fail
-            volume_id: value.volume_id().unwrap_or_default(),
+            volume_id: value.volume_id().map_or(0, Into::into),
+            name: value.ident.clone(),
             properties: serde_json::to_string(&value.properties).ok(),
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
@@ -63,8 +62,8 @@ impl TryInto<RwObject<Database>> for (DatabaseRecord, VolumeIdent) {
     fn try_into(self) -> Result<RwObject<Database>> {
         let volume_ident = self.1;
         Ok(RwObject::new(Database::new(self.0.name, volume_ident))
-            .with_id(self.0.id)
-            .with_volume_id(self.0.volume_id)
+            .with_id(DatabaseId(self.0.id))
+            .with_volume_id(VolumeId(self.0.volume_id))
             .with_created_at(
                 DateTime::parse_from_rfc3339(&self.0.created_at)
                     .context(metastore_err::TimeParseSnafu)?

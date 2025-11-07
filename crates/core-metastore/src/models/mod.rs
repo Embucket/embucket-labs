@@ -14,18 +14,32 @@ pub mod volumes;
 pub use database::*;
 pub use schema::*;
 pub use table::*;
-
 pub use volumes::*;
 
-const MAP_ID: &str = "id";
 const MAP_VOLUME_ID: &str = "volume_id";
 const MAP_DATABASE_ID: &str = "database_id";
 const MAP_SCHEMA_ID: &str = "schema_id";
+const MAP_TABLE_ID: &str = "table_id";
+
+pub trait NamedId {
+    fn type_name() -> &'static str;
+}
+
+impl<T> Deref for RwObject<T>
+where
+    T: Eq + PartialEq,
+{
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.data
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RwObject<T>
 where
-    T: Eq + PartialEq,
+    T: Eq + PartialEq
 {
     #[serde(flatten)]
     pub data: T,
@@ -38,7 +52,7 @@ where
 
 impl<T> RwObject<T>
 where
-    T: Eq + PartialEq + Serialize,
+    T: Eq + PartialEq + Serialize
 {
     #[allow(clippy::use_self)]
     pub fn new(data: T) -> RwObject<T> {
@@ -51,18 +65,9 @@ where
         }
     }
 
-    #[must_use]
-    pub fn with_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_ID.to_string(), id)
-    }
-
-    pub fn id(&self) -> Result<i64> {
-        self.named_id(MAP_ID)
-    }
-
-    fn with_named_id(self, name: String, id: i64) -> Self {
+    fn with_named_id(self, name: &str, id: i64) -> Self {
         let mut ids = self.ids;
-        ids.insert(name, id);
+        ids.insert(name.to_string(), id);
         Self { ids, ..self }
     }
 
@@ -92,16 +97,5 @@ where
 
     pub fn touch(&mut self) {
         self.updated_at = chrono::Utc::now();
-    }
-}
-
-impl<T> Deref for RwObject<T>
-where
-    T: Eq + PartialEq,
-{
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        &self.data
     }
 }

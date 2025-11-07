@@ -129,7 +129,7 @@ impl TryFrom<RwObject<MetastoreVolume>> for Volume {
     type Error = metastore_err::Error;
     fn try_from(value: RwObject<MetastoreVolume>) -> std::result::Result<Self, Self::Error> {
         Ok(Self {
-            id: value.id().context(metastore_err::NoIdSnafu)?,
+            id: *value.id().context(metastore_err::NoIdSnafu)?,
             name: value.data.ident,
             r#type: value.data.volume.to_string(),
             created_at: value.created_at.to_string(),

@@ -190,7 +190,7 @@ impl EmbucketCatalogList {
         let mut volumes = std::collections::HashMap::new();
         for db in databases {
             let volume_id = db.volume_id().context(MetastoreSnafu)?;
-            if let std::collections::hash_map::Entry::Vacant(e) = volumes.entry(volume_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = volumes.entry(*volume_id) {
                 let volume = self
                     .metastore
                     .get_volume_by_id(volume_id)
@@ -200,9 +200,9 @@ impl EmbucketCatalogList {
             }
             // should not fail here
             let volume = volumes
-                .get(&volume_id)
+                .get(&*volume_id)
                 .context(VolumeNotFoundSnafu {
-                    volume: db.volume.clone(),
+                    volume: db.volume.to_string(),
                 })
                 .context(MetastoreSnafu)?;
             // Create catalog depending on the volume type

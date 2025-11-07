@@ -1,6 +1,5 @@
-use super::RwObject;
-use super::{MAP_DATABASE_ID, MAP_SCHEMA_ID};
-use super::{SchemaIdent, VolumeIdent};
+use super::{RwObject, SchemaIdent, VolumeIdent};
+use super::{MAP_TABLE_ID, VolumeId, DatabaseId, SchemaId, NamedId};
 use crate::error::{self as metastore_error, Result};
 use iceberg_rust::{
     catalog::commit::{TableRequirement, TableUpdate as IcebergTableUpdate},
@@ -12,6 +11,30 @@ use iceberg_rust_spec::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
 use validator::Validate;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TableId(pub i64);
+
+impl NamedId for TableId {
+    fn type_name() -> &'static str {
+        MAP_TABLE_ID
+    }
+}
+
+impl std::ops::Deref for TableId {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<i64> for TableId {
+    fn into(self) -> i64 {
+        self.0
+    }
+}
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A table identifier
@@ -113,21 +136,39 @@ pub struct Table {
 
 impl RwObject<Table> {
     #[must_use]
-    pub fn with_database_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
+    pub fn with_id(self, id: TableId) -> Self {
+        self.with_named_id(TableId::type_name(), *id)
+    }
+
+    pub fn id(&self) -> Result<TableId> {
+        self.named_id(TableId::type_name()).map(TableId)
+    }
+    
+    #[must_use]
+    pub fn with_volume_id(self, id: VolumeId) -> Self {
+        self.with_named_id(VolumeId::type_name(), *id)
+    }
+
+    pub fn volume_id(&self) -> Result<VolumeId> {
+        self.named_id(VolumeId::type_name()).map(VolumeId)
     }
 
     #[must_use]
-    pub fn with_schema_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_SCHEMA_ID.to_string(), id)
+    pub fn with_database_id(self, id: DatabaseId) -> Self {
+        self.with_named_id(TableId::type_name(), *id)
     }
 
-    pub fn database_id(&self) -> Result<i64> {
-        self.named_id(MAP_DATABASE_ID)
+    #[must_use]
+    pub fn with_schema_id(self, id: SchemaId) -> Self {
+        self.with_named_id(SchemaId::type_name(), *id)
     }
 
-    pub fn schema_id(&self) -> Result<i64> {
-        self.named_id(MAP_SCHEMA_ID)
+    pub fn database_id(&self) -> Result<DatabaseId> {
+        self.named_id(DatabaseId::type_name()).map(DatabaseId)
+    }
+
+    pub fn schema_id(&self) -> Result<SchemaId> {
+        self.named_id(SchemaId::type_name()).map(SchemaId)
     }
 }
 

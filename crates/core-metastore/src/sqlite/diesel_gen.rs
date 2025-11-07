@@ -26,11 +26,12 @@ diesel::table! {
     tables (id) {
         id -> BigInt,
         schema_id -> BigInt,
+        database_id -> BigInt,
+        volume_id -> BigInt,
         name -> Text,
         metadata -> Text,
         metadata_location -> Text,
         properties -> Text,
-        volume_ident -> Nullable<Text>,
         volume_location -> Nullable<Text>,
         is_temporary -> Bool,
         format -> Text,
@@ -52,6 +53,8 @@ diesel::table! {
 
 diesel::joinable!(databases -> volumes (volume_id));
 diesel::joinable!(schemas -> databases (database_id));
+diesel::joinable!(tables -> databases (database_id));
 diesel::joinable!(tables -> schemas (schema_id));
+diesel::joinable!(tables -> volumes (volume_id));
 
 diesel::allow_tables_to_appear_in_same_query!(databases, schemas, tables, volumes,);

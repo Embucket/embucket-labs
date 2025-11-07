@@ -1,7 +1,7 @@
 use crate::error::{self as metastore_err, Result, SchemaNotFoundSnafu};
 use crate::models::RwObject;
 use crate::models::{Database, Schema};
-use crate::models::{DatabaseIdent, SchemaIdent};
+use crate::models::{DatabaseIdent, SchemaIdent, SchemaId, DatabaseId};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::crud::databases::get_database;
 use crate::sqlite::diesel_gen::{databases, schemas};
@@ -29,7 +29,6 @@ use validator::Validate;
     Insertable,
     Associations,
 )]
-#[serde(rename_all = "kebab-case")]
 #[diesel(table_name = schemas)]
 #[diesel(belongs_to(Database))]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
@@ -47,8 +46,8 @@ impl TryFrom<RwObject<Schema>> for SchemaRecord {
     fn try_from(value: RwObject<Schema>) -> Result<Self> {
         Ok(Self {
             // ignore missing id, maybe its insert, otherwise constraint will fail
-            id: value.id().unwrap_or_default(),
-            database_id: value.database_id()?,
+            id: value.id().map_or(0, Into::into),
+            database_id: value.database_id().map_or(0, Into::into),
             name: value.ident.schema.clone(),
             properties: serde_json::to_string(&value.properties).ok(),
             created_at: value.created_at.to_rfc3339(),
@@ -66,8 +65,8 @@ impl TryInto<RwObject<Schema>> for (SchemaRecord, DatabaseIdent) {
             schema: self.0.name,
             database: database_name,
         }))
-        .with_id(self.0.id)
-        .with_database_id(self.0.database_id)
+        .with_id(SchemaId(self.0.id))
+        .with_database_id(DatabaseId(self.0.database_id))
         .with_created_at(
             DateTime::parse_from_rfc3339(&self.0.created_at)
                 .context(metastore_err::TimeParseSnafu)?
@@ -135,12 +134,13 @@ pub async fn get_schema(
     }
 }
 
-pub async fn get_schema_by_id(conn: &Connection, id: i64) -> Result<RwObject<Schema>> {
-    let mut items = list_schemas(conn, ListParams::default().by_id(id)).await?;
+pub async fn get_schema_by_id(conn: &Connection, id: SchemaId) -> Result<RwObject<Schema>> {
+    let schema_id = *id;
+    let mut items = list_schemas(conn, ListParams::default().by_id(schema_id)).await?;
     if items.is_empty() {
         SchemaNotFoundSnafu {
             db: "",
-            schema: format!("schemaId={id}"),
+            schema: format!("schemaId={schema_id}"),
         }
         .fail()
     } else {
@@ -235,7 +235,7 @@ pub async fn update_schema(
 
     conn.interact(move |conn| {
         diesel::update(schemas::table.filter(schemas::dsl::name.eq(ident_owned.schema)))
-            .filter(schemas::dsl::database_id.eq(database_id))
+            .filter(schemas::dsl::database_id.eq(*database_id))
             .set((
                 schemas::dsl::name.eq(updated.name),
                 schemas::dsl::properties.eq(updated.properties),
@@ -261,7 +261,7 @@ pub async fn delete_schema_cascade(conn: &Connection, ident: &SchemaIdent) -> Re
 
     conn.interact(move |conn| {
         diesel::delete(schemas::table.filter(schemas::dsl::name.eq(ident_owned.schema)))
-            .filter(schemas::dsl::database_id.eq(database_id))
+            .filter(schemas::dsl::database_id.eq(*database_id))
             .returning(schemas::id)
             .get_result(conn)
     })

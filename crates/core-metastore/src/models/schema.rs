@@ -4,10 +4,32 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use super::DatabaseIdent;
-use super::MAP_DATABASE_ID;
-use super::MAP_SCHEMA_ID;
-use super::RwObject;
+use super::{MAP_SCHEMA_ID, RwObject, NamedId, DatabaseId};
 use crate::error::Result;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SchemaId(pub i64);
+
+impl NamedId for SchemaId {
+    fn type_name() -> &'static str {
+        MAP_SCHEMA_ID
+    }
+}
+
+impl std::ops::Deref for SchemaId {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<i64> for SchemaId {
+    fn into(self) -> i64 {
+        self.0
+    }
+}
 
 #[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A schema identifier
@@ -50,16 +72,21 @@ pub struct Schema {
 
 impl RwObject<Schema> {
     #[must_use]
-    pub fn with_database_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_DATABASE_ID.to_string(), id)
+    pub fn with_id(self, id: SchemaId) -> Self {
+        self.with_named_id(SchemaId::type_name(), *id)
     }
 
-    pub fn database_id(&self) -> Result<i64> {
-        self.named_id(MAP_DATABASE_ID)
+    pub fn id(&self) -> Result<SchemaId> {
+        self.named_id(SchemaId::type_name()).map(SchemaId)
+    }
+    
+    #[must_use]
+    pub fn with_database_id(self, id: DatabaseId) -> Self {
+        self.with_named_id(DatabaseId::type_name(), *id)
     }
 
-    pub fn schema_id(&self) -> Result<i64> {
-        self.named_id(MAP_SCHEMA_ID)
+    pub fn database_id(&self) -> Result<DatabaseId> {
+        self.named_id(DatabaseId::type_name()).map(DatabaseId)
     }
 }
 

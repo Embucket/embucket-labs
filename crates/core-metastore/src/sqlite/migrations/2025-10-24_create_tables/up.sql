@@ -32,18 +32,21 @@ CREATE TABLE IF NOT EXISTS schemas (
 CREATE TABLE IF NOT EXISTS tables (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     schema_id INTEGER NOT NULL,
+    database_id INTEGER NOT NULL,
+    volume_id INTEGER NOT NULL,
     name TEXT NOT NULL UNIQUE,
     metadata TEXT NOT NULL,
     metadata_location TEXT NOT NULL,
     properties TEXT NOT NULL,
-    volume_ident TEXT,
     volume_location TEXT,
     is_temporary BOOLEAN NOT NULL,
-    format TEXT NOT NULL,
+    format TEXT NOT NULL CHECK(format IN ('parquet', 'iceberg')) NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     UNIQUE (name, schema_id)
     FOREIGN KEY (schema_id) REFERENCES schemas(id) ON DELETE CASCADE
+    FOREIGN KEY (database_id) REFERENCES databases(id) ON DELETE CASCADE
+    FOREIGN KEY (volume_id) REFERENCES volumes(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_databases ON databases(name, volume_id, created_at, updated_at);

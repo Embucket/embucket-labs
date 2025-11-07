@@ -2,7 +2,7 @@ use crate::error::{self as metastore_err, Result};
 use crate::error::{SerdeSnafu, VolumeNotFoundSnafu};
 use crate::models::RwObject;
 use crate::models::Volume;
-use crate::models::{DatabaseIdent, VolumeIdent};
+use crate::models::{DatabaseIdent, VolumeIdent, VolumeId};
 use crate::sqlite::crud::current_ts_str;
 use crate::sqlite::diesel_gen::databases;
 use crate::sqlite::diesel_gen::volumes;
@@ -18,7 +18,6 @@ use validator::Validate;
 #[derive(
     Validate, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Queryable, Selectable, Insertable,
 )]
-#[serde(rename_all = "kebab-case")]
 #[diesel(table_name = volumes)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct VolumeRecord {
@@ -35,7 +34,7 @@ impl TryFrom<RwObject<Volume>> for VolumeRecord {
     fn try_from(value: RwObject<Volume>) -> Result<Self> {
         Ok(Self {
             // ignore missing id, maybe its insert, otherwise constraint will fail
-            id: value.id().unwrap_or_default(),
+            id: value.id().map_or(0, Into::into),
             name: value.ident.clone(),
             volume_type: value.volume.to_string(), // display name
             volume: serde_json::to_string(&value.volume).context(SerdeSnafu)?,
@@ -50,7 +49,7 @@ impl TryInto<RwObject<Volume>> for VolumeRecord {
     fn try_into(self) -> Result<RwObject<Volume>> {
         let volume_type = serde_json::from_str(&self.volume).context(SerdeSnafu)?;
         Ok(RwObject::new(Volume::new(self.name, volume_type))
-            .with_id(self.id)
+            .with_id(VolumeId(self.id))
             .with_created_at(
                 DateTime::parse_from_rfc3339(&self.created_at)
                     .context(metastore_err::TimeParseSnafu)?
@@ -115,8 +114,9 @@ pub async fn get_volume(
     }
 }
 
-pub async fn get_volume_by_id(conn: &Connection, volume_id: i64) -> Result<RwObject<Volume>> {
-    let mut items = list_volumes(conn, ListParams::default().by_id(volume_id)).await?;
+pub async fn get_volume_by_id(conn: &Connection, volume_id: VolumeId) -> Result<RwObject<Volume>> {
+    let mut items = list_volumes(conn, 
+        ListParams::default().by_id(*volume_id)).await?;
     if items.is_empty() {
         VolumeNotFoundSnafu {
             volume: volume_id.to_string(),

@@ -1,11 +1,34 @@
 use std::collections::HashMap;
 
-use super::MAP_VOLUME_ID;
-use super::RwObject;
-use super::VolumeIdent;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+use super::VolumeIdent;
+use super::{MAP_DATABASE_ID, RwObject, NamedId, VolumeId};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DatabaseId(pub i64);
+
+impl NamedId for DatabaseId {
+    fn type_name() -> &'static str {
+        MAP_DATABASE_ID
+    }
+}
+
+impl std::ops::Deref for DatabaseId {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<i64> for DatabaseId {
+    fn into(self) -> i64 {
+        self.0
+    }
+}
 
 /// A database identifier
 pub type DatabaseIdent = String;
@@ -36,12 +59,21 @@ impl Database {
 
 impl RwObject<Database> {
     #[must_use]
-    pub fn with_volume_id(self, id: i64) -> Self {
-        self.with_named_id(MAP_VOLUME_ID.to_string(), id)
+    pub fn with_id(self, id: DatabaseId) -> Self {
+        self.with_named_id(DatabaseId::type_name(), id.into())
     }
 
-    pub fn volume_id(&self) -> Result<i64> {
-        self.named_id(MAP_VOLUME_ID)
+    pub fn id(&self) -> Result<DatabaseId> {
+        self.named_id(DatabaseId::type_name()).map(DatabaseId)
+    }
+    
+    #[must_use]
+    pub fn with_volume_id(self, id: VolumeId) -> Self {
+        self.with_named_id(VolumeId::type_name(), id.into())
+    }
+
+    pub fn volume_id(&self) -> Result<VolumeId> {
+        self.named_id(VolumeId::type_name()).map(VolumeId)
     }
 }
 

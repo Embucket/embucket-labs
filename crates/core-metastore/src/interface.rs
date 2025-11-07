@@ -5,9 +5,9 @@ use crate::{
     models::{
         RwObject,
         database::{Database, DatabaseIdent},
-        schema::{Schema, SchemaIdent},
+        schema::{Schema, SchemaIdent, SchemaId},
         table::{Table, TableCreateRequest, TableIdent, TableUpdate},
-        volumes::{Volume, VolumeIdent},
+        volumes::{Volume, VolumeIdent, VolumeId},
     },
 };
 use async_trait::async_trait;
@@ -22,14 +22,14 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn get_volumes(&self, params: ListParams) -> Result<Vec<RwObject<Volume>>>;
     async fn create_volume(&self, volume: Volume) -> Result<RwObject<Volume>>;
     async fn get_volume(&self, name: &VolumeIdent) -> Result<Option<RwObject<Volume>>>;
-    async fn get_volume_by_id(&self, id: i64) -> Result<RwObject<Volume>>;
+    async fn get_volume_by_id(&self, id: VolumeId) -> Result<RwObject<Volume>>;
     async fn get_volume_by_database(
         &self,
         database: &DatabaseIdent,
     ) -> Result<Option<RwObject<Volume>>>;
     async fn update_volume(&self, name: &VolumeIdent, volume: Volume) -> Result<RwObject<Volume>>;
     async fn delete_volume(&self, name: &VolumeIdent, cascade: bool) -> Result<()>;
-    async fn volume_object_store(&self, volume_id: i64) -> Result<Option<Arc<dyn ObjectStore>>>;
+    async fn volume_object_store(&self, volume_id: VolumeId) -> Result<Option<Arc<dyn ObjectStore>>>;
 
     async fn get_databases(&self, params: ListParams) -> Result<Vec<RwObject<Database>>>;
     async fn create_database(&self, database: Database) -> Result<RwObject<Database>>;
@@ -44,7 +44,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn get_schemas(&self, params: ListParams) -> Result<Vec<RwObject<Schema>>>;
     async fn create_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
     async fn get_schema(&self, ident: &SchemaIdent) -> Result<Option<RwObject<Schema>>>;
-    async fn get_schema_by_id(&self, id: i64) -> Result<RwObject<Schema>>;
+    async fn get_schema_by_id(&self, id: SchemaId) -> Result<RwObject<Schema>>;
     async fn update_schema(&self, ident: &SchemaIdent, schema: Schema) -> Result<RwObject<Schema>>;
     async fn delete_schema(&self, ident: &SchemaIdent, cascade: bool) -> Result<()>;
 

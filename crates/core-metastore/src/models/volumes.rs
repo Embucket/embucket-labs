@@ -1,4 +1,5 @@
 use crate::error::{self as metastore_error, Result};
+use super::{MAP_VOLUME_ID, NamedId, RwObject};
 use object_store::{
     ClientOptions, ObjectStore,
     aws::{AmazonS3Builder, resolve_bucket_region},
@@ -11,6 +12,41 @@ use snafu::ResultExt;
 use std::fmt::Display;
 use std::sync::Arc;
 use validator::{Validate, ValidationError, ValidationErrors};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VolumeId(pub i64);
+
+impl NamedId for VolumeId {
+    fn type_name() -> &'static str {
+        MAP_VOLUME_ID
+    }
+}
+
+impl std::ops::Deref for VolumeId {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<i64> for VolumeId {
+    fn into(self) -> i64 {
+        self.0
+    }
+}
+
+impl RwObject<Volume> {
+    #[must_use]
+    pub fn with_id(self, id: VolumeId) -> Self {
+        self.with_named_id(VolumeId::type_name(), *id)
+    }
+
+    pub fn id(&self) -> Result<VolumeId> {
+        self.named_id(VolumeId::type_name()).map(VolumeId)
+    }
+}
 
 // Enum for supported cloud providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]

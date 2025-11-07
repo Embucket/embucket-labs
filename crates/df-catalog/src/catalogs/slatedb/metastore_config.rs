@@ -33,7 +33,7 @@ impl MetastoreViewConfig {
             .context(df_error::MetastoreSnafu)?;
         for volume in volumes {
             builder.add_volume(
-                volume.id().context(df_error::MetastoreSnafu)?,
+                *volume.id().context(df_error::MetastoreSnafu)?,
                 &volume.ident,
                 volume.volume.to_string(),
                 volume.created_at.to_string(),
@@ -60,8 +60,8 @@ impl MetastoreViewConfig {
             .context(df_error::MetastoreSnafu)?;
         for database in databases {
             builder.add_database(
-                database.id().context(df_error::MetastoreSnafu)?,
-                database.volume_id().context(df_error::MetastoreSnafu)?,
+                *database.id().context(df_error::MetastoreSnafu)?,
+                *database.volume_id().context(df_error::MetastoreSnafu)?,
                 database.ident.as_str(),
                 &database.volume,
                 database.created_at.to_string(),
@@ -87,8 +87,8 @@ impl MetastoreViewConfig {
             .context(df_error::MetastoreSnafu)?;
         for schema in schemas {
             builder.add_schema(
-                schema.id().context(df_error::MetastoreSnafu)?,
-                schema.database_id().context(df_error::MetastoreSnafu)?,
+                *schema.id().context(df_error::MetastoreSnafu)?,
+                *schema.database_id().context(df_error::MetastoreSnafu)?,
                 &schema.ident.schema,
                 &schema.ident.database,
                 schema.created_at.to_string(),

@@ -22,11 +22,11 @@ impl TryFrom<RwObject<MetastoreSchema>> for Schema {
     type Error = crate::error::Error;
     fn try_from(rw_schema: RwObject<MetastoreSchema>) -> Result<Self> {
         Ok(Self {
-            id: rw_schema
+            id: *rw_schema
                 .id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
-            database_id: rw_schema
+            database_id: *rw_schema
                 .database_id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,

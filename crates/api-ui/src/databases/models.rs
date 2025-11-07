@@ -19,7 +19,7 @@ impl TryFrom<RwObject<MetastoreDatabase>> for Database {
     type Error = super::Error;
     fn try_from(db: RwObject<MetastoreDatabase>) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: db
+            id: *db
                 .id()
                 .context(metastore_err::NoIdSnafu)
                 .context(super::error::NoIdSnafu)?,
