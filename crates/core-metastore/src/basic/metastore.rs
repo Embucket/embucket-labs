@@ -159,9 +159,19 @@ impl Metastore for BasicMetastore {
 
     async fn create_database(
         &self,
-        _name: &DatabaseIdent,
-        _database: Database,
+        name: &DatabaseIdent,
+        database: Database,
     ) -> Result<RwObject<Database>> {
+        let volumes_guard = self.volumes.read();
+
+        if let Some(volume) = volumes_guard.get(&database.volume).cloned()
+            && matches!(volume.volume, VolumeType::S3Tables(_))
+        {
+            let rw_object = RwObject::new(database);
+            let mut guard = self.databases.write();
+            guard.insert(name.clone(), rw_object.clone());
+            return Ok(rw_object);
+        }
         Self::not_implemented("create_database - use config to define databases")?;
         unreachable!()
     }
