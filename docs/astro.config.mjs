@@ -33,6 +33,7 @@ export default defineConfig({
       customCss: ['./src/styles/global.css'],
       components: {
         ThemeSelect: './src/components/Empty.astro',
+        ThemeProvider: './src/components/ForceDarkTheme.astro',
       },
       plugins: [
         starlightLinksValidator({
