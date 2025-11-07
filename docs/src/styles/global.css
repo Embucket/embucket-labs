@@ -12,9 +12,9 @@
 
 :root {
   /* Sidebar item background */
-  --sl-color-accent-high: #0064d2;
+  --sl-color-accent-high: #bcf080;
   /* Sidebar item selected text color */
-  --sl-color-accent-low: #ffffff;
+  --sl-color-accent-low: #171717;
   /* Titles color (Sidebar group title, page title, etc.) */
   --sl-color-white: #ffffff;
   /* Selected Border color */

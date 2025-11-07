@@ -14,6 +14,7 @@ export default defineConfig({
       logo: {
         src: './src/assets/logo.svg',
       },
+      favicon: '/favicon.ico',
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Embucket/embucket' }],
       sidebar: [
         {
@@ -32,6 +33,7 @@ export default defineConfig({
       customCss: ['./src/styles/global.css'],
       components: {
         ThemeSelect: './src/components/Empty.astro',
+        ThemeProvider: './src/components/ForceDarkTheme.astro',
       },
       plugins: [
         starlightLinksValidator({

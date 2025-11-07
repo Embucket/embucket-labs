@@ -13,22 +13,22 @@
     "start": "astro dev"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.35.2",
-    "@astrojs/starlight-tailwind": "^4.0.1",
-    "@fontsource/inter": "^5.2.6",
-    "@tailwindcss/vite": "^4.1.11",
-    "astro": "^5.12.8",
-    "astro-mermaid": "^1.0.4",
-    "mermaid": "^11.9.0",
-    "sharp": "^0.34.3",
-    "tailwindcss": "^4.1.11"
+    "@astrojs/starlight": "^0.36.2",
+    "@astrojs/starlight-tailwind": "^4.0.2",
+    "@fontsource/inter": "^5.2.8",
+    "@tailwindcss/vite": "^4.1.17",
+    "astro": "^5.15.4",
+    "astro-mermaid": "^1.1.0",
+    "mermaid": "^11.12.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
-    "npm-check-updates": "^18.0.2",
+    "npm-check-updates": "^19.1.2",
     "prettier": "^3.6.2",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-packagejson": "^2.5.19",
-    "prettier-plugin-tailwindcss": "^0.6.14",
-    "starlight-links-validator": "^0.17.0"
+    "prettier-plugin-tailwindcss": "^0.7.1",
+    "starlight-links-validator": "^0.19.1"
   }
 }
