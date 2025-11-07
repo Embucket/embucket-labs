@@ -96,7 +96,10 @@ impl IntoResponse for Error {
             | core_metastore::Error::Serde { .. }
             | core_metastore::Error::TableMetadataBuilder { .. }
             | core_metastore::Error::TableObjectStoreNotFound { .. }
-            | core_metastore::Error::UrlParse { .. } => http::StatusCode::INTERNAL_SERVER_ERROR,
+            | core_metastore::Error::UrlParse { .. }
+            | core_metastore::Error::NotYetImplemented { .. } => {
+                http::StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
 
         // Record the result as part of the current span.

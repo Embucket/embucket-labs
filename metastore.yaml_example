@@ -1,0 +1,10 @@
+volumes:
+  - name: s3tablesdb
+    type: s3_tables
+    arn: "arn:aws:s3tables:us-east-2:111111111:bucket/s3-table-bucket"
+    credentials:
+      credential_type: access_key
+      aws-access-key-id: "11111111111111111111"
+      aws-secret-access-key: "2222222222222222222"
+    databases:
+      - name: my_s3_tables_db

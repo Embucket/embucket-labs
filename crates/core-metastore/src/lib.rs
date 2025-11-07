@@ -1,3 +1,4 @@
+pub mod basic;
 pub mod error;
 pub mod metastore;
 pub mod models;

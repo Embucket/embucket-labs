@@ -449,6 +449,12 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("Unimplemented functionality: '{name}'"))]
+    UnimplementedFunctionality {
+        name: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
     #[snafu(display("SQL parser error: {error}"))]
     SqlParser {
         #[snafu(source)]
