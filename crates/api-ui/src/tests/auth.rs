@@ -154,8 +154,7 @@ async fn test_login_no_secret_set() {
         String::new(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     let login_error = login::<()>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
@@ -171,8 +170,7 @@ async fn test_bad_login() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     let login_error = login::<()>(&client, &addr, "", "")
@@ -201,8 +199,7 @@ async fn test_query_request_unauthorized() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     let _ = login::<()>(&client, &addr, "", "")
@@ -223,8 +220,7 @@ async fn test_query_request_ok() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     // login
@@ -259,8 +255,7 @@ async fn test_refresh_bad_token() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     let refresh_err = refresh::<()>(&client, &addr, "xyz")
@@ -277,8 +272,7 @@ async fn test_logout() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     // login ok
@@ -308,8 +302,7 @@ async fn test_login_refresh() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     // login
@@ -429,8 +422,7 @@ async fn test_account_ok() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     let (_, login_resp) = login::<AuthResponse>(&client, &addr, DEMO_USER, DEMO_PASSWORD)
@@ -469,8 +461,7 @@ async fn test_account_unauthorized() {
         JWT_SECRET.to_string(),
         DEMO_USER.to_string(),
         DEMO_PASSWORD.to_string(),
-    )
-    .await;
+    );
     let client = reqwest::Client::new();
 
     // skip login

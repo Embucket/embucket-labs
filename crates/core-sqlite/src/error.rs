@@ -9,40 +9,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("Failed to spawn blocking task: {error}"))]
-    SpawnBlocking {
-        #[snafu(source)]
-        error: tokio::task::JoinError,
-    },
-
-    #[snafu(display("Sqlite not initialized yet"))]
-    SqliteInit {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("VFS already initialized"))]
-    VfsAlreadyInitialized {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
     #[snafu(display("Rusqlite error {error}"))]
     Rusqlite {
         #[snafu(source)]
         error: rusqlite::Error,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("No VFS detected"))]
-    NoVfsDetected {
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("Sqlite self check failed"))]
-    SelfCheck {
         #[snafu(implicit)]
         location: Location,
     },

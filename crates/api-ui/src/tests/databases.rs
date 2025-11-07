@@ -1,23 +1,22 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-
 use crate::databases::models::{
-    DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdateResponse, DatabasesResponse,
+    Database, DatabaseCreatePayload, DatabaseCreateResponse, DatabaseUpdatePayload,
+    DatabasesResponse,
 };
 use crate::error::ErrorResponse;
-use crate::tests::common::{Entity, Op, req, ui_test_op};
+use crate::tests::common::{Entity, Op, http_req, req, ui_test_op};
 use crate::tests::server::run_test_server;
-use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
+use crate::volumes::models::{Volume, VolumeCreatePayload, VolumeCreateResponse, VolumeType};
 use http::Method;
+use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-#[should_panic(
-    expected = "Failed to get error response: reqwest::Error { kind: Decode, source: Error(\"missing field `message`\", line: 1, column: 120) }"
-)]
-async fn test_ui_databases_metastore_update_bug() {
-    let addr = run_test_server().await;
+async fn test_ui_databases_metastore_update() {
+    let addr = run_test_server();
+    let client = reqwest::Client::new();
 
-    // Create volume with empty name
+    // Create volume
     let res = ui_test_op(
         addr,
         Op::Create,
@@ -46,77 +45,67 @@ async fn test_ui_databases_metastore_update_bug() {
         name: "new-test".to_string(),
         volume: volume.name.clone(),
     };
-    let res = ui_test_op(
-        addr,
-        Op::Update,
-        Some(&Entity::Database(DatabaseCreatePayload {
-            name: created_database.name.clone(),
-            volume: created_database.volume.clone(),
-        })),
-        &Entity::Database(new_database.clone()),
+    let renamed_database = http_req::<Database>(
+        &client,
+        Method::PUT,
+        &format!("http://{addr}/ui/databases/{}", created_database.name),
+        json!(DatabaseUpdatePayload {
+            name: new_database.name.clone(),
+            volume: new_database.volume.clone(),
+        })
+        .to_string(),
     )
-    .await;
-    assert_eq!(http::StatusCode::OK, res.status());
-    let DatabaseUpdateResponse(renamed_database) = res.json().await.unwrap();
-    assert_eq!(new_database.name, renamed_database.name); // server confirmed it's renamed
-    assert_eq!(new_database.volume, renamed_database.volume);
+    .await
+    .expect("Failed update database");
+    assert_eq!("new-test", renamed_database.name); // server confirmed it's renamed
+    assert_eq!(volume.name, renamed_database.volume.clone());
 
     // get non existing database using old name, expected error 404
-    let res = ui_test_op(
-        addr,
-        Op::Get,
-        None,
-        &Entity::Database(DatabaseCreatePayload {
+    let res = http_req::<()>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases/{}", created_database.name),
+        json!(DatabaseCreatePayload {
             name: created_database.name.clone(),
             volume: created_database.volume.clone(),
-        }),
+        })
+        .to_string(),
     )
-    .await;
-    // TODO: Fix this test case, it should return 404
-    // Database not updated as old name is still accessable
-    let error = res
-        .json::<ErrorResponse>()
-        .await
-        .expect("Failed to get error response");
-    assert_eq!(http::StatusCode::NOT_FOUND, error.status_code);
+    .await
+    .expect_err("Failed to get error response");
+    assert_eq!(http::StatusCode::NOT_FOUND, res.status);
 
     // Get existing database using new name, expected Ok
-    let res = ui_test_op(
-        addr,
-        Op::Get,
-        None,
-        &Entity::Database(DatabaseCreatePayload {
-            name: renamed_database.name.clone(),
-            volume: renamed_database.volume.clone(),
-        }),
+    let database = http_req::<Database>(
+        &client,
+        Method::GET,
+        &format!("http://{addr}/ui/databases/{}", renamed_database.name),
+        String::new(),
     )
-    .await;
-    assert_eq!(http::StatusCode::OK, res.status());
-    let error = res
-        .json::<ErrorResponse>()
-        .await
-        .expect("Failed to get error response");
-    assert_eq!(http::StatusCode::OK, error.status_code);
+    .await
+    .expect("Failed geting database");
+    assert_eq!("new-test", database.name);
 }
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_databases() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
-    // Create volume with empty name
-    let res = ui_test_op(
-        addr,
-        Op::Create,
-        None,
-        &Entity::Volume(VolumeCreatePayload {
-            name: String::new(),
+    // Create volume
+    let volume = http_req::<Volume>(
+        &client,
+        Method::POST,
+        &format!("http://{addr}/ui/volumes"),
+        json!(VolumeCreatePayload {
+            name: String::from("foo"),
             volume: VolumeType::Memory,
-        }),
+        })
+        .to_string(),
     )
-    .await;
-    let VolumeCreateResponse(volume) = res.json().await.unwrap();
+    .await
+    .expect("Failed volume create");
 
     // Create database with empty name, error 400
     let expected = DatabaseCreatePayload {
@@ -193,20 +182,18 @@ async fn test_ui_databases() {
     assert_eq!(http::StatusCode::OK, res.status());
 
     //Get list databases with parameters
-    let res = req(
+    let DatabasesResponse { items } = http_req::<DatabasesResponse>(
         &client,
         Method::GET,
-        &format!("http://{addr}/ui/databases?limit=2",).to_string(),
+        &format!("http://{addr}/ui/databases?limit=2"),
         String::new(),
     )
     .await
-    .unwrap();
-    assert_eq!(http::StatusCode::OK, res.status());
-    let databases_response: DatabasesResponse = res.json().await.unwrap();
-    assert_eq!(2, databases_response.items.len());
+    .expect("Failed to get list databases with limit");
+    // created_at desc is default order
     assert_eq!(
-        "test".to_string(),
-        databases_response.items.first().unwrap().name
+        vec!["test".to_string(), "test4".to_string()],
+        items.iter().map(|d| d.name.clone()).collect::<Vec<_>>(),
     );
     //Get list databases with parameters
     let res = req(

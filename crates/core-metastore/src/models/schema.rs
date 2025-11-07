@@ -4,8 +4,34 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use super::DatabaseIdent;
+use super::{DatabaseId, MAP_SCHEMA_ID, NamedId, RwObject};
+use crate::error::Result;
 
-#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SchemaId(pub i64);
+
+impl NamedId for SchemaId {
+    fn type_name() -> &'static str {
+        MAP_SCHEMA_ID
+    }
+}
+
+impl std::ops::Deref for SchemaId {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<i64> for SchemaId {
+    fn into(self) -> i64 {
+        self.0
+    }
+}
+
+#[derive(Validate, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A schema identifier
 #[derive(Default)]
 pub struct SchemaIdent {
@@ -38,13 +64,41 @@ impl std::fmt::Display for SchemaIdent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Schema {
     pub ident: SchemaIdent,
     pub properties: Option<HashMap<String, String>>,
 }
 
+impl RwObject<Schema> {
+    #[must_use]
+    pub fn with_id(self, id: SchemaId) -> Self {
+        self.with_named_id(SchemaId::type_name(), *id)
+    }
+
+    pub fn id(&self) -> Result<SchemaId> {
+        self.named_id(SchemaId::type_name()).map(SchemaId)
+    }
+
+    #[must_use]
+    pub fn with_database_id(self, id: DatabaseId) -> Self {
+        self.with_named_id(DatabaseId::type_name(), *id)
+    }
+
+    pub fn database_id(&self) -> Result<DatabaseId> {
+        self.named_id(DatabaseId::type_name()).map(DatabaseId)
+    }
+}
+
 impl Schema {
+    #[must_use]
+    pub const fn new(ident: SchemaIdent) -> Self {
+        Self {
+            ident,
+            properties: None,
+        }
+    }
+
     #[must_use]
     pub fn prefix(&self, parent: &str) -> String {
         format!("{}/{}", parent, self.ident.schema)
@@ -63,13 +117,10 @@ mod tests {
 
     #[test]
     fn test_prefix() {
-        let schema = Schema {
-            ident: SchemaIdent {
-                schema: "schema".to_string(),
-                database: "db".to_string(),
-            },
-            properties: None,
-        };
+        let schema = Schema::new(SchemaIdent {
+            schema: "schema".to_string(),
+            database: "db".to_string(),
+        });
         assert_eq!(schema.prefix("parent"), "parent/schema");
     }
 }

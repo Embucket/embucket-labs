@@ -31,7 +31,8 @@ pub enum Error {
 
     #[snafu(transparent)]
     NavigationTrees {
-        source: crate::navigation_trees::Error,
+        #[snafu(source(from(crate::navigation_trees::Error, Box::new)))]
+        source: Box<crate::navigation_trees::Error>,
     },
 
     #[snafu(transparent)]
@@ -140,6 +141,7 @@ impl IntoResponse for Error {
 }
 
 impl Error {
+    #[must_use]
     pub fn query_id(&self) -> QueryRecordId {
         match self {
             Self::QueriesError { source, .. } => match source.as_ref() {
@@ -153,6 +155,7 @@ impl Error {
         }
     }
 
+    #[must_use]
     pub fn display_error_message(&self) -> String {
         // acquire error str as later it will be moved
         let error_str = self.to_string();
@@ -172,6 +175,7 @@ impl Error {
         }
     }
 
+    #[must_use]
     pub fn debug_error_message(&self) -> String {
         match self {
             Self::QueriesError { source, .. } => match source.as_ref() {

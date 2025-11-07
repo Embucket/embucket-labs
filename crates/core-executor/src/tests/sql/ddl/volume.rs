@@ -2,7 +2,7 @@ use crate::test_query;
 
 test_query!(
     file,
-    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM sqlite.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME file STORAGE_LOCATIONS = (\
         (NAME = 'file_vol' STORAGE_PROVIDER = 'FILE' STORAGE_BASE_URL = '/home/'))"],
     snapshot_path = "volume"
@@ -10,7 +10,7 @@ test_query!(
 
 test_query!(
     memory,
-    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM sqlite.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME mem STORAGE_LOCATIONS = (\
         (NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))"],
     snapshot_path = "volume"
@@ -18,7 +18,7 @@ test_query!(
 
 test_query!(
     memory_if_not_exists,
-    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM sqlite.meta.volumes",
     setup_queries = [
         "CREATE EXTERNAL VOLUME mem STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))",
         "CREATE EXTERNAL VOLUME IF NOT EXISTS mem STORAGE_LOCATIONS = ((NAME = 'mem_vol' STORAGE_PROVIDER = 'MEMORY'))",
@@ -28,7 +28,7 @@ test_query!(
 
 test_query!(
     s3,
-    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM sqlite.meta.volumes",
     setup_queries = ["CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3'
             STORAGE_BASE_URL = 'bucket_name'
@@ -40,7 +40,7 @@ test_query!(
 
 test_query!(
     s3tables,
-    "SELECT volume_name, volume_type FROM slatedb.meta.volumes",
+    "SELECT volume_name, volume_type FROM sqlite.meta.volumes",
     setup_queries = [
         "CREATE EXTERNAL VOLUME s3 STORAGE_LOCATIONS = ((
             NAME = 's3-volume' STORAGE_PROVIDER = 'S3TABLES'

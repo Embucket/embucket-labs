@@ -1,0 +1,6 @@
+[migrations_directory]
+dir = "crates/core-metastore/src/sqlite/migrations" 
+
+[print_schema]
+sqlite_integer_primary_key_is_bigint = true
+file = "crates/core-metastore/src/sqlite/diesel_gen.rs"

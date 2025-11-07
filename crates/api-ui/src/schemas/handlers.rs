@@ -1,9 +1,9 @@
 #![allow(clippy::needless_for_each)]
+use crate::OrderDirection;
 use crate::Result;
 use crate::state::AppState;
-use crate::{OrderDirection, apply_parameters};
 use crate::{
-    SearchParameters, downcast_string_column,
+    SearchParameters,
     error::ErrorResponse,
     schemas::error::{CreateSnafu, DeleteSnafu, GetSnafu, ListSnafu, UpdateSnafu},
     schemas::models::{
@@ -16,7 +16,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use core_executor::models::{QueryContext, QueryResult};
+use core_executor::models::QueryContext;
 use core_metastore::error as metastore_error;
 use core_metastore::models::{Schema as MetastoreSchema, SchemaIdent as MetastoreSchemaIdent};
 use snafu::ResultExt;
@@ -116,8 +116,7 @@ pub async fn create_schema(
                 .context(GetSnafu)
         })
         .context(GetSnafu)?
-        .map(Schema::from)?;
-
+        .map(Schema::try_from)??;
     Ok(Json(SchemaCreateResponse(schema)))
 }
 
@@ -210,10 +209,9 @@ pub async fn get_schema(
                 })
                 .context(GetSnafu)
         })
-        .context(GetSnafu)?
-        .map(Schema::from)?;
+        .context(GetSnafu)??;
 
-    Ok(Json(SchemaResponse(schema)))
+    Ok(Json(SchemaResponse(Schema::try_from(schema)?)))
 }
 
 #[utoipa::path(
@@ -256,7 +254,7 @@ pub async fn update_schema(
         .await
         .context(UpdateSnafu)?;
 
-    Ok(Json(SchemaUpdateResponse(Schema::from(schema))))
+    Ok(Json(SchemaUpdateResponse(Schema::try_from(schema)?)))
 }
 
 #[utoipa::path(
@@ -291,63 +289,13 @@ pub async fn list_schemas(
     State(state): State<AppState>,
     Path(database_name): Path<String>,
 ) -> Result<Json<SchemasResponse>> {
-    let context = QueryContext::new(Some(database_name.clone()), None, None);
-    let now = chrono::Utc::now().to_string();
-    let sql_history_schema = format!(
-        "UNION ALL SELECT 'history' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
-        now.clone(),
-        now.clone()
-    );
-    let sql_meta_schema = format!(
-        "UNION ALL SELECT 'meta' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
-        now.clone(),
-        now.clone()
-    );
-    let sql_information_schema = match database_name.as_str() {
-        "slatedb" => format!(
-            "UNION ALL SELECT 'information_schema' AS schema_name, 'slatedb' AS database_name, '{}' AS created_at, '{}' AS updated_at",
-            now.clone(),
-            now.clone()
-        ),
-        _ => "UNION ALL SELECT 'information_schema' AS schema_name, database_name, created_at, updated_at FROM slatedb.meta.databases".to_string()
-    };
-    let sql_string = format!(
-        "SELECT * FROM (SELECT * FROM slatedb.meta.schemas {sql_history_schema} {sql_meta_schema} {sql_information_schema})"
-    );
-    let sql_string = format!(
-        "{} WHERE database_name = '{}'",
-        sql_string,
-        database_name.clone()
-    );
-    let sql_string = apply_parameters(
-        &sql_string,
-        parameters,
-        &["schema_name", "database_name"],
-        "created_at",
-        OrderDirection::DESC,
-    );
-    let QueryResult { records, .. } = state
-        .execution_svc
-        .query(&session_id, sql_string.as_str(), context)
+    let items = state
+        .metastore
+        .get_schemas(parameters.into())
         .await
-        .context(ListSnafu)?;
-
-    let mut items = Vec::new();
-    for record in records {
-        let schema_names = downcast_string_column(&record, "schema_name").context(ListSnafu)?;
-        let database_names = downcast_string_column(&record, "database_name").context(ListSnafu)?;
-        let created_at_timestamps =
-            downcast_string_column(&record, "created_at").context(ListSnafu)?;
-        let updated_at_timestamps =
-            downcast_string_column(&record, "updated_at").context(ListSnafu)?;
-        for i in 0..record.num_rows() {
-            items.push(Schema {
-                name: schema_names.value(i).to_string(),
-                database: database_names.value(i).to_string(),
-                created_at: created_at_timestamps.value(i).to_string(),
-                updated_at: updated_at_timestamps.value(i).to_string(),
-            });
-        }
-    }
+        .context(ListSnafu)?
+        .into_iter()
+        .map(Schema::try_from)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok(Json(SchemasResponse { items }))
 }

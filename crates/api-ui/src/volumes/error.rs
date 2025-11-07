@@ -39,13 +39,19 @@ pub enum Error {
     },
     #[snafu(display("Get volumes error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
     #[snafu(display("Volume {volume} not found"))]
     VolumeNotFound {
         volume: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
+    #[snafu(display("No id error: {source}"))]
+    NoId {
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -78,8 +84,7 @@ impl IntoStatusCode for Error {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Get { source, .. } | Self::Delete { source, .. } => match &source {
-                core_metastore::Error::UtilSlateDB { .. }
-                | core_metastore::Error::ObjectNotFound { .. } => StatusCode::NOT_FOUND,
+                core_metastore::Error::ObjectNotFound { .. } => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             Self::Update { source, .. } => match &source {
@@ -88,11 +93,8 @@ impl IntoStatusCode for Error {
                 core_metastore::Error::Validation { .. } => StatusCode::UNPROCESSABLE_ENTITY,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { source, .. } => match source {
-                core_executor::Error::ConcurrencyLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
             Self::VolumeNotFound { .. } => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

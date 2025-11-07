@@ -1,4 +1,4 @@
-use crate::SlateDBHistoryStore;
+use crate::HistoryStoreDb;
 use core_sqlite::{self as core_sqlite_error, Result as SqliteResult};
 use rusqlite::Result as SqlResult;
 use snafu::ResultExt;
@@ -6,7 +6,7 @@ use tokio;
 
 #[tokio::test]
 async fn test_sqlite_history_schema() -> SqliteResult<()> {
-    let history_store = SlateDBHistoryStore::new_in_memory().await;
+    let history_store = HistoryStoreDb::new_in_memory().await;
 
     let res = history_store
         .queries_db

@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use core_utils::iterable::IterableEntity;
 use serde::{Deserialize, Serialize};
 
 pub type WorksheetId = i64;
@@ -46,18 +45,6 @@ impl Worksheet {
 
     pub fn set_updated_at(&mut self, updated_at: Option<DateTime<Utc>>) {
         self.updated_at = updated_at.unwrap_or_else(Utc::now);
-    }
-}
-
-impl IterableEntity for Worksheet {
-    type Cursor = WorksheetId;
-
-    fn cursor(&self) -> Self::Cursor {
-        self.id
-    }
-
-    fn key(&self) -> Bytes {
-        Self::get_key(self.id)
     }
 }
 

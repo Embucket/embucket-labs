@@ -11,12 +11,12 @@ client = []
 api-ui-static-assets = { path = "../api-ui-static-assets" }
 api-sessions = { path = "../api-sessions" }
 core-metastore = { path = "../core-metastore" }
-core-utils = { path = "../core-utils" }
 core-executor = { path = "../core-executor" }
 core-history = { path = "../core-history" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
+axum-server = "0.7.2"
 axum = { workspace = true }
 chrono = { workspace = true }
 datafusion = { workspace = true }

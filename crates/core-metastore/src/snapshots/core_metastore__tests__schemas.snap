@@ -1,0 +1,59 @@
+---
+source: crates/core-metastore/src/tests.rs
+expression: "(no_db_result, schema_create, schema_list, schema_get, schema_list_after)"
+---
+(
+    Err(
+        0: Database testdb not found, at file:line:col,
+    ),
+    RwObject {
+        data: Schema {
+            ident: SchemaIdent {
+                schema: "testschema",
+                database: "testdb",
+            },
+            properties: None,
+        },
+        ids: {
+            "id": 1,
+            "database_id": 1,
+        },
+        created_at: "TIMESTAMP",
+        updated_at: "TIMESTAMP",
+    },
+    [
+        RwObject {
+            data: Schema {
+                ident: SchemaIdent {
+                    schema: "testschema",
+                    database: "testdb",
+                },
+                properties: None,
+            },
+            ids: {
+                "id": 1,
+                "database_id": 1,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ],
+    Some(
+        RwObject {
+            data: Schema {
+                ident: SchemaIdent {
+                    schema: "testschema",
+                    database: "testdb",
+                },
+                properties: None,
+            },
+            ids: {
+                "database_id": 1,
+                "id": 1,
+            },
+            created_at: "TIMESTAMP",
+            updated_at: "TIMESTAMP",
+        },
+    ),
+    [],
+)

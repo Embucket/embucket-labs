@@ -35,10 +35,10 @@ pub enum DFExternalError {
         #[snafu(implicit)]
         location: Location,
     },
-    #[snafu(display("Core utils error: {error}"))]
-    CoreUtils {
+    #[snafu(display("Metastore error: {error}"))]
+    Metastore {
         #[snafu(source)]
-        error: core_utils::Error,
+        error: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },

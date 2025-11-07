@@ -51,7 +51,6 @@ pub async fn req(
     res
 }
 
-/// As of minimalistic interface this doesn't support checking request/response headers
 pub async fn http_req_with_headers<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     method: Method,

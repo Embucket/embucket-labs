@@ -13,7 +13,7 @@ export const QUERY_RECORDS_MOCK: QueryRecord[] = [
   },
   {
     id: 8251112207655,
-    query: 'SELECT * FROM slatedb.meta.volumes ORDER BY volume_name DESC LIMIT 250',
+    query: 'SELECT * FROM sqlite.meta.volumes ORDER BY volume_name DESC LIMIT 250',
     startTime: '2025-06-02T18:09:52.344996Z',
     endTime: '2025-06-02T18:09:52.360947Z',
     durationMs: 15,

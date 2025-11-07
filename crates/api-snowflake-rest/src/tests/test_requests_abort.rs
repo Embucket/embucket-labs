@@ -3,6 +3,7 @@
 mod tests {
     use crate::models::{JsonResponse, LoginResponse};
     use crate::server::test_server::run_test_rest_api_server;
+    use crate::server::test_server::server_default_cfg;
     use crate::tests::client::{abort, get_query_result, login, query};
     use crate::tests::sql_macro::{JSON, query_id_from_snapshot};
     use axum::http;
@@ -12,7 +13,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_by_request_id() {
-        let addr = run_test_rest_api_server(JSON).await;
+        let addr = run_test_rest_api_server(server_default_cfg(JSON));
 
         let client = reqwest::Client::new();
 
@@ -47,7 +48,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_using_wrong_request_id() {
-        let addr = run_test_rest_api_server(JSON).await;
+        let addr = run_test_rest_api_server(server_default_cfg(JSON));
         let client = reqwest::Client::new();
 
         let (headers, login_res) = login::<LoginResponse>(&client, &addr, "embucket", "embucket")
@@ -74,7 +75,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_abort_and_retry() {
-        let addr = run_test_rest_api_server(JSON).await;
+        let addr = run_test_rest_api_server(server_default_cfg(JSON));
         // let addr = "127.0.0.1:3000".parse::<std::net::SocketAddr>()
         //    .expect("Failed to parse server address");
 
@@ -106,6 +107,8 @@ mod tests {
         let mut results = Vec::new();
         // start retry_count from 1, to ensure it works with any retry_count as well
         for retry_count in 1_u16..20_u16 {
+            // introduce delay to avoid finishing query before loop ends
+            tokio::time::sleep(Duration::from_millis(100)).await;
             let result = query::<JsonResponse>(
                 &query_client,
                 &addr,
@@ -116,7 +119,7 @@ mod tests {
                 false,
             )
             .await;
-            eprintln!("Retry count: {}, Result: {}", retry_count, result.is_ok());
+            eprintln!("Retry count: {retry_count}, Result: {result:?}");
             if result.is_ok() {
                 results.push(result);
                 break;

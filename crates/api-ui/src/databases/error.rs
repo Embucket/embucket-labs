@@ -41,7 +41,7 @@ pub enum Error {
 
     #[snafu(display("Get databases error: {source}"))]
     List {
-        source: core_executor::Error,
+        source: core_metastore::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -51,10 +51,17 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+    #[snafu(display("No id error: {source}"))]
+    NoId {
+        source: core_metastore::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }
 
 // Select which status code to return.
 impl IntoStatusCode for Error {
+    #[allow(clippy::collapsible_match)]
     fn status_code(&self) -> StatusCode {
         match self {
             Self::CreateQuery { source, .. } => match &source {
@@ -84,8 +91,8 @@ impl IntoStatusCode for Error {
                 core_metastore::Error::Validation { .. } => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
-            Self::List { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseNotFound { .. } => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

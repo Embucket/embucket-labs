@@ -5,8 +5,6 @@ use crate::error::{ErrorResponse, Result};
 use crate::state::AppState;
 use axum::{Json, extract::State};
 use core_history::GetQueriesParams;
-use core_metastore::error::UtilSlateDBSnafu;
-use core_utils::scan_iterator::ScanIterator;
 use snafu::ResultExt;
 use utoipa::OpenApi;
 
@@ -44,36 +42,7 @@ pub struct ApiDoc;
 )]
 #[tracing::instrument(name = "api_ui::get_dashboard", level = "info", skip(state), err, ret(level = tracing::Level::TRACE))]
 pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<DashboardResponse>> {
-    let rw_databases = state
-        .metastore
-        .iter_databases()
-        .collect()
-        .await
-        .context(UtilSlateDBSnafu)
-        .context(MetastoreSnafu)?;
-    let total_databases = rw_databases.len();
-    let mut total_schemas = 0;
-    let mut total_tables = 0;
-    for rw_database in rw_databases {
-        let rw_schemas = state
-            .metastore
-            .iter_schemas(&rw_database.ident.clone())
-            .collect()
-            .await
-            .context(UtilSlateDBSnafu)
-            .context(MetastoreSnafu)?;
-        total_schemas += rw_schemas.len();
-        for rw_schema in rw_schemas {
-            total_tables += state
-                .metastore
-                .iter_tables(&rw_schema.ident)
-                .collect()
-                .await
-                .context(UtilSlateDBSnafu)
-                .context(MetastoreSnafu)?
-                .len();
-        }
-    }
+    let stats = state.metastore.get_stats().await.context(MetastoreSnafu)?;
 
     let total_queries = state
         .history_store
@@ -83,9 +52,9 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Result<Json<Dashboa
         .len();
 
     Ok(Json(DashboardResponse(Dashboard {
-        total_databases,
-        total_schemas,
-        total_tables,
+        total_databases: stats.total_databases,
+        total_schemas: stats.total_schemas,
+        total_tables: stats.total_tables,
         total_queries,
     })))
 }

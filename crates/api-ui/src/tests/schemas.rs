@@ -5,14 +5,13 @@ use crate::schemas::models::{SchemaCreatePayload, SchemasResponse};
 use crate::tests::common::{Entity, Op, req, ui_test_op};
 use crate::tests::server::run_test_server;
 use crate::volumes::models::{VolumeCreatePayload, VolumeCreateResponse, VolumeType};
-use core_metastore::Database as MetastoreDatabase;
 use http::Method;
 use serde_json::json;
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_schemas() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     // Create volume with empty name
@@ -30,11 +29,7 @@ async fn test_ui_schemas() {
 
     let database_name = "test1".to_string();
     // Create database, Ok
-    let _expected1 = MetastoreDatabase {
-        ident: database_name.clone(),
-        properties: None,
-        volume: volume.name.clone(),
-    };
+
     let _res = ui_test_op(
         addr,
         Op::Create,
@@ -118,7 +113,7 @@ async fn test_ui_schemas() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
-    assert_eq!(4, schemas_response.items.len());
+    assert_eq!(3, schemas_response.items.len());
 
     //Get list schemas with parameters
     let res = req(
@@ -155,7 +150,7 @@ async fn test_ui_schemas() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
-    assert_eq!(3, schemas_response.items.len());
+    assert_eq!(2, schemas_response.items.len());
     assert_eq!(
         "testing2".to_string(),
         schemas_response.items.first().unwrap().name
@@ -215,8 +210,16 @@ async fn test_ui_schemas() {
     assert_eq!(http::StatusCode::OK, res.status());
     let schemas_response: SchemasResponse = res.json().await.unwrap();
     assert_eq!(
-        "testing1".to_string(),
-        schemas_response.items.first().unwrap().name
+        vec![
+            "testing1".to_string(),
+            "testing2".to_string(),
+            "testing3".to_string()
+        ],
+        schemas_response
+            .items
+            .into_iter()
+            .map(|s| s.name)
+            .collect::<Vec<String>>()
     );
 
     //Get list schemas with parameters

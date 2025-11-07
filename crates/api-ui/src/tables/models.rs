@@ -1,5 +1,5 @@
 use crate::default_limit;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use datafusion::arrow::csv::reader::Format;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -13,8 +13,8 @@ pub struct TableStatistics {
     pub name: String,
     pub total_rows: i64,
     pub total_bytes: i64,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]

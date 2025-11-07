@@ -14,7 +14,7 @@ use serde_json::json;
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_queries_no_worksheet() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let _ = http_req::<QueryRecord>(
@@ -57,7 +57,7 @@ async fn test_ui_queries_no_worksheet() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_queries_with_worksheet() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let worksheet = http_req::<Worksheet>(
@@ -281,7 +281,7 @@ async fn test_ui_queries_with_worksheet() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_queries_search() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let worksheet = http_req::<Worksheet>(
@@ -393,7 +393,7 @@ async fn test_ui_queries_search() {
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_async_query_infer_default_exec_mode() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     // asyncExec = true by default
@@ -407,6 +407,7 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     // })
     // .to_string();
 
+    // submit query asynchronously async_exec=true by default
     let query_record = http_req::<QueryRecord>(
         &client,
         Method::POST,
@@ -427,7 +428,7 @@ async fn test_ui_async_query_infer_default_exec_mode() {
     .await
     .expect_err("Get query error");
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
     let QueryGetResponse(query_record) = http_req::<QueryGetResponse>(
         &client,

@@ -52,7 +52,7 @@ fn create_s3_tables_volume_ok_payload() -> VolumeCreatePayload {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_ui_volumes() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     // memory volume with empty ident create Ok
@@ -124,10 +124,13 @@ async fn test_ui_volumes() {
     .unwrap();
     assert_eq!(http::StatusCode::OK, res.status());
     let volumes_response: VolumesResponse = res.json().await.unwrap();
-    assert_eq!(2, volumes_response.items.len());
     assert_eq!(
-        "embucket2".to_string(),
-        volumes_response.items.last().unwrap().name
+        vec!["embucket3".to_string(), "embucket2".to_string()],
+        volumes_response
+            .items
+            .iter()
+            .map(|d| d.name.clone())
+            .collect::<Vec<_>>(),
     );
 
     //Get list volumes with parameters
@@ -245,7 +248,7 @@ async fn test_ui_volumes() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_s3_volumes_validation() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let mut create_s3_volume_bad_endpoint_payload = create_s3_volume_ok_payload();
@@ -302,7 +305,7 @@ fn test_serde_roundtrip() {
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
 async fn test_s3_tables_volumes_validation() {
-    let addr = run_test_server().await;
+    let addr = run_test_server();
     let client = reqwest::Client::new();
 
     let mut create_s3_tables_volume_bad_endpoint_payload = create_s3_tables_volume_ok_payload();

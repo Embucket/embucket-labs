@@ -35,19 +35,15 @@ use axum::{
 use clap::Parser;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
-use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
-use core_utils::Db;
+use core_history::HistoryStoreDb;
+use core_metastore::MetastoreDb;
 use dotenv::dotenv;
-use object_store::path::Path;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
-use slatedb::DbBuilder;
-use slatedb::config::Settings;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -141,7 +137,6 @@ async fn async_main(
     opts: cli::CliOpts,
     tracing_provider: SdkTracerProvider,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let slatedb_prefix = opts.slatedb_prefix.clone();
     let data_format = opts
         .data_format
         .clone()
@@ -192,23 +187,9 @@ async fn async_main(
         port: opts.assets_port.unwrap(),
     };
 
-    let object_store = opts
-        .object_store_backend()
-        .expect("Failed to create object store");
-    let slate_db = Arc::new(
-        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-            .with_settings(slatedb_default_settings())
-            .build()
-            .await
-            .expect("Failed to start Slate DB"),
-    );
-
-    let db = Db::new(slate_db);
-
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore = Arc::new(MetastoreDb::new().await?);
     let history_store = Arc::new(
-        SlateDBHistoryStore::new(
-            db.clone(),
+        HistoryStoreDb::new(
             opts.query_history_db_name.clone(),
             opts.query_results_db_name.clone(),
         )
@@ -338,7 +319,7 @@ async fn async_main(
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!(%addr, "Listening on http");
     axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Failed to start server");
 
@@ -347,11 +328,6 @@ async fn async_main(
         .expect("TracerProvider should shutdown successfully");
 
     Ok(())
-}
-
-#[allow(clippy::expect_used)]
-fn slatedb_default_settings() -> Settings {
-    Settings::load().expect("Failed to load SlateDB settings")
 }
 
 #[allow(clippy::expect_used, clippy::redundant_closure_for_method_calls)]
@@ -461,7 +437,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal(db: Arc<Db>) {
+async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -481,11 +457,9 @@ async fn shutdown_signal(db: Arc<Db>) {
 
     tokio::select! {
         () = ctrl_c => {
-            db.close().await.expect("Failed to close database");
             tracing::warn!("Ctrl+C received, starting graceful shutdown");
         },
         () = terminate => {
-            db.close().await.expect("Failed to close database");
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
     }

@@ -1,4 +1,4 @@
-use core_metastore::metastore::Metastore;
+use core_metastore::Metastore;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};

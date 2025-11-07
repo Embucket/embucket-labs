@@ -1,4 +1,5 @@
 use crate::QueryRecordId;
+use core_sqlite;
 use error_stack_trace;
 use snafu::Location;
 use snafu::Snafu;
@@ -10,7 +11,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[snafu(visibility(pub(crate)))]
 #[error_stack_trace::debug]
 pub enum Error {
-    #[snafu(display("Failed to create directory: {error}"))]
+    #[snafu(display("Failed to create directory for history store: {error}"))]
     CreateDir {
         #[snafu(source)]
         error: std::io::Error,
@@ -34,58 +35,66 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Error adding worksheet: {source}"))]
+    #[snafu(display("Error adding worksheet: {error}"))]
     WorksheetAdd {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error getting worksheet: {source}"))]
+    #[snafu(display("Error getting worksheet: {error}"))]
     WorksheetGet {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error getting worksheets: {source}"))]
+    #[snafu(display("Error getting worksheets: {error}"))]
     WorksheetsList {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error deleting worksheet: {source}"))]
+    #[snafu(display("Error deleting worksheet: {error}"))]
     WorksheetDelete {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error updating worksheet: {source}"))]
+    #[snafu(display("Error updating worksheet: {error}"))]
     WorksheetUpdate {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error adding query result: {source}"))]
+    #[snafu(display("Error adding query result: {error}"))]
     ResultAdd {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error adding query record: {source}"))]
+    #[snafu(display("Error adding query record: {error}"))]
     QueryAdd {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error updating query record: {source}"))]
+    #[snafu(display("Error updating query record: {error}"))]
     QueryUpdate {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -97,16 +106,18 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Error adding query record reference: {source}"))]
+    #[snafu(display("Error adding query record reference: {error}"))]
     QueryReferenceAdd {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error getting query history: {source}"))]
+    #[snafu(display("Error getting query history: {error}"))]
     QueryGet {
-        source: core_utils::Error,
+        #[snafu(source)]
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -125,24 +136,23 @@ pub enum Error {
         location: Location,
     },
 
-    #[snafu(display("Error getting worksheet queries: {source}"))]
+    #[snafu(display("Error getting worksheet queries: {error}"))]
     GetWorksheetQueries {
-        source: core_utils::Error,
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Error adding query inverted key: {source}"))]
+    #[snafu(display("Error adding query inverted key: {error}"))]
     QueryInvertedKeyAdd {
-        source: core_utils::Error,
+        error: rusqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
 
-    #[snafu(display("Query item seek error: {error}"))]
-    Seek {
-        #[snafu(source)]
-        error: slatedb::Error,
+    #[snafu(display("Error getting sqlite conection: {source}"))]
+    SqliteConn {
+        source: core_sqlite::Error,
         #[snafu(implicit)]
         location: Location,
     },
@@ -165,14 +175,6 @@ pub enum Error {
     #[snafu(display("No result set for QueryRecord: {}", query_id.as_uuid()))]
     NoResultSet {
         query_id: QueryRecordId,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("CoreUtils Sqlite error: {error}"))]
-    CoreUtils {
-        #[snafu(source)]
-        error: core_utils::Error,
         #[snafu(implicit)]
         location: Location,
     },

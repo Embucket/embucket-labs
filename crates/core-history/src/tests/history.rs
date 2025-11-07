@@ -5,7 +5,6 @@ use crate::interface::GetQueriesParams;
 use crate::*;
 use crate::{QueryRecordId, QueryResultError};
 use chrono::{Duration, TimeZone, Utc};
-use core_utils::iterable::{IterableCursor, IterableEntity};
 use tokio;
 
 fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRecord> {
@@ -45,7 +44,7 @@ fn create_query_records(templates: &[(Option<i64>, QueryStatus)]) -> Vec<QueryRe
 
 #[tokio::test]
 async fn test_history() {
-    let db = SlateDBHistoryStore::new_in_memory().await;
+    let db = HistoryStoreDb::new_in_memory().await;
 
     // create a worksheet first
     let worksheet = Worksheet::new(String::new(), String::new());
@@ -64,7 +63,6 @@ async fn test_history() {
     created.sort_by(|i1, i2| i2.id.as_i64().cmp(&i1.id.as_i64()));
 
     for item in &created {
-        eprintln!("added {:?}", item.key());
         db.add_query(item).await.expect("Failed adding query");
         // update result set for successful queries (separate update + insert)
         if item.status == QueryStatus::Successful {
@@ -86,11 +84,8 @@ async fn test_history() {
         }
     }
 
-    let cursor = QueryRecordId(<QueryRecord as IterableEntity>::Cursor::min_cursor());
-    eprintln!("cursor: {cursor}");
     let get_queries_params = GetQueriesParams::new()
         .with_worksheet_id(worksheet.id)
-        .with_cursor(cursor)
         .with_limit(10);
     let retrieved_worksheet_queries = db
         .get_queries(get_queries_params)
@@ -99,14 +94,14 @@ async fn test_history() {
     // queries belong to the worksheet
     assert_eq!(3, retrieved_worksheet_queries.len());
 
-    let get_queries_params = GetQueriesParams::new().with_cursor(cursor).with_limit(10);
+    let get_queries_params = GetQueriesParams::new().with_limit(10);
     let retrieved_all = db
         .get_queries(get_queries_params)
         .await
         .expect("Failed getting queries");
     // all queries
     for item in &retrieved_all {
-        eprintln!("retrieved_all : {:?}", item.key());
+        eprintln!("retrieved_all : {item:?}");
     }
     assert_eq!(created.len(), retrieved_all.len());
     assert_eq!(created, retrieved_all);

@@ -5,10 +5,10 @@ edition = "2024"
 license-file = { workspace = true }
 
 [dependencies]
-core-utils = { path = "../core-utils" }
 error-stack-trace = { path = "../error-stack-trace" }
 error-stack = { path = "../error-stack" }
 
+core-sqlite = { workspace = true }
 async-trait = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -19,7 +19,6 @@ iceberg-rust-spec = { workspace = true }
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-slatedb = { workspace = true }
 snafu = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
@@ -30,6 +29,13 @@ utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
 regex = { workspace = true }
+rusqlite = { workspace = true }
+cfg-if = { workspace = true }
+deadpool-diesel = { workspace = true }
+deadpool = { workspace = true }
+deadpool-sqlite = { workspace = true }
+diesel = { version = "2.3.2", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+diesel_migrations = { version = "2.3.0", features = ["sqlite"] }
 
 [dev-dependencies]
 insta = { workspace = true }

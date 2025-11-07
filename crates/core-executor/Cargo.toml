@@ -5,7 +5,6 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-core-utils = { path = "../core-utils" }
 core-metastore = { path = "../core-metastore" }
 core-history = {  path = "../core-history" }
 df-catalog = { path = "../df-catalog" }
@@ -57,8 +56,6 @@ time = { workspace = true }
 pin-project-lite = "0.2.16"
 lru = "0.15.0"
 
-# added for making Snowflake error
-slatedb = { workspace = true }
 cfg-if = { workspace = true }
 
 [dev-dependencies]

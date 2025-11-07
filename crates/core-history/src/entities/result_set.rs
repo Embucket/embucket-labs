@@ -92,6 +92,12 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
+    #[must_use]
+    pub const fn with_query_id(mut self, id: QueryRecordId) -> Self {
+        self.id = id;
+        self
+    }
+
     #[tracing::instrument(
         level = "info",
         name = "ResultSet::serialized_result_set",
