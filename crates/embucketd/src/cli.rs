@@ -276,6 +276,14 @@ pub struct CliOpts {
         help = "Tracing span processor"
     )]
     pub tracing_span_processor: TracingSpanProcessor,
+
+    #[cfg(not(feature = "slatedb-metastore"))]
+    #[arg(
+        long,
+        env = "METASTORE_CONFIG",
+        help = "Path to metastore config YAML file (only for basic metastore)"
+    )]
+    pub metastore_config: Option<PathBuf>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

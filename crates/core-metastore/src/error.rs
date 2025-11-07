@@ -72,6 +72,7 @@ pub enum Error {
         location: Location,
     },
 
+    #[cfg(feature = "slatedb-metastore")]
     #[snafu(display("SlateDB error: {error}"))]
     SlateDB {
         #[snafu(source)]
@@ -234,6 +235,13 @@ pub enum Error {
     IcebergSpec {
         #[snafu(source)]
         error: iceberg_rust_spec::error::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
+    #[snafu(display("Not yet implemented: {operation}"))]
+    NotYetImplemented {
+        operation: String,
         #[snafu(implicit)]
         location: Location,
     },

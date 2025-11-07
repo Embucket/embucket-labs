@@ -19,7 +19,8 @@ iceberg-rust-spec = { workspace = true }
 object_store = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-slatedb = { workspace = true }
+serde_yaml = { workspace = true }
+slatedb = { workspace = true, optional = true }
 snafu = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
@@ -33,6 +34,10 @@ regex = { workspace = true }
 
 [dev-dependencies]
 insta = { workspace = true }
+
+[features]
+default = []
+slatedb-metastore = ["dep:slatedb"]
 
 [lints]
 workspace = true

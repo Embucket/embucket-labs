@@ -48,7 +48,8 @@ strum.workspace = true
 workspace = true
 
 [features]
-default = ["experimental"]
+default = ["experimental", "slatedb-metastore"]
 experimental = ["ui"]
 ui = ["dep:api-ui"]
 alloc-tracing = ["dep:tracing-allocations"]
+slatedb-metastore = ["core-metastore/slatedb-metastore"]

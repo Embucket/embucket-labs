@@ -17,7 +17,7 @@ pub trait ScanIterator: Sized {
 
 #[derive(Clone)]
 pub struct VecScanIterator<T: Send + for<'de> serde::de::Deserialize<'de>> {
-    db: Arc<SlateDb>,
+    db: Option<Arc<SlateDb>>,
     key: String,
     //From where to start the scan range for SlateDB
     // ex: if we ended on "tested2", the cursor would be "tested2"
@@ -35,17 +35,33 @@ pub struct VecScanIterator<T: Send + for<'de> serde::de::Deserialize<'de>> {
     // if we however had the cursor from cursor comment (line 21)
     // we could also go from `tested2\x00..tes\x7F` which would yield us "tested3" and "tested4" only excluding other names if any exist
     token: Option<String>,
+    // For in-memory mode
+    in_memory_items: Option<Vec<T>>,
     marker: PhantomData<T>,
 }
 
 impl<T: Send + for<'de> serde::de::Deserialize<'de>> VecScanIterator<T> {
     pub const fn new(db: Arc<SlateDb>, key: String) -> Self {
         Self {
-            db,
+            db: Some(db),
             key,
             cursor: None,
             limit: None,
             token: None,
+            in_memory_items: None,
+            marker: PhantomData,
+        }
+    }
+
+    /// Create an in-memory iterator from a vector (used when SlateDB is not available)
+    pub fn from_vec(items: Vec<T>) -> Self {
+        Self {
+            db: None,
+            key: String::new(),
+            cursor: None,
+            limit: None,
+            token: None,
+            in_memory_items: Some(items),
             marker: PhantomData,
         }
     }
@@ -75,6 +91,14 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         err
     )]
     async fn collect(self) -> Result<Self::Collectable> {
+        // Handle in-memory mode
+        if let Some(items) = self.in_memory_items {
+            return Ok(items);
+        }
+
+        // SlateDB mode
+        let db = self.db.expect("VecScanIterator requires either db or in_memory_items");
+
         //We can look with respect to limit
         // from start to end (full scan),
         // from starts_with to start_with (search),
@@ -98,7 +122,7 @@ impl<T: Send + for<'de> serde::de::Deserialize<'de>> ScanIterator for VecScanIte
         tracing::Span::current().record("keys_range", format!("{start}..{end}"));
 
         let range = Bytes::from(start)..Bytes::from(end);
-        let mut iter = self.db.scan(range).await.context(errors::ScanFailedSnafu)?;
+        let mut iter = db.scan(range).await.context(errors::ScanFailedSnafu)?;
 
         let mut objects = Self::Collectable::new();
         while let Ok(Some(bytes)) = iter.next().await {

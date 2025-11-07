@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 #[allow(clippy::wildcard_imports)]
 use crate::models::*;
@@ -8,30 +8,53 @@ use crate::{
         RwObject,
         database::{Database, DatabaseIdent},
         schema::{Schema, SchemaIdent},
-        table::{Table, TableCreateRequest, TableIdent, TableRequirementExt, TableUpdate},
+        table::{Table, TableCreateRequest, TableIdent, TableUpdate},
         volumes::{Volume, VolumeIdent},
     },
 };
 use async_trait::async_trait;
+use core_utils::scan_iterator::VecScanIterator;
+use object_store::ObjectStore;
+
+// SlateDB-specific imports
+#[cfg(feature = "slatedb-metastore")]
+use std::collections::HashMap;
+#[cfg(feature = "slatedb-metastore")]
 use bytes::Bytes;
+#[cfg(feature = "slatedb-metastore")]
 use chrono::Utc;
+#[cfg(feature = "slatedb-metastore")]
 use core_utils::Db;
-use core_utils::scan_iterator::{ScanIterator, VecScanIterator};
+#[cfg(feature = "slatedb-metastore")]
+use core_utils::scan_iterator::ScanIterator;
+#[cfg(feature = "slatedb-metastore")]
 use dashmap::DashMap;
+#[cfg(feature = "slatedb-metastore")]
 use futures::{StreamExt, TryStreamExt};
+#[cfg(feature = "slatedb-metastore")]
 use iceberg_rust::catalog::commit::{TableUpdate as IcebergTableUpdate, apply_table_updates};
+#[cfg(feature = "slatedb-metastore")]
 use iceberg_rust_spec::{
     schema::Schema as IcebergSchema,
     table_metadata::{FormatVersion, TableMetadataBuilder},
     types::StructField,
 };
-use object_store::{ObjectStore, PutPayload, path::Path};
+#[cfg(feature = "slatedb-metastore")]
+use crate::models::table::TableRequirementExt;
+#[cfg(feature = "slatedb-metastore")]
+use object_store::{PutPayload, path::Path};
+#[cfg(feature = "slatedb-metastore")]
 use serde::de::DeserializeOwned;
+#[cfg(feature = "slatedb-metastore")]
 use snafu::ResultExt;
+#[cfg(feature = "slatedb-metastore")]
 use strum::Display;
+#[cfg(feature = "slatedb-metastore")]
 use tracing::instrument;
+#[cfg(feature = "slatedb-metastore")]
 use uuid::Uuid;
 
+#[cfg(feature = "slatedb-metastore")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum MetastoreObjectType {
@@ -91,6 +114,7 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
     async fn volume_for_table(&self, ident: &TableIdent) -> Result<Option<RwObject<Volume>>>;
 }
 
+#[cfg(feature = "slatedb-metastore")]
 ///
 /// vol -> List of volumes
 /// vol/<name> -> `Volume`
@@ -102,21 +126,27 @@ pub trait Metastore: std::fmt::Debug + Send + Sync {
 /// tbl/<db>/<schema>/<table> -> `Table`
 ///
 const KEY_VOLUME: &str = "vol";
+#[cfg(feature = "slatedb-metastore")]
 const KEY_DATABASE: &str = "db";
+#[cfg(feature = "slatedb-metastore")]
 const KEY_SCHEMA: &str = "sch";
+#[cfg(feature = "slatedb-metastore")]
 const KEY_TABLE: &str = "tbl";
 
+#[cfg(feature = "slatedb-metastore")]
 pub struct SlateDBMetastore {
     db: Db,
     object_store_cache: DashMap<VolumeIdent, Arc<dyn ObjectStore>>,
 }
 
+#[cfg(feature = "slatedb-metastore")]
 impl std::fmt::Debug for SlateDBMetastore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SlateDBMetastore").finish()
     }
 }
 
+#[cfg(feature = "slatedb-metastore")]
 impl SlateDBMetastore {
     #[must_use]
     pub fn new(db: Db) -> Self {
@@ -239,6 +269,7 @@ impl SlateDBMetastore {
     }
 }
 
+#[cfg(feature = "slatedb-metastore")]
 #[async_trait]
 impl Metastore for SlateDBMetastore {
     fn iter_volumes(&self) -> VecScanIterator<RwObject<Volume>> {
@@ -884,6 +915,7 @@ impl Metastore for SlateDBMetastore {
     }
 }
 
+#[cfg(feature = "slatedb-metastore")]
 fn convert_schema_fields_to_lowercase(schema: &IcebergSchema) -> Result<IcebergSchema> {
     let converted_fields: Vec<StructField> = schema
         .fields()
@@ -909,6 +941,7 @@ fn convert_schema_fields_to_lowercase(schema: &IcebergSchema) -> Result<IcebergS
     builder.build().context(metastore_error::IcebergSpecSnafu)
 }
 
+#[cfg(feature = "slatedb-metastore")]
 fn convert_add_schema_update_to_lowercase(updates: &mut Vec<IcebergTableUpdate>) -> Result<()> {
     for update in updates {
         if let IcebergTableUpdate::AddSchema {
@@ -926,11 +959,12 @@ fn convert_add_schema_update_to_lowercase(updates: &mut Vec<IcebergTableUpdate>)
     Ok(())
 }
 
+#[cfg(feature = "slatedb-metastore")]
 fn url_encode(input: &str) -> String {
     url::form_urlencoded::byte_serialize(input.as_bytes()).collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "slatedb-metastore"))]
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;

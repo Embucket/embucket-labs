@@ -36,18 +36,25 @@ use clap::Parser;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
+#[cfg(feature = "slatedb-metastore")]
 use core_metastore::SlateDBMetastore;
+#[cfg(not(feature = "slatedb-metastore"))]
+use core_metastore::BasicMetastore;
+#[cfg(feature = "slatedb-metastore")]
 use core_utils::Db;
 use dotenv::dotenv;
+#[cfg(feature = "slatedb-metastore")]
 use object_store::path::Path;
+#[cfg(feature = "slatedb-metastore")]
+use slatedb::DbBuilder;
+#[cfg(feature = "slatedb-metastore")]
+use slatedb::config::Settings;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::runtime::TokioCurrentThread;
 use opentelemetry_sdk::trace::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor as BatchSpanProcessorAsyncRuntime;
-use slatedb::DbBuilder;
-use slatedb::config::Settings;
 use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -192,28 +199,56 @@ async fn async_main(
         port: opts.assets_port.unwrap(),
     };
 
-    let object_store = opts
-        .object_store_backend()
-        .expect("Failed to create object store");
-    let slate_db = Arc::new(
-        DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
-            .with_settings(slatedb_default_settings())
-            .build()
-            .await
-            .expect("Failed to start Slate DB"),
-    );
+    // Initialize metastore and history store based on feature flag
+    #[cfg(feature = "slatedb-metastore")]
+    let (metastore, history_store, db) = {
+        let object_store = opts
+            .object_store_backend()
+            .expect("Failed to create object store");
+        let slate_db = Arc::new(
+            DbBuilder::new(Path::from(slatedb_prefix), object_store.clone())
+                .with_settings(slatedb_default_settings())
+                .build()
+                .await
+                .expect("Failed to start Slate DB"),
+        );
+        let db = Db::new(slate_db);
+        let metastore = Arc::new(SlateDBMetastore::new(db.clone())) as Arc<dyn core_metastore::Metastore>;
+        let history_store = Arc::new(
+            SlateDBHistoryStore::new(
+                db.clone(),
+                opts.query_history_db_name.clone(),
+                opts.query_results_db_name.clone(),
+            )
+            .await?,
+        );
+        (metastore, history_store, db)
+    };
 
-    let db = Db::new(slate_db);
+    #[cfg(not(feature = "slatedb-metastore"))]
+    let (metastore, history_store) = {
+        let metastore = if let Some(config_path) = &opts.metastore_config {
+            tracing::info!("Loading metastore config from {:?}", config_path);
+            Arc::new(
+                BasicMetastore::from_yaml_file(
+                    config_path
+                        .to_str()
+                        .expect("Invalid config path")
+                )
+                .expect("Failed to load metastore config")
+            ) as Arc<dyn core_metastore::Metastore>
+        } else {
+            tracing::warn!("No metastore config provided, using empty BasicMetastore");
+            Arc::new(
+                BasicMetastore::from_yaml_str("volumes: []")
+                    .expect("Failed to create empty metastore")
+            ) as Arc<dyn core_metastore::Metastore>
+        };
 
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
-    let history_store = Arc::new(
-        SlateDBHistoryStore::new(
-            db.clone(),
-            opts.query_history_db_name.clone(),
-            opts.query_results_db_name.clone(),
-        )
-        .await?,
-    );
+        // For basic metastore, we still need history store functionality
+        // TODO: Implement a basic history store or make it optional
+        unimplemented!("History store not implemented for basic metastore yet")
+    };
 
     tracing::info!("Creating execution service");
     let execution_svc = Arc::new(
@@ -337,8 +372,15 @@ async fn async_main(
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!(%addr, "Listening on http");
-    axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+    #[cfg(feature = "slatedb-metastore")]
+    let server = axum::serve(listener, router)
+        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())));
+
+    #[cfg(not(feature = "slatedb-metastore"))]
+    let server = axum::serve(listener, router)
+        .with_graceful_shutdown(shutdown_signal_without_db());
+
+    server
         .await
         .expect("Failed to start server");
 
@@ -350,6 +392,7 @@ async fn async_main(
 }
 
 #[allow(clippy::expect_used)]
+#[cfg(feature = "slatedb-metastore")]
 fn slatedb_default_settings() -> Settings {
     Settings::load().expect("Failed to load SlateDB settings")
 }
@@ -456,6 +499,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
 ///
 /// # Panics
 /// If the function fails to install the signal handler, it will panic.
+#[cfg(feature = "slatedb-metastore")]
 #[allow(
     clippy::expect_used,
     clippy::redundant_pub_crate,
@@ -486,6 +530,42 @@ async fn shutdown_signal(db: Arc<Db>) {
         },
         () = terminate => {
             db.close().await.expect("Failed to close database");
+            tracing::warn!("SIGTERM received, starting graceful shutdown");
+        },
+    }
+
+    tracing::warn!("signal received, starting graceful shutdown");
+}
+
+#[cfg(not(feature = "slatedb-metastore"))]
+#[allow(
+    clippy::expect_used,
+    clippy::redundant_pub_crate,
+    clippy::cognitive_complexity
+)]
+async fn shutdown_signal_without_db() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {
+            tracing::warn!("Ctrl+C received, starting graceful shutdown");
+        },
+        () = terminate => {
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
     }
