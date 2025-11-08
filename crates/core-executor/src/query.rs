@@ -27,7 +27,7 @@ use core_metastore::{
     TableFormat as MetastoreTableFormat, TableIdent as MetastoreTableIdent, Volume, VolumeType,
     models::volumes::create_object_store_from_url,
 };
-use datafusion::arrow::array::{Int64Array, RecordBatch};
+use datafusion::arrow::array::{Int64Array, RecordBatch, StringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Schema as ArrowSchema, SchemaRef};
 use datafusion::arrow::datatypes::{Fields, SchemaBuilder};
 use datafusion::catalog::{CatalogProvider, SchemaProvider};
@@ -2754,7 +2754,10 @@ impl UserQuery {
             false,
         )]));
         Ok(QueryResult::new(
-            vec![RecordBatch::new_empty(schema.clone())],
+            vec![
+                RecordBatch::try_new(schema.clone(), vec![Arc::new(StringArray::from(vec!["Statement executed successfully."]))])
+                     .context(ex_error::ArrowSnafu)?,
+            ],
             schema,
             self.query_context.query_id,
         ))
