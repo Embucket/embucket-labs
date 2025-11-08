@@ -10,7 +10,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Editor } from '@/modules/editor/editor';
 import { useEditorPanelsState } from '@/modules/editor/editor-panels-state-provider';
 import { getGetDashboardQueryKey } from '@/orval/dashboard';
-import type { QueryRecord } from '@/orval/models';
+import type { QueriesResponse, QueryRecord } from '@/orval/models';
 import { getGetNavigationTreesQueryKey } from '@/orval/navigation-trees';
 import {
   getGetQueriesQueryKey,
@@ -155,10 +155,16 @@ export function EditorCenterPanel() {
     };
 
     // Update cache optimistically
-    queryClient.setQueryData(getGetQueriesQueryKey(), (old?: QueryRecord[]) => {
-      if (!old) return [optimisticRecord];
-      return [optimisticRecord, ...old];
-    });
+    queryClient.setQueryData(
+      getGetQueriesQueryKey({ worksheetId: +worksheetId }),
+      (old?: QueriesResponse) => {
+        const oldItems = old?.items ?? [];
+        return {
+          ...old,
+          items: [optimisticRecord, ...oldItems],
+        };
+      },
+    );
 
     createQuery({
       data: {
@@ -177,7 +183,7 @@ export function EditorCenterPanel() {
     selectedQueryRecord?.status === 'running' ||
     createQueryMutationPending ||
     queryRecordResultLoading;
-
+  console.log(selectedQueryRecord?.status, createQueryMutationPending, queryRecordLoading);
   return (
     <div className="flex h-full flex-col">
       <EditorCenterPanelHeader />

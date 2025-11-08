@@ -30,7 +30,8 @@ export const EditorRightPanelQuery = ({ query }: EditorRightPanelQueriesProps) =
           <SidebarMenuButton
             isActive={query.id === selectedQueryRecord?.id}
             onClick={() => setSelectedQueryRecord(+worksheetId, query)}
-            className="hover:bg-hover data-[active=true]:bg-hover! data-[active=true]:text-foreground data-[active=true]:font-light"
+            className="hover:bg-hover data-[active=true]:bg-hover! data-[active=true]:font-light"
+
           >
             <EditorRightPanelQueryItem
               status={query.status}

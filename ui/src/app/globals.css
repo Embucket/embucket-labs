@@ -187,7 +187,7 @@
   /* Sidebar - Bg hover + Active bg */
   --sidebar-accent: #bcf080;
   /* Active Text */
-  --sidebar-accent-foreground: var(--color1);
+  --sidebar-accent-foreground: #fff;
   /* Default - White */
   --sidebar-foreground: #ffffff;
   --sidebar-border: #2e2e2e;

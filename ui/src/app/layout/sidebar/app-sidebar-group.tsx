@@ -9,7 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
 
 interface SidebarNavOption {
   name: string;
@@ -40,20 +39,23 @@ export function AppSidebarGroup({ items, open }: { items: SidebarNavOption[]; op
                 disabled={item.disabled}
                 className="cursor-auto"
               >
-                {({ isActive }) => (
-                  <SidebarMenuButton
-                    disabled={item.disabled}
-                    className={cn(!isActive && 'hover:bg-hover!', 'text-nowrap')}
-                    tooltip={{
-                      children: item.name,
-                      hidden: open,
-                    }}
-                    isActive={item.isActive ?? isActive}
-                  >
-                    <item.Icon />
-                    {item.name}
-                  </SidebarMenuButton>
-                )}
+                {({ isActive }) => {
+                  const actualIsActive = item.isActive ?? isActive;
+                  return (
+                    <SidebarMenuButton
+                      disabled={item.disabled}
+                      className="text-nowrap data-[active=true]:text-background data-[active=true]:[&>svg]:text-background"
+                      tooltip={{
+                        children: item.name,
+                        hidden: open,
+                      }}
+                      isActive={actualIsActive}
+                    >
+                      <item.Icon />
+                      {item.name}
+                    </SidebarMenuButton>
+                  );
+                }}
               </Link>
             </SidebarMenuItem>
           ))}
