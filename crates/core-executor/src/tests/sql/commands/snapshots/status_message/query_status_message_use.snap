@@ -1,6 +1,6 @@
 ---
-source: crates/core-executor/src/tests/sql/ddl/table.rs
-description: "\"ALTER TABLE IF EXISTS embucket.public.missing_table add column c5 VARCHAR\""
+source: crates/core-executor/src/tests/sql/commands/status_message.rs
+description: "\"USE DATABASE embucket\""
 ---
 Ok(
     [

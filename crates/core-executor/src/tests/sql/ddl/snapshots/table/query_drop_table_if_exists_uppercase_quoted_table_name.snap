@@ -5,9 +5,10 @@ info: "Setup queries: CREATE SCHEMA embucket.public_snowplow_manifest; CREATE TA
 ---
 Ok(
     [
-        "+--------+",
-        "| status |",
-        "+--------+",
-        "+--------+",
+        "+----------------------------------+",
+        "| status                           |",
+        "+----------------------------------+",
+        "| Statement executed successfully. |",
+        "+----------------------------------+",
     ],
 )

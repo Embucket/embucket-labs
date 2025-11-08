@@ -4,9 +4,10 @@ description: "\"DROP TABLE IF EXISTS embucket.public.missing\""
 ---
 Ok(
     [
-        "+--------+",
-        "| status |",
-        "+--------+",
-        "+--------+",
+        "+----------------------------------+",
+        "| status                           |",
+        "+----------------------------------+",
+        "| Statement executed successfully. |",
+        "+----------------------------------+",
     ],
 )
