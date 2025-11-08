@@ -15,7 +15,9 @@ export default defineConfig({
         src: './src/assets/logo.svg',
       },
       favicon: '/favicon.ico',
-      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/embucket/embucket-labs' }],
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/embucket/embucket-labs' },
+      ],
       sidebar: [
         {
           label: 'Essentials',
