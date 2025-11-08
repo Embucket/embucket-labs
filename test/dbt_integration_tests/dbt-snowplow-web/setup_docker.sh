@@ -19,7 +19,7 @@ echo "Removing Docker images..."
 
 # Option 1: Remove only the embucket image
 echo "Removing embucket image..."
-docker rmi embucket/embucket >/dev/null 2>&1 || true
+docker rmi embucket/embucket-labs >/dev/null 2>&1 || true
 
 # Create datasets directory if it doesn't exist
 echo "Creating datasets directory..."
@@ -70,7 +70,7 @@ docker run -d --rm --name em \
   --env OBJECT_STORE_BACKEND=memory \
   --env SLATEDB_PREFIX=memory \
   --env DATA_FORMAT=arrow \
-  embucket/embucket >/dev/null 2>&1
+  embucket/embucket-labs >/dev/null 2>&1
 
 echo "✓ Embucket container started successfully with CLEAN environment!"
 echo ""

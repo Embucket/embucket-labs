@@ -11,7 +11,7 @@
 Start Embucket and run your first query in 30 seconds:
 
 ```bash
-docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket
+docker run --name embucket --rm -p 8080:8080 -p 3000:3000 embucket/embucket-labs
 ```
 
 Open [localhost:8080](http://localhost:8080)—login: `embucket`/`embucket`—and run:
@@ -85,4 +85,3 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License  
 
 This project uses the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.  
-
