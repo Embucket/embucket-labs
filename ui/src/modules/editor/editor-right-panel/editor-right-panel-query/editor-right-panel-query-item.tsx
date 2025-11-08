@@ -12,7 +12,7 @@ function EditorRightPanelQueryItemStatus({ status, error }: EditorRightPanelQuer
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className={cn('size-1.5 flex-shrink-0 rounded-full p-1', {
+          className={cn('size-1.5 shrink-0 rounded-full p-1', {
             'bg-yellow-500': status === 'running',
             'bg-green-500': status === 'successful',
             'bg-red-500': status !== 'running' && status !== 'successful',
@@ -48,7 +48,7 @@ export function EditorRightPanelQueryItem({
         <span className="mx-2 truncate text-sm">{query}</span>
       </div>
 
-      <span className="text-muted-foreground flex-shrink-0 text-xs">{time}</span>
+      <span className="text-muted-foreground shrink-0 text-xs">{time}</span>
     </li>
   );
 }
