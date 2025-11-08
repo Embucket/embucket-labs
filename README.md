@@ -3,8 +3,8 @@
 **Run Snowflake SQL dialect on your data lake in 30 seconds. Zero dependencies.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![SQL Logic Test Coverage](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/badge.svg)](test/README.md)
-[![dbt Gitlab run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt/dbt_success_badge.svg)](test/dbt_integration_tests/dbt-gitlab/README.md)
+[![SQL Logic Test Coverage](https://raw.githubusercontent.com/embucket/embucket-labs/assets/assets/badge.svg)](test/README.md)
+[![dbt Gitlab run results](https://raw.githubusercontent.com/embucket/embucket-labs/assets_dbt/assets_dbt/dbt_success_badge.svg)](test/dbt_integration_tests/dbt-gitlab/README.md)
 
 ## Quick start
 
@@ -67,8 +67,8 @@ Built on proven open source:
 
 **From source:**
 ```bash
-git clone https://github.com/Embucket/embucket.git
-cd embucket && cargo build
+git clone https://github.com/embucket/embucket-labs.git
+cd embucket-labs && cargo build
 ./target/debug/embucketd
 ```
 

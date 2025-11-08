@@ -293,7 +293,7 @@ async fn test_s3_volumes_validation() {
 
 #[test]
 fn test_serde_roundtrip() {
-    // https://github.com/Embucket/embucket/issues/1306
+    // https://github.com/embucket/embucket-labs/issues/1306
     let payload: VolumeCreatePayload = create_s3_tables_volume_ok_payload();
     let json = serde_json::to_string(&payload).expect("Failed to serialize");
     serde_json::from_str::<VolumeCreatePayload>(&json).expect("Failed to parse");

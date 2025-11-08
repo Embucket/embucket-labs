@@ -1,9 +1,9 @@
-[![SQL Logic Test Coverage](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/badge.svg)](test/README.md)
+[![SQL Logic Test Coverage](https://raw.githubusercontent.com/embucket/embucket-labs/assets/assets/badge.svg)](test/README.md)
 
 ## SLT coverage
-![Test Coverage Visualization](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/test_coverage_visualization.png)
+![Test Coverage Visualization](https://raw.githubusercontent.com/embucket/embucket-labs/assets/assets/test_coverage_visualization.png)
 
-![Not Implemented Tests Distribution](https://raw.githubusercontent.com/Embucket/embucket/assets/assets/not_implemented_visualization.png)
+![Not Implemented Tests Distribution](https://raw.githubusercontent.com/embucket/embucket-labs/assets/assets/not_implemented_visualization.png)
 
 *These visualizations are automatically updated by CI/CD when tests are run.*
 

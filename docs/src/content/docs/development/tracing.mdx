@@ -9,7 +9,7 @@ Embucket uses `tracing::instrument` to instrument code for tracing. You can use 
 
 ### Tracing span processor experimental async runtime
 
-Embucket uses `BatchSpanProcessor`, which uses a dedicated background thread for collecting and exporting spans. This processor works well in production. Some development environments may hang on startup as reported in [issue #1123](https://github.com/embucket/embucket/issues/1123). In this case, you can switch to `BatchSpanProcessor` using the experimental async runtime.
+Embucket uses `BatchSpanProcessor`, which uses a dedicated background thread for collecting and exporting spans. This processor works well in production. Some development environments may hang on startup as reported in [issue #1123](https://github.com/embucket/embucket-labs/issues/1123). In this case, you can switch to `BatchSpanProcessor` using the experimental async runtime.
 Use this command-line argument: `--tracing-span-processor=batch-span-processor-experimental-async-runtime`.
 
 ### Tracing span processor tuning

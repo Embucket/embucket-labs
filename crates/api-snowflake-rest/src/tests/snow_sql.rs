@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 pub async fn snow_sql(server_addr: &SocketAddr, user: &str, pass: &str, sql: &str) -> JsonResponse {
     // introduce 2ms (to be sure) delay every time running query via "snow sql" as an issue workaround:
-    // https://github.com/Embucket/embucket/issues/1630
+    // https://github.com/embucket/embucket-labs/issues/1630
     tokio::time::sleep(tokio::time::Duration::from_millis(2)).await;
 
     let client = reqwest::Client::new();
