@@ -5,9 +5,10 @@ info: "Setup queries: CREATE SCHEMA embucket.test; CREATE TABLE embucket.test.so
 ---
 Ok(
     [
-        "+--------+",
-        "| status |",
-        "+--------+",
-        "+--------+",
+        "+----------------------------------+",
+        "| status                           |",
+        "+----------------------------------+",
+        "| Statement executed successfully. |",
+        "+----------------------------------+",
     ],
 )

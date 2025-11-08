@@ -2755,8 +2755,13 @@ impl UserQuery {
         )]));
         Ok(QueryResult::new(
             vec![
-                RecordBatch::try_new(schema.clone(), vec![Arc::new(StringArray::from(vec!["Statement executed successfully."]))])
-                     .context(ex_error::ArrowSnafu)?,
+                RecordBatch::try_new(
+                    schema.clone(),
+                    vec![Arc::new(StringArray::from(vec![
+                        "Statement executed successfully.",
+                    ]))],
+                )
+                .context(ex_error::ArrowSnafu)?,
             ],
             schema,
             self.query_context.query_id,

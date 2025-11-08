@@ -5,5 +5,6 @@ mod like_any;
 mod pivot;
 mod rlike_regexp;
 mod show;
+mod status_message;
 mod top;
 mod unpivot;

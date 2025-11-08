@@ -5,9 +5,10 @@ info: "Setup queries: CREATE TABLE embucket.public.test (id INT) as VALUES (1), 
 ---
 Ok(
     [
-        "+--------+",
-        "| status |",
-        "+--------+",
-        "+--------+",
+        "+----------------------------------+",
+        "| status                           |",
+        "+----------------------------------+",
+        "| Statement executed successfully. |",
+        "+----------------------------------+",
     ],
 )
