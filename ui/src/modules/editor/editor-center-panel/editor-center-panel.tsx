@@ -183,7 +183,7 @@ export function EditorCenterPanel() {
     selectedQueryRecord?.status === 'running' ||
     createQueryMutationPending ||
     queryRecordResultLoading;
-  console.log(selectedQueryRecord?.status, createQueryMutationPending, queryRecordLoading);
+
   return (
     <div className="flex h-full flex-col">
       <EditorCenterPanelHeader />

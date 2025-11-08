@@ -44,7 +44,7 @@ export function AppSidebarGroup({ items, open }: { items: SidebarNavOption[]; op
                   return (
                     <SidebarMenuButton
                       disabled={item.disabled}
-                      className="text-nowrap data-[active=true]:text-background data-[active=true]:[&>svg]:text-background"
+                      className="data-[active=true]:text-background data-[active=true]:[&>svg]:text-background text-nowrap"
                       tooltip={{
                         children: item.name,
                         hidden: open,
