@@ -3,9 +3,8 @@ SELECT sha2('Snowflake', 224)
 ----
 6267d3d7a59929e6864dd4b737d98e3ef8569d9f88a7466647838532
 
-# Modified due to https://github.com/Embucket/embucket/issues/1440
+# Modified due to https://github.com/embucket/embucket-labs/issues/1440
 query TTT
 SELECT 'AbCd0', SHA2('AbCd0'), SHA2_HEX('AbCd0') as svhex
 ----
 AbCd0	e1d8ba27889d6782008f495473278c4f071995c5549a976e4d4f93863ce93643	e1d8ba27889d6782008f495473278c4f071995c5549a976e4d4f93863ce93643
-

@@ -5,12 +5,12 @@ This project contains integration tests for running dbt-snowplow-web with both E
 ## DBT Snowplow Web Run Results
 
 ### Not Incremental Run
-![DBT SNowplow Web Run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow/dbt_success_badge.svg)
-![DBT Snowplow Web run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow/dbt_run_status.png)
+![DBT SNowplow Web Run results](https://raw.githubusercontent.com/embucket/embucket-labs/assets_dbt/assets_dbt_snowplow/dbt_success_badge.svg)
+![DBT Snowplow Web run results visualization](https://raw.githubusercontent.com/embucket/embucket-labs/assets_dbt/assets_dbt_snowplow/dbt_run_status.png)
 
 ### Incremental Run
-![DBT SNowplow Web Incremental Run results](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow_incremental/dbt_success_badge.svg)
-![DBT Snowplow Web Incremental Run results visualization](https://raw.githubusercontent.com/Embucket/embucket/assets_dbt/assets_dbt_snowplow_incremental/dbt_run_status.png)
+![DBT SNowplow Web Incremental Run results](https://raw.githubusercontent.com/embucket/embucket-labs/assets_dbt/assets_dbt_snowplow_incremental/dbt_success_badge.svg)
+![DBT Snowplow Web Incremental Run results visualization](https://raw.githubusercontent.com/embucket/embucket-labs/assets_dbt/assets_dbt_snowplow_incremental/dbt_run_status.png)
 
 ## How to Run
 

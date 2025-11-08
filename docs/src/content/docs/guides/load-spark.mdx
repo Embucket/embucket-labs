@@ -75,7 +75,7 @@ services:
 
   # Embucket server providing Iceberg catalog and web interface
   embucket:
-    image: embucket/embucket
+    image: embucket/embucket-labs
     container_name: embucket
     depends_on:
       mc:
@@ -202,7 +202,7 @@ Expected output:
 
 ```
 NAME           IMAGE                    STATUS         PORTS
-embucket       embucket/embucket        Up             0.0.0.0:3000->3000/tcp, 0.0.0.0:8080->8080/tcp
+embucket       embucket/embucket-labs   Up             0.0.0.0:3000->3000/tcp, 0.0.0.0:8080->8080/tcp
 mc             minio/mc                 Up (healthy)
 minio          minio/minio              Up             0.0.0.0:9000->9000/tcp, 0.0.0.0:9001->9001/tcp
 spark-iceberg  tabulario/spark-iceberg  Up             0.0.0.0:8888->8888/tcp

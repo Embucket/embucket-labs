@@ -29,7 +29,7 @@ impl Row {
     }
 }
 
-/// `<https://github.com/Embucket/embucket/issues/1662`>
+/// `<https://github.com/embucket/embucket-labs/issues/1662`>
 /// Custom deserializer for deserializing `RecordBatch` rows having duplicate columns names
 /// like this: `[{"col":1,"col":2}, {"col":1,"col":2}]`, into the `Vec<Value>` (omiting keys).
 /// It also support deserializng `JsonArray` `[1, 2]`, to the `Vec<Value>`

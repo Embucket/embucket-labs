@@ -46,7 +46,7 @@ services:
       \" > /opt/spark/conf/spark-defaults.conf && ./entrypoint.sh notebook
       "
   embucket:
-    image: embucket/embucket
+    image: embucket/embucket-labs
     container_name: embucket
     depends_on:
       - mc
