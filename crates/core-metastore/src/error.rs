@@ -237,4 +237,11 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
+
+    #[snafu(display("Not yet implemented: {operation}"))]
+    NotYetImplemented {
+        operation: String,
+        #[snafu(implicit)]
+        location: Location,
+    },
 }

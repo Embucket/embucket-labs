@@ -37,7 +37,9 @@ use clap::Parser;
 use core_executor::service::CoreExecutionService;
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
-use core_metastore::SlateDBMetastore;
+// use core_metastore::SlateDBMetastore;
+use core_metastore::basic::config::BasicMetastoreConfig;
+use core_metastore::basic::metastore::BasicMetastore;
 use core_utils::Db;
 use dotenv::dotenv;
 use object_store::path::Path;
@@ -205,8 +207,10 @@ async fn async_main(
     );
 
     let db = Db::new(slate_db);
-
-    let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    // let metastore = Arc::new(SlateDBMetastore::new(db.clone()));
+    let metastore_mem_config =
+        BasicMetastoreConfig::from_yaml_file(opts.metastore_config.unwrap().to_str().unwrap())?;
+    let metastore = Arc::new(BasicMetastore::new(metastore_mem_config));
     let history_store = Arc::new(
         SlateDBHistoryStore::new(
             db.clone(),
@@ -392,7 +396,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     let targets_with_level =
         |targets: &[&'static str], level: LevelFilter| -> Vec<(&str, LevelFilter)> {
             // let default_log_targets: Vec<(String, LevelFilter)> =
-            targets.iter().map(|t| ((*t), level)).collect()
+            targets.iter().map(|t| (*t, level)).collect()
         };
 
     // Memory allocations
