@@ -19,7 +19,7 @@ use std::sync::atomic::Ordering;
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
-
+use tokio::io::AsyncWriteExt;
 use super::error::{self as ex_error, Result};
 use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
 use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
@@ -145,6 +145,8 @@ pub trait ExecutionService: Send + Sync {
         file_name: &str,
         format: Format,
     ) -> Result<usize>;
+
+    async fn timeout_signal(&self, period: Duration) -> ();
 }
 
 pub struct CoreExecutionService {
@@ -890,6 +892,19 @@ impl ExecutionService for CoreExecutionService {
             .context(ex_error::DataFusionSnafu)?;
 
         Ok(rows_loaded)
+    }
+
+    async fn timeout_signal(&self, period: Duration) -> () {
+        let mut interval = tokio::time::interval(period);
+        interval.tick().await; // The first tick completes immediately; skip.
+        loop {
+            interval.tick().await;
+            let sessions_in_use = self.df_sessions.read().await.len() > 0;
+            let queries_in_use = self.queries.count() > 0;
+            if !sessions_in_use && !queries_in_use {
+                return ();
+            }
+        }
     }
 }
 

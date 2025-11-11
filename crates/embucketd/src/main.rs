@@ -34,7 +34,7 @@ use axum::{
     routing::{get, post},
 };
 use clap::Parser;
-use core_executor::service::CoreExecutionService;
+use core_executor::service::{CoreExecutionService, ExecutionService};
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
@@ -345,8 +345,9 @@ async fn async_main(
         .expect("Failed to bind to address");
     let addr = listener.local_addr().expect("Failed to get local address");
     tracing::info!(%addr, "Listening on http");
+    let timeout = opts.timeout.unwrap();
     axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone())))
+        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone()), execution_svc.clone(), timeout))
         .await
         .expect("Failed to start server");
 
@@ -469,7 +470,7 @@ fn setup_tracing(opts: &cli::CliOpts) -> SdkTracerProvider {
     clippy::redundant_pub_crate,
     clippy::cognitive_complexity
 )]
-async fn shutdown_signal(db: Arc<Db>) {
+async fn shutdown_signal(db: Arc<Db>, execution_svc: Arc<dyn ExecutionService>, timeout: u64) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -487,6 +488,8 @@ async fn shutdown_signal(db: Arc<Db>) {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
+    let timeout = execution_svc.timeout_signal(tokio::time::Duration::from_secs(timeout));
+
     tokio::select! {
         () = ctrl_c => {
             db.close().await.expect("Failed to close database");
@@ -496,6 +499,9 @@ async fn shutdown_signal(db: Arc<Db>) {
             db.close().await.expect("Failed to close database");
             tracing::warn!("SIGTERM received, starting graceful shutdown");
         },
+        () = timeout => {
+            tracing::warn!("No sessions in use & no running queries - timeout, starting graceful shutdown");
+        }
     }
 
     tracing::warn!("signal received, starting graceful shutdown");
@@ -512,4 +518,56 @@ fn load_openapi_spec() -> Option<openapi::OpenApi> {
     // Dropping all paths from the original spec
     original_spec.paths = openapi::Paths::new();
     Some(original_spec)
+}
+
+#[cfg(test)]
+mod tests {
+    use api_sessions::session::SessionStore;
+    use core_executor::models::QueryContext;
+    use core_executor::service::ExecutionService;
+    use core_executor::service::make_test_execution_svc;
+    use core_executor::session::to_unix;
+    use std::sync::atomic::Ordering;
+    use std::time::Duration;
+    use time::OffsetDateTime;
+    use tokio::time::sleep;
+
+    #[tokio::test]
+    #[allow(clippy::expect_used, clippy::too_many_lines)]
+    async fn test_timeout_signal() {
+        let execution_svc = make_test_execution_svc().await;
+
+        let df_session_id = "fasfsafsfasafsass".to_string();
+        let user_session = execution_svc
+            .create_session(&df_session_id)
+            .await
+            .expect("Failed to create a session");
+
+        execution_svc
+            .query(&df_session_id, "SELECT SLEEP(5)", QueryContext::default())
+            .await
+            .expect("Failed to execute query (session deleted)");
+
+        user_session
+            .expiry
+            .store(to_unix(OffsetDateTime::now_utc()), Ordering::Relaxed);
+
+        let session_store = SessionStore::new(execution_svc.clone());
+
+        tokio::task::spawn({
+            let session_store = session_store.clone();
+            async move {
+                session_store
+                    .continuously_delete_expired(Duration::from_secs(1))
+                    .await;
+            }
+        });
+
+        let timeout = execution_svc.timeout_signal(Duration::from_secs(1));
+        tokio::select! {
+            () = timeout => {
+                tracing::warn!("No sessions in use & no running queries - timeout, starting graceful shutdown");
+            }
+        }
+    }
 }
