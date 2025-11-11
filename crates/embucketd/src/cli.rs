@@ -287,9 +287,9 @@ pub struct CliOpts {
 
     #[arg(
         long,
-        env = "TIMEOUT",
-        default_value = "300",
-        help = "Service timeout in seconds"
+        env = "IDLE_TIMEOUT_SECONDS",
+        default_value = "18000",
+        help = "Service idle timeout in seconds"
     )]
     pub timeout: Option<u64>,
 }
