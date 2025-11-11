@@ -347,7 +347,11 @@ async fn async_main(
     tracing::info!(%addr, "Listening on http");
     let timeout = opts.timeout.unwrap();
     axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal(Arc::new(db.clone()), execution_svc.clone(), timeout))
+        .with_graceful_shutdown(shutdown_signal(
+            Arc::new(db.clone()),
+            execution_svc.clone(),
+            timeout,
+        ))
         .await
         .expect("Failed to start server");
 
@@ -530,7 +534,6 @@ mod tests {
     use std::sync::atomic::Ordering;
     use std::time::Duration;
     use time::OffsetDateTime;
-    use tokio::time::sleep;
 
     #[tokio::test]
     #[allow(clippy::expect_used, clippy::too_many_lines)]

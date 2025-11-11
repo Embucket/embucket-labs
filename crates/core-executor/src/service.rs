@@ -1,4 +1,19 @@
+use super::error::{self as ex_error, Result};
+use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
+use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
+use super::session::UserSession;
+use crate::running_queries::RunningQueryId;
+use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
+use crate::tracing::SpanTracer;
+use crate::utils::{Config, MemPoolType};
 use bytes::{Buf, Bytes};
+use core_history::HistoryStore;
+use core_history::SlateDBHistoryStore;
+use core_history::{QueryRecordId, QueryResultError, QueryStatus};
+use core_metastore::{
+    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
+    Volume, VolumeType,
+};
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::arrow::csv::reader::Format;
@@ -13,29 +28,13 @@ use datafusion::execution::memory_pool::{
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
+use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use snafu::ResultExt;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
-use tokio::io::AsyncWriteExt;
-use super::error::{self as ex_error, Result};
-use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
-use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
-use super::session::UserSession;
-use crate::running_queries::RunningQueryId;
-use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
-use crate::tracing::SpanTracer;
-use crate::utils::{Config, MemPoolType};
-use core_history::HistoryStore;
-use core_history::SlateDBHistoryStore;
-use core_history::{QueryRecordId, QueryResultError, QueryStatus};
-use core_metastore::{
-    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
-    Volume, VolumeType,
-};
-use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
@@ -899,10 +898,10 @@ impl ExecutionService for CoreExecutionService {
         interval.tick().await; // The first tick completes immediately; skip.
         loop {
             interval.tick().await;
-            let sessions_in_use = self.df_sessions.read().await.len() > 0;
+            let sessions_in_use = !self.df_sessions.read().await.is_empty();
             let queries_in_use = self.queries.count() > 0;
             if !sessions_in_use && !queries_in_use {
-                return ();
+                return;
             }
         }
     }
