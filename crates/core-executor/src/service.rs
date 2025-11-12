@@ -43,6 +43,8 @@ use uuid::Uuid;
 
 const DEFAULT_SCHEMA: &str = "public";
 
+pub const TIMEOUT_SIGNAL_INTERVAL_SECONDS: u64 = 60;
+
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
     async fn create_session(&self, session_id: &str) -> Result<Arc<UserSession>>;
@@ -145,7 +147,7 @@ pub trait ExecutionService: Send + Sync {
         format: Format,
     ) -> Result<usize>;
 
-    async fn timeout_signal(&self, period: Duration) -> ();
+    async fn timeout_signal(&self, interval: Duration, idle_timeout: Duration) -> ();
 }
 
 pub struct CoreExecutionService {
@@ -893,15 +895,33 @@ impl ExecutionService for CoreExecutionService {
         Ok(rows_loaded)
     }
 
-    async fn timeout_signal(&self, period: Duration) -> () {
-        let mut interval = tokio::time::interval(period);
+    async fn timeout_signal(&self, interval: Duration, idle_timeout: Duration) -> () {
+        let mut interval = tokio::time::interval(interval);
         interval.tick().await; // The first tick completes immediately; skip.
+        let mut idle_since: Option<std::time::Instant> = None;
         loop {
             interval.tick().await;
-            let sessions_in_use = !self.df_sessions.read().await.is_empty();
-            let queries_in_use = self.queries.count() > 0;
-            if !sessions_in_use && !queries_in_use {
-                return;
+            let sessions_empty = {
+                let sessions = self.df_sessions.read().await;
+                sessions.is_empty()
+            };
+            let queries_empty = self.queries.count() == 0;
+            let idle_now = sessions_empty && queries_empty;
+            match (idle_now, idle_since) {
+                (true, None) => {
+                    // just entered idle
+                    idle_since = Some(std::time::Instant::now());
+                }
+                (true, Some(since)) => {
+                    if since.elapsed() >= idle_timeout {
+                        // stayed idle long enough
+                        return;
+                    }
+                }
+                (false, _) => {
+                    // became active again, reset the idle window
+                    idle_since = None;
+                }
             }
         }
     }

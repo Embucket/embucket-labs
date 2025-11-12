@@ -34,7 +34,9 @@ use axum::{
     routing::{get, post},
 };
 use clap::Parser;
-use core_executor::service::{CoreExecutionService, ExecutionService};
+use core_executor::service::{
+    CoreExecutionService, ExecutionService, TIMEOUT_SIGNAL_INTERVAL_SECONDS,
+};
 use core_executor::utils::Config as ExecutionConfig;
 use core_history::SlateDBHistoryStore;
 use core_metastore::SlateDBMetastore;
@@ -492,7 +494,10 @@ async fn shutdown_signal(db: Arc<Db>, execution_svc: Arc<dyn ExecutionService>, 
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
-    let timeout = execution_svc.timeout_signal(tokio::time::Duration::from_secs(timeout));
+    let timeout = execution_svc.timeout_signal(
+        tokio::time::Duration::from_secs(TIMEOUT_SIGNAL_INTERVAL_SECONDS),
+        tokio::time::Duration::from_secs(timeout),
+    );
 
     tokio::select! {
         () = ctrl_c => {
@@ -566,7 +571,7 @@ mod tests {
             }
         });
 
-        let timeout = execution_svc.timeout_signal(Duration::from_secs(1));
+        let timeout = execution_svc.timeout_signal(Duration::from_secs(1), Duration::from_secs(3));
         tokio::select! {
             () = timeout => {
                 tracing::warn!("No sessions in use & no running queries - timeout, starting graceful shutdown");
