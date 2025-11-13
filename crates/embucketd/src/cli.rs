@@ -284,6 +284,14 @@ pub struct CliOpts {
         help = "Tracing span processor"
     )]
     pub tracing_span_processor: TracingSpanProcessor,
+
+    #[arg(
+        long,
+        env = "IDLE_TIMEOUT_SECONDS",
+        default_value = "18000",
+        help = "Service idle timeout in seconds"
+    )]
+    pub timeout: Option<u64>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

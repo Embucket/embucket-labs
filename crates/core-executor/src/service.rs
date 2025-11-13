@@ -1,4 +1,19 @@
+use super::error::{self as ex_error, Result};
+use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
+use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
+use super::session::UserSession;
+use crate::running_queries::RunningQueryId;
+use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
+use crate::tracing::SpanTracer;
+use crate::utils::{Config, MemPoolType};
 use bytes::{Buf, Bytes};
+use core_history::HistoryStore;
+use core_history::SlateDBHistoryStore;
+use core_history::{QueryRecordId, QueryResultError, QueryStatus};
+use core_metastore::{
+    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
+    Volume, VolumeType,
+};
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::csv::ReaderBuilder;
 use datafusion::arrow::csv::reader::Format;
@@ -13,29 +28,13 @@ use datafusion::execution::memory_pool::{
 };
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion_common::TableReference;
+use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use snafu::ResultExt;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 use std::vec;
 use std::{collections::HashMap, sync::Arc};
 use time::{Duration as DateTimeDuration, OffsetDateTime};
-
-use super::error::{self as ex_error, Result};
-use super::models::{AsyncQueryHandle, QueryContext, QueryResult, QueryResultStatus};
-use super::running_queries::{RunningQueries, RunningQueriesRegistry, RunningQuery};
-use super::session::UserSession;
-use crate::running_queries::RunningQueryId;
-use crate::session::{SESSION_INACTIVITY_EXPIRATION_SECONDS, to_unix};
-use crate::tracing::SpanTracer;
-use crate::utils::{Config, MemPoolType};
-use core_history::HistoryStore;
-use core_history::SlateDBHistoryStore;
-use core_history::{QueryRecordId, QueryResultError, QueryStatus};
-use core_metastore::{
-    Database, Metastore, Schema, SchemaIdent, SlateDBMetastore, TableIdent as MetastoreTableIdent,
-    Volume, VolumeType,
-};
-use df_catalog::catalog_list::{DEFAULT_CATALOG, EmbucketCatalogList};
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, timeout};
@@ -43,6 +42,8 @@ use tracing::Instrument;
 use uuid::Uuid;
 
 const DEFAULT_SCHEMA: &str = "public";
+
+pub const TIMEOUT_SIGNAL_INTERVAL_SECONDS: u64 = 60;
 
 #[async_trait::async_trait]
 pub trait ExecutionService: Send + Sync {
@@ -145,6 +146,8 @@ pub trait ExecutionService: Send + Sync {
         file_name: &str,
         format: Format,
     ) -> Result<usize>;
+
+    async fn timeout_signal(&self, interval: Duration, idle_timeout: Duration) -> ();
 }
 
 pub struct CoreExecutionService {
@@ -890,6 +893,37 @@ impl ExecutionService for CoreExecutionService {
             .context(ex_error::DataFusionSnafu)?;
 
         Ok(rows_loaded)
+    }
+
+    async fn timeout_signal(&self, interval: Duration, idle_timeout: Duration) -> () {
+        let mut interval = tokio::time::interval(interval);
+        interval.tick().await; // The first tick completes immediately; skip.
+        let mut idle_since: Option<std::time::Instant> = None;
+        loop {
+            interval.tick().await;
+            let sessions_empty = {
+                let sessions = self.df_sessions.read().await;
+                sessions.is_empty()
+            };
+            let queries_empty = self.queries.count() == 0;
+            let idle_now = sessions_empty && queries_empty;
+            match (idle_now, idle_since) {
+                (true, None) => {
+                    // just entered idle
+                    idle_since = Some(std::time::Instant::now());
+                }
+                (true, Some(since)) => {
+                    if since.elapsed() >= idle_timeout {
+                        // stayed idle long enough
+                        return;
+                    }
+                }
+                (false, _) => {
+                    // became active again, reset the idle window
+                    idle_since = None;
+                }
+            }
+        }
     }
 }
 
