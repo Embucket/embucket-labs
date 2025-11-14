@@ -176,7 +176,7 @@ echo ""
 # For non-incremental runs, data is already loaded by setup_embucket.sh
 # For incremental runs, we only need to load events_today.csv (done later)
 echo "Loading events"
-$PYTHON_CMD load_events.py events_yesterday.csv "$DBT_TARGET"
+$PYTHON_CMD load_events.py events_yesterday.csv "$DBT_TARGET" drop_schemas true
 
 echo ""
 echo "###############################"
@@ -232,7 +232,7 @@ if [ "$is_incremental" == true ]; then
     echo "###############################"
     echo ""
     echo "Loading events_today.csv for incremental run..."
-    $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET"
+    $PYTHON_CMD load_events.py events_today.csv "$DBT_TARGET" drop_schemas false
 
     echo ""
     echo "###############################"

@@ -11,9 +11,9 @@ USE SCHEMA public_snowplow_manifest;
 
 -- Drop existing table if it exists
 DROP TABLE IF EXISTS events;
-DROP SCHEMA IF EXISTS public_snowplow_manifest_derived;
-DROP SCHEMA IF EXISTS public_snowplow_manifest_scratch;
-DROP SCHEMA IF EXISTS public_snowplow_manifest_snowplow_manifest;
+-- DROP SCHEMA IF EXISTS public_snowplow_manifest_derived;
+-- DROP SCHEMA IF EXISTS public_snowplow_manifest_scratch;
+-- DROP SCHEMA IF EXISTS public_snowplow_manifest_snowplow_manifest;
 
 -- Step 1: Create the events table with appropriate data types
 CREATE TABLE IF NOT EXISTS events (
