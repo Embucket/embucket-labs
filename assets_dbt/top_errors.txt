@@ -1,30 +1,14 @@
-# DBT Run Summary
-PASS: 4
-WARN: 0
-ERROR: 914
-SKIP: 744
-TOTAL: 1662
-
 
 # Errors grouped by high-level categories
-    914 Other error
+      1 Other error
 
 # Errors grouped by type (comprehensive analysis)
-    914 Other error
 
 # Total top 10 errors (full messages)
-      5 010001 (02000): SQL error: ParserError("Expected: an expression, found: , at Line: 10, Column: 50")
-      4 010001 (02000): SQL error: ParserError("Expected: an expression, found: , at Line: 8, Column: 50")
-      2 010001 (02000): External error: Table Object Store for table location_factors in schema gitlab_data_yaml in database embucket not found
-      2 010001 (02000): External error: Table Object Store for table geo_zones in schema gitlab_data_yaml in database embucket not found
-      2 010001 (02000): External error: Table Object Store for table categories in schema gitlab_data_yaml in database embucket not found
 
 # Total top 10 errors (truncated to 50 chars)
-    903 010001 (02000): External error: Table Object Store
-      9 010001 (02000): SQL error: ParserError("Expected: 
-      2 010001 (02000): SQL error: ParserError("Expected a
 
 # Error categorization summary
-DBT total errors: 914
-Total error lines analyzed: 914
-Coverage: 914 out of 914 error lines captured
+DBT total errors: 
+Total error lines analyzed: 1
+Coverage: 1 out of  error lines captured
