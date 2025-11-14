@@ -21,15 +21,6 @@ jobs:
         with:
           submodules: true
 
-      - name: Start Embucket Server (Docker)
-        run: |
-          docker run -d \
-            --name embucket-server \
-            -p 3000:3000 \
-            embucket/embucket
-          echo "Starting Embucket server..."
-          sleep 20
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:

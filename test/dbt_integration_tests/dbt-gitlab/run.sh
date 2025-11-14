@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Start Embucket container with NO persistent storage
+echo "Starting Embucket container with clean environment..."
+docker run -d --rm --name em \
+  -p 3000:3000 \
+  -p 8080:8080 \
+  --env OBJECT_STORE_BACKEND=memory \
+  --env SLATEDB_PREFIX=memory \
+  --env DATA_FORMAT=arrow \
+  embucket/embucket-labs >/dev/null 2>&1
+
+echo "✓ Embucket container started successfully with CLEAN environment!"
+echo ""
+
 # Parse --target and --model arguments
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -87,15 +100,6 @@ echo "###############################"
 echo ""
 echo "Installing the requirements"
 pip install -r requirements.txt >/dev/null 2>&1
-echo ""
-
-# Load data and create embucket catalog if the embucket is a target 
-echo "###############################"
-echo ""
-echo "Creating embucket database"
-if [ "$DBT_TARGET" = "embucket" ]; then
-  $PYTHON_CMD upload.py
-fi
 echo ""
 
 mkdir -p assets
