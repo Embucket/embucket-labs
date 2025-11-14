@@ -83,19 +83,25 @@ Create a volume in Embucket that connects to your S3 table bucket. Use either th
 <Tabs>
 <TabItem label="API">
 
-Use `HTTPie` or `curl` to create the volume via API:
+Creating a volume via the API requires Bearer Token authentication. This is a two-step process: first, get an access token, then use that token to create the volume.
+
+Use `HTTPie` + jq or `curl` + jq to create the volume via API:
 
 ```bash
-http POST localhost:3000/v1/metastore/volumes \
+# 1. Get access token (using demo credentials)
+TOKEN=$(http POST :3000/ui/auth/login \
+  username=embucket password=embucket \
+  --pretty=none | jq -r .accessToken)
+
+# 2. Create volume
+http POST http://localhost:3000/ui/volumes \
+  Authorization:"Bearer $TOKEN" \
+  name=demo \
   ident=demo \
-  type=s3-tables \
+  type=s3Tables \
   database=demo \
-  credentials:='{
-    "credential_type": "access_key",
-    "aws-access-key-id": "YOUR_ACCESS_KEY",
-    "aws-secret-access-key": "YOUR_SECRET_KEY"
-  }' \
-  arn=arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket
+  credentials:='{"accessKey":{"awsAccessKeyId":"YOUR_ACCESS_KEY","awsSecretAccessKey":"YOUR_SECRET_KEY"}}' \
+  arn="arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket"
 ```
 
 **Required parameters:**
@@ -115,7 +121,7 @@ Use the SQL interface to create the volume:
 CREATE EXTERNAL VOLUME IF NOT EXISTS demo
 STORAGE_LOCATIONS = ((
   NAME = 'demo'
-  STORAGE_PROVIDER = 's3-tables'
+  STORAGE_PROVIDER = 'S3TABLES'
   STORAGE_AWS_ACCESS_POINT_ARN = 'arn:aws:s3tables:us-east-2:123456789012:bucket/my-table-bucket'
   CREDENTIALS = (
     AWS_KEY_ID = 'YOUR_ACCESS_KEY'
