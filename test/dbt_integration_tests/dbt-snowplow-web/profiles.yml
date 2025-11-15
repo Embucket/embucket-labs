@@ -16,7 +16,7 @@ snowplow_web:
     embucket:
       type: snowflake
       host: "{{ env_var('EMBUCKET_HOST') }}"
-      port: 3000
+      port: "{{ env_var('EMBUCKET_PORT') | int }}"
       protocol: "{{ env_var('EMBUCKET_PROTOCOL') }}"
       account: "test"
       user: "{{ env_var('EMBUCKET_USER') }}"
