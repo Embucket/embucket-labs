@@ -2,6 +2,7 @@
 # will have compiled files and executables
 debug/
 target/
+sqlite_data/
 object_store/
 sqlite_data/
 test/dbt_integration_tests/dbt-gitlab/logs/

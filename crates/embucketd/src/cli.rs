@@ -232,6 +232,13 @@ pub struct CliOpts {
     )]
     pub query_results_db_name: String,
 
+    #[arg(
+        long,
+        env = "QUERY_METRICS_DB_NAME",
+        default_value = "sqlite_data/metrics.db"
+    )]
+    pub query_metrics_db_name: String,
+
     // should unset JWT_SECRET env var after loading
     #[arg(
         long,
