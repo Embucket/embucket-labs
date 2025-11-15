@@ -1,14 +1,38 @@
+# DBT Run Summary
+PASS: 1553
+WARN: 0
+ERROR: 50
+SKIP: 59
+TOTAL: 1662
+
 
 # Errors grouped by high-level categories
-      1 Other error
+     50 Other error
 
 # Errors grouped by type (comprehensive analysis)
+     50 Other error
 
 # Total top 10 errors (full messages)
+      3 010001 (02000): Cannot resolve view reference 'embucket.public.flatten'
+      3 002003 (02000): SQL compilation error: column 'DEFAULT' not found
+      2 010001 (02000): type_coercion
+      2 010001 (02000): custom_type_coercion
+      2 010001 (02000): Join Error
+      2 010001 (02000): Error during planning: Internal error: Function 'variant_element' failed to match any signature, errors: Internal error: Expect TypeSignatureClass::Native(LogicalType(Native(String), String)) but received NativeType::Boolean, DataType: Boolean.
 
 # Total top 10 errors (truncated to 50 chars)
+      4 002003 (02000): SQL compilation error: error line 
+      3 010001 (02000): Schema error: No field named day. 
+      3 010001 (02000): Error during planning: Internal er
+      3 010001 (02000): Cannot resolve view reference 'emb
+      3 002003 (02000): SQL compilation error: table 'embu
+      3 002003 (02000): SQL compilation error: column 'DEF
+      2 010001 (02000): type_coercion
+      2 010001 (02000): custom_type_coercion
+      2 010001 (02000): SQL error: ParserError("Expected a
+      2 010001 (02000): Join Error
 
 # Error categorization summary
-DBT total errors: 
-Total error lines analyzed: 1
-Coverage: 1 out of  error lines captured
+DBT total errors: 50
+Total error lines analyzed: 50
+Coverage: 50 out of 50 error lines captured
