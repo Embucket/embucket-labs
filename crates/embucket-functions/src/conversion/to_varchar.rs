@@ -572,6 +572,17 @@ fn convert_string_to_string(
     _try_mode: bool,
 ) -> DFResult<Option<String>> {
     let value = extract_string_from_array(array, index)?;
+
+    // Check if this is a JSON-encoded string value (from VARIANT/json_get)
+    // JSON strings start and end with double quotes
+    // When casting to VARCHAR, we need to unwrap the JSON string to match Snowflake behavior
+    if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+        // Try to parse as JSON to properly unescape the string
+        if let Ok(serde_json::Value::String(unquoted)) = serde_json::from_str(&value) {
+            return Ok(Some(unquoted));
+        }
+    }
+
     Ok(Some(value))
 }
 

@@ -1,0 +1,15 @@
+---
+source: crates/core-executor/src/tests/query.rs
+assertion_line: 718
+description: "\"SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_test;\""
+info: "Setup queries: CREATE TABLE embucket.public.variant_test (\n    schema VARCHAR,\n    version VARCHAR,\n    uuid VARCHAR,\n    contexts VARIANT );; INSERT INTO embucket.public.variant_test VALUES ('jsonschema', '1-0-0', '5f56bf12-3959-404e-986f-92f0ec0edbbc', '[{\"id\": \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\"}]');"
+---
+Ok(
+    [
+        "+------------+---------+--------------------------------------+--------------------------------------------------+----------------------------------------+",
+        "| schema     | version | uuid                                 | contexts                                         | extracted_id                           |",
+        "+------------+---------+--------------------------------------+--------------------------------------------------+----------------------------------------+",
+        "| jsonschema | 1-0-0   | 5f56bf12-3959-404e-986f-92f0ec0edbbc | [{\"id\": \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\"}] | \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\" |",
+        "+------------+---------+--------------------------------------+--------------------------------------------------+----------------------------------------+",
+    ],
+)

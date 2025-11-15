@@ -3518,6 +3518,18 @@ fn create_file_format(
                 csv_format
             };
 
+            // Handle field_optionally_enclosed_by parameter (quote character)
+            let csv_format = if let Some(quote) = get_kv_option(file_format, "field_optionally_enclosed_by")
+            {
+                if quote.len() == 1 {
+                    csv_format.with_quote(quote.as_bytes()[0])
+                } else {
+                    csv_format
+                }
+            } else {
+                csv_format
+            };
+
             Ok(Some((Arc::new(csv_format), infer_schema)))
         } else if format_type.eq_ignore_ascii_case("json") {
             Ok(Some((Arc::new(JsonFormat::default()), true)))

@@ -1,0 +1,16 @@
+---
+source: crates/core-executor/src/tests/query.rs
+assertion_line: 734
+description: "\"SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_csv_test;\""
+info: "Tests Snowflake Error; Setup queries: CREATE TABLE embucket.public.variant_csv_test (\n    schema VARCHAR,\n    version VARCHAR,\n    uuid VARCHAR,\n    contexts VARIANT );; COPY INTO embucket.public.variant_csv_test FROM 's3://embucket-testdata/variant_double_quotes.csv' FILE_FORMAT = ( TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '\"' );"
+---
+Ok(
+    [
+        "+--------------+---------+---------------------------------------+--------------------------------------------------+----------------------------------------+",
+        "| schema       | version | uuid                                  | contexts                                         | extracted_id                           |",
+        "+--------------+---------+---------------------------------------+--------------------------------------------------+----------------------------------------+",
+        "| jsonschema   | 1-0-0   | 5f56bf12-3959-404e-986f-92f0ec0edbbc  | [{\"id\": \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\"}] | \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\" |",
+        "| other_schema | 2-0-0   | 6g67cg23-4060-505f-097g-03g1fd1feeccd | [{\"id\": \"2e221ge8-1g65-5563-9ed7-d5b4fbd03135\"}] | \"2e221ge8-1g65-5563-9ed7-d5b4fbd03135\" |",
+        "+--------------+---------+---------------------------------------+--------------------------------------------------+----------------------------------------+",
+    ],
+)

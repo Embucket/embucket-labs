@@ -1,0 +1,3 @@
+schema,version,uuid,contexts
+jsonschema,1-0-0,5f56bf12-3959-404e-986f-92f0ec0edbbc,[{""deviceFamily"": ""Desktop"", ""osFamily"": ""Windows"", ""useragentFamily"": ""Safari""}]
+other_schema,2-0-0,6g67cg23-4060-505f-097g-03g1fd1feeccd,[{""deviceFamily"": ""Desktop"", ""osFamily"": ""Windows"", ""useragentFamily"": ""Safari""}]

@@ -714,6 +714,87 @@ test_query!(
     ]
 );
 
+// Test baseline: INSERT INTO with VALUES - should work correctly
+test_query!(
+    variant_insert_baseline,
+    "SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_test;",
+    setup_queries = [
+        "CREATE TABLE embucket.public.variant_test (
+    schema VARCHAR,
+    version VARCHAR,
+    uuid VARCHAR,
+    contexts VARIANT );",
+        "INSERT INTO embucket.public.variant_test VALUES ('jsonschema', '1-0-0', '5f56bf12-3959-404e-986f-92f0ec0edbbc', '[{\"id\": \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\"}]');"
+    ]
+);
+
+// Test COPY INTO with VARIANT field and double quotes in CSV WITH FIELD_OPTIONALLY_ENCLOSED_BY
+// CSV format: field with JSON containing quotes should be: "[{""id"": ""value""}]"
+// The double quotes are CSV escape sequences and should be interpreted as single quotes
+test_query!(
+    copy_into_variant_double_quotes_with_enclosed,
+    "SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_csv_test;",
+    setup_queries = [
+        "CREATE TABLE embucket.public.variant_csv_test (
+    schema VARCHAR,
+    version VARCHAR,
+    uuid VARCHAR,
+    contexts VARIANT );",
+        "COPY INTO embucket.public.variant_csv_test FROM 's3://embucket-testdata/variant_double_quotes.csv' FILE_FORMAT = ( TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '\"' );"
+    ],
+    snowflake_error = true
+);
+
+// Test COPY INTO WITHOUT FIELD_OPTIONALLY_ENCLOSED_BY - this might reproduce the bug
+test_query!(
+    copy_into_variant_double_quotes_no_enclosed,
+    "SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_csv_test2;",
+    setup_queries = [
+        "CREATE TABLE embucket.public.variant_csv_test2 (
+    schema VARCHAR,
+    version VARCHAR,
+    uuid VARCHAR,
+    contexts VARIANT );",
+        "COPY INTO embucket.public.variant_csv_test2 FROM 's3://embucket-testdata/variant_double_quotes.csv' FILE_FORMAT = ( TYPE = CSV SKIP_HEADER = 1 );"
+    ],
+    snowflake_error = true
+);
+
+// Test COPY INTO with CSV field NOT enclosed in quotes (literal double quotes in the field)
+// This should reproduce the bug where "" becomes literal ""  in the JSON instead of being unescaped to "
+test_query!(
+    copy_into_variant_literal_double_quotes,
+    "SELECT schema, version, uuid, contexts, contexts[0]:id::VARCHAR as extracted_id FROM embucket.public.variant_csv_test3;",
+    setup_queries = [
+        "CREATE TABLE embucket.public.variant_csv_test3 (
+    schema VARCHAR,
+    version VARCHAR,
+    uuid VARCHAR,
+    contexts VARIANT );",
+        "COPY INTO embucket.public.variant_csv_test3 FROM 's3://embucket-testdata/variant_no_enclosing_quotes.csv' FILE_FORMAT = ( TYPE = CSV SKIP_HEADER = 1 );"
+    ],
+    snowflake_error = true
+);
+
+// Test to check if extracted values should have quotes or not
+test_query!(
+    variant_extract_quote_investigation,
+    "SELECT
+        contexts[0]:id::VARCHAR as with_cast,
+        contexts[0]:id as without_cast,
+        length(contexts[0]:id::VARCHAR) as value_length,
+        contexts[0] as first_element
+    FROM embucket.public.variant_test;",
+    setup_queries = [
+        "CREATE TABLE embucket.public.variant_test (
+    schema VARCHAR,
+    version VARCHAR,
+    uuid VARCHAR,
+    contexts VARIANT );",
+        "INSERT INTO embucket.public.variant_test VALUES ('jsonschema', '1-0-0', '5f56bf12-3959-404e-986f-92f0ec0edbbc', '[{\"id\": \"1d110fd7-0f54-4452-8dc6-c4a3eac02024\"}]');"
+    ]
+);
+
 test_query!(
     timestamp_str_format,
     "SELECT
