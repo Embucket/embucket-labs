@@ -1,0 +1,16 @@
+{
+  "name": "embucket-ui-lambda-poc",
+  "version": "1.0.0",
+  "description": "POC Lambda UI for Embucket",
+  "scripts": {
+    "package": "node scripts/package.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "serverless-http": "^4.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}
