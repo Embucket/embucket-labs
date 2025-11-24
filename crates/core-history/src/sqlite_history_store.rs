@@ -1,6 +1,7 @@
 use crate::ResultSet;
 use crate::errors::{self as history_err, Result};
 use crate::interface::{GetQueriesParams, HistoryStore};
+use crate::query_metrics::QueryMetric;
 use crate::{QueryRecord, QueryRecordId, QueryStatus, Worksheet, WorksheetId};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -45,6 +46,17 @@ CREATE TABLE IF NOT EXISTS queries (
     FOREIGN KEY (worksheet_id) REFERENCES worksheets (id) ON DELETE SET NULL
 );";
 
+const METRICS_CREATE_TABLE: &str = "
+CREATE TABLE IF NOT EXISTS metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,  -- unique metric entry ID
+    query_id TEXT NOT NULL,                -- UUID of the query this metric belongs to
+    node_id INTEGER NOT NULL,              -- node identifier within the execution plan
+    parent_node_id INTEGER,                -- optional parent node
+    operator TEXT NOT NULL,                -- operator name (e.g. HashJoinExec, FilterExec)
+    metrics JSON NOT NULL,                 -- metrics serialized as JSON
+    created_at TEXT NOT NULL               -- stored as ISO8601 timestamp
+);";
+
 const WORKSHEET_ADD: &str = "
 INSERT INTO worksheets (id, name, content, created_at, updated_at)
     VALUES (:id, :name, :content, :created_at, :updated_at);
@@ -53,6 +65,7 @@ INSERT INTO worksheets (id, name, content, created_at, updated_at)
 pub struct SlateDBHistoryStore {
     pub queries_db: SqliteDb,
     pub results_db: SqliteDb,
+    pub metrics_db: SqliteDb,
 }
 
 impl std::fmt::Debug for SlateDBHistoryStore {
@@ -67,13 +80,13 @@ impl SlateDBHistoryStore {
         db: core_utils::Db,
         history_db_name: String,
         results_db_name: String,
+        metrics_db_name: String,
     ) -> Result<Self> {
         // try creating dirs for every separate db file
-        if let Some(dir_path) = std::path::Path::new(&history_db_name).parent() {
-            std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
-        }
-        if let Some(dir_path) = std::path::Path::new(&results_db_name).parent() {
-            std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
+        for path in [&history_db_name, &results_db_name, &metrics_db_name] {
+            if let Some(dir_path) = std::path::Path::new(path).parent() {
+                std::fs::create_dir_all(dir_path).context(history_err::CreateDirSnafu)?;
+            }
         }
 
         let history_store = Self {
@@ -81,6 +94,9 @@ impl SlateDBHistoryStore {
                 .await
                 .expect("Failed to initialize sqlite store"),
             results_db: SqliteDb::new(db.slate_db(), &results_db_name)
+                .await
+                .expect("Failed to initialize sqlite store"),
+            metrics_db: SqliteDb::new(db.slate_db(), &metrics_db_name)
                 .await
                 .expect("Failed to initialize sqlite store"),
         };
@@ -100,11 +116,16 @@ impl SlateDBHistoryStore {
             .map_or("<unnamed>", |s| s.split("::").last().unwrap_or("<unnamed>"));
         let queries_db_name = format!("file:{thread_name}?mode=memory");
         let results_db_name = format!("file:{thread_name}_r?mode=memory");
+        let metrics_db_name = format!("file:{thread_name}_m?mode=memory");
+
         let store = Self {
             queries_db: SqliteDb::new(utils_db.slate_db(), &queries_db_name)
                 .await
                 .expect("Failed to create SqliteDb for queries"),
             results_db: SqliteDb::new(utils_db.slate_db(), &results_db_name)
+                .await
+                .expect("Failed to create SqliteDb for results"),
+            metrics_db: SqliteDb::new(utils_db.slate_db(), &metrics_db_name)
                 .await
                 .expect("Failed to create SqliteDb for results"),
         };
@@ -137,6 +158,12 @@ impl SlateDBHistoryStore {
             .await
             .context(core_utils_err::CoreSqliteSnafu)
             .context(history_err::CoreUtilsSnafu)?;
+        let metrics_connection = self
+            .metrics_db
+            .conn()
+            .await
+            .context(core_utils_err::CoreSqliteSnafu)
+            .context(history_err::CoreUtilsSnafu)?;
 
         let result = tokio::try_join!(
             queries_connection.interact(|conn| -> SqlResult<usize> {
@@ -147,9 +174,12 @@ impl SlateDBHistoryStore {
             }),
             results_connection
                 .interact(|conn| -> SqlResult<usize> { conn.execute(RESULTS_CREATE_TABLE, []) }),
+            metrics_connection
+                .interact(|conn| -> SqlResult<usize> { conn.execute(METRICS_CREATE_TABLE, []) }),
         )?;
         result.0.context(history_err::CreateTablesSnafu)?;
         result.1.context(history_err::CreateTablesSnafu)?;
+        result.2.context(history_err::CreateTablesSnafu)?;
 
         tracing::Span::current().record("ok", true);
         Ok(())
@@ -374,7 +404,7 @@ impl HistoryStore for SlateDBHistoryStore {
                 "INSERT INTO queries (
                     id,
                     worksheet_id,
-                    result_id,                    
+                    result_id,
                     query,
                     start_time,
                     end_time,
@@ -386,7 +416,7 @@ impl HistoryStore for SlateDBHistoryStore {
                 VALUES (
                     :id,
                     :worksheet_id,
-                    :result_id,                    
+                    :result_id,
                     :query,
                     :start_time,
                     :end_time,
@@ -462,14 +492,14 @@ impl HistoryStore for SlateDBHistoryStore {
 
         let update_future = queries_conn.interact(move |conn| -> SqlResult<usize> {
             conn.execute(
-                "UPDATE queries SET 
-                    status = :status, 
-                    end_time = :end_time, 
-                    duration_ms = :duration_ms, 
-                    result_count = :result_count, 
+                "UPDATE queries SET
+                    status = :status,
+                    end_time = :end_time,
+                    duration_ms = :duration_ms,
+                    result_count = :result_count,
                     result_id = :result_id,
-                    error = :error, 
-                    diagnostic_error = :diagnostic_error 
+                    error = :error,
+                    diagnostic_error = :diagnostic_error
                 WHERE id = :id",
                 named_params! {
                     ":status": q_status,
@@ -789,6 +819,122 @@ impl HistoryStore for SlateDBHistoryStore {
             .record("ok", true);
 
         ResultSet::try_from(raw_result)
+    }
+
+    #[instrument(
+        name = "SqliteHistoryStore::add_query_metrics",
+        level = "debug",
+        skip(self, metric),
+        fields(ok, metric = format!("{metric:#?}")),
+        err
+    )]
+    async fn add_query_metrics(&self, metric: &QueryMetric) -> Result<()> {
+        let conn = self
+            .metrics_db
+            .conn()
+            .await
+            .context(core_utils_err::CoreSqliteSnafu)
+            .context(history_err::MetricsAddSnafu)?;
+
+        let m = metric.clone();
+
+        conn.interact(move |conn| -> SqlResult<usize> {
+            conn.execute(
+                "INSERT INTO metrics (
+                    query_id,
+                    node_id,
+                    parent_node_id,
+                    operator,
+                    metrics,
+                    created_at
+                ) VALUES (
+                    :query_id,
+                    :node_id,
+                    :parent_node_id,
+                    :operator,
+                    :metrics,
+                    :created_at
+                )",
+                named_params! {
+                    ":query_id": m.query_id.to_string(),
+                    ":node_id": m.node_id,
+                    ":parent_node_id": m.parent_node_id,
+                    ":operator": m.operator,
+                    ":metrics": serde_json::to_string(&m.metrics).unwrap_or_else(|_| "{}".to_string()),
+                    ":created_at": m.created_at.to_rfc3339(),
+                },
+            )
+        })
+            .await?
+            .context(core_utils_err::RuSqliteSnafu)
+            .context(history_err::MetricsAddSnafu)?;
+        tracing::Span::current().record("ok", true);
+        Ok(())
+    }
+
+    #[instrument(
+        name = "SqliteHistoryStore::add_query_metrics_batch",
+        level = "debug",
+        skip(self, metrics),
+        fields(count = metrics.len()),
+        err
+    )]
+    async fn add_query_metrics_batch(&self, metrics: &[QueryMetric]) -> Result<()> {
+        if metrics.is_empty() {
+            return Ok(());
+        }
+        let conn = self
+            .metrics_db
+            .conn()
+            .await
+            .context(core_utils_err::CoreSqliteSnafu)
+            .context(history_err::MetricsAddSnafu)?;
+
+        let batch = metrics.to_vec();
+
+        conn.interact(move |conn| -> SqlResult<()> {
+            let tx = conn.transaction()?;
+
+            {
+                let mut stmt = tx.prepare(
+                    "INSERT INTO metrics (
+                        query_id,
+                        node_id,
+                        parent_node_id,
+                        operator,
+                        metrics,
+                        created_at
+                    ) VALUES (
+                        :query_id,
+                        :node_id,
+                        :parent_node_id,
+                        :operator,
+                        :metrics,
+                        :created_at
+                    )",
+                )?;
+
+                for m in &batch {
+                    stmt.execute(named_params! {
+                        ":query_id": m.query_id.to_string(),
+                        ":node_id": m.node_id,
+                        ":parent_node_id": m.parent_node_id,
+                        ":operator": m.operator,
+                        ":metrics": serde_json::to_string(&m.metrics).unwrap_or_else(|_| "{}".to_string()),
+                        ":created_at": m.created_at.to_rfc3339(),
+                    })?;
+                }
+            }
+
+            tx.commit()?;
+            Ok(())
+        })
+            .await?
+            .context(core_utils_err::RuSqliteSnafu)
+            .context(history_err::MetricsAddSnafu)?;
+
+        tracing::Span::current().record("ok", true);
+        Ok(())
     }
 }
 
