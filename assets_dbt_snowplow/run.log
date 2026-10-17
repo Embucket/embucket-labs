@@ -1,58 +1,58 @@
-[0m04:06:41  Running with dbt=1.9.8
-[0m04:06:42  Registered adapter: snowflake=1.9.1
-[0m04:06:43  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
-[0m04:06:43  
-[0m04:06:43  Concurrency: 4 threads (target='embucket')
-[0m04:06:43  
-[0m04:06:43  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
-[0m04:06:43  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
-[0m04:06:43  
-[0m04:06:43  1 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
-[0m04:06:43  2 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
-[0m04:06:44  2 of 29 OK created sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_incremental_manifest  [[32m02000 1[0m in 0.35s]
-[0m04:06:44  1 of 29 OK created sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32m02000 1[0m in 0.35s]
-[0m04:06:44  3 of 29 START sql table model public_snowplow_manifest_scratch.snowplow_web_base_new_event_limits  [RUN]
-[0m04:06:44  04:06:44 + Snowplow: No data in manifest. Processing data from start_date
-[0m04:06:44  04:06:44 + Snowplow: Processing data between '2025-09-01 00:00:00' and '2025-10-31 00:00:00' (snowplow_web)
-[0m04:06:44  3 of 29 OK created sql table model public_snowplow_manifest_scratch.snowplow_web_base_new_event_limits  [[32m02000 1[0m in 0.36s]
-[0m04:06:44  4 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
-[0m04:06:44  4 of 29 ERROR creating sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[31mERROR[0m in 0.14s]
-[0m04:06:44  5 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_base_sessions_this_run  [[33mSKIP[0m]
-[0m04:06:44  6 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_base_events_this_run  [[33mSKIP[0m]
-[0m04:06:44  7 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_consent_events_this_run  [[33mSKIP[0m]
-[0m04:06:44  8 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_pv_engaged_time  [[33mSKIP[0m]
-[0m04:06:44  9 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_pv_scroll_depth  [[33mSKIP[0m]
-[0m04:06:44  10 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_sessions_this_run  [[33mSKIP[0m]
-[0m04:06:44  11 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_user_mapping  [[33mSKIP[0m]
-[0m04:06:44  12 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_vital_events_this_run  [[33mSKIP[0m]
-[0m04:06:44  13 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_log  [[33mSKIP[0m]
-[0m04:06:44  14 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_page_views_this_run  [[33mSKIP[0m]
-[0m04:06:44  15 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_sessions .. [[33mSKIP[0m]
-[0m04:06:44  16 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_vitals_this_run  [[33mSKIP[0m]
-[0m04:06:44  17 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_cmp_stats  [[33mSKIP[0m]
-[0m04:06:44  18 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_versions  [[33mSKIP[0m]
-[0m04:06:44  19 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_page_views  [[33mSKIP[0m]
-[0m04:06:44  20 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_sessions_this_run  [[33mSKIP[0m]
-[0m04:06:44  21 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_vitals .... [[33mSKIP[0m]
-[0m04:06:44  22 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_users  [[33mSKIP[0m]
-[0m04:06:44  23 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_aggs  [[33mSKIP[0m]
-[0m04:06:44  24 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_vital_measurements  [[33mSKIP[0m]
-[0m04:06:44  25 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_scope_status  [[33mSKIP[0m]
-[0m04:06:44  26 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_totals  [[33mSKIP[0m]
-[0m04:06:44  27 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_lasts  [[33mSKIP[0m]
-[0m04:06:44  28 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_this_run  [[33mSKIP[0m]
-[0m04:06:44  29 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_users ..... [[33mSKIP[0m]
-[0m04:06:44  
-[0m04:06:44  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
-[0m04:06:44  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.02s]
-[0m04:06:44  
-[0m04:06:44  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 1.56 seconds (1.56s).
-[0m04:06:44  
-[0m04:06:44  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
-[0m04:06:44  
-[0m04:06:44    Database Error in model snowplow_web_base_sessions_lifecycle_manifest (models/base/manifest/snowplow_web_base_sessions_lifecycle_manifest.sql)
+[0m04:06:33  Running with dbt=1.9.8
+[0m04:06:34  Registered adapter: snowflake=1.9.1
+[0m04:06:35  Found 29 models, 120 data tests, 3 seeds, 2 operations, 8 sources, 768 macros
+[0m04:06:35  
+[0m04:06:35  Concurrency: 4 threads (target='embucket')
+[0m04:06:35  
+[0m04:06:35  1 of 1 START hook: snowplow_web.on-run-start.0 ................................. [RUN]
+[0m04:06:35  1 of 1 OK hook: snowplow_web.on-run-start.0 .................................... [[32mOK[0m in 0.02s]
+[0m04:06:35  
+[0m04:06:35  1 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_quarantined_sessions  [RUN]
+[0m04:06:35  2 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_incremental_manifest  [RUN]
+[0m04:06:36  2 of 29 OK created sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_incremental_manifest  [[32m02000 1[0m in 0.37s]
+[0m04:06:36  1 of 29 OK created sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_quarantined_sessions  [[32m02000 1[0m in 0.37s]
+[0m04:06:36  3 of 29 START sql table model public_snowplow_manifest_scratch.snowplow_web_base_new_event_limits  [RUN]
+[0m04:06:36  04:06:36 + Snowplow: No data in manifest. Processing data from start_date
+[0m04:06:36  04:06:36 + Snowplow: Processing data between '2025-09-01 00:00:00' and '2025-10-31 00:00:00' (snowplow_web)
+[0m04:06:36  3 of 29 OK created sql table model public_snowplow_manifest_scratch.snowplow_web_base_new_event_limits  [[32m02000 1[0m in 0.36s]
+[0m04:06:36  4 of 29 START sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [RUN]
+[0m04:06:36  4 of 29 ERROR creating sql incremental model public_snowplow_manifest_snowplow_manifest.snowplow_web_base_sessions_lifecycle_manifest  [[31mERROR[0m in 0.15s]
+[0m04:06:36  5 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_base_sessions_this_run  [[33mSKIP[0m]
+[0m04:06:36  6 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_base_events_this_run  [[33mSKIP[0m]
+[0m04:06:36  7 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_consent_events_this_run  [[33mSKIP[0m]
+[0m04:06:36  8 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_pv_engaged_time  [[33mSKIP[0m]
+[0m04:06:36  9 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_pv_scroll_depth  [[33mSKIP[0m]
+[0m04:06:36  10 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_sessions_this_run  [[33mSKIP[0m]
+[0m04:06:36  11 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_user_mapping  [[33mSKIP[0m]
+[0m04:06:36  12 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_vital_events_this_run  [[33mSKIP[0m]
+[0m04:06:36  13 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_log  [[33mSKIP[0m]
+[0m04:06:36  14 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_page_views_this_run  [[33mSKIP[0m]
+[0m04:06:36  15 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_sessions .. [[33mSKIP[0m]
+[0m04:06:36  16 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_vitals_this_run  [[33mSKIP[0m]
+[0m04:06:36  17 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_cmp_stats  [[33mSKIP[0m]
+[0m04:06:36  18 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_versions  [[33mSKIP[0m]
+[0m04:06:36  19 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_page_views  [[33mSKIP[0m]
+[0m04:06:36  20 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_sessions_this_run  [[33mSKIP[0m]
+[0m04:06:36  21 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_vitals .... [[33mSKIP[0m]
+[0m04:06:36  22 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_users  [[33mSKIP[0m]
+[0m04:06:36  23 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_aggs  [[33mSKIP[0m]
+[0m04:06:36  24 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_vital_measurements  [[33mSKIP[0m]
+[0m04:06:36  25 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_scope_status  [[33mSKIP[0m]
+[0m04:06:36  26 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_consent_totals  [[33mSKIP[0m]
+[0m04:06:36  27 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_lasts  [[33mSKIP[0m]
+[0m04:06:36  28 of 29 SKIP relation public_snowplow_manifest_scratch.snowplow_web_users_this_run  [[33mSKIP[0m]
+[0m04:06:36  29 of 29 SKIP relation public_snowplow_manifest_derived.snowplow_web_users ..... [[33mSKIP[0m]
+[0m04:06:36  
+[0m04:06:36  1 of 1 START hook: snowplow_web.on-run-end.0 ................................... [RUN]
+[0m04:06:36  1 of 1 OK hook: snowplow_web.on-run-end.0 ...................................... [[32mOK[0m in 0.03s]
+[0m04:06:36  
+[0m04:06:36  Finished running 11 incremental models, 2 project hooks, 18 table models in 0 hours 0 minutes and 1.56 seconds (1.56s).
+[0m04:06:36  
+[0m04:06:36  [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m04:06:36  
+[0m04:06:36    Database Error in model snowplow_web_base_sessions_lifecycle_manifest (models/base/manifest/snowplow_web_base_sessions_lifecycle_manifest.sql)
   002003 (02000): SQL compilation error: error line 1 at position 425
   table 'embucket.public_snowplow_manifest.events' not found
   compiled code at target/run/snowplow_web/models/base/manifest/snowplow_web_base_sessions_lifecycle_manifest.sql
-[0m04:06:44  
-[0m04:06:44  Done. PASS=5 WARN=0 ERROR=1 SKIP=25 TOTAL=31
+[0m04:06:36  
+[0m04:06:36  Done. PASS=5 WARN=0 ERROR=1 SKIP=25 TOTAL=31
