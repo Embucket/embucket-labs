@@ -50,8 +50,7 @@ impl RunOpt {
             .with_collect_statistics(!self.disable_statistics);
         config.options_mut().optimizer.prefer_hash_join = self.common.prefer_hash_join;
 
-        // configure parquet options
-        let mut config = self.common.config()?;
+        // Configure Parquet options on the same session config.
         {
             let parquet_options = &mut config.options_mut().execution.parquet;
             // Turn on Parquet filter pushdown if requested
